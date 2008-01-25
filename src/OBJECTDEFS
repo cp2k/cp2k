@@ -395,6 +395,8 @@ OBJECTS_GENERIC =\
  qs_ks_methods.o\
  qs_ks_qmmm_methods.o\
  qs_ks_qmmm_types.o\
+ qs_ks_scp_methods.o\
+ qs_ks_scp_types.o\
  qs_ks_types.o\
  qs_linres_epr_atom_current.o\
  qs_linres_epr_bind0.o\
@@ -472,6 +474,22 @@ OBJECTS_GENERIC =\
  rmsd.o\
  s_square_methods.o\
  scf_control_types.o\
+ scp_coeff_types.o\
+ scp_diis_utils.o\
+ scp_debug.o\
+ scp_density_methods.o\
+ scp_energy.o\
+ scp_energy_types.o\
+ scp_environment.o\
+ scp_environment_methods.o\
+ scp_environment_types.o\
+ scp_force_types.o\
+ scp_hartree_1center.o\
+ scp_rho_methods.o\
+ scp_rho_types.o\
+ scp_rspw_methods.o\
+ scp_rspw_types.o\
+ scp_scf.o\
  semi_empirical_integrals.o\
  semi_empirical_int_ana.o\
  semi_empirical_parameters.o\

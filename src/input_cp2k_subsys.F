@@ -1196,7 +1196,7 @@ CONTAINS
 
        CALL section_create(section,name="kind",&
             description="The description of the kind of the atoms (mostly for QM)",&
-            n_keywords=17, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=18, n_subsections=1, repeats=.TRUE., required=.TRUE.,& 
             error=error)
 
        NULLIFY(keyword)
@@ -1325,6 +1325,14 @@ CONTAINS
             description="The number of points for the radial part of "//&
             "the local grid (GAPW)",&
             usage="RADIAL_GRID 70", default_i_val=50,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ALPHA_POL",&
+            description="The polarizability for scalar-isotropic polarization "//&
+            "using SCP with FIST as the driver",&
+            usage="ALPHA_POL 0.2", default_r_val=1.0_dp,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1864,12 +1872,12 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_dft_plus_u_section', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    TYPE(keyword_type), POINTER              :: keyword
     LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 

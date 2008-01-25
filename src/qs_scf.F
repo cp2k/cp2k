@@ -127,6 +127,8 @@ MODULE qs_scf
   USE qs_ks_methods,                   ONLY: qs_ks_create,&
                                              qs_ks_did_change,&
                                              qs_ks_update_qs_env
+  USE qs_ks_scp_methods,               ONLY: qs_ks_scp_did_change,&
+                                             qs_ks_scp_update
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
   USE qs_matrix_pools,                 ONLY: mpools_get
@@ -173,6 +175,10 @@ MODULE qs_scf
   USE qs_wf_history_types,             ONLY: wfi_frozen_method_nr,&
                                              wfi_use_guess_method_nr
   USE scf_control_types,               ONLY: scf_control_type
+  USE scp_coeff_types,                 ONLY: aux_coeff_set_type
+  USE scp_density_methods,             ONLY: update_rhoscp
+  USE scp_environment_types,           ONLY: get_scp_env,&
+                                             scp_environment_type
   USE sparse_matrix_output,            ONLY: write_fm_with_basis_info,&
                                              write_sparse_matrix
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
@@ -383,10 +389,11 @@ CONTAINS
                                                 total_steps
     LOGICAL :: diis_step, energy_only, exit_inner_loop, failure, gapw, &
       gapw_xc, harris_energy, harris_flag, has_unit_metric, &
-      outer_loop_converged, use_jacobi, use_virial
+      outer_loop_converged, scp, use_jacobi, use_virial
     REAL(KIND=dp)                            :: outer_loop_eps, t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -403,6 +410,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: dft_section, harris_section, &
                                                 input, scf_section
     TYPE(virial_type), POINTER               :: virial
@@ -416,6 +424,9 @@ CONTAINS
             scf_control,logger,qs_charges,ks_env,mos,atomic_kind_set, &
             particle_set,harris_env,dft_section,input,&
             scf_section)
+! ***SCP
+    NULLIFY ( aux_coeff_set, scp_env )
+! ***SCP
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -454,6 +465,13 @@ CONTAINS
     ! short cut flags setting the different methods
     gapw = dft_control%qs_control%gapw
     gapw_xc = dft_control%qs_control%gapw_xc
+! **** SCP
+    scp = dft_control%qs_control%scp
+    IF ( scp ) THEN
+      CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error=error )
+      CALL get_scp_env ( scp_env = scp_env, aux_coeff_set = aux_coeff_set, error = error )
+    END IF 
+! **** SCP
     harris_flag = qs_env%use_harris
     has_unit_metric=.FALSE.
     IF (dft_control%qs_control%semi_empirical) &
@@ -499,12 +517,21 @@ CONTAINS
           IF (output_unit > 0) CALL m_flush(output_unit)
 
           total_steps = total_steps + 1
+! ***SCP
+          IF ( scp ) CALL qs_ks_scp_update ( qs_env, just_energy=energy_only, error=error )
+! ***SCP
           CALL qs_ks_update_qs_env(ks_env,&
                                    qs_env=qs_env,&
                                    calculate_forces=.FALSE.,&
                                    just_energy=energy_only,&
                                    diis_step=diis_step,&
                                    error=error)
+! ***SCP
+!   One center contributions to SCP energy and full update of coefficient forces.
+!          IF ( scp ) CALL scp_qs_energies ( qs_env, just_energy = energy_only, error=error )
+!          IF ( scp ) CALL scp_qs_debug ( qs_env, error )
+!          CALL scp_qs_scf ( qs_env, error )
+! ***SCP
           
           ! print 'heavy weight' or relatively expensive quantities
           CALL qs_scf_loop_print(qs_env,scf_env,para_env,error)
@@ -541,8 +568,18 @@ CONTAINS
                                                  diis_step,error)
              END IF
           CASE(ot_method_nr)
-             CALL qs_scf_loop_do_ot(scf_env,mos,rho,qs_env%mo_derivs,energy%total, &
-                                    matrix_s, energy_only, has_unit_metric,error)
+! ***SCP
+             IF ( scp ) THEN
+  
+               CALL qs_scf_loop_do_ot(scf_env,mos,rho,qs_env%mo_derivs,energy%total, &
+                                      matrix_s, aux_coeff_set, energy_only,      &
+                                      has_unit_metric,error)
+             ELSE
+               CALL qs_scf_loop_do_ot(scf_env,mos,rho,qs_env%mo_derivs,energy%total, &
+                                      matrix_s, energy_only=energy_only,             &
+                                      has_unit_metric=has_unit_metric,error=error)
+             ENDIF
+! ***SCP
           END SELECT
           
           ! another heavy weight print object, print controlled by dft_section
@@ -643,6 +680,12 @@ CONTAINS
              !   *** but guarantees that rho and wfn are consistent at this point
              CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
              CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
+! ***SCP
+            IF ( scp ) THEN
+             CALL update_rhoscp ( qs_env = qs_env, error = error )
+             CALL qs_ks_scp_did_change(qs_env, rho_changed=.TRUE.,error=error)
+            ENDIF
+! ***SCP
 
              outer_loop_converged=.TRUE.
              IF (scf_control%outer_scf%have_scf) THEN
@@ -685,6 +728,12 @@ CONTAINS
           ! ** update qs_env%rho
           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
           CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
+! *** SCP
+          IF ( scp ) THEN
+           CALL update_rhoscp ( qs_env = qs_env, error = error )
+           CALL qs_ks_scp_did_change(qs_env, rho_changed=.TRUE.,error=error)
+          ENDIF
+! *** SCP
           CALL timestop(0.0_dp,handle2)
 
        END DO scf_loop
@@ -725,6 +774,9 @@ CONTAINS
        CALL outer_loop_optimize(scf_env,scf_control,error)
        CALL outer_loop_update_qs_env(qs_env,scf_env,error)
        CALL qs_ks_did_change(ks_env,potential_changed=.TRUE.,error=error)
+! *** SCP
+       IF ( scp ) CALL qs_ks_scp_did_change(qs_env, potential_changed=.TRUE.,error=error)
+! *** SCP
 
     END DO scf_outer_loop
 
@@ -914,7 +966,7 @@ END SUBROUTINE qs_scf_loop_do_special_diag
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_scf_loop_do_ot(scf_env,mos,rho,mo_derivs,total_energy,&
-                             matrix_s,energy_only,has_unit_metric,error)
+                             matrix_s,aux_coeff_set,energy_only,has_unit_metric,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -924,6 +976,8 @@ SUBROUTINE qs_scf_loop_do_ot(scf_env,mos,rho,mo_derivs,total_energy,&
     REAL(KIND=dp), INTENT(IN)                :: total_energy
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
+    TYPE(aux_coeff_set_type), OPTIONAL, &
+      POINTER                                :: aux_coeff_set
     LOGICAL, INTENT(OUT)                     :: energy_only
     LOGICAL, INTENT(IN)                      :: has_unit_metric
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -939,9 +993,10 @@ SUBROUTINE qs_scf_loop_do_ot(scf_env,mos,rho,mo_derivs,total_energy,&
    ELSE
       orthogonality_metric=>matrix_s(1)%matrix
    ENDIF
-
+  
    CALL ot_scf_mini(mos,mo_derivs,orthogonality_metric, &
-                    total_energy, energy_only,scf_env%iter_delta, &
+                    total_energy, aux_coeff_set,    &
+                    energy_only,scf_env%iter_delta, & 
                     scf_env%qs_ot_env,error=error)
 
    DO ispin=1,SIZE(mos)
@@ -1234,6 +1289,7 @@ END SUBROUTINE qs_scf_print_summary
                                                 number_of_OT_envs, stat
     LOGICAL                                  :: dftb, do_rotation, failure, &
                                                 has_unit_metric, semi
+    TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1243,11 +1299,15 @@ END SUBROUTINE qs_scf_print_summary
       POINTER                                :: matrix_ks, matrix_s
     TYPE(real_matrix_type), POINTER          :: orthogonality_metric
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(scp_environment_type), POINTER      :: scp_env
 
     CALL timeset("init_scf_loop","I"," ",handle)
 
     NULLIFY(scf_control,matrix_s,matrix_ks,dft_control,mos,&
          mo_coeff)
+! **SCP
+    NULLIFY ( scp_env, aux_coeff_set )
+! **SCP
 
     failure=.FALSE.
 
@@ -1336,12 +1396,21 @@ END SUBROUTINE qs_scf_print_summary
           ENDIF
 
           ! might need the KS matrix to init properly
+! **SCP
+! Updates density and potential due to SCP
+          IF ( dft_control%qs_control%scp )  CALL qs_ks_scp_update ( qs_env, just_energy=.FALSE., error=error )
+! **SCP
           CALL qs_ks_update_qs_env(qs_env%ks_env,&
                                    qs_env=qs_env,&
                                    calculate_forces=.FALSE.,&
                                    just_energy=.FALSE.,&
                                    error=error)
 
+! **SCP
+! Contributions to the SCP energy due to modified hartree potential (V_H+HSCP)
+! and 1-center contributions
+!          IF ( dft_control%qs_control%scp ) CALL scp_qs_energies ( qs_env, just_energy = .FALSE., error=error )
+! **SCP
           ! if an old preconditioner is still around (i.e. outer SCF is active),
           ! remove it if this could be worthwhile
           IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
@@ -1390,91 +1459,124 @@ END SUBROUTINE qs_scf_print_summary
           ENDIF
 
           IF(semi .OR. dftb) THEN
-            ! we have to treat the semi-empirical methods separately
-            SELECT CASE(scf_env%qs_ot_env(1)%settings%preconditioner_type)
-            CASE(ot_precond_none)
-              CALL ot_scf_init(mos,orthogonality_metric,scf_env%qs_ot_env,error=error)
-            CASE(ot_precond_full_all,ot_precond_full_single_inverse)
-              CPPrecondition(.NOT. has_unit_metric,cp_failure_level,routineP,error,failure)
-              ! this will rotate the MOs to be eigen states, which is not compatible with rotation
-              do_rotation=scf_env%qs_ot_env(1)%settings%do_rotation
-              CPPrecondition(.NOT.do_rotation,cp_failure_level,routineP,error,failure)
-              DO ispin=1,dft_control%nspins
-                 CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
-                 CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
-                         para_env=mo_coeff%matrix_struct%para_env, &
-                         do_rotation = .TRUE., co_rotate=qs_env%mo_derivs(ispin)%matrix,error=error)
-                 CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
-                         scf_env%qs_ot_env(1)%settings%preconditioner_type, &
-                      matrix_ks(ispin)%matrix,matrix_s(1)%matrix,matrix_s(1)%matrix,&
-                      mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
-              ENDDO
-              CALL ot_scf_init(mos,orthogonality_metric,scf_env%qs_ot_env,error=error)
-              DO ispin=1,SIZE(scf_env%qs_ot_env)
-                 CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
-                          scf_env%ot_preconditioner(ispin)%preconditioner,error=error)
-              ENDDO
-            CASE(ot_precond_full_kinetic)
-              msg="Full_kinetic not available for semi-empirical methods"
-              CPErrorMessage(cp_failure_level,routineP,TRIM(msg),error)
-              scf_env%qs_ot_env(1)%settings%preconditioner_type = ot_precond_none
-              CALL ot_scf_init(mos,orthogonality_metric,scf_env%qs_ot_env,error=error)
-            CASE(ot_precond_s_inverse,ot_precond_sparse_diag,ot_precond_full_single)
-              CPPrecondition(.NOT. has_unit_metric,cp_failure_level,routineP,error,failure)
-              CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=mo_coeff)
-              CALL make_preconditioner(scf_env%ot_preconditioner(1)%preconditioner, &
-                    scf_env%qs_ot_env(1)%settings%preconditioner_type, &
-                    matrix_ks(1)%matrix,matrix_s(1)%matrix,matrix_s(1)%matrix,&
-                    mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
-              CALL ot_scf_init(mos,orthogonality_metric,scf_env%qs_ot_env,error=error)
-              DO ispin=1,SIZE(scf_env%qs_ot_env)
-                 CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
-                            scf_env%ot_preconditioner(1)%preconditioner,error=error)
-              ENDDO
-            CASE DEFAULT
-              CALL ot_scf_init(mos,orthogonality_metric,scf_env%qs_ot_env,error=error)
-            END SELECT
+             ! we have to treat the semi-empirical methods separately
+             SELECT CASE(scf_env%qs_ot_env(1)%settings%preconditioner_type)
+             CASE(ot_precond_none)
+                CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
+                     qs_ot_env = scf_env%qs_ot_env,error=error)
+             CASE(ot_precond_full_all,ot_precond_full_single_inverse)
+                CPPrecondition(.NOT. has_unit_metric,cp_failure_level,routineP,error,failure)
+                ! this will rotate the MOs to be eigen states, which is not compatible with rotation
+                do_rotation=scf_env%qs_ot_env(1)%settings%do_rotation
+                CPPrecondition(.NOT.do_rotation,cp_failure_level,routineP,error,failure)
+                DO ispin=1,dft_control%nspins
+                   CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+                   CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
+                        para_env=mo_coeff%matrix_struct%para_env, &
+                        do_rotation = .TRUE., co_rotate=qs_env%mo_derivs(ispin)%matrix,error=error)
+                   CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
+                        scf_env%qs_ot_env(1)%settings%preconditioner_type, &
+                        matrix_ks(ispin)%matrix,matrix_s(1)%matrix,matrix_s(1)%matrix,&
+                        mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
+                ENDDO
+                CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
+                     qs_ot_env = scf_env%qs_ot_env,error=error)
+                DO ispin=1,SIZE(scf_env%qs_ot_env)
+                   CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
+                        scf_env%ot_preconditioner(ispin)%preconditioner,error=error)
+                ENDDO
+             CASE(ot_precond_full_kinetic)
+                msg="Full_kinetic not available for semi-empirical methods"
+                CPErrorMessage(cp_failure_level,routineP,TRIM(msg),error)
+                scf_env%qs_ot_env(1)%settings%preconditioner_type = ot_precond_none
+                CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
+                     qs_ot_env = scf_env%qs_ot_env,error=error)
+             CASE(ot_precond_s_inverse,ot_precond_sparse_diag,ot_precond_full_single)
+                CPPrecondition(.NOT. has_unit_metric,cp_failure_level,routineP,error,failure)
+                CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=mo_coeff)
+                CALL make_preconditioner(scf_env%ot_preconditioner(1)%preconditioner, &
+                     scf_env%qs_ot_env(1)%settings%preconditioner_type, &
+                     matrix_ks(1)%matrix,matrix_s(1)%matrix,matrix_s(1)%matrix,&
+                     mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
+                CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
+                     qs_ot_env = scf_env%qs_ot_env,error=error)
+                DO ispin=1,SIZE(scf_env%qs_ot_env)
+                   CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
+                        scf_env%ot_preconditioner(1)%preconditioner,error=error)
+                ENDDO
+             CASE DEFAULT
+                CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
+                     qs_ot_env = scf_env%qs_ot_env,error=error)
+             END SELECT
           ELSE
-            SELECT CASE(scf_env%qs_ot_env(1)%settings%preconditioner_type)
-            CASE(ot_precond_none)
-              CALL ot_scf_init(mos,orthogonality_metric,scf_env%qs_ot_env,error=error)
-            CASE(ot_precond_full_all,ot_precond_full_single_inverse)
-              CPPrecondition(.NOT. has_unit_metric,cp_failure_level,routineP,error,failure)
-              ! this will rotate the MOs to be eigen states, which is not compatible with rotation
-              do_rotation=scf_env%qs_ot_env(1)%settings%do_rotation
-              CPPrecondition(.NOT.do_rotation,cp_failure_level,routineP,error,failure)
-              DO ispin=1,dft_control%nspins
-                 CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
-                 CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
-                         para_env=mo_coeff%matrix_struct%para_env, &
-                         do_rotation = .TRUE., co_rotate=qs_env%mo_derivs(ispin)%matrix,error=error)
-                 CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
-                         scf_env%qs_ot_env(1)%settings%preconditioner_type, &
-                      matrix_ks(ispin)%matrix,matrix_s(1)%matrix,&
-                      qs_env%kinetic(1)%matrix, &
-                      mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
-              ENDDO
-              CALL ot_scf_init(mos,orthogonality_metric,scf_env%qs_ot_env,error=error)
-              DO ispin=1,SIZE(scf_env%qs_ot_env)
-                 CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
-                          scf_env%ot_preconditioner(ispin)%preconditioner,error=error)
-              ENDDO
-            CASE DEFAULT
-              ! constuct the preconditioner based on the first spin set.
-              ! this might or might not be reasonable. Presumably it is.
-              CPPrecondition(.NOT. has_unit_metric,cp_failure_level,routineP,error,failure)
-              CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=mo_coeff)
-              CALL make_preconditioner(scf_env%ot_preconditioner(1)%preconditioner, &
-                    scf_env%qs_ot_env(1)%settings%preconditioner_type, &
-                    matrix_ks(1)%matrix,matrix_s(1)%matrix,&
-                    qs_env%kinetic(1)%matrix, &
-                    mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
-              CALL ot_scf_init(mos,orthogonality_metric,scf_env%qs_ot_env,error=error)
-              DO ispin=1,SIZE(scf_env%qs_ot_env)
-                 CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
-                            scf_env%ot_preconditioner(1)%preconditioner,error=error)
-              ENDDO
-            END SELECT
+             SELECT CASE(scf_env%qs_ot_env(1)%settings%preconditioner_type)
+             CASE(ot_precond_none)
+                ! **** SCP
+                IF ( dft_control % qs_control % scp ) THEN
+                   CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
+                   CALL get_scp_env ( scp_env = scp_env, aux_coeff_set = aux_coeff_set, error = error )
+                   CALL ot_scf_init(mos,orthogonality_metric, aux_coeff_set, &
+                        scf_env%qs_ot_env, error=error)
+                ELSE
+                   CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
+                        qs_ot_env = scf_env%qs_ot_env,error=error)
+                ENDIF
+                ! **** SCP
+             CASE(ot_precond_full_all,ot_precond_full_single_inverse)
+                CPPrecondition(.NOT. has_unit_metric,cp_failure_level,routineP,error,failure)
+                ! this will rotate the MOs to be eigen states, which is not compatible with rotation
+                do_rotation=scf_env%qs_ot_env(1)%settings%do_rotation
+                CPPrecondition(.NOT.do_rotation,cp_failure_level,routineP,error,failure)
+                DO ispin=1,dft_control%nspins
+                   CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+                   CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
+                        para_env=mo_coeff%matrix_struct%para_env, &
+                        do_rotation = .TRUE., co_rotate=qs_env%mo_derivs(ispin)%matrix,error=error)
+                   CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
+                        scf_env%qs_ot_env(1)%settings%preconditioner_type, &
+                        matrix_ks(ispin)%matrix,matrix_s(1)%matrix,&
+                        qs_env%kinetic(1)%matrix, &
+                        mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
+                ENDDO
+                ! **** SCP
+                IF ( dft_control % qs_control % scp ) THEN
+                   CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
+                   CALL get_scp_env ( scp_env = scp_env, aux_coeff_set = aux_coeff_set, error = error )
+                   CALL ot_scf_init(mos,orthogonality_metric, aux_coeff_set, scf_env%qs_ot_env, error=error)
+                ELSE
+                   CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
+                        qs_ot_env = scf_env%qs_ot_env,error=error)
+                ENDIF
+                ! **** SCP
+                DO ispin=1,SIZE(scf_env%qs_ot_env)
+                   CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
+                        scf_env%ot_preconditioner(ispin)%preconditioner,error=error)
+                ENDDO
+             CASE DEFAULT
+                ! constuct the preconditioner based on the first spin set.
+                ! this might or might not be reasonable. Presumably it is.
+                CPPrecondition(.NOT. has_unit_metric,cp_failure_level,routineP,error,failure)
+                CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=mo_coeff)
+                CALL make_preconditioner(scf_env%ot_preconditioner(1)%preconditioner, &
+                     scf_env%qs_ot_env(1)%settings%preconditioner_type, &
+                     matrix_ks(1)%matrix,matrix_s(1)%matrix,&
+                     qs_env%kinetic(1)%matrix, &
+                     mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap,error=error)
+                ! **** SCP
+                IF ( dft_control % qs_control % scp ) THEN
+                   CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
+                   CALL get_scp_env ( scp_env = scp_env, aux_coeff_set = aux_coeff_set, error = error )
+                   CALL ot_scf_init(mos,orthogonality_metric, aux_coeff_set, scf_env%qs_ot_env, error=error)
+                ELSE
+                   CALL ot_scf_init(mo_array = mos, matrix_s = orthogonality_metric, & 
+                        qs_ot_env = scf_env%qs_ot_env,error=error)
+                ENDIF
+                ! **** SCP
+                DO ispin=1,SIZE(scf_env%qs_ot_env)
+                   CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
+                        scf_env%ot_preconditioner(1)%preconditioner,error=error)
+                ENDDO
+             END SELECT
           END IF
        ENDIF
     END SELECT
@@ -2004,6 +2106,12 @@ END SUBROUTINE qs_scf_print_summary
                  error=error)
           END IF
        END IF
+! *** SCP
+       IF ( qs_env % dft_control % qs_control % scp ) THEN
+         CALL update_rhoscp ( qs_env = qs_env, error = error )
+         CALL qs_ks_scp_did_change ( qs_env=qs_env, rho_changed = .TRUE., error = error )
+       END IF
+! *** SCP
     END IF
 
     CALL timestop(0.0_dp,handle)

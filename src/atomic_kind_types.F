@@ -86,7 +86,7 @@ MODULE atomic_kind_types
 
   ! Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = 'atomic_kind_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atomic_kind_types'
 
   !> Input parameters for the DFT+U method
   TYPE dft_plus_u_type
@@ -117,6 +117,7 @@ MODULE atomic_kind_types
     CHARACTER(LEN=default_string_length)   :: name
     CHARACTER(LEN=2)                       :: element_symbol
     REAL(KIND = dp)                        :: mass
+    REAL ( KIND = dp )                     :: alpha_pol
     INTEGER                                :: kind_number,&
                                               natom,&
                                               number_of_grid_points
@@ -206,6 +207,7 @@ CONTAINS
       atomic_kind_set(ikind)%name = ""
       atomic_kind_set(ikind)%element_symbol = ""
       atomic_kind_set(ikind)%mass = 0.0_dp
+      atomic_kind_set(ikind)%alpha_pol = 0.0_dp
       atomic_kind_set(ikind)%kind_number = 0
       atomic_kind_set(ikind)%natom = 0
       atomic_kind_set(ikind)%number_of_grid_points = 0
@@ -334,6 +336,7 @@ CONTAINS
                              element_symbol,name,mass,kind_number,natom,&
                              atom_list,alpha_core_charge,ccore_charge,&
                              core_charge,&
+                             alpha_pol, &
                              core_charge_radius,ncgf,nsgf,z,zeff,qeff,&
                              soft_basis_set, elec_conf,&
                              hard_basis_set,paw_proj_set,softb,&
@@ -365,7 +368,7 @@ CONTAINS
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: atom_list
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha_core_charge, &
                                                 ccore_charge, core_charge, &
-                                                core_charge_radius
+                                                alpha_pol, core_charge_radius
     INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, nsgf, z
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff, qeff
     TYPE(gto_basis_set_type), OPTIONAL, &
@@ -388,8 +391,7 @@ CONTAINS
                                                 lmax_rho0
     LOGICAL, INTENT(OUT), OPTIONAL           :: ghost
     TYPE(shell_kind_type), OPTIONAL, POINTER :: shell
-    LOGICAL, INTENT(OUT), OPTIONAL           :: shell_active
-    LOGICAL, INTENT(OUT), OPTIONAL           :: dft_plus_u_atom
+    LOGICAL, INTENT(OUT), OPTIONAL           :: shell_active, dft_plus_u_atom
     INTEGER, INTENT(OUT), OPTIONAL           :: l_of_dft_plus_u
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: u_minus_j
 
@@ -420,6 +422,7 @@ CONTAINS
       IF (PRESENT(element_symbol)) element_symbol = atomic_kind%element_symbol
       IF (PRESENT(name)) name = atomic_kind%name
       IF (PRESENT(mass)) mass = atomic_kind%mass
+      IF (PRESENT(alpha_pol)) alpha_pol = atomic_kind%alpha_pol
       IF (PRESENT(kind_number)) kind_number = atomic_kind%kind_number
       IF (PRESENT(natom)) natom = atomic_kind%natom
       IF (PRESENT(atom_list)) atom_list => atomic_kind%atom_list
@@ -635,7 +638,8 @@ CONTAINS
     INTEGER :: atom_a, iatom, ikind, imax, ipgf, iset, lmax_rho0_kind, &
       max_iso_not0, max_s_harm, n, ngrid_rad, nkind
     INTEGER, DIMENSION(:), POINTER           :: n_ppl, npgf_kind
-    LOGICAL                                  :: dft_plus_u_atom, paw_atom, qm_atom
+    LOGICAL                                  :: dft_plus_u_atom, paw_atom, &
+                                                qm_atom
     REAL(KIND=dp)                            :: zeff, zeff_correction
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: zet_kind
     TYPE(all_potential_type), POINTER        :: all_potential
@@ -1039,7 +1043,7 @@ CONTAINS
         END IF
         IF (ASSOCIATED(atomic_kind%aux_basis_set)) THEN
           IF(atomic_kind%aux_basis_set%norm_type < 0) &
-                        atomic_kind%aux_basis_set%norm_type = 1
+                        atomic_kind%aux_basis_set%norm_type = 1  
           CALL init_aux_basis_set(atomic_kind%aux_basis_set)
         END IF
       ELSE IF (method_name_id == do_kg) THEN
@@ -1241,9 +1245,10 @@ CONTAINS
     CHARACTER(LEN=2)                         :: current_symbol, element_symbol
     CHARACTER(LEN=default_string_length) :: akind_name, aux_basis_set_name, &
       keyword, orb_basis_set_name, potential_name, potential_type
-    INTEGER                                  :: handle, i, i_rep, ipos, k_rep, n_rep, &
-                                                naux, ngrid_ang, ngrid_rad, &
-                                                norb, stat, z
+    INTEGER                                  :: handle, i, i_rep, ipos, &
+                                                k_rep, n_rep, naux, &
+                                                ngrid_ang, ngrid_rad, norb, &
+                                                stat, z
     INTEGER, DIMENSION(:), POINTER           :: elec_conf
     LOGICAL                                  :: check, explicit_basis, &
                                                 explicit_potential, failure, &
@@ -1251,8 +1256,7 @@ CONTAINS
     REAL(KIND=dp)                            :: zeff_correction
     TYPE(section_vals_type), POINTER         :: basis_section, &
                                                 dft_plus_u_section, &
-                                                dft_section, &
-                                                potential_section
+                                                dft_section, potential_section
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -1402,6 +1406,12 @@ CONTAINS
        IF (i>0) THEN
           CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
                keyword_name="MASS",r_val=atomic_kind%mass,error=error)
+       END IF
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="ALPHA_POL",n_rep_val=i,error=error)
+       IF (i>0) THEN
+          CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+               keyword_name="ALPHA_POL",r_val=atomic_kind%alpha_pol,error=error)
        END IF
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="POTENTIAL",c_val=potential_name,error=error)
@@ -1805,7 +1815,6 @@ CPSourceFileRef,&
                         "The pointer atomic_kind_set is not associated",&
                         para_env)
     END IF
-
   END SUBROUTINE check_atomic_kind_set
 
 !!****** atomic_kind_types/set_atomic_kind [1.0] *

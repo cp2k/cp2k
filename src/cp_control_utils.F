@@ -461,6 +461,7 @@ CONTAINS
     CALL section_vals_val_get(qs_section,"MAX_RAD_LOCAL",r_val=qs_control%gapw_control%max_rad_local,error=error)
 
     ! Logicals
+    CALL section_vals_val_get(qs_section,"SCP",l_val=qs_control%scp,error=error)
     CALL section_vals_val_get(qs_section,"MAP_PAA",l_val=qs_control%map_paa,error=error)
     CALL section_vals_val_get(qs_section,"MAP_CONSISTENT",l_val=qs_control%map_consistent,error=error)
 

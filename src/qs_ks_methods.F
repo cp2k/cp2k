@@ -119,6 +119,10 @@ MODULE qs_ks_methods
   USE qs_ks_atom,                      ONLY: update_ks_atom
   USE qs_ks_qmmm_methods,              ONLY: qmmm_calculate_energy,&
                                              qmmm_modify_hartree_pot
+  USE qs_ks_scp_methods,               ONLY: scp_calculate_gpw_energy,&
+                                             scp_calculate_qmmm_energy,&
+                                             scp_modify_hartree_pot
+  USE qs_ks_scp_types,                 ONLY: qs_ks_scp_env_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
@@ -128,6 +132,11 @@ MODULE qs_ks_methods
   USE qs_semi_empirical_hamiltonian,   ONLY: build_se_fock_matrix
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
   USE s_square_methods,                ONLY: s2_restraint
+  USE scp_energy,                      ONLY: scp_qs_energies
+  USE scp_energy_types,                ONLY: scp_energy_type
+  USE scp_environment_types,           ONLY: get_scp_env,&
+                                             scp_environment_type
+  USE scp_hartree_1center,             ONLY: integrate_a_vhscp_b
   USE sparse_matrix_types,             ONLY: cp_sm_add_constant,&
                                              cp_sm_scale_and_add,&
                                              deallocate_matrix,&
@@ -206,7 +215,7 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,'I','',handle)
 
     failure=.FALSE.
     CPPreconditionNoFail(.NOT.ASSOCIATED(ks_env),cp_failure_level,routineP,error)
@@ -350,10 +359,13 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: ep_pot_g, ep_pot_r
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_ks_scp_env_type), POINTER        :: ks_scp_env
     TYPE(qs_rho_type), POINTER               :: my_rho_xc, rho_buffer
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_dv, matrix_h, &
                                                 matrix_s, my_rho, rest_mat
+    TYPE(scp_energy_type), POINTER           :: scp_energy
+    TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: adiabatic_rescaling_section, &
                                                 hf_section, hf_sections, &
                                                 input, scf_section
@@ -366,7 +378,7 @@ CONTAINS
 
     !   -----------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,'I','',handle)
 
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -518,6 +530,7 @@ CONTAINS
           CALL pw_zero(v_hartree_gspace%pw)
        END IF
 
+!CJM get the total density in g-space [ions + electrons]
        CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho,error=error)
 
        output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
@@ -526,6 +539,8 @@ CONTAINS
        CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
             "PRINT%TOTAL_DENSITIES", error=error)
 
+! CJM getting the Hartree energy and Hartree potential.  Also getting the stress tensor
+! CJM from the Hartree term if needed.  No nuclear force information here
        IF (use_virial .AND. calculate_forces) THEN
          h_stress(:,:) = 0.0_dp
          CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
@@ -535,6 +550,15 @@ CONTAINS
          CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
                              v_hartree_gspace%pw,error=error)
        END IF
+!***SCP
+       IF ( dft_control % qs_control % scp ) THEN
+         ! Compute the contribution rho_scp * v_hartree_gspace.  v_hartree_gpace is
+         ! potential due to the ions + electrons.  
+! Get the SCP environment
+         CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
+         CALL scp_calculate_gpw_energy ( scp_env, v_hartree_gspace, error )
+       END IF 
+!***SCP
 
        ! In case decouple periodic images and/or apply restraints to charges
        ddapc_restraint_is_spin=.FALSE.
@@ -566,7 +590,7 @@ CONTAINS
                            v_spin_ddapc_rest_g=v_spin_ddapc_rest_g,&
                            calculate_forces=calculate_forces,&
                            error=error)
-
+! CJM Copying the real-space Hartree potential to KS_ENV
        IF ((.NOT. just_energy).OR.et_coupling_calc) THEN
           CALL pw_transfer(v_hartree_gspace%pw, ks_env%v_hartree_rspace%pw)
           CALL pw_scale(ks_env%v_hartree_rspace%pw, ks_env%v_hartree_rspace%pw%pw_grid%dvol)
@@ -617,7 +641,7 @@ CONTAINS
 
        
 
-       IF(gapw) CALL Vh_1c_gg_integrals(qs_env,energy%hartree_1c,error=error)
+       IF ( gapw ) CALL Vh_1c_gg_integrals(qs_env,energy%hartree_1c,error=error)
 
        !***** Check if becke potential is needed to constrain charges *****
        IF(qs_env%dft_control%qs_control%becke_constraint)THEN
@@ -684,6 +708,24 @@ CONTAINS
                    error=error)
            END IF
        END IF
+! ****SCP        *** Add the polarization potential ***
+       IF (dft_control % qs_control % scp) THEN
+! Get the KS_SCP environment
+          CALL get_scp_env ( scp_env = scp_env, ks_scp_env = ks_scp_env, error = error )
+          IF (output_unit>0) &
+               WRITE (UNIT=output_unit,FMT="(T3,A)")&
+               "Adding SCP  potential to the Kohn-Sham potential.."
+          IF (qs_env % qmmm ) THEN
+            CALL scp_calculate_qmmm_energy ( scp_env, qs_env%ks_qmmm_env%v_qmmm_rspace, error )
+          END IF
+          IF (.NOT.just_energy) THEN
+! Needs up-to-date KS_SCP_ENV
+            CALL scp_modify_hartree_pot(v_hartree=ks_env%v_hartree_rspace,&
+                                        v_scp=ks_scp_env%v_scp_rspace,&
+                                        error=error)
+          END IF
+       END IF
+! ****SCP   
 
        ! only activate stress calculation if 
        IF (use_virial .AND. calculate_forces) virial%pv_calculate = .TRUE.
@@ -691,6 +733,7 @@ CONTAINS
        IF( .NOT. do_adiabatic_rescaling ) THEN
          ! *** calculate the xc potential on the pw density ***
          ! *** associates v_rspace_new if the xc potential needs to be computed.
+! CJM getting the XC potential
          CALL qs_vxc_create(qs_env=qs_env,&
               vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
               just_energy=just_energy, gapw_xc=gapw_xc, error=error)
@@ -823,6 +866,7 @@ CONTAINS
 
                 CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_pot_r,error=error)
              ELSE
+! CJM getting nuclear force contribution from the core charge density
                 CALL integrate_v_core_rspace(ks_env%v_hartree_rspace, qs_env,error=error)
              END IF
           END IF
@@ -868,7 +912,8 @@ CONTAINS
                      error=error)
 
                END DO  ! ispin
-             ELSE
+            ELSE
+!CJM add v_hartree + v_xc = v_rspace_new
                DO ispin=1,nspins
                   v_rspace_new(ispin)%pw%cr3d  =&
                        v_rspace_new(ispin)%pw%pw_grid%dvol * &
@@ -906,7 +951,7 @@ CONTAINS
                                                  +v_sic_rspace%pw%cr3d
                      ENDIF
                   CASE ( sic_ad )
-                     v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d-v_sic_rspace%pw%cr3d
+                    v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d-v_sic_rspace%pw%cr3d
                   CASE ( sic_eo )
                      ! NOTHING TO BE DONE
                   END SELECT
@@ -914,9 +959,11 @@ CONTAINS
                   ! add the part due to v_rspace
                   IF (do_ep) THEN
                      my_rho => ep_qs_env%dH_coeffs
+!CJM Pointing my_rho to the density matrix rho_ao
                   ELSE
                      my_rho => rho%rho_ao
                   END IF
+!CJM compute matrix elements of V_HXC including nuclear force information through matrix_dv
                   IF (ASSOCIATED(matrix_dv)) THEN
                      CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
                           p=my_rho(ispin),h=ks_matrix(ispin),&
@@ -1045,6 +1092,16 @@ CONTAINS
 
        END IF
 
+! **** SCP
+!    Single atom contributions to KS matrix due to self-correction of the SCP with 
+!    the orbitals. 
+       IF (dft_control % qs_control % scp) THEN
+          CALL integrate_a_vhscp_b ( qs_env, ks_matrix, rho%rho_ao, &
+                                     just_energy, error=error )
+          CALL scp_qs_energies ( qs_env, calculate_forces, just_energy, error=error )
+          
+       ENDIF
+! **** SCP
        IF(gapw .OR. gapw_xc) THEN
 !      ***  Single atom contributions in the KS matrix ***
           CALL update_ks_atom(qs_env,ks_matrix,rho%rho_ao,&
@@ -1148,6 +1205,12 @@ CONTAINS
             energy%qmmm_el + energy%mulliken + &
             energy%kg_gpw_ekin_mol + energy%ddapc_restraint + energy%s2_restraint +&
             energy%becke + energy%dft_plus_u
+! **** SCP
+       IF (dft_control % qs_control % scp) THEN
+         CALL get_scp_env ( scp_env, energy = scp_energy, error = error )
+         energy % total = energy % total + scp_energy % e_scp_total
+       ENDIF 
+! **** SCP
 
        output_unit=cp_print_key_unit_nr(logger,input,"DFT%SCF%PRINT%DETAILED_ENERGY",&
             extension=".scfLog",error=error)
@@ -2027,9 +2090,9 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
   IF (PRESENT(calculate_forces)) c_forces=calculate_forces
 
   IF (c_forces) THEN
-     CALL timeset(routineN//" (forces)","I","",handle)
+     CALL timeset(routineN//' (forces)','I','',handle)
   ELSE
-     CALL timeset(routineN,"I","",handle)
+     CALL timeset(routineN,'I','',handle)
   ENDIF
 
   failure=.FALSE.

@@ -42,6 +42,7 @@ MODULE qs_energy
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+  USE qs_ks_scp_methods,               ONLY: qs_ks_scp_update
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_scf,                          ONLY: scf
   USE qs_semi_empirical_hamiltonian,   ONLY: build_se_core_matrix
@@ -94,7 +95,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,'I','',handle)
 
     para_env=>qs_env%para_env
 
@@ -129,10 +130,19 @@ CONTAINS
 
     IF (PRESENT(consistent_energies)) THEN
       IF (consistent_energies) THEN
+! **** SCP
+        IF ( dft_control%qs_control%scp ) THEN
+          CALL qs_ks_scp_update ( qs_env, just_energy=.TRUE., error=error )
+        END IF
         CALL qs_ks_update_qs_env(ks_env=qs_env%ks_env, &
-                                qs_env=qs_env, &
-                                calculate_forces=.FALSE., &
-                                just_energy=.TRUE.,error=error)
+                                 qs_env=qs_env, &
+                                 calculate_forces=.FALSE., &
+                                 just_energy=.TRUE.,error=error)
+! **** SCP
+! Contributions to the SCP energy due to modified hartree potential (V_H+HSCP)
+! and 1-center contributions
+!        IF ( dft_control%qs_control%scp ) CALL scp_qs_energies ( qs_env, just_energy = .TRUE., error=error )
+! **** SCP
       END IF
     END IF
     ! **********  Calculate the electron transfer coupling elements********

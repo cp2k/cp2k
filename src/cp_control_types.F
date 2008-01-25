@@ -168,6 +168,7 @@ MODULE cp_control_types
     LOGICAL                         :: map_consistent
     LOGICAL                         :: gapw,gapw_xc,gpw,pao
     LOGICAL                         :: dftb
+    LOGICAL                         :: scp
     LOGICAL                         :: semi_empirical
     LOGICAL                         :: polarization
     LOGICAL                         :: mulliken_restraint

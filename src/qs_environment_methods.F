@@ -65,11 +65,15 @@ MODULE qs_environment_methods
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
   USE qs_scf_types,                    ONLY: scf_env_did_change
   USE scf_control_types,               ONLY: scf_control_type
+  USE scp_environment,                 ONLY: scp_init
+  USE scp_environment_types,           ONLY: scp_env_create,&
+                                             scp_env_release,&
+                                             scp_environment_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
-  USE task_list_types,                 ONLY: task_list_type,&
-                                             allocate_task_list
   USE task_list_methods,               ONLY: generate_qs_task_list
+  USE task_list_types,                 ONLY: allocate_task_list,&
+                                             task_list_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -146,13 +150,14 @@ SUBROUTINE qs_env_setup(qs_env,error)
       POINTER                                :: particle_set
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(scp_environment_type), POINTER      :: scp_env
 
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
 
     NULLIFY(atomic_kind_set, dft_control, scf_control, qs_charges, para_env,&
-         distribution_2d, molecule_kind_set, molecule_set, particle_set)
+         distribution_2d, molecule_kind_set, molecule_set, particle_set, scp_env)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -205,6 +210,18 @@ SUBROUTINE qs_env_setup(qs_env,error)
 
        CALL set_qs_env(qs_env,distribution_2d=distribution_2d,error=error)
        CALL distribution_2d_release(distribution_2d, error=error)
+! **** SCP
+       IF ( qs_env % dft_control % qs_control % scp ) THEN
+       ! create the SCP env
+          CALL scp_env_create ( scp_env, error )
+       ! initialize the SCP env to the qs env
+          CALL scp_init ( scp_env, qs_env, error )
+       ! set the qs_env
+          CALL set_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error ) 
+       ! keeping only one copy
+          CALL scp_env_release ( scp_env, error )
+       ENDIF 
+! **** SCP
     END IF
 
     CALL timestop(handle)
@@ -336,7 +353,6 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
        CALL qs_ks_did_change(qs_env%ks_env,s_mstruct_changed=.TRUE.,&
             error=error)
     END IF
-
     !   *** Updates rho structure ***
     CALL qs_env_rebuild_rho(qs_env=qs_env,error=error)
 

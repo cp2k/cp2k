@@ -77,10 +77,12 @@ MODULE pw_env_methods
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
   USE qs_util,                         ONLY: exp_radius
-  USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
-                                             rs_grid_print,&
+  USE realspace_grid_types,            ONLY: init_input_type,&
                                              realspace_grid_input_type,&
-                                             init_input_type
+                                             realspace_grid_p_type,&
+                                             rs_grid_print
+  USE scp_environment_types,           ONLY: scp_environment_type
+  USE scp_rspw_methods,                ONLY: maxradius_scp_init
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -216,12 +218,13 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                                                 xc_super_ref_grid
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
+    TYPE(realspace_grid_input_type)          :: input_settings
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
+    TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: input, poisson_section, &
                                                 print_section, rs_grid_section
-    TYPE(realspace_grid_input_type)          :: input_settings
 
 ! a very small safety factor might be needed for roundoff issues
 ! e.g. radius being computed here as 12.998 (13) and 13.002 (14) during the collocation
@@ -336,8 +339,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      ! Setup of the multi-grid pw_grid and pw_pools
      !
      logger => cp_error_get_logger(error)
-     iounit = cp_print_key_unit_nr(logger,print_section,"",&
-              extension=".Log",error=error)
+     iounit = cp_print_key_unit_nr(logger,print_section,'',&
+              extension='.Log',error=error)
 
      IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
         grid_span = HALFSPACE
@@ -401,7 +404,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      pw_env%pw_pools => pw_pools
 
      CALL cp_print_key_finished_output(iounit,logger,print_section,&
-            "",error=error)
+            '',error=error)
 
      ! init auxbas_grid
      DO i=1,ngrid_level
@@ -560,6 +563,16 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         maxradius = maxradius * safety_factor
         radius(igrid_level)=maxradius
      END DO
+! ***SCP
+! Compare the maxradius with that of the AUX_BASIS used with SCP
+          IF ( qs_env % dft_control % qs_control % scp ) THEN
+             CALL get_qs_env ( qs_env=qs_env, scp_env=scp_env, error = error )
+             CALL maxradius_scp_init ( scp_env, atomic_kind_set,  &
+                                      pw_env%gridlevel_info, radius, &
+                                      dft_control%qs_control%eps_gvg_rspace, & 
+                                      dft_control%qs_control%eps_rho_rspace, error ) 
+          END IF
+! ***SCP
 
 !
 !
@@ -597,10 +610,10 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 !    Print grid information
 !
      logger => cp_error_get_logger(error)
-     iounit = cp_print_key_unit_nr(logger,print_section,"",&
-          extension=".Log",error=error)
+     iounit = cp_print_key_unit_nr(logger,print_section,'',&
+          extension='.Log',error=error)
      should_output=BTEST(cp_print_key_should_output(logger%iter_info,&
-          print_section,"",error=error),cp_p_file)
+          print_section,'',error=error),cp_p_file)
 
      IF ( should_output ) THEN
        CALL rs_pools_create_rs_vect(rs_pools,rs,error=error)

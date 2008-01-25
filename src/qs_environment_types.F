@@ -152,6 +152,9 @@ MODULE qs_environment_types
   USE scf_control_types,               ONLY: scf_c_release,&
                                              scf_c_retain,&
                                              scf_control_type
+  USE scp_environment_types,           ONLY: scp_env_release,&
+                                             scp_env_retain,&
+                                             scp_environment_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
   USE task_list_types,                 ONLY: deallocate_task_list,&
@@ -236,7 +239,8 @@ MODULE qs_environment_types
 !!     - rho: the (old) density, in various representations (ao+grid)
 !!     - rho_xc: the (old) soft density, used for the GAPW_XC method only
 !!     - scf_control: various parameters relevant to the scf cycle
-!!     - pw_env: various things to create and get info on the grids used by qs
+!!     - pw_env: various things to create and get info on the grids used
+!!       by qs
 !!     - ewald_env: information to perform ewald summation (used by DFTB)
 !!     - ewald_pw: information on pw used to perform ewald summation (used by DFTB)
 !!     - kg_sub_pw_env : it contains the set of pw_env for the different molecule kind
@@ -264,6 +268,7 @@ MODULE qs_environment_types
 !!     - neighbor_list_id: the current version of the neighbor_list
 !!     - xas_env: temporary information for xas calculation
 !!     - dftb_potential: pair potentials for use with DFTB
+!!     - scp_env: SCP environment for use with QS
 !!
 !!     compatibility get (things that you should get from the subsys):
 !!     - atomic_kind_set: array with infos about the species (atomic_kinds)
@@ -325,6 +330,9 @@ MODULE qs_environment_types
                                                              rho_buffer,&
                                                              rho_xc
     TYPE(scf_control_type), POINTER                       :: scf_control
+!! ******  SCP
+    TYPE ( scp_environment_type ), POINTER                :: scp_env
+!! ******  SCP
     TYPE(pw_env_type), POINTER                            :: pw_env
     TYPE (ewald_environment_type),POINTER                 :: ewald_env
     TYPE (ewald_pw_type),POINTER                          :: ewald_pw
@@ -410,7 +418,7 @@ CONTAINS
                         neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,&
                         virial,cp_ddapc_env,cp_ddapc_ewald,outer_scf_history, &
                         outer_scf_ihistory,ep_qs_env,x_data,et_coupling,&
-                        dftb_potential,results,error)
+                        dftb_potential,results,scp_env,error)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -522,6 +530,8 @@ CONTAINS
     TYPE(qs_dftb_pairpot_type), &
       DIMENSION(:, :), OPTIONAL, POINTER     :: dftb_potential
     TYPE(cp_result_type), OPTIONAL, POINTER  :: results
+    TYPE(scp_environment_type), OPTIONAL, &
+      POINTER                                :: scp_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
@@ -533,8 +543,6 @@ CONTAINS
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(rho0_mpole_type), POINTER           :: rho0_m
-
-!   ---------------------------------------------------------------------------
 
     failure=.FALSE.
     NULLIFY(atomic_kinds, particles, molecules_new,&
@@ -649,6 +657,10 @@ CONTAINS
     IF (PRESENT(x_data)) x_data => qs_env%x_data
     IF (PRESENT(et_coupling)) et_coupling => qs_env%et_coupling    
     IF (PRESENT(dftb_potential)) dftb_potential => qs_env%dftb_potential    
+! **SCP
+    IF (PRESENT(scp_env)) scp_env => qs_env%scp_env
+! **SCP
+
     IF (PRESENT(results)) results => qs_env%results
     IF (PRESENT(task_list)) task_list => qs_env%task_list
     IF (PRESENT(task_list_soft)) task_list_soft => qs_env%task_list_soft
@@ -728,10 +740,13 @@ CONTAINS
     NULLIFY (qs_env%ep_qs_env)
     NULLIFY (qs_env%x_data)
     NULLIFY (qs_env%et_coupling)
-    NULLIFY (qs_env%dftb_potential)
+    NULLIFY ( qs_env%dftb_potential )
     NULLIFY (qs_env%results)
     NULLIFY (qs_env%task_list)
     NULLIFY (qs_env%task_list_soft)
+! **SCP
+    NULLIFY ( qs_env%scp_env )
+! **SCP
     qs_env%outer_scf_ihistory=0
     qs_env%neighbor_list_id=-1
 
@@ -774,7 +789,7 @@ CONTAINS
                         kg_sub_pw_env,linres_control,xas_env,virial,&
                         cp_ddapc_env,cp_ddapc_ewald,outer_scf_history,&
                         outer_scf_ihistory,ep_qs_env,x_data,et_coupling,&
-                        dftb_potential,error)
+                        dftb_potential,scp_env,error)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -864,14 +879,14 @@ CONTAINS
       POINTER                                :: et_coupling
     TYPE(qs_dftb_pairpot_type), &
       DIMENSION(:, :), OPTIONAL, POINTER     :: dftb_potential
+    TYPE(scp_environment_type), OPTIONAL, &
+      POINTER                                :: scp_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_env', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-
-!   ---------------------------------------------------------------------------
 
     failure=.FALSE.
 !    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -1075,6 +1090,13 @@ CONTAINS
     IF (PRESENT(x_data)) qs_env%x_data => x_data
     IF (PRESENT(et_coupling))qs_env%et_coupling => et_coupling
     IF (PRESENT(dftb_potential))qs_env%dftb_potential => dftb_potential
+! **SCP
+    IF (PRESENT(scp_env)) THEN ! accept also null pointers?
+      CALL scp_env_retain(scp_env,error=error)
+      CALL scp_env_release(qs_env%scp_env,error=error)
+      qs_env%scp_env => scp_env
+    END IF
+! **SCP
 
   END SUBROUTINE set_qs_env
 
@@ -1410,6 +1432,9 @@ SUBROUTINE qs_env_release(qs_env,error)
         END IF
         IF (ASSOCIATED(qs_env%dftb_potential)) THEN
           CALL qs_dftb_pairpot_release(qs_env%dftb_potential,error)
+        END IF
+        IF (ASSOCIATED(qs_env%scp_env)) THEN
+          CALL scp_env_release ( qs_env % scp_env, error )
         END IF
 
         ! no we are ready to deallocate the full structure

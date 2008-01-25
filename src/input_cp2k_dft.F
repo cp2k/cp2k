@@ -1476,7 +1476,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"qs",&
             description="parameters needed to set up the Quickstep framework",&
-            n_keywords=34, n_subsections=2, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=35, n_subsections=2, repeats=.FALSE., required=.FALSE.,&
             citations=(/Lippert1997,Lippert1999,Krack2002,VandeVondele2005a/),&
             error=error)
 
@@ -1631,6 +1631,14 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        ! Logicals
+       CALL keyword_create(keyword, name="SCP",&
+            description="Introduce additional self-consistent polarization through"//&
+            " additional response basis functions (read in through AUX_BASIS.",&
+            usage="SCP",lone_keyword_l_val=.TRUE.,&
+            default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="MAP_PAA",&
             description="Put diagonal density matrix elements on the highest cutoff multigrid",&
             usage="MAP_PAA",&
@@ -4523,7 +4531,7 @@ CONTAINS
             "Most systems benefit from using the FULL_ALL preconditioner "//&
             "combined with a small value (0.001) of ENERGY_GAP."//&
             "Well-behaved systems might benefit from using a DIIS minimizer.",&
-            n_keywords=6, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=21, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             citations=(/VandeVondele2003/), error=error)
 
        NULLIFY(keyword)
@@ -4727,6 +4735,14 @@ CONTAINS
             " a rotation of the occupied subspace such as non-singlet restricted calculations "//& 
             " or fractional occupations.",&
             usage="ROTATION",lone_keyword_l_val=.TRUE.,&
+            default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SCP",&
+            description="Introduce additional self-consistent polarization through"//&
+            " additional response basis functions (read in through AUX_BASIS.",&
+            usage="SCP",lone_keyword_l_val=.TRUE.,&
             default_l_val=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

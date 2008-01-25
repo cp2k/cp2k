@@ -60,12 +60,16 @@ MODULE qs_force
                                              zero_qs_force
   USE qs_ks_methods,                   ONLY: calculate_w_matrix,&
                                              qs_ks_update_qs_env
+  USE qs_ks_scp_methods,               ONLY: qs_ks_scp_update
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: mo_set_p_type,&
                                              mo_set_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_semi_empirical_hamiltonian,   ONLY: build_se_core_matrix
   USE scf_control_types,               ONLY: scf_control_type
+  USE scp_environment_types,           ONLY: get_scp_env,&
+                                             scp_environment_type
+  USE scp_force_types,                 ONLY: scp_force_type
   USE sparse_matrix_output,            ONLY: write_sparse_matrix
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix_set,&
@@ -143,10 +147,10 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, matrix_w
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(scp_environment_type), POINTER      :: scp_env
+    TYPE(scp_force_type), POINTER            :: scp_force( : )
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(virial_type), POINTER               :: virial
-
-! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
@@ -166,6 +170,7 @@ CONTAINS
     NULLIFY (particle_set)
     NULLIFY (rho)
     NULLIFY (scf_control)
+    NULLIFY ( scp_env, scp_force )
 
     harris_flag = qs_env%use_harris
     CALL get_qs_env(qs_env=qs_env,&
@@ -327,11 +332,22 @@ CONTAINS
                                              error=error)
       END IF
 
+!**** SCP
+      IF ( dft_control%qs_control%scp ) CALL qs_ks_scp_update ( qs_env, error = error )
+!**** SCP
 
       ! *** compute grid-based forces ***
       CALL qs_ks_update_qs_env(ks_env=ks_env,&
                                qs_env=qs_env,&
                                calculate_forces=.TRUE.,error=error)
+
+!**** SCP
+      IF ( dft_control%qs_control%scp ) THEN
+!         CALL scp_qs_energies ( qs_env, calculate_forces = .TRUE., error = error )
+         CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
+         CALL get_scp_env ( scp_env = scp_env, force = scp_force, error = error )
+      END IF
+!**** SCP
 
 
       !  *** replicate forces ***
@@ -367,6 +383,13 @@ CONTAINS
                                   force(ikind)%fock_4c(:,:) +&
                                   force(ikind)%repulsive(:,:)  +&
                                   force(ikind)%dispersion(:,:) 
+! **** SCP
+        IF ( dft_control%qs_control%scp ) THEN
+          CALL mp_sum ( scp_force ( ikind )%f_scp, para_env % group )
+          force(ikind)%total(:,:) = force(ikind)%total(:,:) - scp_force ( ikind ) % f_scp ( :, : )
+! The minus is because in SCP the forces are reall -dE/dR
+        END IF
+! **** SCP
       END DO
 
 

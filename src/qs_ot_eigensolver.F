@@ -148,7 +148,9 @@ CONTAINS
     ENDIF
 
     ! allocate
-    CALL qs_ot_allocate(qs_ot_env(1),matrix_c%matrix_struct,ortho_k,error=error)
+! *** SCP
+    CALL qs_ot_allocate(qs_ot_env(1),matrix_c%matrix_struct,ortho_k=ortho_k,error=error)
+! *** SCP
 
     IF (ortho) THEN
         ! construct an initial guess that is orthogonal to matrix_orthogonal_space

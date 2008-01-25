@@ -140,10 +140,15 @@ MODULE force_env_methods
   USE qs_force,                        ONLY: qs_forces
   USE qs_ks_methods,                   ONLY: qs_ks_create
   USE qs_ks_qmmm_methods,              ONLY: ks_qmmm_env_rebuild
+  USE qs_ks_scp_methods,               ONLY: qs_ks_scp_create
+  USE qs_ks_scp_types,                 ONLY: qs_ks_scp_env_type,&
+                                             qs_ks_scp_release
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
   USE qs_numerical_pressure,           ONLY: qs_calc_numerical_pressure
   USE restraint,                       ONLY: restraint_control
+  USE scp_environment_types,           ONLY: set_scp_env
+  USE scp_rspw_methods,                ONLY: scp_qs_rspw_rebuild
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -696,6 +701,7 @@ RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
     TYPE(kg_rho_type), POINTER               :: kg_rho
     TYPE(kg_rspw_type), POINTER              :: kg_rspw
     TYPE(qs_ks_env_type), POINTER            :: new_ks_env
+    TYPE(qs_ks_scp_env_type), POINTER        :: new_ks_scp_env
 
   failure=.FALSE.
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
@@ -710,10 +716,22 @@ RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
         CALL set_qs_env(force_env%qs_env,&
              cell=cell,&
              error=error)
-        CALL qs_env_rebuild_pw_env( force_env % qs_env, error=error)
-        CALL qs_ks_create ( new_ks_env,  force_env % qs_env ,error=error)
+        CALL qs_env_rebuild_pw_env( force_env % qs_env, error = error)
+        CALL qs_ks_create ( new_ks_env,  force_env % qs_env ,error = error )
         CALL set_qs_env( force_env % qs_env, ks_env=new_ks_env ,error=error)
         CALL qs_ks_release ( new_ks_env ,error=error)
+       IF ( force_env % qs_env % dft_control % qs_control % scp ) THEN
+       ! initialize the SCP env to the qs env
+          CALL scp_qs_rspw_rebuild ( force_env%qs_env%scp_env%rspw,  &
+                                     qs_env = force_env % qs_env, &
+                                     error = error )
+! update the ks_scp_environment 
+          CALL qs_ks_scp_create ( new_ks_scp_env, force_env % qs_env, error ) 
+          CALL set_scp_env ( force_env % qs_env % scp_env,  &
+                             ks_scp_env = new_ks_scp_env,   &
+                             error = error )
+          CALL qs_ks_scp_release ( new_ks_scp_env, error=error )
+       ENDIF 
      CASE (use_ep_force)
         NULLIFY ( new_ks_env )
         CPPrecondition(ASSOCIATED(force_env%ep_env),cp_failure_level,routineP,error,failure)

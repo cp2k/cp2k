@@ -59,7 +59,6 @@ MODULE  hartree_local_2centers
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
-  USE qs_util,                         ONLY: trace_r_AxB
   USE cell_types,                 ONLY: cell_type,&
                                              pbc
   USE termination,                     ONLY: stop_memory,&
