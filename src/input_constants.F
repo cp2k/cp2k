@@ -274,10 +274,11 @@ MODULE input_constants
        do_method_mndo=7,&
        do_method_am1=8,&
        do_method_pm3=9,&
-       do_method_pdg=10,&
-       do_method_rm1=11,&
-       do_method_dftb=12,&
-       do_method_pchg=13
+       do_method_pm6=10,&
+       do_method_pdg=11,&
+       do_method_rm1=12,&
+       do_method_dftb=13,&
+       do_method_pchg=14
    INTEGER, PARAMETER, PUBLIC :: use_unit_angstrom=0,&
        use_unit_bohr=1,&
        use_unit_scaled_angstrom=2,&

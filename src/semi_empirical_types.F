@@ -58,6 +58,8 @@ MODULE semi_empirical_types
     REAL(KIND = dp),DIMENSION(4)           :: fn1,fn2,fn3
     REAL(KIND = dp),DIMENSION(2)           :: pre, d
     REAL(KIND = dp),DIMENSION(4,4)         :: bfn1,bfn2,bfn3
+    REAL(KIND = dp), DIMENSION(0:115)      :: xab
+    REAL(KIND = dp), DIMENSION(0:115)      :: aab
   END TYPE semi_empirical_type
 
 ! *** Public data types ***

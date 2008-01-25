@@ -34,6 +34,7 @@ MODULE nddo_methods
                                              do_method_mndo,&
                                              do_method_pdg,&
                                              do_method_pm3,&
+                                             do_method_pm6,&
                                              do_method_rm1
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
@@ -466,7 +467,7 @@ CONTAINS
                    END IF
 
                    SELECT CASE (dft_control%qs_control%method_id)
-                     CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg,do_method_rm1)
+                     CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pm6,do_method_pdg,do_method_rm1)
                        IF (anag) THEN
                          IF ( .NOT. switch ) THEN
                            CALL rotnuc_ana (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype,shortrange=do_ewald)
@@ -498,7 +499,7 @@ CONTAINS
                            ecore2=ecore2+e2a(1)*pb_block_a(1,1)
                          ELSE
                            CALL expand ( ksb_block_a, e2a )
-                         ecore2=ecore2+traceb(pb_block_a,e2a)
+                           ecore2=ecore2+traceb(pb_block_a,e2a)
                          END IF
                        END IF
                        IF ( nspins >= 2 ) THEN

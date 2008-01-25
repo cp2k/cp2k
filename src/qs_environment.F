@@ -101,7 +101,7 @@ MODULE qs_environment
   USE input_constants,                 ONLY: &
        do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, &
        do_method_gapw, do_method_gapw_xc, do_method_mndo, do_method_pdg, &
-       do_method_pm3, do_method_rm1, general_roks, restart_guess
+       do_method_pm3, do_method_pm6, do_method_rm1, general_roks, restart_guess
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -153,6 +153,7 @@ MODULE qs_environment
                                              scf_c_release,&
                                              scf_c_write_parameters,&
                                              scf_control_type
+  USE semi_empirical_parameters,       ONLY: init_pm6_pair_params
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -476,7 +477,7 @@ CONTAINS
     SELECT CASE (method_id)
     CASE DEFAULT
        CALL qs_header(iw, iw>0)
-    CASE ( do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg, do_method_pm3 )
+    CASE ( do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg, do_method_pm3, do_method_pm6 )
        CALL se_header(iw, iw>0)
     CASE ( do_method_dftb )
        CALL dftb_header(iw, iw>0)
@@ -701,12 +702,15 @@ CONTAINS
        se_control%rc_interaction = rc
        SELECT CASE ( dft_control%qs_control%method_id)
        CASE DEFAULT
-       CASE (do_method_rm1,do_method_am1,do_method_mndo,do_method_pm3)
+       CASE (do_method_rm1,do_method_am1,do_method_mndo,do_method_pm3,do_method_pm6)
           ! Neighbor lists have to be
           ! MAX(interaction range, orbital range)
           ! set new kind radius
           CALL init_se_nlradius(se_control,cell,atomic_kind_set,subsys_section,error)
        END SELECT
+       IF ( dft_control%qs_control%method_id == do_method_pm6 ) THEN
+         CALL init_pm6_pair_params
+       END IF
        ! check for Ewald
        IF ( se_control%do_ewald ) THEN
           CALL ewald_env_create(ewald_env,para_env,error=error)

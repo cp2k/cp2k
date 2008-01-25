@@ -141,9 +141,9 @@ CONTAINS
          '  #### #  #####  #       #     # ######  ######   #####  ', &
          '                                                         ', &
          '                   University of Zurich                  ', &
-         '                       2005 -- 2007                      ', &
+         '                       2005 -- 2008                      ', &
          '                                                         ', &
-         '                       Version 0.0                       ', &
+         '                       Version 0.2                       ', &
          '                                                         '
 
   END SUBROUTINE se_header

@@ -34,6 +34,7 @@ MODULE semi_empirical_utils
                                              do_method_pchg,&
                                              do_method_pdg,&
                                              do_method_pm3,&
+                                             do_method_pm6,&
                                              do_method_rm1
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
@@ -47,7 +48,9 @@ MODULE semi_empirical_utils
                                              pcharge_default_parameter,&
                                              pdg_default_parameter,&
                                              pm3_default_parameter,&
-                                             rm1_default_parameter
+                                             pm6_default_parameter,&
+                                             rm1_default_parameter,&
+                                             get_pm6_basis
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -135,6 +138,9 @@ CONTAINS
 
     se_parameter % pre = 0._dp
     se_parameter % d = 0._dp
+
+    se_parameter % xab = 0._dp
+    se_parameter % aab = 0._dp
 
   END SUBROUTINE allocate_se_param
 
@@ -271,14 +277,20 @@ CONTAINS
       lq=0
       zet=0._dp
       DO l=0,nshell-1
-        dl=2*l+1
-        nl=ptable(se_parameter%z)%e_conv(l)
-        IF ( nl == 0 ) THEN
-          nq(l) = l+1
-        ELSE
-          nq(l)=(nl-1+2*dl)/(2*dl) + l
+        IF(se_parameter%typ == do_method_pm6) THEN
+          ! read PM6 basis set table
+          nq(l)=get_pm6_basis(se_parameter%z,l)
+          lq(l)=l
+        else
+          dl=2*l+1
+          nl=ptable(se_parameter%z)%e_conv(l)
+          IF ( nl == 0 ) THEN
+            nq(l) = l+1
+          ELSE
+            nq(l)=(nl-1+2*dl)/(2*dl) + l
+          END IF
+          lq(l)=l
         END IF
-        lq(l)=l
         zet(l)=se_parameter%sto_exponents(l)
         IF(l==0) WRITE(symbol(0),'(I1,A1)') nq(l),"S"
         IF(l==1) WRITE(symbol(1),'(I1,A1)') nq(l),"P"
@@ -504,6 +516,38 @@ CONTAINS
                 WRITE (UNIT=output_unit,FMT="(T55,A)")&
                      "Parameters are not defined"
              END IF
+          CASE (do_method_pm6)
+             WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
+                  " Semi empirical parameters: ","Parametric Method 6 (PM6) ",&
+                  TRIM(name)
+             IF ( defined ) THEN
+                WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)")&
+                     "Effective core charge:",zeff
+                WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
+                     "Number of orbitals:",natorb, &
+                     "Basis set expansion (STO-NG)",ngauss
+                WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
+                     "Atomic heat of formation [kcal/mol]:",eheat*kcalmol
+                DO l=0,3
+                   IF (ABS(beta(l)) > 0._dp) THEN
+                      WRITE (UNIT=output_unit,&
+                           FMT="(T16,A,I2,T48,A,F17.4,/,T22,A,F12.4,T52,A,F12.4)") &
+                           "Shell: ",l,"Slater exponent:",sexp(l),&
+                           "U [eV]    :",u(l)*evolt,"Beta [eV]       :",beta(l)*evolt
+                      lm=l
+                   END IF
+                END DO 
+                WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
+                     "alp [A^-1]      :",alp/angstrom,&
+                     "eisol [eV]      :",eisol*evolt
+                WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F8.3))") &
+                     "One-centre-two-electron integrals [eV]",&
+                     " gss=",gss*evolt," gsp=",gsp*evolt,&
+                     " gpp=",gpp*evolt," gp2=",gp2*evolt," hsp=",hsp*evolt
+             ELSE
+                WRITE (UNIT=output_unit,FMT="(T55,A)")&
+                     "Parameters are not defined"
+             END IF
           CASE (do_method_pdg)
              WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
                   " Semi empirical parameters: ","PDDG/PM3 ",&
@@ -601,6 +645,8 @@ CONTAINS
           CALL rm1_default_parameter(se_parameter,z)
        CASE (do_method_pm3)
           CALL pm3_default_parameter(se_parameter,z)
+       CASE (do_method_pm6)
+          CALL pm6_default_parameter(se_parameter,z)
        CASE (do_method_pdg)
           CALL pdg_default_parameter(se_parameter,z)
        CASE (do_method_mndo)

@@ -1739,18 +1739,18 @@ CONTAINS
             description="Specifies the electronic structure method that should be employed",&
             usage="METHOD GAPW",&
             enum_c_vals=s2a("GAPW","GAPW_XC","GPW","KG_POL","KG_NOPOL","KG_GPW",&
-            "MNDO","AM1","PM3","PDG","RM1","DFTB"),&
+            "MNDO","AM1","PM3","PM6","PDG","RM1","DFTB"),&
             enum_desc=s2a("Gaussian and augmented plane waves method",&
                           "Gaussian and augmented plane waves method only for XC",&
                           "Gaussian and plane waves method",&
                           "Polarisable Kim-Gordon method",&
                           "Non-polarisable Kim-Gordon method", " DFT Embedding method ",&
                           "MNDO semiempirical","AM1 semiempirical",&
-                          "PM3 semiempirical","PDG semiempirical","RM1 semiempirical",&
+                          "PM3 semiempirical","PM6 semiempirical","PDG semiempirical","RM1 semiempirical",&
                           "DFTB: Density Functional based Tight-Binding"),&
             enum_i_vals=(/ do_method_gapw, do_method_gapw_xc, do_method_gpw, &
             do_method_kg_pol, do_method_kg_nopol, do_method_kg_gpw, &
-            do_method_mndo, do_method_am1, do_method_pm3, do_method_pdg, &
+            do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pdg, &
             do_method_rm1,do_method_dftb/),&
             citations=(/Lippert1997,Lippert1999,VandeVondele2005a,Iannuzzi2006/),&
             default_i_val=do_method_gpw, error=error)

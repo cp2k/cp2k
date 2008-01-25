@@ -31,6 +31,7 @@ MODULE qs_semi_empirical_hamiltonian
                                              do_method_mndo,&
                                              do_method_pdg,&
                                              do_method_pm3,&
+                                             do_method_pm6,&
                                              do_method_rm1
   USE kinds,                           ONLY: dp
   USE nddo_methods,                    ONLY: build_nddo_fock_matrix
@@ -246,7 +247,7 @@ CONTAINS
              sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
 
              SELECT CASE (dft_control%qs_control%method_id)
-               CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,do_method_pm3)
+               CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,do_method_pm3,do_method_pm6)
                  NULLIFY(h_blocka)
                  CALL get_block_node(matrix=diagmat_h,&
                                      block_row=iatom,&
@@ -273,7 +274,7 @@ CONTAINS
                     CASE DEFAULT
                       CALL stop_program(routineN,moduleN,__LINE__,&
                                       "Method not available",para_env)
-                    CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,do_method_pm3)
+                    CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,do_method_pm3,do_method_pm6)
                       DO i=1,SIZE(h_blocka,1)
                         h_blocka(i,i)=h_blocka(i,i)+ua(i)
                       END DO
@@ -421,7 +422,7 @@ CONTAINS
     SELECT CASE (dft_control%qs_control%method_id)
       CASE DEFAULT
         CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-      CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,do_method_pm3)
+      CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,do_method_pm3,do_method_pm6)
         CALL build_nddo_fock_matrix (ks_env,qs_env,ks_matrix,rho,energy,&
                calculate_forces,just_energy,error)
     END SELECT
