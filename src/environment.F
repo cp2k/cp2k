@@ -333,8 +333,6 @@ CONTAINS
        use_HPM = .TRUE.
     ENDIF
 #endif
-
-
     ! try to use better names for the local log if it is not too late
     CALL section_vals_val_get(root_section,"GLOBAL%OUTPUT_FILE_NAME",&
          c_val=c_val,error=error)
@@ -342,11 +340,9 @@ CONTAINS
        CALL cp_logger_set(logger,&
             local_filename=TRIM(c_val)//"_localLog")
     END IF
-    CALL section_vals_val_get(root_section,"GLOBAL%PROJECT",&
-         c_val=c_val,error=error)
+    CALL section_vals_val_get(root_section,"GLOBAL%PROJECT",c_val=c_val,error=error)
     IF (c_val/="") THEN
-       CALL cp_logger_set(logger,&
-            local_filename=TRIM(c_val)//"_localLog")
+       CALL cp_logger_set(logger,local_filename=TRIM(c_val)//"_localLog")
     END IF
     logger%iter_info%project_name=c_val
     CALL section_vals_val_get(root_section,"GLOBAL%PRINT_LEVEL",i_val=logger%iter_info%print_level,error=error)
@@ -494,11 +490,11 @@ CONTAINS
                                                 coord_file_name, &
                                                 mm_potential_file_name, &
                                                 potential_file_name
-    CHARACTER(len=default_string_length)     :: env_num
+    CHARACTER(len=default_string_length)     :: env_num, project_name
     INTEGER                                  :: i_fft, iforce_eval, &
                                                 method_name_id, nforce_eval, &
                                                 num_threads, output_unit, &
-                                                print_level
+                                                print_level, n_rep_val
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
     LOGICAL                                  :: ata, efl, explicit, failure, &
                                                 trace, trace_sync
@@ -519,7 +515,7 @@ CONTAINS
 
     CALL section_vals_val_get(global_section,"PRINT_LEVEL",i_val=print_level,error=error)
     CALL section_vals_val_get(global_section,"PROGRAM_NAME",i_val=globenv%prog_name_id,error=error)
-    CALL section_vals_val_get(global_section,"PROJECT_NAME",c_val=globenv%project_name,error=error)
+    CALL section_vals_val_get(global_section,"PROJECT_NAME",c_val=project_name,error=error)
     CALL section_vals_val_get(global_section,"FFTW_WISDOM_FILE_NAME",c_val=globenv%fftw_wisdom_file_name,error=error)
     CALL section_vals_val_get(global_section,"RUN_TYPE",i_val=globenv%run_type_id,error=error)
     CALL section_vals_val_get(global_section,"WALLTIME",r_val=globenv%cp2k_target_time,error=error)
@@ -611,9 +607,14 @@ CONTAINS
           subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
                i_rep_section=i_force_eval(iforce_eval),error=error)
           CALL section_vals_get(subsys_section, explicit=explicit, error=error)
+          coord_file_name = "__STD_INPU__"
           IF (explicit) THEN 
              CALL section_vals_val_get(subsys_section,"TOPOLOGY%COORD_FILE_NAME",&
-                  c_val=coord_file_name, ignore_required=.TRUE., error=error)
+                  n_rep_val=n_rep_val, error=error)
+             IF (n_rep_val==1) THEN
+                CALL section_vals_val_get(subsys_section,"TOPOLOGY%COORD_FILE_NAME",&
+                     c_val=coord_file_name, error=error)
+             END IF
           END IF
           CALL integer_to_string(i_force_eval(iforce_eval),env_num)
 
@@ -635,7 +636,7 @@ CONTAINS
             start_section_label//"| Method name",&
             ADJUSTR(program_names(globenv%prog_name_id)(:40)),&
             start_section_label//"| Project name",&
-            ADJUSTR(globenv%project_name(:40)),&
+            ADJUSTR(project_name(:40)),&
             start_section_label//"| Preferred FFT library",&
             ADJUSTR(globenv%default_fft_library(:40)),&
             start_section_label//"| Run type",&

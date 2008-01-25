@@ -27,7 +27,10 @@ MODULE topology_input
                                              colvar_p_type
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_constr_none,&
+  USE input_constants,                 ONLY: do_conn_generate,&
+                                             do_conn_mol_set,&
+                                             do_conn_off,&
+                                             do_constr_none,&
                                              do_coord_off
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -37,7 +40,6 @@ MODULE topology_input
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
-  USE string_utilities,                ONLY: xstring
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_types,                  ONLY: constraint_info_type,&
@@ -94,47 +96,38 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
     CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_section', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ia, ie, n_rep
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
   CALL timeset(routineN,handle)
-  CALL xstring(globenv%project_name,ia,ie)
   failure = .FALSE.
-  topology % coord_file_name = globenv%project_name(ia:ie) // '.dat'
-  topology % conn_file_name = globenv%project_name(ia:ie) // '.top'
-  
   IF (.NOT. failure) THEN
-     ! Logical
-     CALL section_vals_val_get(topology_section,"CHARGE_OCCUP",l_val=topology % charge_occup,error=error)
-     CALL section_vals_val_get(topology_section,"CHARGE_BETA",l_val=topology % charge_beta,error=error)
-     CALL section_vals_val_get(topology_section,"PARA_RES",l_val=topology % para_res,error=error)
-     CALL section_vals_val_get(topology_section,"GENERATE%REORDER",l_val=topology % reorder_atom,&
-          error=error)
-     CALL section_vals_val_get(topology_section,"GENERATE%CREATE_MOLECULES",&
-          l_val=topology%create_molecules,error=error)
-     CALL section_vals_val_get(topology_section,"MOL_CHECK",l_val=topology % molecules_check,error=error)
-     CALL section_vals_val_get(topology_section,"USE_G96_VELOCITY",l_val=topology % use_g96_velocity,error=error)
-     ! Character
-     CALL section_vals_val_get(topology_section,"COORD_FILE",n_rep_val=n_rep, error=error)
-     IF (n_rep /=0) THEN
-        CALL section_vals_val_get(topology_section,"COORD_FILE",c_val=topology % coord_file_name,&
-             error=error)
-     END IF
-     CALL section_vals_val_get(topology_section,"CONN_FILE_NAME",n_rep_val=n_rep, error=error)
-     IF (n_rep /=0) THEN
-        CALL section_vals_val_get(topology_section,"CONN_FILE_NAME",c_val=topology % conn_file_name,error=error)
-     END IF
-     ! Enumeration
-     CALL section_vals_val_get(topology_section,"COORDINATE",i_val=topology % coord_type ,error=error)
-     IF (topology % coord_type /= do_coord_off) topology%coordinate = .TRUE.
-     CALL section_vals_val_get(topology_section,"CONNECTIVITY",i_val=topology % conn_type,error=error)
-     CALL section_vals_val_get(topology_section,"EXCLUDE_VDW",i_val=topology % exclude_vdw,error=error)
-     CALL section_vals_val_get(topology_section,"EXCLUDE_EI",i_val=topology % exclude_ei,error=error)
-     CALL section_vals_val_get(topology_section,"GENERATE%BONDPARM",&
-          i_val=topology % bondparm_type,error=error)
-     CALL section_vals_val_get(topology_section,"GENERATE%BONDPARM_FACTOR", &
-                               r_val=topology % bondparm_factor,error=error)
-
+     CALL section_vals_val_get(topology_section,"CHARGE_OCCUP",l_val=topology%charge_occup,error=error)
+     CALL section_vals_val_get(topology_section,"CHARGE_BETA",l_val=topology%charge_beta,error=error)
+     CALL section_vals_val_get(topology_section,"PARA_RES",l_val=topology%para_res,error=error)
+     CALL section_vals_val_get(topology_section,"GENERATE%REORDER",l_val=topology%reorder_atom,error=error)
+     CALL section_vals_val_get(topology_section,"GENERATE%CREATE_MOLECULES",l_val=topology%create_molecules,error=error)
+     CALL section_vals_val_get(topology_section,"MOL_CHECK",l_val=topology%molecules_check,error=error)
+     CALL section_vals_val_get(topology_section,"USE_G96_VELOCITY",l_val=topology%use_g96_velocity,error=error)
+     CALL section_vals_val_get(topology_section,"COORDINATE",i_val=topology%coord_type ,error=error)
+     SELECT CASE(topology%coord_type)
+     CASE(do_coord_off)
+        ! Do Nothing
+     CASE DEFAULT
+        topology%coordinate = .TRUE.
+        CALL section_vals_val_get(topology_section,"COORD_FILE_NAME",c_val=topology%coord_file_name, error=error)
+     END SELECT
+     CALL section_vals_val_get(topology_section,"CONNECTIVITY",i_val=topology%conn_type,error=error)
+     SELECT CASE(topology%conn_type)
+     CASE(do_conn_off,do_conn_generate,do_conn_mol_set)
+        ! Do Nothing
+     CASE DEFAULT
+        CALL section_vals_val_get(topology_section,"CONN_FILE_NAME",c_val=topology%conn_file_name,error=error)
+     END SELECT
+     CALL section_vals_val_get(topology_section,"EXCLUDE_VDW",i_val=topology%exclude_vdw,error=error)
+     CALL section_vals_val_get(topology_section,"EXCLUDE_EI",i_val=topology%exclude_ei,error=error)
+     CALL section_vals_val_get(topology_section,"GENERATE%BONDPARM",i_val=topology%bondparm_type,error=error)
+     CALL section_vals_val_get(topology_section,"GENERATE%BONDPARM_FACTOR",r_val=topology%bondparm_factor,error=error)
   END IF
   CALL timestop(handle)
 END SUBROUTINE read_topology_section
