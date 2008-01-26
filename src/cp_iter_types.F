@@ -38,7 +38,7 @@ MODULE cp_iter_types
   INTEGER, SAVE, PRIVATE               :: last_it_info_id=0
 
   ! When adding a new iteration level PLEASE update the following list with the proper name!
-  CHARACTER(LEN=default_path_length), PARAMETER, PUBLIC, DIMENSION(12) :: each_possible_labels= (/&
+  CHARACTER(LEN=default_path_length), PARAMETER, PUBLIC, DIMENSION(13) :: each_possible_labels= (/&
        "__ROOT__          ",&
        "JUST_ENERGY       ",&
        "QS_SCF            ",&
@@ -50,9 +50,10 @@ MODULE cp_iter_types
        "BAND              ",&
        "EP_LIN_SOLVER     ",&
        "SPLINE_FIND_COEFFS",&
-       "REPLICA_EVAL      "/)
+       "REPLICA_EVAL      ",&
+       "BSSE              "/)
 
-  CHARACTER(LEN=default_path_length), PARAMETER, PUBLIC, DIMENSION(12) ::  each_desc_labels= (/&
+  CHARACTER(LEN=default_path_length), PARAMETER, PUBLIC, DIMENSION(13) ::  each_desc_labels= (/&
        "Iteration level for __ROOT__ (fictitious iteration level)                      ",&
        "Iteration level for an ENERGY/ENERGY_FORCE calculation.                        ",&
        "Iteration level for the SCF Steps.                                             ",&
@@ -64,7 +65,8 @@ MODULE cp_iter_types
        "Iteration level for the Band Calculation Steps                                 ",&
        "Iteration level for the Energy Perturbation (EP) linear solver                 ",&
        "Iteration level for the solution of the coefficients of the splines            ",&
-       "Iteration level for the evaluation of the Replica Environment                  "/)
+       "Iteration level for the evaluation of the Replica Environment                  ",&
+       "Iteration level for the Basis Set Superposition Error (BSSE) Calculation       "/)
 
 !!****s* cp_iter_types/cp_iteration_info_type *
 !!

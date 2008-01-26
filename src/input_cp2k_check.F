@@ -328,9 +328,10 @@ CONTAINS
     INTEGER                                  :: handle, i_rep_val, &
                                                 iforce_eval, myi, n_rep_val, &
                                                 nforce_eval1, nforce_eval2
-    LOGICAL                                  :: check, explicit1, explicit2, &
-                                                failure, flag, flag2, &
-                                                qmmm_check, subsys_check
+    LOGICAL                                  :: bsse_check, check, explicit1, &
+                                                explicit2, failure, flag, &
+                                                flag2, qmmm_check, &
+                                                subsys_check
     REAL(KIND=dp)                            :: myt
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vec, work
     TYPE(cp_error_type)                      :: sub_error
@@ -459,7 +460,18 @@ CONTAINS
                 work = vec
                 CALL section_vals_val_set(section2,"INITIAL_TRANSLATION_VECTOR",r_vals_ptr=work,error=error)
              END IF
-          END DO  ! iforce_eval
+             ! BSSE restarts
+             CALL section_vals_val_get(r_section,"RESTART_BSSE",l_val=flag,error=error)
+             section1 => section_vals_get_subs_vals3(sections1,"BSSE",i_rep_section=iforce_eval,error=error)
+             section2 => section_vals_get_subs_vals3(sections2,"BSSE",i_rep_section=iforce_eval,error=error)
+             CALL section_vals_get(section1,explicit=explicit1,error=error)
+             CALL section_vals_get(section2,explicit=explicit2,error=error)
+             bsse_check = (explicit1.AND.explicit2)
+             IF (flag.AND.bsse_check) THEN
+                section  => section_vals_get_subs_vals(section1,"FRAGMENT_ENERGIES",error=error)
+                CALL section_vals_set_subs_vals(section2,"FRAGMENT_ENERGIES",section,error=error) 
+             END IF
+          END DO
 
           CALL section_vals_val_get(r_section,"RESTART_COUNTERS",l_val=flag,error=error)
           IF (flag) THEN

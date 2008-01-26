@@ -3773,7 +3773,7 @@ CONTAINS
        ! CONFIGURATION SECTION
        CALL section_create(subsection,name="CONFIGURATION",&
             description="Specify additional parameters for the combinatorial configurations.",&
-            n_keywords=2, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=2, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        CALL keyword_create(keyword, name="GLB_CONF",&
@@ -3811,6 +3811,18 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL section_create(subsection,name="FRAGMENT_ENERGIES",&
+            description="This section contains the energies of the fragments already"//&
+            " computed. It is useful as a summary and specifically for restarting BSSE runs.",&
+            n_keywords=2, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="The energy computed for each fragment",repeats=.TRUE.,&
+            usage="<REAL>", type_of_var=real_t, error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
        CALL create_print_bsse_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -3867,6 +3879,16 @@ CONTAINS
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"RESTART",&
+            description="Controls the dumping of the restart file during BSSE runs."//&
+            "By default the restart is updated after each configuration calculation is "//&
+            " completed.", &
+            print_level=silent_print_level, common_iter_levels=0,  &
+            add_last=add_last_numeric,filename="",error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
 
     END IF
   END SUBROUTINE create_print_bsse_section

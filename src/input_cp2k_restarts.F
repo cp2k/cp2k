@@ -108,7 +108,8 @@ MODULE input_cp2k_restarts
 
   PUBLIC :: write_restart,&
             update_subsys,&
-            section_velocity_val_set
+            section_velocity_val_set,&
+            write_restart_header
 
 !!*****
 !******************************************************************************
@@ -157,11 +158,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_restart', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=256)                       :: cwd, datx
     CHARACTER(LEN=30), DIMENSION(2) :: &
       keys = (/"PRINT%RESTART_HISTORY", "PRINT%RESTART        "/)
     INTEGER                                  :: handle, ikey, ires, &
-                                                nforce_eval, strend, strstart
+                                                nforce_eval
     LOGICAL                                  :: failure, save_mem
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: global_section, &
@@ -178,56 +178,34 @@ CONTAINS
     CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem,error=error)
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-           motion_section,keys(1),error=error),cp_p_file) .OR.  &
-        BTEST(cp_print_key_should_output(logger%iter_info,&
-           motion_section,keys(2),error=error),cp_p_file) ) THEN
+         motion_section,keys(1),error=error),cp_p_file) .OR.  &
+         BTEST(cp_print_key_should_output(logger%iter_info,&
+         motion_section,keys(2),error=error),cp_p_file) ) THEN
 
        sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
        CALL section_vals_get(sections, n_repetition=nforce_eval, error=error)
 
-       CALL update_input(md_env,force_env,kg_env,meta_env,root_section,coords,vels,save_mem=save_mem,error=error)
-
-       CALL m_datum(datx)
-       CALL m_getcwd(cwd)
+       CALL update_input(md_env,force_env,kg_env,meta_env,root_section,coords,vels,&
+            save_mem=save_mem,error=error)
 
        DO ikey=1,SIZE(keys)
 
           IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-              motion_section,keys(ikey),error=error),cp_p_file)) THEN
+               motion_section,keys(ikey),error=error),cp_p_file)) THEN
 
-              ires = cp_print_key_unit_nr(logger,motion_section,TRIM(keys(ikey)),&
-                        extension=".restart",  do_backup=(ikey==2), &
-                        error=error)
+             ires = cp_print_key_unit_nr(logger,motion_section,TRIM(keys(ikey)),&
+                  extension=".restart",  do_backup=(ikey==2), error=error)
 
-              IF (ires>0) THEN
-                 WRITE (UNIT=ires,FMT="(T2,A)") "# Version information for this restart file "
-                 WRITE (UNIT=ires,FMT="(T2,A)") "# current date "//TRIM(datx)
-                 WRITE (UNIT=ires,FMT="(T2,A)") "# current working dir "//TRIM(cwd)
+             IF (ires>0) THEN
+                CALL write_restart_header(ires, error)
+                CALL section_vals_write(root_section,unit_nr=ires,hide_root=.TRUE., error=error)
+             ENDIF
 
-                 WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
-                          "# Program compiled at",&
-                          ADJUSTR(compile_date(1:MIN(50,LEN(compile_date))))
-                 WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
-                          "# Program compiled on",&
-                          ADJUSTR(compile_host(1:MIN(50,LEN(compile_host))))
-                 WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
-                          "# Program compiled for",&
-                          ADJUSTR(compile_arch(1:MIN(50,LEN(compile_arch))))
-                        strend=MAX(1,LEN(compile_lastcvs)-2)
-                        strstart=MAX(2,strend-50)
-                 WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
-                          "# Last CVS entry",&
-                          ADJUSTR(compile_lastcvs(strstart:strend))
-
-                 CALL section_vals_write(root_section,unit_nr=ires,&
-                            hide_root=.TRUE., error=error)
-              ENDIF
-
-              CALL cp_print_key_finished_output(ires,logger,motion_section,&
-                             TRIM(keys(ikey)), error=error)
+             CALL cp_print_key_finished_output(ires,logger,motion_section,&
+                  TRIM(keys(ikey)), error=error)
           ENDIF
        ENDDO
- 
+
        IF(save_mem) THEN
           CALL update_subsys_release(md_env,force_env,root_section,error)
           CALL update_motion_release(motion_section,error)
@@ -237,6 +215,62 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE write_restart
+
+!!****f* input_cp2k_restarts/write_restart_header [1.0] *
+!!
+!!   NAME
+!!     write_restart_header
+!!
+!!   FUNCTION
+!!     Writes the header for the restart file
+!!
+!!   NOTES
+!!
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino - University of Zurich - 01.2008
+!!
+!!   MODIFICATION HISTORY
+!!     01.2008 [created] - Splitted from write_restart
+!!
+!!*** **********************************************************************
+  SUBROUTINE write_restart_header(ires, error)
+    INTEGER, INTENT(IN)                      :: ires
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_restart_header', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=256)                       :: cwd, datx
+    INTEGER                                  :: strend, strstart
+
+    CALL m_datum(datx)
+    CALL m_getcwd(cwd)
+
+    WRITE (UNIT=ires,FMT="(T2,A)") "# Version information for this restart file "
+    WRITE (UNIT=ires,FMT="(T2,A)") "# current date "//TRIM(datx)
+    WRITE (UNIT=ires,FMT="(T2,A)") "# current working dir "//TRIM(cwd)
+
+    WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
+         "# Program compiled at",&
+         ADJUSTR(compile_date(1:MIN(50,LEN(compile_date))))
+    WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
+         "# Program compiled on",&
+         ADJUSTR(compile_host(1:MIN(50,LEN(compile_host))))
+    WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
+         "# Program compiled for",&
+         ADJUSTR(compile_arch(1:MIN(50,LEN(compile_arch))))
+    strend=MAX(1,LEN(compile_lastcvs)-2)
+    strstart=MAX(2,strend-50)
+    WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
+         "# Last CVS entry",&
+         ADJUSTR(compile_lastcvs(strstart:strend))
+
+  END SUBROUTINE write_restart_header
 
 !!****f* input_cp2k_restarts/update_subsys_release [1.0] *
 !!

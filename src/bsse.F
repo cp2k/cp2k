@@ -27,8 +27,11 @@
 MODULE bsse
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cell_types,                      ONLY: cell_type
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
+  USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                             cp_iterate,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr,&
+                                             cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_methods,               ONLY: create_small_subsys
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
@@ -41,17 +44,20 @@ MODULE bsse
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_qs
+  USE input_cp2k_restarts,             ONLY: write_restart_header
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get,&
-                                             section_vals_val_set
+                                             section_vals_val_set,&
+                                             section_vals_write
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE particle_list_types,             ONLY: particle_list_type
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE string_utilities,                ONLY: compress
+  USE termination,                     ONLY: external_control
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -101,25 +107,27 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'do_bsse_calculation', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, k, num_of_conf, &
+    INTEGER                                  :: i, istart, k, num_of_conf, &
                                                 Num_of_Frag, stat
     INTEGER, DIMENSION(:, :), POINTER        :: conf
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit, failure, should_stop
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Em
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(force_env_type), POINTER            :: force_env_loc
-    TYPE(section_vals_type), POINTER         :: bsse_section, n_frags, &
-                                                root_section
+    TYPE(section_vals_type), POINTER         :: bsse_section, &
+                                                fragment_energies_section, &
+                                                n_frags, root_section
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
        NULLIFY(bsse_section, n_frags, Em, conf, force_env_loc)
+       logger => cp_error_get_logger(error)
        root_section => force_env%root_section
        bsse_section => section_vals_get_subs_vals(force_env%force_env_section,"BSSE",error=error)
        n_frags => section_vals_get_subs_vals(bsse_section,"FRAGMENT",error=error)
-       CALL section_vals_get(n_frags,explicit=explicit,n_repetition=Num_of_Frag,error=error)
-       !
+       CALL section_vals_get(n_frags,n_repetition=Num_of_Frag,error=error)
+
        ! Number of configurations
-       !
        num_of_conf = 0
        DO k = 1, Num_of_frag
           num_of_conf = num_of_conf + FACT(Num_of_frag) / (FACT(k)*FACT(Num_of_frag-k))
@@ -129,14 +137,40 @@ CONTAINS
        ALLOCATE(Em(num_of_conf), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL gen_Nbody_conf(Num_of_frag, num_of_conf, conf)
-       !
+
+       istart = 0
+       fragment_energies_section => section_vals_get_subs_vals(bsse_section,"FRAGMENT_ENERGIES",error=error)
+       CALL section_vals_get(fragment_energies_section, explicit=explicit, error=error)
+       IF (explicit) THEN
+          CALL section_vals_val_get(fragment_energies_section,"_DEFAULT_KEYWORD_",n_rep_val=istart,error=error)
+          DO i = 1, istart
+             CALL section_vals_val_get(fragment_energies_section,"_DEFAULT_KEYWORD_",r_val=Em(i),&
+                  i_rep_val=i, error=error)
+          END DO
+       END IF
+       ! Setup the iteration level for BSSE
+       CALL cp_add_iter_level(logger%iter_info,"BSSE",error=error)
+       CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=istart,error=error)
+
        ! Evaluating the energy of the N-body cluster terms
-       !    
-       DO i = 1, SIZE(conf,1)
+       DO i = istart+1, num_of_conf
+          CALL cp_iterate(logger%iter_info,last=(i==num_of_conf),iter_nr=i,error=error)
           CALL eval_bsse_energy(conf(i,:),Em(i),force_env,force_env_loc, n_frags, &
-               root_section,globenv, error=error)
+               root_section,globenv, should_stop, error=error)
+          IF (should_stop) EXIT
+
+          ! If no signal was received in the inner loop let's check also at this stage
+          CALL external_control(should_stop,"BSSE",globenv,error=error)
+          IF (should_stop) EXIT
+
+          ! Dump Restart info only if the calculation of the energy of a configuration
+          ! ended nicely..
+          CALL section_vals_val_set(fragment_energies_section,"_DEFAULT_KEYWORD_",r_val=Em(i),&
+               i_rep_val=i,error=error)
+          CALL write_bsse_restart(bsse_section, root_section, error=error)
        END DO
-       CALL dump_bsse_results(conf, Em, num_of_frag,  bsse_section, error)
+       IF (.NOT.should_stop) CALL dump_bsse_results(conf, Em, num_of_frag,  bsse_section, error)
+       CALL cp_rm_iter_level(logger%iter_info,"BSSE",error=error)
        DEALLOCATE(Em,   stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(conf, stat=stat)
@@ -167,12 +201,14 @@ CONTAINS
 !!     07.2005 created [tlaino]
 !!
 !!*** ********************************************************************** 
-  SUBROUTINE eval_bsse_energy(conf, Em, force_env, force_env_loc, n_frags, root_section, globenv, error)
+  SUBROUTINE eval_bsse_energy(conf, Em, force_env, force_env_loc, n_frags, root_section,&
+       globenv, should_stop, error)
     INTEGER, DIMENSION(:), INTENT(IN)        :: conf
     REAL(KIND=dp), INTENT(OUT)               :: Em
     TYPE(force_env_type), POINTER            :: force_env, force_env_loc
     TYPE(section_vals_type), POINTER         :: n_frags, root_section
     TYPE(global_environment_type), POINTER   :: globenv
+    LOGICAL, INTENT(OUT)                     :: should_stop
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_bsse_energy', &
@@ -188,9 +224,8 @@ CONTAINS
     failure = .FALSE.
     IF (.NOT.failure) THEN
        NULLIFY(conf_loc, Em_loc)
-       !
+       should_stop = .FALSE.
        ! Count the number of subconfiguration to evaluate..
-       !
        Num_of_sub_frag = COUNT(conf == 1)    
        Num_of_sub_conf = 0
        IF (Num_of_sub_frag == 1) THEN
@@ -205,11 +240,14 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(Em_loc(Num_of_sub_conf), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          Em_loc = 0.0_dp
           CALL gen_Nbody_conf(Num_of_sub_frag, Num_of_sub_conf, conf_loc)
           CALL make_plan_conf(conf, conf_loc)           
           DO i = 1, Num_of_sub_conf
              CALL eval_bsse_energy_low(force_env, force_env_loc, conf, conf_loc(i,:), n_frags,&
-                  root_section,globenv, Em_loc(i), error)             
+                  root_section,globenv, Em_loc(i), error)
+             CALL external_control(should_stop,"BSSE",globenv,error=error)
+             IF (should_stop) EXIT
           END DO
           ! Energy
           k = COUNT(conf == 1)
@@ -353,9 +391,7 @@ CONTAINS
        ! Let's start setting up environments and calculations
        !
        energy = 0.0_dp
-
        IF (method_name_id == do_qs) THEN
-
           CALL create_small_subsys(subsys_loc, big_subsys=subsys,&
                small_para_env=para_env, small_cell=cell,sub_atom_index=atom_index,&
                sub_atom_kind_name=atom_type,root_section=root_section,para_env=para_env,&
@@ -702,5 +738,55 @@ CPSourceFileRef,&
     DEALLOCATE(tmp_conf, stat=stat)
 
   END SUBROUTINE make_plan_conf
+
+!!****f* bsse/write_bsse_restart [1.0] *
+!!
+!!   NAME
+!!     write_bsse_restart
+!!
+!!   FUNCTION
+!!     Writes restart for BSSE calculations
+!!      
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     01.2008 created [tlaino]
+!!
+!!*** ********************************************************************** 
+  SUBROUTINE write_bsse_restart(bsse_section, root_section, error)
+    
+    TYPE(section_vals_type), POINTER         :: bsse_section, root_section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_bsse_restart', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ires
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    failure = .FALSE.
+    logger => cp_error_get_logger(error)
+    ires = cp_print_key_unit_nr(logger,bsse_section,"PRINT%RESTART",&
+         extension=".restart",  do_backup=.FALSE., file_position="REWIND",error=error)
+
+    IF (ires>0) THEN
+       CALL write_restart_header(ires, error)
+       CALL section_vals_write(root_section, unit_nr=ires, hide_root=.TRUE., error=error)
+    ENDIF
+    
+    CALL cp_print_key_finished_output(ires,logger,bsse_section,&
+         "PRINT%RESTART", error=error)
+    
+  END SUBROUTINE write_bsse_restart
 
 END MODULE bsse

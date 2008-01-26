@@ -969,6 +969,11 @@ CONTAINS
             type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_BSSE",&
+            description="Restarts information for BSSE calculations.",&
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="CUSTOM_PATH",&
             description="Takes the given path "//&
             "from the EXTERNAL file",&
