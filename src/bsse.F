@@ -138,7 +138,8 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL gen_Nbody_conf(Num_of_frag, num_of_conf, conf)
 
-       istart = 0
+       should_stop = .FALSE.
+       istart      = 0
        fragment_energies_section => section_vals_get_subs_vals(bsse_section,"FRAGMENT_ENERGIES",error=error)
        CALL section_vals_get(fragment_energies_section, explicit=explicit, error=error)
        IF (explicit) THEN
