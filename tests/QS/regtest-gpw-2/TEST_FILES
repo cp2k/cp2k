@@ -31,3 +31,5 @@ farming.inp        0
 H2O-meta_coord.inp     2
 H2O-meta_coord_1.inp   2
 H2O-meta_coord_2.inp   2
+#dimer with nested IO iteration levels
+hcn_ts.inp         7

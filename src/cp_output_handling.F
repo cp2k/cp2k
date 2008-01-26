@@ -785,8 +785,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_add_iter_level', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i
     LOGICAL                                  :: failure, found
-    integer:: i
 
     failure=.FALSE.
 
@@ -1017,30 +1017,33 @@ CONTAINS
     CHARACTER(len=default_string_length)     :: my_file_action, my_file_form, &
                                                 my_file_position, &
                                                 my_file_status, outPath
-    INTEGER                                  :: i, nbak
+    INTEGER                                  :: c_i_level, f_backup_level, i, &
+                                                my_backup_level, my_nbak, &
+                                                nbak, s_backup_level
     LOGICAL                                  :: do_log, failure, found, &
                                                 my_do_backup, my_local, &
                                                 my_on_file, my_should_output
+    TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     TYPE(section_vals_type), POINTER         :: print_key
 
-    failure=.FALSE.
-    my_local=.FALSE.
+    failure      = .FALSE.
+    my_local     = .FALSE.
     my_do_backup = .FALSE.
-    found = .FALSE.
-    res=-1
-    my_file_form="FORMATTED"
-    my_file_position="APPEND"
-    my_file_action="WRITE"
-    my_file_status="UNKNOWN"
-    my_on_file=.FALSE.
-    IF (PRESENT(file_form)) my_file_form = file_form
+    found        = .FALSE.
+    res          = -1
+    my_file_form     = "FORMATTED"
+    my_file_position = "APPEND"
+    my_file_action   = "WRITE"
+    my_file_status   = "UNKNOWN"
+    my_on_file       = .FALSE.
+    IF (PRESENT(file_form))     my_file_form     = file_form
     IF (PRESENT(file_position)) my_file_position = file_position
-    IF (PRESENT(file_action)) my_file_action = file_action
-    IF (PRESENT(file_status)) my_file_status = file_status
-    IF (PRESENT(do_backup)) my_do_backup = do_backup
-    IF (PRESENT(on_file)) my_on_file=on_file
+    IF (PRESENT(file_action))   my_file_action   = file_action
+    IF (PRESENT(file_status))   my_file_status   = file_status
+    IF (PRESENT(do_backup))     my_do_backup     = do_backup
+    IF (PRESENT(on_file))       my_on_file       = on_file
+    IF (PRESENT(local))         my_local         = local
     NULLIFY(print_key)
-    IF (PRESENT(local)) my_local=local
     CPPrecondition(ASSOCIATED(basis_section),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(logger),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
@@ -1073,21 +1076,51 @@ CONTAINS
                 is_new_file = .NOT.found
                 IF (my_file_position=="REWIND") is_new_file = .TRUE.
              END IF
+             ! Check is we have to log any operation performed on the file..
+             do_log = .FALSE.
+             IF (PRESENT(log_filename)) THEN
+                do_log = log_filename
+             ELSE
+                CALL section_vals_val_get(print_key,"LOG_PRINT_KEY",l_val=do_log,error=error)              
+             END IF
              ! If required do a backup
              IF (my_do_backup) THEN
                 INQUIRE(FILE=filename,EXIST=found)
                 IF (found) THEN
                    CALL section_vals_val_get(print_key,"BACKUP_COPIES",i_val=nbak,error=error)
-                   print_key%ibak=print_key%ibak+1
-                   ! Recent backup copies correspond to lower backup indexes
-                   DO i = MIN(nbak,print_key%ibak), 2, -1
-                      filename_bak_1=TRIM(filename)//".bak-"//ADJUSTL(cp_to_string(i))
-                      filename_bak_2=TRIM(filename)//".bak-"//ADJUSTL(cp_to_string(i-1))
-                      CALL m_mov(TRIM(filename_bak_2), TRIM(filename_bak_1))
-                   END DO
                    IF (nbak/=0) THEN
+                      iteration_info => logger%iter_info
+                      s_backup_level   = 0
+                      IF (ASSOCIATED(print_key%ibackup)) s_backup_level = SIZE(print_key%ibackup)
+                      CALL section_vals_val_get(print_key,"COMMON_ITERATION_LEVELS",i_val=c_i_level, error=error)
+                      my_backup_level = MAX(1,iteration_info%n_rlevel-c_i_level+1)
+                      f_backup_level  = MAX(s_backup_level,my_backup_level)
+                      IF (f_backup_level>s_backup_level) THEN
+                         CALL reallocate(print_key%ibackup,1,f_backup_level)
+                         DO i = s_backup_level+1, f_backup_level
+                            print_key%ibackup(i) = 0
+                         END DO
+                      END IF
+                      print_key%ibackup(my_backup_level)=print_key%ibackup(my_backup_level)+1
+                      my_nbak = print_key%ibackup(my_backup_level)
+                      ! Recent backup copies correspond to lower backup indexes
+                      DO i = MIN(nbak,my_nbak), 2, -1
+                         filename_bak_1=TRIM(filename)//".bak-"//ADJUSTL(cp_to_string(i))
+                         filename_bak_2=TRIM(filename)//".bak-"//ADJUSTL(cp_to_string(i-1))
+                         IF (do_log) THEN
+                            CALL cp_log(logger=logger, level=cp_note_level, fromWhere=routineP,&
+                                 message="Moving file "//TRIM(filename_bak_2)//" into file "//&
+                                 TRIM(filename_bak_1)//".",local=my_local)
+                         END IF
+                         CALL m_mov(TRIM(filename_bak_2), TRIM(filename_bak_1))
+                      END DO
                       ! The last backup is always the one with index 1
                       filename_bak=TRIM(filename)//".bak-"//ADJUSTL(cp_to_string(1))
+                      IF (do_log) THEN
+                         CALL cp_log(logger=logger, level=cp_note_level, fromWhere=routineP,&
+                              message="Moving file "//TRIM(filename)//" into file "//&
+                              TRIM(filename_bak)//".",local=my_local)
+                      END IF
                       CALL m_mov(TRIM(filename), TRIM(filename_bak))
                    END IF
                 END IF
@@ -1095,15 +1128,8 @@ CONTAINS
              CALL open_file(file_name=filename,file_status=my_file_status,&
                   file_form=my_file_form,file_action=my_file_action,&
                   file_position=my_file_position,unit_number=res)
-             do_log = .FALSE.
-             IF (PRESENT(log_filename)) THEN
-                do_log = log_filename
-             ELSE
-                CALL section_vals_val_get(print_key,"LOG_PRINT_KEY",l_val=do_log,error=error)              
-             END IF
              IF (do_log) THEN
-                CALL cp_log(logger=logger, level=cp_note_level, &
-                     fromWhere=routineP , &
+                CALL cp_log(logger=logger, level=cp_note_level, fromWhere=routineP,&
                      message="Writing "//TRIM(print_key%section%name)//" "//&
                      TRIM(cp_iter_string(logger%iter_info,error=error))//" to "//&
                      TRIM(filename),local=my_local)

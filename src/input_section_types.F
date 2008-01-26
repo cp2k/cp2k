@@ -200,9 +200,10 @@ MODULE input_section_types
 !!   SOURCE
 !***************************************************************************
   TYPE section_vals_type
-     INTEGER :: ref_count, id_nr, ibak
-     TYPE(section_type),POINTER :: section
-     TYPE(cp_sll_val_p_type), DIMENSION(:,:), POINTER :: values
+     INTEGER :: ref_count, id_nr
+     INTEGER, POINTER, DIMENSION(:)                     :: ibackup
+     TYPE(section_type),POINTER                         :: section
+     TYPE(cp_sll_val_p_type), DIMENSION(:,:), POINTER   :: values
      TYPE(section_vals_p_type), DIMENSION(:,:), POINTER :: subs_vals
   END TYPE section_vals_type
 !!***
@@ -1097,7 +1098,6 @@ CONTAINS
        last_section_vals_id=last_section_vals_id+1
        section_vals%id_nr=last_section_vals_id
        section_vals%ref_count=1
-       section_vals%ibak=0
        CALL section_retain(section,error=error)
        section_vals%section => section
        section%frozen=.TRUE.
@@ -1110,6 +1110,7 @@ CONTAINS
           CALL section_vals_create(section_vals%subs_vals(i,1)%section_vals,&
                section=section%subsections(i)%section,error=error)
        END DO
+       NULLIFY(section_vals%ibackup)
     END IF
   END SUBROUTINE section_vals_create
 !***************************************************************************
@@ -1210,6 +1211,10 @@ CONTAINS
           END DO
           DEALLOCATE(section_vals%subs_vals,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          IF (ASSOCIATED(section_vals%ibackup)) THEN
+             DEALLOCATE(section_vals%ibackup,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
           DEALLOCATE(section_vals,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
