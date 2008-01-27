@@ -52,9 +52,9 @@ MODULE kg_environment_methods
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              mpools_rebuild_s_sm_pools
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
-  USE task_list_types,                 ONLY: task_list_type,&
-                                             allocate_task_list
   USE task_list_methods,               ONLY: generate_qs_task_list
+  USE task_list_types,                 ONLY: allocate_task_list,&
+                                             task_list_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"

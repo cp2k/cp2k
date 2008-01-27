@@ -105,7 +105,7 @@ MODULE integrator
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = 'integrator'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'integrator'
 
   TYPE old_variables_type
     REAL(KIND=dp), POINTER, DIMENSION(:,:) :: v

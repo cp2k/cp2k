@@ -62,14 +62,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE allocate_task_list(task_list,error)
-  TYPE(task_list_type), POINTER :: task_list
-  TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(task_list_type), POINTER            :: task_list
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'allocate_task_list', &
-        routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_task_list', &
+      routineP = moduleN//':'//routineN
 
-  INTEGER                                  :: stat
-  LOGICAL                                  :: failure
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   ALLOCATE(task_list,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -98,15 +98,14 @@ END SUBROUTINE allocate_task_list
 !!
 !!*** **********************************************************************
 SUBROUTINE deallocate_task_list(task_list,error)
-  TYPE(task_list_type), POINTER :: task_list
-  TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(task_list_type), POINTER            :: task_list
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_task_list', &
+      routineP = moduleN//':'//routineN
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_task_list', &
-        routineP = moduleN//':'//routineN
-
-  INTEGER                                  :: stat
-  LOGICAL                                  :: failure
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   IF (ASSOCIATED(task_list%tasks)) THEN
      DEALLOCATE(task_list%tasks,stat=stat)

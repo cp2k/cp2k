@@ -74,7 +74,7 @@ MODULE message_passing
 #endif
 
 
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = 'message_passing'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'message_passing'
   
   ! parameters that might be needed
 

@@ -27,8 +27,8 @@ MODULE semi_empirical_int_ana
   USE input_constants,                 ONLY: do_method_am1,&
                                              do_method_pchg,&
                                              do_method_pdg,&
-                                             do_method_pm6,&
-                                             do_method_pm3
+                                             do_method_pm3,&
+                                             do_method_pm6
   USE kinds,                           ONLY: dp
   USE semi_empirical_integrals,        ONLY: &
        al, drotint, drotnuc, nucint, r0, rotint, rotnuc, taper, &
@@ -102,12 +102,12 @@ CONTAINS
     LOGICAL                                  :: invert, l_de1b, l_de2a, &
                                                 l_denuc, l_e1b, l_e2a, &
                                                 l_enuc, lgrad, si, sj
-    REAL(dp) :: a, alpi, alpj, apdg, ax, cppp1, cppp2, cpps1, cpps2, csp1, &
-      csp2, css1, css2, dai, daj, dax, dbi, dbj, delta, denuc_loc, dqcorr, &
-      dscale, dssss, dzz, enuc2, enuc_loc, pai, paj, pbi, pbj, qcorr, rij, &
-      scale, ssss, xtmp, xx11, xx21, xx22, xx31, xx32, xx33, yy11, yy21, &
-      yy22, yyzz11, yyzz21, yyzz22, zaf, zbf, zz, zz11, zz21, zz22, zz31, &
-      zz32, zz33, xab, aab
+    REAL(dp) :: a, aab, alpi, alpj, apdg, ax, cppp1, cppp2, cpps1, cpps2, &
+      csp1, csp2, css1, css2, dai, daj, dax, dbi, dbj, delta, denuc_loc, &
+      dqcorr, dscale, dssss, dzz, enuc2, enuc_loc, pai, paj, pbi, pbj, qcorr, &
+      rij, scale, ssss, xab, xtmp, xx11, xx21, xx22, xx31, xx32, xx33, yy11, &
+      yy21, yy22, yyzz11, yyzz21, yyzz22, zaf, zbf, zz, zz11, zz21, zz22, &
+      zz31, zz32, zz33
     REAL(dp), DIMENSION(3) :: da, dcppp1, dcppp2, dcpps1, dcpps2, dcsp1, &
       dcsp2, dcss1, dcss2, drij, dx1, dx2, dx3, dxx11, dxx21, dxx22, dxx31, &
       dxx32, dxx33, dyy11, dyy21, dyy22, dyyzz11, dyyzz21, dyyzz22, dzz11, &
@@ -479,7 +479,7 @@ CONTAINS
 !
 ! Derivatives still missing
    
-           stop "PM6 analytic integrals"
+           STOP "PM6 analytic integrals"
 !
            ! PM6 core-core terms
            xab = sepi%xab(sepj%z)
@@ -488,18 +488,18 @@ CONTAINS
            IF ( (sepi%z == 1 .AND. (sepj%z == 7 .OR. sepj%z == 8)) .OR. &
                 (sepj%z == 1 .AND. (sepi%z == 7 .OR. sepi%z == 8)) ) THEN
              ! Special Case O-H or N-H
-             IF (l_enuc) enuc=enuc+scale*(1._dp+xab*exp(-aab*rij*rij))
+             IF (l_enuc) enuc=enuc+scale*(1._dp+xab*EXP(-aab*rij*rij))
            ELSEIF ( sepi%z == 6 .AND. sepj%z == 6 ) THEN
              ! Special Case C-C
-              IF (l_enuc) enuc=enuc+scale*(1._dp+xab*exp(-(aab*rij+0.0003_dp*rij**6))+9.28_dp*exp(-5.98*rij))
+              IF (l_enuc) enuc=enuc+scale*(1._dp+xab*EXP(-(aab*rij+0.0003_dp*rij**6))+9.28_dp*EXP(-5.98*rij))
            ELSEIF ( (sepi%z == 8 .AND. sepj%z == 14) .OR. &
                     (sepj%z == 8 .AND. sepi%z == 14) ) THEN
              ! Special Case Si-O
-              IF (l_enuc) enuc=enuc+scale*(1._dp+xab*exp(-(aab*rij+0.0003_dp*rij**6)) &
-                                   -0.0007_dp*exp(-(rij-2.9_dp)**2) )
+              IF (l_enuc) enuc=enuc+scale*(1._dp+xab*EXP(-(aab*rij+0.0003_dp*rij**6)) &
+                                   -0.0007_dp*EXP(-(rij-2.9_dp)**2) )
            ELSE
              ! General Case
-              IF (l_enuc) enuc=enuc+scale*(1._dp+xab*exp(-(aab*rij+0.0003_dp*rij**6)))
+              IF (l_enuc) enuc=enuc+scale*(1._dp+xab*EXP(-(aab*rij+0.0003_dp*rij**6)))
            END IF 
            ! Hard core repulsion
             IF (l_enuc) enuc=enuc+1.e-8_dp*( (sepi%zeff**(1._dp/3._dp) + sepj%zeff**(1._dp/3._dp))/rij )**12

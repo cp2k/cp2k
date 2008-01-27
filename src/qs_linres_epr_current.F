@@ -112,10 +112,10 @@ MODULE qs_linres_epr_current
                                              realspace_grid_type,&
                                              rs_find_node,&
                                              rs_grid_zero
-  USE realspace_task_selection,        ONLY: int2pair,&
+  USE realspace_task_selection,        ONLY: distribute_matrix,&
+                                             int2pair,&
                                              pair2int,&
-                                             rs_get_my_tasks,&
-                                             distribute_matrix
+                                             rs_get_my_tasks
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              allocate_matrix,&
                                              deallocate_matrix,&
@@ -682,8 +682,7 @@ CONTAINS
       ipgf, iset, iset_old, istat, itask, ithread, jatom, jatom_old, jkind, &
       jkind_old, jpgf, jset, jset_old, maxco, maxpgf, maxset, maxsgf, &
       maxsgf_set, na1, na2, natom, nb1, nb2, ncoa, ncob, nkind, nlist, nnode, &
-      nseta, nsetb, ntasks, nthread, sgfa, sgfb, stat, &
-      tp(3), ilevel
+      nseta, nsetb, ntasks, nthread, sgfa, sgfb, stat, tp(3)
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
     INTEGER, DIMENSION(:), POINTER           :: atom_pair_recv, &

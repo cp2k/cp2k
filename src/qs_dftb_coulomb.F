@@ -397,8 +397,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, handle, i, ipart, j, &
-                                                n, npart, o_spline, p1, &
-                                                stat
+                                                n, npart, o_spline, p1, stat
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center
     INTEGER, DIMENSION(3)                    :: npts
     LOGICAL                                  :: failure

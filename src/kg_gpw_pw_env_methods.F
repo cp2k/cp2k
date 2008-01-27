@@ -104,10 +104,10 @@ MODULE kg_gpw_pw_env_methods
                                              qs_environment_type
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
-  USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
-                                             rs_grid_print,&
+  USE realspace_grid_types,            ONLY: init_input_type,&
                                              realspace_grid_input_type,&
-                                             init_input_type
+                                             realspace_grid_p_type,&
+                                             rs_grid_print
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -407,10 +407,10 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools_mol
     TYPE(pw_pool_type), POINTER              :: pw_pool_g
+    TYPE(realspace_grid_input_type)          :: input_settings
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs
     TYPE(section_vals_type), POINTER         :: print_section
-    TYPE(realspace_grid_input_type)          :: input_settings
 
     failure = .FALSE.
 

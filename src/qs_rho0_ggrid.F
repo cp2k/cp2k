@@ -381,9 +381,8 @@ MODULE qs_rho0_ggrid
     INTEGER :: auxbas_grid, dir, handle, iat, iatom, ic, icg, ico, ig1, ig2, &
       igrid, ikind, ipgf1, ipgf2, is, iset1, iset2, iso, iso1, iso2, ispin, &
       istat, ithread, j, l0_ikind, lmax0, lshell, lx, ly, lz, m1, m2, maxso, &
-      n1, n2, nat, nch_ik, nch_max, ncurr, npme, nset, nspins, nthread, &
-      tp(3)
-    INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, npgf, cores
+      n1, n2, nat, nch_ik, nch_max, ncurr, npme, nset, nspins, nthread, tp(3)
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, cores, lmax, npgf
     LOGICAL                                  :: failure, my_tddft, paw_atom
     REAL(dp)                                 :: c4pi, eps_rho_rspace, &
                                                 force_tmp(3), r_V0, ra(3), &

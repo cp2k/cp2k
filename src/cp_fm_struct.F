@@ -286,12 +286,12 @@ CPSourceFileRef,&
         ! this seems to trigger on blanc, but should really never happen
         logger => cp_error_get_logger(error)
         iunit=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
-        write(iunit,*) "mepos",fmstruct%context%mepos(1:2),"numpe",fmstruct%context%num_pe(1:2)
-        write(iunit,*) "ncol_global",fmstruct%ncol_global
-        write(iunit,*) "nrow_global",fmstruct%nrow_global
-        write(iunit,*) "ncol_locals",fmstruct%ncol_locals
-        write(iunit,*) "nrow_locals",fmstruct%nrow_locals
-        call m_flush(iunit)
+        WRITE(iunit,*) "mepos",fmstruct%context%mepos(1:2),"numpe",fmstruct%context%num_pe(1:2)
+        WRITE(iunit,*) "ncol_global",fmstruct%ncol_global
+        WRITE(iunit,*) "nrow_global",fmstruct%nrow_global
+        WRITE(iunit,*) "ncol_locals",fmstruct%ncol_locals
+        WRITE(iunit,*) "nrow_locals",fmstruct%nrow_locals
+        CALL m_flush(iunit)
      ENDIF
 
      CALL cp_assert(SUM(fmstruct%ncol_locals).EQ.fmstruct%ncol_global,&

@@ -215,7 +215,6 @@ CONTAINS
     INTEGER, OPTIONAL                        :: ewald_type
     REAL(KIND=dp), OPTIONAL                  :: alpha, eps0, epsilon
     INTEGER, OPTIONAL                        :: gmax(3), ns_max, o_spline
-                                                
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
     INTEGER, INTENT(IN), OPTIONAL            :: id_nr

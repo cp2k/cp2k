@@ -45,16 +45,15 @@ MODULE task_list_methods
                                              pw_env_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_interactions,                 ONLY: exp_radius_very_extended
   USE qs_neighbor_list_types,          ONLY: &
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
-  USE qs_interactions,                 ONLY: exp_radius_very_extended
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                              realspace_grid_type,&
                                              rs_find_node
   USE realspace_task_selection,        ONLY: pair2int,&
-                                             int2pair,&
                                              rs_get_my_tasks
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -103,11 +102,11 @@ CONTAINS
                                                 max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: ab, bcol, brow, curr_tasks, dest, dir, handle, iatom, &
+    INTEGER :: ab, bcol, brow, cost, curr_tasks, dest, dir, handle, iatom, &
       igrid_level, ikind, ilist, inode, ipgf, iset, jatom, jkind, jpgf, jset, &
-      maxpgf, maxset, natoms, nkind, nlist, nnode, nseta, nsetb, tp(3), cost
-    INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb
-    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, lb_min
+      maxpgf, maxset, natoms, nkind, nlist, nnode, nseta, nsetb, tp(3)
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
+                                                lb_min, npgfa, npgfb
     LOGICAL                                  :: distributed_rs_grids, &
                                                 failure, my_soft
     REAL(KIND=dp)                            :: dab, kind_radius_a, &
@@ -397,15 +396,21 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE estimate_task_cost(cost,rsgrid,cube_info,la_max,zeta,la_min,lb_max,zetb,lb_min,ra,rab,rab2,eps)
 
-    INTEGER, INTENT(OUT)            :: cost
-    TYPE(cube_info_type), INTENT(IN)         :: cube_info
+    INTEGER, INTENT(OUT)                     :: cost
     TYPE(realspace_grid_type), POINTER       :: rsgrid
-    INTEGER, INTENT(IN)             :: la_min,la_max,lb_min,lb_max
-    REAL(KIND=dp), INTENT(IN)       :: ra(3),rab(3),zeta,zetb,rab2,eps
+    TYPE(cube_info_type), INTENT(IN)         :: cube_info
+    INTEGER, INTENT(IN)                      :: la_max
+    REAL(KIND=dp), INTENT(IN)                :: zeta
+    INTEGER, INTENT(IN)                      :: la_min, lb_max
+    REAL(KIND=dp), INTENT(IN)                :: zetb
+    INTEGER, INTENT(IN)                      :: lb_min
+    REAL(KIND=dp), INTENT(IN)                :: ra(3), rab(3), rab2, eps
 
+    INTEGER                                  :: cmax, lb_cube(3), ub_cube(3)
     INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
-    INTEGER                                  :: ub_cube(3),lb_cube(3),cmax
-    REAL(KIND=dp)                            :: zetp,f,rbp(3),rap(3),rp(3),rb(3),cutoff,prefactor,radius
+    REAL(KIND=dp)                            :: cutoff, f, prefactor, radius, &
+                                                rap(3), rb(3), rbp(3), rp(3), &
+                                                zetp
 
     zetp = zeta + zetb
     f    = zetb/zetp

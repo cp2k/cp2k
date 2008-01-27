@@ -23,7 +23,6 @@ MODULE dft_plus_u
                                              Dudarev1998,&
                                              cite_reference
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: get_particle_set,&
@@ -32,16 +31,12 @@ MODULE dft_plus_u
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE sparse_matrix_types,             ONLY: allocate_matrix,&
-                                             deallocate_matrix,&
-                                             first_block_node,&
+  USE sparse_matrix_types,             ONLY: first_block_node,&
                                              get_block_node,&
-                                             get_matrix_info,&
                                              next_block_node,&
                                              real_block_node_type,&
-                                             real_matrix_type,&
                                              real_matrix_p_type,&
-                                             set_matrix
+                                             real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -50,7 +45,7 @@ MODULE dft_plus_u
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = "dft_plus_u"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dft_plus_u'
 
   PUBLIC :: plus_u
 
@@ -69,15 +64,15 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER, OPTIONAL                      :: matrix_h,matrix_w
+      OPTIONAL, POINTER                      :: matrix_h, matrix_w
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "plus_u", &
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'plus_u', &
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
+    LOGICAL                                  :: failure
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -129,45 +124,40 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER, OPTIONAL                      :: matrix_h,matrix_w
+      OPTIONAL, POINTER                      :: matrix_h, matrix_w
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "plus_u_mulliken", &
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'plus_u_mulliken', &
+      routineP = moduleN//':'//routineN
 
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    INTEGER :: atom, handle, iatom, ikind, iset, isgf, ishell, ispin, jatom, &
+      jsgf, katom, l_of_dft_plus_u, natom, natom_kind, nkind, nset, nsgf, &
+      nspin, sgf, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf_atom
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, nshell
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
+    LOGICAL                                  :: dft_plus_u_atom, failure, &
+                                                just_energy, orthonormal_basis
+    REAL(KIND=dp)                            :: fspin, q, u_minus_j, v
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dEdq, trps
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block, s_block, &
+                                                w_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(real_block_node_type), POINTER      :: h_block_node,&
-                                                p_block_node,&
-                                                s_block_node,&
-                                                w_block_node
-    TYPE(real_matrix_type), POINTER          :: sm_h,sm_p,sm_s,sm_w
+    TYPE(real_block_node_type), POINTER      :: h_block_node, p_block_node, &
+                                                s_block_node, w_block_node
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p,matrix_s
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: dEdq,trps
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block,p_block,s_block,&
-                                                w_block
-    INTEGER, DIMENSION(:), ALLOCATABLE       :: first_sgf_atom
-    INTEGER, DIMENSION(:), POINTER           :: atom_list,nshell
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgf,l,last_sgf
-    REAL(KIND=dp)                            :: fspin,q,u_minus_j,v
-    INTEGER                                  :: atom,handle,&
-                                                iatom,ikind,iset,isgf,ishell,&
-                                                ispin,jatom,jsgf,katom,&
-                                                l_of_dft_plus_u,&
-                                                natom,natom_kind,nkind,&
-                                                nset,nsgf,nspin,sgf,stat
-    LOGICAL                                  :: dft_plus_u_atom,failure,&
-                                                just_energy,orthonormal_basis
+      POINTER                                :: matrix_p, matrix_s
+    TYPE(real_matrix_type), POINTER          :: sm_h, sm_p, sm_s, sm_w
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 

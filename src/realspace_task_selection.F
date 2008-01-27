@@ -80,9 +80,9 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE pair2int(res,ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
     INTEGER(kind=int_8)                      :: res
-    INTEGER                                  :: iatom, jatom, iset, jset, &
-                                                ipgf, jpgf, natom, maxset, &
-                                                maxpgf,ilevel
+    INTEGER                                  :: ilevel, iatom, jatom, iset, &
+                                                jset, ipgf, jpgf, natom, &
+                                                maxset, maxpgf
 
     INTEGER(kind=int_8)                      :: maxpgf8, maxset8, natom8
 
@@ -103,9 +103,9 @@ CONTAINS
 
   SUBROUTINE int2pair(res,ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
     INTEGER(kind=int_8)                      :: res
-    INTEGER                                  :: iatom, jatom, iset, jset, &
-                                                ipgf, jpgf, natom, maxset, &
-                                                maxpgf, ilevel
+    INTEGER                                  :: ilevel, iatom, jatom, iset, &
+                                                jset, ipgf, jpgf, natom, &
+                                                maxset, maxpgf
 
     INTEGER(kind=int_8)                      :: iatom8, ijatom, ijpgf, ijset, &
                                                 ipgf8, iset8, jatom8, jpgf8, &
@@ -171,21 +171,18 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: symmetric
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER                                  :: handle, i, j, k, l, &
-                                                ntasks_recv, stat, task_dim,&
-                                                ntasks_rep, ntasks_dist, ntasks_new,&
-                                                ntasks_dist_local, total_tasks,&
-                                                average_tasks, no_overloaded,&
-                                                no_underloaded, proc_sending, proc_receiving,&
-                                                offset, count
+    INTEGER :: average_tasks, count, handle, i, j, k, l, no_overloaded, &
+      no_underloaded, ntasks_dist, ntasks_recv, ntasks_rep, offset, &
+      proc_receiving, stat, task_dim, total_tasks
     INTEGER(kind=int_8), ALLOCATABLE, &
-      DIMENSION(:)                           :: recv_buf_i, send_buf_i, tasks_required
+      DIMENSION(:)                           :: recv_buf_i, send_buf_i, &
+                                                tasks_required
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_recv
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, recv_disps, &
                                                 recv_sizes, send_disps, &
                                                 send_sizes, taskid
-    LOGICAL                                  :: my_symmetric, scatter, send
+    LOGICAL                                  :: my_symmetric, send
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf_r, send_buf_r
 
     CALL timeset("rs_get_my_tasks",'I',' ',handle)
@@ -256,12 +253,12 @@ CONTAINS
        send_buf_i = SUM(recv_buf_i)
        CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, rs % group)
 
-       total_tasks = sum(recv_buf_i)
+       total_tasks = SUM(recv_buf_i)
        average_tasks = total_tasks / rs%group_size
 
        ALLOCATE(tasks_required(rs%group_size),STAT=stat)
        IF (stat/=0) CALL stop_memory("get_my_tasks","index",rs%group_size)
-       ALLOCATE(index(rs%group_size),STAT=stat)
+       ALLOCATE(INDEX(rs%group_size),STAT=stat)
        IF (stat/=0) CALL stop_memory("get_my_tasks","tasks_required",rs%group_size)
 
        tasks_required = recv_buf_i - average_tasks
@@ -304,17 +301,17 @@ CONTAINS
 
           ! calculate offset
           DO i = rs%group_size, rs%group_size-no_overloaded+1, -1
-             IF ( index(i) .EQ. rs%my_pos+1 ) THEN
+             IF ( INDEX(i) .EQ. rs%my_pos+1 ) THEN
                 EXIT
              ELSE
-                offset = offset + tasks_required ( index (i) )
+                offset = offset + tasks_required ( INDEX (i) )
              ENDIF
           ENDDO
 
           ! find my starting processor to send to 
           proc_receiving = HUGE(proc_receiving)
           DO i = 1, no_underloaded
-             offset = offset + tasks_required ( index (i) )
+             offset = offset + tasks_required ( INDEX (i) )
              IF ( offset .LE. 0 ) THEN
                 proc_receiving = i
                 EXIT
@@ -327,7 +324,7 @@ CONTAINS
              IF (tasks(4,j) .EQ. 0 ) THEN
                 !just avoid sending to non existing procs due to integer truncation in the computation of the average
                 IF(proc_receiving .GT. no_underloaded) EXIT
-                tasks (1,j) = index ( proc_receiving ) - 1
+                tasks (1,j) = INDEX ( proc_receiving ) - 1
                 offset = offset + tasks(5,j)
                 count = count + tasks(5,j)
                 IF(count .GE. tasks_required (rs%my_pos + 1 ) ) EXIT
@@ -335,7 +332,7 @@ CONTAINS
                    proc_receiving = proc_receiving + 1
                    !just avoid sending to non existing procs due to integer truncation in the computation of the average
                    IF(proc_receiving .GT. no_underloaded) EXIT
-                   offset = tasks_required ( index ( proc_receiving ) )
+                   offset = tasks_required ( INDEX ( proc_receiving ) )
                 ENDIF
              ELSE
                 CYCLE
@@ -573,9 +570,9 @@ SUBROUTINE get_atom_pair ( atom_pair, my_tasks, send, my_symmetric, natoms, maxs
     LOGICAL                                  :: send, my_symmetric
     INTEGER                                  :: natoms, maxset, maxpgf
 
-    INTEGER                                  :: acol, arow, i, iatom, ipgf, &
-                                                iset, j, jatom, jpgf, jset, &
-                                                stat, ilevel
+    INTEGER                                  :: acol, arow, i, iatom, ilevel, &
+                                                ipgf, iset, j, jatom, jpgf, &
+                                                jset, stat
     INTEGER, DIMENSION(:), POINTER           :: index
 
 ! calculate list of atom pairs

@@ -128,8 +128,7 @@ CONTAINS
 
     INTEGER                                  :: group, handle, i, ipart, j, &
                                                 n, ncore, npart, nshell, &
-                                                o_spline, p1, p1_shell, &
-                                                stat
+                                                o_spline, p1, p1_shell, stat
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center, core_center, &
                                                 shell_center
     INTEGER, DIMENSION(3)                    :: npts

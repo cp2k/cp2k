@@ -25,10 +25,11 @@
 !******************************************************************************
 
 MODULE realspace_grid_types
-  USE input_constants,                 ONLY: rsgrid_replicated,rsgrid_automatic,rsgrid_distributed
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_get
+  USE input_constants,                 ONLY: rsgrid_automatic,&
+                                             rsgrid_replicated
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: det_3x3
@@ -145,14 +146,18 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE init_input_type(input_settings,nsmax,rs_grid_section,ilevel,error)
-   TYPE(realspace_grid_input_type), INTENT(OUT) :: input_settings
-   INTEGER, INTENT(IN)                          :: nsmax
-   TYPE(section_vals_type), POINTER, OPTIONAL   :: rs_grid_section
-   INTEGER, INTENT(IN)                          :: ilevel
-   TYPE(cp_error_type), INTENT(inout)           :: error
+    TYPE(realspace_grid_input_type), &
+      INTENT(OUT)                            :: input_settings
+    INTEGER, INTENT(IN)                      :: nsmax
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: rs_grid_section
+    INTEGER, INTENT(IN)                      :: ilevel
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-   INTEGER,POINTER, DIMENSION(:)                :: tmp
-   INTEGER                                      :: isection, nsection, max_distributed_level
+    INTEGER                                  :: isection, &
+                                                max_distributed_level, &
+                                                nsection
+    INTEGER, DIMENSION(:), POINTER           :: tmp
 
    IF (PRESENT(rs_grid_section)) THEN
        input_settings%nsmax=nsmax
@@ -205,15 +210,15 @@ END SUBROUTINE init_input_type
   SUBROUTINE rs_grid_create ( rs, pw_grid, input_settings, error)
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    TYPE(realspace_grid_input_type), INTENT(IN) :: input_settings
+    TYPE(realspace_grid_input_type), &
+      INTENT(IN)                             :: input_settings
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dir, i, j, k, l, lb( 2 ), &
-                                                n_slices(3), neighbours(3), &
-                                                nmin, pos( 3 ), n_slices_tmp(3), nsmax, stat, handle
+    INTEGER :: dir, handle, i, j, k, l, lb( 2 ), n_slices(3), &
+      n_slices_tmp(3), neighbours(3), nmin, nsmax, pos( 3 ), stat
     LOGICAL                                  :: failure, overlap
     REAL(KIND=dp)                            :: ratio, ratio_best, volume, &
                                                 volume_dist
@@ -1506,7 +1511,6 @@ SUBROUTINE rs_grid_set_box ( pw_grid, rs, error )
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_set_box', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, id, n
     LOGICAL                                  :: failure
 
 !-----------------------------------------------------------------------------!

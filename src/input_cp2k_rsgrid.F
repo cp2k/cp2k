@@ -29,9 +29,7 @@ MODULE input_cp2k_rsgrid
                                              keyword_release,&
                                              keyword_type
   USE input_section_types,             ONLY: section_add_keyword,&
-                                             section_add_subsection,&
                                              section_create,&
-                                             section_release,&
                                              section_type
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a

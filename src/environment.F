@@ -491,10 +491,8 @@ CONTAINS
                                                 mm_potential_file_name, &
                                                 potential_file_name
     CHARACTER(len=default_string_length)     :: env_num, project_name
-    INTEGER                                  :: i_fft, iforce_eval, &
-                                                method_name_id, nforce_eval, &
-                                                num_threads, output_unit, &
-                                                print_level, n_rep_val
+    INTEGER :: i_fft, iforce_eval, method_name_id, n_rep_val, nforce_eval, &
+      num_threads, output_unit, print_level
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
     LOGICAL                                  :: ata, efl, explicit, failure, &
                                                 trace, trace_sync

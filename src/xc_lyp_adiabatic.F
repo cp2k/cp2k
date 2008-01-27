@@ -45,7 +45,7 @@ MODULE xc_lyp_adiabatic
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_lyp'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_lyp_adiabatic'
   REAL(kind=dp), PARAMETER, PRIVATE :: a=0.04918_dp, b=0.132_dp,&
        c=0.2533_dp,d=0.349_dp
 
@@ -347,7 +347,8 @@ CONTAINS
     INTEGER                                  :: handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_drho, epsilon_rho, lambda
+    REAL(kind=dp)                            :: epsilon_drho, epsilon_rho, &
+                                                lambda
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndr, &
       e_ndr_ndr, e_ndr_ra, e_ndr_rb, e_ndra, e_ndra_ndra, e_ndra_ra, &
       e_ndra_rb, e_ndrb, e_ndrb_ndrb, e_ndrb_ra, e_ndrb_rb, e_ra, e_ra_ra, &
@@ -482,7 +483,8 @@ CONTAINS
       e_ndra_rb, e_ndrb_ra, e_ndrb_rb, e_ndr_ndr, e_ndra_ndra, e_ndrb_ndrb, &
       e_ndr, e_ndra, e_ndrb, e_ra_ra, e_ra_rb, e_rb_rb, e_ndr_ra, e_ndr_rb
     INTEGER, INTENT(in)                      :: grad_deriv, npoints
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho, lambda
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho, &
+                                                lambda
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lsd_calc', &
@@ -491,17 +493,13 @@ CONTAINS
       t_2_3 = 2.0_dp/3.0_dp, t_4_27 = 4.0_dp/27.0_dp, t_4_3 = 4.0_dp/3.0_dp, &
       t_4_9 = 4.0_dp/9.0_dp, t_8_27 = 8.0_dp/27.0_dp
 
-    REAL(KIND=dp) ::  cf, my_rhoa, my_rhob, my_ndrhoa, my_ndrhob, my_ndrho
-
-
-    REAL(KIND=dp) :: t1,t2,t3,t4,t5,t6,t7,t8,t9,t13,t14,t15,t16,t17,t19,t22,&
-        t23,t24,t25,t26,t28,t29,t30,t36,t38,t39,t43,t44,t45,t46,t48,t52,t55,&
-        t59,t60,t62,t64,t68,t71,t72,t75,t79,t80,t84,t86,t88,t93,t98,t104,t110,&
-        t111,t114,t116,t120,t123,t128,t132,t135,t136,t143,t145,t148,t149
-
-
     INTEGER                                  :: ii
-    LOGICAL                                  :: failure
+    REAL(KIND=dp) :: cf, my_ndrho, my_ndrhoa, my_ndrhob, my_rhoa, my_rhob, &
+      t1, t104, t110, t111, t114, t116, t120, t123, t128, t13, t132, t135, &
+      t136, t14, t143, t145, t148, t149, t15, t16, t17, t19, t2, t22, t23, &
+      t24, t25, t26, t28, t29, t3, t30, t36, t38, t39, t4, t43, t44, t45, &
+      t46, t48, t5, t52, t55, t59, t6, t60, t62, t64, t68, t7, t71, t72, t75, &
+      t79, t8, t80, t84, t86, t88, t9, t93, t98
 
     cf=0.3_dp*(3._dp*pi*pi)**(2._dp/3._dp)
 
@@ -525,7 +523,7 @@ CONTAINS
           t9 = 0.1e1_dp / t8
           t13 = a * b
           t14 = c * t6
-          t15 = exp(-t14)
+          t15 = EXP(-t14)
           t16 = t13 * t15
           t17 = t2 ** 2
           t19 = t5 ** 2
@@ -596,14 +594,14 @@ CONTAINS
           * (my_rhoa * t55 + t23 * (0.33864555775321588795e2_dp * Cf * t30 * my_rhob  &
           + t123 - t128 - t132 - 0.1111111111e0_dp * t48 * (-t135 + t3 * t45 -  &
           t136)) - t143 + t149 * t45 + (t148 - 0.6666666667e0_dp * my_rhob) * t44)
-          e_ndra(ii) = e_ndra(ii)   -t16 * t22 * (t23 * (-dble(2 * t43 * my_ndrhoa) - 0.2222222222e0_dp  &
-          * dble(t48) * dble(my_rhoa) * dble(t3) * dble(my_ndrhoa)) + dble(2 * t62  &
+          e_ndra(ii) = e_ndra(ii)   -t16 * t22 * (t23 * (-DBLE(2 * t43 * my_ndrhoa) - 0.2222222222e0_dp  &
+          * DBLE(t48) * DBLE(my_rhoa) * DBLE(t3) * DBLE(my_ndrhoa)) + DBLE(2 * t62  &
           * my_ndrhoa))
-          e_ndrb(ii) = e_ndrb(ii)   -t16 * t22 * (t23 * (-dble(2 * t43 * my_ndrhob) - 0.2222222222e0_dp  &
-          * dble(t48) * dble(my_rhob) * dble(t3) * dble(my_ndrhob)) + dble(2 * t60  &
+          e_ndrb(ii) = e_ndrb(ii)   -t16 * t22 * (t23 * (-DBLE(2 * t43 * my_ndrhob) - 0.2222222222e0_dp  &
+          * DBLE(t48) * DBLE(my_rhob) * DBLE(t3) * DBLE(my_ndrhob)) + DBLE(2 * t60  &
           * my_ndrhob))
-          e_ndr(ii) = e_ndr(ii)   -t16 * t22 * (dble(2 * t23 * t38 * my_ndrho) - 0.1333333333e1_dp * dble(t17)  &
-          * dble(my_ndrho))
+          e_ndr(ii) = e_ndr(ii)   -t16 * t22 * (DBLE(2 * t23 * t38 * my_ndrho) - 0.1333333333e1_dp * DBLE(t17)  &
+          * DBLE(my_ndrho))
         END IF
       END IF
     END DO

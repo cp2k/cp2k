@@ -63,10 +63,10 @@ MODULE kg_rspw_methods
                                              pw_pool_p_type,&
                                              pw_pools_dealloc
   USE qs_util,                         ONLY: exp_radius
-  USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
-                                             rs_grid_print,&
+  USE realspace_grid_types,            ONLY: init_input_type,&
                                              realspace_grid_input_type,&
-                                             init_input_type
+                                             realspace_grid_p_type,&
+                                             rs_grid_print
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -148,8 +148,9 @@ END SUBROUTINE kg_rspw_create
     INTEGER, DIMENSION(:, :), POINTER        :: lshella
     LOGICAL                                  :: failure, odd, should_output, &
                                                 spherical, use_ref_cell
-    REAL(dp)                                 :: alpha, cutilev, maxradius, &
-                                                my_cut, rel_cutoff, zetp, core_charge
+    REAL(dp)                                 :: alpha, core_charge, cutilev, &
+                                                maxradius, my_cut, &
+                                                rel_cutoff, zetp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff, my_cutoff
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta
@@ -166,10 +167,11 @@ END SUBROUTINE kg_rspw_create
     TYPE(pw_grid_type), POINTER              :: old_pw_grid, pw_grid
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
+    TYPE(realspace_grid_input_type)          :: input_settings
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs
-    TYPE(section_vals_type), POINTER         :: poisson_section, print_section, rs_grid_section
-    TYPE(realspace_grid_input_type)          :: input_settings
+    TYPE(section_vals_type), POINTER         :: poisson_section, &
+                                                print_section, rs_grid_section
 
 ! KG doesn't setup the radius correctly. It appears that not all primitives that are actually mapped
 ! are being tested in the radius calculation. This safety_factor will lead to poorer parallel performance

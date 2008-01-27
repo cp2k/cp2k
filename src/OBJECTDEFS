@@ -141,7 +141,6 @@ OBJECTS_GENERIC =\
  f77_interface.o\
  farming_methods.o\
  farming_types.o\
- fermi.o\
  fft_tools.o\
  fist_debug.o\
  fist_energy_types.o\
@@ -476,7 +475,6 @@ OBJECTS_GENERIC =\
  scf_control_types.o\
  scp_coeff_types.o\
  scp_diis_utils.o\
- scp_debug.o\
  scp_density_methods.o\
  scp_energy.o\
  scp_energy_types.o\
@@ -489,7 +487,6 @@ OBJECTS_GENERIC =\
  scp_rho_types.o\
  scp_rspw_methods.o\
  scp_rspw_types.o\
- scp_scf.o\
  semi_empirical_integrals.o\
  semi_empirical_int_ana.o\
  semi_empirical_parameters.o\

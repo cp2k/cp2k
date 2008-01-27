@@ -26,11 +26,11 @@ MODULE libint_interface
   USE f77_blas
   USE gamma,                           ONLY: fgamma
   USE input_constants,                 ONLY: do_hf_potential_coulomb,&
-                                             do_hf_potential_long,&
-                                             do_hf_potential_short,&
-                                             do_hf_potential_mix_cl, &
                                              do_hf_potential_gaussian,&
-                                             do_hf_potential_mix_lg
+                                             do_hf_potential_long,&
+                                             do_hf_potential_mix_cl,&
+                                             do_hf_potential_mix_lg,&
+                                             do_hf_potential_short
   USE kinds,                           ONLY: dp
   USE libint_wrapper,                  ONLY: get_derivs,&
                                              get_eris,&
@@ -538,7 +538,7 @@ MODULE libint_interface
         T = -omega2*T/(Rho+omega2)
         tmp = 1.0_dp
         DO i=1,m_max+1
-          prim%F(i) = exp(T) * tmp
+          prim%F(i) = EXP(T) * tmp
           tmp = tmp * omega2/(Rho+omega2)
         END DO
         factor = (Pi/(Rho+omega2))**(1.5_dp)
@@ -557,7 +557,7 @@ MODULE libint_interface
         T = -omega2*T/(Rho+omega2)
         tmp = (Pi/(Rho+omega2))**(1.5_dp) * potential_parameter%scale_gaussian
         DO i=1,m_max+1
-          prim%F(i) = exp(T) * tmp + Fm(i)
+          prim%F(i) = EXP(T) * tmp + Fm(i)
           tmp = tmp * omega2/(Rho+omega2)
         END DO
         factor = 1.0_dp 
@@ -698,7 +698,7 @@ MODULE libint_interface
         T = -omega2*T/(Rho+omega2)
         tmp = 1
         DO i=1,m_max+1
-          prim%F(i) = exp(T) * tmp
+          prim%F(i) = EXP(T) * tmp
           tmp = tmp * omega2/(Rho+omega2)
         END DO
         factor = (Pi/(Rho+omega2))**(1.5_dp)
@@ -717,7 +717,7 @@ MODULE libint_interface
         T = -omega2*T/(Rho+omega2)
         tmp = (Pi/(Rho+omega2))**(1.5_dp) * potential_parameter%scale_gaussian
         DO i=1,m_max+1
-          prim%F(i) = exp(T) * tmp + Fm(i)
+          prim%F(i) = EXP(T) * tmp + Fm(i)
           tmp = tmp * omega2/(Rho+omega2)
         END DO
         factor = 1.0_dp 

@@ -44,13 +44,13 @@ MODULE semi_empirical_utils
                                              evolt,&
                                              kcalmol
   USE semi_empirical_parameters,       ONLY: am1_default_parameter,&
+                                             get_pm6_basis,&
                                              mndo_default_parameter,&
                                              pcharge_default_parameter,&
                                              pdg_default_parameter,&
                                              pm3_default_parameter,&
                                              pm6_default_parameter,&
-                                             rm1_default_parameter,&
-                                             get_pm6_basis
+                                             rm1_default_parameter
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -281,7 +281,7 @@ CONTAINS
           ! read PM6 basis set table
           nq(l)=get_pm6_basis(se_parameter%z,l)
           lq(l)=l
-        else
+        ELSE
           dl=2*l+1
           nl=ptable(se_parameter%z)%e_conv(l)
           IF ( nl == 0 ) THEN

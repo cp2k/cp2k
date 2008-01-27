@@ -55,7 +55,7 @@ MODULE cp2k_units
   
   TYPE(unit_convert_type), POINTER :: units
   PUBLIC :: unit_convert_type, get_cp2k_units, init_cp2k_units, rm_cp2k_units
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_units'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_units'
 !!*****
 !******************************************************************************
 
