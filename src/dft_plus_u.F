@@ -103,18 +103,18 @@ CONTAINS
   !>                overlap matrix, respectively.
   !> \details
   !>  \f{eqnarray*}
-  !>   E^{\rm DFT+U} & = & E^{\rm DFT} +  E^{\rm U}\\
+  !>   E^{\rm DFT+U} & = & E^{\rm DFT} +  E^{\rm U}\\\
   !>                 & = & E^{\rm DFT} +  \frac{1}{2}(U - J)\sum_\mu (q_\mu - q_\mu^2)\\[1ex]
-  !>   V_{\mu\nu}^{\rm DFT+U} & = & V_{\mu\nu}^{\rm DFT} + V_{\mu\nu}^{\rm U}\\
+  !>   V_{\mu\nu}^{\rm DFT+U} & = & V_{\mu\nu}^{\rm DFT} + V_{\mu\nu}^{\rm U}\\\
   !>                          & = & \frac{\partial E^{\rm DFT}}
   !>                                     {\partial P_{\mu\nu}} +
   !>                                \frac{\partial E^{\rm U}}
-  !>                                     {\partial P_{\mu\nu}} \\
+  !>                                     {\partial P_{\mu\nu}}\\\
   !>                          & = & H_{\mu\nu} +
   !>                                \frac{\partial E^{\rm U}}{\partial q_\mu}
-  !>                                \frac{\partial q_\mu}{\partial P_{\mu\nu}}\\
+  !>                                \frac{\partial q_\mu}{\partial P_{\mu\nu}}\\\
   !>                          & = & H_{\mu\nu} +
-  !>                                \frac{1}{2}(U - J)(1 - q_\mu - q_\nu) S_{\mu\nu}\\
+  !>                                \frac{1}{2}(U - J)(1 - q_\mu - q_\nu) S_{\mu\nu}\\\
   !>  \f}
   !> \param[in]     qs_env Quickstep environment
   !> \param[in,out] matrix_h Hamiltonian matrices for each spin
