@@ -1,23 +1,39 @@
-! sample of a simple runner that uses the f77_interface
-! it can beused to connect c programs, communicating through std-in/ std-out
-!
-! positions are in angstrom, energies in evolt
-!
-! commands:
-! load filename: loads the filename, returns the env_id, or -1 in case of error
-! natom [env_id]: returns the number of atoms in the environement env_id
-!  (defaults to the last loaded)
-! setpos [env_id]: sets the positions of the atoms, should be followed 
-!  by natom*3 (on a line) and then all the positions [angstrom]
-! getpos [env_id]: gets the positions of the atoms, returns
-!  natom*3 (on a line) and then all the positions [angstrom]
-! calcE [env_id]: calculate the energy and returns it (in eV)
-! calcEF [env_id]: calculate the energy and forces and returns it,
-!  first the energy on a line (in eV), then the natom*3 (on a line)
-!  and finally all the values (in eV/angstrom)
-!
-! fawzi
-PROGRAM cp2k_runner
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2008  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+!!****** cp2k/cp2k [1.0] *
+!!
+!!   NAME
+!!     cp2k, The shell CP2K program    
+!!
+!!   FUNCTION
+!!      starts the program
+!!
+!!   AUTHOR
+!!      Fawzi Mohamed
+!!
+!!   NOTES
+!!      sample of a simple runner that uses the f77_interface
+!!      it can beused to connect c programs, communicating through std-in/ std-out
+!!      
+!!      positions are in angstrom, energies in evolt
+!!      
+!!      commands:
+!!      load filename:   loads the filename, returns the env_id, or -1 in case of error
+!!      natom [env_id]:  returns the number of atoms in the environement env_id
+!!                       (defaults to the last loaded)
+!!      setpos [env_id]: sets the positions of the atoms, should be followed 
+!!                       by natom*3 (on a line) and then all the positions [angstrom]
+!!      getpos [env_id]: gets the positions of the atoms, returns
+!!                       natom*3 (on a line) and then all the positions [angstrom]
+!!      calcE [env_id]:  calculate the energy and returns it (in eV)
+!!      calcEF [env_id]: calculate the energy and forces and returns it,
+!!                       first the energy on a line (in eV), then the natom*3 (on a line)
+!!                       and finally all the values (in eV/angstrom)
+!!*** **********************************************************************
+PROGRAM cp2k_shell
   USE kinds,                           ONLY: dp
   USE f77_interface
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -356,4 +372,4 @@ CONTAINS
     END IF
   END FUNCTION parse_env_id
 
-END PROGRAM cp2k_runner
+END PROGRAM cp2k_shell
