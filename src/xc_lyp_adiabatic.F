@@ -594,14 +594,14 @@ CONTAINS
           * (my_rhoa * t55 + t23 * (0.33864555775321588795e2_dp * Cf * t30 * my_rhob  &
           + t123 - t128 - t132 - 0.1111111111e0_dp * t48 * (-t135 + t3 * t45 -  &
           t136)) - t143 + t149 * t45 + (t148 - 0.6666666667e0_dp * my_rhob) * t44)
-          e_ndra(ii) = e_ndra(ii)   -t16 * t22 * (t23 * (-DBLE(2 * t43 * my_ndrhoa) - 0.2222222222e0_dp  &
-          * DBLE(t48) * DBLE(my_rhoa) * DBLE(t3) * DBLE(my_ndrhoa)) + DBLE(2 * t62  &
-          * my_ndrhoa))
-          e_ndrb(ii) = e_ndrb(ii)   -t16 * t22 * (t23 * (-DBLE(2 * t43 * my_ndrhob) - 0.2222222222e0_dp  &
-          * DBLE(t48) * DBLE(my_rhob) * DBLE(t3) * DBLE(my_ndrhob)) + DBLE(2 * t60  &
-          * my_ndrhob))
-          e_ndr(ii) = e_ndr(ii)   -t16 * t22 * (DBLE(2 * t23 * t38 * my_ndrho) - 0.1333333333e1_dp * DBLE(t17)  &
-          * DBLE(my_ndrho))
+          e_ndra(ii) = e_ndra(ii)   -t16 * t22 * (t23 * (-REAL(2 * t43 * my_ndrhoa,KIND=dp) - 0.2222222222e0_dp  &
+          * REAL(t48,KIND=dp) * REAL(my_rhoa,KIND=dp) * REAL(t3,KIND=dp) * REAL(my_ndrhoa,KIND=dp)) + REAL(2 * t62  &
+          * my_ndrhoa,KIND=dp))
+          e_ndrb(ii) = e_ndrb(ii)   -t16 * t22 * (t23 * (-REAL(2 * t43 * my_ndrhob,KIND=dp) - 0.2222222222e0_dp  &
+          * REAL(t48,KIND=dp) * REAL(my_rhob,KIND=dp) * REAL(t3,KIND=dp) * REAL(my_ndrhob,KIND=dp)) + REAL(2 * t60  &
+          * my_ndrhob,KIND=dp))
+          e_ndr(ii) = e_ndr(ii)   -t16 * t22 * (REAL(2 * t23 * t38 * my_ndrho,KIND=dp) - 0.1333333333e1_dp * REAL(t17,KIND=dp)  &
+          * REAL(my_ndrho,KIND=dp))
         END IF
       END IF
     END DO
