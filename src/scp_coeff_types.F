@@ -1,6 +1,6 @@
 !---------------------------------------------------!
 !   CP2K: A general program to perform molecular auxamics simulations         !
-!   Copyright (C) 2000 - 2007  CP2K developers group                          !
+!   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****s* cp2k/scp_coeff_type [1.0] *
 !!
