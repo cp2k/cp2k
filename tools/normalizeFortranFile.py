@@ -29,20 +29,19 @@ def readFortranLine(infile):
     while 1:
         line=infile.readline().replace("\t",8*" ")
         if not line: break
+        lines.append(line)
         m=lineRe.match(line)
         if not m or m.span()[1]!=len(line):
             raise SyntaxError("unexpected line format:"+repr(line))
         if m.group("preprocessor"):
-            if len(lines)>0:
+            if len(lines)>1:
                 raise SyntaxError("continuation to a preprocessor line not supported "+repr(line))
-            lines.append(line)
             comments=line
             break
         coreAtt=m.group("core")
         joinedLine+=coreAtt
         if coreAtt and not coreAtt.isspace(): continuation=0
         if m.group("continue"): continuation=1
-        lines.append(line)
         if m.group("comment"):
             if comments:
                 comments+="\n"+m.group("comment")
@@ -55,10 +54,10 @@ def parseRoutine(inFile):
     """Parses a routine"""
     startRe=re.compile(r" *(?:recursive +|pure +|elemental +)*(?:subroutine|function)",re.IGNORECASE)
     endRe=re.compile(r" *end (?:subroutine|function)",re.IGNORECASE)
-    startRoutineRe=re.compile(r" *(?:recursive +|pure +|elemental +)*(?P<kind>subroutine|function) +(?P<name>[a-zA-Z_][a-zA-Z_0-9]*) *(?:\((?P<arguments>[^()]*)\))? *(?:result *\( *(?P<result>[a-zA-Z_][a-zA-Z_0-9]*) *\))? *\n?",re.IGNORECASE)#$
+    startRoutineRe=re.compile(r" *(?:recursive +|pure +|elemental +)*(?P<kind>subroutine|function) +(?P<name>[a-zA-Z_][a-zA-Z_0-9]*) *(?:\((?P<arguments>[^()]*)\))? *(?:result *\( *(?P<result>[a-zA-Z_][a-zA-Z_0-9]*) *\))? *(?:bind *\([^()]+\))? *\n?",re.IGNORECASE)#$
     typeBeginRe=re.compile(r" *(?P<type>integer(?: *\* *[0-9]+)?|logical|character(?: *\* *[0-9]+)?|real(?: *\* *[0-9]+)?|complex(?: *\* *[0-9]+)?|type)",
                            re.IGNORECASE)
-    typeRe=re.compile(r" *(?P<type>integer(?: *\* *[0-9]+)?|logical|character(?: *\* *[0-9]+)?|real(?: *\* *[0-9]+)?|complex(?: *\* *[0-9]+)?|type) *(?P<parameters>\((?:[^()]+|\([^()]*\))*\))? *(?P<attributes>(?: *, *[a-zA-Z_0-9]+(?: *\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\))?)+)? *(?P<dpnt>::)?(?P<vars>[^\n]+)\n?",re.IGNORECASE)#$
+    typeRe=re.compile(r" *(?P<type>integer(?: *\* *[0-9]+)?|logical|character(?: *\* *[0-9]+)?|real(?: *\* *[0-9]+)?|complex(?: *\* *[0-9]+)?|type) *(?P<parameters>\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\))? *(?P<attributes>(?: *, *[a-zA-Z_0-9]+(?: *\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\))?)+)? *(?P<dpnt>::)?(?P<vars>[^\n]+)\n?",re.IGNORECASE)#$
     attributeRe=re.compile(r" *, *(?P<attribute>[a-zA-Z_0-9]+) *(?:\( *(?P<param>(?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*)\))? *",re.IGNORECASE)
     ignoreRe=re.compile(r" *(?:|implicit +none *)$",re.IGNORECASE)
     interfaceStartRe=re.compile(r" *interface *$",re.IGNORECASE)
@@ -304,7 +303,7 @@ def writeInCols(dLine,indentCol,maxCol,indentAtt,file):
     The '&' of the continuation line is at maxCol.
     indentAtt is the actual intent, and the new indent is returned"""
     strRe=re.compile(r"('[^'\n]*'|\"[^\"\n]*\")")
-    nonWordRe=re.compile(r"([^a-zA-Z0-9_.])")
+    nonWordRe=re.compile(r"(\((?!/)|(?<!/)\)|[^-+a-zA-Z0-9_.()])")
     maxSize=maxCol-indentCol-1
     tol=min(maxSize/6,6)+indentCol
     for fragment in dLine:
@@ -510,21 +509,32 @@ def cleanDeclarations(routine,logFile=sys.stdout):
                 localDecl.append(localD)
         argDecl=[]
         for arg in routine['lowercaseArguments']:
-            argDecl.append(argDeclDict[arg])
+            if argDeclDict.has_key(arg):
+                argDecl.append(argDeclDict[arg])
+            else:
+                print "warning, implicitly typed argument '",arg,"' in routine",routine['name']
         if routine['kind'].lower()=='function':
             aDecl=argDecl[:-1]
         else:
             aDecl=argDecl
         isOptional=0
-        for arg in aDecl:
-            attIsOptional= ("optional" in map(lambda x:x.lower(),
-                                              arg['attributes']))
-            if isOptional and not attIsOptional:
-                logFile.write("*** warning non optional args %s after optional in routine %s\n" %(
-                    repr(arg['vars']),routine['name']))
-            if attIsOptional:
-                isOptional=1
+        #for arg in aDecl:
+        #    attIsOptional= ("optional" in map(lambda x:x.lower(),
+        #                                      arg['attributes']))
+        #    if isOptional and not attIsOptional:
+        #        logFile.write("*** warning non optional args %s after optional in routine %s\n" %(
+        #            repr(arg['vars']),routine['name']))
+        #    if attIsOptional:
+        #        isOptional=1
+        argDecl.extend(paramDecl)
+        paramDecl=[]
         enforceDeclDependecies(argDecl)
+        for i in xrange(len(argDecl)-1,-1,-1):
+            if 'parameter' in map(str.lower,argDecl[i]['attributes']):
+                paramDecl.append(argDecl[i])
+                del argDecl[i]
+            else:
+                break
 
         newDecl=StringIO()
         for comment in routine['preDeclComments']:
@@ -589,7 +599,7 @@ def rmNullify(var,strings):
             v= map(string.strip,vars.split(","))
             removedNow=0
             for j in xrange(len(v)-1,-1,-1):
-                if v[j].lower()==var:
+                if findWord(var,v[j].lower())!=-1:
                     del v[j]
                     removedNow=1
             if removedNow:
@@ -822,10 +832,11 @@ def rewriteFortranFile(inFile,outFile,logFile=sys.stdout,orig_filename=None):
         m=moduleRe.match(line)
         if m:
             if not orig_filename: orig_filename=inFile.name
-            if (m.group('moduleName')!=os.path.basename(orig_filename)[0:-2]) :
+            endPos=orig_filename.rfind('.')
+            if (m.group('moduleName')!=os.path.basename(orig_filename)[0:endPos]) :
                 raise SyntaxError("Module name is different from filename ("+
                                   m.group('moduleName')+
-                                  "!="+os.path.basename(inFile.name)[0:-2]+")")
+                                  "!="+os.path.basename(orig_filename)[0:endPos]+")")
             break
     try:
         modulesDict=parseUse(inFile)
