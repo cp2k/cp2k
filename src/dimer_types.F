@@ -26,7 +26,9 @@ MODULE dimer_types
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_first_rotation_step
-  USE input_section_types,             ONLY: section_vals_type,&
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE parallel_rng_types,              ONLY: random_numbers
@@ -136,15 +138,19 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dimer_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
+    INTEGER                                  :: i, isize, j, n_rep_val, stat
+    LOGICAL                                  :: explicit, failure
     REAL(KIND=dp)                            :: norm
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: array
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: nvec_section
 
     failure=.FALSE.
     CPPostcondition(.NOT.ASSOCIATED(dimer_env),cp_failure_level,routineP,error,failure)
     ALLOCATE(dimer_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
+       logger => cp_error_get_logger(error)
        dimer_env%ref_count=1
        last_dimer_id=last_dimer_id+1
        dimer_env%id_nr=last_dimer_id
@@ -160,7 +166,26 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(dimer_env%rot%g1p(natom*3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL random_numbers(dimer_env%nvec, globenv%gaussian_rng_stream, error)
+       ! Check if the dimer vector is available in the input or not..
+       nvec_section => section_vals_get_subs_vals(dimer_section,"DIMER_VECTOR",error=error)
+       CALL section_vals_get(nvec_section, explicit=explicit, error=error)
+       IF (explicit) THEN
+          CALL cp_log(logger=logger, level=cp_note_level, fromWhere=routineP,&
+               message="Reading Dimer Vector from file!",local=.FALSE.)
+          NULLIFY(array)
+          CALL section_vals_val_get(nvec_section,"_DEFAULT_KEYWORD_",n_rep_val=n_rep_val,error=error)
+          isize = 0
+          DO i = 1, n_rep_val
+             CALL section_vals_val_get(nvec_section,"_DEFAULT_KEYWORD_",r_vals=array,i_rep_val=i,error=error)
+             DO j = 1, SIZE(array)
+                isize = isize + 1
+                dimer_env%nvec(isize) = array(j)
+             END DO
+          END DO
+          CPPostcondition(isize==SIZE(dimer_env%nvec),cp_failure_level,routineP,error,failure)
+       ELSE
+          CALL random_numbers(dimer_env%nvec, globenv%gaussian_rng_stream, error)
+       END IF
        norm = SQRT(SUM(dimer_env%nvec**2))
        CPPostcondition(norm>0.0_dp,cp_failure_level,routineP,error,failure)
        dimer_env%nvec = dimer_env%nvec / norm

@@ -31,6 +31,7 @@ MODULE cg_optimizer
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE dimer_utils,                     ONLY: update_dimer_vec
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -244,6 +245,9 @@ CONTAINS
              CALL check_converg(SIZE(x0),x0-xold,xi,output_unit,conv,gopt_param)
              CALL write_geo_traj(force_env,  root_section, its, opt_energy, error)
           ELSE
+             CALL update_dimer_vec(gopt_env%dimer_env, motion_section, error)
+             CALL write_restart(force_env=force_env,root_section=root_section,&
+                  force_env_section=force_env_section,error=error)
              CALL write_rot_cycle_infos(output_unit,its,opt_energy,opt_energy-eold,emin,gopt_env%dimer_env,&
                   wildcard)
              CALL check_rot_conv(gopt_env%dimer_env, output_unit, conv, error)
@@ -270,12 +274,17 @@ CONTAINS
        IF(its == maxiter .AND. (.NOT.conv))THEN
           CALL print_geo_opt_nc(gopt_env, output_unit)
        END IF
-       ! Write final particle information, if converged
+
+       ! Write final particle information and restart, if converged
        CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=its,error=error)
        IF (.NOT.gopt_env%dimer_rotation) THEN
           CALL write_final_info(conv, its, gopt_env, x0, gopt_env%force_env%para_env%mepos,&
                gopt_env%force_env%para_env, force_env, gopt_env%motion_section, root_section,&
                force_env_section, error)
+       ELSE
+          CALL update_dimer_vec(gopt_env%dimer_env, motion_section, error)
+          CALL write_restart(force_env=force_env,root_section=root_section,&
+               force_env_section=force_env_section,error=error)     
        END IF
 
        DEALLOCATE(xold, stat=stat)

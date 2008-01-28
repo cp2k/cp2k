@@ -584,6 +584,14 @@ CONTAINS
                   section,error=error)
           END IF
 
+          CALL section_vals_val_get(r_section,"RESTART_DIMER",l_val=flag,error=error)
+          IF (flag.AND.check_restart(input_file, restart_file, "MOTION%GEO_OPT%TRANSITION_STATE%DIMER",error)) THEN
+             section => section_vals_get_subs_vals(restart_file,&
+                  "MOTION%GEO_OPT%TRANSITION_STATE%DIMER%DIMER_VECTOR",error=error)
+             CALL section_vals_set_subs_vals(input_file,"MOTION%GEO_OPT%TRANSITION_STATE%DIMER%DIMER_VECTOR",&
+                  section,error=error)
+          END IF
+
           CALL section_vals_val_get(r_section,"CUSTOM_PATH",n_rep_val=n_rep_val,error=error)
           DO i_rep_val=1,n_rep_val
              CALL section_vals_val_get(r_section,"CUSTOM_PATH",i_rep_val=i_rep_val,c_val=path,error=error)

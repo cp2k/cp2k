@@ -962,6 +962,19 @@ CONTAINS
        CALL section_add_subsection(subsection,subsection2,error=error)
        CALL section_release(subsection2,error=error)
 
+       CALL section_create(subsection2,name="DIMER_VECTOR",&
+            description="Specifies the initial dimer vector (used frequently to restart DIMER calculations)."//&
+            " If not provided the starting orientation of the dimer is chosen randomly.",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Specify on each line the components of the dimer vector.",repeats=.TRUE.,&
+            usage="<REAL> <REAL> <REAL>", type_of_var=real_t, n_var=-1, error=error)
+       CALL section_add_keyword(subsection2,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(subsection,subsection2,error=error)
+       CALL section_release(subsection2,error=error)
+
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 

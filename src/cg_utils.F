@@ -943,7 +943,6 @@ CONTAINS
        DEALLOCATE(grad, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-
     CALL timestop(handle)
 
   END FUNCTION cg_deval1d
@@ -1071,11 +1070,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_conjugate_direction', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     LOGICAL                                  :: check, failure
     REAL(KIND=dp)                            :: dgg, gam, gg, norm, norm_h
     TYPE(dimer_env_type), POINTER            :: dimer_env
 
     failure = .FALSE.
+    CALL timeset(routineN,handle)
     NULLIFY(dimer_env)
     IF (.NOT.gopt_env%dimer_rotation) THEN
        gg  = DOT_PRODUCT(g,g)
@@ -1089,13 +1090,13 @@ CONTAINS
        h   = g + gam * h
     ELSE
        dimer_env => gopt_env%dimer_env
-       check = ABS(DOT_PRODUCT(g,g)-1.0_dp)<dimer_thrs
+       check = ABS(DOT_PRODUCT(g,g)-1.0_dp)<MAX(1.0E-10_dp,dimer_thrs)
        CPPrecondition(check,cp_failure_level,routineP,error,failure)
 
-       check = ABS(DOT_PRODUCT(xi,xi)-1.0_dp)<dimer_thrs
+       check = ABS(DOT_PRODUCT(xi,xi)-1.0_dp)<MAX(1.0E-10_dp,dimer_thrs)
        CPPrecondition(check,cp_failure_level,routineP,error,failure)
 
-       check = ABS(DOT_PRODUCT(h,dimer_env%cg_rot%nvec_old))<dimer_thrs
+       check = ABS(DOT_PRODUCT(h,dimer_env%cg_rot%nvec_old))<MAX(1.0E-10_dp,dimer_thrs)
        CPPrecondition(check,cp_failure_level,routineP,error,failure)
        gg  = dimer_env%cg_rot%norm_theta_old**2
        IF (Fletcher_Reeves) THEN
@@ -1114,6 +1115,7 @@ CONTAINS
        IF (norm_h /=0.0_dp)  h = h/norm_h
        dimer_env%cg_rot%norm_h = norm_h
     END IF
+    CALL timestop(handle)
 
   END SUBROUTINE get_conjugate_direction
 
