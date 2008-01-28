@@ -1086,21 +1086,21 @@ CONTAINS
              ! If required do a backup
              IF (my_do_backup) THEN
                 INQUIRE(FILE=filename,EXIST=found)
-                IF (found) THEN
-                   CALL section_vals_val_get(print_key,"BACKUP_COPIES",i_val=nbak,error=error)
-                   IF (nbak/=0) THEN
-                      iteration_info => logger%iter_info
-                      s_backup_level   = 0
-                      IF (ASSOCIATED(print_key%ibackup)) s_backup_level = SIZE(print_key%ibackup)
-                      CALL section_vals_val_get(print_key,"COMMON_ITERATION_LEVELS",i_val=c_i_level, error=error)
-                      my_backup_level = MAX(1,iteration_info%n_rlevel-c_i_level+1)
-                      f_backup_level  = MAX(s_backup_level,my_backup_level)
-                      IF (f_backup_level>s_backup_level) THEN
-                         CALL reallocate(print_key%ibackup,1,f_backup_level)
-                         DO i = s_backup_level+1, f_backup_level
-                            print_key%ibackup(i) = 0
-                         END DO
-                      END IF
+                CALL section_vals_val_get(print_key,"BACKUP_COPIES",i_val=nbak,error=error)
+                IF (nbak/=0) THEN
+                   iteration_info => logger%iter_info
+                   s_backup_level   = 0
+                   IF (ASSOCIATED(print_key%ibackup)) s_backup_level = SIZE(print_key%ibackup)
+                   CALL section_vals_val_get(print_key,"COMMON_ITERATION_LEVELS",i_val=c_i_level, error=error)
+                   my_backup_level = MAX(1,iteration_info%n_rlevel-c_i_level+1)
+                   f_backup_level  = MAX(s_backup_level,my_backup_level)
+                   IF (f_backup_level>s_backup_level) THEN
+                      CALL reallocate(print_key%ibackup,1,f_backup_level)
+                      DO i = s_backup_level+1, f_backup_level
+                         print_key%ibackup(i) = 0
+                      END DO
+                   END IF
+                   IF (found) THEN
                       print_key%ibackup(my_backup_level)=print_key%ibackup(my_backup_level)+1
                       my_nbak = print_key%ibackup(my_backup_level)
                       ! Recent backup copies correspond to lower backup indexes
@@ -1112,7 +1112,15 @@ CONTAINS
                                  message="Moving file "//TRIM(filename_bak_2)//" into file "//&
                                  TRIM(filename_bak_1)//".",local=my_local)
                          END IF
-                         CALL m_mov(TRIM(filename_bak_2), TRIM(filename_bak_1))
+                         INQUIRE(FILE=filename_bak_2,EXIST=found)
+                         IF (.NOT.found) THEN
+                            IF (do_log) THEN
+                               CALL cp_log(logger=logger, level=cp_note_level, fromWhere=routineP,&
+                                    message="File "//TRIM(filename_bak_2)//" not existing..",local=my_local)
+                            END IF
+                         ELSE
+                            CALL m_mov(TRIM(filename_bak_2), TRIM(filename_bak_1))
+                         END IF
                       END DO
                       ! The last backup is always the one with index 1
                       filename_bak=TRIM(filename)//".bak-"//ADJUSTL(cp_to_string(1))
@@ -1122,6 +1130,9 @@ CONTAINS
                               TRIM(filename_bak)//".",local=my_local)
                       END IF
                       CALL m_mov(TRIM(filename), TRIM(filename_bak))
+                   ELSE
+                      ! Zero the backup history for this new iteration level..
+                      print_key%ibackup(my_backup_level)= 0
                    END IF
                 END IF
              END IF

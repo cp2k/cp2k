@@ -28,6 +28,7 @@ MODULE geo_opt
   USE cg_optimizer,                    ONLY: geoopt_cg
   USE cp_lbfgs_geo,                    ONLY: geoopt_lbfgs
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                             cp_iterate,&
                                              cp_rm_iter_level
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_type
@@ -176,6 +177,7 @@ MODULE geo_opt
     force_env_section => gopt_env%force_env%force_env_section
 
     CALL cp_add_iter_level(logger%iter_info,"ROT_OPT",error=error)
+    CALL cp_iterate(logger%iter_info,iter_nr=0,error=error)
     CALL cp_geo_opt_low(gopt_env%force_env, gopt_env%globenv, gopt_param, gopt_env,&
          force_env_section, geo_section, x0, error)
     CALL cp_rm_iter_level(logger%iter_info,"ROT_OPT",error=error)

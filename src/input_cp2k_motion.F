@@ -342,7 +342,7 @@ CONTAINS
             description="Dumps unique restart files during the run keeping all of them."//&
             "Most useful if recovery is needed at a later point.",&
             print_level=silent_print_level, common_iter_levels=0, &
-            each_iter_names=s2a("MD"),each_iter_values=(/500/), &
+            each_iter_names=s2a("MD","GEO_OPT","ROT_OPT"),each_iter_values=(/500,500,500/), &
             filename="",error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
