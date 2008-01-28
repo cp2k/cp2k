@@ -1,11 +1,11 @@
 
 This is the CP2K software & test suite
 
- * COPYRIGHT: Where you can send money :*)
+ * COPYRIGHT: the license of under which CP2K can be distributed
  * INSTALL: How to set up the program (mainly how to compile it)
  * README: This file
  * arch: Definitions for different architectures/compilers
- * doc: Documentation
+ * doc: Documentation, mostly for developers
  * exe: where the executables will be located
  * lib: library built during compilation
  * makefile: the one and only Makefile
