@@ -1004,15 +1004,15 @@ CONTAINS
 
          sto_alpha(nq(1),lq(1))=srules(kind_z_tmp(ik),ne,nq(1),lq(1))
         sto_zet(1) = sto_alpha(nq(1),lq(1))
-        CALL allocate_sto_basis_set(sto_basis_set)
+        CALL allocate_sto_basis_set(sto_basis_set,error)
         name_sto='xas_tmp_sto'
         CALL set_sto_basis_set(sto_basis_set,nshell=1,nq=nq,&
              lq=lq,zet=sto_zet,name=name_sto)
         CALL create_gto_from_sto_basis(sto_basis_set,&
              xas_env%my_gto_basis(ik)%gto_basis_set,xas_control%ngauss,error=error)
-        CALL deallocate_sto_basis_set(sto_basis_set)
+        CALL deallocate_sto_basis_set(sto_basis_set,error)
         xas_env%my_gto_basis(ik)%gto_basis_set%norm_type = 2
-        CALL init_orb_basis_set(xas_env%my_gto_basis(ik)%gto_basis_set)
+        CALL init_orb_basis_set(xas_env%my_gto_basis(ik)%gto_basis_set,error)
 
         atomic_kind => atomic_kind_set(kind_type_tmp(ik))
         CALL get_atomic_kind(atomic_kind=atomic_kind,&

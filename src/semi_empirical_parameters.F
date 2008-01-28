@@ -39,6 +39,7 @@
 !!   MODIFICATION HISTORY
 !!     BK   (12.10.2004)
 !!     JGH  (36.03.2006) added PDDG function
+!!     Samuele Giani - Teo (28.01.2008) : Parameters for PM6
 !!
 !!   SOURCE
 !******************************************************************************
@@ -2133,6 +2134,1259 @@ CONTAINS
     sep%fn1 = 0._dp; sep%fn2 = 0._dp; sep%fn3 = 0._dp
     sep%bfn1 = 0._dp; sep%bfn2 = 0._dp; sep%bfn3 = 0._dp
 
+    SELECT CASE (z)
+    CASE DEFAULT
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "invalid atomic number")
+    CASE (0)
+       sep%defined = .TRUE.
+    CASE(1)
+       ! Hydrogen
+       sep%uss         =  -11.246958_dp
+       sep%beta(0)     =   -8.352984_dp
+       sep%sto_exponents(0) =    1.268641_dp
+       sep%gss         =   14.448686_dp
+       sep%a           =    0.024184_dp
+       sep%b           =    3.055953_dp
+       sep%c           =    1.786011_dp
+    CASE(2)
+       ! Helium
+       sep%uss         =  -31.770969_dp
+       sep%upp         =   -5.856352_dp
+       sep%beta(0)     =  -58.903774_dp
+       sep%beta(1)     =  -37.039974_dp
+       sep%sto_exponents(0) =    3.313204_dp
+       sep%sto_exponents(1) =    3.657133_dp
+       sep%gss         =    9.445299_dp
+       sep%gsp         =   11.201419_dp
+       sep%gpp         =    9.214548_dp
+       sep%gp2         =   13.046115_dp
+       sep%hsp         =    0.299954_dp
+    CASE(3)
+       ! Lithium
+       sep%uss         =   -4.709912_dp
+       sep%upp         =   -2.722581_dp
+       sep%beta(0)     =   -2.283946_dp
+       sep%beta(1)     =   -7.535573_dp
+       sep%sto_exponents(0) =    0.981041_dp
+       sep%sto_exponents(1) =    2.953445_dp
+       sep%gss         =   11.035907_dp
+       sep%gsp         =   19.998647_dp
+       sep%gpp         =   11.543650_dp
+       sep%gp2         =    9.059036_dp
+       sep%hsp         =    1.641886_dp
+    CASE(4)
+       ! Beryllium
+       sep%uss         =  -16.360315_dp
+       sep%upp         =  -16.339216_dp
+       sep%beta(0)     =   -3.199549_dp
+       sep%beta(1)     =   -4.451920_dp
+       sep%sto_exponents(0) =    1.212539_dp
+       sep%sto_exponents(1) =    1.276487_dp
+       sep%gss         =    7.552804_dp
+       sep%gsp         =   10.203146_dp
+       sep%gpp         =   12.862153_dp
+       sep%gp2         =   13.602858_dp
+       sep%hsp         =    1.501452_dp
+       sep%a           =    0.164180_dp
+       sep%b           =    1.704828_dp
+       sep%c           =    1.785591_dp
+    CASE(5)
+       ! Boron
+       sep%uss         =  -25.967679_dp
+       sep%upp         =  -19.115864_dp
+       sep%beta(0)     =   -4.959706_dp
+       sep%beta(1)     =   -4.656753_dp
+       sep%sto_exponents(0) =    1.634174_dp
+       sep%sto_exponents(1) =    1.479195_dp
+       sep%gss         =    8.179341_dp
+       sep%gsp         =    7.294021_dp
+       sep%gpp         =    7.829395_dp
+       sep%gp2         =    6.401072_dp
+       sep%hsp         =    1.252845_dp
+    CASE(6)
+       ! Carbon
+       sep%uss         =  -51.089653_dp
+       sep%upp         =  -39.937920_dp
+       sep%beta(0)     =  -15.385236_dp
+       sep%beta(1)     =   -7.471929_dp
+       sep%sto_exponents(0) =    2.047558_dp
+       sep%sto_exponents(1) =    1.702841_dp
+       sep%gss         =   13.335519_dp
+       sep%gsp         =   11.528134_dp
+       sep%gpp         =   10.778326_dp
+       sep%gp2         =    9.486212_dp
+       sep%hsp         =    0.717322_dp
+       sep%a           =    0.046302_dp
+       sep%b           =    2.100206_dp
+       sep%c           =    1.333959_dp
+    CASE(7)
+       ! Nitrogen
+       sep%uss         =  -57.784823_dp
+       sep%upp         =  -49.893036_dp
+       sep%beta(0)     =  -17.979377_dp
+       sep%beta(1)     =  -15.055017_dp
+       sep%sto_exponents(0) =    2.380406_dp
+       sep%sto_exponents(1) =    1.999246_dp
+       sep%gss         =   12.357026_dp
+       sep%gsp         =    9.636190_dp
+       sep%gpp         =   12.570756_dp
+       sep%gp2         =   10.576425_dp
+       sep%hsp         =    2.871545_dp
+       sep%a           =   -0.001436_dp
+       sep%b           =    0.495196_dp
+       sep%c           =    1.704857_dp
+    CASE(8)
+       ! Oxygen
+       sep%uss         =  -91.678761_dp
+       sep%upp         =  -70.460949_dp
+       sep%beta(0)     =  -65.635137_dp
+       sep%beta(1)     =  -21.622604_dp
+       sep%sto_exponents(0) =    5.421751_dp
+       sep%sto_exponents(1) =    2.270960_dp
+       sep%gss         =   11.304042_dp
+       sep%gsp         =   15.807424_dp
+       sep%gpp         =   13.618205_dp
+       sep%gp2         =   10.332765_dp
+       sep%hsp         =    5.010801_dp
+       sep%a           =   -0.017771_dp
+       sep%b           =    3.058310_dp
+       sep%c           =    1.896435_dp
+    CASE(9)
+       ! Fluorine
+       sep%uss         = -140.225626_dp
+       sep%upp         =  -98.778044_dp
+       sep%beta(0)     =  -69.922593_dp
+       sep%beta(1)     =  -30.448165_dp
+       sep%sto_exponents(0) =    6.043849_dp
+       sep%sto_exponents(1) =    2.906722_dp
+       sep%gss         =   12.446818_dp
+       sep%gsp         =   18.496082_dp
+       sep%gpp         =    8.417366_dp
+       sep%gp2         =   12.179816_dp
+       sep%hsp         =    2.604382_dp
+       sep%a           =   -0.010792_dp
+       sep%b           =    6.004648_dp
+       sep%c           =    1.847724_dp
+    CASE(10)
+       ! Neon
+       sep%uss         =   -2.978729_dp
+       sep%upp         =  -85.441118_dp
+       sep%beta(0)     =  -69.793475_dp
+       sep%beta(1)     =  -33.261962_dp
+       sep%sto_exponents(0) =    6.000148_dp
+       sep%sto_exponents(1) =    3.834528_dp
+       sep%gss         =   19.999574_dp
+       sep%gsp         =   16.896951_dp
+       sep%gpp         =    8.963560_dp
+       sep%gp2         =   16.027799_dp
+       sep%hsp         =    1.779280_dp
+    CASE(11)
+       ! Sodium
+       sep%uss         =   -4.537153_dp
+       sep%upp         =   -2.433015_dp
+       sep%beta(0)     =    0.244853_dp
+       sep%beta(1)     =    0.491998_dp
+       sep%sto_exponents(0) =    0.686327_dp
+       sep%sto_exponents(1) =    0.950068_dp
+       sep%gss         =    4.059972_dp
+       sep%gsp         =    7.061183_dp
+       sep%gpp         =    9.283540_dp
+       sep%gp2         =   17.034978_dp
+       sep%hsp         =    0.640715_dp
+       sep%a           =   -1.026036_dp
+       sep%b           =    2.014506_dp
+       sep%c           =    1.271202_dp
+    CASE(12)
+       ! Magnesium
+       sep%uss         =  -14.574226_dp
+       sep%upp         =   -7.583850_dp
+       sep%beta(0)     =   -9.604932_dp
+       sep%beta(1)     =    3.416908_dp
+       sep%sto_exponents(0) =    1.310830_dp
+       sep%sto_exponents(1) =    1.388897_dp
+       sep%gss         =    7.115328_dp
+       sep%gsp         =    3.253024_dp
+       sep%gpp         =    4.737311_dp
+       sep%gp2         =    8.428485_dp
+       sep%hsp         =    0.877379_dp
+    CASE(13)
+       ! Aluminium
+       sep%uss         =  -24.546778_dp
+       sep%upp         =  -20.104434_dp
+       sep%udd         =    8.004394_dp
+       sep%beta(0)     =  -18.375229_dp
+       sep%beta(1)     =   -9.382700_dp
+       sep%beta(2)     =  -20.840474_dp
+       sep%sto_exponents(0) =    2.364264_dp
+       sep%sto_exponents(1) =    1.749102_dp
+       sep%sto_exponents(2) =    1.269384_dp
+       sep%zn(0)       =    4.742341_dp
+       sep%zn(1)       =    4.669626_dp
+       sep%zn(2)       =    7.131138_dp
+       sep%gss         =    6.652155_dp
+       sep%gsp         =    7.459435_dp
+       sep%gpp         =    7.668857_dp
+       sep%gp2         =    6.673299_dp
+       sep%hsp         =    0.435060_dp
+       sep%a           =    1.002222_dp
+       sep%b           =    1.517400_dp
+       sep%c           =    0.659101_dp
+    CASE(14)
+       ! Silicon
+       sep%uss         =  -27.358058_dp
+       sep%upp         =  -20.490578_dp
+       sep%udd         =  -22.751900_dp
+       sep%beta(0)     =   -8.686909_dp
+       sep%beta(1)     =   -1.856482_dp
+       sep%beta(2)     =   -6.360627_dp
+       sep%sto_exponents(0) =    1.752741_dp
+       sep%sto_exponents(1) =    1.198413_dp
+       sep%sto_exponents(2) =    2.128593_dp
+       sep%zn(0)       =    8.388111_dp
+       sep%zn(1)       =    1.843048_dp
+       sep%zn(2)       =    0.708600_dp
+       sep%gss         =    5.194805_dp
+       sep%gsp         =    5.090534_dp
+       sep%gpp         =    5.185150_dp
+       sep%gp2         =    4.769775_dp
+       sep%hsp         =    1.425012_dp
+       sep%a           =    0.208571_dp
+       sep%b           =    6.000483_dp
+       sep%c           =    1.185245_dp
+    CASE(15)
+       ! Phosphorus
+       sep%uss         =  -48.729905_dp
+       sep%upp         =  -40.354689_dp
+       sep%udd         =   -7.349246_dp
+       sep%beta(0)     =  -14.583780_dp
+       sep%beta(1)     =  -11.744725_dp
+       sep%beta(2)     =  -20.099893_dp
+       sep%sto_exponents(0) =    2.158033_dp
+       sep%sto_exponents(1) =    1.805343_dp
+       sep%sto_exponents(2) =    1.230358_dp
+       sep%zn(0)       =    6.042706_dp
+       sep%zn(1)       =    2.376473_dp
+       sep%zn(2)       =    7.147750_dp
+       sep%gss         =    8.758856_dp
+       sep%gsp         =    8.483679_dp
+       sep%gpp         =    8.662754_dp
+       sep%gp2         =    7.734264_dp
+       sep%hsp         =    0.871681_dp
+       sep%a           =   -0.034320_dp
+       sep%b           =    6.001394_dp
+       sep%c           =    2.296737_dp
+    CASE(16)
+       ! Sulfur
+       sep%uss         =  -47.530706_dp
+       sep%upp         =  -39.191045_dp
+       sep%udd         =  -46.306944_dp
+       sep%beta(0)     =  -13.827440_dp
+       sep%beta(1)     =   -7.664613_dp
+       sep%beta(2)     =   -9.986172_dp
+       sep%sto_exponents(0) =    2.192844_dp
+       sep%sto_exponents(1) =    1.841078_dp
+       sep%sto_exponents(2) =    3.109401_dp
+       sep%zn(0)       =    0.479722_dp
+       sep%zn(1)       =    1.015507_dp
+       sep%zn(2)       =    4.317470_dp
+       sep%gss         =    9.170350_dp
+       sep%gsp         =    5.944296_dp
+       sep%gpp         =    8.165473_dp
+       sep%gp2         =    7.301878_dp
+       sep%hsp         =    5.005404_dp
+       sep%a           =   -0.036928_dp
+       sep%b           =    1.795067_dp
+       sep%c           =    2.082618_dp
+    CASE(17)
+       ! Chlorine
+       sep%uss         =  -61.389930_dp
+       sep%upp         =  -54.482801_dp
+       sep%udd         =  -38.258155_dp
+       sep%beta(0)     =   -2.367988_dp
+       sep%beta(1)     =  -13.802139_dp
+       sep%beta(2)     =   -4.037751_dp
+       sep%sto_exponents(0) =    2.637050_dp
+       sep%sto_exponents(1) =    2.118146_dp
+       sep%sto_exponents(2) =    1.324033_dp
+       sep%zn(0)       =    0.956297_dp
+       sep%zn(1)       =    2.464067_dp
+       sep%zn(2)       =    6.410325_dp
+       sep%gss         =   11.142654_dp
+       sep%gsp         =    7.487881_dp
+       sep%gpp         =    9.551886_dp
+       sep%gp2         =    8.128436_dp
+       sep%hsp         =    5.004267_dp
+       sep%a           =   -0.013213_dp
+       sep%b           =    3.687022_dp
+       sep%c           =    2.544635_dp
+    CASE(18)
+       ! Argon
+       sep%uss         =   -7.797931_dp
+       sep%upp         =  -83.211487_dp
+       sep%beta(0)     =   -8.839842_dp
+       sep%beta(1)     =  -28.427303_dp
+       sep%sto_exponents(0) =    6.000272_dp
+       sep%sto_exponents(1) =    5.949170_dp
+       sep%gss         =   17.858776_dp
+       sep%gsp         =    4.168451_dp
+       sep%gpp         =   11.852500_dp
+       sep%gp2         =   15.669543_dp
+       sep%hsp         =    4.574549_dp
+    CASE(19)
+       ! Potassium
+       sep%uss         =   -3.801108_dp
+       sep%upp         =   -3.339656_dp
+       sep%beta(0)     =   -8.755195_dp
+       sep%beta(1)     =   -1.788061_dp
+       sep%sto_exponents(0) =    6.000478_dp
+       sep%sto_exponents(1) =    1.127503_dp
+       sep%gss         =    3.369251_dp
+       sep%gsp         =    6.129351_dp
+       sep%gpp         =    0.999505_dp
+       sep%gp2         =   18.999148_dp
+       sep%hsp         =    0.300325_dp
+       sep%a           =    0.157519_dp
+       sep%b           =    6.000566_dp
+       sep%c           =    2.047539_dp
+    CASE(20)
+       ! Calcium
+       sep%uss         =  -10.770058_dp
+       sep%upp         =   -9.754177_dp
+       sep%beta(0)     =   -4.343881_dp
+       sep%beta(1)     =   -1.296612_dp
+       sep%sto_exponents(0) =    1.528258_dp
+       sep%sto_exponents(1) =    2.060094_dp
+       sep%gss         =    5.725773_dp
+       sep%gsp         =    4.781065_dp
+       sep%gpp         =    7.172103_dp
+       sep%gp2         =    7.431876_dp
+       sep%hsp         =    1.240572_dp
+       sep%a           =   -0.025275_dp
+       sep%b           =    0.500017_dp
+       sep%c           =    2.329051_dp 
+    CASE(21)
+       ! Scandium
+       sep%uss         =  -15.544461_dp
+       sep%upp         =  -18.646295_dp
+       sep%udd         =  -16.069444_dp
+       sep%beta(0)     =   -8.620944_dp
+       sep%beta(1)     =    3.075948_dp
+       sep%beta(2)     =   -9.768661_dp
+       sep%sto_exponents(0) =    1.402469_dp
+       sep%sto_exponents(1) =    1.345196_dp
+       sep%sto_exponents(2) =    1.859012_dp
+       sep%zn(0)       =    0.848418_dp
+       sep%zn(1)       =    2.451729_dp
+       sep%zn(2)       =    0.789372_dp
+       sep%gss         =    4.638215_dp
+       sep%gsp         =    5.739164_dp
+       sep%gpp         =   14.604872_dp
+       sep%gp2         =   12.802595_dp
+       sep%hsp         =    0.193835_dp
+       sep%rho         =    3.173734_dp
+       sep%f0sd        =    4.798313_dp
+       sep%g2sd        =    5.380136_dp
+    CASE(22)
+       ! Titanium
+       sep%uss         =  -25.507973_dp
+       sep%upp         =  -17.260909_dp
+       sep%udd         =  -23.809486_dp
+       sep%beta(0)     =    3.389142_dp
+       sep%beta(1)     =   -3.355350_dp
+       sep%beta(2)     =   -1.842829_dp
+       sep%sto_exponents(0) =    5.324777_dp
+       sep%sto_exponents(1) =    1.164068_dp
+       sep%sto_exponents(2) =    1.418280_dp
+       sep%zn(0)       =    1.045904_dp
+       sep%zn(1)       =    1.076844_dp
+       sep%zn(2)       =    0.717945_dp
+       sep%gss         =    5.717851_dp
+       sep%gsp         =    5.800015_dp
+       sep%gpp         =    6.414726_dp
+       sep%gp2         =    5.623133_dp
+       sep%hsp         =    1.403732_dp
+       sep%f0sd        =    6.560562_dp
+       sep%g2sd        =    3.396235_dp
+    CASE(23)
+       ! Vanadium
+       sep%uss         =  -32.162276_dp
+       sep%upp         =  -21.572501_dp
+       sep%udd         =  -34.506245_dp
+       sep%beta(0)     =   -1.211330_dp
+       sep%beta(1)     =    0.740746_dp
+       sep%beta(2)     =    3.153669_dp
+       sep%sto_exponents(0) =    1.974330_dp
+       sep%sto_exponents(1) =    1.063106_dp
+       sep%sto_exponents(2) =    1.394806_dp
+       sep%zn(0)       =    1.094426_dp
+       sep%zn(1)       =    0.755378_dp
+       sep%zn(2)       =    1.099367_dp
+       sep%gss         =    5.983116_dp
+       sep%gsp         =    4.736769_dp
+       sep%gpp         =    4.499763_dp
+       sep%gp2         =    3.944481_dp
+       sep%hsp         =    0.901105_dp
+       sep%f0sd        =    6.810021_dp
+       sep%g2sd        =    1.831407_dp
+    CASE(24)
+       ! Chromium
+       sep%uss         =  -34.864339_dp
+       sep%upp         =  -26.978615_dp
+       sep%udd         =  -54.431036_dp
+       sep%beta(0)     =   -5.122615_dp
+       sep%beta(1)     =    3.926711_dp
+       sep%beta(2)     =   -4.230550_dp
+       sep%sto_exponents(0) =    3.283460_dp
+       sep%sto_exponents(1) =    1.029394_dp
+       sep%sto_exponents(2) =    1.623119_dp
+       sep%zn(0)       =    1.619853_dp
+       sep%zn(1)       =    0.848266_dp
+       sep%zn(2)       =    1.405015_dp
+       sep%gss         =    8.855572_dp
+       sep%gsp         =    5.588631_dp
+       sep%gpp         =    5.053094_dp
+       sep%gp2         =    4.429530_dp
+       sep%hsp         =    0.648039_dp
+       sep%f0sd        =    6.150136_dp
+       sep%g2sd        =    2.000300_dp
+    CASE(25)
+       ! Manganese
+       sep%uss         =  -51.460000_dp
+       sep%upp         =  -37.543990_dp
+       sep%udd         =  -47.655370_dp
+       sep%beta(0)     =   -4.185290_dp
+       sep%beta(1)     =   -3.479630_dp
+       sep%beta(2)     =  -13.473190_dp
+       sep%sto_exponents(0) =    2.131680_dp
+       sep%sto_exponents(1) =    1.525880_dp
+       sep%sto_exponents(2) =    2.607800_dp
+       sep%zn(0)       =    1.132450_dp
+       sep%zn(1)       =    1.390740_dp
+       sep%zn(2)       =    0.962550_dp
+       sep%gss         =    6.190990_dp
+       sep%gsp         =    6.757427_dp
+       sep%gpp         =    8.284594_dp
+       sep%gp2         =    7.262255_dp
+       sep%hsp         =    1.520518_dp
+       sep%f0sd        =    7.690920_dp
+       sep%g2sd        =    1.105330_dp
+    CASE(26)
+       ! Iron
+       sep%uss         =  -70.515047_dp
+       sep%upp         =  -62.963069_dp
+       sep%udd         = -103.631790_dp
+       sep%beta(0)     =    8.027621_dp
+       sep%beta(1)     =   -1.125760_dp
+       sep%beta(2)     =   -3.507531_dp
+       sep%sto_exponents(0) =    1.479150_dp
+       sep%sto_exponents(1) =    6.002246_dp
+       sep%sto_exponents(2) =    1.080747_dp
+       sep%zn(0)       =    1.459152_dp
+       sep%zn(1)       =    1.392614_dp
+       sep%zn(2)       =    2.161909_dp
+       sep%gss         =    7.977036_dp
+       sep%gsp         =    7.786867_dp
+       sep%gpp         =    8.295758_dp
+       sep%gp2         =    7.272041_dp
+       sep%hsp         =    1.880189_dp
+       sep%rho         =    1.272092_dp
+       sep%f0sd        =    9.300165_dp
+       sep%g2sd        =    1.601345_dp
+    CASE(27)
+       ! Cobalt
+       sep%uss         =  -21.039413_dp
+       sep%upp         =   10.000000_dp
+       sep%udd         =  -28.068971_dp
+       sep%beta(0)     =   -8.992062_dp
+       sep%beta(1)     =   -0.100000_dp
+       sep%beta(2)     =   -2.481509_dp
+       sep%sto_exponents(0) =    1.166613_dp
+       sep%sto_exponents(1) =    3.000000_dp
+       sep%sto_exponents(2) =    1.860218_dp
+       sep%zn(0)       =    0.519518_dp
+       sep%zn(1)       =    1.000000_dp
+       sep%zn(2)       =    0.352115_dp
+       sep%gss         =    2.840152_dp
+       sep%gsp         =    3.425933_dp
+       sep%gpp         =    5.956968_dp
+       sep%gp2         =    5.221864_dp
+       sep%hsp         =    0.390087_dp
+       sep%f0sd        =    1.446283_dp
+       sep%g2sd        =    1.680225_dp
+    CASE(28)
+       ! Nickel
+       sep%uss         =  -47.620247_dp
+       sep%upp         =  -32.878408_dp
+       sep%udd         =  -93.026395_dp
+       sep%beta(0)     =   -9.151521_dp
+       sep%beta(1)     =   -8.086696_dp
+       sep%beta(2)     =   -8.655910_dp
+       sep%sto_exponents(0) =    1.591828_dp
+       sep%sto_exponents(1) =    2.304739_dp
+       sep%sto_exponents(2) =    2.514761_dp
+       sep%zn(0)       =    0.746470_dp
+       sep%zn(1)       =    0.753327_dp
+       sep%zn(2)       =    1.461345_dp
+       sep%gss         =    4.080876_dp
+       sep%gsp         =    4.099452_dp
+       sep%gpp         =    4.487545_dp
+       sep%gp2         =    3.933771_dp
+       sep%hsp         =    0.993498_dp
+       sep%rho         =    1.586979_dp
+       sep%f0sd        =    4.651664_dp
+       sep%g2sd        =    1.880502_dp
+    CASE(29)
+       ! Copper
+       sep%uss         =  -97.002205_dp
+       sep%upp         =   -1.000000_dp
+       sep%udd         = -110.442592_dp
+       sep%beta(0)     =   -9.369508_dp
+       sep%beta(1)     =   -0.100000_dp
+       sep%beta(2)     =  -16.982092_dp
+       sep%sto_exponents(0) =    1.669096_dp
+       sep%sto_exponents(1) =    3.000000_dp
+       sep%sto_exponents(2) =    2.734990_dp
+       sep%zn(0)       =    1.899598_dp
+       sep%zn(1)       =    3.000000_dp
+       sep%zn(2)       =    1.484317_dp
+       sep%gss         =   10.384910_dp
+       sep%gsp         =   12.145361_dp
+       sep%gpp         =   17.870905_dp
+       sep%gp2         =   15.665592_dp
+       sep%hsp         =    2.037394_dp
+       sep%f0sd        =    9.848807_dp
+       sep%g2sd        =    9.847577_dp
+    CASE(30)
+       ! Zinc
+       sep%uss         =  -18.040862_dp
+       sep%upp         =   -7.834895_dp
+       sep%beta(0)     =  -13.276583_dp
+       sep%beta(1)     =    1.479642_dp
+       sep%sto_exponents(0) =    1.512875_dp
+       sep%sto_exponents(1) =    1.789482_dp
+       sep%gss         =    8.707424_dp
+       sep%gsp         =    3.436116_dp
+       sep%gpp         =   20.000041_dp
+       sep%gp2         =    6.782785_dp
+       sep%hsp         =    0.662036_dp
+    CASE(31)
+       ! Gallium
+       sep%uss         =  -30.600226_dp
+       sep%upp         =  -21.032425_dp
+       sep%beta(0)     =  -10.808320_dp
+       sep%beta(1)     =   -4.185500_dp
+       sep%sto_exponents(0) =    2.339067_dp
+       sep%sto_exponents(1) =    1.729592_dp
+       sep%gss         =   10.354885_dp
+       sep%gsp         =    7.993674_dp
+       sep%gpp         =    6.090184_dp
+       sep%gp2         =    6.299226_dp
+       sep%hsp         =    1.295974_dp
+    CASE(32)
+       ! Germanium
+       sep%uss         =  -32.747338_dp
+       sep%upp         =  -24.709016_dp
+       sep%beta(0)     =  -14.854297_dp
+       sep%beta(1)     =   -2.591260_dp
+       sep%sto_exponents(0) =    2.546073_dp
+       sep%sto_exponents(1) =    1.709130_dp
+       sep%gss         =    7.518301_dp
+       sep%gsp         =    6.594443_dp
+       sep%gpp         =    6.066801_dp
+       sep%gp2         =    5.305947_dp
+       sep%hsp         =    0.290742_dp
+    CASE(33)
+       ! Arsenic
+       sep%uss         =  -37.956965_dp
+       sep%upp         =  -38.453701_dp
+       sep%udd         =  -30.282658_dp
+       sep%beta(0)     =  -11.963725_dp
+       sep%beta(1)     =   -7.340073_dp
+       sep%beta(2)     =    3.753005_dp
+       sep%sto_exponents(0) =    2.926171_dp
+       sep%sto_exponents(1) =    1.765191_dp
+       sep%sto_exponents(2) =    1.392142_dp
+       sep%zn(0)       =    2.006543_dp
+       sep%zn(1)       =    3.316832_dp
+       sep%zn(2)       =    4.653440_dp
+       sep%gss         =    6.665030_dp
+       sep%gsp         =    6.213867_dp
+       sep%gpp         =    9.310836_dp
+       sep%gp2         =    8.712542_dp
+       sep%hsp         =    0.280662_dp
+    CASE(34)
+       ! Selenium
+       sep%uss         =  -32.671088_dp
+       sep%upp         =  -32.522220_dp
+       sep%beta(0)     =    2.636001_dp
+       sep%beta(1)     =   -9.557700_dp
+       sep%sto_exponents(0) =    2.512366_dp
+       sep%sto_exponents(1) =    2.007576_dp
+       sep%gss         =    5.522356_dp
+       sep%gsp         =    2.907562_dp
+       sep%gpp         =    8.042391_dp
+       sep%gp2         =    6.735106_dp
+       sep%hsp         =    3.095789_dp
+    CASE(35)
+       ! Bromine
+       sep%uss         =  -45.834364_dp
+       sep%upp         =  -50.293675_dp
+       sep%udd         =    7.086738_dp
+       sep%beta(0)     =  -32.131665_dp
+       sep%beta(1)     =   -9.514484_dp
+       sep%beta(2)     =   -9.839124_dp
+       sep%sto_exponents(0) =    4.670684_dp
+       sep%sto_exponents(1) =    2.035626_dp
+       sep%sto_exponents(2) =    1.521031_dp
+       sep%zn(0)       =    3.094777_dp
+       sep%zn(1)       =    3.065764_dp
+       sep%zn(2)       =    2.820003_dp
+       sep%gss         =    7.616791_dp
+       sep%gsp         =    5.010425_dp
+       sep%gpp         =    9.649216_dp
+       sep%gp2         =    8.343792_dp
+       sep%hsp         =    4.996553_dp
+       sep%a           =   -0.004996_dp
+       sep%b           =    6.001292_dp
+       sep%c           =    2.895153_dp
+    CASE(36)
+       ! Krypton
+       sep%uss         =    8.535384_dp
+       sep%upp         =  -80.484321_dp
+       sep%beta(0)     =   -2.727088_dp
+       sep%beta(1)     =  -16.142951_dp
+       sep%sto_exponents(0) =    1.312248_dp
+       sep%sto_exponents(1) =    4.491371_dp
+       sep%gss         =   19.999857_dp
+       sep%gsp         =    1.175304_dp
+       sep%gpp         =    9.174784_dp
+       sep%gp2         =   14.926948_dp
+       sep%hsp         =    0.299867_dp
+    CASE(37)
+       ! Rubidium
+       sep%uss         =   -3.636505_dp
+       sep%upp         =   -2.500671_dp
+       sep%beta(0)     =    9.998744_dp
+       sep%beta(1)     =    1.343004_dp
+       sep%sto_exponents(0) =    5.510145_dp
+       sep%sto_exponents(1) =    1.335170_dp
+       sep%gss         =    6.680824_dp
+       sep%gsp         =   20.001098_dp
+       sep%gpp         =    5.068874_dp
+       sep%gp2         =    2.747860_dp
+       sep%hsp         =    3.602834_dp
+    CASE(38)
+       ! Strontium
+       sep%uss         =  -10.427671_dp
+       sep%upp         =   -9.943751_dp
+       sep%beta(0)     =   -6.253108_dp
+       sep%beta(1)     =   -9.844498_dp
+       sep%sto_exponents(0) =    2.197303_dp
+       sep%sto_exponents(1) =    1.730137_dp
+       sep%gss         =    4.603664_dp
+       sep%gsp         =    5.716069_dp
+       sep%gpp         =    7.334620_dp
+       sep%gp2         =    7.443088_dp
+       sep%hsp         =    0.831527_dp
+       sep%a           =   -0.012948_dp
+       sep%b           =    6.000126_dp
+       sep%c           =    3.011964_dp
+    CASE(39)
+       ! Yttrium
+       sep%uss         =  -14.247809_dp
+       sep%upp         =  -14.817140_dp
+       sep%udd         =  -16.394302_dp
+       sep%beta(0)     =    0.343336_dp
+       sep%beta(1)     =   -3.180807_dp
+       sep%beta(2)     =   -4.508957_dp
+       sep%sto_exponents(0) =    0.593368_dp
+       sep%sto_exponents(1) =    1.490422_dp
+       sep%sto_exponents(2) =    1.650893_dp
+       sep%zn(0)       =    0.902611_dp
+       sep%zn(1)       =    1.484400_dp
+       sep%zn(2)       =    1.384238_dp
+       sep%gss         =    4.046733_dp
+       sep%gsp         =    4.726277_dp
+       sep%gpp         =    7.278752_dp
+       sep%gp2         =    6.343281_dp
+       sep%hsp         =    0.679228_dp
+       sep%rho         =    2.773703_dp
+       sep%f0sd        =    4.972716_dp
+       sep%g2sd        =    5.016364_dp
+    CASE(40)
+       ! Zirconium
+       sep%uss         =  -20.008884_dp
+       sep%upp         =  -14.559692_dp
+       sep%udd         =  -21.302657_dp
+       sep%beta(0)     =    9.551952_dp
+       sep%beta(1)     =   -4.551915_dp
+       sep%beta(2)     =   -3.213274_dp
+       sep%sto_exponents(0) =    1.692590_dp
+       sep%sto_exponents(1) =    1.694916_dp
+       sep%sto_exponents(2) =    1.567392_dp
+       sep%zn(0)       =    1.189109_dp
+       sep%zn(1)       =    0.809092_dp
+       sep%zn(2)       =    1.190249_dp
+       sep%gss         =    5.331208_dp
+       sep%gsp         =    4.150579_dp
+       sep%gpp         =    3.967381_dp
+       sep%gp2         =    3.457490_dp
+       sep%hsp         =    0.743676_dp
+       sep%f0sd        =    5.010704_dp
+       sep%g2sd        =    2.943652_dp
+    CASE(41)
+       ! Niobium
+       sep%uss         =  -31.269298_dp
+       sep%upp         =  -20.151277_dp
+       sep%udd         =  -35.893116_dp
+       sep%beta(0)     =  -12.045244_dp
+       sep%beta(1)     =    1.465762_dp
+       sep%beta(2)     =   -5.920160_dp
+       sep%sto_exponents(0) =    2.355562_dp
+       sep%sto_exponents(1) =    1.386907_dp
+       sep%sto_exponents(2) =    1.977324_dp
+       sep%zn(0)       =    1.490754_dp
+       sep%zn(1)       =    0.892760_dp
+       sep%zn(2)       =    1.443837_dp
+       sep%gss         =    6.683592_dp
+       sep%gsp         =    4.685339_dp
+       sep%gpp         =    4.377647_dp
+       sep%gp2         =    3.815028_dp
+       sep%hsp         =    0.650679_dp
+       sep%f0sd        =    6.550674_dp
+       sep%g2sd        =    1.065577_dp
+    CASE(42)
+       ! Molybdenum
+       sep%uss         =  -53.467728_dp
+       sep%upp         =  -35.291951_dp
+       sep%udd         =  -55.836977_dp
+       sep%beta(0)     =   -0.189344_dp
+       sep%beta(1)     =    7.017762_dp
+       sep%beta(2)     =  -10.941126_dp
+       sep%sto_exponents(0) =    1.060429_dp
+       sep%sto_exponents(1) =    1.350412_dp
+       sep%sto_exponents(2) =    1.827152_dp
+       sep%zn(0)       =    1.912995_dp
+       sep%zn(1)       =    1.355055_dp
+       sep%zn(2)       =    1.876231_dp
+       sep%gss         =    8.576652_dp
+       sep%gsp         =    6.888293_dp
+       sep%gpp         =    6.644509_dp
+       sep%gp2         =    5.790552_dp
+       sep%hsp         =    1.317368_dp
+       sep%f0sd        =   10.000608_dp
+       sep%g2sd        =    1.216752_dp
+    CASE(43)
+       ! Technetium
+       sep%uss         =  -41.850292_dp
+       sep%upp         =  -34.910293_dp
+       sep%udd         =  -45.530412_dp
+       sep%beta(0)     =   -2.791024_dp
+       sep%beta(1)     =   -8.086697_dp
+       sep%beta(2)     =   -5.724335_dp
+       sep%sto_exponents(0) =    1.956245_dp
+       sep%sto_exponents(1) =    6.006299_dp
+       sep%sto_exponents(2) =    1.767360_dp
+       sep%zn(0)       =    1.411033_dp
+       sep%zn(1)       =    1.141313_dp
+       sep%zn(2)       =    1.159312_dp
+       sep%gss         =    6.326174_dp
+       sep%gsp         =    5.587138_dp
+       sep%gpp         =    5.596426_dp
+       sep%gp2         =    4.877169_dp
+       sep%hsp         =    1.258989_dp
+       sep%f0sd        =    5.434886_dp
+       sep%g2sd        =    1.106875_dp
+    CASE(44)
+       ! Ruthenium
+       sep%uss         =  -44.901521_dp
+       sep%upp         =  -41.424409_dp
+       sep%udd         =  -37.934514_dp
+       sep%beta(0)     =  -12.859508_dp
+       sep%beta(1)     =   -8.475518_dp
+       sep%beta(2)     =   -3.830797_dp
+       sep%sto_exponents(0) =    1.459195_dp
+       sep%sto_exponents(1) =    5.537201_dp
+       sep%sto_exponents(2) =    2.093164_dp
+       sep%zn(0)       =    0.984449_dp
+       sep%zn(1)       =    4.586613_dp
+       sep%zn(2)       =    0.765332_dp
+       sep%gss         =    4.413643_dp
+       sep%gsp         =    5.356996_dp
+       sep%gpp         =   22.490448_dp
+       sep%gp2         =   19.599957_dp
+       sep%hsp         =    0.008058_dp
+       sep%f0sd        =    5.917404_dp
+       sep%g2sd        =    5.859738_dp
+    CASE(45)
+       ! Rhodium
+       sep%uss         =  -20.513756_dp
+       sep%upp         =  -40.045431_dp
+       sep%udd         =  -35.818492_dp
+       sep%beta(0)     =   -8.222141_dp
+       sep%beta(1)     =  -15.556691_dp
+       sep%beta(2)     =  -13.396182_dp
+       sep%sto_exponents(0) =    1.324919_dp
+       sep%sto_exponents(1) =    4.306111_dp
+       sep%sto_exponents(2) =    2.901406_dp
+       sep%zn(0)       =    0.809923_dp
+       sep%zn(1)       =    6.898259_dp
+       sep%zn(2)       =    0.643134_dp
+       sep%gss         =    3.631179_dp
+       sep%gsp         =    4.407820_dp
+       sep%gpp         =   33.825599_dp
+       sep%gp2         =   29.478305_dp
+       sep%hsp         =    0.000092_dp
+       sep%f0sd        =    1.775497_dp
+       sep%g2sd        =    1.851571_dp
+    CASE(46)
+       ! Palladium
+       sep%uss         =  -76.140196_dp
+       sep%upp         =  -21.073362_dp
+       sep%udd         =  -85.325301_dp
+       sep%beta(0)     =   -8.038245_dp
+       sep%beta(1)     =    0.740037_dp
+       sep%beta(2)     =   -2.394498_dp
+       sep%sto_exponents(0) =    1.658503_dp
+       sep%sto_exponents(1) =    1.156718_dp
+       sep%sto_exponents(2) =    2.219861_dp
+       sep%zn(0)       =    1.794085_dp
+       sep%zn(1)       =    6.158778_dp
+       sep%zn(2)       =    1.630913_dp
+       sep%gss         =    8.043535_dp
+       sep%gsp         =    9.755042_dp
+       sep%gpp         =   30.199556_dp
+       sep%gp2         =   26.318284_dp
+       sep%hsp         =    0.086121_dp
+       sep%f0sd        =    8.004447_dp
+       sep%g2sd        =    2.613148_dp
+    CASE(47)
+       ! Silver
+       sep%uss         =  -25.484137_dp
+       sep%upp         =  -36.116023_dp
+       sep%udd         =  -35.668272_dp
+       sep%beta(0)     =   -6.129623_dp
+       sep%beta(1)     =    1.004115_dp
+       sep%beta(2)     =  -69.238347_dp
+       sep%sto_exponents(0) =    1.994004_dp
+       sep%sto_exponents(1) =    0.681817_dp
+       sep%sto_exponents(2) =    6.007328_dp
+       sep%zn(0)       =    0.695514_dp
+       sep%zn(1)       =    4.729949_dp
+       sep%zn(2)       =    0.506522_dp
+       sep%gss         =    3.118242_dp
+       sep%gsp         =    3.785152_dp
+       sep%gpp         =   23.193295_dp
+       sep%gp2         =   20.212474_dp
+       sep%hsp         =    0.000432_dp
+       sep%f0sd        =    1.938327_dp
+       sep%g2sd        =    1.071901_dp
+    CASE(48)
+       ! Cadmium
+       sep%uss         =  -14.645792_dp
+       sep%upp         =   -9.318664_dp
+       sep%beta(0)     =  -11.613183_dp
+       sep%beta(1)     =    1.663168_dp
+       sep%sto_exponents(0) =    1.384108_dp
+       sep%sto_exponents(1) =    1.957413_dp
+       sep%gss         =    6.677284_dp
+       sep%gsp         =    5.953373_dp
+       sep%gpp         =   18.729843_dp
+       sep%gp2         =    9.917452_dp
+       sep%hsp         =    0.825192_dp
+    CASE(49)
+       ! Indium
+       sep%uss         =  -28.339246_dp
+       sep%upp         =  -23.373875_dp
+       sep%beta(0)     =   -1.982376_dp
+       sep%beta(1)     =   -3.330294_dp
+       sep%sto_exponents(0) =    2.023087_dp
+       sep%sto_exponents(1) =    2.106618_dp
+       sep%gss         =    9.906091_dp
+       sep%gsp         =   10.520060_dp
+       sep%gpp         =    4.826006_dp
+       sep%gp2         =    7.906563_dp
+       sep%hsp         =    3.500299_dp
+    CASE(50)
+       ! Tin
+       sep%uss         =  -29.888217_dp
+       sep%upp         =  -22.156954_dp
+       sep%beta(0)     =   -8.621087_dp
+       sep%beta(1)     =   -4.989752_dp
+       sep%sto_exponents(0) =    2.383941_dp
+       sep%sto_exponents(1) =    2.057908_dp
+       sep%gss         =    8.269655_dp
+       sep%gsp         =    5.013349_dp
+       sep%gpp         =    6.584874_dp
+       sep%gp2         =    5.855159_dp
+       sep%hsp         =    0.531212_dp
+       sep%a           =   -1.004587_dp
+       sep%b           =    4.706252_dp
+       sep%c           =    1.180218_dp
+    CASE(51)
+       ! Antimony
+       sep%uss         =  -41.688879_dp
+       sep%upp         =  -39.541180_dp
+       sep%udd         =   -6.581663_dp
+       sep%beta(0)     =   -7.472322_dp
+       sep%beta(1)     =   -5.940750_dp
+       sep%beta(2)     =   -3.979108_dp
+       sep%sto_exponents(0) =    2.391178_dp
+       sep%sto_exponents(1) =    1.773006_dp
+       sep%sto_exponents(2) =    2.465590_dp
+       sep%zn(0)       =    5.993591_dp
+       sep%zn(1)       =    6.145086_dp
+       sep%zn(2)       =    5.704031_dp
+       sep%gss         =   10.588832_dp
+       sep%gsp         =    7.310023_dp
+       sep%gpp         =    9.281609_dp
+       sep%gp2         =    8.954081_dp
+       sep%hsp         =    0.779112_dp
+    CASE(52)
+       ! Tellurium
+       sep%uss         = -114.733316_dp
+       sep%upp         =  -50.096389_dp
+       sep%beta(0)     =  -70.001062_dp
+       sep%beta(1)     =   -6.151642_dp
+       sep%sto_exponents(0) =    2.769862_dp
+       sep%sto_exponents(1) =    1.731319_dp
+       sep%gss         =    7.030626_dp
+       sep%gsp         =   12.601389_dp
+       sep%gpp         =    7.883479_dp
+       sep%gp2         =    6.973163_dp
+       sep%hsp         =    5.000826_dp
+    CASE(53)
+       ! Iodine
+       sep%uss         =  -59.973232_dp
+       sep%upp         =  -56.459835_dp
+       sep%udd         =  -28.822603_dp
+       sep%beta(0)     =  -30.522481_dp
+       sep%beta(1)     =   -5.942120_dp
+       sep%beta(2)     =   -7.676107_dp
+       sep%sto_exponents(0) =    4.498653_dp
+       sep%sto_exponents(1) =    1.917072_dp
+       sep%sto_exponents(2) =    1.875175_dp
+       sep%zn(0)       =    9.135244_dp
+       sep%zn(1)       =    6.888191_dp
+       sep%zn(2)       =    3.791523_dp
+       sep%gss         =    7.234759_dp
+       sep%gsp         =    9.154406_dp
+       sep%gpp         =    9.877466_dp
+       sep%gp2         =    8.035916_dp
+       sep%hsp         =    5.004215_dp
+       sep%a           =   -0.035519_dp
+       sep%b           =    1.744389_dp
+       sep%c           =    1.223844_dp
+    CASE(54)
+       ! Xenon
+       sep%uss         =  -18.270227_dp
+       sep%upp         = -167.163063_dp
+       sep%beta(0)     =   -3.980622_dp
+       sep%beta(1)     =  -38.822792_dp
+       sep%sto_exponents(0) =    2.759787_dp
+       sep%sto_exponents(1) =    1.977446_dp
+       sep%gss         =   20.000252_dp
+       sep%gsp         =    4.175902_dp
+       sep%gpp         =    2.305787_dp
+       sep%gp2         =    4.063220_dp
+       sep%hsp         =    4.418843_dp
+    CASE(55)
+       ! Cesium
+       sep%uss         =   -3.748609_dp
+       sep%upp         =   -2.348109_dp
+       sep%beta(0)     =    2.287838_dp
+       sep%beta(1)     =   -5.908071_dp
+       sep%sto_exponents(0) =    5.956008_dp
+       sep%sto_exponents(1) =    1.619485_dp
+       sep%gss         =    6.464751_dp
+       sep%gsp         =    4.004501_dp
+       sep%gpp         =   13.775390_dp
+       sep%gp2         =   12.912537_dp
+       sep%hsp         =    1.026928_dp
+    CASE(56)
+       ! Barium
+       sep%uss         =   -9.306985_dp
+       sep%upp         =   -8.826713_dp
+       sep%beta(0)     =   10.003125_dp
+       sep%beta(1)     =   -6.335160_dp
+       sep%sto_exponents(0) =    1.395379_dp
+       sep%sto_exponents(1) =    1.430139_dp
+       sep%gss         =    3.600823_dp
+       sep%gsp         =    4.740579_dp
+       sep%gpp         =    3.345166_dp
+       sep%gp2         =    3.142783_dp
+       sep%hsp         =    0.929429_dp
+    CASE(57)
+       ! Lanthanum
+       sep%uss         =  -19.641953_dp
+       sep%upp         =  -22.059431_dp
+       sep%udd         =  -22.638986_dp
+       sep%beta(0)     =    0.796727_dp
+       sep%beta(1)     =  -10.856056_dp
+       sep%beta(2)     =   -0.484922_dp
+       sep%sto_exponents(0) =    2.673780_dp
+       sep%sto_exponents(1) =    1.248192_dp
+       sep%sto_exponents(2) =    1.688562_dp
+       sep%zn(0)       =    1.617784_dp
+       sep%zn(1)       =    4.331620_dp
+       sep%zn(2)       =    2.285738_dp
+       sep%gss         =    6.154440_dp
+       sep%gsp         =    7.322704_dp
+       sep%gpp         =   18.077465_dp
+       sep%gp2         =   15.679057_dp
+       sep%hsp         =    0.138601_dp
+       sep%rho         =    2.511701_dp
+       sep%f0sd        =    8.856858_dp
+       sep%g2sd        =    7.925585_dp
+    CASE(58:70)
+    CASE(71)
+       ! Lutetium
+       sep%uss         =  -15.954994_dp
+       sep%upp         =  -11.606213_dp
+       sep%udd         =  -13.050056_dp
+       sep%beta(0)     =   -5.590778_dp
+       sep%beta(1)     =   -0.937679_dp
+       sep%beta(2)     =   -7.737752_dp
+       sep%sto_exponents(0) =    5.471741_dp
+       sep%sto_exponents(1) =    1.712296_dp
+       sep%sto_exponents(2) =    2.225892_dp
+       sep%zn(0)       =    1.632335_dp
+       sep%zn(1)       =    4.033128_dp
+       sep%zn(2)       =    0.921999_dp
+       sep%gss         =    6.209796_dp
+       sep%gsp         =    7.379102_dp
+       sep%gpp         =   16.831746_dp
+       sep%gp2         =   14.598613_dp
+       sep%hsp         =    0.209008_dp
+       sep%rho         =    2.743262_dp
+       sep%f0sd        =    3.924927_dp
+       sep%g2sd        =    1.000946_dp
+    CASE(72)
+       ! Hafnium
+       sep%uss         =  -22.375140_dp
+       sep%upp         =  -13.081670_dp
+       sep%udd         =  -20.637741_dp
+       sep%beta(0)     =   -5.366351_dp
+       sep%beta(1)     =  -21.550119_dp
+       sep%beta(2)     =   -3.884443_dp
+       sep%sto_exponents(0) =    3.085344_dp
+       sep%sto_exponents(1) =    1.575819_dp
+       sep%sto_exponents(2) =    1.840840_dp
+       sep%zn(0)       =    0.946927_dp
+       sep%zn(1)       =    3.538911_dp
+       sep%zn(2)       =    0.940283_dp
+       sep%gss         =    3.602338_dp
+       sep%gsp         =    4.293729_dp
+       sep%gpp         =   14.769194_dp
+       sep%gp2         =   12.809708_dp
+       sep%hsp         =    0.011028_dp
+       sep%f0sd        =    4.842900_dp
+       sep%g2sd        =    4.386101_dp
+    CASE(73)
+       ! Tantalum
+       sep%uss         =  -39.009984_dp
+       sep%upp         =    1.163975_dp
+       sep%udd         =  -43.266315_dp
+       sep%beta(0)     =  -17.199605_dp
+       sep%beta(1)     =   -5.818839_dp
+       sep%beta(2)     =   -9.816794_dp
+       sep%sto_exponents(0) =    4.578087_dp
+       sep%sto_exponents(1) =    4.841244_dp
+       sep%sto_exponents(2) =    1.838249_dp
+       sep%zn(0)       =    1.741367_dp
+       sep%zn(1)       =    3.430157_dp
+       sep%zn(2)       =    2.311198_dp
+       sep%gss         =    6.624580_dp
+       sep%gsp         =    7.805321_dp
+       sep%gpp         =   14.315323_dp
+       sep%gp2         =   12.416054_dp
+       sep%hsp         =    0.577263_dp
+       sep%f0sd        =    8.544427_dp
+       sep%g2sd        =    2.074254_dp
+    CASE(74)
+       ! Tungsten
+       sep%uss         =  -44.524950_dp
+       sep%upp         =  -40.011500_dp
+       sep%udd         =  -46.490410_dp
+       sep%beta(0)     =  -16.946460_dp
+       sep%beta(1)     =    5.623170_dp
+       sep%beta(2)     =   -2.947340_dp
+       sep%sto_exponents(0) =    2.664560_dp
+       sep%sto_exponents(1) =    1.624010_dp
+       sep%sto_exponents(2) =    1.794400_dp
+       sep%zn(0)       =    1.498860_dp
+       sep%zn(1)       =    1.965900_dp
+       sep%zn(2)       =    1.876450_dp
+       sep%gss         =    5.702025_dp
+       sep%gsp         =    6.323145_dp
+       sep%gpp         =    8.204433_dp
+       sep%gp2         =    7.115919_dp
+       sep%hsp         =    1.319912_dp
+       sep%f0sd        =    7.788180_dp
+       sep%g2sd        =    1.684940_dp
+    CASE(75)
+       ! Rhenium
+       sep%uss         =  -41.291342_dp
+       sep%upp         =  -35.089592_dp
+       sep%udd         =  -44.178985_dp
+       sep%beta(0)     =    3.830075_dp
+       sep%beta(1)     =   -1.638530_dp
+       sep%beta(2)     =   -1.414411_dp
+       sep%sto_exponents(0) =    2.411839_dp
+       sep%sto_exponents(1) =    1.815351_dp
+       sep%sto_exponents(2) =    2.522766_dp
+       sep%zn(0)       =    1.680823_dp
+       sep%zn(1)       =    1.331218_dp
+       sep%zn(2)       =    1.490623_dp
+       sep%gss         =    6.394256_dp
+       sep%gsp         =    5.555571_dp
+       sep%gpp         =    5.555669_dp
+       sep%gp2         =    4.818577_dp
+       sep%hsp         =    1.220913_dp
+       sep%f0sd        =    5.442812_dp
+       sep%g2sd        =    2.376279_dp
+    CASE(76)
+       ! Osmium
+       sep%uss         =  -26.434080_dp
+       sep%upp         =  -48.739500_dp
+       sep%udd         =  -55.837880_dp
+       sep%beta(0)     =  -12.508730_dp
+       sep%beta(1)     =    0.846880_dp
+       sep%beta(2)     =    5.164360_dp
+       sep%sto_exponents(0) =    3.031000_dp
+       sep%sto_exponents(1) =    1.593960_dp
+       sep%sto_exponents(2) =    1.775570_dp
+       sep%zn(0)       =    1.844700_dp
+       sep%zn(1)       =    1.564220_dp
+       sep%zn(2)       =    1.770010_dp
+       sep%gss         =    7.017683_dp
+       sep%gsp         =    6.384200_dp
+       sep%gpp         =    6.528073_dp
+       sep%gp2         =    5.661968_dp
+       sep%hsp         =    1.508926_dp
+       sep%f0sd        =    2.021170_dp
+       sep%g2sd        =    1.392130_dp
+    CASE(77)
+       ! Iridium
+       sep%uss         =  -29.703974_dp
+       sep%upp         =  -38.210924_dp
+       sep%udd         =  -32.538202_dp
+       sep%beta(0)     =  -10.943427_dp
+       sep%beta(1)     =    2.908880_dp
+       sep%beta(2)     =   -3.791731_dp
+       sep%sto_exponents(0) =    1.500907_dp
+       sep%sto_exponents(1) =    4.106373_dp
+       sep%sto_exponents(2) =    2.676047_dp
+       sep%zn(0)       =    0.927246_dp
+       sep%zn(1)       =    3.191892_dp
+       sep%zn(2)       =    0.662007_dp
+       sep%gss         =    3.527467_dp
+       sep%gsp         =    4.203820_dp
+       sep%gpp         =   13.320955_dp
+       sep%gp2         =   11.553612_dp
+       sep%hsp         =    0.018501_dp
+       sep%f0sd        =    2.627170_dp
+       sep%g2sd        =    2.996029_dp
+    CASE(78)
+       ! Platinum
+       sep%uss         =  -73.516173_dp
+       sep%upp         =  -68.320056_dp
+       sep%udd         =  -76.598873_dp
+       sep%beta(0)     =    1.151418_dp
+       sep%beta(1)     =    3.298694_dp
+       sep%beta(2)     =  -18.044737_dp
+       sep%sto_exponents(0) =    2.301264_dp
+       sep%sto_exponents(1) =    1.662404_dp
+       sep%sto_exponents(2) =    3.168852_dp
+       sep%zn(0)       =    2.270699_dp
+       sep%zn(1)       =    1.949896_dp
+       sep%zn(2)       =    1.713856_dp
+       sep%gss         =    8.638286_dp
+       sep%gsp         =    7.922254_dp
+       sep%gpp         =    8.137643_dp
+       sep%gp2         =    7.057990_dp
+       sep%hsp         =    1.892617_dp
+       sep%f0sd        =    7.098591_dp
+       sep%g2sd        =    4.484183_dp
+    CASE(79)
+       ! Gold
+       sep%uss         =  -95.041846_dp
+       sep%upp         =  -63.890158_dp
+       sep%udd         =  -88.066087_dp
+       sep%beta(0)     =   -7.479625_dp
+       sep%beta(1)     =    3.664356_dp
+       sep%beta(2)     =  -61.715468_dp
+       sep%sto_exponents(0) =    1.814169_dp
+       sep%sto_exponents(1) =    1.618657_dp
+       sep%sto_exponents(2) =    5.053167_dp
+       sep%zn(0)       =    2.444680_dp
+       sep%zn(1)       =    7.014990_dp
+       sep%zn(2)       =    1.777089_dp
+       sep%gss         =    9.300152_dp
+       sep%gsp         =   11.073443_dp
+       sep%gpp         =   29.276168_dp
+       sep%gp2         =   25.391984_dp
+       sep%hsp         =    0.144384_dp
+       sep%f0sd        =    8.827257_dp
+       sep%g2sd        =    4.915625_dp
+    CASE(80)
+       ! Mercury
+       sep%uss         =  -17.608732_dp
+       sep%upp         =  -18.369417_dp
+       sep%beta(0)     =   -3.045239_dp
+       sep%beta(1)     =   -5.693556_dp
+       sep%sto_exponents(0) =    2.104896_dp
+       sep%sto_exponents(1) =    1.516293_dp
+       sep%gss         =    6.372822_dp
+       sep%gsp         =   10.143176_dp
+       sep%gpp         =   10.397393_dp
+       sep%gp2         =   14.794056_dp
+       sep%hsp         =    0.926128_dp
+    CASE(81)
+       ! Thallium
+       sep%uss         =  -29.518621_dp
+       sep%upp         =  -29.826907_dp
+       sep%beta(0)     =   -7.230170_dp
+       sep%beta(1)     =   -7.575544_dp
+       sep%sto_exponents(0) =    3.335883_dp
+       sep%sto_exponents(1) =    1.766141_dp
+       sep%gss         =    5.015118_dp
+       sep%gsp         =   13.932049_dp
+       sep%gpp         =   10.495551_dp
+       sep%gp2         =   10.526198_dp
+       sep%hsp         =    0.293760_dp
+    CASE(82)
+       ! Lead
+       sep%uss         =  -35.038145_dp
+       sep%upp         =  -25.413401_dp
+       sep%beta(0)     =   -8.323792_dp
+       sep%beta(1)     =   -2.237891_dp
+       sep%sto_exponents(0) =    2.368901_dp
+       sep%sto_exponents(1) =    1.685246_dp
+       sep%gss         =    5.254128_dp
+       sep%gsp         =    7.061016_dp
+       sep%gpp         =    6.818551_dp
+       sep%gp2         =    5.603019_dp
+       sep%hsp         =    1.018819_dp
+       sep%a           =   -0.239463_dp
+       sep%b           =    5.444338_dp
+       sep%c           =    1.613682_dp
+    CASE(83)
+       ! Bismuth
+       sep%uss         =  -42.409177_dp
+       sep%upp         =  -36.393746_dp
+       sep%beta(0)     =  -34.951578_dp
+       sep%beta(1)     =   -7.359060_dp
+       sep%sto_exponents(0) =    3.702377_dp
+       sep%sto_exponents(1) =    1.872327_dp
+       sep%gss         =    5.851803_dp
+       sep%gsp         =    6.790583_dp
+       sep%gpp         =    8.389442_dp
+       sep%gp2         =    7.724219_dp
+       sep%hsp         =    0.295606_dp
+    CASE(84:106)
+    END SELECT
     sep%beta = sep%beta/evolt
     sep%uss = sep%uss/evolt; sep%upp = sep%upp/evolt; sep%udd = sep%udd/evolt
     sep%alp = sep%alp/bohr
@@ -2542,50 +3796,75 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_pm6_basis', &
       routineP = moduleN//':'//routineN
 
-    ! PM6 basis set : n quantum number for s,p,d,f orbitals
-    !          H           Initial "s" Orbital Occupancies                     He
-    !          Li Be                                            B  C  N  O  F  Ne
-    !          Na Mg                                            Al Si P  S  Cl Ar
-    !          K  Ca Sc            Ti V  Cr Mn Fe Co Ni Cu Zn   Ga Ge As Se Br Kr
-    !          Rb Sr Y             Zr Nb Mo Tc Ru Rh Pd Ag Cd   In Sn Sb Te I  Xe
-    !          Cs Ba La Ce-Lu      Hf Ta W  Re Os Ir Pt Au Hg   Tl Pb Bi Po At Rn
-    !          Fr Ra Ac Th Pa U    Np Pu Am Cm Bk Cf Es Fm Md   No Lr Rf Ha 106  
-  INTEGER, DIMENSION(0:nelem) :: nqs =(/                                -1, &!    0
-       1,                                                                1, &!    2
-       2, 2,                                              2, 2, 2, 2, 2, 3, &!   10
-       3, 3,                                              3, 3, 3, 3, 3, 4, &!   18
-       4, 4, 4,              4, 4, 4, 4, 4, 4, 4, 4, 4,   4, 4, 4, 4, 4, 5, &!   36
-       5, 5, 5,              5, 5, 5, 5, 5, 5, 5, 5, 5,   5, 5, 5, 5, 5, 6, &!   54
-       6, 6, 6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 6,                   &
-                             6, 6, 6, 6, 6, 6, 6, 6, 6,   6, 6, 6,-1,-1,-1, &!   86
-      -1,-1,-1,-1,-1,-1,    -1,-1,-1,-1,-1,-1,-1,-1,-1,  -1,-1,-1,-1,-1 /)
-  INTEGER, DIMENSION(0:nelem) :: nqp =(/                                -1, &!    0
-      -1,                                                                2, &!    2
-       2, 2,                                              2, 2, 2, 2, 2, 2, &!   10
-       3, 3,                                              3, 3, 3, 3, 3, 3, &!   18
-       4, 4, 4,              4, 4, 4, 4, 4, 4, 4, 4, 4,   4, 4, 4, 4, 4, 4, &!   36
-       5, 5, 5,              5, 5, 5, 5, 5, 5, 5, 5, 5,   5, 5, 5, 5, 5, 5, &!   54
-       6, 6, 6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 6,                   &
-                             6, 6, 6, 6, 6, 6, 6, 6, 6,   6, 6, 6,-1,-1,-1, &!   86
-      -1,-1,-1,-1,-1,-1,    -1,-1,-1,-1,-1,-1,-1,-1,-1,  -1,-1,-1,-1,-1 /)
-  INTEGER, DIMENSION(0:nelem) :: nqd =(/                                -1, &!    0
-      -1,                                                               -1, &!    2
-      -1,-1,                                             -1,-1,-1,-1,-1,-1, &!   10
-      -1,-1,                                              3, 3, 3, 3, 3,-1, &!   18
-      -1,-1, 3,              3, 3, 3, 3, 3, 3, 3, 3,-1,  -1,-1, 4, 4, 4,-1, &!   36
-      -1,-1, 4,              4, 4, 4, 4, 4, 4, 4, 4,-1,  -1,-1, 5, 5, 5,-1, &!   54
-      -1,-1, 5,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 5,                   &
-                             5, 5, 5, 5, 5, 5, 5, 5,-1,  -1,-1,-1,-1,-1,-1, &!   86
-      -1,-1,-1,-1,-1,-1,    -1,-1,-1,-1,-1,-1,-1,-1,-1,  -1,-1,-1,-1,-1 /)
-  INTEGER, DIMENSION(0:nelem) :: nqf =(/                                -1, &!    0
-      -1,                                                               -1, &!    2
-      -1,-1,                                             -1,-1,-1,-1,-1,-1, &!   10
-      -1,-1,                                             -1,-1,-1,-1,-1,-1, &!   18
-      -1,-1,-1,             -1,-1,-1,-1,-1,-1,-1,-1,-1,  -1,-1,-1,-1,-1,-1, &!  -16
-      -1,-1,-1,             -1,-1,-1,-1,-1,-1,-1,-1,-1,  -1,-1,-1,-1,-1,-1, &!   54
-      -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,                   &
-                            -1,-1,-1,-1,-1,-1,-1,-1,-1,  -1,-1,-1,-1,-1,-1, &!   86
-      -1,-1,-1,-1,-1,-1,    -1,-1,-1,-1,-1,-1,-1,-1,-1,  -1,-1,-1,-1,-1 /)
+    INTEGER, DIMENSION(0:nelem) :: nqd = (/                                -1,&
+      -1,                                                               -1, -1&
+      ,-1,                                             -1,-1,-1,-1,-1,-1, -1,-&
+      1,                                              3, 3, 3, 3, 3,-1, -1,-1,&
+      3,              3, 3, 3, 3, 3, 3, 3, 3,-1,  -1,-1, 4, 4, 4,-1, -1,-1, 4,&
+      4, 4, 4, 4, 4, 4, 4, 4,-1,  -1,-1, 5, 5, 5,-1, -1,-1, 5,-1,-1,-1,-1,-1,-&
+      1,-1,-1,-1,-1,-1,-1,-1, 5,                   5, 5, 5, 5, 5, 5, 5, 5,-1, &
+      -1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,    -1,-1,-1,-1,-1,-1,-1,-1,-1,  -1&
+      ,-1,-1,-1,-1 /), nqf = (/                                -1, -1,        &
+      -1, -1,-1,                                             -1,-1,-1,-1,-1,-1&
+      , -1,-1,                                             -1,-1,-1,-1,-1,-1, &
+      -1,-1,-1,             -1,-1,-1,-1,-1,-1,-1,-1,-1,  -1,-1,-1,-1,-1,-1, -1&
+      ,-1,-1,             -1,-1,-1,-1,-1,-1,-1,-1,-1,  -1,-1,-1,-1,-1,-1, -1,-&
+      1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,                   -1,-1,&
+      -1,-1,-1,-1,-1,-1,-1,  -1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,    -1,-1,-1&
+      ,-1,-1,-1,-1,-1,-1,  -1,-1,-1,-1,-1 /)
+    INTEGER, DIMENSION(0:nelem) :: nqp = (/                                -1,&
+      -1,                                                                2, 2,&
+      2,                                              2, 2, 2, 2, 2, 2, 3, 3, &
+      3, 3, 3, 3, 3, 3, 4, 4, 4,              4, 4, 4, 4, 4, 4, 4, 4, 4,   4, &
+      4, 4, 4, 4, 4, 5, 5, 5,              5, 5, 5, 5, 5, 5, 5, 5, 5,   5, 5, &
+      5, 5, 5, 5, 6, 6, 6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 6,          &
+      6, 6, 6, 6, 6, 6, 6, 6, 6,   6, 6, 6,-1,-1,-1, -1,-1,-1,-1,-1,-1,    -1,&
+      -1,-1,-1,-1,-1,-1,-1,-1,  -1,-1,-1,-1,-1 /), nqs = (/                   &
+      -1, 1,                                                                1,&
+      2, 2,                                              2, 2, 2, 2, 2, 3, 3, &
+      3,                                              3, 3, 3, 3, 3, 4, 4, 4, &
+      4,              4, 4, 4, 4, 4, 4, 4, 4, 4,   4, 4, 4, 4, 4, 5, 5, 5, 5, &
+      5, 5, 5, 5, 5, 5, 5, 5, 5,   5, 5, 5, 5, 5, 6, 6, 6, 6,-1,-1,-1,-1,-1,-1&
+      ,-1,-1,-1,-1,-1,-1,-1, 6,                   6, 6, 6, 6, 6, 6, 6, 6, 6,  &
+      6, 6, 6,-1,-1,-1, -1,-1,-1,-1,-1,-1,    -1,-1,-1,-1,-1,-1,-1,-1,-1,  -1,&
+      -1,-1,-1,-1 /)
+
+! PM6 basis set : n quantum number for s,p,d,f orbitals
+!          H           Initial "s" Orbital Occupancies                     He
+!          Li Be                                            B  C  N  O  F  Ne
+!          Na Mg                                            Al Si P  S  Cl Ar
+!          K  Ca Sc            Ti V  Cr Mn Fe Co Ni Cu Zn   Ga Ge As Se Br Kr
+!          Rb Sr Y             Zr Nb Mo Tc Ru Rh Pd Ag Cd   In Sn Sb Te I  Xe
+!          Cs Ba La Ce-Lu      Hf Ta W  Re Os Ir Pt Au Hg   Tl Pb Bi Po At Rn
+!          Fr Ra Ac Th Pa U    Np Pu Am Cm Bk Cf Es Fm Md   No Lr Rf Ha 106  
+!    0
+!    2
+!   10
+!   18
+!   36
+!   54
+!   86
+!    0
+!    2
+!   10
+!   18
+!   36
+!   54
+!   86
+!    0
+!    2
+!   10
+!   18
+!   36
+!   54
+!   86
+!    0
+!    2
+!   10
+!   18
+!  -16
+!   54
+!   86
 
   IF ( z < 0 .OR. z > nelem ) THEN
     CALL stop_program(routineN,moduleN,__LINE__,"invalid atomic number")
@@ -2612,8 +3891,8 @@ CONTAINS
 
   SUBROUTINE init_pm6_pair_params
 
-      INTEGER          :: i, j
-      REAL(dp)         :: xab, aab
+    INTEGER                                  :: i, j
+    REAL(dp)                                 :: aab, xab
 
       xab_pm6 = 0._dp
       aab_pm6 = 0._dp

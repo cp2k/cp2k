@@ -52,8 +52,7 @@ MODULE semi_empirical_utils
                                              pm6_default_parameter,&
                                              rm1_default_parameter
   USE semi_empirical_types,            ONLY: semi_empirical_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -63,42 +62,43 @@ MODULE semi_empirical_utils
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_utils'
 
   PUBLIC :: allocate_se_param,&
-            deallocate_se_param,&
-            get_se_param,&
-            get_se_type,&
-            init_se_param,&
-            read_se_param,&
-            set_se_param,&
-            write_se_param,&
-            se_param_set_default,&
-            expand,&
-            traceb,&
-            contract
+       deallocate_se_param,&
+       get_se_param,&
+       get_se_type,&
+       init_se_param,&
+       set_se_param,&
+       write_se_param,&
+       se_param_set_default,&
+       expand,&
+       traceb,&
+       contract
 
-!!***
-! *****************************************************************************
+  !!***
+  ! *****************************************************************************
 
 CONTAINS
 
-! *****************************************************************************
+  ! *****************************************************************************
 
-  SUBROUTINE allocate_se_param(se_parameter)
+  SUBROUTINE allocate_se_param(se_parameter, error)
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'allocate_se_param'
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_se_param', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
+    failure = .FALSE.
+    CALL deallocate_se_param(se_parameter, error)
 
-    IF (ASSOCIATED(se_parameter)) CALL deallocate_se_param(se_parameter)
-
-    ALLOCATE (se_parameter,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "se_parameter",0)
+    ALLOCATE (se_parameter,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
     NULLIFY ( se_parameter % sto_exponents )
+    NULLIFY ( se_parameter % zn  )
     NULLIFY ( se_parameter % basis )
 
     se_parameter % defined = .FALSE.
@@ -109,15 +109,17 @@ CONTAINS
     se_parameter % natorb = 0
     se_parameter % ngauss = 0
 
-    ALLOCATE (se_parameter%beta(0:3),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "se_parameter%beta",0)
+    ALLOCATE (se_parameter%beta(0:3),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     se_parameter % beta(:) = 0._dp
 
-    ALLOCATE (se_parameter%sto_exponents(0:3),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "se_parameter%states",0)
+    ALLOCATE (se_parameter%sto_exponents(0:3),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     se_parameter % sto_exponents(:) = -1
+
+    ALLOCATE (se_parameter%zn(0:3),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    se_parameter % zn(:) = 0.0_dp
 
     se_parameter % uss = 0._dp
     se_parameter % upp = 0._dp
@@ -144,43 +146,39 @@ CONTAINS
 
   END SUBROUTINE allocate_se_param
 
-! *****************************************************************************
+  ! *****************************************************************************
 
-  SUBROUTINE deallocate_se_param(se_parameter)
+  SUBROUTINE deallocate_se_param(se_parameter, error)
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_se_param'
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_se_param', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
-
+    failure = .FALSE.
     IF (ASSOCIATED(se_parameter)) THEN
-      IF (ASSOCIATED(se_parameter%basis)) THEN
-        CALL deallocate_sto_basis_set(se_parameter%basis)
-      END IF
-      DEALLOCATE (se_parameter%beta,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "se_parameter%beta")
-      DEALLOCATE (se_parameter%sto_exponents,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "se_parameter%sto_exponents")
-      DEALLOCATE (se_parameter,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "se_parameter")
-    ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer se_parameter is not associated")
+       CALL deallocate_sto_basis_set(se_parameter%basis, error)
+       DEALLOCATE (se_parameter%beta,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (se_parameter%sto_exponents,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (se_parameter%zn,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (se_parameter,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
   END SUBROUTINE deallocate_se_param
 
-! *****************************************************************************
+  ! *****************************************************************************
 
   SUBROUTINE get_se_param(se_parameter,name,typ,defined,z,zeff,natorb,eheat,&
-                          beta,sto_exponents,uss,upp,udd,uff,alp,eisol,&
-                          gss,gsp,gpp,gp2,hsp,gsd,gpd,gdd,ppddg,dpddg,ngauss)
+       beta,sto_exponents,uss,upp,udd,uff,alp,eisol,&
+       gss,gsp,gpp,gp2,hsp,gsd,gpd,gdd,ppddg,dpddg,ngauss)
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
     CHARACTER(LEN=default_string_length), &
@@ -199,49 +197,50 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(2), OPTIONAL    :: ppddg, dpddg
     INTEGER, INTENT(OUT), OPTIONAL           :: ngauss
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_se_param'
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_se_param', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(se_parameter)) THEN
 
-      IF (PRESENT(name)) name = se_parameter%name
-      IF (PRESENT(typ)) typ = se_parameter%typ
-      IF (PRESENT(defined)) defined = se_parameter%defined
-      IF (PRESENT(z)) z = se_parameter%z
-      IF (PRESENT(zeff)) zeff = se_parameter%zeff
-      IF (PRESENT(natorb)) natorb = se_parameter%natorb
-      IF (PRESENT(eheat)) eheat = se_parameter%eheat
-      IF (PRESENT(beta)) beta => se_parameter%beta
-      IF (PRESENT(sto_exponents)) sto_exponents => se_parameter%sto_exponents
-      IF (PRESENT(ngauss)) ngauss = se_parameter%ngauss
-      IF (PRESENT(uss)) uss = se_parameter%uss
-      IF (PRESENT(upp)) upp = se_parameter%upp
-      IF (PRESENT(udd)) udd = se_parameter%udd
-      IF (PRESENT(uff)) uff = se_parameter%uff
-      IF (PRESENT(alp)) alp = se_parameter%alp
-      IF (PRESENT(eisol)) eisol = se_parameter%eisol
-      IF (PRESENT(gss)) gss = se_parameter%gss
-      IF (PRESENT(gsp)) gsp = se_parameter%gsp
-      IF (PRESENT(gpp)) gpp = se_parameter%gpp
-      IF (PRESENT(gp2)) gp2 = se_parameter%gp2
-      IF (PRESENT(hsp)) hsp = se_parameter%hsp
-      IF (PRESENT(gsd)) gsd = se_parameter%gsd
-      IF (PRESENT(gpd)) gpd = se_parameter%gpd
-      IF (PRESENT(gdd)) gdd = se_parameter%gdd
-      IF (PRESENT(ppddg)) ppddg = se_parameter%pre
-      IF (PRESENT(dpddg)) dpddg = se_parameter%d
+       IF (PRESENT(name)) name = se_parameter%name
+       IF (PRESENT(typ)) typ = se_parameter%typ
+       IF (PRESENT(defined)) defined = se_parameter%defined
+       IF (PRESENT(z)) z = se_parameter%z
+       IF (PRESENT(zeff)) zeff = se_parameter%zeff
+       IF (PRESENT(natorb)) natorb = se_parameter%natorb
+       IF (PRESENT(eheat)) eheat = se_parameter%eheat
+       IF (PRESENT(beta)) beta => se_parameter%beta
+       IF (PRESENT(sto_exponents)) sto_exponents => se_parameter%sto_exponents
+       IF (PRESENT(ngauss)) ngauss = se_parameter%ngauss
+       IF (PRESENT(uss)) uss = se_parameter%uss
+       IF (PRESENT(upp)) upp = se_parameter%upp
+       IF (PRESENT(udd)) udd = se_parameter%udd
+       IF (PRESENT(uff)) uff = se_parameter%uff
+       IF (PRESENT(alp)) alp = se_parameter%alp
+       IF (PRESENT(eisol)) eisol = se_parameter%eisol
+       IF (PRESENT(gss)) gss = se_parameter%gss
+       IF (PRESENT(gsp)) gsp = se_parameter%gsp
+       IF (PRESENT(gpp)) gpp = se_parameter%gpp
+       IF (PRESENT(gp2)) gp2 = se_parameter%gp2
+       IF (PRESENT(hsp)) hsp = se_parameter%hsp
+       IF (PRESENT(gsd)) gsd = se_parameter%gsd
+       IF (PRESENT(gpd)) gpd = se_parameter%gpd
+       IF (PRESENT(gdd)) gdd = se_parameter%gdd
+       IF (PRESENT(ppddg)) ppddg = se_parameter%pre
+       IF (PRESENT(dpddg)) dpddg = se_parameter%d
 
     ELSE
 
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer se_parameter is not associated")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "The pointer se_parameter is not associated")
 
     END IF
 
   END SUBROUTINE get_se_param
 
-! *****************************************************************************
+  ! *****************************************************************************
 
   SUBROUTINE init_se_param(se_parameter,orb_basis_set,error)
 
@@ -249,94 +248,84 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_se_param'
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_se_param', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: symbol
-    INTEGER                                  :: dl, istat, l, nl, nshell
+    INTEGER                                  :: dl, l, nl, nshell, stat
     INTEGER, DIMENSION(:), POINTER           :: lq, nq
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
 
-!   ---------------------------------------------------------------------------
-
+    failure = .FALSE.
     IF (ASSOCIATED(se_parameter)) THEN
 
-      CALL allocate_sto_basis_set (se_parameter%basis)
-      nshell = 0
-      IF (se_parameter%natorb ==  1) nshell=1
-      IF (se_parameter%natorb ==  4) nshell=2
-      IF (se_parameter%natorb ==  9) nshell=3
-      IF (se_parameter%natorb == 16) nshell=4
-      ALLOCATE (nq(0:3),lq(0:3),zet(0:3),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "nq, lq, zet ",0)
-      ALLOCATE (symbol(0:3),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "symbol",0)
-      symbol=""
-      nq=0
-      lq=0
-      zet=0._dp
-      DO l=0,nshell-1
-        IF(se_parameter%typ == do_method_pm6) THEN
-          ! read PM6 basis set table
-          nq(l)=get_pm6_basis(se_parameter%z,l)
-          lq(l)=l
-        ELSE
-          dl=2*l+1
-          nl=ptable(se_parameter%z)%e_conv(l)
-          IF ( nl == 0 ) THEN
-            nq(l) = l+1
+       CALL allocate_sto_basis_set (se_parameter%basis,error)
+       nshell = 0
+       IF (se_parameter%natorb ==  1) nshell=1
+       IF (se_parameter%natorb ==  4) nshell=2
+       IF (se_parameter%natorb ==  9) nshell=3
+       IF (se_parameter%natorb == 16) nshell=4
+       ALLOCATE (nq(0:3),lq(0:3),zet(0:3),STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       ALLOCATE (symbol(0:3),STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       symbol=""
+       nq=0
+       lq=0
+       zet=0._dp
+       DO l=0,nshell-1
+          IF(se_parameter%typ == do_method_pm6) THEN
+             ! read PM6 basis set table
+             nq(l)=get_pm6_basis(se_parameter%z,l)
+             lq(l)=l
           ELSE
-            nq(l)=(nl-1+2*dl)/(2*dl) + l
+             dl=2*l+1
+             nl=ptable(se_parameter%z)%e_conv(l)
+             IF ( nl == 0 ) THEN
+                nq(l) = l+1
+             ELSE
+                nq(l)=(nl-1+2*dl)/(2*dl) + l
+             END IF
+             lq(l)=l
           END IF
-          lq(l)=l
-        END IF
-        zet(l)=se_parameter%sto_exponents(l)
-        IF(l==0) WRITE(symbol(0),'(I1,A1)') nq(l),"S"
-        IF(l==1) WRITE(symbol(1),'(I1,A1)') nq(l),"P"
-        IF(l==2) WRITE(symbol(2),'(I1,A1)') nq(l),"D"
-        IF(l==3) WRITE(symbol(3),'(I1,A1)') nq(l),"F"
-      END DO
+          zet(l)=se_parameter%sto_exponents(l)
+          IF(l==0) WRITE(symbol(0),'(I1,A1)') nq(l),"S"
+          IF(l==1) WRITE(symbol(1),'(I1,A1)') nq(l),"P"
+          IF(l==2) WRITE(symbol(2),'(I1,A1)') nq(l),"D"
+          IF(l==3) WRITE(symbol(3),'(I1,A1)') nq(l),"F"
+       END DO
 
-      IF (nshell > 0) THEN
-        CALL set_sto_basis_set(se_parameter%basis,name=se_parameter%name,&
-                               nshell=nshell,symbol=symbol,&
-                               nq=nq,lq=lq,zet=zet)
-        CALL create_gto_from_sto_basis(se_parameter%basis,orb_basis_set,&
-                               se_parameter%ngauss,error=error)
-      END IF
+       IF (nshell > 0) THEN
+          CALL set_sto_basis_set(se_parameter%basis,name=se_parameter%name,&
+               nshell=nshell,symbol=symbol,&
+               nq=nq,lq=lq,zet=zet)
+          CALL create_gto_from_sto_basis(se_parameter%basis,orb_basis_set,&
+               se_parameter%ngauss,error=error)
+       END IF
 
-      DEALLOCATE (nq,lq,zet,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "nq, lq, zet ",0)
-      DEALLOCATE (symbol,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "symbol",0)
+       DEALLOCATE (nq,lq,zet,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       DEALLOCATE (symbol,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ELSE
 
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer se_parameter is not associated")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "The pointer se_parameter is not associated")
 
     END IF
 
   END SUBROUTINE init_se_param
 
-! *****************************************************************************
-
-  SUBROUTINE read_se_param()
-
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'read_se_param'
-
-!   ---------------------------------------------------------------------------
-
-  END SUBROUTINE read_se_param
-
-! *****************************************************************************
+  ! *****************************************************************************
 
   SUBROUTINE set_se_param(se_parameter,name,typ,defined,z,zeff,natorb,eheat,&
-                          beta,sto_exponents,uss,upp,udd,uff,alp,eisol,&
-                          gss,gsp,gpp,gp2,hsp,gsd,gpd,gdd,ppddg,dpddg,ngauss)
+       beta,sto_exponents,uss,upp,udd,uff,alp,eisol,&
+       gss,gsp,gpp,gp2,hsp,gsd,gpd,gdd,ppddg,dpddg,ngauss)
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
     CHARACTER(LEN=default_string_length), &
@@ -355,49 +344,50 @@ CONTAINS
     REAL(dp), DIMENSION(2), OPTIONAL         :: ppddg, dpddg
     INTEGER, INTENT(IN), OPTIONAL            :: ngauss
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_se_param'
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_se_param', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(se_parameter)) THEN
 
-      IF (PRESENT(name)) se_parameter%name = name
-      IF (PRESENT(typ)) se_parameter%typ = typ
-      IF (PRESENT(defined)) se_parameter%defined = defined
-      IF (PRESENT(z)) se_parameter%z = z
-      IF (PRESENT(zeff)) se_parameter%zeff = zeff
-      IF (PRESENT(natorb)) se_parameter%natorb = natorb
-      IF (PRESENT(eheat)) se_parameter%eheat = eheat
-      IF (PRESENT(beta)) se_parameter%beta = beta
-      IF (PRESENT(sto_exponents)) se_parameter%sto_exponents = sto_exponents
-      IF (PRESENT(ngauss)) se_parameter%ngauss = ngauss
-      IF (PRESENT(uss)) se_parameter%uss = uss
-      IF (PRESENT(upp)) se_parameter%upp = upp
-      IF (PRESENT(udd)) se_parameter%udd = udd
-      IF (PRESENT(uff)) se_parameter%uff = uff
-      IF (PRESENT(alp)) se_parameter%alp = alp
-      IF (PRESENT(eisol)) se_parameter%eisol = eisol
-      IF (PRESENT(gss)) se_parameter%gss = gss
-      IF (PRESENT(gsp)) se_parameter%gsp = gsp
-      IF (PRESENT(gpp)) se_parameter%gpp = gpp
-      IF (PRESENT(gp2)) se_parameter%gp2 = gp2
-      IF (PRESENT(hsp)) se_parameter%hsp = hsp
-      IF (PRESENT(gsd)) se_parameter%gsd = gsd
-      IF (PRESENT(gpd)) se_parameter%gpd = gpd
-      IF (PRESENT(gdd)) se_parameter%gdd = gdd
-      IF (PRESENT(ppddg)) se_parameter%pre = ppddg
-      IF (PRESENT(dpddg)) se_parameter%d = dpddg
+       IF (PRESENT(name)) se_parameter%name = name
+       IF (PRESENT(typ)) se_parameter%typ = typ
+       IF (PRESENT(defined)) se_parameter%defined = defined
+       IF (PRESENT(z)) se_parameter%z = z
+       IF (PRESENT(zeff)) se_parameter%zeff = zeff
+       IF (PRESENT(natorb)) se_parameter%natorb = natorb
+       IF (PRESENT(eheat)) se_parameter%eheat = eheat
+       IF (PRESENT(beta)) se_parameter%beta = beta
+       IF (PRESENT(sto_exponents)) se_parameter%sto_exponents = sto_exponents
+       IF (PRESENT(ngauss)) se_parameter%ngauss = ngauss
+       IF (PRESENT(uss)) se_parameter%uss = uss
+       IF (PRESENT(upp)) se_parameter%upp = upp
+       IF (PRESENT(udd)) se_parameter%udd = udd
+       IF (PRESENT(uff)) se_parameter%uff = uff
+       IF (PRESENT(alp)) se_parameter%alp = alp
+       IF (PRESENT(eisol)) se_parameter%eisol = eisol
+       IF (PRESENT(gss)) se_parameter%gss = gss
+       IF (PRESENT(gsp)) se_parameter%gsp = gsp
+       IF (PRESENT(gpp)) se_parameter%gpp = gpp
+       IF (PRESENT(gp2)) se_parameter%gp2 = gp2
+       IF (PRESENT(hsp)) se_parameter%hsp = hsp
+       IF (PRESENT(gsd)) se_parameter%gsd = gsd
+       IF (PRESENT(gpd)) se_parameter%gpd = gpd
+       IF (PRESENT(gdd)) se_parameter%gdd = gdd
+       IF (PRESENT(ppddg)) se_parameter%pre = ppddg
+       IF (PRESENT(dpddg)) se_parameter%d = dpddg
 
     ELSE
 
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer se_parameter is not associated")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "The pointer se_parameter is not associated")
 
     END IF
 
   END SUBROUTINE set_se_param
 
-! *****************************************************************************
+  ! *****************************************************************************
 
   SUBROUTINE write_se_param(se_parameter,subsys_section,error)
 
@@ -405,7 +395,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_se_param'
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_se_param', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: name
     INTEGER                                  :: l, lm, natorb, ngauss, &
@@ -536,7 +527,7 @@ CONTAINS
                            "U [eV]    :",u(l)*evolt,"Beta [eV]       :",beta(l)*evolt
                       lm=l
                    END IF
-                END DO 
+                END DO
                 WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
                      "alp [A^-1]      :",alp/angstrom,&
                      "eisol [eV]      :",eisol*evolt
@@ -622,14 +613,15 @@ CONTAINS
 
   END SUBROUTINE write_se_param
 
-! *****************************************************************************
+  ! *****************************************************************************
 
   SUBROUTINE se_param_set_default(se_parameter,z,method)
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
     INTEGER, INTENT(IN)                      :: z, method
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'se_param_set_default'
+    CHARACTER(len=*), PARAMETER :: routineN = 'se_param_set_default', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -658,19 +650,22 @@ CONTAINS
        END SELECT
     ELSE
 
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer se_parameter is not associated")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "The pointer se_parameter is not associated")
 
     END IF
 
   END SUBROUTINE se_param_set_default
 
-! *****************************************************************************
+  ! *****************************************************************************
 
   FUNCTION get_se_type(se_method) RESULT(se_type)
 
     INTEGER, INTENT(IN)                      :: se_method
     INTEGER                                  :: se_type
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_se_type', &
+      routineP = moduleN//':'//routineN
 
     SELECT CASE (se_method)
     CASE DEFAULT
@@ -681,11 +676,14 @@ CONTAINS
 
   END FUNCTION get_se_type
 
-! *****************************************************************************
+  ! *****************************************************************************
 
   SUBROUTINE contract ( amat, avec )
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: amat
     REAL(dp), DIMENSION(:), INTENT(OUT)      :: avec
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'contract', &
+      routineP = moduleN//':'//routineN
 
     avec( 1) = amat(1,1)
     avec( 2) = amat(4,1) + amat(1,4)
@@ -703,6 +701,9 @@ CONTAINS
   SUBROUTINE expand ( amat, avec )
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: amat
     REAL(dp), DIMENSION(:), INTENT(IN)       :: avec
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'expand', &
+      routineP = moduleN//':'//routineN
 
     amat(1,1) = amat(1,1) + avec( 1)
     amat(4,1) = amat(4,1) + avec( 2)
@@ -728,16 +729,19 @@ CONTAINS
     REAL(dp), DIMENSION(:), INTENT(IN)       :: avec
     REAL(dp)                                 :: trace
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'traceb', &
+      routineP = moduleN//':'//routineN
+
     trace = pmat(1,1) * avec( 1) + pmat(4,1) * avec( 2) + pmat(1,4) * avec( 2) &
-          + pmat(4,4) * avec( 3) + pmat(2,1) * avec( 4) + pmat(1,2) * avec( 4) &
-          + pmat(2,4) * avec( 5) + pmat(4,2) * avec( 5) + pmat(2,2) * avec( 6) &
-          + pmat(3,1) * avec( 7) + pmat(1,3) * avec( 7) + pmat(3,4) * avec( 8) &
-          + pmat(4,3) * avec( 8) + pmat(3,2) * avec( 9) + pmat(2,3) * avec( 9) &
-          + pmat(3,3) * avec(10)
+         + pmat(4,4) * avec( 3) + pmat(2,1) * avec( 4) + pmat(1,2) * avec( 4) &
+         + pmat(2,4) * avec( 5) + pmat(4,2) * avec( 5) + pmat(2,2) * avec( 6) &
+         + pmat(3,1) * avec( 7) + pmat(1,3) * avec( 7) + pmat(3,4) * avec( 8) &
+         + pmat(4,3) * avec( 8) + pmat(3,2) * avec( 9) + pmat(2,3) * avec( 9) &
+         + pmat(3,3) * avec(10)
 
   END FUNCTION traceb
 
-! *****************************************************************************
+  ! *****************************************************************************
 
 END MODULE semi_empirical_utils
 

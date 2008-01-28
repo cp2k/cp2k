@@ -60,6 +60,10 @@ MODULE semi_empirical_types
     REAL(KIND = dp),DIMENSION(4,4)         :: bfn1,bfn2,bfn3
     REAL(KIND = dp), DIMENSION(0:115)      :: xab
     REAL(KIND = dp), DIMENSION(0:115)      :: aab
+    ! Specific PM6
+    REAL(KIND = dp)                        :: a, b, c, rho, f0sd, g2sd
+    REAL(KIND = dp), DIMENSION(:), &
+                                   POINTER :: zn
   END TYPE semi_empirical_type
 
 ! *** Public data types ***

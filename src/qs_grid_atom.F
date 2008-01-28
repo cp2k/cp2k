@@ -24,15 +24,14 @@ MODULE qs_grid_atom
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE memory_utilities,                ONLY: reallocate
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
-! *** Global parameters (only in this module)
+  ! *** Global parameters (only in this module)
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_grid_atom'
 
@@ -40,56 +39,54 @@ MODULE qs_grid_atom
 
      INTEGER                         :: nr, ng_sphere
      REAL(dp), DIMENSION(:), POINTER :: rad, rad2,&
-                                        wr, wa,&
-                                        cos_theta, sin_theta,&
-                                        usin_theta, cos_phi, sin_phi,&
-                                        theta, cotan_phi, phi
+          wr, wa,&
+          cos_theta, sin_theta,&
+          usin_theta, cos_phi, sin_phi,&
+          theta, cotan_phi, phi
      REAL(dp), DIMENSION(:,:), &
-                             POINTER :: rad2l,oorad2l,weight
+          POINTER :: rad2l,oorad2l,weight
 
   END TYPE grid_atom_type
 
 
-! *** Public subroutines ***
+  ! *** Public subroutines ***
 
   PUBLIC :: allocate_grid_atom, &
-            create_grid_atom, &
-            deallocate_grid_atom
+       create_grid_atom, &
+       deallocate_grid_atom
 
 
-! *** Public data types ***
+  ! *** Public data types ***
 
   PUBLIC :: grid_atom_type
 
 
-!!***
-! *****************************************************************************
+  !!***
+  ! *****************************************************************************
 
- CONTAINS
+CONTAINS
 
-! *****************************************************************************
-
-
-  SUBROUTINE allocate_grid_atom(grid_atom)
+  ! *****************************************************************************
 
 
-!   ***************************************************************************
+  SUBROUTINE allocate_grid_atom(grid_atom,error)
 
     TYPE(grid_atom_type), POINTER            :: grid_atom
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_grid_atom'
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_grid_atom', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
+    failure = .FALSE.
 
-    IF (ASSOCIATED(grid_atom)) THEN
-      CALL deallocate_grid_atom(grid_atom)
-    END IF
 
-    ALLOCATE (grid_atom,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                            "allocate_grid_atom",0)
+    IF (ASSOCIATED(grid_atom)) CALL deallocate_grid_atom(grid_atom,error)
+
+    ALLOCATE (grid_atom,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
     NULLIFY (grid_atom%rad)
     NULLIFY (grid_atom%rad2)
@@ -109,127 +106,113 @@ MODULE qs_grid_atom
 
   END SUBROUTINE allocate_grid_atom
 
-! *****************************************************************************
+  ! *****************************************************************************
 
-  SUBROUTINE deallocate_grid_atom(grid_atom)
+  SUBROUTINE deallocate_grid_atom(grid_atom,error)
 
-!   Purpose: Deallocate a Gaussian-type orbital (GTO) basis set data set.
+    !   Purpose: Deallocate a Gaussian-type orbital (GTO) basis set data set.
 
-!   History: - Creation (03.11.2000,MK)
+    !   History: - Creation (03.11.2000,MK)
 
-!   ***************************************************************************
+    !   ***************************************************************************
 
     TYPE(grid_atom_type), POINTER            :: grid_atom
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_grid_atom'
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_grid_atom', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
-
+    failure = .FALSE.
     IF (ASSOCIATED(grid_atom)) THEN
 
-      IF (ASSOCIATED(grid_atom%rad)) THEN
-         DEALLOCATE (grid_atom%rad,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "grid_atom%rad")
-      END IF
+       IF (ASSOCIATED(grid_atom%rad)) THEN
+          DEALLOCATE (grid_atom%rad,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
 
-      IF (ASSOCIATED(grid_atom%rad2)) THEN
-         DEALLOCATE (grid_atom%rad2,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "grid_atom%rad2")
-      END IF
+       IF (ASSOCIATED(grid_atom%rad2)) THEN
+          DEALLOCATE (grid_atom%rad2,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
 
-      IF (ASSOCIATED(grid_atom%wr)) THEN
-         DEALLOCATE (grid_atom%wr,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "grid_atom%wr")
-      END IF
+       IF (ASSOCIATED(grid_atom%wr)) THEN
+          DEALLOCATE (grid_atom%wr,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
 
-      IF (ASSOCIATED(grid_atom%wa)) THEN
-         DEALLOCATE (grid_atom%wa,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "grid_atom%wa")
-      END IF
+       IF (ASSOCIATED(grid_atom%wa)) THEN
+          DEALLOCATE (grid_atom%wa,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
 
-      IF (ASSOCIATED(grid_atom%weight)) THEN
-         DEALLOCATE (grid_atom%weight,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "grid_atom%weight")
-      END IF
+       IF (ASSOCIATED(grid_atom%weight)) THEN
+          DEALLOCATE (grid_atom%weight,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
 
-      IF (ASSOCIATED(grid_atom%cos_theta)) THEN
-         DEALLOCATE (grid_atom%cos_theta,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "grid_atom%cos_theta")
-      END IF
+       IF (ASSOCIATED(grid_atom%cos_theta)) THEN
+          DEALLOCATE (grid_atom%cos_theta,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
+       END IF
 
-      IF (ASSOCIATED(grid_atom%sin_theta)) THEN
-         DEALLOCATE (grid_atom%sin_theta,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "grid_atom%sin_theta")
-      END IF
+       IF (ASSOCIATED(grid_atom%sin_theta)) THEN
+          DEALLOCATE (grid_atom%sin_theta,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
 
-      IF (ASSOCIATED(grid_atom%usin_theta)) THEN
-         DEALLOCATE (grid_atom%usin_theta,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "grid_atom%usin_theta")
-      END IF
+       IF (ASSOCIATED(grid_atom%usin_theta)) THEN
+          DEALLOCATE (grid_atom%usin_theta,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
 
-      IF (ASSOCIATED(grid_atom%cos_phi)) THEN
-         DEALLOCATE (grid_atom%cos_phi,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "grid_atom%cos_phi")
-      END IF
+       IF (ASSOCIATED(grid_atom%cos_phi)) THEN
+          DEALLOCATE (grid_atom%cos_phi,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
 
-      IF (ASSOCIATED(grid_atom%sin_phi)) THEN
-         DEALLOCATE (grid_atom%sin_phi,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "grid_atom%sin_phi")
-      END IF
+       IF (ASSOCIATED(grid_atom%sin_phi)) THEN
+          DEALLOCATE (grid_atom%sin_phi,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
 
-      IF (ASSOCIATED(grid_atom%cotan_phi)) THEN
-         DEALLOCATE (grid_atom%cotan_phi,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "grid_atom%cotan_phi")
-      END IF
+       IF (ASSOCIATED(grid_atom%cotan_phi)) THEN
+          DEALLOCATE (grid_atom%cotan_phi,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
 
-      IF (ASSOCIATED(grid_atom%theta)) THEN
-         DEALLOCATE (grid_atom%theta,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "grid_atom%theta")
-      END IF
+       IF (ASSOCIATED(grid_atom%theta)) THEN
+          DEALLOCATE (grid_atom%theta,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
 
-      IF (ASSOCIATED(grid_atom%phi)) THEN
-         DEALLOCATE (grid_atom%phi,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "grid_atom%phi")
-      END IF
+       IF (ASSOCIATED(grid_atom%phi)) THEN
+          DEALLOCATE (grid_atom%phi,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
 
-      IF (ASSOCIATED(grid_atom%rad2l)) THEN
-         DEALLOCATE (grid_atom%rad2l,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "grid_atom%rad2l")
-      END IF
+       IF (ASSOCIATED(grid_atom%rad2l)) THEN
+          DEALLOCATE (grid_atom%rad2l,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
 
-      IF (ASSOCIATED(grid_atom%oorad2l)) THEN
-         DEALLOCATE (grid_atom%oorad2l,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "grid_atom%oorad2l")
-      END IF
+       IF (ASSOCIATED(grid_atom%oorad2l)) THEN
+          DEALLOCATE (grid_atom%oorad2l,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
 
-      DEALLOCATE (grid_atom,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "grid_atom")
+       DEALLOCATE (grid_atom,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer grid_atom is not associated and "//&
-                        "cannot be deallocated")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "The pointer grid_atom is not associated and "//&
+            "cannot be deallocated")
     END IF
   END SUBROUTINE deallocate_grid_atom
 
-! *****************************************************************************
+  ! *****************************************************************************
 
   SUBROUTINE create_grid_atom(grid_atom,nr,na,llmax,quadrature)
 
@@ -244,60 +227,60 @@ MODULE qs_grid_atom
 ! *****************************************************************************
 
     NULLIFY (rad,rad2,wr)
- 
+
     IF(ASSOCIATED(grid_atom)) THEN
-  
-!     *** allocate the radial grid arrays *** 
-      CALL reallocate(grid_atom%rad,1,nr)
-      CALL reallocate(grid_atom%rad2,1,nr)
-      CALL reallocate(grid_atom%wr,1,nr)
-      CALL reallocate(grid_atom%wa,1,na)
-      CALL reallocate(grid_atom%weight,1,na,1,nr)
-      CALL reallocate(grid_atom%cos_theta,1,na)
-      CALL reallocate(grid_atom%sin_theta,1,na)
-      CALL reallocate(grid_atom%usin_theta,1,na)
-      CALL reallocate(grid_atom%cos_phi,1,na)
-      CALL reallocate(grid_atom%sin_phi,1,na)
-      CALL reallocate(grid_atom%cotan_phi,1,na)
-      CALL reallocate(grid_atom%theta,1,na)
-      CALL reallocate(grid_atom%phi,1,na)
-      CALL reallocate(grid_atom%rad2l,1,nr,0,llmax+1)
-      CALL reallocate(grid_atom%oorad2l,1,nr,0,llmax+1)
 
-!     *** calculate the radial grid for this kind ***
-      rad => grid_atom%rad
-      rad2 => grid_atom%rad2
-      wr => grid_atom%wr
+       !     *** allocate the radial grid arrays *** 
+       CALL reallocate(grid_atom%rad,1,nr)
+       CALL reallocate(grid_atom%rad2,1,nr)
+       CALL reallocate(grid_atom%wr,1,nr)
+       CALL reallocate(grid_atom%wa,1,na)
+       CALL reallocate(grid_atom%weight,1,na,1,nr)
+       CALL reallocate(grid_atom%cos_theta,1,na)
+       CALL reallocate(grid_atom%sin_theta,1,na)
+       CALL reallocate(grid_atom%usin_theta,1,na)
+       CALL reallocate(grid_atom%cos_phi,1,na)
+       CALL reallocate(grid_atom%sin_phi,1,na)
+       CALL reallocate(grid_atom%cotan_phi,1,na)
+       CALL reallocate(grid_atom%theta,1,na)
+       CALL reallocate(grid_atom%phi,1,na)
+       CALL reallocate(grid_atom%rad2l,1,nr,0,llmax+1)
+       CALL reallocate(grid_atom%oorad2l,1,nr,0,llmax+1)
 
-      CALL radial_grid(nr,rad,rad2,wr,quadrature) 
+       !     *** calculate the radial grid for this kind ***
+       rad => grid_atom%rad
+       rad2 => grid_atom%rad2
+       wr => grid_atom%wr
 
-      grid_atom%rad2l(:,0) = 1._dp
-      grid_atom%oorad2l(:,0) = 1._dp
-      DO l = 1,llmax+1
-        grid_atom%rad2l(:,l)=grid_atom%rad2l(:,l-1)*rad(:)
-        grid_atom%oorad2l(:,l)=grid_atom%oorad2l(:,l-1)/rad(:)
-      ENDDO
+       CALL radial_grid(nr,rad,rad2,wr,quadrature) 
+
+       grid_atom%rad2l(:,0) = 1._dp
+       grid_atom%oorad2l(:,0) = 1._dp
+       DO l = 1,llmax+1
+          grid_atom%rad2l(:,l)=grid_atom%rad2l(:,l-1)*rad(:)
+          grid_atom%oorad2l(:,l)=grid_atom%oorad2l(:,l-1)/rad(:)
+       ENDDO
 
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-               "The pointer grid_atom is not associated")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "The pointer grid_atom is not associated")
     END IF
   END SUBROUTINE create_grid_atom
 
-! *****************************************************************************
+  ! *****************************************************************************
 
   SUBROUTINE radial_grid(n,r,r2,wr,radial_quadrature)
 
-!   Purpose: Generate a radial grid with n points by a quadrature rule.
+    !   Purpose: Generate a radial grid with n points by a quadrature rule.
 
-!   Literature: - A. D. Becke, J. Chem. Phys. 88, 2547 (1988)
-!               - J. M. Perez-Jorda, A. D. Becke and E. San-Fabian,
-!                 J. Chem. Phys. 100, 6520 (1994)
-!               - M. Krack and A. M. Koester, J. Chem. Phys. 108, 3226 (1998)
+    !   Literature: - A. D. Becke, J. Chem. Phys. 88, 2547 (1988)
+    !               - J. M. Perez-Jorda, A. D. Becke and E. San-Fabian,
+    !                 J. Chem. Phys. 100, 6520 (1994)
+    !               - M. Krack and A. M. Koester, J. Chem. Phys. 108, 3226 (1998)
 
-!   History: - Creation (20.09.1999, Matthias Krack)
+    !   History: - Creation (20.09.1999, Matthias Krack)
 
-!   ***************************************************************************
+    !   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: n
     REAL(dp), DIMENSION(:), POINTER          :: r, r2, wr
@@ -314,65 +297,65 @@ MODULE qs_grid_atom
 
     CASE (do_gapw_gcs)
 
-!     *** Gauss-Chebyshev quadrature formula of the second kind ***
-!     *** u [-1,+1] -> r [0,infinity] =>  r = (1 + u)/(1 - u)   ***
+       !     *** Gauss-Chebyshev quadrature formula of the second kind ***
+       !     *** u [-1,+1] -> r [0,infinity] =>  r = (1 + u)/(1 - u)   ***
 
-      DO i=1,n
-        t = REAL(i,dp)*f
-        x = COS(t)
-        w = f*SIN(t)**2
-        r(i) = (1.0_dp + x)/(1.0_dp - x)
-        r2(i) = r(i)**2
-        wr(i) = w/SQRT(1.0_dp - x**2)
-        wr(i) = 2.0_dp*wr(i)*r2(i)/(1.0_dp - x)**2
-      END DO
+       DO i=1,n
+          t = REAL(i,dp)*f
+          x = COS(t)
+          w = f*SIN(t)**2
+          r(i) = (1.0_dp + x)/(1.0_dp - x)
+          r2(i) = r(i)**2
+          wr(i) = w/SQRT(1.0_dp - x**2)
+          wr(i) = 2.0_dp*wr(i)*r2(i)/(1.0_dp - x)**2
+       END DO
 
     CASE (do_gapw_gct)
 
-!     *** Transformed Gauss-Chebyshev quadrature formula of the second kind ***
-!     *** u [-1,+1] -> r [0,infinity] => r = (1 + u)/(1 - u)                ***
+       !     *** Transformed Gauss-Chebyshev quadrature formula of the second kind ***
+       !     *** u [-1,+1] -> r [0,infinity] => r = (1 + u)/(1 - u)                ***
 
-      DO i=1,n
-        t = REAL(i,dp)*f
-        cost = COS(t)
-        sint = SIN(t)
-        sint2 = sint**2
-        x = REAL(2*i - n - 1,dp)/REAL(n + 1,dp) -&
-            2.0_dp*(1.0_dp + 2.0_dp*sint2/3.0_dp)*cost*sint/pi
-        w = 16.0_dp*sint2**2/REAL(3*(n + 1),dp)
-        r(n+1-i) = (1.0_dp + x)/(1.0_dp - x)
-        r2(n+1-i) = r(n+1-i)**2
-        wr(n+1-i) = 2.0_dp*w*r2(n+1-i)/(1.0_dp - x)**2
-      END DO
+       DO i=1,n
+          t = REAL(i,dp)*f
+          cost = COS(t)
+          sint = SIN(t)
+          sint2 = sint**2
+          x = REAL(2*i - n - 1,dp)/REAL(n + 1,dp) -&
+               2.0_dp*(1.0_dp + 2.0_dp*sint2/3.0_dp)*cost*sint/pi
+          w = 16.0_dp*sint2**2/REAL(3*(n + 1),dp)
+          r(n+1-i) = (1.0_dp + x)/(1.0_dp - x)
+          r2(n+1-i) = r(n+1-i)**2
+          wr(n+1-i) = 2.0_dp*w*r2(n+1-i)/(1.0_dp - x)**2
+       END DO
 
     CASE (do_gapw_log)
 
-!     *** Transformed Gauss-Chebyshev quadrature formula of the second kind ***
-!     *** u [-1,+1] -> r [0,infinity] => r = ln(2/(1 - u))/ln(2)            ***
+       !     *** Transformed Gauss-Chebyshev quadrature formula of the second kind ***
+       !     *** u [-1,+1] -> r [0,infinity] => r = ln(2/(1 - u))/ln(2)            ***
 
-      DO i=1,n
-        t = REAL(i,dp)*f
-        cost = COS(t)
-        sint = SIN(t)
-        sint2 = sint**2
-        x = REAL(2*i - n - 1,dp)/REAL(n + 1,dp) -&
-            2.0_dp*(1.0_dp + 2.0_dp*sint2/3.0_dp)*cost*sint/pi
-        w = 16.0_dp*sint2**2/REAL(3*(n + 1),dp)
-        r(n+1-i) = LOG(2.0_dp/(1.0_dp - x))/LOG(2.0_dp)
-        r2(n+1-i) = r(n+1-i)**2
-        wr(n+1-i) = w*r2(n+1-i)/(LOG(2.0_dp)*(1.0_dp - x))
-      END DO
+       DO i=1,n
+          t = REAL(i,dp)*f
+          cost = COS(t)
+          sint = SIN(t)
+          sint2 = sint**2
+          x = REAL(2*i - n - 1,dp)/REAL(n + 1,dp) -&
+               2.0_dp*(1.0_dp + 2.0_dp*sint2/3.0_dp)*cost*sint/pi
+          w = 16.0_dp*sint2**2/REAL(3*(n + 1),dp)
+          r(n+1-i) = LOG(2.0_dp/(1.0_dp - x))/LOG(2.0_dp)
+          r2(n+1-i) = r(n+1-i)**2
+          wr(n+1-i) = w*r2(n+1-i)/(LOG(2.0_dp)*(1.0_dp - x))
+       END DO
 
     CASE DEFAULT
 
-      CALL stop_program("SUBROUTINE radial_grid (MODULE qs_grid_atom)",&
-                        "Invalid radial quadrature type specified")
+       CALL stop_program("SUBROUTINE radial_grid (MODULE qs_grid_atom)",&
+            "Invalid radial quadrature type specified")
 
     END SELECT
 
   END SUBROUTINE radial_grid
 
-! *****************************************************************************
+  ! *****************************************************************************
 
 END MODULE qs_grid_atom
 

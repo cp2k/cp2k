@@ -351,7 +351,7 @@ CONTAINS
              END DO
           END SELECT
           ! *** Initialize the transformation matrices ***
-          CALL init_cphi_and_sphi(soft_basis)          
+          CALL init_cphi_and_sphi(soft_basis,error)          
        ENDIF
        
        DEALLOCATE (gcc,l,lmax,lmin,n,npgf,nshell,zet,iset_s2h,STAT=stat)

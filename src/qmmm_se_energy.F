@@ -147,7 +147,7 @@ CONTAINS
     SELECT CASE(qmmm_env%qmmm_coupl_type)
     CASE(do_qmmm_coulomb,do_qmmm_gauss,do_qmmm_swave)
        ! Create a fake semi-empirical type to handle the classical atom
-       CALL allocate_se_param(se_kind_mm)
+       CALL allocate_se_param(se_kind_mm,error)
        CALL se_param_set_default(se_kind_mm,0,do_method_pchg)
        itype    = get_se_type(se_kind_mm%typ)
        nkind    = SIZE(atomic_kind_set)
@@ -210,7 +210,7 @@ CONTAINS
        END DO Kinds
        CALL mp_sum(enuclear,para_env%group)
        qs_env%energy%qmmm_nu = enuclear
-       CALL deallocate_se_param(se_kind_mm)
+       CALL deallocate_se_param(se_kind_mm,error)
     CASE(do_qmmm_none)
        ! Zero Matrix 
        CALL set_matrix(ks_qmmm_env_loc%matrix_h(1)%matrix,0.0_dp)

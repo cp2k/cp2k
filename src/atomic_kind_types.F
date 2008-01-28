@@ -90,53 +90,53 @@ MODULE atomic_kind_types
 
   !> Input parameters for the DFT+U method
   TYPE dft_plus_u_type
-    INTEGER                                :: l
-    REAL(KIND=dp)                          :: u_minus_j
+     INTEGER                                :: l
+     REAL(KIND=dp)                          :: u_minus_j
   END TYPE dft_plus_u_type
 
   !> Provides all information about an atomic kind
   TYPE atomic_kind_type
-    TYPE(all_potential_type), POINTER      :: all_potential
-    TYPE(elp_potential_type), POINTER      :: elp_potential
-    TYPE(gth_potential_type), POINTER      :: gth_potential
-    TYPE(semi_empirical_type), POINTER     :: se_parameter
-    TYPE(qs_dftb_atom_type), POINTER       :: dftb_parameter
-    TYPE(gto_basis_set_type), POINTER      :: aux_basis_set
-    TYPE(gto_basis_set_type), POINTER      :: orb_basis_set
-    TYPE(gto_basis_set_type), POINTER      :: soft_basis_set
-    TYPE(gto_basis_set_type), POINTER      :: hard_basis_set
-    TYPE(paw_proj_set_type),  POINTER      :: paw_proj_set
-    REAL(dp)                               :: hard_radius     ! for hard and soft exp
-    REAL(dp)                               :: hard0_radius    ! for hard exp of rho0
-    REAL(dp)                               :: max_rad_local   ! max GTO radius used in GAPW
-                                                              ! projectors construction
-    LOGICAL                                :: paw_atom        ! needs atomic rho1
-    LOGICAL                                :: qm_atom         ! needs atomic rho1
-    LOGICAL                                :: gpw_type_forced ! gpw atom even if with hard exponents
-    LOGICAL                                :: ghost
-    CHARACTER(LEN=default_string_length)   :: name
-    CHARACTER(LEN=2)                       :: element_symbol
-    REAL(KIND = dp)                        :: mass
-    REAL ( KIND = dp )                     :: alpha_pol
-    INTEGER                                :: kind_number,&
-                                              natom,&
-                                              number_of_grid_points
-    INTEGER, DIMENSION(:), POINTER         :: atom_list
-    TYPE(harmonics_atom_type), POINTER     :: harmonics
-    TYPE(grid_atom_type), POINTER          :: grid_atom
-    INTEGER                                :: ngrid_rad,ngrid_ang
-    INTEGER                                :: lmax_rho0
-    INTEGER, DIMENSION(:), POINTER         :: elec_conf ! used to set up the initial atomic guess
-                                                        ! user can specify whatever...
-    LOGICAL                                :: shell_active
-    TYPE(shell_kind_type), POINTER         :: shell
-    TYPE(dft_plus_u_type), POINTER         :: dft_plus_u
+     TYPE(all_potential_type), POINTER      :: all_potential
+     TYPE(elp_potential_type), POINTER      :: elp_potential
+     TYPE(gth_potential_type), POINTER      :: gth_potential
+     TYPE(semi_empirical_type), POINTER     :: se_parameter
+     TYPE(qs_dftb_atom_type), POINTER       :: dftb_parameter
+     TYPE(gto_basis_set_type), POINTER      :: aux_basis_set
+     TYPE(gto_basis_set_type), POINTER      :: orb_basis_set
+     TYPE(gto_basis_set_type), POINTER      :: soft_basis_set
+     TYPE(gto_basis_set_type), POINTER      :: hard_basis_set
+     TYPE(paw_proj_set_type),  POINTER      :: paw_proj_set
+     REAL(dp)                               :: hard_radius     ! for hard and soft exp
+     REAL(dp)                               :: hard0_radius    ! for hard exp of rho0
+     REAL(dp)                               :: max_rad_local   ! max GTO radius used in GAPW
+     ! projectors construction
+     LOGICAL                                :: paw_atom        ! needs atomic rho1
+     LOGICAL                                :: qm_atom         ! needs atomic rho1
+     LOGICAL                                :: gpw_type_forced ! gpw atom even if with hard exponents
+     LOGICAL                                :: ghost
+     CHARACTER(LEN=default_string_length)   :: name
+     CHARACTER(LEN=2)                       :: element_symbol
+     REAL(KIND = dp)                        :: mass
+     REAL ( KIND = dp )                     :: alpha_pol
+     INTEGER                                :: kind_number,&
+          natom,&
+          number_of_grid_points
+     INTEGER, DIMENSION(:), POINTER         :: atom_list
+     TYPE(harmonics_atom_type), POINTER     :: harmonics
+     TYPE(grid_atom_type), POINTER          :: grid_atom
+     INTEGER                                :: ngrid_rad,ngrid_ang
+     INTEGER                                :: lmax_rho0
+     INTEGER, DIMENSION(:), POINTER         :: elec_conf ! used to set up the initial atomic guess
+     ! user can specify whatever...
+     LOGICAL                                :: shell_active
+     TYPE(shell_kind_type), POINTER         :: shell
+     TYPE(dft_plus_u_type), POINTER         :: dft_plus_u
   END TYPE atomic_kind_type
 
   !> Provides a vector of pointers of type atomic_kind_type
   TYPE atomic_kind_p_type
-    TYPE(atomic_kind_type),DIMENSION(:),&
-       POINTER                             :: atomic_kind_set
+     TYPE(atomic_kind_type),DIMENSION(:),&
+          POINTER                             :: atomic_kind_set
   END TYPE atomic_kind_p_type
 
   ! Public subroutines
@@ -155,7 +155,6 @@ MODULE atomic_kind_types
             write_gto_basis_sets
 
   ! Public data types
-
   PUBLIC :: atomic_kind_type,&
             atomic_kind_p_type,&
             dft_plus_u_type
@@ -181,47 +180,47 @@ CONTAINS
 
     failure = .FALSE.
     IF (ASSOCIATED(atomic_kind_set)) THEN
-      CALL deallocate_atomic_kind_set(atomic_kind_set,error)
+       CALL deallocate_atomic_kind_set(atomic_kind_set,error)
     END IF
 
     ALLOCATE (atomic_kind_set(nkind),STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineN, error, failure)
 
     DO ikind=1,nkind
-      NULLIFY (atomic_kind_set(ikind)%all_potential)
-      NULLIFY (atomic_kind_set(ikind)%elp_potential)
-      NULLIFY (atomic_kind_set(ikind)%gth_potential)
-      NULLIFY (atomic_kind_set(ikind)%se_parameter)
-      NULLIFY (atomic_kind_set(ikind)%dftb_parameter)
-      NULLIFY (atomic_kind_set(ikind)%aux_basis_set)
-      NULLIFY (atomic_kind_set(ikind)%orb_basis_set)
-      NULLIFY (atomic_kind_set(ikind)%atom_list)
-      NULLIFY (atomic_kind_set(ikind)%elec_conf)
-      NULLIFY (atomic_kind_set(ikind)%hard_basis_set)
-      NULLIFY (atomic_kind_set(ikind)%soft_basis_set)
-      NULLIFY (atomic_kind_set(ikind)%paw_proj_set)
-      NULLIFY (atomic_kind_set(ikind)%harmonics)
-      NULLIFY (atomic_kind_set(ikind)%grid_atom)
-      NULLIFY (atomic_kind_set(ikind)%shell)
-      NULLIFY (atomic_kind_set(ikind)%dft_plus_u)
-      atomic_kind_set(ikind)%name = ""
-      atomic_kind_set(ikind)%element_symbol = ""
-      atomic_kind_set(ikind)%mass = 0.0_dp
-      atomic_kind_set(ikind)%alpha_pol = 0.0_dp
-      atomic_kind_set(ikind)%kind_number = 0
-      atomic_kind_set(ikind)%natom = 0
-      atomic_kind_set(ikind)%number_of_grid_points = 0
-      atomic_kind_set(ikind)%paw_atom = .FALSE.
-      atomic_kind_set(ikind)%qm_atom = .FALSE.
-      atomic_kind_set(ikind)%gpw_type_forced = .FALSE.
-      atomic_kind_set(ikind)%hard_radius = 0.8_dp*bohr
-      atomic_kind_set(ikind)%hard0_radius = 0.8_dp*bohr
-      atomic_kind_set(ikind)%max_rad_local = 13.2_dp*bohr
-      atomic_kind_set(ikind)%ngrid_rad = 50
-      atomic_kind_set(ikind)%ngrid_ang = 50
-      atomic_kind_set(ikind)%lmax_rho0 = 0
-      atomic_kind_set(ikind)%ghost = .FALSE.
-      atomic_kind_set(ikind)%shell_active=.FALSE.
+       NULLIFY (atomic_kind_set(ikind)%all_potential)
+       NULLIFY (atomic_kind_set(ikind)%elp_potential)
+       NULLIFY (atomic_kind_set(ikind)%gth_potential)
+       NULLIFY (atomic_kind_set(ikind)%se_parameter)
+       NULLIFY (atomic_kind_set(ikind)%dftb_parameter)
+       NULLIFY (atomic_kind_set(ikind)%aux_basis_set)
+       NULLIFY (atomic_kind_set(ikind)%orb_basis_set)
+       NULLIFY (atomic_kind_set(ikind)%atom_list)
+       NULLIFY (atomic_kind_set(ikind)%elec_conf)
+       NULLIFY (atomic_kind_set(ikind)%hard_basis_set)
+       NULLIFY (atomic_kind_set(ikind)%soft_basis_set)
+       NULLIFY (atomic_kind_set(ikind)%paw_proj_set)
+       NULLIFY (atomic_kind_set(ikind)%harmonics)
+       NULLIFY (atomic_kind_set(ikind)%grid_atom)
+       NULLIFY (atomic_kind_set(ikind)%shell)
+       NULLIFY (atomic_kind_set(ikind)%dft_plus_u)
+       atomic_kind_set(ikind)%name = ""
+       atomic_kind_set(ikind)%element_symbol = ""
+       atomic_kind_set(ikind)%mass = 0.0_dp
+       atomic_kind_set(ikind)%alpha_pol = 0.0_dp
+       atomic_kind_set(ikind)%kind_number = 0
+       atomic_kind_set(ikind)%natom = 0
+       atomic_kind_set(ikind)%number_of_grid_points = 0
+       atomic_kind_set(ikind)%paw_atom = .FALSE.
+       atomic_kind_set(ikind)%qm_atom = .FALSE.
+       atomic_kind_set(ikind)%gpw_type_forced = .FALSE.
+       atomic_kind_set(ikind)%hard_radius = 0.8_dp*bohr
+       atomic_kind_set(ikind)%hard0_radius = 0.8_dp*bohr
+       atomic_kind_set(ikind)%max_rad_local = 13.2_dp*bohr
+       atomic_kind_set(ikind)%ngrid_rad = 50
+       atomic_kind_set(ikind)%ngrid_ang = 50
+       atomic_kind_set(ikind)%lmax_rho0 = 0
+       atomic_kind_set(ikind)%ghost = .FALSE.
+       atomic_kind_set(ikind)%shell_active=.FALSE.
     END DO
 
   END SUBROUTINE allocate_atomic_kind_set
@@ -245,107 +244,95 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(atomic_kind_set)) THEN
 
-      nkind = SIZE(atomic_kind_set)
+       nkind = SIZE(atomic_kind_set)
 
-      DO ikind=1,nkind
-        IF (ASSOCIATED(atomic_kind_set(ikind)%all_potential)) THEN
-          CALL deallocate_potential(atomic_kind_set(ikind)%all_potential)
-        END IF
-        IF (ASSOCIATED(atomic_kind_set(ikind)%elp_potential)) THEN
-          CALL deallocate_potential(atomic_kind_set(ikind)%elp_potential)
-        END IF
-        IF (ASSOCIATED(atomic_kind_set(ikind)%gth_potential)) THEN
-          CALL deallocate_potential(atomic_kind_set(ikind)%gth_potential)
-        END IF
-        IF (ASSOCIATED(atomic_kind_set(ikind)%se_parameter)) THEN
-          CALL deallocate_se_param(atomic_kind_set(ikind)%se_parameter)
-        END IF
-        IF (ASSOCIATED(atomic_kind_set(ikind)%dftb_parameter)) THEN
-          CALL deallocate_dftb_atom_param(atomic_kind_set(ikind)%dftb_parameter,error)
-        END IF
-        IF (ASSOCIATED(atomic_kind_set(ikind)%aux_basis_set)) THEN
-          CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%aux_basis_set)
-        END IF
-        IF (ASSOCIATED(atomic_kind_set(ikind)%soft_basis_set).AND.&
-                                         atomic_kind_set(ikind)%paw_atom) THEN
-          CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%soft_basis_set)
-        ELSEIF(ASSOCIATED(atomic_kind_set(ikind)%soft_basis_set).AND.&
-                          (.NOT.atomic_kind_set(ikind)%paw_atom)) THEN
-          NULLIFY (atomic_kind_set(ikind)%soft_basis_set)
-        END IF
-        IF (ASSOCIATED(atomic_kind_set(ikind)%orb_basis_set)) THEN
-          CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%orb_basis_set)
-        END IF
-        IF (ASSOCIATED(atomic_kind_set(ikind)%paw_proj_set)) THEN
-          CALL deallocate_paw_proj_set(atomic_kind_set(ikind)%paw_proj_set)
-        END IF
-        IF (ASSOCIATED(atomic_kind_set(ikind)%harmonics)) THEN
-          CALL deallocate_harmonics_atom(atomic_kind_set(ikind)%harmonics)
-        END IF
-        IF (ASSOCIATED(atomic_kind_set(ikind)%grid_atom)) THEN
-          CALL deallocate_grid_atom(atomic_kind_set(ikind)%grid_atom)
-        END IF
+       DO ikind=1,nkind
+          IF (ASSOCIATED(atomic_kind_set(ikind)%all_potential)) THEN
+             CALL deallocate_potential(atomic_kind_set(ikind)%all_potential,error)
+          END IF
+          IF (ASSOCIATED(atomic_kind_set(ikind)%elp_potential)) THEN
+             CALL deallocate_potential(atomic_kind_set(ikind)%elp_potential,error)
+          END IF
+          IF (ASSOCIATED(atomic_kind_set(ikind)%gth_potential)) THEN
+             CALL deallocate_potential(atomic_kind_set(ikind)%gth_potential,error)
+          END IF
+          IF (ASSOCIATED(atomic_kind_set(ikind)%se_parameter)) THEN
+             CALL deallocate_se_param(atomic_kind_set(ikind)%se_parameter,error)
+          END IF
+          IF (ASSOCIATED(atomic_kind_set(ikind)%dftb_parameter)) THEN
+             CALL deallocate_dftb_atom_param(atomic_kind_set(ikind)%dftb_parameter,error)
+          END IF
+          IF (ASSOCIATED(atomic_kind_set(ikind)%aux_basis_set)) THEN
+             CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%aux_basis_set,error)
+          END IF
+          IF (ASSOCIATED(atomic_kind_set(ikind)%soft_basis_set).AND.&
+               atomic_kind_set(ikind)%paw_atom) THEN
+             CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%soft_basis_set,error)
+          ELSEIF(ASSOCIATED(atomic_kind_set(ikind)%soft_basis_set).AND.&
+               (.NOT.atomic_kind_set(ikind)%paw_atom)) THEN
+             NULLIFY (atomic_kind_set(ikind)%soft_basis_set)
+          END IF
+          IF (ASSOCIATED(atomic_kind_set(ikind)%orb_basis_set)) THEN
+             CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%orb_basis_set,error)
+          END IF
+          IF (ASSOCIATED(atomic_kind_set(ikind)%paw_proj_set)) THEN
+             CALL deallocate_paw_proj_set(atomic_kind_set(ikind)%paw_proj_set,error)
+          END IF
+          IF (ASSOCIATED(atomic_kind_set(ikind)%harmonics)) THEN
+             CALL deallocate_harmonics_atom(atomic_kind_set(ikind)%harmonics,error)
+          END IF
+          IF (ASSOCIATED(atomic_kind_set(ikind)%grid_atom)) THEN
+             CALL deallocate_grid_atom(atomic_kind_set(ikind)%grid_atom,error)
+          END IF
 
-        IF (ASSOCIATED(atomic_kind_set(ikind)%atom_list)) THEN
-           DEALLOCATE (atomic_kind_set(ikind)%atom_list,STAT=stat)
-           CPPostcondition(stat==0, cp_failure_level, routineN, error, failure)
-        END IF
-        IF (ASSOCIATED(atomic_kind_set(ikind)%elec_conf)) THEN
-            DEALLOCATE (atomic_kind_set(ikind)%elec_conf,STAT=stat)
-            CPPostcondition(stat==0, cp_failure_level, routineN, error, failure)
-        END IF
-        CALL shell_release(atomic_kind_set(ikind)%shell,error)
+          IF (ASSOCIATED(atomic_kind_set(ikind)%atom_list)) THEN
+             DEALLOCATE (atomic_kind_set(ikind)%atom_list,STAT=stat)
+             CPPostcondition(stat==0, cp_failure_level, routineN, error, failure)
+          END IF
+          IF (ASSOCIATED(atomic_kind_set(ikind)%elec_conf)) THEN
+             DEALLOCATE (atomic_kind_set(ikind)%elec_conf,STAT=stat)
+             CPPostcondition(stat==0, cp_failure_level, routineN, error, failure)
+          END IF
+          CALL shell_release(atomic_kind_set(ikind)%shell,error)
 
-        IF (ASSOCIATED(atomic_kind_set(ikind)%dft_plus_u)) THEN
-           DEALLOCATE (atomic_kind_set(ikind)%dft_plus_u,STAT=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        END IF
-
-      END DO
-      DEALLOCATE (atomic_kind_set,STAT=stat)
-      CPPostcondition(stat==0, cp_failure_level, routineN, error, failure)
-
+          IF (ASSOCIATED(atomic_kind_set(ikind)%dft_plus_u)) THEN
+             DEALLOCATE (atomic_kind_set(ikind)%dft_plus_u,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+       END DO
+       DEALLOCATE (atomic_kind_set,STAT=stat)
+       CPPostcondition(stat==0, cp_failure_level, routineN, error, failure)
     ELSE
-
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer atomic_kind_set is not associated and "//&
-                        "cannot be deallocated")
-
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "The pointer atomic_kind_set is not associated and "//&
+            "cannot be deallocated")
     END IF
 
   END SUBROUTINE deallocate_atomic_kind_set
 
-!!****** atomic_kind_types/get_atomic_kind [1.0] *
-!!
-!!   NAME
-!!    get_atomic_kind 
-!!
-!!   FUNCTION
-!!    Get informations about an atomic kind.
-!!
-!!   AUTHOR
-!!     MK (02.01.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!   SOURCE
-!******************************************************************************
+  !!****** atomic_kind_types/get_atomic_kind [1.0] *
+  !!
+  !!   NAME
+  !!    get_atomic_kind 
+  !!
+  !!   FUNCTION
+  !!    Get informations about an atomic kind.
+  !!
+  !!   AUTHOR
+  !!     MK (02.01.2002)
+  !!
+  !!   MODIFICATION HISTORY
+  !!     
+  !!   SOURCE
+  !******************************************************************************
   SUBROUTINE get_atomic_kind(atomic_kind,all_potential,elp_potential,&
-                             gth_potential,se_parameter,dftb_parameter,&
-                             aux_basis_set,orb_basis_set,&
-                             element_symbol,name,mass,kind_number,natom,&
-                             atom_list,alpha_core_charge,ccore_charge,&
-                             core_charge,&
-                             alpha_pol, &
-                             core_charge_radius,ncgf,nsgf,z,zeff,qeff,&
-                             soft_basis_set, elec_conf,&
-                             hard_basis_set,paw_proj_set,softb,&
-                             paw_atom,qm_atom,hard_radius,hard0_radius,&
-                             max_rad_local, gpw_type_forced,&
-                             harmonics, max_iso_not0, max_s_harm,&
-                             grid_atom, ngrid_ang, ngrid_rad, lmax_rho0, ghost,&
-                             shell, shell_active, dft_plus_u_atom,&
-                             l_of_dft_plus_u, u_minus_j)
+       gth_potential,se_parameter,dftb_parameter,aux_basis_set,orb_basis_set,&
+       element_symbol,name,mass,kind_number,natom,atom_list,alpha_core_charge,&
+       ccore_charge,core_charge,alpha_pol,core_charge_radius,ncgf,nsgf,z,zeff,qeff,&
+       soft_basis_set, elec_conf,hard_basis_set,paw_proj_set,softb,paw_atom,qm_atom,&
+       hard_radius,hard0_radius,max_rad_local, gpw_type_forced,harmonics, max_iso_not0,&
+       max_s_harm, grid_atom, ngrid_ang, ngrid_rad, lmax_rho0, ghost,shell, shell_active,&
+       dft_plus_u_atom, l_of_dft_plus_u, u_minus_j)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(all_potential_type), OPTIONAL, &
@@ -405,215 +392,215 @@ CONTAINS
 
     IF (ASSOCIATED(atomic_kind)) THEN
 
-      IF (PRESENT(softb)) softb_local = softb
-      IF (PRESENT(all_potential)) all_potential => atomic_kind%all_potential
-      IF (PRESENT(elp_potential)) elp_potential => atomic_kind%elp_potential
-      IF (PRESENT(gth_potential)) gth_potential => atomic_kind%gth_potential
-      IF (PRESENT(se_parameter))  se_parameter => atomic_kind%se_parameter
-      IF (PRESENT(dftb_parameter))  dftb_parameter => atomic_kind%dftb_parameter
-      IF (PRESENT(aux_basis_set)) aux_basis_set => atomic_kind%aux_basis_set
-      IF (PRESENT(orb_basis_set)) THEN
-         IF(softb_local) THEN
-            orb_basis_set => atomic_kind%soft_basis_set
-         ELSE
-            orb_basis_set => atomic_kind%orb_basis_set
-         END IF
-      END IF
-      IF (PRESENT(element_symbol)) element_symbol = atomic_kind%element_symbol
-      IF (PRESENT(name)) name = atomic_kind%name
-      IF (PRESENT(mass)) mass = atomic_kind%mass
-      IF (PRESENT(alpha_pol)) alpha_pol = atomic_kind%alpha_pol
-      IF (PRESENT(kind_number)) kind_number = atomic_kind%kind_number
-      IF (PRESENT(natom)) natom = atomic_kind%natom
-      IF (PRESENT(atom_list)) atom_list => atomic_kind%atom_list
-      IF (PRESENT(elec_conf)) elec_conf => atomic_kind%elec_conf
-      IF (PRESENT(alpha_core_charge)) THEN
-        IF (ASSOCIATED(atomic_kind%all_potential)) THEN
-          CALL get_potential(potential=atomic_kind%all_potential,&
-                             alpha_core_charge=alpha_core_charge)
-        ELSE IF (ASSOCIATED(atomic_kind%elp_potential)) THEN
-          CALL get_potential(potential=atomic_kind%elp_potential,&
-                             alpha_core_charge=alpha_core_charge)
-        ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
-          CALL get_potential(potential=atomic_kind%gth_potential,&
-                             alpha_core_charge=alpha_core_charge)
-        ELSE
-          alpha_core_charge = 1.0_dp
-        END IF
-      END IF
-      IF (PRESENT(ccore_charge)) THEN
-        IF (ASSOCIATED(atomic_kind%all_potential)) THEN
-          CALL get_potential(potential=atomic_kind%all_potential,&
-                             ccore_charge=ccore_charge)
-        ELSE IF (ASSOCIATED(atomic_kind%elp_potential)) THEN
-          CALL get_potential(potential=atomic_kind%elp_potential,&
-                             ccore_charge=ccore_charge)
-        ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
-          CALL get_potential(potential=atomic_kind%gth_potential,&
-                             ccore_charge=ccore_charge)
-        ELSE
-          ccore_charge = 0.0_dp
-        END IF
-      END IF
-      IF (PRESENT(core_charge_radius)) THEN
-        IF (ASSOCIATED(atomic_kind%all_potential)) THEN
-          CALL get_potential(potential=atomic_kind%all_potential,&
-                             core_charge_radius=core_charge_radius)
-        ELSE IF (ASSOCIATED(atomic_kind%elp_potential)) THEN
-          CALL get_potential(potential=atomic_kind%elp_potential,&
-                             core_charge_radius=core_charge_radius)
-        ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
-          CALL get_potential(potential=atomic_kind%gth_potential,&
-                             core_charge_radius=core_charge_radius)
-        ELSE
-          core_charge_radius = 0.0_dp
-        END IF
-      END IF
-      IF (PRESENT(core_charge)) THEN
-        IF (ASSOCIATED(atomic_kind%all_potential)) THEN
-          CALL get_potential(potential=atomic_kind%all_potential,&
-                             zeff=core_charge)
-        ELSE IF (ASSOCIATED(atomic_kind%elp_potential)) THEN
-          CALL get_potential(potential=atomic_kind%elp_potential,&
-                             qeff=core_charge)
-        ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
-          CALL get_potential(potential=atomic_kind%gth_potential,&
-                             zeff=core_charge)
-        ELSE
-          core_charge = 0.0_dp
-        END IF
-      END IF
-      IF (PRESENT(ncgf)) THEN
-        IF (ASSOCIATED(atomic_kind%orb_basis_set)) THEN
-          CALL get_gto_basis_set(gto_basis_set=atomic_kind%orb_basis_set,&
-                                 ncgf=ncgf)
-        ELSE IF(ASSOCIATED(atomic_kind%dftb_parameter)) THEN
-          l = atomic_kind%dftb_parameter%lmax
-          ncgf = ((l+1)*(l+2)*(l+3))/6
-        ELSE
-          ncgf = 0
-        END IF
-      END IF
-      IF (PRESENT(nsgf)) THEN
-        IF (ASSOCIATED(atomic_kind%orb_basis_set)) THEN
-          CALL get_gto_basis_set(gto_basis_set=atomic_kind%orb_basis_set,&
-                                 nsgf=nsgf)
-        ELSE IF(ASSOCIATED(atomic_kind%dftb_parameter)) THEN
-          nsgf = atomic_kind%dftb_parameter%natorb
-        ELSE
-          nsgf = 0
-        END IF
-      END IF
-      IF (PRESENT(z)) THEN
-        IF (ASSOCIATED(atomic_kind%all_potential)) THEN
-          CALL get_potential(potential=atomic_kind%all_potential,z=z)
-        ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
-          CALL get_potential(potential=atomic_kind%gth_potential,z=z)
-        ELSE
-          z = 0
-        END IF
-      END IF
-      IF (PRESENT(zeff)) THEN
-        IF (ASSOCIATED(atomic_kind%all_potential)) THEN
-          CALL get_potential(potential=atomic_kind%all_potential,zeff=zeff)
-        ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
-          CALL get_potential(potential=atomic_kind%gth_potential,zeff=zeff)
-        ELSE
-          zeff = 0.0_dp
-        END IF
-      END IF
-      IF (PRESENT(qeff)) THEN
-        IF (ASSOCIATED(atomic_kind%elp_potential)) THEN
-          CALL get_potential(potential=atomic_kind%elp_potential,qeff=qeff)
-        ELSE
-          qeff = -HUGE(0.0_dp)
-        END IF
-      END IF
-      IF (PRESENT(soft_basis_set)) soft_basis_set => atomic_kind%soft_basis_set
-      IF (PRESENT(hard_basis_set)) hard_basis_set => atomic_kind%hard_basis_set
-      IF (PRESENT(paw_proj_set))   paw_proj_set => atomic_kind%paw_proj_set
-      IF (PRESENT(paw_atom)) paw_atom = atomic_kind%paw_atom
-      IF (PRESENT(qm_atom)) qm_atom = atomic_kind%qm_atom
-      IF (PRESENT(gpw_type_forced)) gpw_type_forced = atomic_kind%gpw_type_forced
-      IF (PRESENT(hard_radius)) hard_radius = atomic_kind%hard_radius
-      IF (PRESENT(hard0_radius)) hard0_radius = atomic_kind%hard0_radius
-      IF (PRESENT(max_rad_local)) max_rad_local = atomic_kind%max_rad_local
-      IF (PRESENT(harmonics))  harmonics => atomic_kind%harmonics
-      IF (PRESENT(max_s_harm)) THEN
-         IF(ASSOCIATED(atomic_kind%harmonics)) THEN
-            max_s_harm = atomic_kind%harmonics%max_s_harm
-         ELSE
-            max_s_harm = 0
-         END IF
-      END IF
-      IF (PRESENT(max_iso_not0)) THEN
-         IF(ASSOCIATED(atomic_kind%harmonics)) THEN
-            max_iso_not0 = atomic_kind%harmonics%max_iso_not0
-         ELSE
-            max_iso_not0 = 0
-         END IF
-      END IF
-      IF (PRESENT(grid_atom)) grid_atom => atomic_kind%grid_atom
-      IF (PRESENT(ngrid_ang)) ngrid_ang = atomic_kind%ngrid_ang
-      IF (PRESENT(ngrid_rad)) ngrid_rad = atomic_kind%ngrid_rad
-      IF (PRESENT(lmax_rho0)) lmax_rho0 = atomic_kind%lmax_rho0
-      IF (PRESENT(ghost)) ghost = atomic_kind%ghost
-      IF (PRESENT(shell)) shell => atomic_kind%shell
-      IF (PRESENT(shell_active)) shell_active = atomic_kind%shell_active
-      IF (PRESENT(dft_plus_u_atom)) dft_plus_u_atom = ASSOCIATED(atomic_kind%dft_plus_u)
-      IF (PRESENT(l_of_dft_plus_u)) THEN
-        IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
-          l_of_dft_plus_u = atomic_kind%dft_plus_u%l
-        ELSE
-          l_of_dft_plus_u = -1
-        END IF
-      END IF
-      IF (PRESENT(u_minus_j)) THEN
-        IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
-          u_minus_j = atomic_kind%dft_plus_u%u_minus_j
-        ELSE
-          u_minus_j = 0.0_dp
-        END IF
-      END IF
+       IF (PRESENT(softb)) softb_local = softb
+       IF (PRESENT(all_potential)) all_potential => atomic_kind%all_potential
+       IF (PRESENT(elp_potential)) elp_potential => atomic_kind%elp_potential
+       IF (PRESENT(gth_potential)) gth_potential => atomic_kind%gth_potential
+       IF (PRESENT(se_parameter))  se_parameter => atomic_kind%se_parameter
+       IF (PRESENT(dftb_parameter))  dftb_parameter => atomic_kind%dftb_parameter
+       IF (PRESENT(aux_basis_set)) aux_basis_set => atomic_kind%aux_basis_set
+       IF (PRESENT(orb_basis_set)) THEN
+          IF(softb_local) THEN
+             orb_basis_set => atomic_kind%soft_basis_set
+          ELSE
+             orb_basis_set => atomic_kind%orb_basis_set
+          END IF
+       END IF
+       IF (PRESENT(element_symbol)) element_symbol = atomic_kind%element_symbol
+       IF (PRESENT(name)) name = atomic_kind%name
+       IF (PRESENT(mass)) mass = atomic_kind%mass
+       IF (PRESENT(alpha_pol)) alpha_pol = atomic_kind%alpha_pol
+       IF (PRESENT(kind_number)) kind_number = atomic_kind%kind_number
+       IF (PRESENT(natom)) natom = atomic_kind%natom
+       IF (PRESENT(atom_list)) atom_list => atomic_kind%atom_list
+       IF (PRESENT(elec_conf)) elec_conf => atomic_kind%elec_conf
+       IF (PRESENT(alpha_core_charge)) THEN
+          IF (ASSOCIATED(atomic_kind%all_potential)) THEN
+             CALL get_potential(potential=atomic_kind%all_potential,&
+                  alpha_core_charge=alpha_core_charge)
+          ELSE IF (ASSOCIATED(atomic_kind%elp_potential)) THEN
+             CALL get_potential(potential=atomic_kind%elp_potential,&
+                  alpha_core_charge=alpha_core_charge)
+          ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
+             CALL get_potential(potential=atomic_kind%gth_potential,&
+                  alpha_core_charge=alpha_core_charge)
+          ELSE
+             alpha_core_charge = 1.0_dp
+          END IF
+       END IF
+       IF (PRESENT(ccore_charge)) THEN
+          IF (ASSOCIATED(atomic_kind%all_potential)) THEN
+             CALL get_potential(potential=atomic_kind%all_potential,&
+                  ccore_charge=ccore_charge)
+          ELSE IF (ASSOCIATED(atomic_kind%elp_potential)) THEN
+             CALL get_potential(potential=atomic_kind%elp_potential,&
+                  ccore_charge=ccore_charge)
+          ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
+             CALL get_potential(potential=atomic_kind%gth_potential,&
+                  ccore_charge=ccore_charge)
+          ELSE
+             ccore_charge = 0.0_dp
+          END IF
+       END IF
+       IF (PRESENT(core_charge_radius)) THEN
+          IF (ASSOCIATED(atomic_kind%all_potential)) THEN
+             CALL get_potential(potential=atomic_kind%all_potential,&
+                  core_charge_radius=core_charge_radius)
+          ELSE IF (ASSOCIATED(atomic_kind%elp_potential)) THEN
+             CALL get_potential(potential=atomic_kind%elp_potential,&
+                  core_charge_radius=core_charge_radius)
+          ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
+             CALL get_potential(potential=atomic_kind%gth_potential,&
+                  core_charge_radius=core_charge_radius)
+          ELSE
+             core_charge_radius = 0.0_dp
+          END IF
+       END IF
+       IF (PRESENT(core_charge)) THEN
+          IF (ASSOCIATED(atomic_kind%all_potential)) THEN
+             CALL get_potential(potential=atomic_kind%all_potential,&
+                  zeff=core_charge)
+          ELSE IF (ASSOCIATED(atomic_kind%elp_potential)) THEN
+             CALL get_potential(potential=atomic_kind%elp_potential,&
+                  qeff=core_charge)
+          ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
+             CALL get_potential(potential=atomic_kind%gth_potential,&
+                  zeff=core_charge)
+          ELSE
+             core_charge = 0.0_dp
+          END IF
+       END IF
+       IF (PRESENT(ncgf)) THEN
+          IF (ASSOCIATED(atomic_kind%orb_basis_set)) THEN
+             CALL get_gto_basis_set(gto_basis_set=atomic_kind%orb_basis_set,&
+                  ncgf=ncgf)
+          ELSE IF(ASSOCIATED(atomic_kind%dftb_parameter)) THEN
+             l = atomic_kind%dftb_parameter%lmax
+             ncgf = ((l+1)*(l+2)*(l+3))/6
+          ELSE
+             ncgf = 0
+          END IF
+       END IF
+       IF (PRESENT(nsgf)) THEN
+          IF (ASSOCIATED(atomic_kind%orb_basis_set)) THEN
+             CALL get_gto_basis_set(gto_basis_set=atomic_kind%orb_basis_set,&
+                  nsgf=nsgf)
+          ELSE IF(ASSOCIATED(atomic_kind%dftb_parameter)) THEN
+             nsgf = atomic_kind%dftb_parameter%natorb
+          ELSE
+             nsgf = 0
+          END IF
+       END IF
+       IF (PRESENT(z)) THEN
+          IF (ASSOCIATED(atomic_kind%all_potential)) THEN
+             CALL get_potential(potential=atomic_kind%all_potential,z=z)
+          ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
+             CALL get_potential(potential=atomic_kind%gth_potential,z=z)
+          ELSE
+             z = 0
+          END IF
+       END IF
+       IF (PRESENT(zeff)) THEN
+          IF (ASSOCIATED(atomic_kind%all_potential)) THEN
+             CALL get_potential(potential=atomic_kind%all_potential,zeff=zeff)
+          ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
+             CALL get_potential(potential=atomic_kind%gth_potential,zeff=zeff)
+          ELSE
+             zeff = 0.0_dp
+          END IF
+       END IF
+       IF (PRESENT(qeff)) THEN
+          IF (ASSOCIATED(atomic_kind%elp_potential)) THEN
+             CALL get_potential(potential=atomic_kind%elp_potential,qeff=qeff)
+          ELSE
+             qeff = -HUGE(0.0_dp)
+          END IF
+       END IF
+       IF (PRESENT(soft_basis_set)) soft_basis_set => atomic_kind%soft_basis_set
+       IF (PRESENT(hard_basis_set)) hard_basis_set => atomic_kind%hard_basis_set
+       IF (PRESENT(paw_proj_set))   paw_proj_set => atomic_kind%paw_proj_set
+       IF (PRESENT(paw_atom)) paw_atom = atomic_kind%paw_atom
+       IF (PRESENT(qm_atom)) qm_atom = atomic_kind%qm_atom
+       IF (PRESENT(gpw_type_forced)) gpw_type_forced = atomic_kind%gpw_type_forced
+       IF (PRESENT(hard_radius)) hard_radius = atomic_kind%hard_radius
+       IF (PRESENT(hard0_radius)) hard0_radius = atomic_kind%hard0_radius
+       IF (PRESENT(max_rad_local)) max_rad_local = atomic_kind%max_rad_local
+       IF (PRESENT(harmonics))  harmonics => atomic_kind%harmonics
+       IF (PRESENT(max_s_harm)) THEN
+          IF(ASSOCIATED(atomic_kind%harmonics)) THEN
+             max_s_harm = atomic_kind%harmonics%max_s_harm
+          ELSE
+             max_s_harm = 0
+          END IF
+       END IF
+       IF (PRESENT(max_iso_not0)) THEN
+          IF(ASSOCIATED(atomic_kind%harmonics)) THEN
+             max_iso_not0 = atomic_kind%harmonics%max_iso_not0
+          ELSE
+             max_iso_not0 = 0
+          END IF
+       END IF
+       IF (PRESENT(grid_atom)) grid_atom => atomic_kind%grid_atom
+       IF (PRESENT(ngrid_ang)) ngrid_ang = atomic_kind%ngrid_ang
+       IF (PRESENT(ngrid_rad)) ngrid_rad = atomic_kind%ngrid_rad
+       IF (PRESENT(lmax_rho0)) lmax_rho0 = atomic_kind%lmax_rho0
+       IF (PRESENT(ghost)) ghost = atomic_kind%ghost
+       IF (PRESENT(shell)) shell => atomic_kind%shell
+       IF (PRESENT(shell_active)) shell_active = atomic_kind%shell_active
+       IF (PRESENT(dft_plus_u_atom)) dft_plus_u_atom = ASSOCIATED(atomic_kind%dft_plus_u)
+       IF (PRESENT(l_of_dft_plus_u)) THEN
+          IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
+             l_of_dft_plus_u = atomic_kind%dft_plus_u%l
+          ELSE
+             l_of_dft_plus_u = -1
+          END IF
+       END IF
+       IF (PRESENT(u_minus_j)) THEN
+          IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
+             u_minus_j = atomic_kind%dft_plus_u%u_minus_j
+          ELSE
+             u_minus_j = 0.0_dp
+          END IF
+       END IF
 
     ELSE
 
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer atomic_kind is not associated")
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "The pointer atomic_kind is not associated")
 
     END IF
 
   END SUBROUTINE get_atomic_kind
 
-!!****** atomic_kind_types/get_atomic_kind_set [1.0] *
-!!
-!!   NAME
-!!    get_atomic_kind_set 
-!!
-!!   FUNCTION
-!!    Get informations about an atomic kind set.
-!!
-!!   AUTHOR
-!!     MK (14.01.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!   SOURCE
-!******************************************************************************
+  !!****** atomic_kind_types/get_atomic_kind_set [1.0] *
+  !!
+  !!   NAME
+  !!    get_atomic_kind_set 
+  !!
+  !!   FUNCTION
+  !!    Get informations about an atomic kind set.
+  !!
+  !!   AUTHOR
+  !!     MK (14.01.2002)
+  !!
+  !!   MODIFICATION HISTORY
+  !!     
+  !!   SOURCE
+  !******************************************************************************
   SUBROUTINE get_atomic_kind_set(atomic_kind_set,maxatom,maxcgf,&
-                                 maxco,maxco_proj,maxgtop,maxgtops,maxlgto,&
-                                 maxlppl,maxlppnl,maxnset,maxpgf,&
-                                 maxppnl,maxsgf,maxsgf_set,maxshell,&
-                                 natom,nelectron,ncgf,ncgf_aux,&
-                                 npgf,nset,nsgf,nshell,&
-                                 all_potential_present,gth_potential_present,&
-                                 elp_potential_present,paw_atom_present,&
-                                 qm_atom_present,shell_present, shell_adiabatic,&
-                                 dft_plus_u_atom_present,&
-                                 atom_of_kind,kind_of,natom_of_kind,maxder,&
-                                 max_ngrid_rad,&
-                                 max_sph_harm,maxg_iso_not0,lmax_rho0,&
-                                 zetsoft_max)
+       maxco,maxco_proj,maxgtop,maxgtops,maxlgto,&
+       maxlppl,maxlppnl,maxnset,maxpgf,&
+       maxppnl,maxsgf,maxsgf_set,maxshell,&
+       natom,nelectron,ncgf,ncgf_aux,&
+       npgf,nset,nsgf,nshell,&
+       all_potential_present,gth_potential_present,&
+       elp_potential_present,paw_atom_present,&
+       qm_atom_present,shell_present, shell_adiabatic,&
+       dft_plus_u_atom_present,&
+       atom_of_kind,kind_of,natom_of_kind,maxder,&
+       max_ngrid_rad,&
+       max_sph_harm,maxg_iso_not0,lmax_rho0,&
+       zetsoft_max)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -654,370 +641,370 @@ CONTAINS
 
     IF (ASSOCIATED(atomic_kind_set)) THEN
 
-      IF (PRESENT(maxatom)) maxatom = 0
-      IF (PRESENT(maxcgf)) maxcgf = 0
-      IF (PRESENT(maxco)) maxco = 0
-      IF (PRESENT(maxco_proj)) maxco_proj = 0
-      IF (PRESENT(maxg_iso_not0)) maxg_iso_not0 = 0
-      IF (PRESENT(maxgtop))  maxgtop = 0
-      IF (PRESENT(maxgtops)) maxgtops = 0
-      IF (PRESENT(maxlgto)) maxlgto = -1
-      IF (PRESENT(maxlppl)) maxlppl = -1
-      IF (PRESENT(maxlppnl)) maxlppnl = -1
-      IF (PRESENT(maxnset)) maxnset = 0
-      IF (PRESENT(maxpgf)) maxpgf = 0
-      IF (PRESENT(maxppnl)) maxppnl = 0
-      IF (PRESENT(maxsgf)) maxsgf = 0
-      IF (PRESENT(maxsgf_set)) maxsgf_set = 0
-      IF (PRESENT(maxshell)) maxshell = 0
-      IF (PRESENT(natom)) natom = 0
-      IF (PRESENT(ncgf)) ncgf = 0
-      IF (PRESENT(ncgf_aux)) ncgf_aux = 0
-      IF (PRESENT(nelectron)) nelectron = 0
-      IF (PRESENT(npgf)) npgf = 0
-      IF (PRESENT(nset)) nset = 0
-      IF (PRESENT(nsgf)) nsgf = 0
-      IF (PRESENT(nshell)) nshell = 0
-      IF (PRESENT(all_potential_present)) all_potential_present = .FALSE.
-      IF (PRESENT(elp_potential_present)) elp_potential_present = .FALSE.
-      IF (PRESENT(gth_potential_present)) gth_potential_present = .FALSE.
-      IF (PRESENT(paw_atom_present)) paw_atom_present = .FALSE.
-      IF (PRESENT(qm_atom_present)) qm_atom_present = .FALSE.
-      IF (PRESENT(shell_present)) shell_present = .FALSE.
-      IF (PRESENT(shell_adiabatic)) shell_adiabatic = .FALSE.
-      IF (PRESENT(atom_of_kind)) atom_of_kind(:) = 0
-      IF (PRESENT(kind_of)) kind_of(:) = 0
-      IF (PRESENT(natom_of_kind)) natom_of_kind(:) = 0
-      IF (PRESENT(zetsoft_max))  zetsoft_max = 0.0_dp
-      IF (PRESENT(max_ngrid_rad))  max_ngrid_rad = 0
-      IF (PRESENT(max_sph_harm))   max_sph_harm = 0
-      IF (PRESENT(lmax_rho0))      lmax_rho0 = 0
+       IF (PRESENT(maxatom)) maxatom = 0
+       IF (PRESENT(maxcgf)) maxcgf = 0
+       IF (PRESENT(maxco)) maxco = 0
+       IF (PRESENT(maxco_proj)) maxco_proj = 0
+       IF (PRESENT(maxg_iso_not0)) maxg_iso_not0 = 0
+       IF (PRESENT(maxgtop))  maxgtop = 0
+       IF (PRESENT(maxgtops)) maxgtops = 0
+       IF (PRESENT(maxlgto)) maxlgto = -1
+       IF (PRESENT(maxlppl)) maxlppl = -1
+       IF (PRESENT(maxlppnl)) maxlppnl = -1
+       IF (PRESENT(maxnset)) maxnset = 0
+       IF (PRESENT(maxpgf)) maxpgf = 0
+       IF (PRESENT(maxppnl)) maxppnl = 0
+       IF (PRESENT(maxsgf)) maxsgf = 0
+       IF (PRESENT(maxsgf_set)) maxsgf_set = 0
+       IF (PRESENT(maxshell)) maxshell = 0
+       IF (PRESENT(natom)) natom = 0
+       IF (PRESENT(ncgf)) ncgf = 0
+       IF (PRESENT(ncgf_aux)) ncgf_aux = 0
+       IF (PRESENT(nelectron)) nelectron = 0
+       IF (PRESENT(npgf)) npgf = 0
+       IF (PRESENT(nset)) nset = 0
+       IF (PRESENT(nsgf)) nsgf = 0
+       IF (PRESENT(nshell)) nshell = 0
+       IF (PRESENT(all_potential_present)) all_potential_present = .FALSE.
+       IF (PRESENT(elp_potential_present)) elp_potential_present = .FALSE.
+       IF (PRESENT(gth_potential_present)) gth_potential_present = .FALSE.
+       IF (PRESENT(paw_atom_present)) paw_atom_present = .FALSE.
+       IF (PRESENT(qm_atom_present)) qm_atom_present = .FALSE.
+       IF (PRESENT(shell_present)) shell_present = .FALSE.
+       IF (PRESENT(shell_adiabatic)) shell_adiabatic = .FALSE.
+       IF (PRESENT(atom_of_kind)) atom_of_kind(:) = 0
+       IF (PRESENT(kind_of)) kind_of(:) = 0
+       IF (PRESENT(natom_of_kind)) natom_of_kind(:) = 0
+       IF (PRESENT(zetsoft_max))  zetsoft_max = 0.0_dp
+       IF (PRESENT(max_ngrid_rad))  max_ngrid_rad = 0
+       IF (PRESENT(max_sph_harm))   max_sph_harm = 0
+       IF (PRESENT(lmax_rho0))      lmax_rho0 = 0
 
-      nkind = SIZE(atomic_kind_set)
-      DO ikind=1,nkind
-        atomic_kind => atomic_kind_set(ikind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             all_potential=all_potential,&
-                             elp_potential=elp_potential,&
-                             gth_potential=gth_potential,&
-                             aux_basis_set=aux_basis_set,&
-                             orb_basis_set=orb_basis_set,&
-                             soft_basis_set=soft_basis_set,&
-                             dftb_parameter=dftb_parameter,&
-                             ngrid_rad=ngrid_rad,&
-                             max_s_harm=max_s_harm, &
-                             max_iso_not0=max_iso_not0,&
-                             paw_atom=paw_atom,&
-                             qm_atom=qm_atom,&
-                             dft_plus_u_atom=dft_plus_u_atom,&
-                             lmax_rho0=lmax_rho0_kind,&
-                             shell=shell)
-        IF (PRESENT(maxatom)) THEN
-          maxatom = MAX(maxatom,atomic_kind%natom)
-        END IF
-        IF (PRESENT(maxlppl).AND.ASSOCIATED(gth_potential)) THEN
-          CALL get_potential(potential=gth_potential,nexp_ppl=n)
-          maxlppl = MAX(maxlppl,2*(n - 1))
-        END IF
-        IF (PRESENT(maxlppl).AND.ASSOCIATED(elp_potential)) THEN
-          CALL get_potential(potential=elp_potential,nexp_ppl=n_ppl)
-          n=MAXVAL(n_ppl)
-          maxlppl = MAX(maxlppl,2*(n - 1))
-        END IF
-        IF (PRESENT(maxlppnl).AND.ASSOCIATED(gth_potential)) THEN
-          CALL get_potential(potential=gth_potential,lprj_ppnl_max=imax)
-          maxlppnl = MAX(maxlppnl,imax)
-        END IF
-        IF (ASSOCIATED(elp_potential)) THEN
-          CALL get_potential(potential=elp_potential)
-        END IF
-        IF (PRESENT(maxcgf)) THEN
-          IF (ASSOCIATED(aux_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=aux_basis_set,ncgf=imax)
-            maxcgf = MAX(maxcgf,imax)
+       nkind = SIZE(atomic_kind_set)
+       DO ikind=1,nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               all_potential=all_potential,&
+               elp_potential=elp_potential,&
+               gth_potential=gth_potential,&
+               aux_basis_set=aux_basis_set,&
+               orb_basis_set=orb_basis_set,&
+               soft_basis_set=soft_basis_set,&
+               dftb_parameter=dftb_parameter,&
+               ngrid_rad=ngrid_rad,&
+               max_s_harm=max_s_harm, &
+               max_iso_not0=max_iso_not0,&
+               paw_atom=paw_atom,&
+               qm_atom=qm_atom,&
+               dft_plus_u_atom=dft_plus_u_atom,&
+               lmax_rho0=lmax_rho0_kind,&
+               shell=shell)
+          IF (PRESENT(maxatom)) THEN
+             maxatom = MAX(maxatom,atomic_kind%natom)
           END IF
-          IF (ASSOCIATED(orb_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,ncgf=imax)
-            maxcgf = MAX(maxcgf,imax)
+          IF (PRESENT(maxlppl).AND.ASSOCIATED(gth_potential)) THEN
+             CALL get_potential(potential=gth_potential,nexp_ppl=n)
+             maxlppl = MAX(maxlppl,2*(n - 1))
           END IF
-          IF (ASSOCIATED(dftb_parameter)) THEN
-            CALL get_dftb_atom_param(dftb_parameter=dftb_parameter,lmax=imax)
-            imax=((imax+1)*(imax+2)*(imax+3))/6
-            maxcgf = MAX(maxcgf,imax)
+          IF (PRESENT(maxlppl).AND.ASSOCIATED(elp_potential)) THEN
+             CALL get_potential(potential=elp_potential,nexp_ppl=n_ppl)
+             n=MAXVAL(n_ppl)
+             maxlppl = MAX(maxlppl,2*(n - 1))
           END IF
-        END IF
-        IF (PRESENT(maxco)) THEN
-          IF (ASSOCIATED(aux_basis_set)) THEN
-            IF (PRESENT(maxder)) THEN
-              CALL get_gto_basis_set(gto_basis_set=aux_basis_set,&
-                                     maxco=imax,maxder=maxder)
-            ELSE
-              CALL get_gto_basis_set(gto_basis_set=aux_basis_set,maxco=imax)
-            END IF
-            maxco = MAX(maxco,imax)
+          IF (PRESENT(maxlppnl).AND.ASSOCIATED(gth_potential)) THEN
+             CALL get_potential(potential=gth_potential,lprj_ppnl_max=imax)
+             maxlppnl = MAX(maxlppnl,imax)
           END IF
-          IF (ASSOCIATED(orb_basis_set)) THEN
-            IF (PRESENT(maxder)) THEN
-              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                     maxco=imax,maxder=maxder)
-            ELSE
-              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxco=imax)
-            END IF
-            maxco = MAX(maxco,imax)
-          END IF
-          IF (ASSOCIATED(gth_potential)) THEN
-            CALL get_potential(potential=gth_potential,lprj_ppnl_max=imax)
-            maxco = MAX(maxco,ncoset(imax))
-          END IF
-        END IF
-        IF (PRESENT(maxco_proj)) THEN
-          IF (ASSOCIATED(paw_proj_set)) THEN
-            CALL get_paw_proj_set(paw_proj_set=paw_proj_set,ncgauprj=imax)
-            maxco_proj = MAX(maxco_proj,imax)
-          END IF
-        ENDIF
-        IF (PRESENT(maxgtop)) THEN
-          IF (ASSOCIATED(orb_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxco=imax,&
-                              nset=n)
-            maxgtop = MAX(maxgtop, n*imax)
-          END IF
-        END IF
-        IF (PRESENT(maxgtops)) THEN
-          IF (ASSOCIATED(orb_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxso=imax,&
-                              nset=n)
-            maxgtops = MAX(maxgtops, n*imax)
-          END IF
-        END IF
-        IF (PRESENT(maxlgto)) THEN
-          IF (ASSOCIATED(aux_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=aux_basis_set,maxl=imax)
-            maxlgto = MAX(maxlgto,imax)
-          END IF
-          IF (ASSOCIATED(orb_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxl=imax)
-            maxlgto = MAX(maxlgto,imax)
-          END IF
-          IF (ASSOCIATED(dftb_parameter)) THEN
-            CALL get_dftb_atom_param(dftb_parameter=dftb_parameter,lmax=imax)
-            maxlgto = MAX(maxlgto,imax)
-          END IF
-        END IF
-        IF (PRESENT(maxnset)) THEN
-          IF (ASSOCIATED(orb_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                              nset=n)
-            maxnset = MAX(maxnset, n)
-          END IF
-        END IF
-        IF (PRESENT(maxpgf)) THEN
-          IF (ASSOCIATED(aux_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=aux_basis_set,maxpgf=imax)
-            maxpgf = MAX(maxpgf,imax)
-          END IF
-          IF (ASSOCIATED(orb_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxpgf=imax)
-            maxpgf = MAX(maxpgf,imax)
-          END IF
-        END IF
-        IF (PRESENT(maxppnl).AND.ASSOCIATED(gth_potential)) THEN
-          CALL get_potential(potential=gth_potential,nppnl=imax)
-          maxppnl = MAX(maxppnl,imax)
-        END IF
-        IF (PRESENT(maxsgf)) THEN
-          IF (ASSOCIATED(aux_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=aux_basis_set,nsgf=imax)
-            maxsgf = MAX(maxsgf,imax)
-          END IF
-          IF (ASSOCIATED(orb_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=imax)
-            maxsgf = MAX(maxsgf,imax)
-          END IF
-        END IF
-        IF (PRESENT(maxsgf_set)) THEN
-          IF (ASSOCIATED(aux_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=aux_basis_set,maxsgf_set=imax)
-            maxsgf_set = MAX(maxsgf_set,imax)
-          END IF
-          IF (ASSOCIATED(orb_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxsgf_set=imax)
-            maxsgf_set = MAX(maxsgf_set,imax)
-          END IF
-        END IF
-        IF (PRESENT(maxshell)) THEN
-          IF (ASSOCIATED(aux_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=aux_basis_set,maxshell=imax)
-            maxshell = MAX(maxshell,imax)
-          END IF
-          IF (ASSOCIATED(orb_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxshell=imax)
-            maxshell = MAX(maxshell,imax)
-          END IF
-        END IF
-        IF (PRESENT(natom)) THEN
-          natom = natom + atomic_kind_set(ikind)%natom
-        END IF
-        IF (PRESENT(ncgf)) THEN
-          IF (ASSOCIATED(orb_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,ncgf=n)
-            ncgf = ncgf + n*atomic_kind_set(ikind)%natom
-          END IF
-          IF (ASSOCIATED(dftb_parameter)) THEN
-            CALL get_dftb_atom_param(dftb_parameter=dftb_parameter,lmax=imax)
-            n=((imax+1)*(imax+2)*(imax+3))/6
-            ncgf = ncgf + n*atomic_kind_set(ikind)%natom
-          END IF
-        END IF
-        IF (PRESENT(ncgf_aux)) THEN
-          IF (ASSOCIATED(aux_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=aux_basis_set,ncgf=n)
-            ncgf_aux = ncgf_aux + n*atomic_kind_set(ikind)%natom
-          END IF
-        END IF
-        IF (PRESENT(nelectron)) THEN
-          IF (ASSOCIATED(atomic_kind%all_potential)) THEN
-            CALL get_potential(potential=atomic_kind%all_potential,&
-                 zeff=zeff,zeff_correction=zeff_correction)
-          ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
-            CALL get_potential(potential=atomic_kind%gth_potential,&
-                 zeff=zeff,zeff_correction=zeff_correction)
-          ELSE
-            zeff = 0.0_dp
-            zeff_correction = 0.0_dp
-          END IF
-          nelectron = nelectron + atomic_kind_set(ikind)%natom*INT(zeff-zeff_correction)
-        END IF
-        IF (PRESENT(npgf)) THEN
-          IF (ASSOCIATED(orb_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,npgf_sum=n)
-            npgf = npgf + n*atomic_kind_set(ikind)%natom
-          END IF
-        END IF
-        IF (PRESENT(nset)) THEN
-          IF (ASSOCIATED(orb_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nset=n)
-            nset = nset + n*atomic_kind_set(ikind)%natom
-          END IF
-        END IF
-        IF (PRESENT(nsgf)) THEN
-          IF (ASSOCIATED(orb_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=n)
-            nsgf = nsgf + n*atomic_kind_set(ikind)%natom
-          END IF
-          IF (ASSOCIATED(dftb_parameter)) THEN
-            CALL get_dftb_atom_param(dftb_parameter=dftb_parameter,natorb=n)
-            nsgf = nsgf + n*atomic_kind_set(ikind)%natom
-          END IF
-        END IF
-        IF (PRESENT(nshell)) THEN
-          IF (ASSOCIATED(orb_basis_set)) THEN
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nshell_sum=n)
-            nshell = nshell + n*atomic_kind_set(ikind)%natom
-          END IF
-          IF (ASSOCIATED(dftb_parameter)) THEN
-            CALL get_dftb_atom_param(dftb_parameter=dftb_parameter,lmax=n)
-            nshell = nshell + (n+1)*atomic_kind_set(ikind)%natom
-          END IF
-        END IF
-        IF (PRESENT(all_potential_present)) THEN
-          IF (ASSOCIATED(all_potential)) THEN
-            all_potential_present = .TRUE.
-          END IF
-        END IF
-        IF (PRESENT(elp_potential_present)) THEN
           IF (ASSOCIATED(elp_potential)) THEN
-            elp_potential_present = .TRUE.
+             CALL get_potential(potential=elp_potential)
           END IF
-        END IF
-        IF (PRESENT(gth_potential_present)) THEN
-          IF (ASSOCIATED(gth_potential)) THEN
-            gth_potential_present = .TRUE.
+          IF (PRESENT(maxcgf)) THEN
+             IF (ASSOCIATED(aux_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=aux_basis_set,ncgf=imax)
+                maxcgf = MAX(maxcgf,imax)
+             END IF
+             IF (ASSOCIATED(orb_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,ncgf=imax)
+                maxcgf = MAX(maxcgf,imax)
+             END IF
+             IF (ASSOCIATED(dftb_parameter)) THEN
+                CALL get_dftb_atom_param(dftb_parameter=dftb_parameter,lmax=imax)
+                imax=((imax+1)*(imax+2)*(imax+3))/6
+                maxcgf = MAX(maxcgf,imax)
+             END IF
           END IF
-        END IF
-        IF (PRESENT(paw_atom_present)) THEN
-          IF (paw_atom) THEN
-            paw_atom_present = .TRUE.
+          IF (PRESENT(maxco)) THEN
+             IF (ASSOCIATED(aux_basis_set)) THEN
+                IF (PRESENT(maxder)) THEN
+                   CALL get_gto_basis_set(gto_basis_set=aux_basis_set,&
+                        maxco=imax,maxder=maxder)
+                ELSE
+                   CALL get_gto_basis_set(gto_basis_set=aux_basis_set,maxco=imax)
+                END IF
+                maxco = MAX(maxco,imax)
+             END IF
+             IF (ASSOCIATED(orb_basis_set)) THEN
+                IF (PRESENT(maxder)) THEN
+                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                        maxco=imax,maxder=maxder)
+                ELSE
+                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxco=imax)
+                END IF
+                maxco = MAX(maxco,imax)
+             END IF
+             IF (ASSOCIATED(gth_potential)) THEN
+                CALL get_potential(potential=gth_potential,lprj_ppnl_max=imax)
+                maxco = MAX(maxco,ncoset(imax))
+             END IF
           END IF
-        END IF
-        IF (PRESENT(qm_atom_present)) THEN
-          IF (qm_atom) THEN
-            qm_atom_present = .TRUE.
+          IF (PRESENT(maxco_proj)) THEN
+             IF (ASSOCIATED(paw_proj_set)) THEN
+                CALL get_paw_proj_set(paw_proj_set=paw_proj_set,ncgauprj=imax)
+                maxco_proj = MAX(maxco_proj,imax)
+             END IF
+          ENDIF
+          IF (PRESENT(maxgtop)) THEN
+             IF (ASSOCIATED(orb_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxco=imax,&
+                     nset=n)
+                maxgtop = MAX(maxgtop, n*imax)
+             END IF
           END IF
-        END IF
-        IF (PRESENT(dft_plus_u_atom_present)) THEN
-          IF (dft_plus_u_atom) THEN
-            dft_plus_u_atom_present = .TRUE.
+          IF (PRESENT(maxgtops)) THEN
+             IF (ASSOCIATED(orb_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxso=imax,&
+                     nset=n)
+                maxgtops = MAX(maxgtops, n*imax)
+             END IF
           END IF
-        END IF
-        IF (PRESENT(shell_present)) THEN
-          IF (ASSOCIATED(shell)) THEN
-            shell_present = .TRUE.
+          IF (PRESENT(maxlgto)) THEN
+             IF (ASSOCIATED(aux_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=aux_basis_set,maxl=imax)
+                maxlgto = MAX(maxlgto,imax)
+             END IF
+             IF (ASSOCIATED(orb_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxl=imax)
+                maxlgto = MAX(maxlgto,imax)
+             END IF
+             IF (ASSOCIATED(dftb_parameter)) THEN
+                CALL get_dftb_atom_param(dftb_parameter=dftb_parameter,lmax=imax)
+                maxlgto = MAX(maxlgto,imax)
+             END IF
           END IF
-        END IF
-        IF (PRESENT(shell_adiabatic) .AND. ASSOCIATED(shell) )THEN
-           IF(.NOT. shell_adiabatic) shell_adiabatic = (shell%massfrac /= 0.0_dp)
-        END IF
-        IF (PRESENT(atom_of_kind)) THEN
-          DO iatom=1,atomic_kind%natom
-            atom_a = atomic_kind%atom_list(iatom)
-            atom_of_kind(atom_a) = iatom
-          END DO
-        END IF
-        IF (PRESENT(kind_of)) THEN
-          DO iatom=1,atomic_kind%natom
-            atom_a = atomic_kind%atom_list(iatom)
-            kind_of(atom_a) = ikind
-          END DO
-        END IF
-        IF (PRESENT(natom_of_kind)) THEN
-          natom_of_kind(ikind) = atomic_kind_set(ikind)%natom
-        END IF
-        IF(PRESENT(max_ngrid_rad)) THEN
-          max_ngrid_rad = MAX(max_ngrid_rad,ngrid_rad)
-        ENDIF
-        IF(PRESENT(max_sph_harm)) THEN
-          max_sph_harm = MAX(max_sph_harm,max_s_harm)
-        ENDIF
-        IF(PRESENT(maxg_iso_not0)) THEN
-          maxg_iso_not0 = MAX(maxg_iso_not0,max_iso_not0)
-        END IF
-        IF( PRESENT(lmax_rho0) ) THEN
-          lmax_rho0 = MAX(lmax_rho0,lmax_rho0_kind)
-        END IF
-        IF( PRESENT(zetsoft_max) ) THEN
-          CALL  get_gto_basis_set(gto_basis_set=soft_basis_set, &
-                nset = n, npgf = npgf_kind, zet = zet_kind )
-          DO iset = 1,n
-            DO ipgf = 1,npgf_kind(iset)
-               zetsoft_max= MAX(zetsoft_max,zet_kind(ipgf,iset))
-            END DO
-          END DO
-        END IF
-      END DO
+          IF (PRESENT(maxnset)) THEN
+             IF (ASSOCIATED(orb_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                     nset=n)
+                maxnset = MAX(maxnset, n)
+             END IF
+          END IF
+          IF (PRESENT(maxpgf)) THEN
+             IF (ASSOCIATED(aux_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=aux_basis_set,maxpgf=imax)
+                maxpgf = MAX(maxpgf,imax)
+             END IF
+             IF (ASSOCIATED(orb_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxpgf=imax)
+                maxpgf = MAX(maxpgf,imax)
+             END IF
+          END IF
+          IF (PRESENT(maxppnl).AND.ASSOCIATED(gth_potential)) THEN
+             CALL get_potential(potential=gth_potential,nppnl=imax)
+             maxppnl = MAX(maxppnl,imax)
+          END IF
+          IF (PRESENT(maxsgf)) THEN
+             IF (ASSOCIATED(aux_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=aux_basis_set,nsgf=imax)
+                maxsgf = MAX(maxsgf,imax)
+             END IF
+             IF (ASSOCIATED(orb_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=imax)
+                maxsgf = MAX(maxsgf,imax)
+             END IF
+          END IF
+          IF (PRESENT(maxsgf_set)) THEN
+             IF (ASSOCIATED(aux_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=aux_basis_set,maxsgf_set=imax)
+                maxsgf_set = MAX(maxsgf_set,imax)
+             END IF
+             IF (ASSOCIATED(orb_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxsgf_set=imax)
+                maxsgf_set = MAX(maxsgf_set,imax)
+             END IF
+          END IF
+          IF (PRESENT(maxshell)) THEN
+             IF (ASSOCIATED(aux_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=aux_basis_set,maxshell=imax)
+                maxshell = MAX(maxshell,imax)
+             END IF
+             IF (ASSOCIATED(orb_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxshell=imax)
+                maxshell = MAX(maxshell,imax)
+             END IF
+          END IF
+          IF (PRESENT(natom)) THEN
+             natom = natom + atomic_kind_set(ikind)%natom
+          END IF
+          IF (PRESENT(ncgf)) THEN
+             IF (ASSOCIATED(orb_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,ncgf=n)
+                ncgf = ncgf + n*atomic_kind_set(ikind)%natom
+             END IF
+             IF (ASSOCIATED(dftb_parameter)) THEN
+                CALL get_dftb_atom_param(dftb_parameter=dftb_parameter,lmax=imax)
+                n=((imax+1)*(imax+2)*(imax+3))/6
+                ncgf = ncgf + n*atomic_kind_set(ikind)%natom
+             END IF
+          END IF
+          IF (PRESENT(ncgf_aux)) THEN
+             IF (ASSOCIATED(aux_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=aux_basis_set,ncgf=n)
+                ncgf_aux = ncgf_aux + n*atomic_kind_set(ikind)%natom
+             END IF
+          END IF
+          IF (PRESENT(nelectron)) THEN
+             IF (ASSOCIATED(atomic_kind%all_potential)) THEN
+                CALL get_potential(potential=atomic_kind%all_potential,&
+                     zeff=zeff,zeff_correction=zeff_correction)
+             ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
+                CALL get_potential(potential=atomic_kind%gth_potential,&
+                     zeff=zeff,zeff_correction=zeff_correction)
+             ELSE
+                zeff = 0.0_dp
+                zeff_correction = 0.0_dp
+             END IF
+             nelectron = nelectron + atomic_kind_set(ikind)%natom*INT(zeff-zeff_correction)
+          END IF
+          IF (PRESENT(npgf)) THEN
+             IF (ASSOCIATED(orb_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,npgf_sum=n)
+                npgf = npgf + n*atomic_kind_set(ikind)%natom
+             END IF
+          END IF
+          IF (PRESENT(nset)) THEN
+             IF (ASSOCIATED(orb_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nset=n)
+                nset = nset + n*atomic_kind_set(ikind)%natom
+             END IF
+          END IF
+          IF (PRESENT(nsgf)) THEN
+             IF (ASSOCIATED(orb_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=n)
+                nsgf = nsgf + n*atomic_kind_set(ikind)%natom
+             END IF
+             IF (ASSOCIATED(dftb_parameter)) THEN
+                CALL get_dftb_atom_param(dftb_parameter=dftb_parameter,natorb=n)
+                nsgf = nsgf + n*atomic_kind_set(ikind)%natom
+             END IF
+          END IF
+          IF (PRESENT(nshell)) THEN
+             IF (ASSOCIATED(orb_basis_set)) THEN
+                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nshell_sum=n)
+                nshell = nshell + n*atomic_kind_set(ikind)%natom
+             END IF
+             IF (ASSOCIATED(dftb_parameter)) THEN
+                CALL get_dftb_atom_param(dftb_parameter=dftb_parameter,lmax=n)
+                nshell = nshell + (n+1)*atomic_kind_set(ikind)%natom
+             END IF
+          END IF
+          IF (PRESENT(all_potential_present)) THEN
+             IF (ASSOCIATED(all_potential)) THEN
+                all_potential_present = .TRUE.
+             END IF
+          END IF
+          IF (PRESENT(elp_potential_present)) THEN
+             IF (ASSOCIATED(elp_potential)) THEN
+                elp_potential_present = .TRUE.
+             END IF
+          END IF
+          IF (PRESENT(gth_potential_present)) THEN
+             IF (ASSOCIATED(gth_potential)) THEN
+                gth_potential_present = .TRUE.
+             END IF
+          END IF
+          IF (PRESENT(paw_atom_present)) THEN
+             IF (paw_atom) THEN
+                paw_atom_present = .TRUE.
+             END IF
+          END IF
+          IF (PRESENT(qm_atom_present)) THEN
+             IF (qm_atom) THEN
+                qm_atom_present = .TRUE.
+             END IF
+          END IF
+          IF (PRESENT(dft_plus_u_atom_present)) THEN
+             IF (dft_plus_u_atom) THEN
+                dft_plus_u_atom_present = .TRUE.
+             END IF
+          END IF
+          IF (PRESENT(shell_present)) THEN
+             IF (ASSOCIATED(shell)) THEN
+                shell_present = .TRUE.
+             END IF
+          END IF
+          IF (PRESENT(shell_adiabatic) .AND. ASSOCIATED(shell) )THEN
+             IF(.NOT. shell_adiabatic) shell_adiabatic = (shell%massfrac /= 0.0_dp)
+          END IF
+          IF (PRESENT(atom_of_kind)) THEN
+             DO iatom=1,atomic_kind%natom
+                atom_a = atomic_kind%atom_list(iatom)
+                atom_of_kind(atom_a) = iatom
+             END DO
+          END IF
+          IF (PRESENT(kind_of)) THEN
+             DO iatom=1,atomic_kind%natom
+                atom_a = atomic_kind%atom_list(iatom)
+                kind_of(atom_a) = ikind
+             END DO
+          END IF
+          IF (PRESENT(natom_of_kind)) THEN
+             natom_of_kind(ikind) = atomic_kind_set(ikind)%natom
+          END IF
+          IF(PRESENT(max_ngrid_rad)) THEN
+             max_ngrid_rad = MAX(max_ngrid_rad,ngrid_rad)
+          ENDIF
+          IF(PRESENT(max_sph_harm)) THEN
+             max_sph_harm = MAX(max_sph_harm,max_s_harm)
+          ENDIF
+          IF(PRESENT(maxg_iso_not0)) THEN
+             maxg_iso_not0 = MAX(maxg_iso_not0,max_iso_not0)
+          END IF
+          IF( PRESENT(lmax_rho0) ) THEN
+             lmax_rho0 = MAX(lmax_rho0,lmax_rho0_kind)
+          END IF
+          IF( PRESENT(zetsoft_max) ) THEN
+             CALL  get_gto_basis_set(gto_basis_set=soft_basis_set, &
+                  nset = n, npgf = npgf_kind, zet = zet_kind )
+             DO iset = 1,n
+                DO ipgf = 1,npgf_kind(iset)
+                   zetsoft_max= MAX(zetsoft_max,zet_kind(ipgf,iset))
+                END DO
+             END DO
+          END IF
+       END DO
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer atomic_kind_set is not associated")
-   END IF
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "The pointer atomic_kind_set is not associated")
+    END IF
 
   END SUBROUTINE get_atomic_kind_set
 
-!!****** atomic_kind_types/init_atomic_kind [1.0] *
-!!
-!!   NAME
-!!    init_atomic_kind
-!!
-!!   FUNCTION
-!!    Initialise an atomic kind data set.
-!!
-!!   AUTHOR
-!!     Creation (11.01.2002,MK)
-!!               20.09.2002 adapted for pol/kg use, gtb
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!   SOURCE
-!******************************************************************************
+  !!****** atomic_kind_types/init_atomic_kind [1.0] *
+  !!
+  !!   NAME
+  !!    init_atomic_kind
+  !!
+  !!   FUNCTION
+  !!    Initialise an atomic kind data set.
+  !!
+  !!   AUTHOR
+  !!     Creation (11.01.2002,MK)
+  !!               20.09.2002 adapted for pol/kg use, gtb
+  !!
+  !!   MODIFICATION HISTORY
+  !!     
+  !!   SOURCE
+  !******************************************************************************
   SUBROUTINE init_atomic_kind(atomic_kind,para_env,force_env_section,method,error)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1031,75 +1018,75 @@ CONTAINS
     INTEGER                                  :: method_name_id
 
     IF (ASSOCIATED(atomic_kind)) THEN
-    CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
-      IF (method_name_id == do_qs) THEN
-        IF (ASSOCIATED(atomic_kind%gth_potential))THEN
-          CALL init_potential(atomic_kind%gth_potential)
-        END IF
-        IF (ASSOCIATED(atomic_kind%orb_basis_set))THEN
-          IF(atomic_kind%orb_basis_set%norm_type < 0) &
-                        atomic_kind%orb_basis_set%norm_type = 2
-          CALL init_orb_basis_set(atomic_kind%orb_basis_set)
-        END IF
-        IF (ASSOCIATED(atomic_kind%aux_basis_set)) THEN
-          IF(atomic_kind%aux_basis_set%norm_type < 0) &
-                        atomic_kind%aux_basis_set%norm_type = 1  
-          CALL init_aux_basis_set(atomic_kind%aux_basis_set)
-        END IF
-      ELSE IF (method_name_id == do_kg) THEN
-        IF (ASSOCIATED(atomic_kind%gth_potential).AND. PRESENT(method))THEN
-          IF(method == "KG_GPW")&
-          CALL init_potential(atomic_kind%gth_potential)
-        END IF
-
-        IF (ASSOCIATED(atomic_kind%orb_basis_set))THEN
-          IF(atomic_kind%orb_basis_set%norm_type < 0) THEN
-            IF(PRESENT(method)) THEN
-              IF(method == "KG_GPW") THEN
-                atomic_kind%orb_basis_set%norm_type = 2
-              ELSE
-                atomic_kind%orb_basis_set%norm_type = 1
-              END IF
-            ELSE
-              atomic_kind%orb_basis_set%norm_type = 1
-            END IF
+       CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
+       IF (method_name_id == do_qs) THEN
+          IF (ASSOCIATED(atomic_kind%gth_potential))THEN
+             CALL init_potential(atomic_kind%gth_potential,error)
           END IF
-          CALL init_orb_basis_set(atomic_kind%orb_basis_set)
-        END IF
-        IF (ASSOCIATED(atomic_kind%aux_basis_set))THEN
-          IF(atomic_kind%aux_basis_set%norm_type < 0) &
-                        atomic_kind%aux_basis_set%norm_type = 1
-          CALL init_aux_basis_set(atomic_kind%aux_basis_set)
-        END IF
-      ELSE IF (method_name_id == do_fist) THEN
-        IF (ASSOCIATED(atomic_kind%elp_potential))THEN
-          CALL allocate_potential(atomic_kind%elp_potential)
-        END IF
-      END IF
+          IF (ASSOCIATED(atomic_kind%orb_basis_set))THEN
+             IF(atomic_kind%orb_basis_set%norm_type < 0) &
+                  atomic_kind%orb_basis_set%norm_type = 2
+             CALL init_orb_basis_set(atomic_kind%orb_basis_set,error)
+          END IF
+          IF (ASSOCIATED(atomic_kind%aux_basis_set)) THEN
+             IF(atomic_kind%aux_basis_set%norm_type < 0) &
+                  atomic_kind%aux_basis_set%norm_type = 1  
+             CALL init_aux_basis_set(atomic_kind%aux_basis_set,error)
+          END IF
+       ELSE IF (method_name_id == do_kg) THEN
+          IF (ASSOCIATED(atomic_kind%gth_potential).AND. PRESENT(method))THEN
+             IF(method == "KG_GPW")&
+                  CALL init_potential(atomic_kind%gth_potential,error)
+          END IF
+
+          IF (ASSOCIATED(atomic_kind%orb_basis_set))THEN
+             IF(atomic_kind%orb_basis_set%norm_type < 0) THEN
+                IF(PRESENT(method)) THEN
+                   IF(method == "KG_GPW") THEN
+                      atomic_kind%orb_basis_set%norm_type = 2
+                   ELSE
+                      atomic_kind%orb_basis_set%norm_type = 1
+                   END IF
+                ELSE
+                   atomic_kind%orb_basis_set%norm_type = 1
+                END IF
+             END IF
+             CALL init_orb_basis_set(atomic_kind%orb_basis_set,error)
+          END IF
+          IF (ASSOCIATED(atomic_kind%aux_basis_set))THEN
+             IF(atomic_kind%aux_basis_set%norm_type < 0) &
+                  atomic_kind%aux_basis_set%norm_type = 1
+             CALL init_aux_basis_set(atomic_kind%aux_basis_set,error)
+          END IF
+       ELSE IF (method_name_id == do_fist) THEN
+          IF (ASSOCIATED(atomic_kind%elp_potential))THEN
+             CALL allocate_potential(atomic_kind%elp_potential,error)
+          END IF
+       END IF
 
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer atomic_kind is not associated",para_env)
-   END IF
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "The pointer atomic_kind is not associated",para_env)
+    END IF
 
   END SUBROUTINE init_atomic_kind
 
-!!****** atomic_kind_types/get_atomic_kind_set [1.0] *
-!!
-!!   NAME
-!!    get_atomic_kind_set 
-!!
-!!   FUNCTION
-!!    Initialise an atomic kind set data set.
-!!
-!!   AUTHOR
-!!     - Creation (17.01.2002,MK)
-!!     - 20.09.2002 para_env passed (gt)
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!   SOURCE
-!******************************************************************************
+  !!****** atomic_kind_types/get_atomic_kind_set [1.0] *
+  !!
+  !!   NAME
+  !!    get_atomic_kind_set 
+  !!
+  !!   FUNCTION
+  !!    Initialise an atomic kind set data set.
+  !!
+  !!   AUTHOR
+  !!     - Creation (17.01.2002,MK)
+  !!     - 20.09.2002 para_env passed (gt)
+  !!
+  !!   MODIFICATION HISTORY
+  !!     
+  !!   SOURCE
+  !******************************************************************************
   SUBROUTINE init_atomic_kind_set(atomic_kind_set,para_env,force_env_section,method,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1116,38 +1103,38 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     IF (ASSOCIATED(atomic_kind_set)) THEN
-      nkind = SIZE(atomic_kind_set)
-      DO ikind=1,nkind
-        atomic_kind => atomic_kind_set(ikind)
-        CALL init_atomic_kind(atomic_kind,para_env,force_env_section=force_env_section,&
-             method=method,error=error)
-      END DO
+       nkind = SIZE(atomic_kind_set)
+       DO ikind=1,nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL init_atomic_kind(atomic_kind,para_env,force_env_section=force_env_section,&
+               method=method,error=error)
+       END DO
 
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer atomic_kind_set is not associated",&
-                        para_env)
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "The pointer atomic_kind_set is not associated",&
+            para_env)
     END IF
 
   END SUBROUTINE init_atomic_kind_set
 
-!!****** atomic_kind_types/init_gapw_basis_set [1.0] *
-!!
-!!   NAME
-!!     init_gapw_basis_set
-!!
-!!   FUNCTION
-!!    
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!   SOURCE
-!******************************************************************************
+  !!****** atomic_kind_types/init_gapw_basis_set [1.0] *
+  !!
+  !!   NAME
+  !!     init_gapw_basis_set
+  !!
+  !!   FUNCTION
+  !!    
+  !!
+  !!   AUTHOR
+  !!     
+  !!
+  !!   MODIFICATION HISTORY
+  !!     
+  !!   SOURCE
+  !******************************************************************************
   SUBROUTINE init_gapw_basis_set(atomic_kind_set,qs_control,force_env_section,&
-                                 error)
+       error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1167,67 +1154,63 @@ CONTAINS
 
     IF (ASSOCIATED(atomic_kind_set)) THEN
 
-      nkind = SIZE(atomic_kind_set)
+       nkind = SIZE(atomic_kind_set)
 
-      DO ikind=1,nkind
+       DO ikind=1,nkind
 
-        atomic_kind => atomic_kind_set(ikind)
+          atomic_kind => atomic_kind_set(ikind)
 
-        CALL allocate_gto_basis_set(atomic_kind%soft_basis_set)
-        ! CALL allocate_gto_basis_set(atomic_kind%hard_basis_set)
+          CALL allocate_gto_basis_set(atomic_kind%soft_basis_set,error)
+          ! CALL allocate_gto_basis_set(atomic_kind%hard_basis_set)
 
-        atomic_kind%hard_basis_set => atomic_kind%orb_basis_set
+          atomic_kind%hard_basis_set => atomic_kind%orb_basis_set
 
-        CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis,&
-             hard_radius=rc,max_rad_local=max_rad_local_type,gpw_type_forced=gpw)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,orb_basis_set=orb_basis,&
+               hard_radius=rc,max_rad_local=max_rad_local_type,gpw_type_forced=gpw)
 
-        CALL create_soft_basis(orb_basis,atomic_kind%soft_basis_set,&
-             qs_control%gapw_control,rc,paw_atom,gpw,error)
+          CALL create_soft_basis(orb_basis,atomic_kind%soft_basis_set,&
+               qs_control%gapw_control,rc,paw_atom,gpw,error)
 
-        CALL set_atomic_kind(atomic_kind=atomic_kind,paw_atom=paw_atom)
+          CALL set_atomic_kind(atomic_kind=atomic_kind,paw_atom=paw_atom)
 
-        IF (paw_atom) THEN
-          ! The hard_basis points to the orb_basis
-          CALL allocate_paw_proj_set(atomic_kind%paw_proj_set)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               paw_proj_set=paw_proj)
+          IF (paw_atom) THEN
+             ! The hard_basis points to the orb_basis
+             CALL allocate_paw_proj_set(atomic_kind%paw_proj_set,error)
+             CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                  paw_proj_set=paw_proj)
 
-          CALL projectors(paw_proj,orb_basis,rc,qs_control,max_rad_local_type,&
-                          force_env_section,error)
-        END IF
+             CALL projectors(paw_proj,orb_basis,rc,qs_control,max_rad_local_type,&
+                  force_env_section,error)
+          END IF
 
-        ! grid_atom and harmonics are allocated even if NOT PAW_ATOM
-        CALL allocate_grid_atom(atomic_kind%grid_atom)
-        CALL allocate_harmonics_atom(atomic_kind%harmonics)
-
-      END DO
-
+          ! grid_atom and harmonics are allocated even if NOT PAW_ATOM
+          CALL allocate_grid_atom(atomic_kind%grid_atom,error)
+          CALL allocate_harmonics_atom(atomic_kind%harmonics,error)
+       END DO
     ELSE
-
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer atomic_kind_set is not associated")
-
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "The pointer atomic_kind_set is not associated")
     END IF
 
   END SUBROUTINE init_gapw_basis_set
 
-!!****** atomic_kind_types/read_atomic_kind [1.0] *
-!!
-!!   NAME
-!!    read_atomic_kind 
-!!
-!!   FUNCTION
-!!    Read an atomic kind data set from the input file.
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     - Creation (09.02.2002,MK)
-!!     - 20.09.2002,gt: adapted for POL/KG use (elp_potential)
-!!
-!!   SOURCE
-!******************************************************************************
+  !!****** atomic_kind_types/read_atomic_kind [1.0] *
+  !!
+  !!   NAME
+  !!    read_atomic_kind 
+  !!
+  !!   FUNCTION
+  !!    Read an atomic kind data set from the input file.
+  !!
+  !!   AUTHOR
+  !!     
+  !!
+  !!   MODIFICATION HISTORY
+  !!     - Creation (09.02.2002,MK)
+  !!     - 20.09.2002,gt: adapted for POL/KG use (elp_potential)
+  !!
+  !!   SOURCE
+  !******************************************************************************
   SUBROUTINE read_atomic_kind(atomic_kind,kind_section,para_env,force_env_section,&
        no_fail, method_id, error)
 
@@ -1370,7 +1353,7 @@ CONTAINS
     END DO
 
     ! If a proper element was not found exit the normal execution
-    
+
     IF (z == -1) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
             "No element could be assign to the atomic kind <"//&
@@ -1463,26 +1446,26 @@ CONTAINS
 
        NULLIFY (dft_plus_u_section)
        dft_plus_u_section  => section_vals_get_subs_vals(kind_section,"DFT_PLUS_U",&
-                                                         i_rep_section=k_rep,&
-                                                         error=error)
+            i_rep_section=k_rep,&
+            error=error)
        section_enabled = .FALSE.
        CALL section_vals_val_get(dft_plus_u_section,"_SECTION_PARAMETERS_",&
-                                 l_val=section_enabled,&
-                                 error=error)
+            l_val=section_enabled,&
+            error=error)
        IF (section_enabled) THEN
-         ALLOCATE (atomic_kind%dft_plus_u,STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         CALL section_vals_val_get(dft_plus_u_section,&
-                                   keyword_name="L",&
-                                   i_val=atomic_kind%dft_plus_u%l,&
-                                   error=error)
-         CALL cp_assert(atomic_kind%dft_plus_u%l >= 0,cp_failure_level,&
-                        cp_assertion_failed,routineP,&
-                        "DFT+U| Error: l < 0",error,failure)
-         CALL section_vals_val_get(dft_plus_u_section,&
-                                   keyword_name="U_MINUS_J",&
-                                   r_val=atomic_kind%dft_plus_u%u_minus_j,&
-                                   error=error)
+          ALLOCATE (atomic_kind%dft_plus_u,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CALL section_vals_val_get(dft_plus_u_section,&
+               keyword_name="L",&
+               i_val=atomic_kind%dft_plus_u%l,&
+               error=error)
+          CALL cp_assert(atomic_kind%dft_plus_u%l >= 0,cp_failure_level,&
+               cp_assertion_failed,routineP,&
+               "DFT+U| Error: l < 0",error,failure)
+          CALL section_vals_val_get(dft_plus_u_section,&
+               keyword_name="U_MINUS_J",&
+               r_val=atomic_kind%dft_plus_u%u_minus_j,&
+               error=error)
        END IF
 
     END IF
@@ -1513,8 +1496,8 @@ CONTAINS
     CASE(do_method_dftb,do_method_rm1, do_method_am1, do_method_mndo, &
          do_method_pdg, do_method_pm3, do_method_pm6)
        ! Allocate all_potential
-       CALL allocate_potential(atomic_kind%all_potential)
-       CALL set_default_all_potential(atomic_kind%all_potential,z,zeff_correction)
+       CALL allocate_potential(atomic_kind%all_potential,error)
+       CALL set_default_all_potential(atomic_kind%all_potential,z,zeff_correction,error)
        CALL get_atomic_kind(atomic_kind,elec_conf=elec_conf)
        IF (.NOT.ASSOCIATED(elec_conf)) THEN
           CALL get_potential(potential=atomic_kind%all_potential,elec_conf=elec_conf)
@@ -1538,12 +1521,12 @@ CONTAINS
           ! Setup proper semiempirical parameters
           check = .NOT.ASSOCIATED(atomic_kind%se_parameter)
           CPPostcondition(check, cp_failure_level, routineN, error, failure)
-          CALL allocate_se_param(atomic_kind%se_parameter)
+          CALL allocate_se_param(atomic_kind%se_parameter,error)
           ! Set default parameters
           CALL se_param_set_default(atomic_kind%se_parameter,z,method_id)
           CALL init_se_param(atomic_kind%se_parameter,atomic_kind%orb_basis_set,error=error)
           CALL init_potential ( atomic_kind%all_potential, itype="BARE", &
-               zeff=atomic_kind%se_parameter%zeff,zeff_correction=zeff_correction)
+               zeff=atomic_kind%se_parameter%zeff,zeff_correction=zeff_correction,error=error)
           atomic_kind%se_parameter%zeff=atomic_kind%se_parameter%zeff-zeff_correction
        CASE (do_method_dftb)
           ! Do nothing at this stage.. The initialization of the parameters will be done
@@ -1556,20 +1539,20 @@ CONTAINS
        CALL cp_assert(.NOT.check,cp_warning_level,cp_assertion_failed,routineP,&
             "Information provided in the input file regarding POTENTIAL for KIND <"//&
             TRIM(atomic_kind%name)//"> will be ignored!"//&
-CPSourceFileRef,&
-             only_ionode=.TRUE.)
-       
+            CPSourceFileRef,&
+            only_ionode=.TRUE.)
+
        check = ((orb_basis_set_name /= '').OR.explicit_basis)
        CALL cp_assert(.NOT.check,cp_warning_level,cp_assertion_failed,routineP,&
             "Information provided in the input file regarding BASIS for KIND <"//&
             TRIM(atomic_kind%name)//"> will be ignored!"//&
-CPSourceFileRef,&
-             only_ionode=.TRUE.)
+            CPSourceFileRef,&
+            only_ionode=.TRUE.)
 
     CASE DEFAULT
 
        IF ((orb_basis_set_name /= '').OR.explicit_basis) THEN
-          CALL allocate_gto_basis_set(atomic_kind%orb_basis_set)
+          CALL allocate_gto_basis_set(atomic_kind%orb_basis_set,error)
           CALL read_gto_basis_set(atomic_kind%element_symbol,orb_basis_set_name,&
                atomic_kind%orb_basis_set,para_env,dft_section,basis_section,error)
           CALL set_gto_basis_set(gto_basis_set=atomic_kind%orb_basis_set,norm_type=norb)
@@ -1577,16 +1560,16 @@ CPSourceFileRef,&
           CALL stop_program(routineN,moduleN,__LINE__,&
                "No basis set type was defined for the "//&
                "atomic kind <"//TRIM(atomic_kind%name)//">",para_env)
-       END IF       
+       END IF
        ! Allocate and initialise the auxiliary basis set data set structure
        IF (aux_basis_set_name /= '') THEN
-          CALL allocate_gto_basis_set(atomic_kind%aux_basis_set)
+          CALL allocate_gto_basis_set(atomic_kind%aux_basis_set,error)
           CALL read_gto_basis_set(atomic_kind%element_symbol,aux_basis_set_name,&
                atomic_kind%aux_basis_set,para_env,dft_section,error=error)
           CALL set_gto_basis_set(gto_basis_set=atomic_kind%aux_basis_set,&
                norm_type=naux)
        END IF
-       
+
        ! Allocate and initialise the potential data set structure
        IF ((potential_name /= '').OR.explicit_potential) THEN
           ipos = INDEX(potential_name,"-")
@@ -1599,7 +1582,7 @@ CPSourceFileRef,&
 
           SELECT CASE (TRIM(potential_type))
           CASE ("ALL")
-             CALL allocate_potential(atomic_kind%all_potential)
+             CALL allocate_potential(atomic_kind%all_potential,error)
              CALL read_potential(atomic_kind%element_symbol,potential_name,&
                   atomic_kind%all_potential,zeff_correction,para_env,&
                   dft_section,potential_section,error)
@@ -1624,7 +1607,7 @@ CPSourceFileRef,&
              IF (atomic_kind%ghost) THEN
                 IF (ASSOCIATED(atomic_kind%elec_conf)) atomic_kind%elec_conf = 0
              ELSE
-                CALL allocate_potential(atomic_kind%gth_potential)
+                CALL allocate_potential(atomic_kind%gth_potential,error)
                 CALL read_potential(atomic_kind%element_symbol,potential_name,&
                      atomic_kind%gth_potential,zeff_correction,para_env,&
                      dft_section,potential_section,error)
@@ -1636,7 +1619,7 @@ CPSourceFileRef,&
                 END IF
              END IF
           CASE ("ELP")
-             CALL allocate_potential(atomic_kind%elp_potential)
+             CALL allocate_potential(atomic_kind%elp_potential,error)
              CALL read_potential(atomic_kind%element_symbol,potential_name,&
                   atomic_kind%elp_potential,para_env,&
                   dft_section,potential_section,error)
@@ -1658,23 +1641,23 @@ CPSourceFileRef,&
 
   END SUBROUTINE read_atomic_kind
 
-!!****** atomic_kind_types/read_atomic_kind_set [1.0] *
-!!
-!!   NAME
-!!     read_atomic_kind_set
-!!
-!!   FUNCTION
-!!    Read an atomic kind set data set from the input file.
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     - Creation (09.02.2002,MK)
-!!     - 20.09.2002,gt: adapted for POL/KG use (elp_potential)
-!!
-!!   SOURCE
-!******************************************************************************
+  !!****** atomic_kind_types/read_atomic_kind_set [1.0] *
+  !!
+  !!   NAME
+  !!     read_atomic_kind_set
+  !!
+  !!   FUNCTION
+  !!    Read an atomic kind set data set from the input file.
+  !!
+  !!   AUTHOR
+  !!     
+  !!
+  !!   MODIFICATION HISTORY
+  !!     - Creation (09.02.2002,MK)
+  !!     - 20.09.2002,gt: adapted for POL/KG use (elp_potential)
+  !!
+  !!   SOURCE
+  !******************************************************************************
   SUBROUTINE read_atomic_kind_set(atomic_kind_set,kind_section,para_env,force_env_section,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1715,7 +1698,7 @@ CPSourceFileRef,&
        DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
           CALL read_atomic_kind(atomic_kind,kind_section,para_env,force_env_section,&
-                                no_fail, qs_method, error)
+               no_fail, qs_method, error)
        END DO
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1726,23 +1709,23 @@ CPSourceFileRef,&
 
   END SUBROUTINE read_atomic_kind_set
 
-!!****** atomic_kind_types/check_atomic_kind [1.0] *
-!!
-!!   NAME
-!!    check_atomic_kind 
-!!
-!!   FUNCTION
-!!    This routines should perform only checks. no settings are allowed at
-!!    this level anymore..
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!   SOURCE
-!******************************************************************************
+  !!****** atomic_kind_types/check_atomic_kind [1.0] *
+  !!
+  !!   NAME
+  !!    check_atomic_kind 
+  !!
+  !!   FUNCTION
+  !!    This routines should perform only checks. no settings are allowed at
+  !!    this level anymore..
+  !!
+  !!   AUTHOR
+  !!     
+  !!
+  !!   MODIFICATION HISTORY
+  !!     
+  !!
+  !!   SOURCE
+  !******************************************************************************
   SUBROUTINE check_atomic_kind(atomic_kind,dft_control,subsys_section,error)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -1773,22 +1756,22 @@ CPSourceFileRef,&
 
   END SUBROUTINE check_atomic_kind
 
-!!****** atomic_kind_types/check_atomic_kind_set [1.0] *
-!!
-!!   NAME
-!!    check_atomic_kind_set 
-!!
-!!   FUNCTION
-!!    
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!   SOURCE
-!******************************************************************************
+  !!****** atomic_kind_types/check_atomic_kind_set [1.0] *
+  !!
+  !!   NAME
+  !!    check_atomic_kind_set 
+  !!
+  !!   FUNCTION
+  !!    
+  !!
+  !!   AUTHOR
+  !!     
+  !!
+  !!   MODIFICATION HISTORY
+  !!     
+  !!
+  !!   SOURCE
+  !******************************************************************************
   SUBROUTINE check_atomic_kind_set(atomic_kind_set,dft_control,para_env,subsys_section,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1805,34 +1788,34 @@ CPSourceFileRef,&
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     IF (ASSOCIATED(atomic_kind_set)) THEN
-      nkind = SIZE(atomic_kind_set)
-      DO ikind=1,nkind
-        atomic_kind => atomic_kind_set(ikind)
-        CALL check_atomic_kind(atomic_kind,dft_control,subsys_section,error)
-      END DO
+       nkind = SIZE(atomic_kind_set)
+       DO ikind=1,nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL check_atomic_kind(atomic_kind,dft_control,subsys_section,error)
+       END DO
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer atomic_kind_set is not associated",&
-                        para_env)
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "The pointer atomic_kind_set is not associated",&
+            para_env)
     END IF
   END SUBROUTINE check_atomic_kind_set
 
-!!****** atomic_kind_types/set_atomic_kind [1.0] *
-!!
-!!   NAME
-!!    set_atomic_kind 
-!!
-!!   FUNCTION
-!!    Set the components of an atomic kind data set.
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     Creation (11.01.2002,MK)
-!!
-!!   SOURCE
-!******************************************************************************
+  !!****** atomic_kind_types/set_atomic_kind [1.0] *
+  !!
+  !!   NAME
+  !!    set_atomic_kind 
+  !!
+  !!   FUNCTION
+  !!    Set the components of an atomic kind data set.
+  !!
+  !!   AUTHOR
+  !!     
+  !!
+  !!   MODIFICATION HISTORY
+  !!     Creation (11.01.2002,MK)
+  !!
+  !!   SOURCE
+  !******************************************************************************
   SUBROUTINE set_atomic_kind(atomic_kind,element_symbol,name,mass,kind_number,&
        natom,atom_list,elec_conf,paw_atom,qm_atom,hard_radius,hard0_radius,&
        elp_potential,soft_basis_set,hard_basis_set,lmax_rho0,zeff,ghost,shell,&
@@ -1924,22 +1907,22 @@ CPSourceFileRef,&
 
   END SUBROUTINE set_atomic_kind
 
-!!****** atomic_kind_types/write_atomic_kind [1.0] *
-!!
-!!   NAME
-!!    write_atomic_kind 
-!!
-!!   FUNCTION
-!!    Write an atomic kind data set to the output unit.
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     Creation (09.02.2002,MK)
-!!
-!!   SOURCE
-!******************************************************************************
+  !!****** atomic_kind_types/write_atomic_kind [1.0] *
+  !!
+  !!   NAME
+  !!    write_atomic_kind 
+  !!
+  !!   FUNCTION
+  !!    Write an atomic kind data set to the output unit.
+  !!
+  !!   AUTHOR
+  !!     
+  !!
+  !!   MODIFICATION HISTORY
+  !!     Creation (09.02.2002,MK)
+  !!
+  !!   SOURCE
+  !******************************************************************************
   SUBROUTINE write_atomic_kind(atomic_kind,output_unit,error)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -1955,63 +1938,63 @@ CPSourceFileRef,&
 
     IF (output_unit > 0) THEN
 
-      IF (ASSOCIATED(atomic_kind)) THEN
+       IF (ASSOCIATED(atomic_kind)) THEN
 
-        WRITE (UNIT=output_unit,FMT="(/,T2,I2,A,T57,A,T75,I6)")&
-          atomic_kind%kind_number,". Atomic kind: "//TRIM(atomic_kind%name),&
-          "Number of atoms: ",atomic_kind%natom
+          WRITE (UNIT=output_unit,FMT="(/,T2,I2,A,T57,A,T75,I6)")&
+               atomic_kind%kind_number,". Atomic kind: "//TRIM(atomic_kind%name),&
+               "Number of atoms: ",atomic_kind%natom
 
-        CALL write_orb_basis_set(atomic_kind%orb_basis_set,output_unit,error)
+          CALL write_orb_basis_set(atomic_kind%orb_basis_set,output_unit,error)
 
-        IF (atomic_kind%ghost) THEN
-          WRITE (UNIT=output_unit,FMT="(/,T6,A)")&
-            "The atoms of this atomic kind are GHOST atoms!"
-        END IF
-        IF (atomic_kind%paw_atom) THEN
-          WRITE (UNIT=output_unit,FMT="(/,T6,A)")&
-            "The atoms of this atomic kind are PAW atoms (GAPW):"
-          WRITE (UNIT=output_unit,FMT="(T8,A,T71,F10.3)")&
-            "Hard Gaussian function radius:",atomic_kind%hard_radius,&
-            "Rho0 radius:",atomic_kind%hard0_radius,&
-            "Maximum GTO radius used for PAW projector construction:",&
-            atomic_kind%max_rad_local
-          CALL write_orb_basis_set(atomic_kind%soft_basis_set,output_unit,error)
-        END IF
-        CALL write_aux_basis_set(atomic_kind%aux_basis_set,output_unit,error)
-        ! Potentials
-        CALL write_potential(atomic_kind%all_potential,output_unit,error)
-        CALL write_potential(atomic_kind%elp_potential,output_unit,error)
-        CALL write_potential(atomic_kind%gth_potential,output_unit,error)
-        IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
-          WRITE (UNIT=output_unit,&
-                 FMT="(/,T6,A,/,T8,A,T76,I5,/,T8,A,T73,F8.3),/)")&
-            "A DFT+U correction is applied to atoms of this atomic kind:",&
-            "Angular quantum momentum number L:",atomic_kind%dft_plus_u%l,&
-            "U - J value in [eV]:",atomic_kind%dft_plus_u%u_minus_j*evolt
-        END IF
-      ELSE
-        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-      END IF
+          IF (atomic_kind%ghost) THEN
+             WRITE (UNIT=output_unit,FMT="(/,T6,A)")&
+                  "The atoms of this atomic kind are GHOST atoms!"
+          END IF
+          IF (atomic_kind%paw_atom) THEN
+             WRITE (UNIT=output_unit,FMT="(/,T6,A)")&
+                  "The atoms of this atomic kind are PAW atoms (GAPW):"
+             WRITE (UNIT=output_unit,FMT="(T8,A,T71,F10.3)")&
+                  "Hard Gaussian function radius:",atomic_kind%hard_radius,&
+                  "Rho0 radius:",atomic_kind%hard0_radius,&
+                  "Maximum GTO radius used for PAW projector construction:",&
+                  atomic_kind%max_rad_local
+             CALL write_orb_basis_set(atomic_kind%soft_basis_set,output_unit,error)
+          END IF
+          CALL write_aux_basis_set(atomic_kind%aux_basis_set,output_unit,error)
+          ! Potentials
+          CALL write_potential(atomic_kind%all_potential,output_unit,error)
+          CALL write_potential(atomic_kind%elp_potential,output_unit,error)
+          CALL write_potential(atomic_kind%gth_potential,output_unit,error)
+          IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
+             WRITE (UNIT=output_unit,&
+                  FMT="(/,T6,A,/,T8,A,T76,I5,/,T8,A,T73,F8.3),/)")&
+                  "A DFT+U correction is applied to atoms of this atomic kind:",&
+                  "Angular quantum momentum number L:",atomic_kind%dft_plus_u%l,&
+                  "U - J value in [eV]:",atomic_kind%dft_plus_u%u_minus_j*evolt
+          END IF
+       ELSE
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END IF
     END IF
 
   END SUBROUTINE write_atomic_kind
 
-!!****** atomic_kind_types/write_atomic_kind_set [1.0] *
-!!
-!!   NAME
-!!     write_atomic_kind_set
-!!
-!!   FUNCTION
-!!    Write an atomic kind set data set to the output unit.
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     Creation (09.02.2002,MK)
-!!
-!!   SOURCE
-!******************************************************************************
+  !!****** atomic_kind_types/write_atomic_kind_set [1.0] *
+  !!
+  !!   NAME
+  !!     write_atomic_kind_set
+  !!
+  !!   FUNCTION
+  !!    Write an atomic kind set data set to the output unit.
+  !!
+  !!   AUTHOR
+  !!     
+  !!
+  !!   MODIFICATION HISTORY
+  !!     Creation (09.02.2002,MK)
+  !!
+  !!   SOURCE
+  !******************************************************************************
   SUBROUTINE write_atomic_kind_set(atomic_kind_set,subsys_section,error)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -2030,44 +2013,44 @@ CPSourceFileRef,&
     NULLIFY (logger)
     logger => cp_error_get_logger(error)
     output_unit = cp_print_key_unit_nr(logger,subsys_section,&
-                                       "PRINT%KINDS",extension=".Log",&
-                                       error=error)
+         "PRINT%KINDS",extension=".Log",&
+         error=error)
     IF (output_unit > 0) THEN
-      IF (ASSOCIATED(atomic_kind_set)) THEN
-        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") "ATOMIC KIND INFORMATION"
-        nkind = SIZE(atomic_kind_set)
-        DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL write_atomic_kind(atomic_kind,output_unit,error)
-        END DO
-      ELSE
-        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-      END IF
+       IF (ASSOCIATED(atomic_kind_set)) THEN
+          WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") "ATOMIC KIND INFORMATION"
+          nkind = SIZE(atomic_kind_set)
+          DO ikind=1,nkind
+             atomic_kind => atomic_kind_set(ikind)
+             CALL write_atomic_kind(atomic_kind,output_unit,error)
+          END DO
+       ELSE
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END IF
     END IF
 
     CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
-                                      "PRINT%KINDS",error=error)
+         "PRINT%KINDS",error=error)
 
   END SUBROUTINE write_atomic_kind_set
 
-!!****** atomic_kind_types/write_gto_basis_sets [1.0] *
-!!
-!!   NAME
-!!    write_gto_basis_sets 
-!!
-!!   FUNCTION
-!!    Write all the GTO basis sets of an atomic kind set to the output
-!!    unit (for the printing of the unnormalized basis sets as read from
-!!          database).
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     Creation (17.01.2002,MK)
-!!
-!!   SOURCE
-!******************************************************************************
+  !!****** atomic_kind_types/write_gto_basis_sets [1.0] *
+  !!
+  !!   NAME
+  !!    write_gto_basis_sets 
+  !!
+  !!   FUNCTION
+  !!    Write all the GTO basis sets of an atomic kind set to the output
+  !!    unit (for the printing of the unnormalized basis sets as read from
+  !!          database).
+  !!
+  !!   AUTHOR
+  !!     
+  !!
+  !!   MODIFICATION HISTORY
+  !!     Creation (17.01.2002,MK)
+  !!
+  !!   SOURCE
+  !******************************************************************************
   SUBROUTINE write_gto_basis_sets(atomic_kind_set,subsys_section,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -2087,27 +2070,27 @@ CPSourceFileRef,&
     NULLIFY (logger)
     logger => cp_error_get_logger(error)
     output_unit = cp_print_key_unit_nr(logger,subsys_section,&
-                                       "PRINT%KINDS/BASIS_SET",&
-                                       extension=".Log",error=error)
+         "PRINT%KINDS/BASIS_SET",&
+         extension=".Log",error=error)
     IF (output_unit > 0) THEN
-      IF (ASSOCIATED(atomic_kind_set)) THEN
-        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
-          "BASIS SET INFORMATION (Unnormalised Gaussian-type functions)"
-        nkind = SIZE(atomic_kind_set)
-        DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          WRITE (UNIT=output_unit,FMT="(/,T2,I2,A)")&
-            atomic_kind%kind_number,". Atomic kind: "//TRIM(atomic_kind%name)
-          CALL write_gto_basis_set(atomic_kind_set(ikind)%orb_basis_set,&
-                                   output_unit,error)
-          CALL write_gto_basis_set(atomic_kind_set(ikind)%aux_basis_set,&
-                                   output_unit,error)
-          CALL write_gto_basis_set(atomic_kind%soft_basis_set,&
-                                   output_unit,error)
-       END DO
-      ELSE
-        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-      END IF
+       IF (ASSOCIATED(atomic_kind_set)) THEN
+          WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
+               "BASIS SET INFORMATION (Unnormalised Gaussian-type functions)"
+          nkind = SIZE(atomic_kind_set)
+          DO ikind=1,nkind
+             atomic_kind => atomic_kind_set(ikind)
+             WRITE (UNIT=output_unit,FMT="(/,T2,I2,A)")&
+                  atomic_kind%kind_number,". Atomic kind: "//TRIM(atomic_kind%name)
+             CALL write_gto_basis_set(atomic_kind_set(ikind)%orb_basis_set,&
+                  output_unit,error)
+             CALL write_gto_basis_set(atomic_kind_set(ikind)%aux_basis_set,&
+                  output_unit,error)
+             CALL write_gto_basis_set(atomic_kind%soft_basis_set,&
+                  output_unit,error)
+          END DO
+       ELSE
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END IF
     END IF
 
     CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&

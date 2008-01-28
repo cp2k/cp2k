@@ -577,7 +577,7 @@ CONTAINS
           my_elp_description(1) = "FIST Electrostatic Potential"
           my_elp_description(2) = "                            "
           NULLIFY(elp_potential)
-          CALL allocate_potential(elp_potential)
+          CALL allocate_potential(elp_potential,error)
           CALL set_potential(potential=elp_potential,&
                qeff=qeff,&
                alpha_core_charge=alpha_core_charge,&
