@@ -23,20 +23,22 @@ How to compile CP2K code
      others. g95 can be conveniently used (download the default integer 32 versions!),
      but native compilers tend to be about 20 percent faster.
 
- 2c) BLAS and LAPACK should be installed
+ 2c) BLAS and LAPACK should be installed.
+     using vendor provided libraries can make a very significant difference (up to 100% use e.g. acml, mkl, essl)
+     notice that the blas/lapack libraries must match the Fortran compiler used.
      (use the latest versions available, download all patches)
      http://www.netlib.org/blas/
      http://www.netlib.org/lapack/ (see also http://www.netlib.org/lapack-dev/)
      http://math-atlas.sourceforge.net/
      http://www.tacc.utexas.edu/resources/software/ (GotoBLAS)
-     using vendor provided libraries can make a very significant difference (up to 100% use e.g. acml, mkl, essl)
-     notice that the blas/lapack used must match the compiler used.
 
  2d) MPI and SCALAPACK are needed for parallel runs
      (use the latest versions available, download all patches !!)
      http://www-unix.mcs.anl.gov/mpi/mpich/
      http://www.netlib.org/scalapack/ (see also http://www.netlib.org/lapack-dev/)
      Scalapack can be part of acml or cluster mkl, and these libraries are recommended.
+     Recently a scalapack installer has been added that makes installing scalapack easier:
+     http://www.netlib.org/scalapack/scalapack_installer.tgz
 
  2e) fftw can be used to improve FFT speed (depending on architecture).
      It is strongly recommended to install and use FFTW3.
@@ -47,59 +49,69 @@ How to compile CP2K code
 
  2f) Hartree-Fock exchange (optional) requires the libint package to be installed, and a Fortran compiler that
      supports ISO_C_BINDING and Fortran procedure pointers (g95, xlf90 ?) (use -D__LIBINT). 
+     Additional information can be found in cp2k/libint_tools/README_LIBINT
      Tested against libinit-1.1.2, and currently hardcoded to the default angular momentum LIBINT_MAX_AM 5
      (check your include/libint/libint.h to see if it matches)
      http://www.chem.vt.edu/chem-dept/valeev/software/libint/libint.html
-     Note, do *not* use libinit-1.1.3.
+     Note, do *NOT* use libinit-1.1.3.
 
  3) to compile the code:
 
- 3a) You will need to make sure that the architecture dependent file (settings such as the compiler name 
-     and library locations) is set up correctly. To do that, execute
-     > ~/cp2k/tools/get_arch_code
-     and modify ~/cp2k/arch/<result of get_arch_code>.* (or possible first rename a close match) to 
-     the correct values for your system.
+ 3a) The location of compiler and libraries needs to be specified. For a number of common architectures,
+     examples can be found in cp2k/arch/*.*
+     The names of these files match architecture.version (e.g. Linux-x86-64-g95.sopt).
+     Conventionally, 'sopt' stands for serial, while 'popt' stands for parallel.
 
-     some notes (in addition to the file ~/cp2k/arch/README):
+     You'll need to modify one of these to match your system's settings.
+     You can now build CP2K using these settings:
+     
+     > cd cp2k/makefiles
+     > make ARCH=architecture VERSION=version
+     e.g.
+     > make ARCH=Linux-x86-64-g95 VERSION=sopt
 
-     - ~/cp2k/arch/*.* files have paths to libraries hard-wired 
-        (e.g. blass, lapack, ...) so these will most likely need modification.
+     An executable should appear in cp2k/exe/*
 
-     -  be sure to remove __FFTWx if you don not have the library installed. __FFTSG 
-        should always there. 
+ 3b) The following flags should be present (or not) in the arch file:
+     -D__parallel -D__BLACS -D__SCALAPACK: parallel runs
+     -D__LIBINT: use libint (needed for HF exchange)
+     various FFTs:
+     -D__FFTSG: Stefan Goedecker FFT (should always be there)
+     -D__FFTW3: FFTW version 3
+     -D__FFTW2: FFTW version 2
+     -D__FFTESSL: ESSL
+     -D__FFTMKL: mkl
+     -D__FFTACML: acml (interface known to be buggy)
+     various compilers/architectures needing their own machine_* file
+     -D__G95
+     -D__NAG
+     -D__AIX
+     -D__ABSOFT
+     -D__PGI
+     -D__INTEL
+     -D__GFORTRAN
+     -D__SX
+     -D__DEC
+     -D__XT3
 
-     - if ~/cp2k/tools/get_arch_code returns an unknown for the architecture
-       try to have it return the closest possible match.
-       have a look in ~/cp2k/arch for the possible options (or see step 7)
-       different compilers (e.g. INTEL ifort, PGI pgf90, NAG f95, g95, ...) can be selected using the
-       env variable 'FORT_C_NAME' e.g.
-       > export FORT_C_NAME=g95
-       or 
-       > setenv FORT_C_NAME g95
-       as this will change what get_arch_code returns
+ 3c) The `I'm feeling lucky' version of building will try to guess what architecture you're on.
+     Just type
+     > make sopt
+     and the script '~/cp2k/tools/get_arch_code' will try to guess your architecture. 
+     You can set the 'FORT_C_NAME' to indicate the compiler part of the architecture string.
+     > export FORT_C_NAME=g95
 
- 3b) actually compile the code
+ 4) If things fail, take a break... and go back to 3a (or skip to step 7)
 
-    > cd cp2k/makefiles; make sopt
-    or 
-    > cd cp2k/makefiles; make popt 
-
-    "p" stands for parallel (alternatively "s" = serial)
-    "opt" means to buil an optimised version (alternatively "dbg" = debugging)
-    (make stands for GNU make)
-
- 4) If things fail, take a break... and go back to 3a
-
- 5) If your machine is really not there, it shouldn't be too difficult to add.
+ 5) If your compiler/machine is really special , it shouldn't be too difficult to support it.
     Only ~/cp2k/src/machine*.F should be affected.
 
  6) If compilation works fine, you can run one of the test cases 
     to try out the executable
+    (most inputs in any of the cp2k/tests/*regtest*/ directories are tested on a daily basis)
 
->  cd ~/cp2k/tests/QS/
-> ~/cp2k/exe/YOURMACHINE/cp2k.sopt H2O.inp
-
- 6b) you could have a look in ~/cp2k/doc if your run fails
+    >  cd ~/cp2k/tests/QS/
+    > ~/cp2k/exe/YOURMACHINE/cp2k.sopt C.inp
 
  7) In any case please tell us your comments, praise, criticism, thanks, ...
 
@@ -107,6 +119,14 @@ How to compile CP2K code
 
     http://developer.berlios.de/project/memberlist.php?group_id=129
 
- 8) Happy computing!
+ 8) A reference manual of CP2K can be found on the web:
+
+    http://cp2k.berlios.de/input/
+
+    or can be generated using the executable
+
+    ./cp2k.sopt --html-manual
+
+ 9) Happy computing!
 
  the cp2k team.
