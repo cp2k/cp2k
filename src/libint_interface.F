@@ -27,6 +27,7 @@ MODULE libint_interface
   USE gamma,                           ONLY: fgamma
   USE input_constants,                 ONLY: do_hf_potential_coulomb,&
                                              do_hf_potential_gaussian,&
+                                             do_hf_potential_id,&
                                              do_hf_potential_long,&
                                              do_hf_potential_mix_cl,&
                                              do_hf_potential_mix_lg,&
@@ -561,6 +562,12 @@ MODULE libint_interface
           tmp = tmp * omega2/(Rho+omega2)
         END DO
         factor = 1.0_dp 
+      CASE(do_hf_potential_id)
+        prim%F(1) = (Pi*RhoInv)**(1.5_dp)
+        DO i=2,m_max+1
+         prim%F(i)= 0.0_dp 
+        END DO
+        factor = 1.0_dp
     END SELECT
 
 !    factor = 2.0_dp*Pi*RhoInv 
@@ -721,6 +728,12 @@ MODULE libint_interface
           tmp = tmp * omega2/(Rho+omega2)
         END DO
         factor = 1.0_dp 
+      CASE(do_hf_potential_id)
+        prim%F(1) = (Pi*RhoInv)**(1.5_dp)
+        DO i=2,m_max+1
+         prim%F(i)= 0.0_dp
+        END DO
+        factor = 1.0_dp
     END SELECT
 
 !    factor = 2.0_dp*Pi*RhoInv

@@ -393,10 +393,6 @@ CONTAINS
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
-    CALL create_adiabatic_section(subsection,error)
-    CALL section_add_subsection(section, subsection, error=error)
-    CALL section_release(subsection,error=error)
-
     CALL create_field_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
@@ -3156,6 +3152,10 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_adiabatic_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_xc_potential_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -4438,12 +4438,32 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(&
             keyword=keyword,&
+            name="LAMBDA",&
+            description="The point to be used along the adiabatic curve (0<lambda<1)",&
+            usage="LAMBDA 0.71",&
+            default_r_val=0.71_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="OMEGA",&
+            description="Long-range parameter",&
+            usage="OMEGA 0.2",&
+            default_r_val=0.2_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(&
+            keyword=keyword,&
             name="FUNCTIONAL_MODEL",&
             description="Which model for the coupling constant integration should be used. ",&
-            usage="FUNCTIONAL_MODLE PADE",&
+            usage="FUNCTIONAL_MODEL PADE",&
             enum_c_vals=s2a("PADE"),&
             enum_i_vals=(/do_adiabatic_model_pade/), &
-            enum_desc=s2a("Use PADE model: W(lambda)=a+(b*lambda)/(1+c*lambda)"), &
+            enum_desc=s2a("Use pade model: W(lambda)=a+(b*lambda)/(1+c*lambda)"), &
             default_i_val=do_adiabatic_model_pade, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

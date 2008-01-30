@@ -1,0 +1,146 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2008  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+!!***** cp2k/xc_adiabatic_methods[1.0] *
+!!
+!!   NAME
+!!     xc_adiabatic_methods 
+!!
+!!   FUNCTION
+!!     Contains some functions used in the context of adiabatic hybrid functionals
+!!     
+!!
+!!   NOTES
+!!     -
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     01.2008 created [Manuel Guidon]
+!!
+!****************************************************************************
+
+MODULE xc_adiabatic_methods 
+
+  USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi
+  USE qs_energy_types,                 ONLY: qs_energy_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type
+#include "cp_common_uses.h"
+
+  IMPLICIT NONE
+  PRIVATE
+
+  PUBLIC     rescale_MCY3_pade
+
+  CONTAINS
+
+
+!!***** xc_adiabatic_methods/rescale_MCY3_pade [1.0] *
+!!
+!!   NAME
+!!     rescale_MCY3_pade
+!!
+!!   FUNCTION
+!!     - Calculates rescaling factors for XC potentials and energy expression
+!!
+!!   NOTES
+!!     - Model for adiabatic connection:
+!!       
+!!        W_lambda = a + b*lambda/(1+c*lambda)
+!!        Exc = a + b*(c-log(1+c)/c^2)
+!!        a = Ex^{HF}
+!!        b = -c1*2*omega/sqrt(PI)*nelectron
+!!        c = -1/lambda - b/(Ex^{HF}-W_lambda^{BLYP} + c2*W_lambda^{B88,LR}-c3*W_lambda^{HF,LR}
+!!
+!!   INPUTS
+!!     - qs_env
+!!     - hf_energy: Array of size 2 containing the two HF energies (Ex^{HF} and Ex^{HF,LR}
+!!     - energy: QS energy type 
+!!     - adiabatic_lambda, adiabatic_omega: Parameters for adiabatic connection
+!!     - scale_* : scaling coefficients for xc-potentials to be calculated
+!!     - total_energy: will contain the full xc energy
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Manuel Guidon
+!!
+!!   MODIFICATION HISTORY
+!!     09.2007 created [Manuel Guidon]
+!!
+!!****************************************************************************
+
+  SUBROUTINE rescale_MCY3_pade(qs_env, hf_energy, energy, adiabatic_lambda, &
+                               adiabatic_omega, scale_dEx1, scale_ddW0, scale_dDFA,&
+                               scale_dEx2, total_energy_xc, error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    REAL(dp), INTENT(IN)                     :: hf_energy(*)
+    TYPE(qs_energy_type), POINTER            :: energy
+    REAL(dp), INTENT(IN)                     :: adiabatic_lambda, &
+                                                adiabatic_omega
+    REAL(dp), INTENT(INOUT)                  :: scale_dEx1, scale_ddW0, &
+                                                scale_dDFA, scale_dEx2, &
+                                                total_energy_xc
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    INTEGER                                  :: nelec_a, nelec_b, nelectron, &
+                                                nspins
+    REAL(dp) :: a, b, c, c1, da_dDFA, da_ddW0, da_dEx1, da_dEx2, db_dDFA, &
+      db_ddW0, db_dEx1, db_dEx2, dc_dDFA, dc_ddW0, dc_dEx1, dc_dEx2, dExc_da, &
+      dExc_db, dExc_dc, dfa_energy
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+
+    c1 = 0.23163_dp
+
+    CALL get_qs_env(qs_env=qs_env, mos=mos, error=error)
+    CALL get_mo_set(mo_set=mos(1)%mo_set,nelectron=nelec_a)
+    nspins = SIZE(mos)
+    IF(nspins == 2 ) THEN
+      CALL get_mo_set(mo_set=mos(2)%mo_set,nelectron=nelec_b)
+    ELSE
+      nelec_b = 0
+    END IF
+    nelectron = nelec_a + nelec_b
+    dfa_energy = energy%exc + energy%exc1
+    a = hf_energy(1)
+    b = -c1*2.0_dp*adiabatic_omega/SQRT(PI)*nelectron!-0.23163_dp*2.0_dp*0.2_dp/SQRT(PI)*nelectron
+    c = -1.0_dp / adiabatic_lambda -b/(hf_energy(1)-dfa_energy-hf_energy(2))
+
+    dExc_da = 1.0_dp
+    dExc_db = 1.0_dp/c -(LOG((1.0_dp + c))/(c*c))
+    dExc_dc = -b/(c*c*c*(1.0_dp+c))*(2.0_dp*c+c*c-2.0_dp*LOG((1.0_dp+c))-2.0_dp*LOG((1.0_dp+c))*c)
+
+    da_dEx1 = 1.0_dp
+    da_ddW0 = 0.0_dp
+    da_dDFA = 0.0_dp
+    da_dEx2 = 0.0_dp
+
+    db_dEx1 = 0.0_dp
+    db_ddW0 = 1.0_dp
+    db_dDFA = 0.0_dp
+    db_dEx2 = 0.0_dp
+
+    dc_dEx1 =  b / (hf_energy(1)-dfa_energy-hf_energy(2))**2
+    dc_ddW0 = -1.0_dp / (hf_energy(1)-dfa_energy-hf_energy(2))
+    dc_dDFA = -dc_dEx1
+    dc_dEx2 = -dc_dEx1
+
+    scale_dEx1 = dExc_da*da_dEx1 + dExc_db*db_dEx1 + dExc_dc*dc_dEx1
+    scale_ddW0 = dExc_da*da_ddW0 + dExc_db*db_ddW0 + dExc_dc*dc_ddW0
+    scale_dDFA = dExc_da*da_dDFA + dExc_db*db_dDFA + dExc_dc*dc_dDFA
+    scale_dEx2 = dExc_da*da_dEx2 + dExc_db*db_dEx2 + dExc_dc*dc_dEx2
+
+    total_energy_xc = a + b/(c*c)*(c-LOG((1.0_dp+c)))
+  END SUBROUTINE rescale_MCY3_pade   
+  
+
+END MODULE xc_adiabatic_methods

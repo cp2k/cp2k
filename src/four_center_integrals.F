@@ -31,6 +31,7 @@ MODULE four_center_integrals
   USE erf_fn,                          ONLY: erfc
   USE input_constants,                 ONLY: do_hf_potential_coulomb,&
                                              do_hf_potential_gaussian,&
+                                             do_hf_potential_id,&
                                              do_hf_potential_mix_cl,&
                                              do_hf_potential_mix_lg,&
                                              do_hf_potential_short
@@ -785,7 +786,7 @@ MODULE four_center_integrals
                               max_val2 = 1.0_dp/Rbox*Kbox
                               IF(max_val2 < eps_box ) CYCLE
                               max_val2 = max_val2 * pmax_entry
-                            CASE (do_hf_potential_gaussian, do_hf_potential_mix_lg)
+                            CASE (do_hf_potential_gaussian, do_hf_potential_mix_lg, do_hf_potential_id)
                               max_val2 = HUGE(max_val2)
                           END SELECT
                           IF(max_val2 < eps_box) THEN
@@ -1142,7 +1143,13 @@ MODULE four_center_integrals
         END IF
       END DO
     END DO
-
+    
+!    write(1,*) "new step"
+!    DO pa=1,size(full_ks,1)
+!      DO pb=1,size(full_ks,2)
+!        write(1,*) full_ks(pa,pb), full_density(pa,pb)
+!      END DO
+!    END DO
     IF( distribute_fock_matrix) THEN
       !! Distribute the current KS-matrix to all the processes
       CALL mp_sync(para_env%group) ! to clarify timings 
@@ -1166,12 +1173,16 @@ MODULE four_center_integrals
       CALL timestop(handle_dist_ks)
     END IF
 
+
     CALL mp_sum(ene_x_aa, para_env%group)
     IF(nspins==2) CALL mp_sum(ene_x_bb,para_env%group)
 
-
     !! Update energy type
-    energy%ex = 0.5_dp*(ene_x_aa+ene_x_bb) + energy%ex
+    IF( distribute_fock_matrix) THEN
+      energy%ex = 0.5_dp*(ene_x_aa+ene_x_bb) + energy%ex
+    ELSE
+      energy%ex = 0.5_dp*(ene_x_aa+ene_x_bb)
+    END IF
 
     CALL timestop(handle_main)
 
@@ -2323,7 +2334,7 @@ MODULE four_center_integrals
                               Kbox = actual_x_data%far_field_boxes(box_idx2, box_idx1)%K * &
                                      actual_x_data%far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox* pmax_entry
-                            CASE (do_hf_potential_gaussian,do_hf_potential_mix_lg) 
+                            CASE (do_hf_potential_gaussian,do_hf_potential_mix_lg, do_hf_potential_id) 
                               max_val2 = HUGE(max_val2)
                           END SELECT
                           IF(max_val2<eps_box) CYCLE
@@ -3906,7 +3917,7 @@ MODULE four_center_integrals
                                      x_data%far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox
                               max_val2 = max_val2 * pmax_entry
-                            CASE(do_hf_potential_gaussian,do_hf_potential_mix_lg) 
+                            CASE(do_hf_potential_gaussian,do_hf_potential_mix_lg, do_hf_potential_id) 
                               max_val2 = HUGE(max_val2)
                           END SELECT
                           IF(max_val2<eps_box) CYCLE
@@ -4043,7 +4054,7 @@ MODULE four_center_integrals
                                      x_data%far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox
                               max_val2 = max_val2 * pmax_entry
-                            CASE(do_hf_potential_gaussian,do_hf_potential_mix_lg) 
+                            CASE(do_hf_potential_gaussian,do_hf_potential_mix_lg, do_hf_potential_id) 
                               max_val2 = HUGE(max_val2)
                           END SELECT
                           IF(max_val2<eps_box) CYCLE
@@ -4449,7 +4460,7 @@ MODULE four_center_integrals
                               Kbox = x_data%far_field_boxes(box_idx2, box_idx1)%K * &
                                      x_data%far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox * pmax_entry
-                            CASE(do_hf_potential_gaussian,do_hf_potential_mix_lg) 
+                            CASE(do_hf_potential_gaussian,do_hf_potential_mix_lg, do_hf_potential_id) 
                               max_val2 = HUGE(max_val2)
                           END SELECT
                           IF(max_val2<eps_box) CYCLE
@@ -4575,7 +4586,7 @@ MODULE four_center_integrals
                               Kbox = x_data%far_field_boxes(box_idx2, box_idx1)%K * &
                                      x_data%far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox * pmax_entry
-                            CASE(do_hf_potential_gaussian,do_hf_potential_mix_lg) 
+                            CASE(do_hf_potential_gaussian,do_hf_potential_mix_lg, do_hf_potential_id) 
                               max_val2 = HUGE(max_val2)
                           END SELECT
                           IF(max_val2<eps_box) CYCLE

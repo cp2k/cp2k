@@ -302,15 +302,16 @@ CONTAINS
             description="Which interaction potential should be used "//&
                          "(Coulomb, longrange or shortrange).",&
             usage="POTENTIAL_TYPE SHORTRANGE",&
-            enum_c_vals=s2a("COULOMB","SHORTRANGE","LONGRANGE","MIX_CL","GAUSSIAN","MIX_LG"),&
+            enum_c_vals=s2a("COULOMB","SHORTRANGE","LONGRANGE","MIX_CL","GAUSSIAN","MIX_LG","ID"),&
             enum_i_vals=(/do_hf_potential_coulomb, do_hf_potential_short, do_hf_potential_long, &
-                          do_hf_potential_mix_cl, do_hf_potential_gaussian, do_hf_potential_mix_lg/),&
+                          do_hf_potential_mix_cl, do_hf_potential_gaussian, do_hf_potential_mix_lg,do_hf_potential_id/),&
             enum_desc=s2a("Coulomb potential: 1/r", &
                           "Shortrange potential: erfc(omega*r)/r",&
                           "Longrange potential: erf(omega*r)/r",&
                           "Mix coulomb and longrange potential: 1/r + erf(omega*r)/r",&
                           "Damped Gaussian potential: exp(-omega^2*r^2)",&
-                          "Mix Gaussian and longrange potential: erf(omega*r)/r + exp(-omega^2*r^2)"),&
+                          "Mix Gaussian and longrange potential: erf(omega*r)/r + exp(-omega^2*r^2)",&
+                          "Overlap"),&
             default_i_val=do_hf_potential_coulomb, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

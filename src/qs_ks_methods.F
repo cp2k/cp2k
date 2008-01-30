@@ -75,8 +75,9 @@ MODULE qs_ks_methods
   USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
   USE input_constants,                 ONLY: &
-       do_spin_density, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, &
-       sic_mauri_spz, sic_mauri_us, sic_none, xc_none
+       do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, do_spin_density, &
+       sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
+       sic_mauri_us, sic_none, xc_none
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -137,8 +138,7 @@ MODULE qs_ks_methods
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type
   USE scp_hartree_1center,             ONLY: integrate_a_vhscp_b
-  USE sparse_matrix_types,             ONLY: cp_sm_add_constant,&
-                                             cp_sm_scale_and_add,&
+  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              deallocate_matrix,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
@@ -150,6 +150,7 @@ MODULE qs_ks_methods
   USE virial_types,                    ONLY: virial_type
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
+  USE xc_adiabatic_methods,            ONLY: rescale_MCY3_pade
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -323,14 +324,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: cc_new, cc_old
-    INTEGER                                  :: handle, ig, ikind, irep, &
-                                                ispin, k, k2, my_id, n, &
-                                                n_rep_hf, nspins, &
-                                                output_unit, stat
+    INTEGER :: adiabatic_functional, adiabatic_model, handle, ig, ikind, &
+      irep, ispin, k, k2, my_id, n, n_rep_hf, nspins, output_unit, stat
     LOGICAL :: ddapc_restraint_is_spin, do_adiabatic_rescaling, do_ep, do_hf, &
       et_coupling_calc, explicit_potential, failure, gapw, gapw_xc, ionode, &
       my_diis_step, my_kg_gpw, use_virial
-    REAL(dp)                                 :: adiabatic_rescale_factor
+    REAL(dp) :: a, adiabatic_lambda, adiabatic_omega, &
+      adiabatic_rescale_factor, scale_dDFA, scale_ddW0, scale_dEx1, &
+      scale_dEx2, total_energy_xc
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
     REAL(KIND=dp)                            :: a_mix, b_mix, ddapc_order_p, &
                                                 f_mix, inv_vol, &
                                                 mulliken_order_p, s2_order_p
@@ -347,7 +349,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mo_array
+      POINTER                                :: mo_array, mos
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type) :: ep_pot_r_coeff, ep_rho_g, ep_rho_r, rho_tot_gspace, &
       v_hartree_gspace, v_sic_rspace, v_spin_ddapc_rest_g, v_spin_ddapc_rest_r
@@ -422,7 +424,7 @@ CONTAINS
 
     hf_sections => section_vals_get_subs_vals(input,"DFT%XC%HF",error=error)
     CALL section_vals_get(hf_sections,explicit=do_hf,error=error)
-    adiabatic_rescaling_section => section_vals_get_subs_vals(input,"DFT%ADIABATIC_RESCALING",error=error)
+    adiabatic_rescaling_section => section_vals_get_subs_vals(input,"DFT%XC%ADIABATIC_RESCALING",error=error)
     CALL section_vals_get(adiabatic_rescaling_section,explicit=do_adiabatic_rescaling,error=error)
 
     scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
@@ -747,8 +749,10 @@ CONTAINS
          CALL qs_vxc_create(qs_env=qs_env,&
               vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
               just_energy=.TRUE., gapw_xc=gapw_xc, error=error)
+!              write(*,*) "GPW exc ", energy%exc
          IF (gapw .OR. gapw_xc) THEN
            CALL calculate_vxc_atom(qs_env,.TRUE.,error=error)
+!              write(*,*) "GAPW exc ", energy%exc1
          END IF
 
        END IF
@@ -773,6 +777,8 @@ CONTAINS
              force(ikind)%fock_4c(:,:) = 0.0_dp
            END DO
          END IF
+         ALLOCATE(hf_energy(n_rep_hf), STAT=stat) 
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
          DO irep = 1,n_rep_hf
            IF( .NOT. do_adiabatic_rescaling) THEN
              CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hf_sections,&
@@ -786,6 +792,7 @@ CONTAINS
              !! we calculate everything but we do not add the potential in a first step
              CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hf_sections,&
                                         para_env,ks_env%s_mstruct_changed,irep,.FALSE.,error)
+             hf_energy(irep) = energy%ex
              IF( calculate_forces ) THEN
                CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
                !! we also have to scale the forces!!!! NOT YET DONE
@@ -804,33 +811,39 @@ CONTAINS
 
        !! If we perform adiabatic rescaling we are now able to rescale the xc-potential
        IF( do_adiabatic_rescaling ) THEN
-         adiabatic_rescale_factor = 0.5_dp
-         energy%ex = energy%ex * adiabatic_rescale_factor
-         !! Add and scale Fock matrix to KS matrix
-         IF(do_hf) THEN
-           DO irep = 1,n_rep_hf
-             CALL scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, irep ,&
-                                                  adiabatic_rescale_factor, error)
-           END DO
-         END IF
-         !! Calculate vxc and rescale it
-         CALL qs_vxc_create(qs_env=qs_env,&
-              vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
-              just_energy=just_energy, gapw_xc=gapw_xc, adiabatic_rescale_factor=adiabatic_rescale_factor, error=error)
-         energy%exc = energy%exc * adiabatic_rescale_factor
-         !! Calcualte vxc and rescale it
-         IF (gapw .OR. gapw_xc) THEN
-            CALL calculate_vxc_atom(qs_env,just_energy,adiabatic_rescale_factor=adiabatic_rescale_factor,error=error) 
-            energy%exc1 = energy%exc1 * adiabatic_rescale_factor
-         END IF
-         !! add constant contributions to KS matrix
-         
-         DO ispin=1,nspins
-            CALL cp_sm_add_constant(ks_matrix(ispin)%matrix,adiabatic_rescale_factor,error=error)
-         END DO
-
-         
-         
+         CALL section_vals_val_get(adiabatic_rescaling_section, "FUNCTIONAL_TYPE", i_val=adiabatic_functional,error=error) 
+         CALL section_vals_val_get(adiabatic_rescaling_section, "FUNCTIONAL_MODEL", i_val=adiabatic_model,error=error)
+         CALL section_vals_val_get(adiabatic_rescaling_section, "LAMBDA", r_val=adiabatic_lambda,error=error)
+         CALL section_vals_val_get(adiabatic_rescaling_section, "OMEGA", r_val=adiabatic_omega,error=error)
+         SELECT CASE(adiabatic_functional)
+         CASE (do_adiabatic_hybrid_mcy3)
+           SELECT CASE(adiabatic_model)
+           CASE(do_adiabatic_model_pade)
+             CALL rescale_MCY3_pade(qs_env, hf_energy, energy, adiabatic_lambda, &
+                                    adiabatic_omega, scale_dEx1, scale_ddW0, scale_dDFA,&
+                                    scale_dEx2, total_energy_xc, error)
+              
+             !! Scale and add Fock matrix to KS matrix
+             IF(do_hf) THEN
+               CALL scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, 1 ,&
+                                                    scale_dEx1, error)
+               CALL scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, 2 ,&
+                                                    scale_dEx2, error)
+             END IF
+             !! Calculate vxc and rescale it
+             CALL qs_vxc_create(qs_env=qs_env,&
+                  vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
+                  just_energy=just_energy, gapw_xc=gapw_xc, adiabatic_rescale_factor=scale_dDFA, error=error)
+             !! Calcualte vxc and rescale it
+             IF (gapw .OR. gapw_xc) THEN
+                CALL calculate_vxc_atom(qs_env,just_energy,adiabatic_rescale_factor=scale_dDFA,error=error) 
+             END IF
+             !! Hack for the total energy expression
+             energy%ex = 0.0_dp 
+             energy%exc1 = 0.0_dp
+             energy%exc = total_energy_xc 
+           END SELECT
+         END SELECT            
        END IF
 
        ! ***  Single atom contributions ***
@@ -1196,7 +1209,8 @@ CONTAINS
           energy%s2_restraint = 0.0_dp
        ENDIF
 
-
+!      write(*,*) "GPW exc ", energy%exc
+!      write(*,*) "GAPW exc ", energy%exc1
        ! sum all energy terms to obtain the total energy
        energy%total = energy%core_overlap + energy%core_self + &
             energy%core + energy%hartree + &

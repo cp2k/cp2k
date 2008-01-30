@@ -605,7 +605,8 @@ MODULE input_constants
                                 do_hf_potential_long=3,&
                                 do_hf_potential_mix_cl=4,&
                                 do_hf_potential_gaussian=5,&
-                                do_hf_potential_mix_lg=6
+                                do_hf_potential_mix_lg=6,&
+                                do_hf_potential_id=7
 
   ! adiabatic hybrid type
   INTEGER, PARAMETER, PUBLIC :: do_adiabatic_hybrid_mcy3=1

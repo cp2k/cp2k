@@ -541,6 +541,7 @@ OBJECTS_GENERIC =\
  xas_restart.o\
  xas_tp_scf.o\
  xc.o\
+ xc_adiabatic_methods.o\
  xc_atom.o\
  xc_cs1.o\
  xc_derivative_desc.o\
