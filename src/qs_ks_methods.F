@@ -749,10 +749,8 @@ CONTAINS
          CALL qs_vxc_create(qs_env=qs_env,&
               vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
               just_energy=.TRUE., gapw_xc=gapw_xc, error=error)
-!              write(*,*) "GPW exc ", energy%exc
          IF (gapw .OR. gapw_xc) THEN
            CALL calculate_vxc_atom(qs_env,.TRUE.,error=error)
-!              write(*,*) "GAPW exc ", energy%exc1
          END IF
 
        END IF
@@ -1209,8 +1207,6 @@ CONTAINS
           energy%s2_restraint = 0.0_dp
        ENDIF
 
-!      write(*,*) "GPW exc ", energy%exc
-!      write(*,*) "GAPW exc ", energy%exc1
        ! sum all energy terms to obtain the total energy
        energy%total = energy%core_overlap + energy%core_self + &
             energy%core + energy%hartree + &

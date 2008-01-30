@@ -116,8 +116,8 @@ MODULE xc_adiabatic_methods
     c = -1.0_dp / adiabatic_lambda -b/(hf_energy(1)-dfa_energy-hf_energy(2))
 
     dExc_da = 1.0_dp
-    dExc_db = 1.0_dp/c -(LOG((1.0_dp + c))/(c*c))
-    dExc_dc = -b/(c*c*c*(1.0_dp+c))*(2.0_dp*c+c*c-2.0_dp*LOG((1.0_dp+c))-2.0_dp*LOG((1.0_dp+c))*c)
+    dExc_db = 1.0_dp/c -(LOG(ABS(1.0_dp + c))/(c*c))
+    dExc_dc = -b/(c*c*c*(1.0_dp+c))*(2.0_dp*c+c*c-2.0_dp*LOG(ABS(1.0_dp+c))-2.0_dp*LOG(ABS(1.0_dp+c))*c)
 
     da_dEx1 = 1.0_dp
     da_ddW0 = 0.0_dp
@@ -139,7 +139,7 @@ MODULE xc_adiabatic_methods
     scale_dDFA = dExc_da*da_dDFA + dExc_db*db_dDFA + dExc_dc*dc_dDFA
     scale_dEx2 = dExc_da*da_dEx2 + dExc_db*db_dEx2 + dExc_dc*dc_dEx2
 
-    total_energy_xc = a + b/(c*c)*(c-LOG((1.0_dp+c)))
+    total_energy_xc = a + b/(c*c)*(c-LOG(ABS(1.0_dp+c)))
   END SUBROUTINE rescale_MCY3_pade   
   
 
