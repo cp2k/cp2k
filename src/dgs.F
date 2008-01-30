@@ -603,12 +603,12 @@ SUBROUTINE dg_sum_patch_force_arr_1d ( drpot, rhos, center, force )
 
   DO i = lb ( 1 ), ub ( 1 )
     ia = i - lb ( 1 ) + 1
-    ii = center ( 1 ) + i - drpot % lb ( 1 )
+    ii = center ( 1 ) + i - drpot % lb_local ( 1 )
     IF ( ii < 0 ) THEN
-      drpot % px ( ia ) = ii +  drpot % npts( 1 ) + 1
+      drpot % px ( ia ) = ii +  drpot % npts_local( 1 ) + 1
       folded = .TRUE.
     ELSEIF ( ii >= drpot % npts( 1 ) ) THEN
-      drpot % px ( ia ) = ii - drpot % npts( 1 ) + 1
+      drpot % px ( ia ) = ii - drpot % npts_local( 1 ) + 1
       folded = .TRUE.
     ELSE
       drpot % px ( ia ) = ii + 1
@@ -616,12 +616,12 @@ SUBROUTINE dg_sum_patch_force_arr_1d ( drpot, rhos, center, force )
   END DO
   DO i = lb ( 2 ), ub ( 2 )
     ia = i - lb ( 2 ) + 1
-    ii = center ( 2 ) + i - drpot % lb ( 2 )
+    ii = center ( 2 ) + i - drpot % lb_local ( 2 )
     IF ( ii < 0 ) THEN
-      drpot % py ( ia ) = ii + drpot % npts( 2 ) + 1
+      drpot % py ( ia ) = ii + drpot % npts_local( 2 ) + 1
       folded = .TRUE.
     ELSEIF ( ii >= drpot % npts( 2 ) ) THEN
-      drpot % py ( ia ) = ii - drpot % npts( 2 ) + 1
+      drpot % py ( ia ) = ii - drpot % npts_local( 2 ) + 1
       folded = .TRUE.
     ELSE
       drpot % py ( ia ) = ii + 1
@@ -629,12 +629,12 @@ SUBROUTINE dg_sum_patch_force_arr_1d ( drpot, rhos, center, force )
   END DO
   DO i = lb ( 3 ), ub ( 3 )
     ia = i - lb ( 3 ) + 1
-    ii = center ( 3 ) + i - drpot % lb ( 3 )
+    ii = center ( 3 ) + i - drpot % lb_local ( 3 )
     IF ( ii < 0 ) THEN
-      drpot % pz ( ia ) = ii + drpot % npts( 3 ) + 1
+      drpot % pz ( ia ) = ii + drpot % npts_local( 3 ) + 1
       folded = .TRUE.
     ELSEIF ( ii >= drpot % npts( 3 ) ) THEN
-      drpot % pz ( ia ) = ii - drpot % npts( 3 ) + 1
+      drpot % pz ( ia ) = ii - drpot % npts_local( 3 ) + 1
       folded = .TRUE.
     ELSE
       drpot % pz ( ia ) = ii + 1
