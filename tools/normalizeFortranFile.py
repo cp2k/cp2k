@@ -195,7 +195,7 @@ def parseRoutine(inFile):
             try:
                 subF=file(m.group('file'))
                 while 1:
-                    (subjline,subcomments,sublines)=readFortranLine(inFile)
+                    (subjline,subcomments,sublines)=readFortranLine(subF)
                     if not sublines:
                         break
                     routine['strippedCore'].append(subjline)
@@ -874,7 +874,7 @@ def rewriteFortranFile(inFile,outFile,logFile=sys.stdout,orig_filename=None):
         nonStPrep=0
         for line in modulesDict['origLines']:
             if (re.search('^#',line) and not commonUsesRe.match(line)):
-                print 'noMatch',line
+                print 'noMatch',repr(line)
                 nonStPrep=1
         if nonStPrep:
             logFile.write("*** use statements contains preprocessor directives, not cleaning ***")
