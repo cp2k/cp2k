@@ -196,7 +196,7 @@ def findWord(word,text,options=re.IGNORECASE):
     """Returns the position of word in text or -1 if not found.
     A match is valid only if it is a whole word (i.e. findWord('try','retry')
     returns false)"""
-    wordRe=re.compile("(?<![a-zA-Z_0-9])"+word+"(?![a-zA-Z_0-9])",options)
+    wordRe=re.compile("(?<![a-zA-Z_0-9])"+word+"(?![a-zA-Z_0-9])|(?<=[0-9.]_)"+word+"(?![a-zA-Z_0-9])",options)
     m=wordRe.search(text)
     if m:
         pos=m.span()[0]
@@ -303,7 +303,7 @@ def writeInCols(dLine,indentCol,maxCol,indentAtt,file):
     The '&' of the continuation line is at maxCol.
     indentAtt is the actual intent, and the new indent is returned"""
     strRe=re.compile(r"('[^'\n]*'|\"[^\"\n]*\")")
-    nonWordRe=re.compile(r"(\((?!/)|(?<!/)\)|[^-+a-zA-Z0-9_.()])")
+    nonWordRe=re.compile(r"(|\(/|/\)|[^-+a-zA-Z0-9_.])")
     maxSize=maxCol-indentCol-1
     tol=min(maxSize/6,6)+indentCol
     for fragment in dLine:
@@ -531,7 +531,7 @@ def cleanDeclarations(routine,logFile=sys.stdout):
         enforceDeclDependecies(argDecl)
         for i in xrange(len(argDecl)-1,-1,-1):
             if 'parameter' in map(str.lower,argDecl[i]['attributes']):
-                paramDecl.append(argDecl[i])
+                paramDecl.insert(0,argDecl[i])
                 del argDecl[i]
             else:
                 break
