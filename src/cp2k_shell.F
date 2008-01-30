@@ -34,21 +34,38 @@
 !!                       and finally all the values (in eV/angstrom)
 !!*** **********************************************************************
 PROGRAM cp2k_shell
-  USE kinds,                           ONLY: dp
-  USE f77_interface
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE physcon,                         ONLY: angstrom,evolt
-  USE message_passing,                 ONLY: mp_bcast,mp_abort
+  USE cp2k_info,                       ONLY: compile_arch,&
+                                             compile_date,&
+                                             compile_host,&
+                                             compile_lastcvs,&
+                                             cp2k_home,&
+                                             cp2k_version,&
+                                             id_cp2k_version,&
+                                             print_cp2k_license
   USE cp_files,                        ONLY: get_eof_stat
-  USE string_utilities,                ONLY: uppercase,compress
-  USE machine,                         ONLY: m_flush  
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE f77_interface
+  USE input_constants,                 ONLY: id_development_version
+  USE kinds,                           ONLY: dp
+  USE machine,                         ONLY: m_flush,&
+                                             m_getcwd,&
+                                             m_getlog,&
+                                             m_getpid,&
+                                             m_hostnm
+  USE message_passing,                 ONLY: mp_abort,&
+                                             mp_bcast
+  USE physcon,                         ONLY: angstrom,&
+                                             evolt
+  USE string_utilities,                ONLY: compress,&
+                                             uppercase
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   LOGICAL                                  :: eof, harsh,failure
   INTEGER                                  :: ierr,i,iostat,shift,&
                                               shift2,env_id,last_env_id,&
-                                              n_atom,stat,n_atom2
+                                              n_atom,stat,n_atom2,pid
   INTEGER, PARAMETER                       :: sout=6 ! ,sin=5
   TYPE(cp_error_type)                      :: error
   TYPE(cp_para_env_type), POINTER          :: para_env
@@ -58,6 +75,42 @@ PROGRAM cp2k_shell
   REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pos
   REAL(KIND=dp)                            :: e_pot
   REAL(KIND=dp)                            :: e_fact,pos_fact
+  
+  CHARACTER(len=80), DIMENSION(32) :: helpMsg
+  
+  helpMsg=(/ &
+  ll('Commands'),&
+  ll(' '),&
+  ll(' If there is [env_id] it means that an optional env_id can be given,'),&
+  ll(' if none is given it defaults to the last env_id loaded'),&
+  ll(' All commands are case insensitive.'),&
+  ll(' '),&
+  ll(' INFO: returns some information about cp2k.'),&
+  ll(' LOAD filename: loads the filename, returns the env_id, or -1 in case of error'),&
+  ll(' BG_LOAD filename: loads the filename, without returning the env_id'),&
+  ll(' LAST_ENV_ID: returns the env_id of the last environment loaded'),&
+  ll(' NATOM [env_id]: returns the number of atoms in the environement env_id'),&
+  ll(' SET_POS [env_id]: sets the positions of the atoms, should be followed'),&
+  ll('   by natom*3 (on a line) and then all the positions'),&
+  ll(' GET_POS [env_id]: gets the positions of the atoms, returns'),&
+  ll('   natom*3 (on a line) and then all the positions then "* END" '),&
+  ll('   (alone on a line)'),&
+  ll(' GET_E [env_id]: gets the energy of the last calculation on env_id'),&
+  ll(' GET_F [env_id]: gets the forces on the atoms,of the last calculation on '),&
+  ll('   env_id, if only the energy was calculated the content is undefined. Returns'),&
+  ll('   natom*3 (on a line) and then all the forces then "* END" (alone on'),&
+  ll('   a line)'),&
+  ll(' CALC_E [env_id]: calculate the energy and returns it'),&
+  ll(' EVAL_E [env_id]: calculate the energy (without returning it)'),&
+  ll(' CALC_EF [env_id]: calculate energy and forces and returns them,'),&
+  ll('   first the energy on a line, then the natom*3 (on a line)'),&
+  ll('   and finally all the values and "* END" (alone on a line)'),&
+  ll(' EVAL_EF [env_id]: calculate the energy and forces (without returning them)'),&
+  ll(' HARSH: stops on any error'),&
+  ll(' PERMISSIVE: stops only on serious errors'),&
+  ll(' UNITS: returns the units used for energy and position'),&
+  ll(' UNITS_EV_A: sets the units to electron volt (energy)  and Angstrom (positions)'),&
+  ll(' HELP: writes the present help') /)
 
   CALL init_cp2k(init_mpi=.TRUE.,ierr=ierr)
   IF (ierr/=0) CALL mp_abort('init_cp2k failure')
@@ -109,62 +162,41 @@ PROGRAM cp2k_shell
      CALL uppercase(cmd)
      SELECT CASE(cmd)
      CASE('HELP')
-        WRITE(sout,'(a)',iostat=iostat) 'Commands'
-        IF (iostat/=0) CALL mp_abort('writing help')
-        WRITE(sout,'(a)',iostat=iostat) &
-             ' (if there is [env_id] it means that an optional env_id can be given,'
-        IF (iostat/=0) CALL mp_abort('writing help')
-        WRITE(sout,'(a)',iostat=iostat) &
-             ' if none is given it defaults to the last env_id loaded)'
-        IF (iostat/=0) CALL mp_abort('writing help')
-        WRITE(sout,'(a)',iostat=iostat) ' '
-        IF (iostat/=0) CALL mp_abort('writing help')
-        WRITE(sout,'(a)',iostat=iostat) &
-             ' load filename: loads the filename, returns the env_id, or -1 in case of error'
-        IF (iostat/=0) CALL mp_abort('writing help')
-        WRITE(sout,'(a)',iostat=iostat) &
-             ' natom [env_id]: returns the number of atoms in the environement env_id'
-        IF (iostat/=0) CALL mp_abort('writing help')
-        WRITE(sout,'(a)',iostat=iostat) &
-             ' setpos [env_id]: sets the positions of the atoms, should be followed'
-        IF (iostat/=0) CALL mp_abort('writing help')
-        WRITE(sout,'(a)',iostat=iostat) &
-             ' by natom*3 (on a line) and then all the positions'
-        IF (iostat/=0) CALL mp_abort('writing help')
-        WRITE(sout,'(a)',iostat=iostat) &
-             ' getpos [env_id]: gets the positions of the atoms, returns'
-        IF (iostat/=0) CALL mp_abort('writing help')
-        WRITE(sout,'(a)',iostat=iostat) &
-             '  natom*3 (on a line) and then all the positions then "* END" (alone on a line)'
-        IF (iostat/=0) CALL mp_abort('writing help')
-        WRITE(sout,'(a)',iostat=iostat) &
-             ' calcE [env_id]: calculate the energy and returns it'
-        IF (iostat/=0) CALL mp_abort('writing help')
-        WRITE(sout,'(a)',iostat=iostat) &
-             ' calcEF [env_id]: calculate the energy and forces and returns them,'
-        IF (iostat/=0) CALL mp_abort('writing help')
-        WRITE(sout,'(a)',iostat=iostat) &
-             '  first the energy on a line, then the natom*3 (on a line)'
-        IF (iostat/=0) CALL mp_abort('writing help')
-        WRITE(sout,'(a)',iostat=iostat) &
-             '  and finally all the values and "* END" (alone on a line)'
-        IF (iostat/=0) CALL mp_abort('writing help')
-        WRITE(sout,'(a)',iostat=iostat) &
-             ' harsh: stops on any error'
-        IF (iostat/=0) CALL mp_abort('writing help')
-        WRITE(sout,'(a)',iostat=iostat) &
-             ' permissive: stops only on serious errors'
-        IF (iostat/=0) CALL mp_abort('writing help')
-        WRITE(sout,'(a)',iostat=iostat) &
-             ' units: returns the units used for energy and position'
-        IF (iostat/=0) CALL mp_abort('writing help')
-        WRITE(sout,'(a)',iostat=iostat) &
-             ' units_ev_a: sets the units to electron volt (energy)  and Angstrom (positions)'
-        IF (iostat/=0) CALL mp_abort('writing help')
-        WRITE(sout,'(a)',iostat=iostat) &
-             ' help: writes the present help'
-        IF (iostat/=0) CALL mp_abort('writing help')
-        CALL m_flush(sout)
+        IF (para_env%source==para_env%mepos) THEN
+            DO i=1,SIZE(helpMsg)
+                WRITE(sout,'(a)',iostat=iostat) TRIM(helpMsg(i))
+                IF (iostat/=0) CALL mp_abort('writing help')
+            END DO
+            CALL m_flush(sout)
+        END IF
+     CASE('INFO','INFORMATION','LICENSE')
+        IF (para_env%source==para_env%mepos) THEN
+            CALL print_v_info(sout)
+            CALL print_cp2k_license(sout)
+        END IF
+     CASE('LAST_ENV_ID')
+        IF (para_env%source==para_env%mepos) THEN
+           WRITE (sout,'(i10)',iostat=iostat) last_env_id
+           IF (iostat/=0) CALL mp_abort(cmd//' failed writing last_env_id')
+           CALL m_flush(sout)
+        END IF
+     CASE('BG_LOAD','BGLOAD')
+        shift=shift2+1
+        CALL my_assert(shift<=LEN(cmdStr),'load without file',failure)
+        IF (failure) GOTO 10
+        DO
+           IF (cmdStr(shift:shift)/=' ') EXIT
+           shift=shift+1
+           IF (shift>=LEN(cmdStr)) EXIT
+        END DO
+        CALL my_assert(cmdStr(shift:shift)/=' ','load without file2',failure)
+        IF (failure) GOTO 10
+        CALL create_force_env(new_env_id=last_env_id,&
+             input_path=cmdStr(shift:LEN_TRIM(cmdStr)),&
+             output_path=cmdStr(shift:LEN_TRIM(cmdStr))//'.out',&
+             owns_out_unit=.TRUE.,ierr=ierr)
+        IF (ierr/=0) last_env_id=-1
+        IF (last_env_id<=0) failure=.TRUE.
      CASE('LOAD')
         shift=shift2+1
         CALL my_assert(shift<=LEN(cmdStr),'load without file',failure)
@@ -247,7 +279,7 @@ PROGRAM cp2k_shell
         IF (.not.failure.and.para_env%mepos==para_env%source) THEN
            WRITE (sout,'(i10)',iostat=iostat) 3*n_atom
            IF (iostat/=0) CALL mp_abort(cmd//' write ncoord')
-           WRITE (sout,'(3ES24.15)',iostat=iostat) pos
+           WRITE (sout,'(3ES22.13)',iostat=iostat) pos
            IF (iostat/=0) CALL mp_abort(cmd//' write coord')
            WRITE (sout,'(a)',iostat=iostat) "* END"
            IF (iostat/=0) CALL mp_abort(cmd//' write coord')
@@ -255,6 +287,22 @@ PROGRAM cp2k_shell
         END IF
         DEALLOCATE(pos,stat=stat)
         IF (stat/=0) CALL mp_abort(cmd//' failed dealloc')      
+     CASE('GETE','GET_E')
+        env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
+        CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
+        CALL get_energy(env_id,e_pot,ierr)
+        CALL my_assert(ierr==0,cmd//' failed get_energy',failure)
+        e_pot=e_pot*e_fact
+        IF (para_env%mepos==para_env%source) THEN
+           WRITE (sout,'(ES22.13)',iostat=iostat) e_pot
+           IF (iostat/=0) CALL mp_abort(cmd//' write e_pot')
+           CALL m_flush(sout)
+        END IF
+     CASE('EVALE','EVAL_E')
+        env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
+        CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
+        CALL calc_energy_force(env_id,calc_force=.FALSE.,ierr=ierr)
+        CALL my_assert(ierr==0,cmd//' calc_energy_force failed',failure)
      CASE('CALCE','CALC_E')
         env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
         CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
@@ -264,10 +312,38 @@ PROGRAM cp2k_shell
         CALL my_assert(ierr==0,cmd//' failed get_energy',failure)
         e_pot=e_pot*e_fact
         IF (para_env%mepos==para_env%source) THEN
-           WRITE (sout,'(ES24.15)',iostat=iostat) e_pot
+           WRITE (sout,'(ES22.13)',iostat=iostat) e_pot
            IF (iostat/=0) CALL mp_abort(cmd//' write e_pot')
            CALL m_flush(sout)
         END IF
+     CASE('EVALEF','EVAL_EF')
+        env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
+        CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
+        IF (failure) GOTO 10
+        CALL calc_energy_force(env_id,calc_force=.TRUE.,ierr=ierr)
+        CALL my_assert(ierr==0,cmd//' calc_energy_force failed',failure)
+     CASE('GETF','GET_F')
+        env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
+        CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
+        CALL get_natom(env_id, n_atom, ierr)
+        CALL my_assert(ierr==0,cmd//' failed get_natom',failure)
+        IF (failure) GOTO 10
+        ALLOCATE(pos(3*n_atom),stat=stat)
+        IF (stat/=0) CALL mp_abort(cmd//' failed alloc')
+        CALL get_force(env_id, force=pos, n_el=3*n_atom, ierr=ierr)
+        CALL my_assert(ierr==0,'get_force error',failure)
+        pos=pos*(e_fact/pos_fact)
+        IF (.not.failure.and.para_env%mepos==para_env%source) THEN
+           WRITE (sout,'(i10)',iostat=iostat) 3*n_atom
+           IF (iostat/=0) CALL mp_abort(cmd//' write nforce')
+           WRITE (sout,'(3ES22.13)',iostat=iostat) pos
+           IF (iostat/=0) CALL mp_abort(cmd//' write force')
+           WRITE (sout,'("* END")',iostat=iostat)         
+           IF (iostat/=0) CALL mp_abort(cmd//' write coord')
+           CALL m_flush(sout)
+        END IF
+        DEALLOCATE(pos,stat=stat)
+        IF (stat/=0) CALL mp_abort(cmd//' failed dealloc')
      CASE('CALCEF','CALC_EF')
         env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
         CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
@@ -288,11 +364,11 @@ PROGRAM cp2k_shell
         CALL my_assert(ierr==0,'get_force error',failure)
         pos=pos*(e_fact/pos_fact)
         IF (.not.failure.and.para_env%mepos==para_env%source) THEN
-           WRITE (sout,'(ES24.15)',iostat=iostat) e_pot
+           WRITE (sout,'(ES22.13)',iostat=iostat) e_pot
            IF (iostat/=0) CALL mp_abort(cmd//' write e_pot')
            WRITE (sout,'(i10)',iostat=iostat) 3*n_atom
            IF (iostat/=0) CALL mp_abort(cmd//' write nforce')
-           WRITE (sout,'(3ES24.15)',iostat=iostat) pos
+           WRITE (sout,'(3ES22.13)',iostat=iostat) pos
            IF (iostat/=0) CALL mp_abort(cmd//' write force')
            WRITE (sout,'("* END")',iostat=iostat)         
            IF (iostat/=0) CALL mp_abort(cmd//' write coord')
@@ -337,9 +413,9 @@ PROGRAM cp2k_shell
 CONTAINS
 
   SUBROUTINE my_assert(tst,msg,failure)
-    LOGICAL, INTENT(in)                       :: tst
-    CHARACTER(len=*), INTENT(in)              :: msg
-    LOGICAL, INTENT(inout)                    :: failure
+    LOGICAL, INTENT(in)                      :: tst
+    CHARACTER(len=*), INTENT(in)             :: msg
+    LOGICAL, INTENT(inout)                   :: failure
 
     IF (.not.tst) THEN
        IF (harsh) CALL mp_abort(msg)
@@ -351,11 +427,11 @@ CONTAINS
   END SUBROUTINE my_assert
 
   FUNCTION parse_env_id(str,startI,default_val) RESULT(res)
-    CHARACTER(len=*), INTENT(in)              :: str
-    INTEGER, INTENT(in)                       :: startI,default_val
-    INTEGER                                   :: res
+    CHARACTER(len=*), INTENT(in)             :: str
+    INTEGER, INTENT(in)                      :: startI, default_val
+    INTEGER                                  :: res
 
-    INTEGER                                   :: pos,iostat
+    INTEGER                                  :: iostat, pos
 
     res=default_val
     pos=startI
@@ -371,5 +447,55 @@ CONTAINS
        END IF
     END IF
   END FUNCTION parse_env_id
+
+  FUNCTION ll(str) RESULT(res)
+    CHARACTER(len=*), INTENT(in)             :: str
+    CHARACTER(len=80)                        :: res
+
+    res=str
+  END FUNCTION
+ 
+ SUBROUTINE print_v_info(unit)
+    INTEGER, INTENT(in)                      :: unit
+
+    CHARACTER(len=200)                       :: cwd
+    CHARACTER(len=80)                        :: dev_flag, host_name, user_name
+    INTEGER                                  :: strend, strstart
+
+    CALL m_getcwd(cwd)
+    CALL m_getpid(pid)
+    CALL m_getlog(user_name)
+    CALL m_hostnm(host_name)
+    dev_flag = ""
+    IF (id_cp2k_version==id_development_version) dev_flag=" (Development Version)"
+    WRITE (UNIT=unit,FMT="(A,A)")&
+         " PROGRAM STARTED ON ",TRIM(host_name)
+    WRITE (UNIT=unit,FMT="(A,A)")&
+         " PROGRAM STARTED BY ",TRIM(user_name)
+    WRITE (UNIT=unit,FMT="(A,i10)")&
+         " PROGRAM PROCESS ID ",pid
+    WRITE (UNIT=unit,FMT="(A,A)")&
+         " PROGRAM STARTED IN ",TRIM(cwd)
+    WRITE (UNIT=unit,FMT="(/,T2,A,T31,A50)")&
+         "CP2K| version string: ",&
+         ADJUSTR(TRIM(cp2k_version)//TRIM(dev_flag))
+    WRITE (UNIT=unit,FMT="(T2,A,T41,A40)")&
+         "CP2K| is freely available from ",&
+         ADJUSTR(TRIM(cp2k_home))
+    WRITE (UNIT=unit,FMT="(T2,A,T31,A50)")&
+         "CP2K| Program compiled at",&
+         ADJUSTR(compile_date(1:MIN(50,LEN(compile_date))))
+    WRITE (UNIT=unit,FMT="(T2,A,T31,A50)")&
+         "CP2K| Program compiled on",&
+         ADJUSTR(compile_host(1:MIN(50,LEN(compile_host))))
+    WRITE (UNIT=unit,FMT="(T2,A,T31,A50)")&
+         "CP2K| Program compiled for",&
+         ADJUSTR(compile_arch(1:MIN(50,LEN(compile_arch))))
+    strend=MAX(1,LEN(compile_lastcvs)-2)
+    strstart=MAX(2,strend-50)
+    WRITE (UNIT=unit,FMT="(T2,A,T31,A50)")&
+         "CP2K| Last CVS entry",&
+         ADJUSTR(compile_lastcvs(strstart:strend))
+ END SUBROUTINE
 
 END PROGRAM cp2k_shell
