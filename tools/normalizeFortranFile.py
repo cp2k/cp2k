@@ -183,12 +183,28 @@ def parseRoutine(inFile):
             routine['preDeclComments'].append("".join(lines))
         elif comments:
             routine['declComments'].append(comments)
+    includeRe=re.compile(r"#? *include +[\"'](?P<file>.+)[\"'] *$",re.IGNORECASE)
     while len(lines)>0:
         if endRe.match(jline):
             routine['end']=lines
             break
         routine['strippedCore'].append(jline)
         routine['core'].append("".join(lines))
+        m=includeRe.match(lines[0])
+        if m:
+            try:
+                subF=file(m.group('file'))
+                while 1:
+                    (subjline,subcomments,sublines)=readFortranLine(inFile)
+                    if not sublines:
+                        break
+                    routine['strippedCore'].append(subjline)
+                subF.close()
+            except:
+                import traceback
+                print "error trying to follow include ",m.group('file')
+                print "warning this might lead to the removal of used variables"
+                traceback.print_exc()
         (jline,comments,lines)=readFortranLine(inFile)
     return routine
 
@@ -303,7 +319,7 @@ def writeInCols(dLine,indentCol,maxCol,indentAtt,file):
     The '&' of the continuation line is at maxCol.
     indentAtt is the actual intent, and the new indent is returned"""
     strRe=re.compile(r"('[^'\n]*'|\"[^\"\n]*\")")
-    nonWordRe=re.compile(r"(|\(/|/\)|[^-+a-zA-Z0-9_.])")
+    nonWordRe=re.compile(r"(\(/|/\)|[^-+a-zA-Z0-9_.])")
     maxSize=maxCol-indentCol-1
     tol=min(maxSize/6,6)+indentCol
     for fragment in dLine:
@@ -818,7 +834,7 @@ def rewriteFortranFile(inFile,outFile,logFile=sys.stdout,orig_filename=None):
     """rewrites the use statements and declarations of inFile to outFile.
     It sorts them and removes the repetitions."""
     import os.path
-    moduleRe=re.compile(r" *module (?P<moduleName>[a-zA-Z_][a-zA-Z_0-9]*) *(?:!.*)?$",
+    moduleRe=re.compile(r" *(?:module|program) (?P<moduleName>[a-zA-Z_][a-zA-Z_0-9]*) *(?:!.*)?$",
                         flags=re.IGNORECASE)
     commonUsesIncludeFilepath=os.path.join(
         os.path.split(os.path.abspath(inFile.name))[0],"cp_common_uses.h")
