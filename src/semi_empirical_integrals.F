@@ -29,6 +29,7 @@ MODULE semi_empirical_integrals
                                              do_method_pm3,&
                                              do_method_pm6
   USE kinds,                           ONLY: dp
+  USE physcon,                         ONLY: bohr, evolt
   USE semi_empirical_types,            ONLY: semi_empirical_type
 #include "cp_common_uses.h"
 
@@ -603,7 +604,7 @@ CONTAINS
       csp1, csp2, css1, css2, dai, daj, dbi, dbj, pai, paj, pbi, pbj, qcorr, &
       rij, scale, ssss, xab, xx11, xx21, xx22, xx31, xx32, xx33, yy11, yy21, &
       yy22, yyzz11, yyzz21, yyzz22, zaf, zbf, zz, zz11, zz21, zz22, zz31, &
-      zz32, zz33
+      zz32, zz33, rija
     REAL(dp), DIMENSION(3)                   :: x, y, z
     REAL(dp), DIMENSION(4)                   :: fni1, fni2, fni3, fnj1, fnj2, &
                                                 fnj3
@@ -800,28 +801,36 @@ CONTAINS
 !
 ! CHECK UNITS of FIXED PARAMETERS!!!!!!!!!!!
 !
+           enuc = 0._dp
+           rija = rij/bohr
            ! PM6 core-core terms
            xab = sepi%xab(sepj%z)
            aab = sepi%aab(sepj%z)
            scale = sepi%zeff*sepj%zeff*ssss
-           IF ( (sepi%z == 1 .AND. (sepj%z == 7 .OR. sepj%z == 8)) .OR. &
-                (sepj%z == 1 .AND. (sepi%z == 7 .OR. sepi%z == 8)) ) THEN
+           IF ( (sepi%z == 1 .AND. (sepj%z == 6 .OR. sepj%z == 7 .OR. sepj%z == 8)) .OR. &
+                (sepj%z == 1 .AND. (sepi%z == 6 .OR. sepi%z == 7 .OR. sepi%z == 8)) ) THEN
              ! Special Case O-H or N-H
-             enuc=enuc+scale*(1._dp+xab*EXP(-aab*rij*rij))
+             enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*rij*rij))
            ELSEIF ( sepi%z == 6 .AND. sepj%z == 6 ) THEN
              ! Special Case C-C
-             enuc=enuc+scale*(1._dp+xab*EXP(-(aab*rij+0.0003_dp*rij**6))+9.28_dp*EXP(-5.98*rij))
+             enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*(rij+bohr*0.0003_dp*rija**6)) &
+                      +9.28_dp/evolt*EXP(-5.98*rija))
            ELSEIF ( (sepi%z == 8 .AND. sepj%z == 14) .OR. &
                     (sepj%z == 8 .AND. sepi%z == 14) ) THEN
              ! Special Case Si-O
-             enuc=enuc+scale*(1._dp+xab*EXP(-(aab*rij+0.0003_dp*rij**6)) &
-                                   -0.0007_dp*EXP(-(rij-2.9_dp)**2) )
+             enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*(rij+bohr*0.0003_dp*rija**6)) &
+                                   -0.0007_dp/evolt*EXP(-(rija-2.9_dp)**2) )
            ELSE
              ! General Case
-             enuc=enuc+scale*(1._dp+xab*EXP(-(aab*rij+0.0003_dp*rij**6)))
+             ! Factor of 2 found by experiment 
+             enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*(rij+bohr*0.0003_dp*rija**6)))
            END IF
+           ! General correction term a*exp(-b*(rij-c)^2)
+           enuc=enuc+(sepi%a*EXP(-sepi%b*(rij-sepi%c)**2))*sepi%zeff*sepj%zeff/rij
+           enuc=enuc+(sepj%a*EXP(-sepj%b*(rij-sepj%c)**2))*sepi%zeff*sepj%zeff/rij
            ! Hard core repulsion
-           enuc=enuc+1.e-8_dp*( (sepi%zeff**(1._dp/3._dp) + sepj%zeff**(1._dp/3._dp))/rij )**12
+           enuc=enuc+1.e-8_dp/evolt &
+              * ( (sepi%zeff**(1._dp/3._dp) + sepj%zeff**(1._dp/3._dp))/rija )**12
    
          END IF
  

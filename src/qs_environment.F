@@ -154,7 +154,6 @@ MODULE qs_environment
                                              scf_c_release,&
                                              scf_c_write_parameters,&
                                              scf_control_type
-  USE semi_empirical_parameters,       ONLY: init_pm6_pair_params
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -709,9 +708,6 @@ CONTAINS
           ! set new kind radius
           CALL init_se_nlradius(se_control,cell,atomic_kind_set,subsys_section,error)
        END SELECT
-       IF ( dft_control%qs_control%method_id == do_method_pm6 ) THEN
-         CALL init_pm6_pair_params
-       END IF
        ! check for Ewald
        IF ( se_control%do_ewald ) THEN
           CALL ewald_env_create(ewald_env,para_env,error=error)

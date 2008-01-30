@@ -83,7 +83,6 @@ MODULE semi_empirical_parameters
             pm6_default_parameter,&
             pcharge_default_parameter,&
             get_pm6_basis,&
-            init_pm6_pair_params,&
             slater_exponents,srules
 
 
@@ -2130,9 +2129,12 @@ CONTAINS
     sep%gss = 0._dp; sep%gsp = 0._dp; sep%gpp = 0._dp; sep%gp2 = 0._dp
     sep%gsd = 0._dp; sep%gpd = 0._dp; sep%gdd = 0._dp
     sep%hsp = 0._dp
+    sep%f0sd = 0._dp; sep%g2sd = 0._dp
     sep%dd = 0._dp; sep%qq = 0._dp; sep%am = 0._dp; sep%ad = 0._dp; sep%aq = 0._dp
     sep%fn1 = 0._dp; sep%fn2 = 0._dp; sep%fn3 = 0._dp
     sep%bfn1 = 0._dp; sep%bfn2 = 0._dp; sep%bfn3 = 0._dp
+    sep%a = 0._dp; sep%b = 0._dp; sep%c = 0._dp
+    sep%rho = 0._dp
 
     SELECT CASE (z)
     CASE DEFAULT
@@ -2142,6 +2144,7 @@ CONTAINS
        sep%defined = .TRUE.
     CASE(1)
        ! Hydrogen
+       sep%defined = .TRUE.
        sep%uss         =  -11.246958_dp
        sep%beta(0)     =   -8.352984_dp
        sep%sto_exponents(0) =    1.268641_dp
@@ -2151,6 +2154,7 @@ CONTAINS
        sep%c           =    1.786011_dp
     CASE(2)
        ! Helium
+       sep%defined = .TRUE.
        sep%uss         =  -31.770969_dp
        sep%upp         =   -5.856352_dp
        sep%beta(0)     =  -58.903774_dp
@@ -2164,6 +2168,7 @@ CONTAINS
        sep%hsp         =    0.299954_dp
     CASE(3)
        ! Lithium
+       sep%defined = .TRUE.
        sep%uss         =   -4.709912_dp
        sep%upp         =   -2.722581_dp
        sep%beta(0)     =   -2.283946_dp
@@ -2177,6 +2182,7 @@ CONTAINS
        sep%hsp         =    1.641886_dp
     CASE(4)
        ! Beryllium
+       sep%defined = .TRUE.
        sep%uss         =  -16.360315_dp
        sep%upp         =  -16.339216_dp
        sep%beta(0)     =   -3.199549_dp
@@ -2193,6 +2199,7 @@ CONTAINS
        sep%c           =    1.785591_dp
     CASE(5)
        ! Boron
+       sep%defined = .TRUE.
        sep%uss         =  -25.967679_dp
        sep%upp         =  -19.115864_dp
        sep%beta(0)     =   -4.959706_dp
@@ -2206,6 +2213,7 @@ CONTAINS
        sep%hsp         =    1.252845_dp
     CASE(6)
        ! Carbon
+       sep%defined = .TRUE.
        sep%uss         =  -51.089653_dp
        sep%upp         =  -39.937920_dp
        sep%beta(0)     =  -15.385236_dp
@@ -2222,6 +2230,7 @@ CONTAINS
        sep%c           =    1.333959_dp
     CASE(7)
        ! Nitrogen
+       sep%defined = .TRUE.
        sep%uss         =  -57.784823_dp
        sep%upp         =  -49.893036_dp
        sep%beta(0)     =  -17.979377_dp
@@ -2238,6 +2247,7 @@ CONTAINS
        sep%c           =    1.704857_dp
     CASE(8)
        ! Oxygen
+       sep%defined = .TRUE.
        sep%uss         =  -91.678761_dp
        sep%upp         =  -70.460949_dp
        sep%beta(0)     =  -65.635137_dp
@@ -2254,6 +2264,7 @@ CONTAINS
        sep%c           =    1.896435_dp
     CASE(9)
        ! Fluorine
+       sep%defined = .TRUE.
        sep%uss         = -140.225626_dp
        sep%upp         =  -98.778044_dp
        sep%beta(0)     =  -69.922593_dp
@@ -2270,6 +2281,7 @@ CONTAINS
        sep%c           =    1.847724_dp
     CASE(10)
        ! Neon
+       sep%defined = .TRUE.
        sep%uss         =   -2.978729_dp
        sep%upp         =  -85.441118_dp
        sep%beta(0)     =  -69.793475_dp
@@ -2283,6 +2295,7 @@ CONTAINS
        sep%hsp         =    1.779280_dp
     CASE(11)
        ! Sodium
+       sep%defined = .TRUE.
        sep%uss         =   -4.537153_dp
        sep%upp         =   -2.433015_dp
        sep%beta(0)     =    0.244853_dp
@@ -2299,6 +2312,7 @@ CONTAINS
        sep%c           =    1.271202_dp
     CASE(12)
        ! Magnesium
+       sep%defined = .TRUE.
        sep%uss         =  -14.574226_dp
        sep%upp         =   -7.583850_dp
        sep%beta(0)     =   -9.604932_dp
@@ -2312,6 +2326,7 @@ CONTAINS
        sep%hsp         =    0.877379_dp
     CASE(13)
        ! Aluminium
+       sep%defined = .TRUE.
        sep%uss         =  -24.546778_dp
        sep%upp         =  -20.104434_dp
        sep%udd         =    8.004394_dp
@@ -2334,6 +2349,7 @@ CONTAINS
        sep%c           =    0.659101_dp
     CASE(14)
        ! Silicon
+       sep%defined = .TRUE.
        sep%uss         =  -27.358058_dp
        sep%upp         =  -20.490578_dp
        sep%udd         =  -22.751900_dp
@@ -2356,6 +2372,7 @@ CONTAINS
        sep%c           =    1.185245_dp
     CASE(15)
        ! Phosphorus
+       sep%defined = .TRUE.
        sep%uss         =  -48.729905_dp
        sep%upp         =  -40.354689_dp
        sep%udd         =   -7.349246_dp
@@ -2378,6 +2395,7 @@ CONTAINS
        sep%c           =    2.296737_dp
     CASE(16)
        ! Sulfur
+       sep%defined = .TRUE.
        sep%uss         =  -47.530706_dp
        sep%upp         =  -39.191045_dp
        sep%udd         =  -46.306944_dp
@@ -2400,6 +2418,7 @@ CONTAINS
        sep%c           =    2.082618_dp
     CASE(17)
        ! Chlorine
+       sep%defined = .TRUE.
        sep%uss         =  -61.389930_dp
        sep%upp         =  -54.482801_dp
        sep%udd         =  -38.258155_dp
@@ -2422,6 +2441,7 @@ CONTAINS
        sep%c           =    2.544635_dp
     CASE(18)
        ! Argon
+       sep%defined = .TRUE.
        sep%uss         =   -7.797931_dp
        sep%upp         =  -83.211487_dp
        sep%beta(0)     =   -8.839842_dp
@@ -2435,6 +2455,7 @@ CONTAINS
        sep%hsp         =    4.574549_dp
     CASE(19)
        ! Potassium
+       sep%defined = .TRUE.
        sep%uss         =   -3.801108_dp
        sep%upp         =   -3.339656_dp
        sep%beta(0)     =   -8.755195_dp
@@ -2451,6 +2472,7 @@ CONTAINS
        sep%c           =    2.047539_dp
     CASE(20)
        ! Calcium
+       sep%defined = .TRUE.
        sep%uss         =  -10.770058_dp
        sep%upp         =   -9.754177_dp
        sep%beta(0)     =   -4.343881_dp
@@ -2467,6 +2489,7 @@ CONTAINS
        sep%c           =    2.329051_dp 
     CASE(21)
        ! Scandium
+       sep%defined = .TRUE.
        sep%uss         =  -15.544461_dp
        sep%upp         =  -18.646295_dp
        sep%udd         =  -16.069444_dp
@@ -2489,6 +2512,7 @@ CONTAINS
        sep%g2sd        =    5.380136_dp
     CASE(22)
        ! Titanium
+       sep%defined = .TRUE.
        sep%uss         =  -25.507973_dp
        sep%upp         =  -17.260909_dp
        sep%udd         =  -23.809486_dp
@@ -2510,6 +2534,7 @@ CONTAINS
        sep%g2sd        =    3.396235_dp
     CASE(23)
        ! Vanadium
+       sep%defined = .TRUE.
        sep%uss         =  -32.162276_dp
        sep%upp         =  -21.572501_dp
        sep%udd         =  -34.506245_dp
@@ -2531,6 +2556,7 @@ CONTAINS
        sep%g2sd        =    1.831407_dp
     CASE(24)
        ! Chromium
+       sep%defined = .TRUE.
        sep%uss         =  -34.864339_dp
        sep%upp         =  -26.978615_dp
        sep%udd         =  -54.431036_dp
@@ -2552,6 +2578,7 @@ CONTAINS
        sep%g2sd        =    2.000300_dp
     CASE(25)
        ! Manganese
+       sep%defined = .TRUE.
        sep%uss         =  -51.460000_dp
        sep%upp         =  -37.543990_dp
        sep%udd         =  -47.655370_dp
@@ -2573,6 +2600,7 @@ CONTAINS
        sep%g2sd        =    1.105330_dp
     CASE(26)
        ! Iron
+       sep%defined = .TRUE.
        sep%uss         =  -70.515047_dp
        sep%upp         =  -62.963069_dp
        sep%udd         = -103.631790_dp
@@ -2595,6 +2623,7 @@ CONTAINS
        sep%g2sd        =    1.601345_dp
     CASE(27)
        ! Cobalt
+       sep%defined = .TRUE.
        sep%uss         =  -21.039413_dp
        sep%upp         =   10.000000_dp
        sep%udd         =  -28.068971_dp
@@ -2616,6 +2645,7 @@ CONTAINS
        sep%g2sd        =    1.680225_dp
     CASE(28)
        ! Nickel
+       sep%defined = .TRUE.
        sep%uss         =  -47.620247_dp
        sep%upp         =  -32.878408_dp
        sep%udd         =  -93.026395_dp
@@ -2638,6 +2668,7 @@ CONTAINS
        sep%g2sd        =    1.880502_dp
     CASE(29)
        ! Copper
+       sep%defined = .TRUE.
        sep%uss         =  -97.002205_dp
        sep%upp         =   -1.000000_dp
        sep%udd         = -110.442592_dp
@@ -2659,6 +2690,7 @@ CONTAINS
        sep%g2sd        =    9.847577_dp
     CASE(30)
        ! Zinc
+       sep%defined = .TRUE.
        sep%uss         =  -18.040862_dp
        sep%upp         =   -7.834895_dp
        sep%beta(0)     =  -13.276583_dp
@@ -2672,6 +2704,7 @@ CONTAINS
        sep%hsp         =    0.662036_dp
     CASE(31)
        ! Gallium
+       sep%defined = .TRUE.
        sep%uss         =  -30.600226_dp
        sep%upp         =  -21.032425_dp
        sep%beta(0)     =  -10.808320_dp
@@ -2685,6 +2718,7 @@ CONTAINS
        sep%hsp         =    1.295974_dp
     CASE(32)
        ! Germanium
+       sep%defined = .TRUE.
        sep%uss         =  -32.747338_dp
        sep%upp         =  -24.709016_dp
        sep%beta(0)     =  -14.854297_dp
@@ -2698,6 +2732,7 @@ CONTAINS
        sep%hsp         =    0.290742_dp
     CASE(33)
        ! Arsenic
+       sep%defined = .TRUE.
        sep%uss         =  -37.956965_dp
        sep%upp         =  -38.453701_dp
        sep%udd         =  -30.282658_dp
@@ -2717,6 +2752,7 @@ CONTAINS
        sep%hsp         =    0.280662_dp
     CASE(34)
        ! Selenium
+       sep%defined = .TRUE.
        sep%uss         =  -32.671088_dp
        sep%upp         =  -32.522220_dp
        sep%beta(0)     =    2.636001_dp
@@ -2730,6 +2766,7 @@ CONTAINS
        sep%hsp         =    3.095789_dp
     CASE(35)
        ! Bromine
+       sep%defined = .TRUE.
        sep%uss         =  -45.834364_dp
        sep%upp         =  -50.293675_dp
        sep%udd         =    7.086738_dp
@@ -2752,6 +2789,7 @@ CONTAINS
        sep%c           =    2.895153_dp
     CASE(36)
        ! Krypton
+       sep%defined = .TRUE.
        sep%uss         =    8.535384_dp
        sep%upp         =  -80.484321_dp
        sep%beta(0)     =   -2.727088_dp
@@ -2765,6 +2803,7 @@ CONTAINS
        sep%hsp         =    0.299867_dp
     CASE(37)
        ! Rubidium
+       sep%defined = .TRUE.
        sep%uss         =   -3.636505_dp
        sep%upp         =   -2.500671_dp
        sep%beta(0)     =    9.998744_dp
@@ -2778,6 +2817,7 @@ CONTAINS
        sep%hsp         =    3.602834_dp
     CASE(38)
        ! Strontium
+       sep%defined = .TRUE.
        sep%uss         =  -10.427671_dp
        sep%upp         =   -9.943751_dp
        sep%beta(0)     =   -6.253108_dp
@@ -2794,6 +2834,7 @@ CONTAINS
        sep%c           =    3.011964_dp
     CASE(39)
        ! Yttrium
+       sep%defined = .TRUE.
        sep%uss         =  -14.247809_dp
        sep%upp         =  -14.817140_dp
        sep%udd         =  -16.394302_dp
@@ -2816,6 +2857,7 @@ CONTAINS
        sep%g2sd        =    5.016364_dp
     CASE(40)
        ! Zirconium
+       sep%defined = .TRUE.
        sep%uss         =  -20.008884_dp
        sep%upp         =  -14.559692_dp
        sep%udd         =  -21.302657_dp
@@ -2837,6 +2879,7 @@ CONTAINS
        sep%g2sd        =    2.943652_dp
     CASE(41)
        ! Niobium
+       sep%defined = .TRUE.
        sep%uss         =  -31.269298_dp
        sep%upp         =  -20.151277_dp
        sep%udd         =  -35.893116_dp
@@ -2858,6 +2901,7 @@ CONTAINS
        sep%g2sd        =    1.065577_dp
     CASE(42)
        ! Molybdenum
+       sep%defined = .TRUE.
        sep%uss         =  -53.467728_dp
        sep%upp         =  -35.291951_dp
        sep%udd         =  -55.836977_dp
@@ -2879,6 +2923,7 @@ CONTAINS
        sep%g2sd        =    1.216752_dp
     CASE(43)
        ! Technetium
+       sep%defined = .TRUE.
        sep%uss         =  -41.850292_dp
        sep%upp         =  -34.910293_dp
        sep%udd         =  -45.530412_dp
@@ -2900,6 +2945,7 @@ CONTAINS
        sep%g2sd        =    1.106875_dp
     CASE(44)
        ! Ruthenium
+       sep%defined = .TRUE.
        sep%uss         =  -44.901521_dp
        sep%upp         =  -41.424409_dp
        sep%udd         =  -37.934514_dp
@@ -2921,6 +2967,7 @@ CONTAINS
        sep%g2sd        =    5.859738_dp
     CASE(45)
        ! Rhodium
+       sep%defined = .TRUE.
        sep%uss         =  -20.513756_dp
        sep%upp         =  -40.045431_dp
        sep%udd         =  -35.818492_dp
@@ -2942,6 +2989,7 @@ CONTAINS
        sep%g2sd        =    1.851571_dp
     CASE(46)
        ! Palladium
+       sep%defined = .TRUE.
        sep%uss         =  -76.140196_dp
        sep%upp         =  -21.073362_dp
        sep%udd         =  -85.325301_dp
@@ -2963,6 +3011,7 @@ CONTAINS
        sep%g2sd        =    2.613148_dp
     CASE(47)
        ! Silver
+       sep%defined = .TRUE.
        sep%uss         =  -25.484137_dp
        sep%upp         =  -36.116023_dp
        sep%udd         =  -35.668272_dp
@@ -2984,6 +3033,7 @@ CONTAINS
        sep%g2sd        =    1.071901_dp
     CASE(48)
        ! Cadmium
+       sep%defined = .TRUE.
        sep%uss         =  -14.645792_dp
        sep%upp         =   -9.318664_dp
        sep%beta(0)     =  -11.613183_dp
@@ -2997,6 +3047,7 @@ CONTAINS
        sep%hsp         =    0.825192_dp
     CASE(49)
        ! Indium
+       sep%defined = .TRUE.
        sep%uss         =  -28.339246_dp
        sep%upp         =  -23.373875_dp
        sep%beta(0)     =   -1.982376_dp
@@ -3010,6 +3061,7 @@ CONTAINS
        sep%hsp         =    3.500299_dp
     CASE(50)
        ! Tin
+       sep%defined = .TRUE.
        sep%uss         =  -29.888217_dp
        sep%upp         =  -22.156954_dp
        sep%beta(0)     =   -8.621087_dp
@@ -3026,6 +3078,7 @@ CONTAINS
        sep%c           =    1.180218_dp
     CASE(51)
        ! Antimony
+       sep%defined = .TRUE.
        sep%uss         =  -41.688879_dp
        sep%upp         =  -39.541180_dp
        sep%udd         =   -6.581663_dp
@@ -3045,6 +3098,7 @@ CONTAINS
        sep%hsp         =    0.779112_dp
     CASE(52)
        ! Tellurium
+       sep%defined = .TRUE.
        sep%uss         = -114.733316_dp
        sep%upp         =  -50.096389_dp
        sep%beta(0)     =  -70.001062_dp
@@ -3058,6 +3112,7 @@ CONTAINS
        sep%hsp         =    5.000826_dp
     CASE(53)
        ! Iodine
+       sep%defined = .TRUE.
        sep%uss         =  -59.973232_dp
        sep%upp         =  -56.459835_dp
        sep%udd         =  -28.822603_dp
@@ -3080,6 +3135,7 @@ CONTAINS
        sep%c           =    1.223844_dp
     CASE(54)
        ! Xenon
+       sep%defined = .TRUE.
        sep%uss         =  -18.270227_dp
        sep%upp         = -167.163063_dp
        sep%beta(0)     =   -3.980622_dp
@@ -3093,6 +3149,7 @@ CONTAINS
        sep%hsp         =    4.418843_dp
     CASE(55)
        ! Cesium
+       sep%defined = .TRUE.
        sep%uss         =   -3.748609_dp
        sep%upp         =   -2.348109_dp
        sep%beta(0)     =    2.287838_dp
@@ -3106,6 +3163,7 @@ CONTAINS
        sep%hsp         =    1.026928_dp
     CASE(56)
        ! Barium
+       sep%defined = .TRUE.
        sep%uss         =   -9.306985_dp
        sep%upp         =   -8.826713_dp
        sep%beta(0)     =   10.003125_dp
@@ -3119,6 +3177,7 @@ CONTAINS
        sep%hsp         =    0.929429_dp
     CASE(57)
        ! Lanthanum
+       sep%defined = .TRUE.
        sep%uss         =  -19.641953_dp
        sep%upp         =  -22.059431_dp
        sep%udd         =  -22.638986_dp
@@ -3142,6 +3201,7 @@ CONTAINS
     CASE(58:70)
     CASE(71)
        ! Lutetium
+       sep%defined = .TRUE.
        sep%uss         =  -15.954994_dp
        sep%upp         =  -11.606213_dp
        sep%udd         =  -13.050056_dp
@@ -3164,6 +3224,7 @@ CONTAINS
        sep%g2sd        =    1.000946_dp
     CASE(72)
        ! Hafnium
+       sep%defined = .TRUE.
        sep%uss         =  -22.375140_dp
        sep%upp         =  -13.081670_dp
        sep%udd         =  -20.637741_dp
@@ -3185,6 +3246,7 @@ CONTAINS
        sep%g2sd        =    4.386101_dp
     CASE(73)
        ! Tantalum
+       sep%defined = .TRUE.
        sep%uss         =  -39.009984_dp
        sep%upp         =    1.163975_dp
        sep%udd         =  -43.266315_dp
@@ -3206,6 +3268,7 @@ CONTAINS
        sep%g2sd        =    2.074254_dp
     CASE(74)
        ! Tungsten
+       sep%defined = .TRUE.
        sep%uss         =  -44.524950_dp
        sep%upp         =  -40.011500_dp
        sep%udd         =  -46.490410_dp
@@ -3227,6 +3290,7 @@ CONTAINS
        sep%g2sd        =    1.684940_dp
     CASE(75)
        ! Rhenium
+       sep%defined = .TRUE.
        sep%uss         =  -41.291342_dp
        sep%upp         =  -35.089592_dp
        sep%udd         =  -44.178985_dp
@@ -3248,6 +3312,7 @@ CONTAINS
        sep%g2sd        =    2.376279_dp
     CASE(76)
        ! Osmium
+       sep%defined = .TRUE.
        sep%uss         =  -26.434080_dp
        sep%upp         =  -48.739500_dp
        sep%udd         =  -55.837880_dp
@@ -3269,6 +3334,7 @@ CONTAINS
        sep%g2sd        =    1.392130_dp
     CASE(77)
        ! Iridium
+       sep%defined = .TRUE.
        sep%uss         =  -29.703974_dp
        sep%upp         =  -38.210924_dp
        sep%udd         =  -32.538202_dp
@@ -3290,6 +3356,7 @@ CONTAINS
        sep%g2sd        =    2.996029_dp
     CASE(78)
        ! Platinum
+       sep%defined = .TRUE.
        sep%uss         =  -73.516173_dp
        sep%upp         =  -68.320056_dp
        sep%udd         =  -76.598873_dp
@@ -3311,6 +3378,7 @@ CONTAINS
        sep%g2sd        =    4.484183_dp
     CASE(79)
        ! Gold
+       sep%defined = .TRUE.
        sep%uss         =  -95.041846_dp
        sep%upp         =  -63.890158_dp
        sep%udd         =  -88.066087_dp
@@ -3332,6 +3400,7 @@ CONTAINS
        sep%g2sd        =    4.915625_dp
     CASE(80)
        ! Mercury
+       sep%defined = .TRUE.
        sep%uss         =  -17.608732_dp
        sep%upp         =  -18.369417_dp
        sep%beta(0)     =   -3.045239_dp
@@ -3345,6 +3414,7 @@ CONTAINS
        sep%hsp         =    0.926128_dp
     CASE(81)
        ! Thallium
+       sep%defined = .TRUE.
        sep%uss         =  -29.518621_dp
        sep%upp         =  -29.826907_dp
        sep%beta(0)     =   -7.230170_dp
@@ -3358,6 +3428,7 @@ CONTAINS
        sep%hsp         =    0.293760_dp
     CASE(82)
        ! Lead
+       sep%defined = .TRUE.
        sep%uss         =  -35.038145_dp
        sep%upp         =  -25.413401_dp
        sep%beta(0)     =   -8.323792_dp
@@ -3374,6 +3445,7 @@ CONTAINS
        sep%c           =    1.613682_dp
     CASE(83)
        ! Bismuth
+       sep%defined = .TRUE.
        sep%uss         =  -42.409177_dp
        sep%upp         =  -36.393746_dp
        sep%beta(0)     =  -34.951578_dp
@@ -3387,6 +3459,20 @@ CONTAINS
        sep%hsp         =    0.295606_dp
     CASE(84:106)
     END SELECT
+    CALL calpar(z,sep)
+
+    CALL init_pm6_pair_params()
+
+    sep%aab(0:nelem) = aab_pm6(z,0:nelem)/bohr
+    sep%xab(0:nelem) = xab_pm6(z,0:nelem)
+    ! We seem to have also C-H as a special case
+    IF (z == 1) sep%aab(6)= sep%aab(6)/bohr
+    IF (z == 1) sep%aab(7)= sep%aab(7)/bohr
+    IF (z == 1) sep%aab(8)= sep%aab(8)/bohr
+    IF (z == 6) sep%aab(1)= sep%aab(1)/bohr
+    IF (z == 7) sep%aab(1)= sep%aab(1)/bohr
+    IF (z == 8) sep%aab(1)= sep%aab(1)/bohr
+
     sep%beta = sep%beta/evolt
     sep%uss = sep%uss/evolt; sep%upp = sep%upp/evolt; sep%udd = sep%udd/evolt
     sep%alp = sep%alp/bohr
@@ -3394,7 +3480,9 @@ CONTAINS
     sep%gss = sep%gss/evolt; sep%gsp = sep%gsp/evolt; sep%gpp = sep%gpp/evolt; sep%gp2 = sep%gp2/evolt 
     sep%gsd = sep%gsd/evolt; sep%gpd = sep%gpd/evolt; sep%gdd = sep%gdd/evolt
     sep%hsp = sep%hsp/evolt
+    sep%f0sd = sep%f0sd/evolt; sep%g2sd = sep%g2sd/evolt
     sep%fn1 = sep%fn1*bohr/evolt; sep%fn2 = sep%fn2/bohr/bohr; sep%fn3 = sep%fn3*bohr
+    sep%a = sep%a*bohr/evolt; sep%b = sep%b/bohr/bohr; sep%c = sep%c*bohr
 
   END SUBROUTINE pm6_default_parameter
 
@@ -3796,6 +3884,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_pm6_basis', &
       routineP = moduleN//':'//routineN
 
+    ! This was once nicely formatted and ordered, automatic prettify?
+
     INTEGER, DIMENSION(0:nelem) :: nqd = (/                                -1,&
       -1,                                                               -1, -1&
       ,-1,                                             -1,-1,-1,-1,-1,-1, -1,-&
@@ -3893,6 +3983,9 @@ CONTAINS
 
     INTEGER                                  :: i, j
     REAL(dp)                                 :: aab, xab
+    INTEGER, SAVE                            :: init=0
+
+    IF (init /= 0) RETURN
 
       xab_pm6 = 0._dp
       aab_pm6 = 0._dp
@@ -3912,7 +4005,7 @@ CONTAINS
       xab_pm6(  5,  3)=        7.8860177994_dp
       xab_pm6(  5,  4)=        1.1517920494_dp
       xab_pm6(  5,  5)=        3.5936191082_dp
-      xab_pm6(  6,  1)=        0.2165060043_dp
+      xab_pm6(  6,  1)=        0.2165060000_dp
       xab_pm6(  6,  2)=        3.2139708996_dp
       xab_pm6(  6,  3)=       16.1800022125_dp
       xab_pm6(  6,  4)=       25.0358791351_dp
@@ -4842,7 +4935,7 @@ CONTAINS
       aab_pm6(  5,  3)=        3.7593970299_dp
       aab_pm6(  5,  4)=        1.8889980316_dp
       aab_pm6(  5,  5)=        3.3186240196_dp
-      aab_pm6(  6,  1)=        1.0278060436_dp
+      aab_pm6(  6,  1)=        1.0278060000_dp
       aab_pm6(  6,  2)=        3.0427050591_dp
       aab_pm6(  6,  3)=        3.2418739796_dp
       aab_pm6(  6,  4)=        4.2128820419_dp
@@ -5766,6 +5859,8 @@ CONTAINS
           aab_pm6(j,i) = aab
         END DO
       END DO
+
+    init = 1
 
   END SUBROUTINE init_pm6_pair_params
 
