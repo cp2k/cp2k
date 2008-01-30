@@ -21,6 +21,8 @@
 MODULE fist_debug
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
@@ -98,7 +100,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ewald_type, group, i, iatom, &
-                                                ir, isos, iw, iwf, natoms
+                                                isos, iw, iwf, natoms
     INTEGER, DIMENSION(2)                    :: dum
     LOGICAL                                  :: use_virial
     REAL(KIND=dp)                            :: delta, energy_numer, &
@@ -146,8 +148,6 @@ CONTAINS
     natoms = SIZE ( particle_set )
     logger=>cp_error_get_logger(error)
     iw = cp_logger_get_default_unit_nr(logger)
-    iwf = 7
-    ir = 5
     IF ( iw > 0 ) THEN
        WRITE ( iw, '( A,A )' ) ' **************************************', &
             '*****************************************'
@@ -241,8 +241,8 @@ CONTAINS
        WRITE ( iw, '( /,A,A )' ) &
             ' THE FORCES ON ALL PARTICLES ', &
             '(FILE=non_bonded)'
-       OPEN (UNIT = iwf, &
-            FILE = 'non_bonded', STATUS = 'REPLACE', ACTION = 'WRITE')
+       CALL open_file(file_name='non_bonded',file_status='unknown',&
+            file_action='write',unit_number=iwf)
        DO iatom = 1, natoms
           WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
           WRITE ( iwf, '( A,T21,3G20.12 )' ) &
@@ -250,7 +250,7 @@ CONTAINS
           WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
                ' F NUM NON-BONDED =', f_numer(:,iatom)
        END DO
-       CLOSE (iwf)
+       CALL close_file(unit_number=iwf)
        ! compute the absolute value of the differences in the forces
        diff = ABS ( ABS (dbg % f_nonbond) - ABS (f_numer) )
        ! find the maximum difference and the relative and absolute errors.
@@ -333,8 +333,8 @@ CONTAINS
        ! write out all particle numbers and forces
        WRITE ( iw, '( /,A )' ) &
             ' THE FORCES ON ALL PARTICLES (FILE=bonds)'
-       OPEN (UNIT = iwf, &
-            FILE = 'bonds', STATUS = 'REPLACE', ACTION = 'WRITE')
+       CALL open_file(file_name='bonds',file_status='unknown',&
+            file_action='write',unit_number=iwf)
        DO iatom = 1, natoms
           WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
           WRITE ( iwf, '( A,T21,3G20.12 )' ) &
@@ -342,7 +342,7 @@ CONTAINS
           WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
                ' F NUM BONDS =', f_numer(:,iatom)
        END DO
-       CLOSE (iwf)
+       CALL close_file(unit_number=iwf)
 
        ! compute the absolute value of the differences in the forces
        diff = ABS ( ABS (dbg % f_bond) - ABS (f_numer) )
@@ -426,8 +426,8 @@ CONTAINS
        ! write out all particle numbers and forces
        WRITE ( iw, '( /,A )' ) &
             'THE FORCES ON ALL PARTICLES (FILE=urey-bradley)'
-       OPEN (UNIT = iwf, &
-            FILE = 'urey-bradley', STATUS = 'REPLACE', ACTION = 'WRITE')
+       CALL open_file(file_name='urey-bradley',file_status='unknown',&
+            file_action='write',unit_number=iwf)
        DO iatom = 1, natoms
           WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
           WRITE ( iwf, '( A,T21,3G20.12 )' ) &
@@ -435,7 +435,7 @@ CONTAINS
           WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
                ' F NUM UREY-BRADLEY =', f_numer(:,iatom)
        END DO
-       CLOSE (iwf)
+       CALL close_file(unit_number=iwf)
 
        ! compute the absolute value of the differences in the forces
        diff = ABS ( ABS (dbg % f_ub) - ABS (f_numer) )
@@ -519,8 +519,8 @@ CONTAINS
        ! write out all particle numbers and forces
        WRITE ( iw, '( /,A )' ) &
             'THE FORCES ON ALL PARTICLES (FILE=onefours)'
-       OPEN (UNIT = iwf, &
-            FILE = 'onefours', STATUS = 'REPLACE', ACTION = 'WRITE')
+       CALL open_file(file_name='onefours',file_status='unknown',&
+            file_action='write',unit_number=iwf)
        DO iatom = 1, natoms
           WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
           WRITE ( iwf, '( A,T21,3G20.12 )' ) &
@@ -528,7 +528,7 @@ CONTAINS
           WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
                ' F NUM ONE-FOUR =', f_numer(:,iatom)
        END DO
-       CLOSE (iwf)
+       CALL close_file(unit_number=iwf)
 
        ! compute the absolute value of the differences in the forces
        diff = ABS ( ABS (dbg % f_onef) - ABS (f_numer) )
@@ -611,7 +611,8 @@ CONTAINS
        ! write out all particle numbers and forces
        WRITE ( iw, '( /,A )' ) &
             ' THE FORCES ON ALL PARTICLES (FILE=bends)'
-       OPEN (UNIT = iwf, FILE = 'bends', STATUS = 'REPLACE', ACTION = 'WRITE')
+       CALL open_file(file_name='bends',file_status='unknown',&
+            file_action='write',unit_number=iwf)
        DO iatom = 1, natoms
           WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
           WRITE ( iwf, '( A,T21,3G20.12 )' ) &
@@ -619,7 +620,7 @@ CONTAINS
           WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
                ' F NUM BENDS =', f_numer(:,iatom)
        END DO
-       CLOSE (iwf)
+       CALL close_file(unit_number=iwf)
 
        ! compute the absolute value of the differences in the forces
        diff = ABS ( ABS (dbg % f_bend) - ABS (f_numer) )
@@ -704,8 +705,8 @@ CONTAINS
        WRITE ( iw, '( /,A,A )' ) &
             ' THE FORCES ON ALL PARTICLES ',&
             '(FILE=torsions)'
-       OPEN (UNIT = iwf, &
-            FILE = 'torsions', STATUS = 'REPLACE', ACTION = 'WRITE')
+       CALL open_file(file_name='torsions',file_status='unknown',&
+            file_action='write',unit_number=iwf)
        DO iatom = 1, natoms
           WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
           WRITE ( iwf, '( A,T21,3G20.12 )' ) ' F ANA TORSION =', &
@@ -713,7 +714,7 @@ CONTAINS
           WRITE ( iwf, '( A,T21,3G20.12,/ )' ) ' F NUM TORSION =', &
                f_numer(:,iatom)
        END DO
-       CLOSE (iwf)
+       CALL close_file(unit_number=iwf)
 
        ! compute the absolute value of the differences in the forces
        diff = ABS ( ABS (dbg % f_torsion) - ABS (f_numer) )
@@ -798,8 +799,8 @@ CONTAINS
        WRITE ( iw, '( /,A,A )' ) &
             ' THE FORCES ON ALL PARTICLES ',&
             '(FILE=imptors)'
-       OPEN (UNIT = iwf, &
-            FILE = 'imptors', STATUS = 'REPLACE', ACTION = 'WRITE')
+       CALL open_file(file_name='imptors',file_status='unknown',&
+            file_action='write',unit_number=iwf)
        DO iatom = 1, natoms
           WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
           WRITE ( iwf, '( A,T21,3G20.12 )' ) ' F ANA IMP TORSION =', &
@@ -807,7 +808,7 @@ CONTAINS
           WRITE ( iwf, '( A,T21,3G20.12,/ )' ) ' F NUM IMP TORSION =', &
                f_numer(:,iatom)
        END DO
-       CLOSE (iwf)
+       CALL close_file(unit_number=iwf)
 
        ! compute the absolute value of the differences in the forces
        diff = ABS ( ABS (dbg % f_imptors) - ABS (f_numer) )
@@ -914,7 +915,8 @@ CONTAINS
     IF ( iw > 0 ) THEN
        WRITE ( iw, '( /,A )' ) &
             ' THE FORCES ON ALL PARTICLES (FILE=gspace)'
-       OPEN (UNIT = iwf, FILE = 'gspace', STATUS = 'REPLACE', ACTION = 'WRITE')
+       CALL open_file(file_name='gspace',file_status='unknown',&
+            file_action='write',unit_number=iwf)
        DO iatom = 1, natoms
           WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
           WRITE ( iwf, '( A,T21,3G20.12 )' ) &
@@ -922,7 +924,7 @@ CONTAINS
           WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
                ' F NUM GSPACE =', f_numer(:,iatom)
        END DO
-       CLOSE (iwf)
+       CALL close_file(unit_number=iwf)
 
        ! compute the absolute value of the differences in the forces
        diff = ABS ( ABS (dbg % f_g) - ABS (f_numer) )

@@ -311,8 +311,7 @@ SUBROUTINE md_ener_reftraj(md_env,md_ener,error)
       CALL force_env_get(force_env, potential_energy=md_ener%epot, error=error)
     ELSE
       md_ener%epot = reftraj%epot
-      md_ener%delta_epot = (reftraj%epot - reftraj%epot0)/&
-          REAL(reftraj%natom, kind=dp)*kelvin
+      md_ener%delta_epot = (reftraj%epot - reftraj%epot0)/REAL(reftraj%natom, kind=dp)*kelvin
     END IF
     
 END SUBROUTINE  md_ener_reftraj

@@ -1853,11 +1853,6 @@ CONTAINS
        READ(reftraj_env%info%trjfile_unit,'(A)',ERR=999,END=998) title
 
        READ(UNIT=title,FMT="(T6,I8,T20,F20.10,T52,F12.3)") trj_itimes, trj_epot, trj_time
-       IF(init) THEN
-          reftraj_env%time0 = trj_time
-          reftraj_env%epot0 = trj_epot
-          reftraj_env%itimes0 = trj_itimes
-       END IF
 
        DO I=1,Nread
           READ(reftraj_env%info%trjfile_unit,*,ERR=999,END=998) AA,pos(:,I)
@@ -1882,7 +1877,7 @@ CONTAINS
        END IF
     ELSE
        pos=0.0_dp
-       h=0.0_dp
+       h  =0.0_dp
     ENDIF
     CALL update_particle_set ( particle_set, para_env % group, pos = pos )
 
@@ -1891,13 +1886,18 @@ CONTAINS
     CALL mp_bcast(trj_time,para_env%source,para_env%group)
 
     IF (reftraj_env%info%variable_volume)THEN
-        CALL mp_bcast(cell_itimes,para_env%source,para_env%group)
-        CALL mp_bcast(cell_time,para_env%source,para_env%group)
+       CALL mp_bcast(cell_itimes,para_env%source,para_env%group)
+       CALL mp_bcast(cell_time,para_env%source,para_env%group)
     ENDIF
 
-    reftraj_env%epot = trj_epot
+    IF (init) THEN
+       reftraj_env%time0   = trj_time
+       reftraj_env%epot0   = trj_epot
+       reftraj_env%itimes0 = trj_itimes 
+    END IF
+    reftraj_env%epot   = trj_epot
     reftraj_env%itimes = trj_itimes
-    reftraj_env%time = trj_time/femtoseconds
+    reftraj_env%time   = trj_time/femtoseconds
 
     IF(reftraj_env%info%variable_volume)THEN
        CALL mp_bcast(h,para_env%source,para_env%group)
