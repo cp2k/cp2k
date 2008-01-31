@@ -94,7 +94,8 @@ MODULE qs_rho0_methods
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     INTEGER, INTENT(IN)                      :: nchannels, nsotot
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_mpole_gau'
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_mpole_gau', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, icg, ig1, ig2, ipgf1, &
                                                 ipgf2, iset1, iset2, iso, &
@@ -329,7 +330,8 @@ MODULE qs_rho0_methods
     TYPE(local_rho_type), OPTIONAL, POINTER  :: tddft_local_rho_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_rho0'
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_rho0', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: handle, iat, iatom, ikind, istat, l, l_rho1_max, laddg, lmaxg, &
       max_nr, maxl, maxnset, maxso, nat, natom, nchan_c, nchan_s, nkind, nr, &
@@ -594,7 +596,8 @@ MODULE qs_rho0_methods
     REAL(dp), INTENT(INOUT)                  :: max_rpgf0_s
     LOGICAL, INTENT(IN)                      :: calculate_V0hmV0s
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'interaction_radii_g0'
+    CHARACTER(len=*), PARAMETER :: routineN = 'interaction_radii_g0', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ir, l, lmax, nr
     REAL(dp)                                 :: I_down_h, I_down_s, I_up_h, &
@@ -685,7 +688,8 @@ MODULE qs_rho0_methods
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'radii_3c_orbxrho0'
+    CHARACTER(len=*), PARAMETER :: routineN = 'radii_3c_orbxrho0', &
+      routineP = moduleN//':'//routineN
     REAL(dp), PARAMETER                      :: eps_radii_3c = 1.E-8_dp
 
     INTEGER                                  :: i, ico, ico0, icoa, ikind, &

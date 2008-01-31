@@ -114,7 +114,8 @@ CONTAINS
       POINTER                                :: mp_gau
     INTEGER, INTENT(IN)                      :: nkind
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_multipoles'
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_multipoles', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat, ikind, istat
 
@@ -163,7 +164,8 @@ CONTAINS
       POINTER                                :: rho0_set
     INTEGER                                  :: natom
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_rho0_atom'
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho0_atom', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat, istat
 
@@ -192,7 +194,8 @@ CONTAINS
     TYPE(rho0_atom_type)                     :: rho0_atom
     INTEGER                                  :: nr, nchannels
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_rho0_atom_rad'
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho0_atom_rad', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat, tmpstat
 
@@ -233,7 +236,8 @@ CONTAINS
     TYPE(rho0_mpole_type), POINTER           :: rho0
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_rho0_mpole'
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho0_mpole', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
@@ -267,7 +271,8 @@ CONTAINS
     TYPE(grid_atom_type), POINTER            :: grid_atom
     INTEGER                                  :: ik
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'calculate_g0'
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_g0', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ir, istat, l, lmax, nr
     REAL(dp)                                 :: c1, prefactor, root_z_h, z_h, &
@@ -355,7 +360,8 @@ CONTAINS
     TYPE(mpole_gau_overlap), DIMENSION(:), &
       POINTER                                :: mp_gau
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_mpole_gau'
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_mpole_gau', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, istat, nkind
 
@@ -398,7 +404,8 @@ CONTAINS
     TYPE(mpole_rho_atom), DIMENSION(:), &
       POINTER                                :: mp_rho
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_mpole_rho'
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_mpole_rho', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat, istat, natom
 
@@ -430,7 +437,8 @@ CONTAINS
     TYPE(rho0_atom_type), DIMENSION(:), &
       POINTER                                :: rho0_atom_set
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_rho0_atom'
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_rho0_atom', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat, istat, natom
 
@@ -472,7 +480,8 @@ CONTAINS
     TYPE(rho0_mpole_type), POINTER           :: rho0
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_rho0_mpole'
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_rho0_mpole', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
@@ -573,7 +582,8 @@ CONTAINS
                                                 max_rpgf0_s
     TYPE(pw_p_type), OPTIONAL, POINTER       :: rho0_s_rs, rho0_s_gs
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_rho0_mpole'
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_rho0_mpole', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -625,7 +635,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: zeff
     LOGICAL, OPTIONAL                        :: tddft
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_mpole_rho'
+    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_mpole_rho', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: my_tddft
 
@@ -662,7 +673,8 @@ CONTAINS
     INTEGER, INTENT(in)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_rho0_info'
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_rho0_info', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER                                  :: ikind, l, nkind

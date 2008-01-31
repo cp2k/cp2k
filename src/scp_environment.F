@@ -79,7 +79,8 @@ CONTAINS
       POINTER                                :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'scp_init'
+    CHARACTER(len=*), PARAMETER :: routineN = 'scp_init', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, istat, nkind, &
                                                 output_unit

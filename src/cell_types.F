@@ -271,7 +271,8 @@ CONTAINS
 !   History: - Creation (16.01.2002, CJM,JGH,MK)
     TYPE(cell_type), POINTER                 :: box
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_hinv'
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_hinv', &
+      routineP = moduleN//':'//routineN
 
     box%deth = ABS ( det_3x3(box%hmat) )
 

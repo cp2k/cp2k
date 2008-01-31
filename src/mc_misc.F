@@ -118,7 +118,8 @@ SUBROUTINE mc_averages_create ( averages  )
 
     TYPE(mc_averages_type), POINTER          :: averages
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_averages_create'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mc_averages_create', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, stat
 
@@ -167,7 +168,8 @@ SUBROUTINE mc_averages_release ( averages  )
 
     TYPE(mc_averages_type), POINTER          :: averages
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_averages_release'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mc_averages_release', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, stat
 
@@ -229,7 +231,8 @@ SUBROUTINE final_mc_write (mc_par,all_moves,iw,energy_check,initial_energy,&
                                                 final_energy
     TYPE(mc_averages_type), POINTER          :: averages
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'final_mc_write'
+    CHARACTER(len=*), PARAMETER :: routineN = 'final_mc_write', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=5)                         :: molecule_string, tab_string
     CHARACTER(LEN=default_string_length)     :: format_string, string1, &

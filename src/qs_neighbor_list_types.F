@@ -157,7 +157,8 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN)        :: cell
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'add_neighbor_list'
+    CHARACTER(len=*), PARAMETER :: routineN = 'add_neighbor_list', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
     TYPE(neighbor_list_type), POINTER        :: new_neighbor_list
@@ -266,7 +267,8 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: l3c_oce, l3c_rho0
     INTEGER, INTENT(IN), OPTIONAL            :: nkind
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'add_neighbor_node'
+    CHARACTER(len=*), PARAMETER :: routineN = 'add_neighbor_node', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iatom, istat, my_nkind
     LOGICAL                                  :: my_l3c_oce, my_l3c_rho0
@@ -387,7 +389,8 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     REAL(dp)                                 :: r_max
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_neighbor_list_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_neighbor_list_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
@@ -427,7 +430,8 @@ CONTAINS
 
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'clean_neighbor_list_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'clean_neighbor_list_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
     TYPE(neighbor_list_type), POINTER        :: neighbor_list, &
@@ -501,7 +505,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: reduced_3c_list
     INTEGER, INTENT(IN)                      :: nkind
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_reduced_3c_list'
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_reduced_3c_list', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, istat
 
@@ -529,7 +534,8 @@ CONTAINS
     TYPE(reduced_3c_list_type), &
       DIMENSION(:), POINTER                  :: reduced_3c_list
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_reduced_3c_list'
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_reduced_3c_list', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, istat, nkind
 
@@ -574,7 +580,8 @@ CONTAINS
 
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_neighbor_list'
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_neighbor_list', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
     TYPE(neighbor_node_type), POINTER        :: neighbor_node, &
@@ -620,7 +627,8 @@ CONTAINS
 
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_neighbor_list_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_neighbor_list_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
     TYPE(neighbor_list_type), POINTER        :: neighbor_list, &
@@ -661,7 +669,8 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(OUT)       :: neighbors
     REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: r
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'extract_neighbor_list'
+    CHARACTER(len=*), PARAMETER :: routineN = 'extract_neighbor_list', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: inode, nnode
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
@@ -719,7 +728,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: atom
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'find_neighbor_list_1'
+    CHARACTER(len=*), PARAMETER :: routineN = 'find_neighbor_list_1', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ilist
     TYPE(neighbor_list_type), POINTER        :: current_neighbor_list
@@ -766,7 +776,8 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN)        :: cell
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'find_neighbor_list_2'
+    CHARACTER(len=*), PARAMETER :: routineN = 'find_neighbor_list_2', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ilist
     TYPE(neighbor_list_type), POINTER        :: current_neighbor_list
@@ -857,7 +868,8 @@ CONTAINS
       OPTIONAL                               :: cell
     INTEGER, INTENT(OUT), OPTIONAL           :: nnode
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_neighbor_list'
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_neighbor_list', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -890,7 +902,8 @@ CONTAINS
     REAL(dp), INTENT(OUT), OPTIONAL          :: r_max
     INTEGER, INTENT(OUT), OPTIONAL           :: nlist
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_neighbor_list_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_neighbor_list_set', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -929,7 +942,8 @@ CONTAINS
       DIMENSION(:), OPTIONAL, POINTER        :: reduced_3c_oce, &
                                                 reduced_3c_rho0
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_neighbor_node'
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_neighbor_node', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -967,7 +981,8 @@ CONTAINS
 
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_neighbor_list'
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_neighbor_list', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -1005,7 +1020,8 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     REAL(dp), INTENT(IN), OPTIONAL           :: r_max
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_neighbor_list_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_neighbor_list_set', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -1084,7 +1100,8 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN), &
       OPTIONAL                               :: cell
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_neighbor_list'
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_neighbor_list', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -1115,7 +1132,8 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     REAL(dp), INTENT(IN), OPTIONAL           :: r_max
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_neighbor_list_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_neighbor_list_set', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -1149,7 +1167,8 @@ CONTAINS
     REAL(dp), DIMENSION(3), INTENT(IN), &
       OPTIONAL                               :: r, s
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_neighbor_node'
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_neighbor_node', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 

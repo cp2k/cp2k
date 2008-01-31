@@ -81,7 +81,8 @@ MODULE qs_local_rho_types
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
     INTEGER                                  :: nkind
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'allocate_rhoz'
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rhoz', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, istat
 
@@ -115,7 +116,8 @@ MODULE qs_local_rho_types
     REAL(dp), INTENT(INOUT)                  :: rhoz_tot
     TYPE(harmonics_atom_type)                :: harmonics
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'calculate_rhoz'
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rhoz', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ir, na, nr
     REAL(dp)                                 :: c1, c2, c3, prefactor1, &
@@ -166,7 +168,8 @@ MODULE qs_local_rho_types
 
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'deallocate_rhoz'
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_rhoz', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, istat, nkind
 
@@ -205,7 +208,8 @@ MODULE qs_local_rho_types
     TYPE(rhoz_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rhoz_set
 
-    CHARACTER(len=*), PARAMETER              :: routineN = 'get_local_rho'
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_local_rho', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -224,7 +228,8 @@ MODULE qs_local_rho_types
     TYPE(local_rho_type), POINTER            :: local_rho_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'local_rho_set_create'
+    CHARACTER(len=*), PARAMETER :: routineN = 'local_rho_set_create', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
@@ -299,7 +304,8 @@ MODULE qs_local_rho_types
       OPTIONAL, POINTER                      :: rhoz_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER              :: routineN = 'set_local_rho'
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_local_rho', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 

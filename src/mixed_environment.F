@@ -110,7 +110,8 @@ SUBROUTINE mixed_init ( mixed_env, root_section,para_env, globenv, force_env_sec
     LOGICAL, INTENT(IN)                      :: use_motion_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mixed_init'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mixed_init', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure, use_ref_cell
@@ -204,7 +205,8 @@ END SUBROUTINE mixed_init
                                                 subsys_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mixed_init_subsys'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mixed_init_subsys', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
     TYPE(atomic_kind_type), DIMENSION(:), &

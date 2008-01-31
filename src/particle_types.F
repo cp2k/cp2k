@@ -174,7 +174,8 @@ END SUBROUTINE clone_particle
     INTEGER, INTENT(IN)                      :: nparticle
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_particle_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_particle_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iparticle, istat
 
@@ -213,7 +214,8 @@ END SUBROUTINE clone_particle
       POINTER                                :: particle_set
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_particle_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_particle_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iparticle, istat
 
@@ -282,7 +284,8 @@ END SUBROUTINE clone_particle
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: r
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_particle_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_particle_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: icgf, ico, iparticle, isgf, &
                                                 iso, maxco, maxso, nc, &
@@ -760,7 +763,8 @@ END SUBROUTINE clone_particle
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_particle_distances'
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_particle_distances', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER                                  :: iatom, istat, iw, jatom, natom

@@ -471,7 +471,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff, zeff_correction
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_all_potential'
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_all_potential', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -530,7 +531,8 @@ CONTAINS
     LOGICAL, INTENT(OUT), OPTIONAL           :: ppl_present
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: qeff
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_elp_potential'
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_elp_potential', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -598,7 +600,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: hprj_ppnl
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_gth_potential'
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_gth_potential', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -1270,7 +1273,7 @@ CONTAINS
        ! Dump the potential info the in potential section
        IF (match) THEN
           irep = irep + 1
-          WRITE(line_att,*)"         # Potential name: "//apname2(:strlen2)//" for symbol: "//symbol2(:strlen1)             
+          WRITE(line_att,*)"         # Potential name: "//apname2(:strlen2)//" for symbol: "//symbol2(:strlen1)
           CALL section_vals_val_set(potential_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
                c_val=TRIM(line_att), error=error)
           irep = irep + 1

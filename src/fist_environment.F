@@ -135,7 +135,8 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
     LOGICAL, INTENT(IN)                      :: use_motion_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'fist_init'
+    CHARACTER(len=*), PARAMETER :: routineN = 'fist_init', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw
     LOGICAL                                  :: failure, qmmm, &
@@ -290,7 +291,8 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
                                                 subsys_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'fist_init_subsys'
+    CHARACTER(len=*), PARAMETER :: routineN = 'fist_init_subsys', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
     LOGICAL                                  :: do_multipoles

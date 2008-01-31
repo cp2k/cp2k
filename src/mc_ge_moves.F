@@ -160,7 +160,8 @@ CONTAINS
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_Quickstep_move'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mc_Quickstep_move', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: end_mol, group, handle, ibox, iparticle, iprint, istat, itype, &
       jbox, nmol_types, source, start_mol
@@ -513,7 +514,8 @@ CONTAINS
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_ge_swap_move'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mc_ge_swap_move', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: atom_names_insert, &
@@ -1337,7 +1339,8 @@ CONTAINS
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_ge_volume_move'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mc_ge_volume_move', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=200)                       :: fft_lib
     CHARACTER(LEN=40), DIMENSION(1:2)        :: dat_file

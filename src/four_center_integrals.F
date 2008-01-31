@@ -1418,7 +1418,8 @@ MODULE four_center_integrals
     REAL(dp), INTENT(INOUT)                  :: max_val
     TYPE(x_hf_potential_type)                :: potential_parameter
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'screen4'
+    CHARACTER(len=*), PARAMETER :: routineN = 'screen4', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ipgf, jpgf, la, lb
     REAL(dp)                                 :: max_val_temp
@@ -1773,7 +1774,8 @@ MODULE four_center_integrals
     REAL(dp), INTENT(INOUT)                  :: cartesian_estimate
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'forces4'
+    CHARACTER(len=*), PARAMETER :: routineN = 'forces4', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, lpgf, offset_a, offset_a1, &
       offset_b, offset_b1, offset_c, offset_c1, offset_d, offset_d1
@@ -2872,7 +2874,8 @@ MODULE four_center_integrals
       POINTER                                :: neighbor_cells
     REAL(dp), INTENT(IN)                     :: box_size(3), box_size_inv(3)
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'screen4_periodic'
+    CHARACTER(len=*), PARAMETER :: routineN = 'screen4_periodic', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ipgf, jpgf, la, lb
     REAL(dp)                                 :: B11(3), im_B(3), &

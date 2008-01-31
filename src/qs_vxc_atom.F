@@ -821,7 +821,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nspins
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'gaVxcgb_noGC'
+    CHARACTER(len=*), PARAMETER :: routineN = 'gaVxcgb_noGC', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: ia, ic, icg, ipgf1, ipgf2, ir, iset1, iset2, iso, iso1, iso2, &
       ispin, istat, l, ld, lmax12, lmax_expansion, lmin12, m1, m2, &
@@ -998,7 +999,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nspins
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'gaVxcgb_GC'
+    CHARACTER(len=*), PARAMETER :: routineN = 'gaVxcgb_GC', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: ia, ic, icg, ipgf1, ipgf2, ir, iset1, iset2, iso, iso1, iso2, &
       ispin, istat, l, lmax12, lmax_expansion, lmin12, m1, m2, max_iso_not0, &

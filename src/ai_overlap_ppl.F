@@ -120,7 +120,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(OUT), OPTIONAL                  :: force_a, force_b
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'overlap_ppl'
+    CHARACTER(len=*), PARAMETER :: routineN = 'overlap_ppl', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: ax, ay, az, bx, by, bz, c, cda, cdax, cday, cdaz, cdb, cdbx, &
       cdby, cdbz, coa, coamx, coamy, coamz, coapx, coapy, coapz, cob, cobmx, &

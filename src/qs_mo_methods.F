@@ -627,7 +627,8 @@ CONTAINS
     REAL(KIND=dp)                            :: mo_mag_min, mo_mag_max
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_magnitude'
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_magnitude', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ispin, k, n, nspin
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: evals

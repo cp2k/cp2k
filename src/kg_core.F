@@ -80,7 +80,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ecore_rspace'
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_rspace', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_b, group, handle, i, iatom, iatom_local, &

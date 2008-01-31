@@ -71,7 +71,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_fm_syevd'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_syevd', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, info, istat, liwork, &
                                                 lwork, mypcol, myprow, n
@@ -418,7 +419,9 @@ CONTAINS
    INTEGER, INTENT(OUT)                      :: n_dependent
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-   CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_power"
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_power', &
+      routineP = moduleN//':'//routineN
+
 
    REAL(KIND = dp) :: condition_number,f,p
    INTEGER         :: handle,icol_global,icol_local,ipcol,iprow,irow_global,&

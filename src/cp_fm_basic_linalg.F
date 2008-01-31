@@ -214,7 +214,8 @@ CPSourceFileRef,&
     REAL(KIND=dp), INTENT(OUT)               :: almost_determinant
     LOGICAL, INTENT(IN), OPTIONAL            :: correct_sign
 
-    CHARACTER(LEN=*), PARAMETER :: routine = "SUBROUTINE cp_fm_lu_decompose"
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_lu_decompose', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, info, lda, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot

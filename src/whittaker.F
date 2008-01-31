@@ -64,7 +64,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: alpha
     REAL(KIND=dp), DIMENSION(n)              :: erfa, expa, r, wc
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'whittaker_c0a'
+    CHARACTER(len=*), PARAMETER :: routineN = 'whittaker_c0a', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, k, l
     REAL(dp)                                 :: t1, x, y
@@ -122,7 +123,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: alpha
     REAL(KIND=dp), DIMENSION(n)              :: erfa, expa, r, wc
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'whittaker_c0'
+    CHARACTER(len=*), PARAMETER :: routineN = 'whittaker_c0', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, k
     REAL(dp) :: t1, t10, t11, t12, t13, t14, t16, t17, t18, t19, t2, t21, &
@@ -350,7 +352,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: alpha
     REAL(KIND=dp), DIMENSION(n)              :: expa, r, wc
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'whittaker_ci'
+    CHARACTER(len=*), PARAMETER :: routineN = 'whittaker_ci', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, k
     REAL(dp)                                 :: t1, t10, t13, t14, t17, t18, &

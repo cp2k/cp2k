@@ -191,7 +191,8 @@ CONTAINS
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_conformation_change'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mc_conformation_change', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(default_string_length)         :: name
     CHARACTER(default_string_length), &
@@ -521,7 +522,8 @@ END SUBROUTINE mc_conformation_change
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_molecule_translation'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mc_molecule_translation', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: atom_number, end_atom, end_mol, group, handle, imolecule, &
       ipart, iparticle, istat, jbox, molecule_number, move_direction, &
@@ -772,7 +774,8 @@ END SUBROUTINE mc_conformation_change
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_molecule_rotation'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mc_molecule_rotation', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: atom_number, dir, end_atom, end_mol, group, handle, ii, &
       imolecule, ipart, istat, iunit, jbox, molecule_number, nunits_mol, &
@@ -1479,7 +1482,8 @@ END SUBROUTINE mc_conformation_change
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'change_bond_length'
+    CHARACTER(len=*), PARAMETER :: routineN = 'change_bond_length', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: bond_number, group, handle, &
                                                 i, iatom, ibond, ipart, &
@@ -1687,7 +1691,8 @@ END SUBROUTINE mc_conformation_change
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'change_bond_angle'
+    CHARACTER(len=*), PARAMETER :: routineN = 'change_bond_angle', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: bend_number, group, handle, &
                                                 i, iatom, ibond, ipart, &
@@ -1989,7 +1994,8 @@ END SUBROUTINE mc_conformation_change
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'change_dihedral'
+    CHARACTER(len=*), PARAMETER :: routineN = 'change_dihedral', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, handle, i, iatom, &
                                                 ibond, ipart, istat, natom, &
@@ -2254,7 +2260,8 @@ END SUBROUTINE mc_conformation_change
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_avbmc_move'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mc_avbmc_move', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: end_mol, group, handle, &
                                                 ipart, istat, jbox, natom, &

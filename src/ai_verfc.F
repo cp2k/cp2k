@@ -87,7 +87,7 @@ MODULE ai_verfc
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_verfc'
   PRIVATE
 
 ! *** Public subroutines ***
@@ -134,7 +134,8 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
     REAL(KIND=dp), DIMENSION(:, :), OPTIONAL :: vabc_plus
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'verfc'
+    CHARACTER(len=*), PARAMETER :: routineN = 'verfc', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ax, ay, az, bx, by, bz, i, &
                                                 ipgf, j, jpgf, la, la_start, &

@@ -90,7 +90,8 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: maxl
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_spherical_harmonics'
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_spherical_harmonics', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: expo, i, ic, ic1, ic2, is, &
                                                 istat, j, k, l, lx, lx1, lx2, &
@@ -265,7 +266,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_spherical_harmonics'
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'deallocate_spherical_harmonics', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat, l
 
@@ -327,7 +330,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_spherical_harmonics'
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_spherical_harmonics', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=78)                        :: headline
     INTEGER                                  :: l, nc, ns, output_unit

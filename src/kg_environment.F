@@ -165,7 +165,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: use_motion_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'kg_init'
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_init', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, istat, iw, maxl, &
                                                 maxlgto, maxlppl, maxlppnl, &

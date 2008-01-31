@@ -204,7 +204,8 @@ CONTAINS
       POINTER                                :: mol_diis_iblock
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER              :: routineN = 'get_mol_diis_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_mol_diis_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nmol_local
 
@@ -226,7 +227,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nmol_global, nmol_local
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_diis_block'
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_diis_block', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
@@ -256,7 +258,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nmol_kind
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER              :: routineN = 'init_mol_diis_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_mol_diis_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind
     LOGICAL                                  :: failure
@@ -281,7 +284,8 @@ CONTAINS
     TYPE(mol_diis_block_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: mol_diis_block
 
-    CHARACTER(len=*), PARAMETER              :: routineN = 'set_mol_diis_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_mol_diis_set', &
+      routineP = moduleN//':'//routineN
 
     IF(PRESENT(nmol_global)) mol_diis_buffer_set%nmol_global = nmol_global
     IF(PRESENT(nmol_local)) mol_diis_buffer_set%nmol_local = nmol_local
@@ -300,7 +304,8 @@ CONTAINS
     TYPE(mol_diis_block_type), &
       DIMENSION(:), POINTER                  :: mol_diis_block
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'distroy_mol_diis_block'
+    CHARACTER(len=*), PARAMETER :: routineN = 'distroy_mol_diis_block', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ibuffer, imol, ispin, istat, &
                                                 nbuffer, nmol_local, nspins
@@ -358,7 +363,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nmol_local
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'init_mol_diis_block'
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_mol_diis_block', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imol, nsize
     LOGICAL                                  :: failure

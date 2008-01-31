@@ -418,7 +418,8 @@ MODULE qs_rho_atom_methods
       OPTIONAL, POINTER                      :: rho_atom_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_rho_atom_coeff'
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_atom_coeff', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, inode, irow, ispin, &
       istat, jatom, jkind, katom, kkind, kneighbor, last_jatom, last_katom, &
@@ -789,7 +790,8 @@ MODULE qs_rho_atom_methods
     TYPE(gapw_control_type), POINTER         :: gapw_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_rho_atom'
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_rho_atom', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: handle, ia, ikind, il, ir, iso, iso1, iso2, istat, l1, l1l2, &
       l2, la, lc1, lc2, lcleb, ll, llmax, lmax_sphere, lp, m1, m2, &
@@ -1004,7 +1006,8 @@ MODULE qs_rho_atom_methods
       POINTER                                :: rho_atom_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_rho_atom_internals'
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho_atom_internals', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: handle, iat, iatom, ikind, ispin, istat, j, max_iso_not0, &
       maxso, nat, natom, nkind, nr, nset, nsotot, nspins, tmpstat

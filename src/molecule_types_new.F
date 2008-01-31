@@ -146,7 +146,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nmolecule
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_molecule_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_molecule_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imolecule, istat
 
@@ -185,7 +186,8 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_molecule_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_molecule_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imolecule, istat, j
 
@@ -270,7 +272,8 @@ CONTAINS
     INTEGER, OPTIONAL                        :: first_atom, last_atom, &
                                                 first_shell, last_shell
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_molecule'
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_molecule', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -340,7 +343,8 @@ CONTAINS
     TYPE(local_g4x6_constraint_type), &
       OPTIONAL, POINTER                      :: lg4x6( : )
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_molecule'
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_molecule', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -397,7 +401,8 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: first_atom, last_atom
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_molecule_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_molecule_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imolecule
 

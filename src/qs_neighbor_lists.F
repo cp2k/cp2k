@@ -150,7 +150,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_qs_neighbor_lists'
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_qs_neighbor_lists', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: print_key_path
     INTEGER :: atom_a, handle, iatom, iatom_local, ikind, imol, istat, iw, &
@@ -1261,7 +1262,8 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: l3c_oce, l3c_rho0, mic, &
                                                 symmetric
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_neighbor_lists'
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_neighbor_lists', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
@@ -1642,8 +1644,9 @@ CONTAINS
     REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_b
     CHARACTER(LEN=*), INTENT(IN)             :: name
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'build_restricted_neighbor_lists'
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'build_restricted_neighbor_lists', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
@@ -1931,7 +1934,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_gth_ppl_neighbor_lists'
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_gth_ppl_neighbor_lists', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_c, handle, i, iac, iatom, iatom_local, &
@@ -2301,7 +2305,9 @@ CONTAINS
     REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_c
     CHARACTER(LEN=*), INTENT(IN)             :: name
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_gth_ppnl_neighbor_lists'
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'build_gth_ppnl_neighbor_lists', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_c, handle, i, iac, iatom, iatom_local, &
@@ -2783,7 +2789,8 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: maxatom
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'allocate_subcell'
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_subcell', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, istat, j, k, na, nb, nc
     REAL(dp)                                 :: a_max, a_min, b_max, b_min, &
@@ -2859,7 +2866,8 @@ CONTAINS
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_subcell'
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_subcell', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, istat, j, k
 
@@ -2910,7 +2918,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_distribution'
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_distribution', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, iab, ikind, ilist, &
                                                 ipe, istat, jkind, mype, n, &

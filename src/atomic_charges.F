@@ -75,7 +75,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), OPTIONAL :: electronic_charges
     REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: atomic_charges
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'print_atomic_charges'
+    CHARACTER(len=*), PARAMETER :: routineN = 'print_atomic_charges', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: element_symbol
     INTEGER                                  :: handle, iatom, natom, nspin

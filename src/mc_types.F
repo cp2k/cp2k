@@ -723,7 +723,8 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
       POINTER                                :: mc_par
     INTEGER, INTENT(IN)                      :: nmol_types, nboxes
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_sim_par_create'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mc_sim_par_create', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
@@ -811,7 +812,8 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_sim_par_destroy'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mc_sim_par_destroy', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
@@ -910,7 +912,8 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     REAL(dp), DIMENSION(:, :)                :: empty_coords
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_input_file_create'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mc_input_file_create', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(default_string_length)         :: cdum, line, method_name
     CHARACTER(default_string_length), &
@@ -1101,7 +1104,8 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 
     TYPE(mc_input_file_type), POINTER        :: mc_input_file
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_input_file_destroy'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mc_input_file_destroy', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
@@ -1238,7 +1242,8 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
     TYPE(section_vals_type), POINTER         :: input_file, force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'read_mc_section'
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_mc_section', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=5)                         :: box_string, molecule_string, &
                                                 tab_box_string, tab_string, &
@@ -1631,7 +1636,8 @@ SUBROUTINE find_mc_rcut ( mc_par, force_env, lterminate )
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(OUT)                     :: lterminate
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'find_mc_rcut'
+    CHARACTER(len=*), PARAMETER :: routineN = 'find_mc_rcut', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: itype, jtype
     REAL(KIND=dp)                            :: rcutsq_max
@@ -2028,7 +2034,8 @@ SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_input_parameters_check'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mc_input_parameters_check', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imol_type, nboxes, &
                                                 nchain_total, nmol_types

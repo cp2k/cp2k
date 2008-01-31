@@ -95,7 +95,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_interaction_radii'
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_interaction_radii', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: i, iexp_ppl, ikind, ip, ipgf, iprj_ppnl, iset, ishell, istat, &
       l, lppl, lppnl, lprj, lprj_ppnl, maxl, maxnset, nexp_ppl, nkind, nset
@@ -468,7 +469,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_se_nlradius'
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_se_nlradius', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, nkind
     REAL(KIND=dp)                            :: kind_radius

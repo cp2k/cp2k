@@ -108,7 +108,8 @@ CONTAINS
     TYPE(qs_p_env_type), OPTIONAL, POINTER   :: p_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routine = "update_ks_atom"
+    CHARACTER(len=*), PARAMETER :: routineN = 'update_ks_atom', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, ia_kind, iab, iat, iatom, ikind, ilist, inode, &
       ispin, istat, ja_kind, jatom, jkind, ka_kind, katom, kkind, knode, &
@@ -184,11 +185,11 @@ CONTAINS
 
     ALLOCATE (C_int_h(max_gau,max_nsgf,nspins),STAT=istat)
     ALLOCATE (C_int_s(max_gau,max_nsgf,nspins),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
                         "C_int_h,C_int_s",2*max_gau*max_nsgf*nspins*dp_size)
     lC_int = max_gau
     ALLOCATE(mat_h(nspins),mat_p(nspins), STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
                         "mat_h,mat_p")
     DO ispin = 1,nspins
       NULLIFY(mat_h(ispin)%array,mat_p(ispin)%array)
@@ -197,18 +198,18 @@ CONTAINS
 
     IF(forces) THEN
       ALLOCATE (atom_of_kind(natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
            "atom_of_kind",natom*int_size)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
       ALLOCATE(dCPC_h(max_gau,max_gau),STAT=istat)
       ALLOCATE(dCPC_s(max_gau,max_gau),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
             "dCPC_h,dCPC_s",2*(max_gau*max_gau)*dp_size)
       ldCPC = max_gau
       ALLOCATE(PC_h(max_nsgf,max_gau,nspins),STAT=istat)
       ALLOCATE(PC_s(max_nsgf,max_gau,nspins),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
             "PC_h,PC_s",2*(max_nsgf*max_gau*nspins)*dp_size)
       lPC = max_nsgf
       use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -422,19 +423,19 @@ CONTAINS
     ENDDO    ! ikind
 
     DEALLOCATE (C_int_h,C_int_s,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
                               "C_int_h,C_int_s")
 
     DO ispin = 1,nspins
       NULLIFY(mat_h(ispin)%array,mat_p(ispin)%array)
     END DO
     DEALLOCATE(mat_h,mat_p, STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
                               "mat_h,mat_p")
 
     IF(forces) THEN
        DEALLOCATE (atom_of_kind,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
+       IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
          "atom_of_kind")
        DEALLOCATE(DCPC_h,dCPC_s,PC_h,PC_s,STAT=istat)
     END IF
@@ -456,7 +457,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: factor
     REAL(KIND=dp), DIMENSION(:, :, :)        :: C_int_h, C_int_s
 
-    CHARACTER(LEN=*), PARAMETER              :: routine = "add_vhxca_to_ks"
+    CHARACTER(len=*), PARAMETER :: routineN = 'add_vhxca_to_ks', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: C_hh, C_ss, h_block, &
@@ -600,7 +602,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :)        :: PC_h, PC_s
     INTEGER, INTENT(IN)                      :: lPC
 
-    CHARACTER(LEN=*), PARAMETER              :: routine = "add_vhxca_forces"
+    CHARACTER(len=*), PARAMETER :: routineN = 'add_vhxca_forces', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: dir, ispin
     REAL(dp), DIMENSION(:, :), POINTER       :: int_hard, int_soft

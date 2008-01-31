@@ -595,7 +595,8 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: ncol, start_col
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER              :: routineN = 'mol_mo_random'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mol_mo_random', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: icol, my_ncol, my_start, nrow
     INTEGER, DIMENSION(4), SAVE              :: ISEED

@@ -237,7 +237,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routine = " projectors "
+    CHARACTER(len=*), PARAMETER :: routineN = 'projectors', &
+      routineP = moduleN//':'//routineN
 
     REAL(dp)                                 :: eps_fit, eps_iso, eps_orb, &
                                                 eps_svd, max_rad_local
@@ -274,7 +275,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routine = "  build_projector"
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_projector', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: bsname
     INTEGER :: ic, icgf, icgfmax, icgfmin, ico, icomax, icomin, il, info, ip, &
@@ -309,8 +311,8 @@ CONTAINS
     NULLIFY (cphi,sphi,lmax,lmin,npgf,nshell,zet,zetp,smat,work,gcca)
 
     failure =.FALSE.
-    CPPrecondition(ASSOCIATED(paw_proj),cp_failure_level,routine,error,failure)
-    CPPrecondition(ASSOCIATED(orb_basis),cp_failure_level,routine,error,failure)
+    CPPrecondition(ASSOCIATED(paw_proj),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(orb_basis),cp_failure_level,routineP,error,failure)
 
     !   ***************************************************************************
     IF(.NOT. failure) THEN
@@ -324,18 +326,18 @@ CONTAINS
             gcc=gcca)
 
        paw_proj%maxl = maxl
-       CPPrecondition(.NOT. ASSOCIATED(paw_proj%zisomin),cp_failure_level,routine,error,failure)
-       CPPrecondition(.NOT. ASSOCIATED(paw_proj%zprjisomin),cp_failure_level,routine,error,failure)
-       CPPrecondition(.NOT. ASSOCIATED(paw_proj%nprj),cp_failure_level,routine,error,failure)
+       CPPrecondition(.NOT. ASSOCIATED(paw_proj%zisomin),cp_failure_level,routineP,error,failure)
+       CPPrecondition(.NOT. ASSOCIATED(paw_proj%zprjisomin),cp_failure_level,routineP,error,failure)
+       CPPrecondition(.NOT. ASSOCIATED(paw_proj%nprj),cp_failure_level,routineP,error,failure)
 
        ALLOCATE(paw_proj%zisomin(0:maxl),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        paw_proj%zisomin(0:maxl) = 0.0_dp
        ALLOCATE(paw_proj%zprjisomin(0:maxl),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        paw_proj%zprjisomin(0:maxl) = 0.0_dp
        ALLOCATE(paw_proj%nprj(0:maxl),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        paw_proj%nprj(0:maxl) = 0
 
        output_unit = cp_print_key_unit_nr(logger,force_env_section,&
@@ -347,7 +349,7 @@ CONTAINS
        END IF
 
        ALLOCATE(set_radius(nset),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        set_radius = 0.0_dp
        DO iset = 1,nset
           DO is = 1,nshell(iset)
@@ -357,7 +359,7 @@ CONTAINS
        END DO  ! iset
 
        ALLOCATE(set_radius2(maxpgf,0:maxl,nset),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        set_radius2 = 0.0_dp
        DO iset = 1,nset
           DO lshell = lmin(iset),lmax(iset)
@@ -387,16 +389,16 @@ CONTAINS
 
        !   *** Allocate exponents and coefficients ***
        ALLOCATE(paw_proj%zetprj(maxnprj,0:maxl),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        paw_proj%zetprj(1:maxnprj,0:maxl)=0.0_dp
        ALLOCATE(paw_proj%gccprj(maxnprj,maxpgf,0:maxl,nset),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        paw_proj%gccprj=0.0_dp
        ALLOCATE(paw_proj%rzetprj(maxnprj,0:maxl),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        paw_proj%rzetprj(1:maxnprj,0:maxl)=0.0_dp
        ALLOCATE(paw_proj%isoprj(maxnprj,0:maxl),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        paw_proj%isoprj = .FALSE.
 
        NULLIFY(zet,zetp,gcc,smat,work)
@@ -407,10 +409,10 @@ CONTAINS
 
           ALLOCATE(isoprj(np),STAT=stat)
           isoprj = .FALSE.
-          CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
           ALLOCATE(zet(np),zetp(np),gcc(np,np),smat(np,np),work(np,np),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
           zet(:) = 0.0_dp
           zetp(:) = 0.0_dp
@@ -442,7 +444,7 @@ CONTAINS
              ! Check for equal exponents
              DO ipp =1,ip-1
                 IF(zet(ip)==zet(ipp)) THEN
-                   CALL stop_program(routine,moduleN,__LINE__,&
+                   CALL stop_program(routineP,moduleN,__LINE__,&
                         "Linear dependency in the construction of the GAPW projectors:"//&
                         " different sets of the BASIS SET contain identical exponents")
                 END IF
@@ -504,7 +506,7 @@ CONTAINS
           ENDDO
 
           !     FIXME ... catch the case where np == 0
-          CPPrecondition(np > 0,cp_failure_level,routine,error,failure)
+          CPPrecondition(np > 0,cp_failure_level,routineP,error,failure)
 
           !     *** Compute inverse of the transpose ***
           IF (eps_svd.EQ.0.0_dp) THEN
@@ -583,9 +585,9 @@ CONTAINS
 
           !   *** Release the working storage for the current value lshell ***
           DEALLOCATE(isoprj,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(gcc,zet,zetp,smat,work,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        ENDDO                 ! lshell
        CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
@@ -593,9 +595,9 @@ CONTAINS
 
        !   *** Release the working storage for the current value lshell ***
        DEALLOCATE(set_radius,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(set_radius2,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        !   *** Count primitives basis functions for the projectors
        paw_proj%ncgauprj = 0
@@ -696,24 +698,24 @@ CONTAINS
        !   local coefficients for the one center expansions : oce
        !   the coefficients are calculated for the full and soft expansions
        ALLOCATE(paw_proj%local_oce_cphi_h(maxco,ncgf),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        paw_proj%local_oce_cphi_h = 0.0_dp
        ALLOCATE(paw_proj%local_oce_sphi_h(maxco,nsgf),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        paw_proj%local_oce_sphi_h = 0.0_dp
        ALLOCATE(paw_proj%sphi_h(maxco,nsgf),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        paw_proj%sphi_h = 0.0_dp
 
 
        ALLOCATE(paw_proj%local_oce_cphi_s(maxco,ncgf),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        paw_proj%local_oce_cphi_s = 0.0_dp
        ALLOCATE(paw_proj%local_oce_sphi_s(maxco,nsgf),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        paw_proj%local_oce_sphi_s = 0.0_dp
        ALLOCATE(paw_proj%sphi_s(maxco,nsgf),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        paw_proj%sphi_s = 0.0_dp
 
        !   *** Cartesian ***
@@ -835,7 +837,8 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: zetprj
 
-    CHARACTER(LEN=*), PARAMETER              :: routine = " get_paw_proj_set"
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_paw_proj_set', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -857,7 +860,7 @@ CONTAINS
        IF (PRESENT(zetprj)) zetprj => paw_proj_set%zetprj
 
     ELSE
-       CALL stop_program(routine,moduleN,__LINE__,&
+       CALL stop_program(routineP,moduleN,__LINE__,&
             "The pointer  paw_proj_set is not associated")
     ENDIF
 
@@ -876,7 +879,8 @@ CONTAINS
       POINTER                                :: rzetprj
     REAL(dp), INTENT(IN), OPTIONAL           :: rcprj
 
-    CHARACTER(LEN=*), PARAMETER              :: routine = " set_paw_proj_set"
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_paw_proj_set', &
+      routineP = moduleN//':'//routineN
 
 !   ***************************************************************************
 
@@ -884,7 +888,7 @@ CONTAINS
        IF (PRESENT(rzetprj)) paw_proj_set%rzetprj(:,0:) = rzetprj(:,0:)
        IF (PRESENT(rcprj))  paw_proj_set%rcprj = rcprj
     ELSE
-       CALL stop_program(routine,moduleN,__LINE__,&
+       CALL stop_program(routineP,moduleN,__LINE__,&
             "The pointer paw_proj_set is not associated")
     END IF
 

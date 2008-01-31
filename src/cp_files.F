@@ -62,7 +62,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: unit_number
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: file_status
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'close_file'
+    CHARACTER(len=*), PARAMETER :: routineN = 'close_file', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=6)                         :: status_string
     CHARACTER(LEN=max_message_length)        :: message
@@ -168,7 +169,8 @@ CONTAINS
                                                 file_pad
     INTEGER, INTENT(OUT)                     :: unit_number
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'open_file'
+    CHARACTER(len=*), PARAMETER :: routineN = 'open_file', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=11)                        :: action_string, form_string, &
                                                 pad_string, position_string, &

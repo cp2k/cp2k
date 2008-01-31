@@ -66,7 +66,8 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: do_rho0
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'prepare_gapw_den'
+    CHARACTER(len=*), PARAMETER :: routineN = 'prepare_gapw_den', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ikind, ispin, natom, &
                                                 nkind, nspins, output_unit

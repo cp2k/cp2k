@@ -186,7 +186,8 @@ CPSourceFileRef,&
     TYPE(cp_cfm_type), POINTER               :: matrix_a
     COMPLEX(KIND=dp), INTENT(OUT)            :: almost_determinant
 
-    CHARACTER(LEN=*), PARAMETER :: routine = "SUBROUTINE cp_cfm_lu_decompose"
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_lu_decompose', &
+      routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp)                         :: determinant
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: diag

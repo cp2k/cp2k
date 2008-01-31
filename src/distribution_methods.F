@@ -126,7 +126,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_molecules_1d'
+    CHARACTER(len=*), PARAMETER :: routineN = 'distribute_molecules_1d', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, group, iatom, imolecule, imolecule_kind, &
       imolecule_local, iparticle_kind, ipe, istat, iw, jpe, kind_a, &
@@ -489,7 +490,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_molecules_2d'
+    CHARACTER(len=*), PARAMETER :: routineN = 'distribute_molecules_2d', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: cost_model, group, handle, iatom, iatom_mol, imol, imolecule, &
       imolecule_kind, iparticle_kind, ipcol, iprow, istat, iw, kind_a, &

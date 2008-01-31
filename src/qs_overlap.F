@@ -98,7 +98,8 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: nderivative
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_overlap_matrix'
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_matrix', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=12)                        :: cgfsym
     CHARACTER(LEN=80)                        :: name

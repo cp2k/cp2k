@@ -77,7 +77,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nder
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'build_oce_block'
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_oce_block', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: first_col, ic, ico, ider, igau, ip, ipgf, iprjc, iprjs, is, &
       iset, isgfb, iso, isp, istat, ithread, jc, jset, lds, lm, lpoint, lprj, &
@@ -420,7 +421,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: dist_list
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_up_oce'
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_up_oce', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, katom, kkind, &
                                                 kneighbor, mepos, ndist, &

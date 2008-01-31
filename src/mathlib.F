@@ -255,7 +255,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigval
     LOGICAL, INTENT(IN), OPTIONAL            :: dac
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'diamat_all'
+    CHARACTER(len=*), PARAMETER :: routineN = 'diamat_all', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, info, istat, liwork, &
                                                 lwork, n, nb
@@ -507,7 +508,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)               :: error
     CHARACTER(LEN=1), INTENT(IN), OPTIONAL   :: option
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'invert_matrix'
+    CHARACTER(len=*), PARAMETER :: routineN = 'invert_matrix', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=1)                         :: norm, trans
     CHARACTER(LEN=80)                        :: message
@@ -717,7 +719,8 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: n_dependent
     LOGICAL, INTENT(IN), OPTIONAL            :: dac
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'power_matrix'
+    CHARACTER(len=*), PARAMETER :: routineN = 'power_matrix', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, istat, n, n_dep
     LOGICAL                                  :: divide_and_conquer
@@ -928,7 +931,8 @@ CONTAINS
       INTENT(INOUT)                          :: a
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: b
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_diag_vector'
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_diag_vector', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, n
 
@@ -961,7 +965,8 @@ CONTAINS
       INTENT(INOUT)                          :: a
     CHARACTER(LEN=*), INTENT(IN)             :: option
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'symmetrize_matrix'
+    CHARACTER(len=*), PARAMETER :: routineN = 'symmetrize_matrix', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: message
     INTEGER                                  :: i, n
@@ -1146,7 +1151,8 @@ CONTAINS
   FUNCTION ei(x)
     REAL(dp)                                 :: x, ei
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'ei'
+    CHARACTER(len=*), PARAMETER :: routineN = 'ei', &
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: maxit = 100
     REAL(dp), PARAMETER                      :: eps = EPSILON(0.0_dp), &
                                                 fpmin = TINY(0.0_dp)
@@ -1271,7 +1277,8 @@ CONTAINS
     INTEGER                                  :: n
     REAL(dp)                                 :: x, expint
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'expint'
+    CHARACTER(len=*), PARAMETER :: routineN = 'expint', &
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: maxit = 100
     REAL(dp), PARAMETER :: eps = 6.e-14_dp, &
       euler = 0.5772156649015328606065120_dp, fpmin = TINY(0.0_dp)

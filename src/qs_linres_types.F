@@ -757,7 +757,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_nablavks_atom_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_nablavks_atom_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat, istat
     LOGICAL                                  :: failure
@@ -781,7 +782,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_nablavks_atom_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_nablavks_atom_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iat, idir, istat, n, natom
     LOGICAL                                  :: failure
@@ -822,7 +824,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: natom
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_jrho_atom_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_jrho_atom_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat, istat
     LOGICAL                                  :: failure
@@ -873,7 +876,8 @@ CONTAINS
       POINTER                                :: jrho_atom_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_jrho_atom_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_jrho_atom_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iat, iB, idir, istat, n, &
                                                 natom
@@ -1194,7 +1198,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: store_current
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_jrho_atom_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_jrho_atom_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: handle, iat, iatom, iB, idir, ikind, ispin, istat, &
       max_iso_not0, maxso, na, nat, natom, nkind, nr, nset, nsotot
@@ -1420,7 +1425,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_nablavks_atom_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_nablavks_atom_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: handle, iat, iatom, idir, ikind, ispin, istat, max_iso_not0, &
       maxso, na, nat, natom, nkind, nr, nset, nsotot

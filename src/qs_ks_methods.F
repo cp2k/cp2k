@@ -3013,7 +3013,8 @@ END SUBROUTINE qs_vxc_create
     TYPE(real_matrix_type), POINTER          :: matrix_ks, matrix_p, matrix_w
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_w_matrix_roks'
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_roks', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nao
     TYPE(cp_blacs_env_type), POINTER         :: context

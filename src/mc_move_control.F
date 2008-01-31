@@ -75,7 +75,8 @@ CONTAINS
 
     TYPE(mc_moves_type), POINTER             :: moves
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_mc_moves'
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_mc_moves', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, stat
 
@@ -227,7 +228,8 @@ CONTAINS
 
     TYPE(mc_moves_type), POINTER             :: moves
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_moves_release'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mc_moves_release', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, stat
 
@@ -331,7 +333,8 @@ SUBROUTINE move_q_reinit ( moves , lbias )
     TYPE(mc_moves_type), POINTER             :: moves
     LOGICAL, INTENT(IN)                      :: lbias
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'move_q_reinit'
+    CHARACTER(len=*), PARAMETER :: routineN = 'move_q_reinit', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
 
@@ -389,7 +392,8 @@ SUBROUTINE q_move_accept(moves,lbias)
     TYPE(mc_moves_type), POINTER             :: moves
     LOGICAL, INTENT(IN)                      :: lbias
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'q_move_accept'
+    CHARACTER(len=*), PARAMETER :: routineN = 'q_move_accept', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
 
@@ -467,7 +471,8 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
     TYPE(mc_moves_type), POINTER             :: moves
     INTEGER, INTENT(IN)                      :: nnstep, unit
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_move_stats'
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_move_stats', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
 
@@ -562,7 +567,8 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
     INTEGER, INTENT(IN)                      :: nnstep
     LOGICAL, INTENT(IN)                      :: ionode
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_move_update'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mc_move_update', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nmol_types, rm
     REAL(dp), DIMENSION(:), POINTER          :: rmangle, rmbond, rmdihedral, &

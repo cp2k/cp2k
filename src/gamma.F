@@ -86,7 +86,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nmax
     REAL(KIND=dp), INTENT(IN)                :: tmin, tmax, tdelta
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'create_md_ftable'
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_md_ftable', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat, itab, itabmax, &
                                                 itabmin, n
@@ -150,7 +151,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_md_ftable'
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_md_ftable', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
@@ -479,7 +481,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: t
     REAL(KIND=dp), DIMENSION(0:nmax)         :: f
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'fgamma_ref'
+    CHARACTER(len=*), PARAMETER :: routineN = 'fgamma_ref', &
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: kmax = 50
     REAL(KIND=dp), PARAMETER                 :: eps = EPSILON(0.0_dp)
 
@@ -600,7 +603,8 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: nmax
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_md_ftable'
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_md_ftable', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 

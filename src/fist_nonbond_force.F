@@ -878,7 +878,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: rsi, rci
     REAL(KIND=dp), INTENT(OUT)               :: qci, qsi
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_atom_info'
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_atom_info', &
+      routineP = moduleN//':'//routineN
 
     REAL(KIND=dp)                            :: qi
     REAL(KIND=dp), DIMENSION(3)              :: ri

@@ -81,7 +81,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_kg_neighbor_lists'
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_kg_neighbor_lists', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -117,7 +118,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_kg_neighbor_lists1'
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_kg_neighbor_lists1', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: print_key_path
     INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, iw, maxatom, &
@@ -481,7 +483,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_kg_neighbor_lists2'
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_kg_neighbor_lists2', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
     TYPE(qs_environment_type), POINTER       :: qs_env

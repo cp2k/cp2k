@@ -95,7 +95,8 @@ SUBROUTINE check_for_overlap ( force_env, nchains, nunits,loverlap,mol_type,&
       INTENT(IN), OPTIONAL                   :: cell_length
     INTEGER, INTENT(IN), OPTIONAL            :: molecule_number
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'check_for_overlap'
+    CHARACTER(len=*), PARAMETER :: routineN = 'check_for_overlap', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, imol, istat, iunit, &
                                                 jmol, jstart, junit, nend, &
@@ -237,7 +238,8 @@ SUBROUTINE get_center_of_mass ( coordinates,natom,center_of_mass,&
       INTENT(OUT)                            :: center_of_mass
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: mass
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_center_of_mass'
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_center_of_mass', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iatom
     REAL(KIND=dp)                            :: total_mass
@@ -301,7 +303,8 @@ SUBROUTINE mc_coordinate_fold(coordinates,nchains_tot,mol_type,mass,nunits,box_l
     REAL(KIND=dp), DIMENSION(1:3), &
       INTENT(IN)                             :: box_length
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_coordinate_fold'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mc_coordinate_fold', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: end_atom, handle, iatom, &
                                                 imolecule, jatom, &
@@ -419,7 +422,8 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, max_val, min_val, exp_max
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: move_type
     INTEGER, INTENT(IN), OPTIONAL            :: target_atom
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_cbmc_swap_config'
+    CHARACTER(len=*), PARAMETER :: routineN = 'generate_cbmc_swap_config', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom_number, choosen, &
                                                 end_atom, handle, i, iatom, &
@@ -758,7 +762,8 @@ SUBROUTINE rotate_molecule(r,mass,natoms,rng_stream,error)
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'rotate_molecule'
+    CHARACTER(len=*), PARAMETER :: routineN = 'rotate_molecule', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iunit
     REAL(KIND=dp)                            :: cosdg, dgamma, rand, rx, &

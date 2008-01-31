@@ -65,7 +65,7 @@ MODULE qs_ot_scf
 
   IMPLICIT NONE
 
-
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_scf'
   ! *** Public subroutines ***
 
   PUBLIC :: ot_scf_init
@@ -339,7 +339,8 @@ CONTAINS
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'ot_scf_mini'
+    CHARACTER(len=*), PARAMETER :: routineN = 'ot_scf_mini', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ispin, k, n, nspin
     TYPE(cp_fm_type), POINTER                :: mo_coeff

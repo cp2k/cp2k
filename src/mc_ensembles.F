@@ -143,7 +143,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_run_ensemble'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mc_run_ensemble', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: atom_names_box
@@ -1216,7 +1217,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_compute_virial'
+    CHARACTER(len=*), PARAMETER :: routineN = 'mc_compute_virial', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: current_division, end_atom, group, ibin, idivision, iparticle, &
       iprint, istat, itemp, iunit, ivirial, iw, nbins, nchain_total, &

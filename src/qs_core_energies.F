@@ -102,7 +102,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)               :: ecore
     TYPE(cp_para_env_type), POINTER          :: para_env
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'calculate_ecore'
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iblock_col, &
                                                 iblock_row, j, jblock_col, &
@@ -188,7 +189,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: E_overlap_core
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ecore_overlap'
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_overlap', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_b, group, handle, i, iatom, iatom_local, &
@@ -778,7 +780,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: E_self_core
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ecore_self'
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_self', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ikind, natom
     REAL(KIND=dp)                            :: alpha_core_charge, &

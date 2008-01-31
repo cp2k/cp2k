@@ -362,7 +362,8 @@ CONTAINS
       POINTER                                :: eigenvalues, &
                                                 occupation_numbers
 
-    CHARACTER(len=*), PARAMETER              :: routineN = 'set_mol_mo_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_mol_mo_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 

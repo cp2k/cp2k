@@ -140,7 +140,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nkind, natom
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'allocate_vtriple'
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_vtriple', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat, ikind, istat
 
@@ -291,7 +292,8 @@ CONTAINS
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'prepare_oce_coeff'
+    CHARACTER(len=*), PARAMETER :: routineN = 'prepare_oce_coeff', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=12)                        :: cgfsym
     CHARACTER(LEN=80)                        :: name
@@ -394,7 +396,8 @@ CONTAINS
     REAL(dp), INTENT(IN)                     :: eps_rho
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_reduced_3c_lists'
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_reduced_3c_lists', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, ibc, iblock, istat, katom, kkind, kkneighbor, &
       kneighbor, nblock_kkind, nkind, nneighbor, nneighbor_old, num
@@ -587,7 +590,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: kkind
     REAL(dp), INTENT(INOUT)                  :: maxab
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'check_oce_overlap'
+    CHARACTER(len=*), PARAMETER :: routineN = 'check_oce_overlap', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iexp, iexp_zmin, iset, &
                                                 ishell, jexp_zmin, jset, &

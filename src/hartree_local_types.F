@@ -71,7 +71,8 @@ MODULE hartree_local_types
       POINTER                                :: ecoul_1c
     INTEGER, INTENT(IN)                      :: natom
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_ecoul_1center'
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_ecoul_1center', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat, istat
 
@@ -101,7 +102,8 @@ MODULE hartree_local_types
     TYPE(ecoul_1center_type), DIMENSION(:), &
       POINTER                                :: ecoul_1c
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_ecoul_1center'
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_ecoul_1center', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat, istat, natom
 
@@ -165,7 +167,8 @@ MODULE hartree_local_types
     TYPE(vtriple_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: vtriple
 
-    CHARACTER(len=*), PARAMETER              :: routineN = 'get_hartree_local'
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_hartree_local', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -181,7 +184,8 @@ MODULE hartree_local_types
     TYPE(hartree_local_type), POINTER        :: hartree_local
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'hartree_local_create'
+    CHARACTER(len=*), PARAMETER :: routineN = 'hartree_local_create', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
@@ -205,7 +209,8 @@ MODULE hartree_local_types
     TYPE(hartree_local_type), POINTER        :: hartree_local
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'hartree_local_release'
+    CHARACTER(len=*), PARAMETER :: routineN = 'hartree_local_release', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
 
@@ -257,7 +262,8 @@ MODULE hartree_local_types
     TYPE(vtriple_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: vtriple
 
-    CHARACTER(len=*), PARAMETER              :: routineN = 'set_hartree_local'
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_hartree_local', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 

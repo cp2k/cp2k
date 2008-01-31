@@ -91,7 +91,8 @@ MODULE qs_rho_atom_types
       POINTER                                :: rho_atom_set
     INTEGER, INTENT(IN)                      :: natom
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_rho_atom_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho_atom_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat, istat
 
@@ -131,7 +132,8 @@ MODULE qs_rho_atom_types
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_rho_atom_set'
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_rho_atom_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iat, istat, j, n, natom
 
@@ -249,7 +251,8 @@ MODULE qs_rho_atom_types
     TYPE(rho_atom_coeff), DIMENSION(:), &
       OPTIONAL, POINTER                      :: ga_Vlocal_gb_h, ga_Vlocal_gb_s
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_rho_atom'
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_rho_atom', &
+      routineP = moduleN//':'//routineN
 
 ! *****************************************************************************
 

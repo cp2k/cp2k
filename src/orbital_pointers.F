@@ -94,7 +94,8 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: maxl
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_orbital_pointers'
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_orbital_pointers', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iso, istat, l, lx, ly, lz, m
 
@@ -264,7 +265,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_orbital_pointers'
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_orbital_pointers', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
@@ -340,7 +342,8 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: maxl
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_orbital_pointers'
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_orbital_pointers', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 

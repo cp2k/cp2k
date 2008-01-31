@@ -219,7 +219,8 @@ CONTAINS
     TYPE(grid_atom_type), POINTER            :: grid_atom
     INTEGER, INTENT(IN)                      :: nr, na, llmax, quadrature
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'create_grid_atom'
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_grid_atom', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: l
     REAL(dp), DIMENSION(:), POINTER          :: rad, rad2, wr
