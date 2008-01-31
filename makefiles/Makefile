@@ -84,6 +84,8 @@ dirs:
 	@mkdir -p $(OBJDIR)/$(VERSION)
 	@mkdir -p $(PRETTYOBJDIR)
 
+realpretty: prettyclean pretty
+
 pretty: dirs
 	$(PMAKE) -C $(SRCDIR) -f $(MAKEFILE) _pretty
 
@@ -232,9 +234,9 @@ else
 	$(FC) -c $(FCFLAGS) $<
 endif
 
-%.pretty: %.F $(TOOLSRC)/prettify.py $(TOOLSRC)/normalizeFortranFile.py
+%.pretty: %.F 
 	$(TOOLSRC)/prettify.py $<
-	touch $(PRETTYOBJDIR)/$*.pretty
+	@touch $(PRETTYOBJDIR)/$*.pretty
 
 #
 # here we cheat... this tells make that .mod can be generated from .o (this holds in CP2K)
@@ -244,6 +246,12 @@ endif
 #
 %.mod: %.o
 	@true
+
+#
+# clean prettified files
+#
+prettyclean:
+	-rm -rf $(PRETTYOBJDIR)
 
 #
 # delete the intermediate files, but not the libraries and executables. 
