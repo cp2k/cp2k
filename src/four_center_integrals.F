@@ -1855,7 +1855,7 @@ MODULE four_center_integrals
 !!****************************************************************************
 
   SUBROUTINE derivatives_four_center(qs_env,ks_matrix,energy,rho,hf_section,para_env,& 
-                                     irep, error)
+                                     irep, adiabatic_rescale_factor, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -1865,6 +1865,7 @@ MODULE four_center_integrals
     TYPE(section_vals_type), POINTER         :: hf_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: irep
+    REAL(dp), INTENT(IN), OPTIONAL           :: adiabatic_rescale_factor
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'derivatives_four_center', &
@@ -1921,9 +1922,15 @@ MODULE four_center_integrals
     TYPE(x_hf_potential_type)                :: potential_parameter
     TYPE(x_hf_screening_type)                :: screening_parameter
     TYPE(x_hf_type), POINTER                 :: actual_x_data
+    REAL(dp)                                 :: my_adiabatic_rescale_factor
 
     CALL mp_sync(para_env%group)
     CALL timeset(routineN,"I",'',handle)
+
+    my_adiabatic_rescale_factor = 1.0_dp
+    IF(PRESENT(adiabatic_rescale_factor)) THEN
+      my_adiabatic_rescale_factor = adiabatic_rescale_factor
+    END IF
 
     actual_x_data => qs_env%x_data(irep)
     do_periodic = actual_x_data%periodic_parameter%do_periodic
@@ -1962,6 +1969,7 @@ MODULE four_center_integrals
     CALL get_qs_env(qs_env=qs_env, force=force, error=error)
 
     hf_fraction = general_parameter%fraction
+    hf_fraction = hf_fraction * my_adiabatic_rescale_factor
     eps_schwarz = screening_parameter%eps_schwarz_forces
     eps_box = screening_parameter%eps_box_forces
     screen_pmat_forces =  screening_parameter%do_p_screening_forces

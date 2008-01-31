@@ -784,19 +784,14 @@ CONTAINS
              IF( calculate_forces ) THEN
                CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
                CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
-                                            para_env, irep, error)
+                                            para_env, irep, error=error)
              END IF
            ELSE
              !! we calculate everything but we do not add the potential in a first step
              CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hf_sections,&
                                         para_env,ks_env%s_mstruct_changed,irep,.FALSE.,error)
              hf_energy(irep) = energy%ex
-             IF( calculate_forces ) THEN
-               CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
-               !! we also have to scale the forces!!!! NOT YET DONE
-               CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
-                                            para_env, irep, error)
-             END IF
+             !! If required, the calculation of the forces will be done later
            END IF
            CALL pw_hfx(qs_env,energy,hf_sections,poisson_env,auxbas_pw_pool,irep,error)
          END DO
@@ -828,6 +823,15 @@ CONTAINS
                CALL scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, 2 ,&
                                                     scale_dEx2, error)
              END IF
+             IF( calculate_forces ) THEN
+               CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
+               !! we also have to scale the forces!!!!
+               CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
+                                            para_env, 1, adiabatic_rescale_factor=scale_dEx1, error=error)
+               CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
+                                            para_env, 2, adiabatic_rescale_factor=scale_dEx2, error=error)
+             END IF
+
              !! Calculate vxc and rescale it
              CALL qs_vxc_create(qs_env=qs_env,&
                   vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
@@ -840,6 +844,7 @@ CONTAINS
              energy%ex = 0.0_dp 
              energy%exc1 = 0.0_dp
              energy%exc = total_energy_xc 
+
            END SELECT
          END SELECT            
        END IF
