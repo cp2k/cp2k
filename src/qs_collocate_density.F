@@ -1002,7 +1002,7 @@ CONTAINS
     IF (istat.NE.0) CALL stop_program("calculate_wavefunction","eigenvector")
 
     ! *** set up the pw multi-grids
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineN,error,failure)
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     CALL pw_env_get(pw_env, rs_pools=rs_pools, pw_pools=pw_pools, &
                             cube_info=cube_info, gridlevel_info=gridlevel_info, error=error)
     CALL pw_pools_create_pws(pw_pools,mgrid_gspace,&
@@ -2161,7 +2161,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY(gridlevel_info, mgrid_gspace, mgrid_rspace, rs_pools, pw_pools)
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineN,error,failure)
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     CALL pw_env_get(pw_env, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
 
     gridlevel_info=>pw_env%gridlevel_info

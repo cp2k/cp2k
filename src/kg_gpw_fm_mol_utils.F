@@ -616,12 +616,12 @@ CONTAINS
       FIRST=.FALSE.
     ENDIF
 
-    CPPostcondition(ASSOCIATED(mo),cp_failure_level,routineN,error,failure)
+    CPPostcondition(ASSOCIATED(mo),cp_failure_level,routineP,error,failure)
     my_start = 1
     IF(PRESENT(start_col)) my_start = start_col
     my_ncol = SIZE(mo,2)
     IF(PRESENT(ncol)) THEN
-      CPPostcondition(my_ncol>=ncol,cp_failure_level,routineN,error,failure)
+      CPPostcondition(my_ncol>=ncol,cp_failure_level,routineP,error,failure)
       my_ncol = ncol
     END IF
 

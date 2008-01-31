@@ -330,9 +330,9 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(mo_array),cp_failure_level,routineN,error,failure)
-    CPPrecondition(SIZE(mo_array).EQ.2,cp_failure_level,routineN,error,failure)
-    CPPrecondition(mo_array(1)%mo_set%nmo>=mo_array(2)%mo_set%nmo,cp_failure_level,routineN,error,failure)
+    CPPrecondition(ASSOCIATED(mo_array),cp_failure_level,routineP,error,failure)
+    CPPrecondition(SIZE(mo_array).EQ.2,cp_failure_level,routineP,error,failure)
+    CPPrecondition(mo_array(1)%mo_set%nmo>=mo_array(2)%mo_set%nmo,cp_failure_level,routineP,error,failure)
 
     ! first nmo_beta orbitals are copied from alpha to beta
     IF (.NOT. failure) THEN

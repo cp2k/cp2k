@@ -945,7 +945,7 @@ CONTAINS
                   iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
                   l = indso(1,iso1) + indso(1,iso2)
 
-                  CPPrecondition(l<=lmax_expansion,cp_failure_level,routineN,error,failure)
+                  CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,error,failure)
                   DO ia = 1,na
                     matso_h(iso1,iso2) = matso_h(iso1,iso2) + &
                             gVg_h(ia,l)*&
@@ -1177,7 +1177,7 @@ CONTAINS
                   l = indso(1,iso1) + indso(1,iso2)
 
 !test reduce expansion local densities
-                    CPPrecondition(l<=lmax_expansion,cp_failure_level,routineN,error,failure)
+                    CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,error,failure)
                IF(.NOT. failure) THEN
 
                   DO ia = 1,na
@@ -1200,7 +1200,7 @@ CONTAINS
                   iso2 = harmonics%ind_cg_b_dxyz(icg,iso,iset1,iset2)
                   l = indso(1,iso1) + indso(1,iso2)
 !test reduce expansion local densities
-                    CPPrecondition(l<=lmax_expansion,cp_failure_level,routineN,error,failure)
+                    CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,error,failure)
                IF(.NOT. failure) THEN
 
                   DO ia = 1,na

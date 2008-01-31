@@ -239,7 +239,7 @@ MODULE qs_local_rho_types
     failure=.FALSE.
 
     ALLOCATE(local_rho_set, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     NULLIFY (local_rho_set%rho_atom_set)
     NULLIFY (local_rho_set%rho0_atom_set)

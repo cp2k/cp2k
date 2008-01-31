@@ -118,7 +118,7 @@ CONTAINS
          ncol_global=ncol_global,error=error)
 
     ALLOCATE(matrix(nrow_global,ncol_global),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL cp_fm_get_submatrix(blacs_matrix,matrix,error=error)
 
     ! *** Get the matrix dimension and check the optional arguments ***
@@ -155,7 +155,7 @@ CONTAINS
     ! *** Release work storage ***
     IF (ASSOCIATED(matrix)) THEN
        DEALLOCATE (matrix,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     
   END SUBROUTINE write_fm_with_basis_info
@@ -227,9 +227,9 @@ CONTAINS
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
 
       ALLOCATE (first_sgf(natom),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE (last_sgf(natom),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL get_particle_set(particle_set=particle_set,&
                             first_sgf=first_sgf,&
                             last_sgf=last_sgf)
@@ -307,9 +307,9 @@ CONTAINS
       
       WRITE (UNIT=output_unit,FMT="(/)")
       DEALLOCATE (first_sgf,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE (last_sgf,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     CALL mp_sync(group)
@@ -465,11 +465,11 @@ CONTAINS
 
     ! *** Allocate work storage ***
     ALLOCATE (nblock(npe),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     nblock(:) = 0
 
     ALLOCATE (nelement(npe),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     nelement(:) = 0
 
     matrix_symmetry = ""
@@ -512,10 +512,10 @@ CONTAINS
 
     ! *** Release work storage ***
     DEALLOCATE (nblock,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DEALLOCATE (nelement,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE write_matrix_distribution
 
@@ -631,7 +631,7 @@ CONTAINS
 
     IF (ASSOCIATED(matrix)) THEN
        DEALLOCATE (matrix,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
   END SUBROUTINE write_sparse_matrix

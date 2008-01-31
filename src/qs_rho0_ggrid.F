@@ -463,7 +463,7 @@ MODULE qs_rho0_ggrid
 
     ! *** set up of the potential on the multigrids
     NULLIFY(rs_pools, pw_pools)
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineN,error,failure)
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     CALL pw_env_get(pw_env, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
 
     ! *** assign from pw_env

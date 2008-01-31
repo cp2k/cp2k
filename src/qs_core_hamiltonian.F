@@ -388,7 +388,7 @@ CONTAINS
        nder = 1
        
        ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
 
        CALL get_qs_env(qs_env=qs_env,force=force,ep_qs_env=ep_qs_env,matrix_w=matrix_w,error=error)
@@ -451,9 +451,9 @@ CONTAINS
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
     
     ALLOCATE (first_sgf(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (last_sgf(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL get_particle_set(particle_set=particle_set,first_sgf=first_sgf,last_sgf=last_sgf)
 
@@ -482,7 +482,7 @@ CONTAINS
        CALL prepare_oce_coeff(particle_set,oce,natom,nsgf,&
             first_sgf,last_sgf,distribution_2d,error=error)
        ALLOCATE(dist_list(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO i = 1,natom
           dist_list(i)%ndist = 0
           NULLIFY(dist_list(i)%rdist)
@@ -490,9 +490,9 @@ CONTAINS
     ENDIF
     
     DEALLOCATE (first_sgf,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (last_sgf,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DO i=2,maxder
        cgfsym = cgf_symbol(1,indco(1:3,i))
@@ -597,7 +597,7 @@ CONTAINS
     END IF
     
     ALLOCATE (sintt(SIZE(matrix_s),0:nthread-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DO i=1,SIZE(sintt,1)
        DO j=0,nthread-1
@@ -607,7 +607,7 @@ CONTAINS
     
     IF (build_kinetic_energy_matrix) THEN
        ALLOCATE (tintt(SIZE(matrix_t),0:nthread-1),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO i=1,SIZE(tintt,1)
           DO j=0,nthread-1
              NULLIFY (tintt(i,j)%block)
@@ -623,9 +623,9 @@ CONTAINS
           CALL allocate_vtriple(VH_3c_list,nkind,natom,error=error)
        END IF
        ALLOCATE (oceht(SIZE(matrix_s),0:nthread-1),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE (ocest(SIZE(matrix_s),0:nthread-1),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)       
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
        DO i=1,SIZE(oceht,1)
           DO j=0,nthread-1
              NULLIFY (oceht(i,j)%block)
@@ -639,7 +639,7 @@ CONTAINS
 
     IF (ppl_present) THEN
        ALLOCATE (vpplt(nkind,0:nthread-1),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO kkind=1,nkind
           atomic_kind => atomic_kind_set(kkind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,gth_potential=gth_potential)
@@ -663,7 +663,7 @@ CONTAINS
     ppnl_present = ASSOCIATED(sac_ppnl)
     IF (ppnl_present) THEN
        ALLOCATE (vppnlt(nkind,0:nthread-1),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO kkind=1,nkind
           atomic_kind => atomic_kind_set(kkind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -691,7 +691,7 @@ CONTAINS
     
     IF (all_potential_present) THEN
        ALLOCATE(vallt(nkind,0:nthread-1),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO kkind=1,nkind
           atomic_kind => atomic_kind_set(kkind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -818,7 +818,7 @@ CONTAINS
              vall => vallt(:,ithread)
           END IF
           ALLOCATE (ai_work(ldai,ldai,MAX(1,ncoset(maxlppl)),ncoset(nder+1)),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 ! !$OMP do
           DO ilist=1,nlist
 ! !$OMP critical (qs_core_neighbor_list)
@@ -843,11 +843,11 @@ CONTAINS
                    CALL get_neighbor_list(neighbor_list=sac_ppl_neighbor_list,nnode=nneighbor)
                    
                    ALLOCATE (vppl(kkind)%r2(nneighbor),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                    ALLOCATE (vppl(kkind)%neighbor(nneighbor),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                    ALLOCATE (vppl(kkind)%r(3,nneighbor),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                    
                    sac_ppl_neighbor_node => first_node(sac_ppl_neighbor_list)
                    
@@ -896,7 +896,7 @@ CONTAINS
                                                    cell_c_min(2):cell_c_max(2),&
                                                    cell_c_min(3):cell_c_max(3)),&
                                                    STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                    vppnl(kkind)%neighbor(:,:,:)%n = 0
                    
                    ! *** Find proper array size for each cell ***
@@ -925,11 +925,11 @@ CONTAINS
                                CALL reallocate(sac_ppnl_neighbor%index_list,1,n)
                                CALL reallocate(sac_ppnl_neighbor%list,1,n)
                                ALLOCATE (sac_ppnl_neighbor%sac(maxder))
-                               CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+                               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                                DO i=1,maxder
                                   ncol = n*nppnl
                                   ALLOCATE (sac_ppnl_neighbor%sac(i)%block(ncoa_sum,ncol),STAT=stat)
-                                  CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+                                  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                                END DO
                             END IF
                          END DO
@@ -1534,7 +1534,7 @@ CONTAINS
 ! !$OMP end critical (qs_core_force_all_potential)
                                END DO
                                DEALLOCATE(vall(kkind)%force_c,STAT=stat)
-                               CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+                               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                             END DO
                          ELSE
                             CALL all_integrals(la_max(iset),la_min(iset),npgfa(iset),&
@@ -1576,11 +1576,11 @@ CONTAINS
                 DO kkind=1,nkind
                    IF (ASSOCIATED(vppl(kkind)%r2)) THEN
                       DEALLOCATE (vppl(kkind)%r2,STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                       DEALLOCATE (vppl(kkind)%neighbor,STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                       DEALLOCATE (vppl(kkind)%r,STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                    END IF
                 END DO
              END IF
@@ -1596,25 +1596,25 @@ CONTAINS
                                sac_ppnl_neighbor => vppnl(kkind)%neighbor(icell,jcell,kcell)
                                IF (sac_ppnl_neighbor%n > 0) THEN
                                   DEALLOCATE (sac_ppnl_neighbor%r2,STAT=stat)
-                                  CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+                                  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                                   DEALLOCATE (sac_ppnl_neighbor%r,STAT=stat)
-                                  CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+                                  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                                   DEALLOCATE (sac_ppnl_neighbor%list,STAT=stat)
-                                  CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+                                  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                                   DEALLOCATE (sac_ppnl_neighbor%index_list,STAT=stat)
-                                  CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+                                  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                                   DO i=1,maxder
                                      DEALLOCATE (sac_ppnl_neighbor%sac(i)%block,STAT=stat)
-                                     CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+                                     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                                   END DO
                                   DEALLOCATE (sac_ppnl_neighbor%sac,STAT=stat)
-                                  CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+                                  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                                END IF
                             END DO
                          END DO
                       END DO
                       DEALLOCATE (vppnl(kkind)%neighbor,STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                    END IF
                 END DO
              END IF
@@ -1631,7 +1631,7 @@ CONTAINS
           
           IF (ALLOCATED(ai_work)) THEN
              DEALLOCATE (ai_work,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
 ! !$OMP end parallel
        END DO
@@ -1650,7 +1650,7 @@ CONTAINS
           END DO
        END DO
        DEALLOCATE (vpplt,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     
     IF (ppnl_present) THEN
@@ -1663,7 +1663,7 @@ CONTAINS
           END DO
        END DO
        DEALLOCATE (vppnlt,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     
     IF (all_potential_present) THEN
@@ -1674,7 +1674,7 @@ CONTAINS
           END DO
        END DO
        DEALLOCATE (vallt,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     
     IF(ASSOCIATED(oce))THEN
@@ -1685,18 +1685,18 @@ CONTAINS
     END IF
     
     DEALLOCATE (habt,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (sabt,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (sdabt,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (workt,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (calculate_forces) THEN
        DEALLOCATE (atom_of_kind,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (pabt,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! *** If LSD, then recover alpha density and beta density     ***
        ! *** from the total density (1) and the spin density (2)     ***
        ! *** The W matrix is neglected, since it will be destroyed   ***
@@ -1713,7 +1713,7 @@ CONTAINS
        END DO
     END DO
     DEALLOCATE (sintt,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
     IF (build_kinetic_energy_matrix) THEN
        DO i=1,SIZE(tintt)
@@ -1722,7 +1722,7 @@ CONTAINS
           END DO
        END DO
        DEALLOCATE (tintt,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     
     IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
@@ -1733,14 +1733,14 @@ CONTAINS
           END DO
        END DO
        DEALLOCATE (oceht,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (ocest,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO i=1,SIZE(dist_list,1)
           IF(ASSOCIATED(dist_list(i)%rdist)) DEALLOCATE(dist_list(i)%rdist,STAT=stat)
        END DO
        DEALLOCATE(dist_list,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
     
     ! Print matrices if requested

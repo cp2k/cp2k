@@ -234,13 +234,13 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(mol_diis_buffer_set),cp_failure_level,routineN,error,failure)
+    CPPostcondition(ASSOCIATED(mol_diis_buffer_set),cp_failure_level,routineP,error,failure)
 
     IF(ASSOCIATED(mol_diis_buffer_set%mol_diis_block)) &
        CALL distroy_mol_diis_block(mol_diis_buffer_set%mol_diis_block)
 
     ALLOCATE(mol_diis_buffer_set%mol_diis_block(nmol_local), STAT = istat)
-    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     mol_diis_buffer_set%nmol_global = nmol_global
     mol_diis_buffer_set%nmol_local = nmol_local
@@ -265,7 +265,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(mol_diis_buffer_set),cp_failure_level,routineN,error,failure)
+    CPPostcondition(ASSOCIATED(mol_diis_buffer_set),cp_failure_level,routineP,error,failure)
     DO ikind = 1,nmol_kind
 
       NULLIFY(mol_diis_buffer_set(ikind)%mol_diis_block)
@@ -375,7 +375,7 @@ CONTAINS
 
     mol_diis_block => mol_diis_buffer_set%mol_diis_block
     nsize = SIZE(mol_diis_block,1)
-    CPPostcondition(nsize==nmol_local,cp_failure_level,routineN,error,failure)
+    CPPostcondition(nsize==nmol_local,cp_failure_level,routineP,error,failure)
 
     DO imol = 1, nmol_local
       NULLIFY(mol_diis_block(imol)%ks_buffer)

@@ -1320,7 +1320,7 @@ CONTAINS
          &                   nsgf=nsgf)
 
     ALLOCATE(first_sgf(natom),last_sgf(natom),dist_list(natom),oceh(1),oces(1),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     DO i = 1,natom
        dist_list(i)%ndist = 0
@@ -1443,11 +1443,11 @@ CONTAINS
     DO i=1,natom
        IF(ASSOCIATED(dist_list(i)%rdist)) THEN
           DEALLOCATE(dist_list(i)%rdist,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        ENDIF
     ENDDO
     DEALLOCATE(first_sgf,last_sgf,dist_list,oceh,oces,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     !
   END SUBROUTINE list_3c_jrho_atom
 

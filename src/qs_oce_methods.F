@@ -148,22 +148,22 @@ CONTAINS
     lds = ncoset(lm+nder+1)
 
     ALLOCATE(s(lds,lds,ncoset(nder+1)),STAT= istat)
-    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ALLOCATE(spa_sbt(np_car,ntotsgfb,0:nthread-1), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     spa_sbt(1:np_car,1:ntotsgfb,0:nthread-1) =0.0_dp
     ALLOCATE(spa_tmpt(maxnprja*ncoset(maxlprj),maxcob*maxder,0:nthread-1),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     spa_tmpt(1:maxnprja*ncoset(maxlprj),1:maxcob*maxder,0:nthread-1) =0.0_dp
     ALLOCATE(sdpa_tmpt(maxnprja*ncoset(maxlprj+1),maxcob,4,0:nthread-1),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     sdpa_tmpt(1:maxnprja*ncoset(maxlprj+1),1:maxcob,1:4,0:nthread-1) =0.0_dp
     ALLOCATE(ovc(np_car,maxcob*nsetb*maxder),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ovc = 0.0_dp
     ALLOCATE(ovs(np_sph,maxcob*nsetb*maxder),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ovs = 0.0_dp
 
 
@@ -363,7 +363,7 @@ CONTAINS
     ENDDO  !jset
 
     DEALLOCATE(s,spa_sbt,spa_tmpt,sdpa_tmpt,ovc,ovs ,STAT = istat)
-    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE build_oce_block
 

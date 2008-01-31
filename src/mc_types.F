@@ -1263,7 +1263,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
-    CPPrecondition(ASSOCIATED(input_file),cp_failure_level,routineN,error,failure)
+    CPPrecondition(ASSOCIATED(input_file),cp_failure_level,routineP,error,failure)
 
 
       CALL timeset(routineN,'I','',handle)

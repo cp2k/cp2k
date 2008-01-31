@@ -146,8 +146,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(scf_diis_buffer),cp_failure_level,routineN,error,failure)
-    CPPrecondition(scf_diis_buffer%ref_count>=1,cp_failure_level,routineN,error,failure)
+    CPPrecondition(ASSOCIATED(scf_diis_buffer),cp_failure_level,routineP,error,failure)
+    CPPrecondition(scf_diis_buffer%ref_count>=1,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        scf_diis_buffer%ncall=0
     END IF

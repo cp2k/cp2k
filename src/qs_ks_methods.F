@@ -2879,7 +2879,7 @@ END SUBROUTINE qs_vxc_create
 
     ! scale every column with the occupation
     ALLOCATE(eigocc(mo_set%homo),stat=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     DO imo=1,mo_set%homo
        eigocc(imo) = mo_set%eigenvalues(imo)*mo_set%occupation_numbers(imo)

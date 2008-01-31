@@ -195,7 +195,7 @@ MODULE hartree_local_types
     failure=.FALSE.
 
     ALLOCATE(hartree_local, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     NULLIFY (hartree_local%ecoul_1c)
     NULLIFY (hartree_local%vtriple)

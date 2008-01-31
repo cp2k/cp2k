@@ -396,7 +396,7 @@ SUBROUTINE qs_ks_scp_update ( qs_env, just_energy, error )
                         poisson_env = poisson_env, &
                         error = error )
        ALLOCATE(vhscp_gspace,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL pw_pool_create_pw(auxbas_pw_pool, vhscp_gspace%pw, &
                                use_data = COMPLEXDATA1D,&
                                in_space = RECIPROCALSPACE, error=error)
