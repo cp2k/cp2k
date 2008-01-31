@@ -22,6 +22,7 @@ ARCHDIR      = $(CP2KHOME)/arch
 MAINEXEDIR   = $(CP2KHOME)/exe
 MAINLIBDIR   = $(CP2KHOME)/lib
 MAINOBJDIR   = $(CP2KHOME)/obj
+PRETTYOBJDIR = $(CP2KHOME)/obj/prettified
 TOOLDIR      = $(OBJDIR)/tools
 TOOLSRC      = $(CP2KHOME)/tools
 SRCDIR       = $(CP2KHOME)/src
@@ -81,6 +82,10 @@ dirs:
 	@mkdir -p $(LIBDIR)/$(VERSION)
 	@mkdir -p $(TOOLDIR)
 	@mkdir -p $(OBJDIR)/$(VERSION)
+	@mkdir -p $(PRETTYOBJDIR)
+
+pretty: dirs
+	$(PMAKE) -C $(SRCDIR) -f $(MAKEFILE) _pretty
 
 deptool: dirs
 	$(SMAKE) -C $(TOOLDIR) -f $(MAKEFILE) makedepf90
@@ -140,6 +145,7 @@ vpath %.F $(SRCDIRS)
 vpath %.h $(SRCDIRS)
 vpath %.f90 $(SRCDIRS)
 vpath %.dep $(OBJDIR)/$(VERSION)
+vpath %.pretty $(PRETTYOBJDIR)
 
 #
 # generation of the dependencies
@@ -172,6 +178,8 @@ _all: $(LIB1_ARCHIVE) $(LIB2_ARCHIVE) $(LIB_CP2K_ARCHIVE) $(PROG) leap2fist fes 
 _progr: $(PROG)
 _lib: $(LIB1_ARCHIVE) $(LIB2_ARCHIVE) $(LIB_CP2K_ARCHIVE)
 _cpshell: $(CP2KSHELL)
+
+_pretty:$(OBJECTS:.o=.pretty)
 
 $(LIB1_ARCHIVE): $(LIB1_OBJECTS)
 	$(AR) $(LIB1_ARCHIVE) $?
@@ -223,6 +231,10 @@ ifneq ($(CPP),)
 else
 	$(FC) -c $(FCFLAGS) $<
 endif
+
+%.pretty: %.F $(TOOLSRC)/prettify.py $(TOOLSRC)/normalizeFortranFile.py
+	$(TOOLSRC)/prettify.py $<
+	touch $(PRETTYOBJDIR)/$*.pretty
 
 #
 # here we cheat... this tells make that .mod can be generated from .o (this holds in CP2K)
