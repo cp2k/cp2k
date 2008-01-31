@@ -508,7 +508,7 @@ CONTAINS
        exit_inner_loop    = .FALSE.
        scf_loop: DO
 
-          CALL timeset("scf_iter","I"," ",handle2)
+          CALL timeset(routineN,"I"," ",handle2)
 
           scf_env%iter_count = scf_env%iter_count + 1
           iter_count =  iter_count + 1
@@ -1301,7 +1301,7 @@ END SUBROUTINE qs_scf_print_summary
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(scp_environment_type), POINTER      :: scp_env
 
-    CALL timeset("init_scf_loop","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY(scf_control,matrix_s,matrix_ks,dft_control,mos,&
          mo_coeff)
@@ -1632,7 +1632,7 @@ END SUBROUTINE qs_scf_print_summary
       POINTER                                :: matrix_h, matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
 
-    CALL timeset("init_scf_run","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY(scf_control, atomic_kind_set, matrix_h, matrix_s, matrix_ks, &
          dft_control, mos, rho)

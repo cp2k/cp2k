@@ -109,7 +109,7 @@ CONTAINS
          max_iso_not0, maxso, nat,&
          natom, nkind, nr
 
-    CALL timeset("init_coulomb_local","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY(atomic_kind_set)
     NULLIFY(atom_kind)
@@ -176,9 +176,13 @@ CONTAINS
     INTEGER                                    :: handle, ir, iso, ispin, l_ang, &
          max_s_harm, nchannels, &
          nr, nspins
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_mix', &
+      routineP = moduleN//':'//routineN
+
     !   ---------------------------------------------------------------------------
 
-    CALL timeset("calculate_Vh_1center","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     nr = grid_atom%nr
     max_s_harm = SIZE(vrad_h,2)
@@ -329,7 +333,7 @@ CONTAINS
 
     !   -----------------------------------------------------------------------------
 
-    CALL timeset("Vh_1c_gg_integrals","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     NULLIFY(cell,dft_control,para_env,poisson_env,pw_env,qs_charges)
     NULLIFY(atomic_kind_set,rho_atom_set,rho_atom,rho0_atom_set)

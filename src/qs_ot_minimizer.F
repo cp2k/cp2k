@@ -46,6 +46,9 @@ MODULE qs_ot_minimizer
 
   PUBLIC  :: ot_mini
 
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_minimizer'
+
+
 CONTAINS
 !
 ! the minimizer interface
@@ -67,10 +70,13 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, error)
       POINTER                                :: aux_coeff_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'ot_mini', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, ispin, nspin
     REAL(KIND=dp)                            :: tmp
 
-   CALL timeset("ot_mini","I","",handle)
+   CALL timeset(routineN,"I","",handle)
 
    nspin=SIZE(qs_ot_env)
 

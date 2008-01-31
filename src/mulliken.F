@@ -409,10 +409,13 @@ END SUBROUTINE rf_deriv_check
     INTEGER                                  :: scr
     CHARACTER(LEN=*)                         :: title
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_charges_a', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, i, nblock, nspin
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
 
-    CALL timeset("mulliken_charges","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     ! here we get the numbers for charges
     nspin=SIZE(p_matrix)
@@ -437,9 +440,12 @@ END SUBROUTINE rf_deriv_check
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mcharge
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_charges_b', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle
 
-    CALL timeset("mulliken_charges","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     CALL compute_charges(p_matrix,s_matrix,mcharge,para_env)
 

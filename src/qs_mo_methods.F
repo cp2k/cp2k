@@ -330,11 +330,15 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: density_matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'calculate_density_matrix_blacs', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, imo
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("calculate_density_matrix_blacs","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     CALL cp_fm_syrk("U","N",mo_set%lfomo-1,mo_set%maxocc,mo_set%mo_coeff,&
                     1,1,0.0_dp,density_matrix,error=error)
@@ -366,13 +370,17 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: density_matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'calculate_density_matrix_sparse', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle
     REAL(KIND=dp)                            :: alpha
     TYPE(cp_fm_type), POINTER                :: fm_tmp
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("calculate_density_matrix_sparse","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     CALL set_matrix(density_matrix,0.0_dp)
 
@@ -449,6 +457,9 @@ CONTAINS
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: co_rotate
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'subspace_eigenvalues_ks', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, i, j, ncol_global, &
                                                 nrow_global
     LOGICAL                                  :: do_rotation_local
@@ -459,7 +470,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("calculate_subspace_eigenvalues","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     do_rotation_local=.TRUE.
     IF (PRESENT(do_rotation)) do_rotation_local=do_rotation
@@ -553,6 +564,9 @@ CONTAINS
       POINTER                                :: matrix_s
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_orthonormality', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, i, ispin, j, k, n, &
                                                 ncol_local, nrow_local, nspin
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
@@ -562,7 +576,7 @@ CONTAINS
 
    NULLIFY(tmp_fm_struct,svec,overlap)
 
-   CALL timeset("calculate_orthonormality","I","",handle)
+   CALL timeset(routineN,"I","",handle)
 
    nspin=SIZE(mo_array)
    max_alpha=0.0_dp

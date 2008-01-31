@@ -188,7 +188,7 @@ CONTAINS
     REAL(KIND=dp)                            :: drmin, dxi, dy2, dyi, dz2, &
                                                 dzi, radius, radius2, rp(3)
 
-    CALL timeset("init_cube_info","I","",handle) 
+    CALL timeset(routineN,"I","",handle) 
     info%dr = dr
     info%dh = dh
     info%dh_inv = dh_inv

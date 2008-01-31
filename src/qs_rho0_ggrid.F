@@ -135,7 +135,7 @@ MODULE qs_rho0_ggrid
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("put_rho0_s_on_grid","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     failure = .FALSE.
     NULLIFY(atom_kind,atom_list,cores,pab,Qlm_c)
@@ -428,7 +428,7 @@ MODULE qs_rho0_ggrid
     failure=.FALSE.
     c4pi = fourpi
 
-    CALL timeset("integrate_vhg0_rspace","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     NULLIFY(atomic_kind_set,dft_control,para_env,particle_set)
     NULLIFY(cell,force,pw_env,rho0_mpole,rho_atom_set,cores)

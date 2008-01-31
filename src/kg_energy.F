@@ -371,7 +371,7 @@ SUBROUTINE kg_std_energies ( kg_env, root_section, error )
 
 scf_loop: DO
 
-    CALL timeset("scf_iter","I","",handle2)
+    CALL timeset(routineN,"I","",handle2)
     IF (ionode) CALL m_flush(output_unit)
     iter = iter + 1
 

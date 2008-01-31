@@ -252,7 +252,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: poisson_section, &
                                                 rs_grid_section
 
-    CALL timeset("ewald_pw_init","I","",handle)
+    CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     
     NULLIFY ( pw_big_grid )

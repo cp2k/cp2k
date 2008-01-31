@@ -130,7 +130,7 @@ MODULE qs_rho_atom_methods
 
 ! *****************************************************************************
 
-    CALL timeset("calculate_rho_atom","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     failure = .FALSE.
     NULLIFY(orb_basis)
@@ -456,7 +456,7 @@ MODULE qs_rho_atom_methods
 !
 ! *****************************************************************************
 
-    CALL timeset("calculate_rho_atom_coeff","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY(dft_control)
     NULLIFY(atomic_kind_set)
@@ -815,7 +815,7 @@ MODULE qs_rho_atom_methods
 
 ! -----------------------------------------------------------------------------
 
-    CALL timeset("init_rho_atom","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY(rho_atom_set)
     NULLIFY(atomic_kind_set)
@@ -1021,7 +1021,7 @@ MODULE qs_rho_atom_methods
 
 ! --------------------------------------------------------------------------
 
-    CALL timeset("allocate_rho_atom_internals","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY(atomic_kind_set)
     NULLIFY(rho_atom_set)
@@ -1156,7 +1156,7 @@ MODULE qs_rho_atom_methods
     INTEGER                                  :: handle, istat, j
     LOGICAL                                  :: failure
 
-    CALL timeset("calculate_rho_atom","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
     failure = .FALSE.
 !    CPPrecondition(ASSOCIATED(rho_atom),cp_failure_level,routineP,error,failure)
 !    IF(.NOT. failure) THEN

@@ -365,7 +365,7 @@ CONTAINS
 
 !   --------------------------------------------------------------------------
 
-    CALL timeset("fm_mol_power","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     nrow = SIZE(matrix,1)
     ncol = SIZE(matrix,2)

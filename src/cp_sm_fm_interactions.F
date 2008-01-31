@@ -104,7 +104,7 @@ CONTAINS
 #endif
     !   ---------------------------------------------------------------------------
 
-    CALL timeset("copy_fm_to_sm","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     my_beta=0._dp
     my_alpha=1._dp
@@ -317,7 +317,7 @@ CONTAINS
     IF (failure) RETURN
 
 
-    CALL timeset("copy_sm_to_fm","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
 
     ! info about the full matrix
@@ -915,7 +915,7 @@ CPSourceFileRef,&
     ALLOCATE(loc_v(ncol_max,nrow_global))
 
     ! do the actual scalapack to cols reordering
-    CALL timeset("cp_sm_plus_fm_fm_t_pdgemr2d","I","",handle2)
+    CALL timeset(routineN,"I","",handle2)
     CALL pdgemr2d(nrow_global,my_ncol,matrix_v%local_data(1,1),1,col1, &
          matrix_v%matrix_struct%descriptor, &
          newdat(1,1),1,1,desc,ictxt_loc)
@@ -929,7 +929,7 @@ CPSourceFileRef,&
     IF (g_present) THEN
        ALLOCATE(loc_g(ncol_max,nrow_global))
        ! do the actual scalapack to cols reordering
-       CALL timeset("cp_sm_plus_fm_fm_t_pdgemr2d","I","",handle2)
+       CALL timeset(routineN,"I","",handle2)
        CALL pdgemr2d(nrow_global,my_ncol,matrix_g%local_data(1,1),1,col1, &
             matrix_g%matrix_struct%descriptor, &
             newdat(1,1),1,1,desc,ictxt_loc)

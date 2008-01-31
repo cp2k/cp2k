@@ -441,7 +441,7 @@ CONTAINS
 !   *** SCF loop ***
 
     scf_loop: DO
-       CALL timeset("scf_iter","I"," ",handle2)
+       CALL timeset(routineN,"I"," ",handle2)
 
        IF (ionode) CALL m_flush(output_unit)
 
@@ -834,7 +834,7 @@ CONTAINS
 !                                                ndep, nelectron_spin, &
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("init_kgscf_run","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY(dft_control,kg_fm,scf_control,S_sm_pools)
     NULLIFY(qs_env,ks_env,matrix_ks,matrix_s,logger)
@@ -1022,7 +1022,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 !
 
-    CALL timeset("calculate_ortho_per_molecule","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     failure = .FALSE.
     nmol_kind = SIZE(kg_fm_mol_set,1)

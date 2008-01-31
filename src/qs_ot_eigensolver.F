@@ -111,7 +111,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("ot_eigensolver","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source

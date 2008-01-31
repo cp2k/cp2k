@@ -669,6 +669,8 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: C_NEW, SC, G_OLD, D
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_on_the_fly_localize', &
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: taylor_order = 50
     REAL(KIND=dp), PARAMETER                 :: alpha = 0.1_dp, &
                                                 f2_eps = 0.01_dp, &
@@ -678,7 +680,7 @@ CONTAINS
     REAL(KIND=dp)                            :: expfactor, norm_fro, norm_gct
     TYPE(cp_fm_type), POINTER                :: C, Gp1, Gp2, GU, U
 
-    CALL timeset("qs_ot_on_the_fly_localize","I","",handle)
+    CALL timeset(routineN,"I","",handle)
     !
     NULLIFY(U,GU,Gp1,Gp2,C)
     !
@@ -764,9 +766,12 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: update
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_ref_chol', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, k, n
 
-    CALL timeset("qs_ot_ref_chol","I","",handle)
+    CALL timeset(routineN,"I","",handle)
     !
     CALL cp_fm_get_info(C_NEW,nrow_global=n,ncol_global=k,error=error)
     !
@@ -794,11 +799,14 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: update
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_ref_lwdn', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, i, k, n
     REAL(dp), DIMENSION(:), POINTER          :: eig, fun
     TYPE(cp_fm_type), POINTER                :: V, W
 
-    CALL timeset("qs_ot_ref_lwdn","I","",handle)
+    CALL timeset(routineN,"I","",handle)
     !
     NULLIFY(V,W,eig)
     !
@@ -846,6 +854,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: update
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_ref_poly', &
+      routineP = moduleN//':'//routineN
     REAL(dp), PARAMETER                      :: rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER                                  :: handle, irefine, k, n, &
@@ -856,7 +866,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: FT, FY, Y
     TYPE(cp_logger_type), POINTER            :: logger
 
-    CALL timeset("qs_ot_ref_poly","I","",handle)
+    CALL timeset(routineN,"I","",handle)
     !
     NULLIFY(logger,FY,Y)
     logger => cp_error_get_logger(error)
@@ -989,6 +999,8 @@ CONTAINS
     TYPE(qs_ot_type)                         :: qs_ot_env, qs_ot_env1
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_orbitals_ref', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
     CHARACTER(LEN=4)                         :: ortho_irac
@@ -1000,10 +1012,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(real_matrix_type), POINTER          :: S
 
-!
-!
-
-    CALL timeset("qs_ot_get_orbitals_ref","I","",handle)
+    CALL timeset(routineN,"I","",handle)
     NULLIFY(S,SC,P,Y,C_NEW,C_OLD,C_TMP,G_OLD,D,logger)
     logger => cp_error_get_logger(error)
     output_unit = cp_logger_get_default_unit_nr(logger)
@@ -1145,14 +1154,14 @@ CONTAINS
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_derivative_ref', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
     INTEGER                                  :: handle, k, n
     TYPE(cp_fm_type), POINTER                :: C, CHC, G, HC, SC
 
-!
-
-    CALL timeset("qs_ot_get_derivative_ref","I","",handle)
+    CALL timeset(routineN,"I","",handle)
     NULLIFY(C,SC,HC,CHC,G)
     CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
     !
@@ -1179,11 +1188,13 @@ CONTAINS
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_p', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
     INTEGER                                  :: handle, k, n
 
-    CALL timeset("qs_ot_get_p","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
 
@@ -1420,12 +1431,14 @@ CONTAINS
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_orbitals', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
     INTEGER                                  :: handle, k, n
     TYPE(cp_fm_type), POINTER                :: matrix_kk
 
-    CALL timeset("qs_ot_get_orbitals","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
 
@@ -1533,12 +1546,14 @@ CONTAINS
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_derivative', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
     INTEGER                                  :: handle, k, n, ortho_k
     TYPE(cp_fm_type), POINTER                :: matrix_hc_local, matrix_target
 
-    CALL timeset("qs_ot_get_derivative","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
 
@@ -1617,11 +1632,13 @@ CONTAINS
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_derivative_diag', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
     INTEGER                                  :: handle, k, n
 
-    CALL timeset("qs_ot_get_derivative_diag","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
 
@@ -1686,13 +1703,15 @@ CONTAINS
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_get_derivative_taylor', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
     INTEGER                                  :: handle, i, k, n
     REAL(KIND=dp)                            :: cosfactor, sinfactor
     TYPE(cp_fm_type), POINTER                :: matrix_left, matrix_right
 
-    CALL timeset("qs_ot_get_derivative_taylor","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     CALL cp_fm_get_info(matrix_x,nrow_global=n,ncol_global=k,error=error)
 
@@ -1772,12 +1791,14 @@ CONTAINS
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_p2m_taylor', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER                                  :: handle, i, k
     REAL(KIND=dp)                            :: cosfactor, sinfactor
 
-    CALL timeset("qs_ot_p2m_taylor","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     ! zeroth order
     CALL cp_fm_set_all(qs_ot_env%matrix_cosp,rzero,rone,error=error)
@@ -1828,12 +1849,14 @@ CONTAINS
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_p2m_diag', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER                                  :: handle, i, j, k
     REAL(KIND=dp)                            :: a, b
 
-    CALL timeset("qs_ot_p2m_diag","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     CALL cp_fm_get_info(qs_ot_env%matrix_p,nrow_global=k,error=error)
     CALL cp_fm_to_fm(qs_ot_env%matrix_p,qs_ot_env%matrix_buf1,error=error)

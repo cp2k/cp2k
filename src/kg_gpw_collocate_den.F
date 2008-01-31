@@ -198,10 +198,10 @@ CONTAINS
     ENDIF
 
     IF (my_compute_tau) THEN
-       CALL timeset("calculate_rho_mol_tau","I","",handle)
+       CALL timeset(routineN,"I","",handle)
        ga_gb_function = FUNC_DADB
     ELSE
-       CALL timeset("calculate_rho_mol_elec","I","",handle)
+       CALL timeset(routineN,"I","",handle)
        ga_gb_function = FUNC_AB
     ENDIF
 
@@ -726,9 +726,9 @@ CONTAINS
     ENDIF
 
     IF (my_compute_tau) THEN
-       CALL timeset("calculate_rho_tau","I","",handle)
+       CALL timeset(routineN,"I","",handle)
     ELSE
-       CALL timeset("calculate_rho_elec","I","",handle)
+       CALL timeset(routineN,"I","",handle)
     ENDIF
 
     calculate_forces = .FALSE.

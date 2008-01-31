@@ -240,7 +240,7 @@ CONTAINS
             first_sgfa, pab, work)
     NULLIFY(gridlevel_info, rs_pools, pw_pools, mgrid_gspace, mgrid_rspace)
 
-    CALL timeset("collocate_atomic_charge_density","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     !ALLOCATE(pab(1,1),STAT=ierr)
     !IF ( ierr /= 0 ) CALL stop_memory ( routineN, "pab", 1 )
@@ -430,7 +430,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("calculate_rho_core","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
     NULLIFY(atomic_kind,cell,dft_control,pab,atomic_kind_set,particle_set,&
          atom_list,pw_env,rs_rho,auxbas_rs_pool,auxbas_pw_pool,cores)
     ALLOCATE(pab(1,1),STAT=ierr)
@@ -642,10 +642,10 @@ CONTAINS
     ENDIF
 
     IF (my_compute_tau) THEN
-       CALL timeset("calculate_rho_tau","I"," ",handle)
+       CALL timeset(routineN,"I"," ",handle)
        ga_gb_function = FUNC_DADB
     ELSE
-       CALL timeset("calculate_rho_elec","I"," ",handle)
+       CALL timeset(routineN,"I"," ",handle)
        ga_gb_function = FUNC_AB
     ENDIF
 

@@ -48,6 +48,9 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: matrix_a, matrix_b, matrix_c
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_schur_product', &
+      routineP = moduleN//':'//routineN
+
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a, b, c
     INTEGER                                  :: handle, icol_local, &
@@ -56,7 +59,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("cp_cfm_schur_product","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     myprow=matrix_a%matrix_struct%context%mepos(1)
     mypcol=matrix_a%matrix_struct%context%mepos(2)
@@ -199,7 +202,7 @@ CPSourceFileRef,&
 
 ! *** locals ***
 
-    CALL timeset("cp_cfm_lu_decompose","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     a => matrix_a%local_data
     n = matrix_a%matrix_struct%nrow_global
@@ -254,6 +257,9 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER, INTENT(IN), OPTIONAL            :: b_first_col
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_gemm', &
+      routineP = moduleN//':'//routineN
+
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a, b, c
     INTEGER                                  :: handle, j, lda, ldb, ldc
@@ -262,7 +268,7 @@ CPSourceFileRef,&
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("cp_cfm_gemm","I","Gflops",handle)
+    CALL timeset(routineN,"I","Gflops",handle)
 
     a => matrix_a%local_data
     b => matrix_b%local_data

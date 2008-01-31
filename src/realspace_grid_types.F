@@ -558,12 +558,15 @@ END SUBROUTINE init_input_type
     TYPE(pw_type), POINTER                   :: pw
     INTEGER, INTENT(IN)                      :: dir
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'rs_pw_transfer', &
+      routineP = moduleN//':'//routineN
+
     CHARACTER(LEN=5)                         :: dirname
     INTEGER                                  :: handle, handle2, nn
 
 !-----------------------------------------------------------------------------!
 
-    CALL timeset("rs_pw_transfer_all",'I',' ',handle2)
+    CALL timeset(routineN,'I',' ',handle2)
     IF (dir.EQ.rs2pw) dirname="RS2PW"
     IF (dir.EQ.pw2rs) dirname="PW2RS"
     CALL timeset("rs_pw_transfer_"//TRIM(dirname)//"_"// TRIM(ADJUSTL(&
@@ -1473,11 +1476,14 @@ SUBROUTINE rs_grid_zero ( rs )
 
     TYPE(realspace_grid_type), POINTER       :: rs
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_zero', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, n
 
 !-----------------------------------------------------------------------------!
 
-   CALL timeset("rs_grid_zero",'I',' ',handle)
+   CALL timeset(routineN,'I',' ',handle)
    n = SIZE ( rs % r )
    CALL dcopy ( n, 0.0_dp, 0, rs % r, 1 )
    CALL timestop(0.0_dp,handle)

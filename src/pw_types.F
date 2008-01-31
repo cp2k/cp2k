@@ -1471,13 +1471,16 @@ SUBROUTINE fft_wrap_pw1 ( pw1, debug )
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw1
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'fft_wrap_pw1', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: dir, handle, out_space
     LOGICAL                                  :: test
     REAL(KIND=dp)                            :: norm
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("fft_wrap_pw1","I"," ",handle)
+  CALL timeset(routineN,"I"," ",handle)
   CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"fft_wrap_pw1")
 
   IF ( PRESENT ( debug ) ) THEN
@@ -1525,6 +1528,9 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw2
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'fft_wrap_pw1pw2', &
+      routineP = moduleN//':'//routineN
+
     CHARACTER(LEN=9)                         :: mode
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: grays
@@ -1540,7 +1546,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("fft_wrap_pw1pw2_all","I"," ",handle2)
+  CALL timeset(routineN,"I"," ",handle2)
   CALL timeset("fft_wrap_pw1pw2_"//TRIM(ADJUSTL(cp_to_string( &
                CEILING (pw1%pw_grid%cutoff/10)*10))),"I"," ",handle)
 

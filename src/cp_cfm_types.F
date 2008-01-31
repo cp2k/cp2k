@@ -302,6 +302,9 @@ CPSourceFileRef,&
     INTEGER, INTENT(IN)                      :: ncol
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_init_random', &
+      routineP = moduleN//':'//routineN
+
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a
     INTEGER                                  :: handle, i, icol_local, ipcol, &
@@ -312,7 +315,7 @@ CPSourceFileRef,&
     LOGICAL, SAVE                            :: FIRST = .TRUE.
     TYPE(cp_blacs_env_type), POINTER         :: context
 
-    CALL timeset("cp_cfm_init_random","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     context => matrix%matrix_struct%context
     myprow=context%mepos(1)

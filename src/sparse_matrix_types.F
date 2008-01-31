@@ -1018,7 +1018,7 @@ END SUBROUTINE cp_sm_scale_and_add
     flops=0.0_dp
 
 !   *** Check the association status of the input matrix ***
-    CALL timeset("sparse_times_local","I","Gflops",handle)
+    CALL timeset(routineN,"I","Gflops",handle)
 
     IF (ncol.EQ.0) THEN
         CALL timestop(flops,handle)
@@ -1158,7 +1158,7 @@ END SUBROUTINE cp_sm_scale_and_add
     IF (sparse_matrix%nrow .NE. sparse_matrix%ncol) THEN
       CALL stop_program(routineP,"not allowed")
     ENDIF
-    CALL timeset("sparse_plus_loc_loct","I","Gflops",handle)
+    CALL timeset(routineN,"I","Gflops",handle)
     flops=0.0_dp
 
 !   *** Traverse all block nodes of the sparse matrix ***
@@ -1234,7 +1234,7 @@ END SUBROUTINE cp_sm_scale_and_add
       CALL stop_program(routineP,"The source matrix pointer is not associated")
     END IF
 
-    CALL timeset("copy_real_matrix","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
 !   *** Check the association status of the target matrix ***
 

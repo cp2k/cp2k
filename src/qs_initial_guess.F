@@ -168,7 +168,7 @@ CONTAINS
     NULLIFY(dft_section, input)
     NULLIFY (moa,mob)
 
-    CALL timeset("calculate_first_density_matrix","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,&
          particle_set=particle_set,mos=mo_array, matrix_s=s_sparse,&

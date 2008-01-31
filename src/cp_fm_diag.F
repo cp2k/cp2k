@@ -85,7 +85,7 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    CALL timeset("cp_fm_syevd","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     failure = .FALSE.
 
@@ -225,7 +225,7 @@ CONTAINS
 
     IF (neig == 0) RETURN
 
-    CALL timeset("cp_fm_syevx","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     abstol = 2.0_dp*dlamch("S")
 
@@ -437,7 +437,7 @@ CONTAINS
 #endif
     ! -------------------------------------------------------------------------
 
-    CALL timeset("cp_fm_power","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     context => matrix%matrix_struct%context
     myprow=context%mepos(1)
@@ -595,6 +595,10 @@ CONTAINS
     INTEGER, INTENT(IN)                       :: start_sec_block
     REAL(KIND = dp), INTENT(IN)               :: thresh
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_lu_decompose', &
+      routineP = moduleN//':'//routineN
+
+
     INTEGER :: handle
     REAL(KIND = dp), DIMENSION(:,:), POINTER  :: a,ev
 
@@ -621,7 +625,7 @@ CONTAINS
 
     ! -------------------------------------------------------------------------
 
-    CALL timeset("cp_fm_block_jacobi","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
 #if defined(__SCALAPACK)
 

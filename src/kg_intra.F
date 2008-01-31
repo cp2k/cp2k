@@ -106,7 +106,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("calculate_ebond_corr","I","",handle)
+    CALL timeset(routineN,"I","",handle)
     para_env=>kg_env%para_env
     group = para_env%group
     ionode = para_env%ionode

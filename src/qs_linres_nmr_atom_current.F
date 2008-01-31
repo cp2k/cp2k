@@ -165,7 +165,7 @@ CONTAINS
                                                 jp_ii_block, jp_iii_block, &
                                                 jp_RARnu
 
-    CALL timeset("calculate_jrho_atom_coeff","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
     !
     failure =.FALSE.
     NULLIFY(atom_list,atomic_kind_set,dft_control,orb_basis_set,sab_orb,&
@@ -682,7 +682,7 @@ CONTAINS
 !
 !
 
-    CALL timeset("calculate_jrho_atom_rad","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
     !
     failure =.FALSE.
     NULLIFY(atomic_kind_set,dft_control,para_env,&
@@ -1155,7 +1155,7 @@ CONTAINS
 !
 !
 
-    CALL timeset("shift_atom","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
     !
     failure =.FALSE.
     NULLIFY(atomic_kind_set,cell,dft_control,para_env,particle_set,&

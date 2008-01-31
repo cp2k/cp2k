@@ -177,13 +177,16 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h,
     REAL(KIND=dp)                            :: energy_gap
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_preconditioner_single', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, k
     REAL(KIND=dp)                            :: energy_homo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues_ot
 
 !----
 
-  CALL timeset("make_preconditioner","I","",handle)
+  CALL timeset(routineN,"I","",handle)
 
   CALL cp_fm_get_info(mo_coeff,ncol_global=k,error=error)
 
@@ -274,7 +277,7 @@ SUBROUTINE make_preconditioner_lr(preconditioner_env, precon_type, ev_h0,&
 
 !----
 
-  CALL timeset("make_preconditioner","I","",handle)
+  CALL timeset(routineN,"I","",handle)
 
   NULLIFY(fm_struct_tmp,fm_work,matrix_sc0,matrix_x,matrix_xsc0)
 
@@ -440,11 +443,14 @@ SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out, error
     TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'apply_preconditioner', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle
 
 !----
 
-  CALL timeset("apply_preconditioner","I","",handle)
+  CALL timeset(routineN,"I","",handle)
 
   SELECT CASE (preconditioner_env%in_use)
   CASE (0)
@@ -469,11 +475,14 @@ SUBROUTINE apply_preconditioner_lr(preconditioner_env, matrix_in, matrix_out,err
     TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'apply_preconditioner_lr', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle
 
 !----
 
-  CALL timeset("apply_preconditioner_lr","I","",handle)
+  CALL timeset(routineN,"I","",handle)
 
   SELECT CASE (preconditioner_env%in_use)
   CASE (0)

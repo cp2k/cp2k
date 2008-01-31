@@ -66,6 +66,10 @@ MODULE qs_localization_methods
   IMPLICIT NONE
   PUBLIC :: jacobi_rotations, initialize_weights, crazy_rotations,&
             direct_mini, rotate_orbitals, approx_l1_norm_sd
+
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_localization_methods'
+
   PRIVATE
 
 ! *****************************************************************************
@@ -79,6 +83,8 @@ CONTAINS
     INTEGER, INTENT(INOUT)                   :: sweeps
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'approx_l1_norm_sd', &
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: taylor_order = 100
     REAL(KIND=dp), DIMENSION(4), PARAMETER :: &
       thresh = (/1e-3_dp,1e-5_dp,1e-7_dp,1e-9_dp/)
@@ -100,7 +106,7 @@ CONTAINS
 
 !,f2_thresh=1.0E-5_dp
 
-    CALL timeset("approx_l1_norm_sd","I",'',handle)
+    CALL timeset(routineN,"I",'',handle)
 
     NULLIFY(logger,CTmp,U,G,Gp1,Gp2,context,para_env,fm_struct_k_k)
 
@@ -269,6 +275,9 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: eps_localization
     INTEGER                                  :: sweeps
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'jacobi_rotations', &
+      routineP = moduleN//':'//routineN
+
     COMPLEX(KIND=dp)                         :: mii( 3 ), mij( 3 ), mjj( 3 )
     INTEGER                                  :: handle, idim, istate, jstate, &
                                                 nstate
@@ -279,7 +288,7 @@ CONTAINS
     TYPE(cp_error_type)                      :: error
     TYPE(cp_fm_type), POINTER                :: rmat
 
-    CALL timeset("wannier_jacobi","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY(rmat,c_rmat,c_zij)
     ALLOCATE(c_zij(SIZE(zij,2)))
@@ -617,6 +626,8 @@ CONTAINS
     LOGICAL, INTENT(out), OPTIONAL           :: converged
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'crazy_rotations', &
+      routineP = moduleN//':'//routineN
     COMPLEX(KIND=dp), PARAMETER              :: cone = (1.0_dp,0.0_dp), &
                                                 czero = (0.0_dp,0.0_dp)
 
@@ -634,7 +645,7 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: cmat_A, cmat_R, cmat_t1
     TYPE(cp_fm_type), POINTER                :: mat_R, mat_t, mat_U
 
-    CALL timeset("crazy_rotations","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
     NULLIFY(row_indices,col_indices)
     NULLIFY(mat_U,mat_t,mat_R)
     NULLIFY(cmat_A,cmat_R,cmat_t1)
@@ -767,6 +778,8 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: vectors
     INTEGER                                  :: iterations
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'direct_mini', &
+      routineP = moduleN//':'//routineN
     COMPLEX(KIND=dp), PARAMETER              :: cone = (1.0_dp,0.0_dp), &
                                                 czero = (0.0_dp,0.0_dp)
     REAL(KIND=dp), PARAMETER                 :: gold_sec = 0.3819_dp
@@ -798,7 +811,7 @@ CONTAINS
     NULLIFY(matrix_A,matrix_G,matrix_T,matrix_G_search,matrix_G_old)
     NULLIFY(cmat_A,cmat_U,cmat_R,cmat_t1,cmat_t2,cmat_B,cmat_M)
 
-    CALL timeset("direct_mini","I","",handle)
+    CALL timeset(routineN,"I","",handle)
     n = zij(1,1)%matrix%matrix_struct%nrow_global
     ALLOCATE(evals(n),evals_exp(n),diag_z(n,3),fval(n),fvald(n))
     ALLOCATE(c_zij(SIZE(zij,2)))

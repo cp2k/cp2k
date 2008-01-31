@@ -179,7 +179,7 @@ CONTAINS
 
 !   --------------------------------------------------------------------
 
-    CALL timeset("integrate_v_core_rspace","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     NULLIFY(pw_env,auxbas_rs_pool,hab,pab,cores)
     ALLOCATE(hab(1,1),pab(1,1),STAT=ierr)
@@ -421,9 +421,9 @@ CONTAINS
 
     CALL mp_sync(para_env%group)
     IF (my_compute_tau) THEN
-       CALL timeset("integrate_v_tau","I","",handle)
+       CALL timeset(routineN,"I","",handle)
     ELSE
-       CALL timeset("integrate_v_rspace","I","",handle)
+       CALL timeset(routineN,"I","",handle)
     END IF
 
     ! get the task lists

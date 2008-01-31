@@ -93,7 +93,7 @@ CONTAINS
 
 !******************************************************************************
 
-    CALL timeset("prepare_gapw_den","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY(atomic_kind_set)
     NULLIFY(atom_kind)

@@ -417,7 +417,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
 
-    CALL timeset("qs_loc_env_init","I",'',handle)
+    CALL timeset(routineN,"I",'',handle)
 
     failure = .FALSE.
 

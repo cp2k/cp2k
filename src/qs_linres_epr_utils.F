@@ -592,7 +592,7 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: epr_section, lr_section
 
-    CALL timeset("epr_env_init","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     failure = .FALSE.
 

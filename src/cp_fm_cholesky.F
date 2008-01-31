@@ -164,7 +164,7 @@ CONTAINS
     INTEGER, DIMENSION(9)                     :: desca
     LOGICAL                                   :: failure
 
-    CALL timeset("cp_fm_cholesky_invert","I","",handle)
+    CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
 
     my_n = MIN(matrix%matrix_struct%nrow_global,&
@@ -306,7 +306,7 @@ CPSourceFileRef,&
     TYPE(cp_blacs_env_type), POINTER          :: context
     CHARACTER                                 :: chol_pos,chol_transa
 
-    CALL timeset("cp_fm_cholesky_restore","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
     context => matrix%matrix_struct%context

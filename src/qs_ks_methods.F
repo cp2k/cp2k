@@ -2932,6 +2932,8 @@ END SUBROUTINE qs_vxc_create
     TYPE(real_matrix_type), POINTER          :: w_matrix, s_matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_2', &
+      routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: check_gradient = .FALSE., &
                                                 do_symm = .FALSE.
 
@@ -2945,7 +2947,7 @@ END SUBROUTINE qs_vxc_create
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("calculate_w_matrix_2","I","",handle)
+    CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     NULLIFY(weighted_vectors,h_block,fm_struct_tmp)
 

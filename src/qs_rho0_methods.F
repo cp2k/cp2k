@@ -108,7 +108,7 @@ MODULE qs_rho0_methods
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("calculate_mpole_gau","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY(lmax,lmin,npgf,my_CG,zet)
 
@@ -189,7 +189,7 @@ MODULE qs_rho0_methods
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("calculate_rho0_atom","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY(mpole_gau)
     NULLIFY(mpole_rho)
@@ -357,7 +357,7 @@ MODULE qs_rho0_methods
 
 ! -----------------------------------------------------------------------------
 
-    CALL timeset("init_rho0","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     failure = .FALSE.
     NULLIFY(logger)

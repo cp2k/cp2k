@@ -202,6 +202,9 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold, smear
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, homo, imo, lfomo, &
                                                 nao, nelectron, nmo
     LOGICAL                                  :: mo_uocc
@@ -211,7 +214,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("eigensolver","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
 !   *** Diagonalise the Kohn-Sham matrix ***
 
@@ -314,6 +317,9 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: level_shift, work_syevx, smear
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'simple_eigensolver', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, homo, imo, istat, &
                                                 lfomo, nao, nelectron, nmo
     LOGICAL                                  :: mo_uocc
@@ -324,7 +330,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("simple_eigensolver","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY(mo_eigenvalues,mo_occupation,mo_coeff)
 

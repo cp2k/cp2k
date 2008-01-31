@@ -226,7 +226,7 @@ CPSourceFileRef,&
 
 ! *** locals ***
 
-    CALL timeset("cp_fm_lu_decompose","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     a => matrix_a%local_data
     n = matrix_a%matrix_struct%nrow_global
@@ -321,6 +321,9 @@ CPSourceFileRef,&
                                                 b_first_row, c_first_col, &
                                                 c_first_row
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_gemm', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, i_a, i_b, i_c, j_b, &
                                                 j_c, lda, ldb, ldc
     INTEGER, DIMENSION(9)                    :: desca, descb, descc
@@ -329,7 +332,7 @@ CPSourceFileRef,&
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("cp_fm_gemm","I","Gflops",handle)
+    CALL timeset(routineN,"I","Gflops",handle)
 
     a => matrix_a%local_data
     b => matrix_b%local_data
@@ -437,6 +440,9 @@ CPSourceFileRef,&
     TYPE(cp_fm_type), POINTER                :: matrix_c
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_symm', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, lda, ldb, ldc, &
                                                 mypcol, myprow, npcol, nprow
     INTEGER, DIMENSION(9)                    :: desca, descb, descc
@@ -446,7 +452,7 @@ CPSourceFileRef,&
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("cp_fm_symm","I","Gflops",handle)
+    CALL timeset(routineN,"I","Gflops",handle)
 
     context => matrix_a%matrix_struct%context
     myprow=context%mepos(1)
@@ -506,13 +512,16 @@ CPSourceFileRef,&
     REAL(KIND=dp), INTENT(inout)             :: norm
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_frobenius_norm', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: group, handle, size_a
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     REAL(KIND=dp), EXTERNAL                  :: DDOT
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("cp_fm_frobenius_norm","I","",handle)
+    CALL timeset(routineN,"I","",handle)
     norm = 0.0_dp
     a => matrix_a%local_data
     size_a = SIZE(a,1)*SIZE(a,2)
@@ -570,6 +579,9 @@ CPSourceFileRef,&
     TYPE(cp_fm_type), POINTER                :: matrix_c
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_syrk', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, lda, ldc, mypcol, &
                                                 myprow, n, npcol, nprow
     INTEGER, DIMENSION(9)                    :: desca, descc
@@ -578,7 +590,7 @@ CPSourceFileRef,&
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("cp_fm_syrk","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     context => matrix_a%matrix_struct%context
     myprow=context%mepos(1)
@@ -640,6 +652,9 @@ CPSourceFileRef,&
     TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_b, matrix_c
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_schur_product', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, icol_local, &
                                                 irow_local, mypcol, myprow, &
                                                 ncol_local, npcol, nprow, &
@@ -649,7 +664,7 @@ CPSourceFileRef,&
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("cp_fm_schur_product","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     context => matrix_a%matrix_struct%context
     myprow=context%mepos(1)
@@ -714,6 +729,9 @@ CPSourceFileRef,&
     REAL(KIND=dp), INTENT(OUT)               :: trace
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_trace', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: group, handle, mypcol, &
                                                 myprow, ncol_local, npcol, &
                                                 nprow, nrow_local
@@ -722,7 +740,7 @@ CPSourceFileRef,&
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("cp_fm_trace","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     context => matrix_a%matrix_struct%context
     myprow=context%mepos(1)
@@ -1009,7 +1027,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     CPPrecondition(nrow_global==ncol_global,cp_failure_level,routineP,error,failure)
     IF (failure) RETURN
 
-    CALL timeset("cp_fm_transpose","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     context => matrix%matrix_struct%context
     myprow=context%mepos(1)
@@ -1101,7 +1119,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     CPPrecondition(nrow_global==ncol_global,cp_failure_level,routineP,error,failure)
     IF (failure) RETURN
 
-    CALL timeset("cp_fm_upper_to_full","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     context => matrix%matrix_struct%context
     myprow=context%mepos(1)

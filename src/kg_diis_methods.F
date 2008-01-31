@@ -257,7 +257,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("kg_diis_step_A","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
 
@@ -437,7 +437,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("kg_diis_step_B","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     NULLIFY(logger)
 

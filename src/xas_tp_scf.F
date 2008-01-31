@@ -277,7 +277,7 @@ CONTAINS
     !   *** SCF loop ***
 
     scf_loop: DO
-       CALL timeset("scf_iter","I"," ",handle2)
+       CALL timeset(routineN,"I"," ",handle2)
 
        exit_loop = .FALSE.
        IF (output_unit > 0) CALL m_flush(output_unit)

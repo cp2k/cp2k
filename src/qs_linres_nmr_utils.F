@@ -602,7 +602,7 @@ CONTAINS
 
 !
 
-    CALL timeset("nmr_env_init","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     failure = .FALSE.
 

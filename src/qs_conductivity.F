@@ -45,6 +45,8 @@ MODULE qs_conductivity
 
   IMPLICIT NONE
 
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_conductivity'
+
 ! *** Public ***
   PUBLIC :: optical_conductivity
 ! *****************************************************************************
@@ -64,6 +66,8 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
     INTEGER                                  :: scr
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'optical_conductivity', &
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nbands = 4, npoints = 1000
 
     INTEGER                                  :: component, handle, i, iband, &
@@ -82,7 +86,7 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
 ! very much *not* tested and most likely to be wrong
 ! the core is present
 
-   CALL timeset("optical_conductivity","I","",handle)
+   CALL timeset(routineN,"I","",handle)
 
    IF (SIZE(matrix_s).lt.4) CALL stop_program("optical_conductivity","where is the derivative ?")
 

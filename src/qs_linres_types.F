@@ -1026,7 +1026,7 @@ CONTAINS
     INTEGER                                  :: handle, istat
     LOGICAL                                  :: failure
 
-    CALL timeset("calculate_jrho_atom_rad","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     failure = .FALSE.
 
@@ -1210,7 +1210,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harmonics_atom_type), POINTER       :: harmonics
 
-    CALL timeset("init_jrho_atom_set","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     failure = .FALSE.
 
@@ -1437,7 +1437,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harmonics_atom_type), POINTER       :: harmonics
 
-    CALL timeset("init_nablavks_atom_set","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     failure = .FALSE.
 

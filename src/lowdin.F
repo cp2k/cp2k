@@ -188,12 +188,13 @@ CONTAINS
     CHARACTER(LEN=*)                         :: title
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'lowdin_charges', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, i, nblock, nspin
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
 
-! GO
-
-    CALL timeset("lowdin_charges","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     ! here we get the numbers for charges
     nspin=SIZE(mos)

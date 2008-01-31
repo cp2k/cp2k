@@ -237,7 +237,7 @@ CONTAINS
 !
 
     failure = .FALSE.
-    CALL timeset("nmr_response_current","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
     !
     NULLIFY(rho_rspace,rho_gspace,logger,nmr_section)
     NULLIFY(density_matrix0,density_matrix,density_matrix_ii,density_matrix_iii)
@@ -775,7 +775,7 @@ CONTAINS
 !    debug_count=debug_count+1
 
 
-    CALL timeset("calculate_jrho_resp","I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&

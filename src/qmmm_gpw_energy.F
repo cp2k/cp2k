@@ -322,7 +322,7 @@ CONTAINS
     CASE(spline3_nopbc_interp, spline3_pbc_interp)
        ! Spline Iterpolator
        CALL mp_sync(para_env%group)
-       CALL timeset("spline3Int","I","",handle2)
+       CALL timeset(routineN,"I","",handle2)
        DO Ilevel = coarser_grid, auxbas_grid+1, -1
           CALL pw_prolongate_s3(grids(Ilevel  )%pw,&
                                 grids(Ilevel-1)%pw,&

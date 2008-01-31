@@ -377,7 +377,7 @@ CPSourceFileRef,&
     LOGICAL, SAVE                            :: FIRST = .TRUE.
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: buff
 
-    CALL timeset("cp_fm_init_random",handle)
+    CALL timeset(routineN,handle)
     IF (FIRST) THEN
        ISEED(1)=4
        ISEED(2)=3
@@ -1069,7 +1069,7 @@ CPSourceFileRef,&
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("cp_fm_maxabsval",handle)
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     my_block => matrix%local_data
@@ -1161,6 +1161,9 @@ CPSourceFileRef,&
     REAL(KIND=dp), INTENT(OUT)               :: a_max
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_maxabsrownorm', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, i, j, ncol_local, &
                                                 nrow_global, nrow_local
     INTEGER, DIMENSION(:), POINTER           :: row_indices
@@ -1169,7 +1172,7 @@ CPSourceFileRef,&
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("cp_fm_maxabsrownorm",handle)
+    CALL timeset(routineN,handle)
 
     my_block => matrix%local_data
     CALL cp_fm_get_info(matrix, row_indices=row_indices, nrow_global=nrow_global, &
@@ -1212,6 +1215,9 @@ CPSourceFileRef,&
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: norm_array
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_vectorsnorm', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, i, j, ncol_global, &
                                                 ncol_local, nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices
@@ -1219,7 +1225,7 @@ CPSourceFileRef,&
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("cp_fm_maxabsrownorm",handle)
+    CALL timeset(routineN,handle)
 
     my_block => matrix%local_data
     CALL cp_fm_get_info(matrix, col_indices=col_indices, ncol_global=ncol_global, &

@@ -171,6 +171,9 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: symmetric
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'rs_get_my_tasks', &
+      routineP = moduleN//':'//routineN
+
     INTEGER :: average_tasks, count, handle, i, j, k, l, no_overloaded, &
       no_underloaded, ntasks_dist, ntasks_recv, ntasks_rep, offset, &
       proc_receiving, stat, task_dim, total_tasks
@@ -185,7 +188,7 @@ CONTAINS
     LOGICAL                                  :: my_symmetric, send
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf_r, send_buf_r
 
-    CALL timeset("rs_get_my_tasks",'I',' ',handle)
+    CALL timeset(routineN,'I',' ',handle)
 
     IF ( .NOT. ASSOCIATED ( tasks ) ) &
          CALL stop_program ( "get_my_tasks", "tasks not associated" )
@@ -637,6 +640,9 @@ SUBROUTINE distribute_matrix( rs, pmat, atom_pair_send, atom_pair_recv, natoms, 
     TYPE(real_matrix_type), OPTIONAL, &
       POINTER                                :: hmat
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'distribute_matrix', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: acol, arow, handle, i, j, k, &
                                                 l, ncol, nrow, pair, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: recv_disps, recv_sizes, &
@@ -644,7 +650,7 @@ SUBROUTINE distribute_matrix( rs, pmat, atom_pair_send, atom_pair_recv, natoms, 
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf_r, send_buf_r
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
 
-  CALL timeset("distribute_matrix",'I',' ',handle)
+  CALL timeset(routineN,'I',' ',handle)
 
   ! allocate local arrays
   ALLOCATE(send_sizes(rs%group_size),STAT=stat)
