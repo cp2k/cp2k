@@ -184,12 +184,15 @@ def parseRoutine(inFile):
         elif comments:
             routine['declComments'].append(comments)
     includeRe=re.compile(r"#? *include +[\"'](?P<file>.+)[\"'] *$",re.IGNORECASE)
+    containsRe=re.compile(r" *contains *$",re.IGNORECASE)
     while len(lines)>0:
         if endRe.match(jline):
             routine['end']=lines
             break
         routine['strippedCore'].append(jline)
         routine['core'].append("".join(lines))
+        if containsRe.match(lines[0]):
+            break
         m=includeRe.match(lines[0])
         if m:
             try:
@@ -434,13 +437,22 @@ def cleanDeclarations(routine,logFile=sys.stdout):
     """cleans up the declaration part of the given parsed routine
     removes unused variables"""
     global rVar
+    containsRe=re.compile(r" *contains *$",re.IGNORECASE)
+    if routine['core']:
+        if containsRe.match(routine['core'][-1]):
+            logFile.write("*** routine %s contains other routines ***\n*** declarations not cleaned ***\n"%
+                (routine['name']))
+            return
     commentToRemoveRe=re.compile(r" *! *(?:interface|arguments|parameters|locals?|\** *local +variables *\**|\** *local +parameters *\**) *$",re.IGNORECASE)
     nullifyRe=re.compile(r" *nullify *\(([^()]+)\) *\n?",re.IGNORECASE|re.MULTILINE)
-
+    
     if not routine['kind']: return
-    if (routine['core'] and
-        re.match(" *type *[a-zA-Z_]+ *$",routine['core'][0],re.IGNORECASE)):
-        logFile.write("*** routine %s contains local types, not fully cleaned ***\n"%
+    if (routine['core']):
+        if re.match(" *type *[a-zA-Z_]+ *$",routine['core'][0],re.IGNORECASE):
+            logFile.write("*** routine %s contains local types, not fully cleaned ***\n"%
+                      (routine['name']))
+        if re.match(" *import+ *$",routine['core'][0],re.IGNORECASE):   
+            logFile.write("*** routine %s contains import, not fully cleaned ***\n"%
                       (routine['name']))
     if re.search("^#","".join(routine['declarations']),re.MULTILINE):
         logFile.write("*** routine %s declarations contain preprocessor directives ***\n*** declarations not cleaned ***\n"%(
