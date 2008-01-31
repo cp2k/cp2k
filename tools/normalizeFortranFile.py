@@ -533,24 +533,26 @@ def cleanDeclarations(routine,logFile=sys.stdout):
             aDecl=argDecl[:-1]
         else:
             aDecl=argDecl
-        isOptional=0
-        #for arg in aDecl:
-        #    attIsOptional= ("optional" in map(lambda x:x.lower(),
-        #                                      arg['attributes']))
-        #    if isOptional and not attIsOptional:
-        #        logFile.write("*** warning non optional args %s after optional in routine %s\n" %(
-        #            repr(arg['vars']),routine['name']))
-        #    if attIsOptional:
-        #        isOptional=1
+        
+        # try to have arg/param/local, but checks for dependencies arg/param and param/local
         argDecl.extend(paramDecl)
-        paramDecl=[]
         enforceDeclDependecies(argDecl)
+        splitPos=0
+        for i in xrange(len(argDecl)-1,-1,-1):
+            if not 'parameter' in map(str.lower,argDecl[i]['attributes']):
+                splitPos=i+1
+                break
+        paramDecl=argDecl[splitPos:]
+        argDecl=argDecl[:splitPos]
+        paramDecl.extend(localDecl)
+        enforceDeclDependecies(paramDecl)
+        splitPos=0
         for i in xrange(len(argDecl)-1,-1,-1):
             if 'parameter' in map(str.lower,argDecl[i]['attributes']):
-                paramDecl.insert(0,argDecl[i])
-                del argDecl[i]
-            else:
+                splitPos=i+1
                 break
+        localDecl=paramDecl[splitPos:]
+        paramDecl=paramDecl[:splitPos]
 
         newDecl=StringIO()
         for comment in routine['preDeclComments']:
