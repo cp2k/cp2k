@@ -1248,7 +1248,7 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: cmat_u, cmat_x
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
 
-    CALL timeset(RoutineN,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
     CALL cp_fm_get_info(qs_ot_env%rot_mat_x,matrix_struct=fm_struct,nrow_global=k,error=error)
     CALL cp_cfm_create(cmat_x,fm_struct,"cmat_x",error=error)
     CALL cp_cfm_create(cmat_u,fm_struct,"cmat_u",error=error)
@@ -1314,7 +1314,7 @@ CONTAINS
     TYPE(cp_cfm_type), POINTER               :: cmat_buf1, cmat_buf2
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
 
-    CALL timeset(RoutineN,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     CALL cp_fm_get_info(qs_ot_env%rot_mat_u,nrow_global=k,error=error)
 
