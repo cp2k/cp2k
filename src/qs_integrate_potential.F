@@ -149,8 +149,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE integrate_v_core_rspace (MODULE qs_integrate_potential)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_core_rspace', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom_a, dir, handle, iatom, &
                                                 ierr, ikind, j, &
@@ -327,8 +327,8 @@ CONTAINS
       OPTIONAL, TARGET                       :: matrix_dv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE integrate_v_rspace (MODULE qs_integrate_potential)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_rspace', &
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: add_tasks = 1000, &
                                                 max_tasks = 3000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
@@ -428,14 +428,14 @@ CONTAINS
 
     ! get the task lists
     IF (my_gapw) task_list=>task_list_soft
-    CPPrecondition(ASSOCIATED(task_list),cp_failure_level,routine,error,failure)
+    CPPrecondition(ASSOCIATED(task_list),cp_failure_level,routineP,error,failure)
     tasks  =>task_list%tasks
     dist_ab=>task_list%dist_ab
     atom_pair_send=>task_list%atom_pair_send
     atom_pair_recv=>task_list%atom_pair_recv
     ntasks=task_list%ntasks
 
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routine,error,failure)
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     CALL pw_env_get(pw_env, rs_pools=rs_pools,error=error)
     CALL rs_pools_create_rs_vect(rs_pools, rs_v, error=error)
 
@@ -454,7 +454,7 @@ CONTAINS
 
     IF (calculate_forces) THEN
        ALLOCATE (atom_of_kind(natom),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
+       IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
             atom_of_kind=atom_of_kind)
     END IF
@@ -673,7 +673,7 @@ CONTAINS
                   block_col=bcol,&
                   BLOCK=p_block)
              IF (.NOT.ASSOCIATED(p_block)) &
-                  CALL stop_program(routine,"p_block not associated in deltap")
+                  CALL stop_program(routineP,"p_block not associated in deltap")
           END IF
 
           IF (calculate_forces) THEN
@@ -968,18 +968,18 @@ CONTAINS
     !   *** Release work storage ***
 
     DEALLOCATE (habt,workt,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"habt,workt")
+    IF (istat /= 0) CALL stop_memory(routineP,"habt,workt")
 
     IF ( pab_required ) THEN
        DEALLOCATE (pabt,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine,"pabt")
+       IF (istat /= 0) CALL stop_memory(routineP,"pabt")
     END IF
 
     CALL rs_pools_give_back_rs_vect(rs_pools, rs_v,error=error)
 
     IF (calculate_forces) THEN
        DEALLOCATE (atom_of_kind,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
+       IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind")
     END IF
 
     CALL mp_sync(para_env%group)

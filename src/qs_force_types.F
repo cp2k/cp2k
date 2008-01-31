@@ -30,7 +30,7 @@ MODULE qs_force_types
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_force_types'
   PRIVATE
 
   TYPE qs_force_type
@@ -85,8 +85,8 @@ CONTAINS
       POINTER                                :: qs_force
     INTEGER, DIMENSION(:), INTENT(IN)        :: natom_of_kind
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE allocate_qs_force (MODULE qs_force_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_qs_force', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, istat, n, nkind
 
@@ -99,87 +99,87 @@ CONTAINS
     nkind = SIZE(natom_of_kind)
 
     ALLOCATE (qs_force(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"qs_force",nkind*int_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"qs_force",nkind*int_size)
 
     DO ikind=1,nkind
       n = natom_of_kind(ikind)
       ALLOCATE (qs_force(ikind)%all_potential(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%all_potential",3*n*dp_size)
+        CALL stop_memory(routineP,"qs_force(ikind)%all_potential",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%core_overlap(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%core_overlap",3*n*dp_size)
+        CALL stop_memory(routineP,"qs_force(ikind)%core_overlap",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%gth_ppl(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%gth_ppl",3*n*dp_size)
+        CALL stop_memory(routineP,"qs_force(ikind)%gth_ppl",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%gth_ppnl(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%gth_ppnl",3*n*dp_size)
+        CALL stop_memory(routineP,"qs_force(ikind)%gth_ppnl",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%kinetic(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%kinetic",3*n*dp_size)
+        CALL stop_memory(routineP,"qs_force(ikind)%kinetic",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%overlap(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%overlap",3*n*dp_size)
+        CALL stop_memory(routineP,"qs_force(ikind)%overlap",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%rho_core(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%rho_core",3*n*dp_size)
+        CALL stop_memory(routineP,"qs_force(ikind)%rho_core",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%rho_elec(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%rho_elec",3*n*dp_size)
+        CALL stop_memory(routineP,"qs_force(ikind)%rho_elec",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%vhxc_atom(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%vhxc_atom",3*n*dp_size)
+        CALL stop_memory(routineP,"qs_force(ikind)%vhxc_atom",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%g0s_Vh_elec(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%g0s_Vh_elec",3*n*dp_size)
+        CALL stop_memory(routineP,"qs_force(ikind)%g0s_Vh_elec",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%hartree_2c(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%hartree_2c",3*n*dp_size)
+        CALL stop_memory(routineP,"qs_force(ikind)%hartree_2c",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%hartree_3c(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%hartree_3c",3*n*dp_size)
+        CALL stop_memory(routineP,"qs_force(ikind)%hartree_3c",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%kg_gpw_ekin_mol(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%kg_gpw_ekin_mol",3*n*dp_size)
+        CALL stop_memory(routineP,"qs_force(ikind)%kg_gpw_ekin_mol",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%repulsive(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%repulsive",3*n*dp_size)
+        CALL stop_memory(routineP,"qs_force(ikind)%repulsive",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%dispersion(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%dispersion",3*n*dp_size)
+        CALL stop_memory(routineP,"qs_force(ikind)%dispersion",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%other(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%other",3*n*dp_size)
+        CALL stop_memory(routineP,"qs_force(ikind)%other",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%ch_pulay(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%other",3*n*dp_size)
+        CALL stop_memory(routineP,"qs_force(ikind)%other",3*n*dp_size)
       END IF
       ! Always initialize ch_pulay to zero..
       qs_force(ikind)%ch_pulay  = 0.0_dp
       ALLOCATE (qs_force(ikind)%fock_4c(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%fock_4c",3*n*dp_size)
+        CALL stop_memory(routineP,"qs_force(ikind)%fock_4c",3*n*dp_size)
       END IF
       ALLOCATE (qs_force(ikind)%total(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"qs_force(ikind)%total",3*n*dp_size)
+        CALL stop_memory(routineP,"qs_force(ikind)%total",3*n*dp_size)
       END IF
     END DO
 
@@ -198,15 +198,15 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: qs_force
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE deallocate_qs_force (MODULE qs_force_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_qs_force', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, istat, nkind
 
 !   ---------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(qs_force)) THEN
-      CALL stop_program(routine,"The qs_force pointer is not associated "//&
+      CALL stop_program(routineP,"The qs_force pointer is not associated "//&
                                 "and cannot be deallocated")
     END IF
 
@@ -217,133 +217,133 @@ CONTAINS
       IF (ASSOCIATED(qs_force(ikind)%all_potential)) THEN
         DEALLOCATE (qs_force(ikind)%all_potential,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"qs_force%all_potential")
+          CALL stop_memory(routineP,"qs_force%all_potential")
         END IF
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%core_overlap)) THEN
         DEALLOCATE (qs_force(ikind)%core_overlap,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"qs_force%core_overlap")
+          CALL stop_memory(routineP,"qs_force%core_overlap")
         END IF
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%gth_ppl)) THEN
         DEALLOCATE (qs_force(ikind)%gth_ppl,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"qs_force%gth_ppl")
+          CALL stop_memory(routineP,"qs_force%gth_ppl")
         END IF
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%gth_ppnl)) THEN
         DEALLOCATE (qs_force(ikind)%gth_ppnl,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"qs_force%gth_ppnl")
+          CALL stop_memory(routineP,"qs_force%gth_ppnl")
         END IF
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%kinetic)) THEN
         DEALLOCATE (qs_force(ikind)%kinetic,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"qs_force%kinetic")
+          CALL stop_memory(routineP,"qs_force%kinetic")
         END IF
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%overlap)) THEN
         DEALLOCATE (qs_force(ikind)%overlap,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"qs_force%overlap")
+          CALL stop_memory(routineP,"qs_force%overlap")
         END IF
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%rho_core)) THEN
         DEALLOCATE (qs_force(ikind)%rho_core,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"qs_force%rho_core")
+          CALL stop_memory(routineP,"qs_force%rho_core")
         END IF
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%rho_elec)) THEN
         DEALLOCATE (qs_force(ikind)%rho_elec,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"qs_force%rho_elec")
+          CALL stop_memory(routineP,"qs_force%rho_elec")
         END IF
       END IF
  
       IF (ASSOCIATED(qs_force(ikind)%vhxc_atom)) THEN
         DEALLOCATE (qs_force(ikind)%vhxc_atom,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"qs_force%vhxc_atom")
+          CALL stop_memory(routineP,"qs_force%vhxc_atom")
         END IF
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%g0s_Vh_elec)) THEN
         DEALLOCATE (qs_force(ikind)%g0s_Vh_elec,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"qs_force%g0s_Vh_elec")
+          CALL stop_memory(routineP,"qs_force%g0s_Vh_elec")
         END IF
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%hartree_2c)) THEN
         DEALLOCATE (qs_force(ikind)%hartree_2c,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"qs_force%hartree_2c")
+          CALL stop_memory(routineP,"qs_force%hartree_2c")
         END IF
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%hartree_3c)) THEN
         DEALLOCATE (qs_force(ikind)%hartree_3c,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"qs_force%hartree_3c")
+          CALL stop_memory(routineP,"qs_force%hartree_3c")
         END IF
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%kg_gpw_ekin_mol)) THEN
         DEALLOCATE (qs_force(ikind)%kg_gpw_ekin_mol,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"qs_force%kg_gpw_ekin_mol")
+          CALL stop_memory(routineP,"qs_force%kg_gpw_ekin_mol")
         END IF
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%repulsive)) THEN
         DEALLOCATE (qs_force(ikind)%repulsive,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"qs_force%repulsive")
+          CALL stop_memory(routineP,"qs_force%repulsive")
         END IF
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%dispersion)) THEN
         DEALLOCATE (qs_force(ikind)%dispersion,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"qs_force%dispersion")
+          CALL stop_memory(routineP,"qs_force%dispersion")
         END IF
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%other)) THEN
         DEALLOCATE (qs_force(ikind)%other,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"qs_force%other")
+          CALL stop_memory(routineP,"qs_force%other")
         END IF
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%total)) THEN
         DEALLOCATE (qs_force(ikind)%total,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"qs_force%total")
+          CALL stop_memory(routineP,"qs_force%total")
         END IF
       END IF
 
       IF (ASSOCIATED(qs_force(ikind)%ch_pulay)) THEN
          DEALLOCATE (qs_force(ikind)%ch_pulay,STAT=istat)
          IF (istat /= 0) THEN
-            CALL stop_memory(routine,"qs_force%total")
+            CALL stop_memory(routineP,"qs_force%total")
          END IF
       END IF
     
       IF (ASSOCIATED(qs_force(ikind)%fock_4c)) THEN
         DEALLOCATE (qs_force(ikind)%fock_4c,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"qs_force%fock_4c")
+          CALL stop_memory(routineP,"qs_force%fock_4c")
         END IF
       END IF
 
@@ -351,7 +351,7 @@ CONTAINS
     END DO
 
     DEALLOCATE (qs_force,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"qs_force")
+    IF (istat /= 0) CALL stop_memory(routineP,"qs_force")
 
   END SUBROUTINE deallocate_qs_force
 
@@ -368,15 +368,15 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: qs_force
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE zero_qs_force (MODULE qs_force_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'zero_qs_force', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind
 
 !   ---------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(qs_force)) THEN
-      CALL stop_program(routine,"The qs_force pointer is not associated "//&
+      CALL stop_program(routineP,"The qs_force pointer is not associated "//&
                                 "and cannot be initialized")
     END IF
 
@@ -443,8 +443,8 @@ CONTAINS
                                                 qs_force_output
     INTEGER, DIMENSION(:), INTENT(IN)        :: natom_of_kind
 
-    CHARACTER(len=*), PARAMETER :: &
-      routine = "SUBROUTINE duplicate_qs_force (MODULE qs_force_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'duplicate_qs_force', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind
     LOGICAL                                  :: failure
@@ -454,7 +454,7 @@ CONTAINS
     failure = .FALSE.
 
     IF (.NOT.ASSOCIATED(qs_force_input)) THEN
-      CALL stop_program(routine,"The qs_force_input pointer is not associated "//&
+      CALL stop_program(routineP,"The qs_force_input pointer is not associated "//&
                                 "and cannot be initialized")
     END IF
 

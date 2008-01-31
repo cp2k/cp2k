@@ -375,8 +375,8 @@ END SUBROUTINE cp_sm_scale_and_add
     REAL(KIND=dp), INTENT(IN)                :: beta
     TYPE(real_matrix_type), POINTER          :: b
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE add_real_matrices (MODULE sparse_matrix_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'add_real_matrices', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iblock_col, iblock_row
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a_block, b_block, c_block
@@ -386,15 +386,15 @@ END SUBROUTINE cp_sm_scale_and_add
 !   *** Check the association status of the matrices ***
 
     IF (.NOT.ASSOCIATED(a)) THEN
-      CALL stop_program(routine,"The matrix pointer a is not associated")
+      CALL stop_program(routineP,"The matrix pointer a is not associated")
     END IF
 
     IF (.NOT.ASSOCIATED(b)) THEN
-      CALL stop_program(routine,"The matrix pointer b is not associated")
+      CALL stop_program(routineP,"The matrix pointer b is not associated")
     END IF
 
     IF (.NOT.ASSOCIATED(c)) THEN
-      CALL stop_program(routine,"The matrix pointer c is not associated")
+      CALL stop_program(routineP,"The matrix pointer c is not associated")
     END IF
 
 !   *** Add matrix elements ***
@@ -705,8 +705,8 @@ END SUBROUTINE cp_sm_scale_and_add
     TYPE(real_matrix_type), POINTER          :: sparse_matrix
     INTEGER, INTENT(IN)                      :: fileunit
 
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE write_block_magnitude (MODULE sparse_matrix_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_blocks_maxabsval', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iblock_col, iblock_row
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
@@ -759,8 +759,8 @@ END SUBROUTINE cp_sm_scale_and_add
       POINTER                                :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE allocate_real_matrix (MODULE sparse_matrix_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_real_matrix', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: irow, istat
 
@@ -772,7 +772,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   *** Allocate a set of block lists ***
 
     ALLOCATE (matrix,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,matrix%name,0)
+    IF (istat /= 0) CALL stop_memory(routineP,matrix%name,0)
 
     NULLIFY(matrix%distribution_2d)
     IF (PRESENT(distribution_2d)) matrix%distribution_2d=>distribution_2d
@@ -781,7 +781,7 @@ END SUBROUTINE cp_sm_scale_and_add
     END IF
 
     ALLOCATE (matrix%block_list(nblock_row),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,matrix%name,0)
+    IF (istat /= 0) CALL stop_memory(routineP,matrix%name,0)
 
     last_matrix_id=last_matrix_id+1
     matrix%id_nr=last_matrix_id
@@ -800,25 +800,25 @@ END SUBROUTINE cp_sm_scale_and_add
 
     ALLOCATE (matrix%first_row(nblock_row),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"matrix%first_row",int_size*nblock_row)
+      CALL stop_memory(routineP,"matrix%first_row",int_size*nblock_row)
     END IF
     matrix%first_row(:) = first_row(:)
 
     ALLOCATE (matrix%last_row(nblock_row),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"matrix%last_row",int_size*nblock_row)
+      CALL stop_memory(routineP,"matrix%last_row",int_size*nblock_row)
     END IF
     matrix%last_row(:) = last_row(:)
 
     ALLOCATE (matrix%first_col(nblock_col),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"matrix%first_col",int_size*nblock_col)
+      CALL stop_memory(routineP,"matrix%first_col",int_size*nblock_col)
     END IF
     matrix%first_col(:) = first_col(:)
 
     ALLOCATE (matrix%last_col(nblock_col),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"matrix%last_col",int_size*nblock_col)
+      CALL stop_memory(routineP,"matrix%last_col",int_size*nblock_col)
     END IF
     matrix%last_col(:) = last_col(:)
 
@@ -847,8 +847,8 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER, INTENT(IN)                      :: nmatrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE allocate_real_matrix_set (MODULE sparse_matrix_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_real_matrix_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imatrix, istat
 
@@ -857,7 +857,7 @@ END SUBROUTINE cp_sm_scale_and_add
     IF (ASSOCIATED(matrix_set)) CALL deallocate_matrix_set(matrix_set,error=error)
 
     ALLOCATE (matrix_set(nmatrix),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"matrix_set",0)
+    IF (istat /= 0) CALL stop_memory(routineP,"matrix_set",0)
 
     DO imatrix=1,nmatrix
       NULLIFY (matrix_set(imatrix)%matrix)
@@ -879,8 +879,8 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER, INTENT(IN)                      :: nmatrix, mmatrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE allocate_real_matrix_set (MODULE sparse_matrix_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_real_matrix_set_2d', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imatrix, istat, jmatrix
 
@@ -889,7 +889,7 @@ END SUBROUTINE cp_sm_scale_and_add
     IF (ASSOCIATED(matrix_set)) CALL deallocate_matrix_set(matrix_set,error=error)
 
     ALLOCATE (matrix_set(nmatrix,mmatrix),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"matrix_set",0)
+    IF (istat /= 0) CALL stop_memory(routineP,"matrix_set",0)
 
     DO jmatrix=1,mmatrix
       DO imatrix=1,nmatrix
@@ -997,8 +997,8 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER, INTENT(IN)                      :: ncol, nblock
     REAL(KIND=dp), OPTIONAL                  :: alpha
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE sparse_times_local (MODULE sparse_matrix_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'sparse_times_local', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: handle, iblock_col, iblock_row, ithread, nthread, &
       omp_get_num_threads, omp_get_thread_num, sbncol, sbnrow
@@ -1026,7 +1026,7 @@ END SUBROUTINE cp_sm_scale_and_add
     ENDIF
 
     IF (.NOT.ASSOCIATED(sparse_matrix)) THEN
-      CALL stop_program(routine,"The input matrix pointer is not associated")
+      CALL stop_program(routineP,"The input matrix pointer is not associated")
     END IF
 
     symmetric=.FALSE.
@@ -1044,15 +1044,15 @@ END SUBROUTINE cp_sm_scale_and_add
     CASE DEFAULT
        ! possibly just OK (i.e. general matrix) just provide an empty slot
        WRITE(6,*) sparse_matrix%symmetry
-       CALL stop_program(routine,"wrong matrix symmetry specification")
+       CALL stop_program(routineP,"wrong matrix symmetry specification")
     END SELECT
 
     IF ((symmetric .OR. antisymmetric) &
            .AND. (sparse_matrix%nrow .NE. sparse_matrix%ncol)) THEN
-       CALL stop_program(routine,"error nonsquare symmetric matrix")
+       CALL stop_program(routineP,"error nonsquare symmetric matrix")
     END IF
     IF (sparse_matrix%ncol .NE. SIZE(rep_v_in,2)) THEN
-      CALL stop_program(routine,"n x n * n x k ?")
+      CALL stop_program(routineP,"n x n * n x k ?")
     ENDIF
 
 
@@ -1131,8 +1131,8 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER, INTENT(IN)                      :: ncol, nblock
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE sparse_plus_loc_loct(MODULE sparse_matrix_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'sparse_plus_loc_loct', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: handle, iblock_col, iblock_row, icol, irow, ithread, nthread, &
       omp_get_num_threads, omp_get_thread_num, sbncol, sbnrow
@@ -1146,7 +1146,7 @@ END SUBROUTINE cp_sm_scale_and_add
     IF (ncol.EQ.0) RETURN
 
     IF (.NOT.ASSOCIATED(sparse_matrix)) THEN
-      CALL stop_program(routine,"The input matrix pointer is not associated")
+      CALL stop_program(routineP,"The input matrix pointer is not associated")
     END IF
 
     IF (PRESENT(alpha)) THEN
@@ -1156,7 +1156,7 @@ END SUBROUTINE cp_sm_scale_and_add
     END IF
 
     IF (sparse_matrix%nrow .NE. sparse_matrix%ncol) THEN
-      CALL stop_program(routine,"not allowed")
+      CALL stop_program(routineP,"not allowed")
     ENDIF
     CALL timeset("sparse_plus_loc_loct","I","Gflops",handle)
     flops=0.0_dp
@@ -1217,8 +1217,8 @@ END SUBROUTINE cp_sm_scale_and_add
 
     TYPE(real_matrix_type), POINTER          :: source, TARGET
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE copy_real_matrix (MODULE sparse_matrix_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'copy_real_matrix', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: first_col, first_row, handle, iblock_col, iblock_row, icol, &
       irow, jblock_col, jblock_row, jcol, jrow, last_col, last_row, &
@@ -1231,7 +1231,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   *** Check the association status of the source matrix ***
 
     IF (.NOT.ASSOCIATED(source)) THEN
-      CALL stop_program(routine,"The source matrix pointer is not associated")
+      CALL stop_program(routineP,"The source matrix pointer is not associated")
     END IF
 
     CALL timeset("copy_real_matrix","I","",handle)
@@ -1313,7 +1313,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     ELSE
 
-      CALL stop_program(routine,&
+      CALL stop_program(routineP,&
                         "The target matrix pointer is not associated. "//&
                         "Use replicate_matrix instead of copy_matrix")
 
@@ -1336,8 +1336,8 @@ END SUBROUTINE cp_sm_scale_and_add
     TYPE(real_matrix_type), POINTER          :: matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE deallocate_real_matrix (MODULE sparse_matrix_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_real_matrix', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iblock_row, istat
 
@@ -1350,24 +1350,24 @@ END SUBROUTINE cp_sm_scale_and_add
     END DO
 
     DEALLOCATE (matrix%block_list,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,matrix%name//" (block_list)")
+    IF (istat /= 0) CALL stop_memory(routineP,matrix%name//" (block_list)")
 
     DEALLOCATE (matrix%first_row,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,matrix%name//" (first_row)")
+    IF (istat /= 0) CALL stop_memory(routineP,matrix%name//" (first_row)")
 
     DEALLOCATE (matrix%last_row,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,matrix%name//" (last_row)")
+    IF (istat /= 0) CALL stop_memory(routineP,matrix%name//" (last_row)")
 
     DEALLOCATE (matrix%first_col,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,matrix%name//" (first_col)")
+    IF (istat /= 0) CALL stop_memory(routineP,matrix%name//" (first_col)")
 
     DEALLOCATE (matrix%last_col,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,matrix%name//" (last_col)")
+    IF (istat /= 0) CALL stop_memory(routineP,matrix%name//" (last_col)")
 
     CALL distribution_2d_release(matrix%distribution_2d,error=error)
 
     DEALLOCATE (matrix,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,matrix%name)
+    IF (istat /= 0) CALL stop_memory(routineP,matrix%name)
 
   END SUBROUTINE deallocate_real_matrix
 
@@ -1384,8 +1384,8 @@ END SUBROUTINE cp_sm_scale_and_add
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(IN)                      :: block_row
 
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE deallocate_real_matrix_row (MODULE sparse_matrix_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_real_matrix_row', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
     TYPE(real_block_node_type), POINTER      :: current_block_node, &
@@ -1398,9 +1398,9 @@ END SUBROUTINE cp_sm_scale_and_add
     DO WHILE (ASSOCIATED(current_block_node))
       next_block_node => current_block_node%next_block_node
       DEALLOCATE (current_block_node%block,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,matrix%name//" (block)")
+      IF (istat /= 0) CALL stop_memory(routineP,matrix%name//" (block)")
       DEALLOCATE (current_block_node,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,matrix%name//" (block_node)")
+      IF (istat /= 0) CALL stop_memory(routineP,matrix%name//" (block_node)")
       current_block_node => next_block_node
     END DO
 
@@ -1425,8 +1425,8 @@ END SUBROUTINE cp_sm_scale_and_add
       POINTER                                :: matrix_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE deallocate_real_matrix_set (MODULE sparse_matrix_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_real_matrix_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imatrix, istat
 
@@ -1437,7 +1437,7 @@ END SUBROUTINE cp_sm_scale_and_add
         CALL deallocate_matrix(matrix_set(imatrix)%matrix,error=error)
       END DO
       DEALLOCATE (matrix_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"matrix_set")
+      IF (istat /= 0) CALL stop_memory(routineP,"matrix_set")
     END IF
 
   END SUBROUTINE deallocate_real_matrix_set
@@ -1456,8 +1456,9 @@ END SUBROUTINE cp_sm_scale_and_add
       DIMENSION(:, :), POINTER               :: matrix_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE deallocate_real_matrix_set (MODULE sparse_matrix_types)"
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'deallocate_real_matrix_set_2d', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imatrix, istat, jmatrix
 
@@ -1470,7 +1471,7 @@ END SUBROUTINE cp_sm_scale_and_add
         END DO
       END DO
       DEALLOCATE (matrix_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"matrix_set")
+      IF (istat /= 0) CALL stop_memory(routineP,"matrix_set")
     END IF
 
   END SUBROUTINE deallocate_real_matrix_set_2d
@@ -1679,8 +1680,8 @@ END SUBROUTINE cp_sm_scale_and_add
     TYPE(real_matrix_type), POINTER          :: matrix
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: vector
 
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE get_real_matrix_diagonal (MODULE sparse_matrix_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_real_matrix_diagonal', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: first_row, i, iblock_col, &
                                                 iblock_row, irow
@@ -1691,7 +1692,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   *** Check the association status of the source matrix ***
 
     IF (.NOT.ASSOCIATED(matrix)) THEN
-      CALL stop_program(routine,"The matrix pointer is not associated")
+      CALL stop_program(routineP,"The matrix pointer is not associated")
     END IF
 
     vector(:) = 0.0_dp
@@ -1766,8 +1767,8 @@ END SUBROUTINE cp_sm_scale_and_add
       OPTIONAL, POINTER                      :: BLOCK
     LOGICAL, INTENT(IN), OPTIONAL            :: add
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE put_real_block_node (MODULE sparse_matrix_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'put_real_block_node', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ncol, nrow
     LOGICAL                                  :: add_block
@@ -1796,10 +1797,10 @@ END SUBROUTINE cp_sm_scale_and_add
               block_node%block(:,:) = BLOCK(:,:)
             END IF
           ELSE
-            CALL stop_program(routine,"Incompatible block dimensions")
+            CALL stop_program(routineP,"Incompatible block dimensions")
           END IF
         ELSE
-          CALL stop_program(routine,"Block is not associated")
+          CALL stop_program(routineP,"Block is not associated")
         END IF
       END IF
 
@@ -1825,8 +1826,8 @@ END SUBROUTINE cp_sm_scale_and_add
     LOGICAL, INTENT(IN), OPTIONAL            :: add
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE put_real_matrix_block (MODULE sparse_matrix_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'put_real_matrix_block', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ncol, nrow
     LOGICAL                                  :: add_block
@@ -1862,13 +1863,13 @@ END SUBROUTINE cp_sm_scale_and_add
               block_node%block(:,:) = BLOCK(:,:)
             END IF
           ELSE
-            CALL stop_program(routine,"Incompatible block dimensions")
+            CALL stop_program(routineP,"Incompatible block dimensions")
           END IF
         ELSE
-          CALL stop_program(routine,"Matrix block is not associated")
+          CALL stop_program(routineP,"Matrix block is not associated")
         END IF
       ELSE
-        CALL stop_program(routine,&
+        CALL stop_program(routineP,&
                           "Block update is impossible, because no matrix "//&
                           "block was specified")
       END IF
@@ -1905,8 +1906,8 @@ END SUBROUTINE cp_sm_scale_and_add
     LOGICAL, INTENT(IN), OPTIONAL            :: allocate_blocks
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE replicate_real_matrix (MODULE sparse_matrix_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'replicate_real_matrix', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iblock_col, iblock_row
     LOGICAL                                  :: make_data_blocks
@@ -1917,7 +1918,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   *** Check the association status of the source matrix ***
 
     IF (.NOT.ASSOCIATED(source)) THEN
-      CALL stop_program(routine,"The source matrix pointer is not associated")
+      CALL stop_program(routineP,"The source matrix pointer is not associated")
     END IF
 
     IF (ASSOCIATED(TARGET)) CALL deallocate_matrix(TARGET,error=error)
@@ -1991,7 +1992,9 @@ END SUBROUTINE cp_sm_scale_and_add
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: target_symmetry
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine = "replicate_real_matrix_structure"
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'replicate_real_matrix_structure', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=40)                        :: matrix_symmetry
     INTEGER                                  :: handle, iblock_col, iblock_row
@@ -2000,10 +2003,10 @@ END SUBROUTINE cp_sm_scale_and_add
 !   ---------------------------------------------------------------------------
 !   *** Check the association status of the source matrix ***
 
-    CALL timeset(routine,"I","",handle)
+    CALL timeset(routineP,"I","",handle)
 
     IF (.NOT.ASSOCIATED(source)) THEN
-      CALL stop_program(routine,"The source matrix pointer is not associated")
+      CALL stop_program(routineP,"The source matrix pointer is not associated")
     END IF
 
     IF (PRESENT(target_symmetry)) THEN
@@ -2073,8 +2076,8 @@ END SUBROUTINE cp_sm_scale_and_add
     TYPE(real_matrix_type), POINTER          :: a
     REAL(KIND=dp), INTENT(IN)                :: alpha
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE scale_real_matrix (MODULE sparse_matrix_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'scale_real_matrix', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iblock_row
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: BLOCK
@@ -2084,7 +2087,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   *** Check the association status of the matrices ***
 
     IF (.NOT.ASSOCIATED(a)) THEN
-       CALL stop_program(routine,"The matrix pointer a is not associated")
+       CALL stop_program(routineP,"The matrix pointer a is not associated")
     END IF
 
     IF (alpha == 1.0_dp) RETURN
@@ -2123,8 +2126,8 @@ END SUBROUTINE cp_sm_scale_and_add
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp)                            :: checksum_real_matrix
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE checksum_real_matrix (MODULE sparse_matrix_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'checksum_real_matrix', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iblock_row, n
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: BLOCK
@@ -2136,10 +2139,10 @@ END SUBROUTINE cp_sm_scale_and_add
 
     checksum_real_matrix = 0.0_dp
     IF (.NOT.ASSOCIATED(a)) THEN
-       CALL stop_program(routine,"The matrix pointer a is not associated")
+       CALL stop_program(routineP,"The matrix pointer a is not associated")
     END IF
     IF (.NOT.ASSOCIATED(para_env)) THEN
-       CALL stop_program(routine,"The para_env pointer a is not associated")
+       CALL stop_program(routineP,"The para_env pointer a is not associated")
     END IF
     DO iblock_row=1,a%nblock_row
        block_node => first_block_node(a,iblock_row)
@@ -2166,8 +2169,8 @@ END SUBROUTINE cp_sm_scale_and_add
     TYPE(real_matrix_type), POINTER          :: matrix
     REAL(KIND=dp), INTENT(IN)                :: value
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE set_real_matrix (MODULE sparse_matrix_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_real_matrix', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iblock_row
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: BLOCK
@@ -2177,7 +2180,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   *** Check the association status of the source matrix ***
 
     IF (.NOT.ASSOCIATED(matrix)) THEN
-      CALL stop_program(routine,"The matrix pointer is not associated")
+      CALL stop_program(routineP,"The matrix pointer is not associated")
     END IF
 
 !   *** Set matrix elements to value ***
@@ -2214,8 +2217,8 @@ END SUBROUTINE cp_sm_scale_and_add
     TYPE(real_matrix_type), POINTER          :: matrix
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: vector
 
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE set_real_matrix_diagonal (MODULE sparse_matrix_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_real_matrix_diagonal', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: first_row, i, iblock_col, &
                                                 iblock_row, irow
@@ -2226,7 +2229,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   *** Check the association status of the source matrix ***
 
     IF (.NOT.ASSOCIATED(matrix)) THEN
-      CALL stop_program(routine,"The matrix pointer is not associated")
+      CALL stop_program(routineP,"The matrix pointer is not associated")
     END IF
 
     DO iblock_row=1,matrix%nblock_row

@@ -564,8 +564,8 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid, compute_tau
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE calculate_rho_elec (MODULE qs_collocate_density)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_elec', &
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: add_tasks = 1000, &
                                                 max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
@@ -698,7 +698,7 @@ CONTAINS
 
     ! get the task lists
     IF (my_soft) task_list=>task_list_soft
-    CPPrecondition(ASSOCIATED(task_list),cp_failure_level,routine,error,failure)
+    CPPrecondition(ASSOCIATED(task_list),cp_failure_level,routineP,error,failure)
     tasks  =>task_list%tasks
     dist_ab=>task_list%dist_ab
     atom_pair_send=>task_list%atom_pair_send
@@ -706,7 +706,7 @@ CONTAINS
     ntasks=task_list%ntasks
     
     ! *** set up the pw multi-grids
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routine,error,failure)
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     CALL pw_env_get(pw_env, rs_pools=rs_pools, error=error)
     ! *** set up the rs multi-grids
     distributed_rs_grids=.FALSE.
@@ -809,7 +809,7 @@ CONTAINS
                block_col=bcol,&
                BLOCK=p_block)
           IF (.NOT.ASSOCIATED(p_block)) &
-               CALL stop_program(routine,"p_block not associated in deltap")
+               CALL stop_program(routineP,"p_block not associated in deltap")
 
           iatom_old = iatom
           jatom_old = jatom
@@ -903,7 +903,7 @@ CONTAINS
     ENDIF
 
     DEALLOCATE (pabt,workt,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pabt,workt")
+    IF (istat /= 0) CALL stop_memory(routineP,"pabt,workt")
 
     CALL mp_sync(para_env%group)
 

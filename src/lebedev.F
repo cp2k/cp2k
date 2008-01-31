@@ -82,6 +82,7 @@ MODULE lebedev
   SAVE
 
   PRIVATE
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lebedev'
 
   INTEGER, PARAMETER  :: na1 = 6,&
                          na2 = 12,&
@@ -185,6 +186,9 @@ CONTAINS
     CHARACTER(*), INTENT(IN)                 :: subsystem
     INTEGER, INTENT(IN)                      :: lgnum, np
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'load_sub_grid', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: i, j
     REAL(KIND=dp)                            :: x, y, z
 
@@ -192,12 +196,12 @@ CONTAINS
 !   *** Check argument values ***
 
     IF ((lgnum < 1).OR.(lgnum > nlg)) THEN
-      CALL stop_program("SUBROUTINE load_sub_grid (MODULE lebedev)",&
+      CALL stop_program(routineP,&
                         "Argument value #2 (lgnum) is out of range")
     END IF
 
     IF ((np < 0).OR.(np > max_np)) THEN
-      CALL stop_program("SUBROUTINE load_sub_grid (MODULE lebedev)",&
+      CALL stop_program(routineP,&
                         "Argument value #3 (np) is out of range")
     END IF
 
@@ -327,12 +331,12 @@ CONTAINS
                        z,-y,-x,-z, y,-x,-z,-y, x,-z,-y,-x/),(/3,nd/))
         END DO
       ELSE
-        CALL stop_program("SUBROUTINE load_sub_grid (MODULE lebedev)",&
+        CALL stop_program(routineP,&
                           "Subsytem D: np is not modulo 3 (check argument #3)")
       END IF
       nlgp = nlgp + nd*np/3
     CASE DEFAULT
-      CALL stop_program("SUBROUTINE load_sub_grid (MODULE lebedev)",&
+      CALL stop_program(routineP,&
                         "The invalid subsystem <"//TRIM(subsystem)//"> was "//&
                         "specified (check argument #1)")
     END SELECT

@@ -52,6 +52,7 @@ MODULE scp_energy
   IMPLICIT NONE
 
   PRIVATE
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_energy'
   PUBLIC :: scp_qs_energies
 
 !******************************************************************************
@@ -80,6 +81,8 @@ SUBROUTINE scp_qs_energies ( qs_env, calculate_forces, just_energy, error )
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'scp_qs_energies', &
+      routineP = moduleN//':'//routineN
     INTEGER                                  :: handle, i, icoef_atom, ikind, &
                                                 n_els, ncoef_atom, nkind, &
                                                 output_unit, stat
@@ -102,7 +105,7 @@ SUBROUTINE scp_qs_energies ( qs_env, calculate_forces, just_energy, error )
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_energy_type), POINTER            :: qs_energy
     TYPE(scp_energy_type), POINTER           :: scp_energy
-    CHARACTER(LEN=*), PARAMETER :: &
+    CHARACTER(len=*), PARAMETER :: &
       routine = "SUBROUTINE scp_qs_energies (MODULE scp_energy)"
 
     TYPE(scp_environment_type), POINTER      :: scp_env

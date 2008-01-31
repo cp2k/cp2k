@@ -26,7 +26,7 @@ MODULE mixed_energy_types
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mixed_energy_types'
   PRIVATE
 
   TYPE mixed_energy_type
@@ -67,8 +67,8 @@ CONTAINS
 
     TYPE(mixed_energy_type), POINTER         :: mixed_energy
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE allocate_mixed_energy (MODULE mixed_energy_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_mixed_energy', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
@@ -76,7 +76,7 @@ CONTAINS
 
     IF (.NOT.ASSOCIATED(mixed_energy)) THEN
       ALLOCATE (mixed_energy,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"mixed_energy",8*dp_size)
+      IF (istat /= 0) CALL stop_memory(routineP,"mixed_energy",8*dp_size)
     END IF
 
     CALL init_mixed_energy(mixed_energy)
@@ -95,8 +95,8 @@ CONTAINS
 
     TYPE(mixed_energy_type), POINTER         :: mixed_energy
 
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE deallocate_mixed_energy (MODULE mixed_energy_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_mixed_energy', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
@@ -104,9 +104,9 @@ CONTAINS
 
     IF (ASSOCIATED(mixed_energy)) THEN
       DEALLOCATE (mixed_energy,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"mixed_energy")
+      IF (istat /= 0) CALL stop_memory(routineP,"mixed_energy")
     ELSE
-      CALL stop_program(routine,"The mixed_energy pointer is not associated "//&
+      CALL stop_program(routineP,"The mixed_energy pointer is not associated "//&
                                 "and cannot be deallocated")
     END IF
 
@@ -124,15 +124,15 @@ CONTAINS
 
     TYPE(mixed_energy_type), POINTER         :: mixed_energy
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE init_mixed_energy (MODULE mixed_energy_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_mixed_energy', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(mixed_energy)) THEN
       mixed_energy%pot = 0.0_dp
     ELSE
-      CALL stop_program(routine,"The mixed_energy pointer is not associated "//&
+      CALL stop_program(routineP,"The mixed_energy pointer is not associated "//&
                                 "and cannot be initialised")
     END IF
 

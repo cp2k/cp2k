@@ -113,8 +113,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: natom, nkind, ndim
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE allocate_oce_set (MODULE oce_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_oce_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
@@ -126,7 +126,7 @@ CONTAINS
     CALL allocate_vtriple(oce_set%voce,nkind,natom,error=error)
 
     ALLOCATE(oce_set%couple(natom,natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"couple",natom*natom)
+    IF (istat /= 0) CALL stop_memory(routineP,"couple",natom*natom)
     oce_set%couple(1:natom,1:natom)%block_created = .FALSE.
 
   END SUBROUTINE allocate_oce_set
@@ -163,15 +163,15 @@ CONTAINS
     TYPE(oce_matrix_type), POINTER           :: oce_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE create_oce_set (MODULE oce_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_oce_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
     IF(ASSOCIATED(oce_set)) CALL deallocate_oce_set(oce_set,error=error)
 
     ALLOCATE (oce_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"oce_set",0)
+    IF (istat /= 0) CALL stop_memory(routineP,"oce_set",0)
 
     NULLIFY(oce_set%hardo)
     NULLIFY(oce_set%softo)
@@ -191,8 +191,8 @@ CONTAINS
     TYPE(oce_matrix_type), POINTER           :: oce_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE deallocate_oce_set (MODULE oce_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_oce_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
@@ -205,10 +205,10 @@ CONTAINS
     IF(ASSOCIATED(oce_set%voce))  CALL deallocate_vtriple(oce_set%voce,error=error)
     IF(ASSOCIATED(oce_set%couple)) THEN
        DEALLOCATE(oce_set%couple,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine,"deallocate_couple",0)
+       IF (istat /= 0) CALL stop_memory(routineP,"deallocate_couple",0)
     END IF
     DEALLOCATE (oce_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"deallocate_oce_set",0)
+    IF (istat /= 0) CALL stop_memory(routineP,"deallocate_oce_set",0)
 
   END SUBROUTINE deallocate_oce_set
 

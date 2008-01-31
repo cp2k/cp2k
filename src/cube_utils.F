@@ -38,6 +38,7 @@ MODULE cube_utils
 
   IMPLICIT NONE
   PRIVATE
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cube_utils'
 
   PUBLIC :: cube_info_type,cube_ptr
 
@@ -146,24 +147,24 @@ CONTAINS
   SUBROUTINE destroy_cube_info(info)
     TYPE(cube_info_type)                     :: info
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE destroy_cube_info (MODULE cube_utils)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'destroy_cube_info', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, istat
 
     IF (info%orthorhombic) THEN
         DEALLOCATE (info%lb_cube,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"info%lb_cube")
+        IF (istat /= 0) CALL stop_memory(routineP,"info%lb_cube")
         DEALLOCATE (info%ub_cube,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"info%ub_cube")
+        IF (istat /= 0) CALL stop_memory(routineP,"info%ub_cube")
         DEALLOCATE (info%sphere_bounds_count,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"info%sphere_bounds_count")
+        IF (istat /= 0) CALL stop_memory(routineP,"info%sphere_bounds_count")
         DO i=1,info%max_radius
           DEALLOCATE (info%sphere_bounds(i)%p,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"info%sphere_bounds(i)%p")
+          IF (istat /= 0) CALL stop_memory(routineP,"info%sphere_bounds(i)%p")
         END DO
         DEALLOCATE (info%sphere_bounds,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"info%sphere_bounds")
+        IF (istat /= 0) CALL stop_memory(routineP,"info%sphere_bounds")
     ELSE
         ! no info to be deallocated
     ENDIF
@@ -177,8 +178,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: ortho
     REAL(KIND=dp), INTENT(IN)                :: max_radius
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE init_cube_info (MODULE cube_utils)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_cube_info', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: check_1, check_2, handle, i, &
                                                 igmin, imr, istat, jg, jg2, &
@@ -244,7 +245,7 @@ CONTAINS
           ENDDO
           info%sphere_bounds_count(i)=k-1
           ALLOCATE (info%sphere_bounds(i)%p(info%sphere_bounds_count(i)),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"info%sphere_bounds(i)%p",0)
+          IF (istat /= 0) CALL stop_memory(routineP,"info%sphere_bounds(i)%p",0)
         ENDDO
 
 !       init sphere_bounds array

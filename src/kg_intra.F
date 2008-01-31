@@ -48,7 +48,7 @@ MODULE kg_intra
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_intra'
   PRIVATE
 
   PUBLIC :: calculate_ebond_corr
@@ -74,8 +74,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE calculate_ebond_corr (MODULE kg_intra)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ebond_corr', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, group, handle, i, iatom, iexl, ikind, ipgf, &
       iset, ishell, istat, j, jkind, jpgf, jset, jshell, nkind, npart, &
@@ -130,7 +130,7 @@ CONTAINS
 !   *** Allocate work storage ***
 
     ALLOCATE (atom_of_kind(npart),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",npart*int_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind",npart*int_size)
     atom_of_kind(:) = 0
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -247,7 +247,7 @@ CONTAINS
 !   *** Release work storage ***
 
     DEALLOCATE (atom_of_kind,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
+    IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind")
 
     CALL mp_sum(e_bc,group)
     CALL timestop(0.0_dp,handle)

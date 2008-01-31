@@ -91,8 +91,8 @@ CONTAINS
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "calc_kxc_derivatives (MODULE kg_kxc)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_kxc_derivatives', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, order
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -100,7 +100,7 @@ CONTAINS
 
 !--------------------------------------------------------
 
-  CALL timeset (routine,'I',' ',handle )
+  CALL timeset (routineN,'I',' ',handle )
 
   v1xc => v1_r%pw%cr3d(:,:,:)
   v2xc => v2_r%pw%cr3d(:,:,:)

@@ -286,6 +286,9 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: r, r2, wr
     INTEGER, INTENT(IN)                      :: radial_quadrature
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'radial_grid', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: i
     REAL(dp)                                 :: cost, f, sint, sint2, t, w, x
 
@@ -348,8 +351,7 @@ CONTAINS
 
     CASE DEFAULT
 
-       CALL stop_program("SUBROUTINE radial_grid (MODULE qs_grid_atom)",&
-            "Invalid radial quadrature type specified")
+       CALL stop_program(routineP,"Invalid radial quadrature type specified")
 
     END SELECT
 

@@ -21,7 +21,7 @@ MODULE kg_energy_types
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_energy_types'
   PRIVATE
 
   TYPE kg_energy_type
@@ -63,8 +63,8 @@ CONTAINS
 
     TYPE(kg_energy_type), POINTER            :: kg_energy
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE allocate_kg_energy (MODULE kg_energy_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_kg_energy', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
@@ -72,7 +72,7 @@ CONTAINS
 
     IF (.NOT.ASSOCIATED(kg_energy)) THEN
       ALLOCATE (kg_energy,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"kg_energy",8*dp_size)
+      IF (istat /= 0) CALL stop_memory(routineP,"kg_energy",8*dp_size)
     END IF
 
     CALL init_kg_energy(kg_energy)
@@ -91,8 +91,8 @@ CONTAINS
 
     TYPE(kg_energy_type), POINTER            :: kg_energy
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE deallocate_kg_energy (MODULE kg_energy_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_kg_energy', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
@@ -100,9 +100,9 @@ CONTAINS
 
     IF (ASSOCIATED(kg_energy)) THEN
       DEALLOCATE (kg_energy,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"kg_energy")
+      IF (istat /= 0) CALL stop_memory(routineP,"kg_energy")
     ELSE
-      CALL stop_program(routine,"The kg_energy pointer is not associated "//&
+      CALL stop_program(routineP,"The kg_energy pointer is not associated "//&
                                 "and cannot be deallocated")
     END IF
 
@@ -120,8 +120,8 @@ CONTAINS
 
     TYPE(kg_energy_type), POINTER            :: kg_energy
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE init_kg_energy (MODULE kg_energy_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_kg_energy', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -136,7 +136,7 @@ CONTAINS
       kg_energy%ppseudo = 0.0_dp
       kg_energy%kin = 0.0_dp
     ELSE
-      CALL stop_program(routine,"The kg_energy pointer is not associated "//&
+      CALL stop_program(routineP,"The kg_energy pointer is not associated "//&
                                 "and cannot be initialised")
     END IF
 

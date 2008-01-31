@@ -30,7 +30,7 @@ MODULE orbital_symbols
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'orbital_symbols'
   PRIVATE
 
 ! *** Global parameters ***
@@ -61,6 +61,8 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN)        :: lxyz
     CHARACTER(LEN=12)                        :: symbol
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cgf_symbol', &
+      routineP = moduleN//':'//routineN
     CHARACTER(LEN=1), DIMENSION(3), &
       PARAMETER                              :: xyz = (/"x","y","z"/)
 
@@ -73,7 +75,7 @@ CONTAINS
     IF ((n > 0).AND.(n < 100)) THEN
       WRITE (symbol(1:2),"(I2)") n
     ELSE
-      CALL stop_program("FUNCTION cgf_symbol (MODULE orbital_symbols)",&
+      CALL stop_program(routineP,&
                         "Invalid principal quantum number specified")
     END IF
 
@@ -82,7 +84,7 @@ CONTAINS
     IF ((l >= 0).AND.(l <= 11)) THEN
       symbol(3:3) = l_sym(l)
     ELSE
-      CALL stop_program("FUNCTION cgf_symbol (MODULE orbital_symbols)",&
+      CALL stop_program(routineP,&
                         "Invalid angular momentum quantum number specified")
     END IF
 
@@ -100,7 +102,7 @@ CONTAINS
             WRITE (symbol(ipos:ipos+1),"(I2)") lxyz(i)
             ipos = ipos + 2
           ELSE
-            CALL stop_program("FUNCTION cgf_symbol (MODULE orbital_symbols)",&
+            CALL stop_program(routineP,&
                               "Invalid magnetic quantum number specified")
           END IF
         END IF
@@ -128,6 +130,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: n, l, m
     CHARACTER(LEN=6)                         :: symbol
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'sgf_symbol', &
+      routineP = moduleN//':'//routineN
     CHARACTER(LEN=1), DIMENSION(-1:1), &
       PARAMETER                              :: yzx = (/"y","z","x"/)
 
@@ -138,14 +142,14 @@ CONTAINS
     IF ((n > 0).AND.(n < 100)) THEN
       WRITE (symbol(1:2),"(I2)") n
     ELSE
-      CALL stop_program("FUNCTION sgf_symbol (MODULE orbital_symbols)",&
+      CALL stop_program(routineP,&
                         "Invalid principal quantum number specified")
     END IF
 
     IF ((l >= 0).AND.(l <= 11)) THEN
       symbol(3:3) = l_sym(l)
     ELSE
-      CALL stop_program("FUNCTION sgf_symbol (MODULE orbital_symbols)",&
+      CALL stop_program(routineP,&
                         "Invalid angular momentum quantum number specified")
     END IF
 
@@ -162,7 +166,7 @@ CONTAINS
         END IF
       END IF
     ELSE
-      CALL stop_program("FUNCTION sgf_symbol (MODULE orbital_symbols)",&
+      CALL stop_program(routineP,&
                         "Invalid magnetic quantum number specified")
     END IF
 

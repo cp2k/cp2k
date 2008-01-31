@@ -80,7 +80,7 @@ MODULE kg_energy
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_energy'
   PRIVATE
   PUBLIC :: kg_energies , kg_qs_energies
 
@@ -144,8 +144,8 @@ SUBROUTINE kg_only_energies ( kg_env, force_env_section, error )
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE kg_only_energies (MODULE kg_energy)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_only_energies', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, output_unit, stat
     LOGICAL                                  :: calculate_forces, failure, &
@@ -182,8 +182,8 @@ SUBROUTINE kg_only_energies ( kg_env, force_env_section, error )
   CALL get_kg_env(kg_env=kg_env,&
                     dft_control=dft_control, energy=energy, cell=cell,&
                     rho=rho,rspw=rspw,error=error)
-  CPPrecondition(ASSOCIATED(rho),cp_failure_level,routine,error,failure)
-  CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
+  CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routineP,error,failure)
   IF(.NOT.failure) THEN
     CALL kg_rho_get(kg_rho=rho, rho_r=rho_r, rho_g=rho_g, &
                     rho_core=rho_core,error=error)
@@ -238,7 +238,7 @@ SUBROUTINE kg_only_energies ( kg_env, force_env_section, error )
      CALL pw_release(my_vxc_r(i)%pw,error)
   END DO
   DEALLOCATE(my_vxc_r,stat=stat)
-  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   NULLIFY(my_rho_r(1)%pw)
   DEALLOCATE(my_rho_r)
   NULLIFY(my_rho_r)
@@ -247,7 +247,7 @@ SUBROUTINE kg_only_energies ( kg_env, force_env_section, error )
   CALL pw_axpy(rho_core%pw,rho_g%pw)
 
   ALLOCATE(v_gspace,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   IF (.NOT.failure) THEN
     CALL pw_pool_create_pw(auxbas_pw_pool, v_gspace%pw, &
@@ -262,7 +262,7 @@ SUBROUTINE kg_only_energies ( kg_env, force_env_section, error )
 
   CALL pw_pool_give_back_pw(auxbas_pw_pool,v_gspace%pw,error=error)
   DEALLOCATE(v_gspace,stat=stat)
-  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
 ! add up all the potential energies
 
@@ -315,8 +315,8 @@ SUBROUTINE kg_std_energies ( kg_env, root_section, error )
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE kg_std_energies (MODULE kg_energy)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_std_energies', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, handle2, i, iter, &
                                                 output_unit, stat
@@ -416,7 +416,7 @@ scf_loop: DO
 
   CALL pw_pool_give_back_pw(auxbas_pw_pool,vxc_r%pw,error=error)
   DEALLOCATE(vxc_r,stat=stat)
-  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
   CALL write_restart(kg_env=kg_env, root_section=root_section,force_env_section=kg_env%input,&
           error=error)
@@ -462,13 +462,14 @@ SUBROUTINE kg_qs_energies ( kg_env, globenv, error )
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routine = "kg_qs_energies"
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_qs_energies', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qs_environment_type), POINTER       :: qs_env
 
-    CALL timeset(routine,"I","",handle)
+    CALL timeset(routineP,"I","",handle)
 
     NULLIFY ( qs_env )
     para_env=>kg_env%para_env
@@ -499,8 +500,8 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, force_env_section, error)
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE init_energy_calculation (MODULE kg_energy)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_energy_calculation', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, output_unit, stat
     LOGICAL                                  :: calculate_forces, failure, &
@@ -542,8 +543,8 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, force_env_section, error)
                     rho=rho,rspw=rspw,dyn_coeff_set=dyn_coeff_set,&
                     scf_control=scf_control,error=error)
 
-  CPPrecondition(ASSOCIATED(rho),cp_failure_level,routine,error,failure)
-  CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
+  CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routineP,error,failure)
   IF(.NOT.failure) THEN
     CALL kg_rho_get(kg_rho=rho, rho_r=rho_r, rho_g=rho_g, &
                     rho_core=rho_core,error=error)
@@ -618,8 +619,8 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, force_env_section, error )
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE calc_c_gradients (MODULE kg_energy)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'calc_c_gradients', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ikind, nkind, &
                                                 output_unit, stat
@@ -665,8 +666,8 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, force_env_section, error )
   CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control, energy=energy, cell=cell,&
                     rho=rho,rspw=rspw,dyn_coeff_set=dyn_coeff_set,error=error)
-  CPPrecondition(ASSOCIATED(rho),cp_failure_level,routine,error,failure)
-  CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
+  CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routineP,error,failure)
   IF(.NOT.failure) THEN
     CALL kg_rho_get(kg_rho=rho, rho_r=rho_r, rho_g=rho_g, rhop_r=rhop_r,&
                     rhop_g=rhop_g,rho_core=rho_core,error=error)
@@ -675,13 +676,13 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, force_env_section, error )
   END IF
 
   ALLOCATE(v_gspace,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   ALLOCATE(v_rspace,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   ALLOCATE(v1xc_r,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   ALLOCATE(v2xc_r,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   IF (.NOT.failure) THEN
     CALL pw_pool_create_pw(auxbas_pw_pool, v_gspace%pw, &
@@ -733,7 +734,7 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, force_env_section, error )
   CALL pw_transfer(v_gspace%pw,v_rspace%pw)
   CALL pw_pool_give_back_pw(auxbas_pw_pool,v_gspace%pw,error=error)
   DEALLOCATE(v_gspace,stat=stat)
-  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
   v_rspace%pw%cr3d(:,:,:) = dvol*v_rspace%pw%cr3d(:,:,:)
   v_rspace%pw%cr3d(:,:,:) =-1.0_dp*(vxc_r%pw%cr3d(:,:,:) +&
@@ -744,13 +745,13 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, force_env_section, error )
 ! deallocate work storage
   CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace%pw,error=error)
   DEALLOCATE(v_rspace,stat=stat)
-  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   CALL pw_pool_give_back_pw(auxbas_pw_pool,v1xc_r%pw,error=error)
   DEALLOCATE(v1xc_r,stat=stat)
-  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   CALL pw_pool_give_back_pw(auxbas_pw_pool,v2xc_r%pw,error=error)
   DEALLOCATE(v2xc_r,stat=stat)
-  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
 ! add up all the potential energies
 

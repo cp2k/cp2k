@@ -629,8 +629,8 @@ CPSourceFileRef,&
     TYPE(cp_cfm_type), POINTER               :: source, destination
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE cp_cfm_to_cfm (MODULE cp_cfm_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_to_cfm', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: npcol, nprow
     LOGICAL                                  :: failure
@@ -646,7 +646,7 @@ CPSourceFileRef,&
          destination%matrix_struct,error=error)) THEN
       CALL cp_assert(SIZE(source%local_data,1)==SIZE(destination%local_data,1).AND.&
          SIZE(source%local_data,2)==SIZE(destination%local_data,2),cp_failure_level,&
-         cp_assertion_failed, routine, &
+         cp_assertion_failed, routineP, &
          "internal error, local_data has different sizes"//&
 CPSourceFileRef,&
          error=error)
@@ -656,14 +656,14 @@ CPSourceFileRef,&
       CALL cp_assert(source%matrix_struct%nrow_global==&
            destination%matrix_struct%nrow_global,&
            cp_failure_level,&
-           cp_assertion_failed, routine, &
+           cp_assertion_failed, routineP, &
            "cannot copy between full matrixes of differen sizes"//&
 CPSourceFileRef,&
            error=error)
       CALL cp_assert(source%matrix_struct%ncol_global==&
            destination%matrix_struct%ncol_global,&
            cp_failure_level,&
-           cp_assertion_failed, routine, &
+           cp_assertion_failed, routineP, &
            "cannot copy between full matrixes of differen sizes"//&
 CPSourceFileRef,&
            error=error)
@@ -673,7 +673,7 @@ CPSourceFileRef,&
            source%local_data(1,1),1,1,source%matrix_struct%descriptor,1,&
            destination%local_data(1,1),1,1,destination%matrix_struct%descriptor,1)
 #else
-      CPAssert(.FALSE.,cp_failure_level,routine,error,failure)
+      CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
 #endif
    END IF
   END SUBROUTINE cp_cfm_to_cfm

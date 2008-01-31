@@ -302,8 +302,8 @@ CONTAINS
       OPTIONAL                               :: periodic
     LOGICAL, INTENT(IN), OPTIONAL            :: orthorhombic
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE init_cell (MODULE cell_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_cell', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: dim
 
@@ -317,7 +317,7 @@ CONTAINS
     cell%deth = ABS ( det_3x3(cell%hmat) )
 
     IF (cell%deth < 1.0E-10_dp) THEN
-      CALL stop_program(routine,&
+      CALL stop_program(routineP,&
                         "An invalid set of cell vectors was specified. "//&
                         "The determinant det(h) is too small")
     END IF
@@ -331,7 +331,7 @@ CONTAINS
     IF ( PRESENT ( orthorhombic ) ) cell % orthorhombic = orthorhombic
     dim = COUNT(cell%perd == 1)
     IF ((dim/=3).AND.(.NOT.cell%orthorhombic)) THEN
-       CALL stop_program(routine,"Not ortho and not periodic")
+       CALL stop_program(routineP,"Not ortho and not periodic")
     END IF
 
   END SUBROUTINE init_cell

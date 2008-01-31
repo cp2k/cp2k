@@ -2859,8 +2859,8 @@ END SUBROUTINE qs_vxc_create
     TYPE(real_matrix_type), POINTER          :: w_matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_w_matrix_1', &
-      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_w_matrix_1', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, imo, istat
     LOGICAL                                  :: failure

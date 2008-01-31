@@ -83,12 +83,8 @@ CONTAINS
     TYPE(real_matrix_type), POINTER    :: real_matrix
     REAL(kind=dp), INTENT(in), OPTIONAL :: alpha,beta
 
-    !   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-         "SUBROUTINE copy_fm_to_sm (MODULE cp_sm_fm_interactions)"
-
-    !   *** Local variables ***
+        CHARACTER(len=*), PARAMETER :: routineN = 'scp_qs_energies', &
+      routineP = moduleN//':'//routineN
 
     TYPE(real_block_node_type), POINTER :: block_node
 
@@ -143,7 +139,7 @@ CONTAINS
              nrow_local = fm%matrix_struct%nrow_locals(iprow)
              ncol_local = fm%matrix_struct%ncol_locals(ipcol)
              ALLOCATE (fm_block(nrow_local,ncol_local), STAT=istat)
-             IF (istat /= 0) CALL stop_memory(routine,"fm_block",nrow_local*ncol_local)
+             IF (istat /= 0) CALL stop_memory(routineP,"fm_block",nrow_local*ncol_local)
           ELSE
              fm_block => fm%local_data
           END IF
@@ -209,7 +205,7 @@ CONTAINS
 
           IF (ipe /= mype) THEN
              DEALLOCATE (fm_block,STAT=istat)
-             IF (istat /= 0) CALL stop_memory(routine,"fm_block")
+             IF (istat /= 0) CALL stop_memory(routineP,"fm_block")
           END IF
 
        END DO
@@ -274,13 +270,8 @@ CONTAINS
     TYPE(cp_fm_type), POINTER :: fm ! the matrix to copy TO
     TYPE(cp_error_type), INTENT(inout)  :: error
 
-    !   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-         "SUBROUTINE copy_sm_to_fm (MODULE cp_sm_fm_interactions)",&
-         routineN="copy_sm_to_fm"
-
-    !   *** Local variables ***
+        CHARACTER(len=*), PARAMETER :: routineN = 'scp_qs_energies', &
+      routineP = moduleN//':'//routineN
 
     TYPE(real_block_node_type), POINTER :: block_node
 
@@ -321,8 +312,8 @@ CONTAINS
 #endif
     !   ---------------------------------------------------------------------------
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(fm),cp_failure_level,routine,error,failure)
-    CPPrecondition(ASSOCIATED(real_matrix),cp_failure_level,routine,error,failure)
+    CPPrecondition(ASSOCIATED(fm),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(real_matrix),cp_failure_level,routineP,error,failure)
     IF (failure) RETURN
 
 
@@ -364,9 +355,9 @@ CONTAINS
     ! rows
     ! first the counting
     ALLOCATE(number_of_blocks_row(nblock_row),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"number_of_blocks_row",nblock_row)
+    IF (istat /= 0) CALL stop_memory(routineP,"number_of_blocks_row",nblock_row)
     ALLOCATE(cum_num_of_blocks_row(nblock_row),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"cum_num_of_blocks_row",nblock_row)
+    IF (istat /= 0) CALL stop_memory(routineP,"cum_num_of_blocks_row",nblock_row)
     number_of_blocks_row=0
     iblock=1
     boundary_sparse=last_row(iblock)
@@ -390,7 +381,7 @@ CONTAINS
 
     ! collect properties
     ALLOCATE(block_info_row(3,total_number_of_blocks_row),STAT=istat) !start,end,blacs_pe
-    IF (istat /= 0) CALL stop_memory(routine,"block_info_row",3*total_number_of_blocks_row)
+    IF (istat /= 0) CALL stop_memory(routineP,"block_info_row",3*total_number_of_blocks_row)
     iblock=1
     isblock=0
     boundary_sparse=last_row(iblock)
@@ -418,9 +409,9 @@ CONTAINS
     ! cols
     ! first the counting
     ALLOCATE(number_of_blocks_col(nblock_col),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"number_of_blocks_col",nblock_col)
+    IF (istat /= 0) CALL stop_memory(routineP,"number_of_blocks_col",nblock_col)
     ALLOCATE(cum_num_of_blocks_col(nblock_col),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"cum_num_of_blocks_col",nblock_col)
+    IF (istat /= 0) CALL stop_memory(routineP,"cum_num_of_blocks_col",nblock_col)
     number_of_blocks_col=0
     iblock=1
     boundary_sparse=last_col(iblock)
@@ -444,7 +435,7 @@ CONTAINS
 
     ! collect properties
     ALLOCATE(block_info_col(3,total_number_of_blocks_col),STAT=istat) !start,end,blacs_pe
-    IF (istat /= 0) CALL stop_memory(routine,"block_info_col",3*total_number_of_blocks_col)
+    IF (istat /= 0) CALL stop_memory(routineP,"block_info_col",3*total_number_of_blocks_col)
     iblock=1
     isblock=0
     boundary_sparse=last_col(iblock)
@@ -471,9 +462,9 @@ CONTAINS
 
     ! now count how much / what data has to go to what cpu
     ALLOCATE(number_of_blocks(0:npe-1,0:npe-1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"number_of_blocks",npe*npe)
+    IF (istat /= 0) CALL stop_memory(routineP,"number_of_blocks",npe*npe)
     ALLOCATE(total_size_of_blocks(0:npe-1,0:npe-1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"total_size_of_blocks",npe*npe)
+    IF (istat /= 0) CALL stop_memory(routineP,"total_size_of_blocks",npe*npe)
 
     number_of_blocks=0
     total_size_of_blocks=0
@@ -510,18 +501,18 @@ CONTAINS
 
 
     ALLOCATE(block_send(2*total_send_blocks),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"block_send",2*total_send_blocks)
+    IF (istat /= 0) CALL stop_memory(routineP,"block_send",2*total_send_blocks)
     ALLOCATE(block_recv(2*total_recv_blocks),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"block_send",2*total_recv_blocks)
+    IF (istat /= 0) CALL stop_memory(routineP,"block_send",2*total_recv_blocks)
     ALLOCATE(data_send(total_send_data),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"data_send",total_send_data)
+    IF (istat /= 0) CALL stop_memory(routineP,"data_send",total_send_data)
     ALLOCATE(data_recv(total_recv_data),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"data_recv",total_recv_data)
+    IF (istat /= 0) CALL stop_memory(routineP,"data_recv",total_recv_data)
 
     ALLOCATE(block_offset(0:npe-1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"block_offset",npe)
+    IF (istat /= 0) CALL stop_memory(routineP,"block_offset",npe)
     ALLOCATE(data_offset(0:npe-1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"data_offset",npe)
+    IF (istat /= 0) CALL stop_memory(routineP,"data_offset",npe)
     block_offset(0)=0
     data_offset(0)=0
     DO ipe=1,npe-1
@@ -560,13 +551,13 @@ CONTAINS
 
     ! send around the data
     ALLOCATE(send_offset(0:npe-1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"send_offset",npe)
+    IF (istat /= 0) CALL stop_memory(routineP,"send_offset",npe)
     ALLOCATE(recv_offset(0:npe-1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"recv_offset",npe)
+    IF (istat /= 0) CALL stop_memory(routineP,"recv_offset",npe)
     ALLOCATE(send_count(0:npe-1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"send_count",npe)
+    IF (istat /= 0) CALL stop_memory(routineP,"send_count",npe)
     ALLOCATE(recv_count(0:npe-1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"recv_count",npe)
+    IF (istat /= 0) CALL stop_memory(routineP,"recv_count",npe)
 
     send_count(:)=2*number_of_blocks(:,mype)
     recv_count(:)=2*number_of_blocks(mype,:)
@@ -612,7 +603,7 @@ CONTAINS
     DEALLOCATE(number_of_blocks_row, cum_num_of_blocks_row,block_info_row,number_of_blocks_col,cum_num_of_blocks_col, &
          block_info_col,number_of_blocks,total_size_of_blocks,block_send,block_recv,data_send,data_recv,block_offset, &
          data_offset,send_offset,send_count,recv_offset,recv_count,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"deallocate",0)
+    IF (istat /= 0) CALL stop_memory(routineP,"deallocate",0)
 
 #else
 

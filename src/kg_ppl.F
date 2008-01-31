@@ -90,8 +90,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_rho0_ppl', &
-      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho0_ppl', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: ac, atom_a, atom_c, group, handle, i, ialpha, iatom, ikind, &
       iparticle_local, iset, istat, jkind, katom, kkind, knode, ldai, ldsab, &
@@ -186,7 +186,7 @@ CONTAINS
 
     IF (calculate_forces) THEN
       ALLOCATE (atom_of_kind(natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
+      IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
       DO ikind=1,nkind
@@ -198,7 +198,7 @@ CONTAINS
           IF (.NOT.ASSOCIATED(force(ikind)%f_ppl)) THEN
             ALLOCATE (force(ikind)%f_ppl(3,natom_of_kind),STAT=istat)
             IF (istat /= 0) THEN
-              CALL stop_memory(routine,"force(ikind)%f_ppl",&
+              CALL stop_memory(routineP,"force(ikind)%f_ppl",&
                                3*natom_of_kind*dp_size)
             END IF
           END IF
@@ -240,20 +240,20 @@ CONTAINS
 
     ALLOCATE (hab(ldsab*maxder,1),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"hab",ldsab*maxder*dp_size)
+      CALL stop_memory(routineP,"hab",ldsab*maxder*dp_size)
     END IF
     hab(:,:) = 0.0_dp
 
     ALLOCATE (work(ldsab*maxder,1),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"work",ldsab*ldsab*maxder*dp_size)
+      CALL stop_memory(routineP,"work",ldsab*ldsab*maxder*dp_size)
     END IF
     work(:,:) = 0.0_dp
 
     IF (calculate_forces) THEN
       ALLOCATE (pab(maxco,1),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"pab",maxco*dp_size)
+        CALL stop_memory(routineP,"pab",maxco*dp_size)
       END IF
       pab(:,:) = 0.0_dp
     END IF
@@ -265,19 +265,19 @@ CONTAINS
     IF (ppl_present) THEN
 
       ALLOCATE (alpha_ppl(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl",nkind*dp_size)
+      IF (istat /= 0) CALL stop_memory(routineP,"alpha_ppl",nkind*dp_size)
       DO i=1,SIZE(alpha_ppl)
         NULLIFY(alpha_ppl(i)%alpha)
       END DO
 
       ALLOCATE (cexp_ppl(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"cexp_ppl",nkind*int_size)
+      IF (istat /= 0) CALL stop_memory(routineP,"cexp_ppl",nkind*int_size)
       DO i=1,SIZE(cexp_ppl)
         NULLIFY(cexp_ppl(i)%c)
       END DO
 
       ALLOCATE (ppl_radius(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"ppl_radius",nkind*dp_size)
+      IF (istat /= 0) CALL stop_memory(routineP,"ppl_radius",nkind*dp_size)
 
       DO ikind=1,nkind
 
@@ -293,10 +293,10 @@ CONTAINS
                              cexp_ppl=my_c,&
                              ppl_radius=ppl_radius(ikind))
           ALLOCATE(alpha_ppl(ikind)%alpha(SIZE(my_alpha)),stat=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl%alpha",&
+          IF (istat /= 0) CALL stop_memory(routineP,"alpha_ppl%alpha",&
                           SIZE(my_alpha)*int_size)
           ALLOCATE(cexp_ppl(ikind)%c(SIZE(my_c,1),SIZE(my_c,2)),stat=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl%alpha",&
+          IF (istat /= 0) CALL stop_memory(routineP,"alpha_ppl%alpha",&
                           SIZE(my_c)*int_size)
           alpha_ppl(ikind)%alpha = my_alpha
           cexp_ppl(ikind)%c = my_c
@@ -306,13 +306,13 @@ CONTAINS
                              cexp_ppl=cexp,&
                              ppl_radius=ppl_radius(ikind))
           ALLOCATE(cexp_ppl(ikind)%c(1,SIZE(cexp)),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"cexp_ppl%c",&
+          IF (istat /= 0) CALL stop_memory(routineP,"cexp_ppl%c",&
                           SIZE(cexp)*int_size)
           DO i=1,SIZE(cexp)
             cexp_ppl(ikind)%c(1,i)=cexp(i)
           END DO
           ALLOCATE(alpha_ppl(ikind)%alpha(1),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl%alpha",&
+          IF (istat /= 0) CALL stop_memory(routineP,"alpha_ppl%alpha",&
                           1*int_size)
           alpha_ppl(ikind)%alpha(1)=alfa
         END IF
@@ -320,7 +320,7 @@ CONTAINS
       END DO
 
       ALLOCATE (vppl(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"vppl",nkind*int_size)
+      IF (istat /= 0) CALL stop_memory(routineP,"vppl",nkind*int_size)
       DO jkind=1,SIZE(vppl)
         NULLIFY (vppl(jkind)%r2)
         NULLIFY (vppl(jkind)%neighbor)
@@ -376,17 +376,17 @@ CONTAINS
 
             ALLOCATE (vppl(kkind)%r2(nnode),STAT=istat)
             IF (istat /= 0) THEN
-               CALL stop_memory(routine,"vppl(kkind)%r2",nnode*dp_size)
+               CALL stop_memory(routineP,"vppl(kkind)%r2",nnode*dp_size)
             END IF
 
             ALLOCATE (vppl(kkind)%neighbor(nnode),STAT=istat)
             IF (istat /= 0) THEN
-               CALL stop_memory(routine,"vppl(kkind)%neighbor",nnode*int_size)
+               CALL stop_memory(routineP,"vppl(kkind)%neighbor",nnode*int_size)
             END IF
 
             ALLOCATE (vppl(kkind)%r(3,nnode),STAT=istat)
             IF (istat /= 0) THEN
-              CALL stop_memory(routine,"vppl(kkind)%r",3*nnode*dp_size)
+              CALL stop_memory(routineP,"vppl(kkind)%r",3*nnode*dp_size)
             END IF
 
             sac_ppl_neighbor_node => first_node(sac_ppl_neighbor_list)
@@ -520,11 +520,11 @@ CONTAINS
           DO kkind=1,nkind
             IF (ASSOCIATED(vppl(kkind)%r2)) THEN
               DEALLOCATE (vppl(kkind)%r2,STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"vppl(kkind)%r2")
+              IF (istat /= 0) CALL stop_memory(routineP,"vppl(kkind)%r2")
               DEALLOCATE (vppl(kkind)%neighbor,STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"vppl(kkind)%neighbor")
+              IF (istat /= 0) CALL stop_memory(routineP,"vppl(kkind)%neighbor")
               DEALLOCATE (vppl(kkind)%r,STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"vppl(kkind)%r")
+              IF (istat /= 0) CALL stop_memory(routineP,"vppl(kkind)%r")
             END IF
           END DO
 
@@ -540,33 +540,33 @@ CONTAINS
 
       DO ikind=1,nkind
          DEALLOCATE(alpha_ppl(ikind)%alpha,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl")
+         IF (istat /= 0) CALL stop_memory(routineP,"alpha_ppl")
          NULLIFY (alpha_ppl(ikind)%alpha)
       END DO
       DEALLOCATE (alpha_ppl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl")
+      IF (istat /= 0) CALL stop_memory(routineP,"alpha_ppl")
 
       DO ikind=1,nkind
          DEALLOCATE(cexp_ppl(ikind)%c,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routine,"cexp_ppl")
+         IF (istat /= 0) CALL stop_memory(routineP,"cexp_ppl")
          NULLIFY (cexp_ppl(ikind)%c)
       END DO
       DEALLOCATE (cexp_ppl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"cexp_ppl")
+      IF (istat /= 0) CALL stop_memory(routineP,"cexp_ppl")
 
       DEALLOCATE (ppl_radius,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"ppl_radius")
+      IF (istat /= 0) CALL stop_memory(routineP,"ppl_radius")
 
       DO ikind=1,nkind
         IF (ASSOCIATED(vppl(ikind)%r2)) THEN
           DEALLOCATE (vppl(ikind)%r2,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"vppl(ikind)%r2")
+          IF (istat /= 0) CALL stop_memory(routineP,"vppl(ikind)%r2")
           DEALLOCATE (vppl(ikind)%r,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"vppl(ikind)%r")
+          IF (istat /= 0) CALL stop_memory(routineP,"vppl(ikind)%r")
         END IF
       END DO
       DEALLOCATE (vppl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"vppl")
+      IF (istat /= 0) CALL stop_memory(routineP,"vppl")
 
     END IF
 
@@ -574,16 +574,16 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "ai_work")
     DEALLOCATE (hab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"hab")
+    IF (istat /= 0) CALL stop_memory(routineP,"hab")
 
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work")
+    IF (istat /= 0) CALL stop_memory(routineP,"work")
 
     IF (calculate_forces) THEN
       DEALLOCATE (atom_of_kind,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
+      IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind")
       DEALLOCATE (pab,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"pab")
+      IF (istat /= 0) CALL stop_memory(routineP,"pab")
     END IF
 
     CALL mp_sum(e_ppl,group)
@@ -603,8 +603,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_drho_ppl', &
-      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_drho_ppl', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: ac, atom_a, atom_c, group, handle, i, ialpha, iatom, ikind, &
       iparticle_local, iset, istat, jkind, katom, kkind, knode, ldai, ldsab, &
@@ -708,7 +708,7 @@ CONTAINS
 
     IF (calculate_forces) THEN
       ALLOCATE (atom_of_kind(natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
+      IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
       DO ikind=1,nkind
@@ -720,7 +720,7 @@ CONTAINS
           IF (.NOT.ASSOCIATED(force(ikind)%f_ppl)) THEN
             ALLOCATE (force(ikind)%f_ppl(3,natom_of_kind),STAT=istat)
             IF (istat /= 0) THEN
-              CALL stop_memory(routine,"force(ikind)%f_ppl",&
+              CALL stop_memory(routineP,"force(ikind)%f_ppl",&
                                3*natom_of_kind*dp_size)
             END IF
             force(ikind)%f_ppl(:,:) = 0.0_dp
@@ -762,20 +762,20 @@ CONTAINS
 
     ALLOCATE (hab(ldsab*maxder,1),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"hab",ldsab*maxder*dp_size)
+      CALL stop_memory(routineP,"hab",ldsab*maxder*dp_size)
     END IF
     hab(:,:) = 0.0_dp
 
     ALLOCATE (work(ldsab*maxder,1),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"work",ldsab*ldsab*maxder*dp_size)
+      CALL stop_memory(routineP,"work",ldsab*ldsab*maxder*dp_size)
     END IF
     work(:,:) = 0.0_dp
 
     IF (calculate_forces) THEN
       ALLOCATE (pab(maxco,1),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"pab",maxco*dp_size)
+        CALL stop_memory(routineP,"pab",maxco*dp_size)
       END IF
       pab(:,:) = 0.0_dp
     END IF
@@ -787,19 +787,19 @@ CONTAINS
     IF (ppl_present) THEN
 
       ALLOCATE (alpha_ppl(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl",nkind*dp_size)
+      IF (istat /= 0) CALL stop_memory(routineP,"alpha_ppl",nkind*dp_size)
       DO i=1,SIZE(alpha_ppl)
         NULLIFY(alpha_ppl(i)%alpha)
       END DO
 
       ALLOCATE (cexp_ppl(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"cexp_ppl",nkind*int_size)
+      IF (istat /= 0) CALL stop_memory(routineP,"cexp_ppl",nkind*int_size)
       DO i=1,SIZE(cexp_ppl)
         NULLIFY(cexp_ppl(i)%c)
       END DO
 
       ALLOCATE (ppl_radius(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"ppl_radius",nkind*dp_size)
+      IF (istat /= 0) CALL stop_memory(routineP,"ppl_radius",nkind*dp_size)
 
       DO ikind=1,nkind
 
@@ -820,13 +820,13 @@ CONTAINS
                              cexp_ppl=cexp,&
                              ppl_radius=ppl_radius(ikind))
           ALLOCATE(cexp_ppl(ikind)%c(1,SIZE(cexp)),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"cexp_ppl%c",&
+          IF (istat /= 0) CALL stop_memory(routineP,"cexp_ppl%c",&
                           SIZE(cexp)*int_size)
           DO i=1,SIZE(cexp)
             cexp_ppl(ikind)%c(1,i)=cexp(i)
           END DO
           ALLOCATE(alpha_ppl(ikind)%alpha(1),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl%alpha",&
+          IF (istat /= 0) CALL stop_memory(routineP,"alpha_ppl%alpha",&
                           1*int_size)
           alpha_ppl(ikind)%alpha(1)=alfa
         END IF
@@ -834,7 +834,7 @@ CONTAINS
       END DO
 
       ALLOCATE (vppl(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"vppl",nkind*int_size)
+      IF (istat /= 0) CALL stop_memory(routineP,"vppl",nkind*int_size)
       DO jkind=1,SIZE(vppl)
         NULLIFY (vppl(jkind)%r2)
         NULLIFY (vppl(jkind)%neighbor)
@@ -891,17 +891,17 @@ CONTAINS
 
             ALLOCATE (vppl(kkind)%r2(nnode),STAT=istat)
             IF (istat /= 0) THEN
-               CALL stop_memory(routine,"vppl(kkind)%r2",nnode*dp_size)
+               CALL stop_memory(routineP,"vppl(kkind)%r2",nnode*dp_size)
             END IF
 
             ALLOCATE (vppl(kkind)%neighbor(nnode),STAT=istat)
             IF (istat /= 0) THEN
-               CALL stop_memory(routine,"vppl(kkind)%neighbor",nnode*int_size)
+               CALL stop_memory(routineP,"vppl(kkind)%neighbor",nnode*int_size)
             END IF
 
             ALLOCATE (vppl(kkind)%r(3,nnode),STAT=istat)
             IF (istat /= 0) THEN
-              CALL stop_memory(routine,"vppl(kkind)%r",3*nnode*dp_size)
+              CALL stop_memory(routineP,"vppl(kkind)%r",3*nnode*dp_size)
             END IF
 
             sac_ppl_neighbor_node => first_node(sac_ppl_neighbor_list)
@@ -1041,11 +1041,11 @@ CONTAINS
           DO kkind=1,nkind
             IF (ASSOCIATED(vppl(kkind)%r2)) THEN
               DEALLOCATE (vppl(kkind)%r2,STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"vppl(kkind)%r2")
+              IF (istat /= 0) CALL stop_memory(routineP,"vppl(kkind)%r2")
               DEALLOCATE (vppl(kkind)%neighbor,STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"vppl(kkind)%neighbor")
+              IF (istat /= 0) CALL stop_memory(routineP,"vppl(kkind)%neighbor")
               DEALLOCATE (vppl(kkind)%r,STAT=istat)
-              IF (istat /= 0) CALL stop_memory(routine,"vppl(kkind)%r")
+              IF (istat /= 0) CALL stop_memory(routineP,"vppl(kkind)%r")
             END IF
           END DO
 
@@ -1063,27 +1063,27 @@ CONTAINS
         NULLIFY (alpha_ppl(ikind)%alpha)
       END DO
       DEALLOCATE (alpha_ppl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl")
+      IF (istat /= 0) CALL stop_memory(routineP,"alpha_ppl")
 
       DO ikind=1,nkind
         NULLIFY (cexp_ppl(ikind)%c)
       END DO
       DEALLOCATE (cexp_ppl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"cexp_ppl")
+      IF (istat /= 0) CALL stop_memory(routineP,"cexp_ppl")
 
       DEALLOCATE (ppl_radius,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"ppl_radius")
+      IF (istat /= 0) CALL stop_memory(routineP,"ppl_radius")
 
       DO ikind=1,nkind
         IF (ASSOCIATED(vppl(ikind)%r2)) THEN
           DEALLOCATE (vppl(ikind)%r2,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"vppl(ikind)%r2")
+          IF (istat /= 0) CALL stop_memory(routineP,"vppl(ikind)%r2")
           DEALLOCATE (vppl(ikind)%r,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"vppl(ikind)%r")
+          IF (istat /= 0) CALL stop_memory(routineP,"vppl(ikind)%r")
         END IF
       END DO
       DEALLOCATE (vppl,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"vppl")
+      IF (istat /= 0) CALL stop_memory(routineP,"vppl")
 
     END IF
 
@@ -1092,16 +1092,16 @@ CONTAINS
                                      "ai_work")
 
     DEALLOCATE (hab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"hab")
+    IF (istat /= 0) CALL stop_memory(routineP,"hab")
 
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work")
+    IF (istat /= 0) CALL stop_memory(routineP,"work")
 
     IF (calculate_forces) THEN
       DEALLOCATE (atom_of_kind,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
+      IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind")
       DEALLOCATE (pab,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"pab")
+      IF (istat /= 0) CALL stop_memory(routineP,"pab")
     END IF
 
     CALL mp_sum(e_ppl,group)

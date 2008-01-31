@@ -89,8 +89,8 @@ CONTAINS
 
     TYPE(qs_energy_type), POINTER            :: qs_energy
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE allocate_qs_energy (MODULE qs_energy_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_qs_energy', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
@@ -98,7 +98,7 @@ CONTAINS
 
     IF (.NOT.ASSOCIATED(qs_energy)) THEN
       ALLOCATE (qs_energy,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"qs_energy",8*dp_size)
+      IF (istat /= 0) CALL stop_memory(routineP,"qs_energy",8*dp_size)
     END IF
 
     CALL init_qs_energy(qs_energy)
@@ -117,8 +117,8 @@ CONTAINS
 
     TYPE(qs_energy_type), POINTER            :: qs_energy
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE deallocate_qs_energy (MODULE qs_energy_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_qs_energy', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
@@ -126,9 +126,9 @@ CONTAINS
 
     IF (ASSOCIATED(qs_energy)) THEN
       DEALLOCATE (qs_energy,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"qs_energy")
+      IF (istat /= 0) CALL stop_memory(routineP,"qs_energy")
     ELSE
-      CALL stop_program(routine,"The qs_energy pointer is not associated "//&
+      CALL stop_program(routineP,"The qs_energy pointer is not associated "//&
                                 "and cannot be deallocated")
     END IF
 
@@ -146,8 +146,8 @@ CONTAINS
 
     TYPE(qs_energy_type), POINTER            :: qs_energy
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE init_qs_energy (MODULE qs_energy_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_qs_energy', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -175,7 +175,7 @@ CONTAINS
       qs_energy%dft_plus_u = 0.0_dp
       qs_energy%total = 0.0_dp
     ELSE
-      CALL stop_program(routine,"The qs_energy pointer is not associated "//&
+      CALL stop_program(routineP,"The qs_energy pointer is not associated "//&
                                 "and cannot be initialised")
     END IF
 
@@ -252,8 +252,8 @@ CONTAINS
 
     TYPE(qs_energy_type), POINTER            :: qs_energy_in, qs_energy_out
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE copy_qs_energy (MODULE qs_energy_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'copy_qs_energy', &
+      routineP = moduleN//':'//routineN
 
 !   ------------------------------------------------------------------------
 
@@ -280,7 +280,7 @@ CONTAINS
       qs_energy_out%dft_plus_u      = qs_energy_in%dft_plus_u
       qs_energy_out%total           = qs_energy_in%total
     ELSE
-      CALL stop_program(routine,"The qs_energy pointer is not associated ")
+      CALL stop_program(routineP,"The qs_energy pointer is not associated ")
     END IF
 
   END SUBROUTINE copy_qs_energy

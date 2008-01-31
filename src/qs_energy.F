@@ -83,8 +83,8 @@ CONTAINS
                                                 calc_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_energies', &
-      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
     LOGICAL                                  :: do_et, right_iteration_level

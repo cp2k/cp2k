@@ -27,6 +27,7 @@ MODULE scp_force_types
   IMPLICIT NONE
 
   PRIVATE
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_force_types'
 
   TYPE scp_force_type
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: f_scp, f_total
@@ -60,8 +61,8 @@ CONTAINS
       POINTER                                :: scp_forces
     INTEGER, DIMENSION(:), INTENT(IN)        :: natom_of_kind
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE allocate_scp_force (MODULE scp_force_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_scp_force', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, istat, n, nkind
 
@@ -74,7 +75,7 @@ CONTAINS
     nkind = SIZE(natom_of_kind)
 
     ALLOCATE (scp_forces(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"scp_forces",nkind)
+    IF (istat /= 0) CALL stop_memory(routineP,"scp_forces",nkind)
 
     DO ikind=1,nkind
 
@@ -82,12 +83,12 @@ CONTAINS
 
       ALLOCATE (scp_forces(ikind)%f_scp (3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"scp_forces(ikind)%f_scp",3*n)
+        CALL stop_memory(routineP,"scp_forces(ikind)%f_scp",3*n)
       END IF
 
       ALLOCATE (scp_forces(ikind)%f_total(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"scp_forces(ikind)%f_total",3*n)
+        CALL stop_memory(routineP,"scp_forces(ikind)%f_total",3*n)
       END IF
 
     END DO
@@ -106,15 +107,15 @@ CONTAINS
     TYPE(scp_force_type), DIMENSION(:), &
       POINTER                                :: scp_forces
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE deallocate_scp_force (MODULE scp_force_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_scp_force', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, istat, nkind
 
 !   ---------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(scp_forces)) THEN
-      CALL stop_program(routine,"The scp_forces pointer is not associated "//&
+      CALL stop_program(routineP,"The scp_forces pointer is not associated "//&
                                 "and cannot be deallocated")
     END IF
 
@@ -125,21 +126,21 @@ CONTAINS
       IF (ASSOCIATED(scp_forces(ikind)%f_scp)) THEN
         DEALLOCATE (scp_forces(ikind)%f_scp,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"scp_forces%f_scp")
+          CALL stop_memory(routineP,"scp_forces%f_scp")
         END IF
       END IF
 
       IF (ASSOCIATED(scp_forces(ikind)%f_total)) THEN
         DEALLOCATE (scp_forces(ikind)%f_total,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"scp_forces%f_total")
+          CALL stop_memory(routineP,"scp_forces%f_total")
         END IF
       END IF
 
     END DO
 
     DEALLOCATE (scp_forces,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"scp_forces")
+    IF (istat /= 0) CALL stop_memory(routineP,"scp_forces")
 
   END SUBROUTINE deallocate_scp_force
 
@@ -156,15 +157,15 @@ CONTAINS
     TYPE(scp_force_type), DIMENSION(:), &
       POINTER                                :: scp_forces
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE init_scp_force (MODULE scp_force_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_scp_force', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind
 
 !   ---------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(scp_forces)) THEN
-      CALL stop_program(routine,"The scp_forces pointer is not associated "//&
+      CALL stop_program(routineP,"The scp_forces pointer is not associated "//&
                                 "and cannot be initialized")
     END IF
 

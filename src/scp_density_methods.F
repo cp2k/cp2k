@@ -83,7 +83,8 @@ MODULE scp_density_methods
   IMPLICIT NONE
 
   PRIVATE
-
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_density_methods'
+ 
 ! *** Public subroutines ***
 
 
@@ -100,8 +101,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE update_rho_scp (MODULE scp_density_methods)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'update_rhoscp', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, output_unit, stat
     LOGICAL                                  :: ionode
@@ -186,8 +187,8 @@ CONTAINS
     REAL(dp), INTENT(IN), OPTIONAL           :: eps_rho_rspace
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE collocate_scp_density (MODULE scp_density_methods)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'collocate_scp_density', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iatom, igrid_level, ikind, iparticle_local, ipgf, &
       iset, istat, maxco, na1, na2, natom, ncoa, nkind, nparticle_local, &
@@ -235,12 +236,12 @@ CONTAINS
     ! *** set up the pw multi-grids *** !
 
     ALLOCATE(mgrid_rspace(SIZE(pw_pools)) ,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL pw_pools_create_pws(pw_pools,mgrid_rspace,&
                               use_data = REALDATA3D,&
                               in_space = REALSPACE, error=error)
     ALLOCATE(mgrid_gspace(SIZE(pw_pools)) ,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL pw_pools_create_pws(pw_pools,mgrid_gspace,&
                               use_data = COMPLEXDATA1D,&
                               in_space = RECIPROCALSPACE, error=error)
@@ -263,9 +264,9 @@ CONTAINS
                              
 
     ALLOCATE (pab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*1*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"pab",maxco*1*dp_size)
     ALLOCATE (work(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*1*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"work",maxco*1*dp_size)
 
     DO ikind=1,nkind
 
@@ -342,10 +343,10 @@ CONTAINS
     END DO
 
     DEALLOCATE (pab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab")
+    IF (istat /= 0) CALL stop_memory(routineP,"pab")
 
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work")
+    IF (istat /= 0) CALL stop_memory(routineP,"work")
 
     IF (gridlevel_info%ngrid_levels==1) THEN
        CALL rs_pw_transfer(rs_rho(1)%rs_grid,rhop_r%pw,rs2pw)
@@ -405,8 +406,8 @@ CONTAINS
                                                 just_energy, debug
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE integrate_rhoscp_vrspace (MODULE scp_density_methods)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'integrate_rhoscp_vrspace', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, auxbas_grid, handle, i, iatom, igrid_level, ikind, &
       iparticle_local, ipgf, iset, istat, maxco, maxsgf_set, na1, na2, natom, &
@@ -491,7 +492,7 @@ CONTAINS
 !   *** Allocate work storage ***
 
     ALLOCATE (atom_of_kind(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
 
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -500,13 +501,13 @@ CONTAINS
                              maxsgf_set=maxsgf_set)
 
     ALLOCATE (hab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"hab",maxco*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"hab",maxco*dp_size)
 
     ALLOCATE (pab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"pab",maxco*dp_size)
 
     ALLOCATE (work(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"work",maxco*dp_size)
 
     offset = 0
 
@@ -619,13 +620,13 @@ CONTAINS
 !   *** Release work storage ***
 
     DEALLOCATE (hab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"hab")
+    IF (istat /= 0) CALL stop_memory(routineP,"hab")
 
     DEALLOCATE (pab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab")
+    IF (istat /= 0) CALL stop_memory(routineP,"pab")
 
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work")
+    IF (istat /= 0) CALL stop_memory(routineP,"work")
 
     CALL timestop(0.0_dp,handle)
 

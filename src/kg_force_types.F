@@ -27,7 +27,7 @@ MODULE kg_force_types
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_force_types'
   PRIVATE
 
   TYPE kg_force_type
@@ -69,8 +69,8 @@ CONTAINS
       POINTER                                :: kg_forces
     INTEGER, DIMENSION(:), INTENT(IN)        :: natom_of_kind
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE allocate_kg_force (MODULE kg_force_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_kg_force', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, istat, n, nkind
 
@@ -83,7 +83,7 @@ CONTAINS
     nkind = SIZE(natom_of_kind)
 
     ALLOCATE (kg_forces(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"kg_forces",nkind)
+    IF (istat /= 0) CALL stop_memory(routineP,"kg_forces",nkind)
 
     DO ikind=1,nkind
 
@@ -91,42 +91,42 @@ CONTAINS
 
       ALLOCATE (kg_forces(ikind)%f_rspace_core(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"kg_forces(ikind)%f_rspace_core",3*n)
+        CALL stop_memory(routineP,"kg_forces(ikind)%f_rspace_core",3*n)
       END IF
 
       ALLOCATE (kg_forces(ikind)%f_hartree_core(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"kg_forces(ikind)%f_hartree_core",3*n)
+        CALL stop_memory(routineP,"kg_forces(ikind)%f_hartree_core",3*n)
       END IF
 
       ALLOCATE (kg_forces(ikind)%f_rho(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"kg_forces(ikind)%f_rho",3*n)
+        CALL stop_memory(routineP,"kg_forces(ikind)%f_rho",3*n)
       END IF
 
       ALLOCATE (kg_forces(ikind)%f_hartree(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"kg_forces(ikind)%f_hartree",3*n)
+        CALL stop_memory(routineP,"kg_forces(ikind)%f_hartree",3*n)
       END IF
 
       ALLOCATE (kg_forces(ikind)%f_xc(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"kg_forces(ikind)%f_xc",3*n)
+        CALL stop_memory(routineP,"kg_forces(ikind)%f_xc",3*n)
       END IF
 
       ALLOCATE (kg_forces(ikind)%f_bc(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"kg_forces(ikind)%f_bc",3*n)
+        CALL stop_memory(routineP,"kg_forces(ikind)%f_bc",3*n)
       END IF
 
       ALLOCATE (kg_forces(ikind)%f_ppl(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"kg_forces(ikind)%f_ppl",3*n)
+        CALL stop_memory(routineP,"kg_forces(ikind)%f_ppl",3*n)
       END IF
 
       ALLOCATE (kg_forces(ikind)%f_total(3,n),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"kg_forces(ikind)%f_total",3*n)
+        CALL stop_memory(routineP,"kg_forces(ikind)%f_total",3*n)
       END IF
 
     END DO
@@ -146,15 +146,15 @@ CONTAINS
     TYPE(kg_force_type), DIMENSION(:), &
       POINTER                                :: kg_forces
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE deallocate_kg_force (MODULE kg_force_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_kg_force', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, istat, nkind
 
 !   ---------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(kg_forces)) THEN
-      CALL stop_program(routine,"The kg_forces pointer is not associated "//&
+      CALL stop_program(routineP,"The kg_forces pointer is not associated "//&
                                 "and cannot be deallocated")
     END IF
 
@@ -165,63 +165,63 @@ CONTAINS
       IF (ASSOCIATED(kg_forces(ikind)%f_rspace_core)) THEN
         DEALLOCATE (kg_forces(ikind)%f_rspace_core,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"kg_forces%f_rspace_core")
+          CALL stop_memory(routineP,"kg_forces%f_rspace_core")
         END IF
       END IF
 
       IF (ASSOCIATED(kg_forces(ikind)%f_hartree_core)) THEN
         DEALLOCATE (kg_forces(ikind)%f_hartree_core,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"kg_forces%f_hartree_core")
+          CALL stop_memory(routineP,"kg_forces%f_hartree_core")
         END IF
       END IF
 
       IF (ASSOCIATED(kg_forces(ikind)%f_rho)) THEN
         DEALLOCATE (kg_forces(ikind)%f_rho,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"kg_forces%f_rho")
+          CALL stop_memory(routineP,"kg_forces%f_rho")
         END IF
       END IF
 
       IF (ASSOCIATED(kg_forces(ikind)%f_ppl)) THEN
         DEALLOCATE (kg_forces(ikind)%f_ppl,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"kg_forces%f_ppl")
+          CALL stop_memory(routineP,"kg_forces%f_ppl")
         END IF
       END IF
 
       IF (ASSOCIATED(kg_forces(ikind)%f_hartree)) THEN
         DEALLOCATE (kg_forces(ikind)%f_hartree,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"kg_forces%f_hartree")
+          CALL stop_memory(routineP,"kg_forces%f_hartree")
         END IF
       END IF
 
       IF (ASSOCIATED(kg_forces(ikind)%f_xc)) THEN
         DEALLOCATE (kg_forces(ikind)%f_xc,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"kg_forces%f_xc")
+          CALL stop_memory(routineP,"kg_forces%f_xc")
         END IF
       END IF
 
       IF (ASSOCIATED(kg_forces(ikind)%f_bc)) THEN
         DEALLOCATE (kg_forces(ikind)%f_bc,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"kg_forces%f_bc")
+          CALL stop_memory(routineP,"kg_forces%f_bc")
         END IF
       END IF
 
       IF (ASSOCIATED(kg_forces(ikind)%f_total)) THEN
         DEALLOCATE (kg_forces(ikind)%f_total,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"kg_forces%f_total")
+          CALL stop_memory(routineP,"kg_forces%f_total")
         END IF
       END IF
 
     END DO
 
     DEALLOCATE (kg_forces,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"kg_forces")
+    IF (istat /= 0) CALL stop_memory(routineP,"kg_forces")
 
   END SUBROUTINE deallocate_kg_force
 
@@ -239,15 +239,15 @@ CONTAINS
     TYPE(kg_force_type), DIMENSION(:), &
       POINTER                                :: kg_forces
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE init_kg_force (MODULE kg_force_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_kg_force', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind
 
 !   ---------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(kg_forces)) THEN
-      CALL stop_program(routine,"The kg_forces pointer is not associated "//&
+      CALL stop_program(routineP,"The kg_forces pointer is not associated "//&
                                 "and cannot be initialized")
     END IF
 

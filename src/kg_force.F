@@ -147,9 +147,6 @@ SUBROUTINE kg_force_control ( kg_env, globenv, error )
     LOGICAL                                  :: kgpol
     TYPE(dft_control_type), POINTER          :: dft_control
 
-!  TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
-!------------------------------------------------------------------------------
-
   kgpol = .FALSE.
   CALL get_kg_env( kg_env=kg_env, dft_control=dft_control,error=error)
   kgpol = dft_control % qs_control % polarization
@@ -187,8 +184,8 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE kgpol_calculate_forces (MODULE kg_force)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'kgpol_calculate_forces', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iatom, ikind, &
                                                 natoms, nkind, output_unit, &
@@ -225,10 +222,6 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(section_vals_type), POINTER         :: xc_section
 
-!  TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
-!  CHARACTER(LEN=8) :: force_type
-!------------------------------------------------------------------------------
-
   CALL timeset ( 'kgpol_calculate_forces','I',' ',handle )
   failure=.FALSE.
   para_env=>kg_env%para_env
@@ -250,8 +243,8 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
                     dft_control=dft_control, energy=energy, cell=cell,&
                     dyn_coeff_set=dyn_coeff_set, force=force,particle_set=part,rho=rho,rspw=rspw,error=error)
 
-  CPPrecondition(ASSOCIATED(rho),cp_failure_level,routine,error,failure)
-  CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
+  CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routineP,error,failure)
   IF(.NOT.failure) THEN
     CALL kg_rho_get(kg_rho=rho, rho_r=rho_r, rho_g=rho_g, rhop_r=rhop_r,&
                     rhop_g=rhop_g,rho_core=rho_core,error=error)
@@ -260,15 +253,15 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
   END IF
 
   ALLOCATE(v_gspace,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   ALLOCATE(v_rspace,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   ALLOCATE(vxc_r,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   ALLOCATE(v1xc_r,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   ALLOCATE(v2xc_r,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   IF (.NOT.failure) THEN
     CALL pw_pool_create_pw(auxbas_pw_pool, v_gspace%pw, &
@@ -297,7 +290,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
 
   IF ( .NOT. ALLOCATED ( natom_of_kind ) ) THEN
      ALLOCATE (natom_of_kind(nkind),STAT=stat)
-     IF (stat /= 0) CALL stop_memory(routine,"natom_of_kind",nkind)
+     IF (stat /= 0) CALL stop_memory(routineP,"natom_of_kind",nkind)
      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                               natom_of_kind=natom_of_kind)
   END IF
@@ -391,7 +384,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
   CALL pw_transfer(v_gspace%pw,v_rspace%pw)
   CALL pw_pool_give_back_pw(auxbas_pw_pool,v_gspace%pw,error=error)
   DEALLOCATE(v_gspace,stat=stat)
-  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
   v_rspace%pw%cr3d(:,:,:) = dvol*v_rspace%pw%cr3d(:,:,:)
 
@@ -410,16 +403,16 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
 ! deallocate work storage
   CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace%pw,error=error)
   DEALLOCATE(v_rspace,stat=stat)
-  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   CALL pw_pool_give_back_pw(auxbas_pw_pool,vxc_r%pw,error=error)
   DEALLOCATE(vxc_r,stat=stat)
-  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   CALL pw_pool_give_back_pw(auxbas_pw_pool,v1xc_r%pw,error=error)
   DEALLOCATE(v1xc_r,stat=stat)
-  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   CALL pw_pool_give_back_pw(auxbas_pw_pool,v2xc_r%pw,error=error)
   DEALLOCATE(v2xc_r,stat=stat)
-  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
 ! add up all the potential energies
 
@@ -484,7 +477,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
 ! deallocating all local variables
   IF ( ALLOCATED ( natom_of_kind ) ) THEN
      DEALLOCATE (natom_of_kind ,STAT=stat)
-     IF (stat /= 0) CALL stop_memory(routine,"natom_of_kind",nkind)
+     IF (stat /= 0) CALL stop_memory(routineP,"natom_of_kind",nkind)
   END IF
 
  CALL timestop ( zero, handle )
@@ -513,8 +506,8 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE kg_calculate_forces (MODULE kg_force)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_calculate_forces', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iatom, ikind, &
                                                 natoms, nkind, output_unit, &
@@ -563,8 +556,8 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
   CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control, energy=energy, cell=cell,&
                     force=force,particle_set=part,rho=rho,rspw=rspw,error=error)
-  CPPrecondition(ASSOCIATED(rho),cp_failure_level,routine,error,failure)
-  CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
+  CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routineP,error,failure)
   IF(.NOT.failure) THEN
     CALL kg_rho_get(kg_rho=rho, rho_r=rho_r, rho_g=rho_g, rho_core=rho_core,error=error)
     CALL kg_rspw_get(kg_rspw=rspw,auxbas_pw_pool=auxbas_pw_pool,&
@@ -572,11 +565,11 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
   END IF
 
   ALLOCATE(v_gspace,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   ALLOCATE(v_rspace,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   ALLOCATE(vxc_r,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
     CALL pw_pool_create_pw(auxbas_pw_pool, v_gspace%pw, &
                             use_data = COMPLEXDATA1D,&
@@ -596,7 +589,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
 
   IF ( .NOT. ALLOCATED ( natom_of_kind ) ) THEN
      ALLOCATE (natom_of_kind(nkind),STAT=stat)
-     IF (stat /= 0) CALL stop_memory(routine,"natom_of_kind",nkind)
+     IF (stat /= 0) CALL stop_memory(routineP,"natom_of_kind",nkind)
      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                               natom_of_kind=natom_of_kind)
   END IF
@@ -669,7 +662,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
   CALL pw_transfer(v_gspace%pw,v_rspace%pw)
   CALL pw_pool_give_back_pw(auxbas_pw_pool,v_gspace%pw,error=error)
   DEALLOCATE(v_gspace,stat=stat)
-  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
   v_rspace%pw%cr3d(:,:,:) = dvol*v_rspace%pw%cr3d(:,:,:)
 
@@ -682,10 +675,10 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
 ! deallocate work storage
   CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace%pw,error=error)
   DEALLOCATE(v_rspace,stat=stat)
-  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   CALL pw_pool_give_back_pw(auxbas_pw_pool,vxc_r%pw,error=error)
   DEALLOCATE(vxc_r,stat=stat)
-  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
 ! add up all the potential energies
 
@@ -745,7 +738,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
 ! deallocating all local variables
   IF ( ALLOCATED ( natom_of_kind ) ) THEN
      DEALLOCATE (natom_of_kind ,STAT=stat)
-     IF (stat /= 0) CALL stop_memory(routine,"natom_of_kind",nkind)
+     IF (stat /= 0) CALL stop_memory(routineP,"natom_of_kind",nkind)
   END IF
 
  CALL timestop ( zero, handle )

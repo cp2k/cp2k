@@ -78,9 +78,9 @@ MODULE kg_density
   IMPLICIT NONE
 
   PRIVATE
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_density'
 
 ! *** Public subroutines ***
-
   PUBLIC :: calculate_density, calculate_epc_density, &
             calculate_epc_rspace_forces, calculate_p_density, &
             calculate_v_rspace_forces, calculate_vp_rspace_forces
@@ -100,8 +100,8 @@ CONTAINS
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE calculate_density (MODULE kg_density)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_density', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iatom, igrid_level, ikind, iparticle_local, ipgf, &
       iset, istat, maxco, maxsgf_set, na1, na2, ncoa, nkind, nparticle_local, &
@@ -156,7 +156,7 @@ CONTAINS
     cube_info=>rspw%cube_info
 
     ! *** set up the pw multi-grids
-    CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
+    CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routineP,error,failure)
     CALL kg_rspw_get(rspw, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
 
     CALL pw_pools_create_pws(pw_pools,mgrid_rspace,&
@@ -181,9 +181,9 @@ CONTAINS
                              maxsgf_set=maxsgf_set)
 
     ALLOCATE (pab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*1*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"pab",maxco*1*dp_size)
     ALLOCATE (work(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*1*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"work",maxco*1*dp_size)
 
     DO ikind=1,nkind
 
@@ -255,10 +255,10 @@ CONTAINS
     END DO
 
     DEALLOCATE (pab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab")
+    IF (istat /= 0) CALL stop_memory(routineP,"pab")
 
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work")
+    IF (istat /= 0) CALL stop_memory(routineP,"work")
 
     IF (gridlevel_info%ngrid_levels==1) THEN
        CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw)
@@ -305,8 +305,8 @@ CONTAINS
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "calculate_epc_density (MODULE kg_density)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_epc_density', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iatom, ikind, &
                                                 iparticle_local, istat, &
@@ -339,7 +339,7 @@ CONTAINS
             pab,particle_set)
 
     ALLOCATE(pab(1,1),stat=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab")
+    IF (istat /= 0) CALL stop_memory(routineP,"pab")
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -384,7 +384,7 @@ CONTAINS
     END DO
 
     DEALLOCATE(pab,stat=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab")
+    IF (istat /= 0) CALL stop_memory(routineP,"pab")
 
     CALL pw_pool_create_pw(auxbas_pw_pool, rhoc_r%pw, &
          use_data=REALDATA3D,in_space=REALSPACE,error=error)
@@ -412,8 +412,8 @@ CONTAINS
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE calculate_p_density (MODULE kg_density)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_p_density', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iatom, igrid_level, ikind, iparticle_local, ipgf, &
       iset, istat, maxco, maxsgf_set, na1, na2, natom, ncoa, nkind, &
@@ -472,7 +472,7 @@ CONTAINS
     cube_info=>rspw%cube_info
 
     ! *** set up the pw multi-grids
-    CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
+    CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routineP,error,failure)
     CALL kg_rspw_get(rspw, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
 
     CALL pw_pools_create_pws(pw_pools,mgrid_rspace,&
@@ -501,9 +501,9 @@ CONTAINS
                              maxsgf_set=maxsgf_set)
 
     ALLOCATE (pab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*1*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"pab",maxco*1*dp_size)
     ALLOCATE (work(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*1*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"work",maxco*1*dp_size)
 
     DO ikind=1,nkind
 
@@ -581,10 +581,10 @@ CONTAINS
     END DO
 
     DEALLOCATE (pab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab")
+    IF (istat /= 0) CALL stop_memory(routineP,"pab")
 
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work")
+    IF (istat /= 0) CALL stop_memory(routineP,"work")
 
     IF (gridlevel_info%ngrid_levels==1) THEN
        CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw)
@@ -631,8 +631,8 @@ CONTAINS
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE calculate_epc_rspace_forces (MODULE kg_density)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_epc_rspace_forces', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom_a, handle, iatom, ikind, &
                                                 iparticle_local, istat, &
@@ -665,7 +665,7 @@ CONTAINS
     NULLIFY(hab,pab)
 
     ALLOCATE(hab(1,1),pab(1,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"hab,pab",1*int_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"hab,pab",1*int_size)
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -686,7 +686,7 @@ CONTAINS
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
     ALLOCATE (atom_of_kind(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
 
@@ -730,7 +730,7 @@ CONTAINS
     CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_v,error=error)
 
     DEALLOCATE(pab,hab,atom_of_kind,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"hab,pab,atom_of_kind")
+    IF (istat /= 0) CALL stop_memory(routineP,"hab,pab,atom_of_kind")
 
     CALL timestop(0.0_dp,handle)
 
@@ -748,8 +748,8 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: force_type
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE calculate_v_rspace_forces (MODULE kg_density)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_v_rspace_forces', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, auxbas_grid, handle, i, iatom, igrid_level, ikind, &
       iparticle_local, ipgf, iset, istat, maxco, maxsgf_set, na1, na2, natom, &
@@ -807,7 +807,7 @@ CONTAINS
                     rspw=rspw ,error=error)
 
     ! *** set up of the potential on the multigrids
-    CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
+    CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routineP,error,failure)
     CALL kg_rspw_get(rspw, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
 
     CALL pw_pools_create_pws(pw_pools,mgrid_rspace,&
@@ -871,7 +871,7 @@ CONTAINS
 !   *** Allocate work storage ***
 
     ALLOCATE (atom_of_kind(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              atom_of_kind=atom_of_kind,&
@@ -879,13 +879,13 @@ CONTAINS
                              maxsgf_set=maxsgf_set)
 
     ALLOCATE (hab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"hab",maxco*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"hab",maxco*dp_size)
 
     ALLOCATE (pab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"pab",maxco*dp_size)
 
     ALLOCATE (work(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"work",maxco*dp_size)
 
     DO ikind=1,nkind
 
@@ -982,16 +982,16 @@ CONTAINS
 !   *** Release work storage ***
 
     DEALLOCATE (hab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"hab")
+    IF (istat /= 0) CALL stop_memory(routineP,"hab")
 
     DEALLOCATE (pab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab")
+    IF (istat /= 0) CALL stop_memory(routineP,"pab")
 
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work")
+    IF (istat /= 0) CALL stop_memory(routineP,"work")
 
     DEALLOCATE (atom_of_kind,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
+    IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind")
 
     CALL timestop(0.0_dp,handle)
 
@@ -1010,8 +1010,8 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: force_type
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE calculate_vp_rspace_forces (MODULE kg_density)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_vp_rspace_forces', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, auxbas_grid, handle, i, iatom, igrid_level, ikind, &
       iparticle_local, ipgf, iset, istat, maxco, maxsgf_set, na1, na2, natom, &
@@ -1074,7 +1074,7 @@ CONTAINS
     END IF
 
     ! *** set up of the potential on the multigrids
-    CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
+    CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routineP,error,failure)
     CALL kg_rspw_get(rspw, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
 
     CALL pw_pools_create_pws(pw_pools,mgrid_rspace,&
@@ -1140,7 +1140,7 @@ CONTAINS
 !   *** Allocate work storage ***
 
     ALLOCATE (atom_of_kind(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
 
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -1149,13 +1149,13 @@ CONTAINS
                              maxsgf_set=maxsgf_set)
 
     ALLOCATE (hab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"hab",maxco*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"hab",maxco*dp_size)
 
     ALLOCATE (pab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"pab",maxco*dp_size)
 
     ALLOCATE (work(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"work",maxco*dp_size)
 
     offset = 0
 
@@ -1273,13 +1273,13 @@ CONTAINS
 !   *** Release work storage ***
 
     DEALLOCATE (hab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"hab")
+    IF (istat /= 0) CALL stop_memory(routineP,"hab")
 
     DEALLOCATE (pab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab")
+    IF (istat /= 0) CALL stop_memory(routineP,"pab")
 
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work")
+    IF (istat /= 0) CALL stop_memory(routineP,"work")
 
     CALL timestop(0.0_dp,handle)
 

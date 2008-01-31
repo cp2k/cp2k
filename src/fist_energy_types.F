@@ -28,6 +28,7 @@ MODULE fist_energy_types
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_energy_types'
 
   PRIVATE
 
@@ -63,8 +64,8 @@ CONTAINS
 
     TYPE(fist_energy_type), POINTER          :: fist_energy
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE allocate_fist_energy (MODULE fist_energy_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_fist_energy', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
@@ -72,7 +73,7 @@ CONTAINS
 
     IF (.NOT.ASSOCIATED(fist_energy)) THEN
       ALLOCATE (fist_energy,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"fist_energy",8*dp_size)
+      IF (istat /= 0) CALL stop_memory(routineP,"fist_energy",8*dp_size)
     END IF
 
     CALL init_fist_energy(fist_energy)
@@ -91,8 +92,8 @@ CONTAINS
 
     TYPE(fist_energy_type), POINTER          :: fist_energy
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE deallocate_fist_energy (MODULE fist_energy_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_fist_energy', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
@@ -100,9 +101,9 @@ CONTAINS
 
     IF (ASSOCIATED(fist_energy)) THEN
       DEALLOCATE (fist_energy,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"fist_energy")
+      IF (istat /= 0) CALL stop_memory(routineP,"fist_energy")
     ELSE
-      CALL stop_program(routine,"The fist_energy pointer is not associated "//&
+      CALL stop_program(routineP,"The fist_energy pointer is not associated "//&
                                 "and cannot be deallocated")
     END IF
 
@@ -120,8 +121,8 @@ CONTAINS
 
     TYPE(fist_energy_type), POINTER          :: fist_energy
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE init_fist_energy (MODULE fist_energy_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_fist_energy', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -135,7 +136,7 @@ CONTAINS
       fist_energy%kin_shell = 0.0_dp
       fist_energy%harm_shell = 0.0_dp
     ELSE
-      CALL stop_program(routine,"The fist_energy pointer is not associated "//&
+      CALL stop_program(routineP,"The fist_energy pointer is not associated "//&
                                 "and cannot be initialised")
     END IF
 
