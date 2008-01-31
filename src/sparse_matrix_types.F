@@ -2003,7 +2003,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   ---------------------------------------------------------------------------
 !   *** Check the association status of the source matrix ***
 
-    CALL timeset(routineP,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     IF (.NOT.ASSOCIATED(source)) THEN
       CALL stop_program(routineP,"The source matrix pointer is not associated")

@@ -92,7 +92,7 @@ CONTAINS
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(map_info_type), POINTER             :: map_info
 
-    CALL timeset(routineP,'I','Mflops',handle)
+    CALL timeset(routineN,'I','Mflops',handle)
     flops = 0.0_dp
     map_info => csvr%map_info
 
@@ -148,7 +148,7 @@ CONTAINS
     REAL(KIND=dp)                            :: flops
     TYPE(map_info_type), POINTER             :: map_info
 
-    CALL timeset(routineP,'I','Mflops',handle)
+    CALL timeset(routineN,'I','Mflops',handle)
     flops = 0.0_dp
     map_info => csvr%map_info
 
@@ -214,7 +214,7 @@ CONTAINS
     REAL(KIND=dp)                            :: flops
     TYPE(map_info_type), POINTER             :: map_info
 
-    CALL timeset(routineP,'I','Mflops',handle)
+    CALL timeset(routineN,'I','Mflops',handle)
     flops = 0.0_dp
     my_shell_adiabatic = .FALSE.
     IF(PRESENT(shell_adiabatic)) my_shell_adiabatic = shell_adiabatic
@@ -282,7 +282,7 @@ CONTAINS
     REAL(dp)                                 :: flops
     TYPE(map_info_type), POINTER             :: map_info
 
-    CALL timeset(routineP,'I','Mflops',handle)
+    CALL timeset(routineN,'I','Mflops',handle)
     flops = 0.0_dp
     map_info => csvr%map_info
 

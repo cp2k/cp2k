@@ -188,7 +188,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: opvec
     TYPE(cp_logger_type), POINTER            :: logger
 
-    CALL timeset(routineP,"I",'',handle)
+    CALL timeset(routineN,"I",'',handle)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -316,7 +316,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
 
-    CALL timeset(routineP,"I",'',handle)
+    CALL timeset(routineN,"I",'',handle)
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)

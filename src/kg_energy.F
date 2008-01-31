@@ -469,7 +469,7 @@ SUBROUTINE kg_qs_energies ( kg_env, globenv, error )
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qs_environment_type), POINTER       :: qs_env
 
-    CALL timeset(routineP,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     NULLIFY ( qs_env )
     para_env=>kg_env%para_env
