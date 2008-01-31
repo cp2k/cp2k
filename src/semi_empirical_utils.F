@@ -143,6 +143,9 @@ CONTAINS
 
     se_parameter % xab = 0._dp
     se_parameter % aab = 0._dp
+    se_parameter % a = 0._dp
+    se_parameter % b = 0._dp
+    se_parameter % c = 0._dp
 
   END SUBROUTINE allocate_se_param
 

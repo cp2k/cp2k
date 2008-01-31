@@ -127,6 +127,54 @@ MODULE semi_empirical_parameters
                             2, 3, 5, 5, 6, 7, 9, 10, 0, 0, 0, 0, 0, 0, 0, &!   86
           0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0 /)
 
+! PM6 basis set : n quantum number for s,p,d,f orbitals
+!          H           Initial "s" Orbital Occupancies                     He
+!          Li Be                                            B  C  N  O  F  Ne
+!          Na Mg                                            Al Si P  S  Cl Ar
+!          K  Ca Sc            Ti V  Cr Mn Fe Co Ni Cu Zn   Ga Ge As Se Br Kr
+!          Rb Sr Y             Zr Nb Mo Tc Ru Rh Pd Ag Cd   In Sn Sb Te I  Xe
+!          Cs Ba La Ce-Lu      Hf Ta W  Re Os Ir Pt Au Hg   Tl Pb Bi Po At Rn
+!          Fr Ra Ac Th Pa U    Np Pu Am Cm Bk Cf Es Fm Md   No Lr Rf Ha 106
+
+    INTEGER, DIMENSION(0:nelem) :: nqd = (/                                -1,&
+      -1,                                                                  -1,&
+      -1,-1,                                                -1,-1,-1,-1,-1,-1,&
+      -1,-1,                                                 3, 3, 3, 3, 3,-1,&
+      -1,-1, 3,                3, 3, 3, 3, 3, 3, 3, 3,-1,   -1,-1, 4, 4, 4,-1,&
+      -1,-1, 4,                4, 4, 4, 4, 4, 4, 4, 4,-1,   -1,-1, 5, 5, 5,-1,&
+      -1,-1, 5,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 5,                     &
+                               5, 5, 5, 5, 5, 5, 5, 5,-1,   -1,-1,-1,-1,-1,-1,&
+      -1,-1,-1,-1,-1,-1,      -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /),&
+      nqf = (/                                                             -1,&
+      -1,                                                                  -1,&
+      -1,-1,                                                -1,-1,-1,-1,-1,-1,&
+      -1,-1,                                                -1,-1,-1,-1,-1,-1,&
+      -1,-1,-1,               -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1,-1,&
+      -1,-1,-1,               -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1,-1,&
+      -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,                     &
+                              -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1,-1,&
+      -1,-1,-1,-1,-1,-1,      -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /)
+
+    INTEGER, DIMENSION(0:nelem) :: nqp = (/                                -1,&
+      -1,                                                                   2,&
+       2, 2,                                                 2, 2, 2, 2, 2, 2,&
+       3, 3,                                                 3, 3, 3, 3, 3, 3,&
+       4, 4, 4,                4, 4, 4, 4, 4, 4, 4, 4, 4,    4, 4, 4, 4, 4, 4,&
+       5, 5, 5,                5, 5, 5, 5, 5, 5, 5, 5, 5,    5, 5, 5, 5, 5, 5,&
+       6, 6, 6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 6,                     &
+                               6, 6, 6, 6, 6, 6, 6, 6, 6,    6, 6, 6,-1,-1,-1,&
+       -1,-1,-1,-1,-1,-1,     -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /),&
+       nqs = (/                                                            -1,&
+       1,                                                                   1,&
+       2, 2,                                                 2, 2, 2, 2, 2, 3,&
+       3, 3,                                                 3, 3, 3, 3, 3, 4,&
+       4, 4, 4,                4, 4, 4, 4, 4, 4, 4, 4, 4,    4, 4, 4, 4, 4, 5,&
+       5, 5, 5,                5, 5, 5, 5, 5, 5, 5, 5, 5,    5, 5, 5, 5, 5, 6,&
+       6, 6, 6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 6,                     &
+                               6, 6, 6, 6, 6, 6, 6, 6, 6,    6, 6, 6,-1,-1,-1,&
+       -1,-1,-1,-1,-1,-1,     -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /)
+
+
 
     !           PM6 specific basis set : n quantum number for s,p,d,f orbitals
     !          H           Initial "s" Orbital Occupancies                     He
@@ -2149,7 +2197,7 @@ CONTAINS
     sep%name = ptable(z)%name
     sep%eheat = ptable(z)%heat_of_formation / kcalmol
     sep%z = z
-    CALL valence_electrons ( z, sep%zeff, sep%natorb )
+    CALL valence_electrons ( -z, sep%zeff, sep%natorb )
     sep%ngauss = 6
     sep%defined = .FALSE.
     sep%sto_exponents(0:3) = 0._dp
@@ -3494,15 +3542,16 @@ CONTAINS
 
     CALL init_pm6_pair_params()
 
-    sep%aab(0:nelem) = aab_pm6(z,0:nelem)/bohr
-    sep%xab(0:nelem) = xab_pm6(z,0:nelem)
-    ! We seem to have also C-H as a special case
-    IF (z == 1) sep%aab(6)= sep%aab(6)/bohr
-    IF (z == 1) sep%aab(7)= sep%aab(7)/bohr
-    IF (z == 1) sep%aab(8)= sep%aab(8)/bohr
-    IF (z == 6) sep%aab(1)= sep%aab(1)/bohr
-    IF (z == 7) sep%aab(1)= sep%aab(1)/bohr
-    IF (z == 8) sep%aab(1)= sep%aab(1)/bohr
+     sep%aab(0:nelem) = aab_pm6(z,0:nelem)
+!    sep%aab(0:nelem) = aab_pm6(z,0:nelem)/bohr
+     sep%xab(0:nelem) = xab_pm6(z,0:nelem)
+!    ! We seem to have also C-H as a special case
+!    IF (z == 1) sep%aab(6)= sep%aab(6)/bohr
+!    IF (z == 1) sep%aab(7)= sep%aab(7)/bohr
+!    IF (z == 1) sep%aab(8)= sep%aab(8)/bohr
+!    IF (z == 6) sep%aab(1)= sep%aab(1)/bohr
+!    IF (z == 7) sep%aab(1)= sep%aab(1)/bohr
+!    IF (z == 8) sep%aab(1)= sep%aab(1)/bohr
 
     sep%beta = sep%beta/evolt
     sep%uss = sep%uss/evolt; sep%upp = sep%upp/evolt; sep%udd = sep%udd/evolt
@@ -5830,22 +5879,31 @@ CONTAINS
     REAL(KIND=dp)                            :: zeff
     INTEGER, INTENT(OUT)                     :: natorb
 
-    INTEGER, DIMENSION(0:nelem), PARAMETER :: norb = (/ -1, 1,  1,  4,  4,  4,&
+    INTEGER, DIMENSION(0:nelem), PARAMETER :: norb= (/ -1, 1,  1,  4,  4,  4,&
       4,  4,  4,  4,  4,  0,  4,  4,  4,  4,  4,  4,  4,0,  4,  9,  9,  9,  9,&
       9,  9,  9,  9,  9,  4,  4,  4,  4,  4,  4,  4,4,  4,  9,  9,  9,  9,  9,&
       9,  9,  9,  9,  4,  4,  4,  4,  4,  4,  4,2,  2,  8,  8,  8,  8,  8,  8,&
       8,  8,  8,  8,  8,  8,  8,  8,  9,  9,9,  9,  9,  9,  9,  9,  9,  4,  4,&
       4,  4,  4,  4, -1, -1, -1, -1,  9,-1,  9, -1, -1, -1, -1, -1, -1, -1, -1&
-      , -1, -1, -1, -1, -1, -1         /), zval = (/ -1, 1,  0,  1,  2,  3,  4&
-      ,  5,  6,  7,  0,  1,  2,  3,  4,  5,  6,  7,  0,1,  2,  3,  4,  5,  6, &
-      7,  8,  9, 10, 11,  2,  3,  4,  5,  6,  7,  0,1,  2,  3,  4,  5,  6,  7,&
-      8,  9, 10, 11,  2,  3,  4,  5,  6,  7,  0,1,  2,  3,  4,  5,  6,  7,  8,&
+      , -1, -1, -1, -1, -1, -1         /)
+    INTEGER, DIMENSION(0:nelem), PARAMETER :: zval = (/ -1, 1,  2,  1,  2,  3,  4&
+      ,  5,  6,  7,  8,  1,  2,  3,  4,  5,  6,  7,  8,1,  2,  3,  4,  5,  6, &
+      7,  8,  9, 10, 11,  2,  3,  4,  5,  6,  7,  8,1,  2,  3,  4,  5,  6,  7,&
+      8,  9, 10, 11,  2,  3,  4,  5,  6,  7,  8,1,  2,  3,  4,  5,  6,  7,  8,&
       9, 10, 11, 12, 13, 14, 15, 16,  3,  4,5,  6,  7,  8,  9, 10, 11,  2,  3,&
       4,  5,  6,  7, -1, -1, -1, -1,  4,-1,  6, -1, -1, -1, -1, -1, -1, -1, -1&
       , -1, -1, -1, -1, -1, -1         /)
 
-    zeff = REAL(zval(z),dp)
-    natorb = norb(z)
+    zeff = REAL(zval(ABS(z)),dp)
+    IF (z >= 0) THEN
+      natorb = norb(z)
+    ELSE
+      natorb = 0
+      IF(nqs(-z) > 0) natorb = natorb+1
+      IF(nqp(-z) > 0) natorb = natorb+3
+      IF(nqd(-z) > 0) natorb = natorb+5
+      IF(nqf(-z) > 0) natorb = natorb+7
+    END IF
 
   END SUBROUTINE valence_electrons 
 
