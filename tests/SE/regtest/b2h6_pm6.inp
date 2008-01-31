@@ -1,0 +1,36 @@
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &QS
+      METHOD PM6
+      &SE
+        ANALYTICAL_GRADIENTS F
+      &END
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+    &COORD
+     B   0.8831   0.0000   0.0000 
+     B  -0.8831   0.0000   0.0000
+     H   0.0000   0.0000   0.9869 
+     H   0.0000   0.0000  -0.9869 
+     H   1.4655   1.0504   0.0000 
+     H   1.4655  -1.0504   0.0000 
+     H  -1.4655   1.0504   0.0000 
+     H  -1.4655  -1.0504   0.0000 
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT B2H6
+  RUN_TYPE GEO_OPT
+&END GLOBAL

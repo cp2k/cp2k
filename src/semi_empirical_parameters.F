@@ -85,7 +85,8 @@ MODULE semi_empirical_parameters
             get_pm6_basis,&
             slater_exponents,srules
 
-
+!                STANDARD MOPAC PARAMETERS USED FOR AM1, RM1, MNDO, PM3, PM6
+!
 !              H           Initial "s" Orbital Occupancies                     He
 !              Li Be                                            B  C  N  O  F  Ne
 !              Na Mg                                            Al Si P  S  Cl Ar
@@ -103,15 +104,7 @@ MODULE semi_empirical_parameters
        1, 2, 2, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2,                   &
                              2, 2, 1, 2, 2, 2, 1, 1, 2,   2, 2, 2, 2, 2, 0, &!   86
        1, 1, 2, 4, 2, 2,     2, 2, 2, 2, 2, 2, 0, 3,-3,   1, 2, 1,-2,-1, 0 /)
-!
-!
-!              H           Initial "p" Orbital Occupancies                   He
-!              Li Be                                          B  C  N  O  F  Ne
-!              Na Mg                                          Al Si P  S  Cl Ar
-!              K  Ca Sc          Ti V  Cr Mn Fe Co Ni Cu Zn   Ga Ge As Se Br Kr
-!              Rb Sr Y           Zr Nb Mo Tc Ru Rh Pd Ag Cd   In Sn Sb Te I  Xe
-!              Cs Ba La Ce-Lu    Hf Ta W  Re Os Ir Pt Au Hg   Tl Pb Bi Po At Rn
-!              Fr Ra Ac Th Pa U  Np Pu Am Cm Bk Cf (The rest are reserved for MOPAC)
+
 !                                      "p" shell
   INTEGER, DIMENSION(107), PRIVATE :: Nop =(/&
           0 ,                                                           0, &!    2
@@ -122,14 +115,7 @@ MODULE semi_empirical_parameters
           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,               &
                             0, 0, 0, 0, 0, 0, 0, 0, 0,   1, 2, 3, 4, 5, 6, &!   86
           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 /)
-!
-!              H           Initial "d" Orbital Occupancies                   He
-!              Li Be                                          B  C  N  O  F  Ne
-!              Na Mg                                          Al Si P  S  Cl Ar
-!              K  Ca Sc          Ti V  Cr Mn Fe Co Ni Cu Zn   Ga Ge As Se Br Kr
-!              Rb Sr Y           Zr Nb Mo Tc Ru Rh Pd Ag Cd   In Sn Sb Te I  Xe
-!              Cs Ba La Ce-Lu    Hf Ta W  Re Os Ir Pt Au Hg   Tl Pb Bi Po At Rn
-!              Fr Ra Ac Th Pa U  Np Pu Am Cm Bk Cf (The rest are reserved for MOPAC)
+
 !                                      "d" shell
   INTEGER, DIMENSION(107), PRIVATE :: Nod =(/&
           0,                                                           0, &!    2
@@ -141,6 +127,51 @@ MODULE semi_empirical_parameters
                             2, 3, 5, 5, 6, 7, 9, 10, 0, 0, 0, 0, 0, 0, 0, &!   86
           0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0 /)
 
+
+    !           PM6 specific basis set : n quantum number for s,p,d,f orbitals
+    !          H           Initial "s" Orbital Occupancies                     He
+    !          Li Be                                            B  C  N  O  F  Ne
+    !          Na Mg                                            Al Si P  S  Cl Ar
+    !          K  Ca Sc            Ti V  Cr Mn Fe Co Ni Cu Zn   Ga Ge As Se Br Kr
+    !          Rb Sr Y             Zr Nb Mo Tc Ru Rh Pd Ag Cd   In Sn Sb Te I  Xe
+    !          Cs Ba La Ce-Lu      Hf Ta W  Re Os Ir Pt Au Hg   Tl Pb Bi Po At Rn
+    !          Fr Ra Ac Th Pa U    Np Pu Am Cm Bk Cf Es Fm Md   No Lr Rf Ha 106  
+  INTEGER, DIMENSION(0:nelem) :: nqs_pm6 =(/                              -1, &!    0
+       1,                                                                  1, &!    2
+       2, 2,                                                2, 2, 2, 2, 2, 3, &!   10
+       3, 3,                                                3, 3, 3, 3, 3, 4, &!   18
+       4, 4, 4,                4, 4, 4, 4, 4, 4, 4, 4, 4,   4, 4, 4, 4, 4, 5, &!   36
+       5, 5, 5,                5, 5, 5, 5, 5, 5, 5, 5, 5,   5, 5, 5, 5, 5, 6, &!   54
+       6, 6, 6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 6,                     &
+                               6, 6, 6, 6, 6, 6, 6, 6, 6,   6, 6, 6,-1,-1,-1, &!   86
+      -1,-1,-1,-1,-1,-1,      -1,-1,-1,-1,-1,-1,-1,-1,-1,  -1,-1,-1,-1,-1 /)
+  INTEGER, DIMENSION(0:nelem) :: nqp_pm6 =(/                              -1, &!    0
+      -1,                                                                  2, &!    2
+       2, 2,                                                2, 2, 2, 2, 2, 2, &!   10
+       3, 3,                                                3, 3, 3, 3, 3, 3, &!   18
+       4, 4, 4,                4, 4, 4, 4, 4, 4, 4, 4, 4,   4, 4, 4, 4, 4, 4, &!   36
+       5, 5, 5,                5, 5, 5, 5, 5, 5, 5, 5, 5,   5, 5, 5, 5, 5, 5, &!   54
+       6, 6, 6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 6,                     &
+                               6, 6, 6, 6, 6, 6, 6, 6, 6,   6, 6, 6,-1,-1,-1, &!   86
+      -1,-1,-1,-1,-1,-1,      -1,-1,-1,-1,-1,-1,-1,-1,-1,  -1,-1,-1,-1,-1 /)
+  INTEGER, DIMENSION(0:nelem) :: nqd_pm6 =(/                              -1, &!    0
+      -1,                                                                 -1, &!    2
+      -1,-1,                                               -1,-1,-1,-1,-1,-1, &!   10
+      -1,-1,                                                3, 3, 3, 3, 3,-1, &!   18
+      -1,-1, 3,                3, 3, 3, 3, 3, 3, 3, 3,-1,  -1,-1, 4, 4, 4,-1, &!   36
+      -1,-1, 4,                4, 4, 4, 4, 4, 4, 4, 4,-1,  -1,-1, 5, 5, 5,-1, &!   54
+      -1,-1, 5,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 5,                     &
+                               5, 5, 5, 5, 5, 5, 5, 5,-1,  -1,-1,-1,-1,-1,-1, &!   86
+      -1,-1,-1,-1,-1,-1,      -1,-1,-1,-1,-1,-1,-1,-1,-1,  -1,-1,-1,-1,-1 /)
+  INTEGER, DIMENSION(0:nelem) :: nqf_pm6 =(/                              -1, &!    0
+      -1,                                                                 -1, &!    2
+      -1,-1,                                               -1,-1,-1,-1,-1,-1, &!   10
+      -1,-1,                                               -1,-1,-1,-1,-1,-1, &!   18
+      -1,-1,-1,               -1,-1,-1,-1,-1,-1,-1,-1,-1,  -1,-1,-1,-1,-1,-1, &!  -16
+      -1,-1,-1,               -1,-1,-1,-1,-1,-1,-1,-1,-1,  -1,-1,-1,-1,-1,-1, &!   54
+      -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,                     &
+                              -1,-1,-1,-1,-1,-1,-1,-1,-1,  -1,-1,-1,-1,-1,-1, &!   86
+      -1,-1,-1,-1,-1,-1,      -1,-1,-1,-1,-1,-1,-1,-1,-1,  -1,-1,-1,-1,-1 /)
 
 !!***
 ! *****************************************************************************
@@ -3884,64 +3915,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_pm6_basis', &
       routineP = moduleN//':'//routineN
 
-    INTEGER, DIMENSION(0:nelem) :: nqd = (/                                -1,&
-      -1,                                                                  -1,&
-      -1,-1,                                                -1,-1,-1,-1,-1,-1,&
-      -1,-1,                                                 3, 3, 3, 3, 3,-1,&
-      -1,-1, 3,                3, 3, 3, 3, 3, 3, 3, 3,-1,   -1,-1, 4, 4, 4,-1,&
-      -1,-1, 4,                4, 4, 4, 4, 4, 4, 4, 4,-1,   -1,-1, 5, 5, 5,-1,&
-      -1,-1, 5,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 5,                     &
-                               5, 5, 5, 5, 5, 5, 5, 5,-1,   -1,-1,-1,-1,-1,-1,&
-      -1,-1,-1,-1,-1,-1,      -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /),&
-      nqf = (/                                                             -1,&
-      -1,                                                                  -1,&
-      -1,-1,                                                -1,-1,-1,-1,-1,-1,&
-      -1,-1,                                                -1,-1,-1,-1,-1,-1,&
-      -1,-1,-1,               -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1,-1,&
-      -1,-1,-1,               -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1,-1,&
-      -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,                     &
-                              -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1,-1,&
-      -1,-1,-1,-1,-1,-1,      -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /)
-
-    INTEGER, DIMENSION(0:nelem) :: nqp = (/                                -1,&
-      -1,                                                                   2,&
-       2, 2,                                                 2, 2, 2, 2, 2, 2,&
-       3, 3,                                                 3, 3, 3, 3, 3, 3,&
-       4, 4, 4,                4, 4, 4, 4, 4, 4, 4, 4, 4,    4, 4, 4, 4, 4, 4,&
-       5, 5, 5,                5, 5, 5, 5, 5, 5, 5, 5, 5,    5, 5, 5, 5, 5, 5,&
-       6, 6, 6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 6,                     &
-                               6, 6, 6, 6, 6, 6, 6, 6, 6,    6, 6, 6,-1,-1,-1,&
-       -1,-1,-1,-1,-1,-1,     -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /),&
-       nqs = (/                                                            -1,&
-       1,                                                                   1,&
-       2, 2,                                                 2, 2, 2, 2, 2, 3,&
-       3, 3,                                                 3, 3, 3, 3, 3, 4,&
-       4, 4, 4,                4, 4, 4, 4, 4, 4, 4, 4, 4,    4, 4, 4, 4, 4, 5,&
-       5, 5, 5,                5, 5, 5, 5, 5, 5, 5, 5, 5,    5, 5, 5, 5, 5, 6,&
-       6, 6, 6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 6,                     &
-                               6, 6, 6, 6, 6, 6, 6, 6, 6,    6, 6, 6,-1,-1,-1,&
-       -1,-1,-1,-1,-1,-1,     -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /)
-
-! PM6 basis set : n quantum number for s,p,d,f orbitals
-!          H           Initial "s" Orbital Occupancies                     He
-!          Li Be                                            B  C  N  O  F  Ne
-!          Na Mg                                            Al Si P  S  Cl Ar
-!          K  Ca Sc            Ti V  Cr Mn Fe Co Ni Cu Zn   Ga Ge As Se Br Kr
-!          Rb Sr Y             Zr Nb Mo Tc Ru Rh Pd Ag Cd   In Sn Sb Te I  Xe
-!          Cs Ba La Ce-Lu      Hf Ta W  Re Os Ir Pt Au Hg   Tl Pb Bi Po At Rn
-!          Fr Ra Ac Th Pa U    Np Pu Am Cm Bk Cf Es Fm Md   No Lr Rf Ha 106  
-
   IF ( z < 0 .OR. z > nelem ) THEN
     CALL stop_program(routineN,moduleN,__LINE__,"invalid atomic number")
   ELSE
     IF ( l==0 ) THEN
-      n = nqs(z)
+      n = nqs_pm6(z)
     ELSEIF ( l==1 ) THEN
-      n = nqp(z)
+      n = nqp_pm6(z)
     ELSEIF ( l==2 ) THEN
-      n = nqd(z)
+      n = nqd_pm6(z)
     ELSEIF ( l==3 ) THEN
-      n = nqf(z)
+      n = nqf_pm6(z)
     ELSE
       CALL stop_program(routineN,moduleN,__LINE__,"invalid l quantum number")
     END IF
@@ -5885,7 +5869,6 @@ CONTAINS
       1.6288, 1.8273, 2.0387, 2.2547 /) , crtab3s = (/ 0.0000, 0.0000, 0.0000,&
       0.0000, 0.0000, 0.0000, 0.0000,0.0000, 0.0000, 0.0000,0.8358, 1.1025, &
       1.3724, 1.6344,1.8806, 2.1223, 2.3561, 2.5856 /)
-
     INTEGER                                  :: i, j, l, nj
     INTEGER, DIMENSION(1:4)                  :: no
     INTEGER, DIMENSION(1:4, 1:7)             :: ne
@@ -5944,7 +5927,6 @@ CONTAINS
 
     REAL(dp), DIMENSION(7), PARAMETER :: &
       xns = (/ 1.0_dp,2.0_dp,3.0_dp,3.7_dp,4.0_dp,4.2_dp,4.4_dp /)
-
     INTEGER                                  :: i, l1, l2, m, m1, m2
     REAL(dp)                                 :: s
 
@@ -5996,11 +5978,9 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calpar', &
       routineP = moduleN//':'//routineN
-    INTEGER                                  :: j
+    INTEGER                                  :: iod, iop, ios, j, jmax, k, l
     INTEGER, DIMENSION(107), PARAMETER :: nspqn = (/(1,j=1,2), (2,j=1,8), (3,j&
       =1,8), (4,j=1,18), (5,j=1,18), (6,j=1,32), (0,j=1,21)/)
-
-    INTEGER                                  :: iod, iop, ios, jmax, k, l
     REAL(KIND=dp) :: ad, am, aq, d1, d2, d3, dd, df, eisol, gdd1, gp2, gp2c, &
       gpp, gppc, gqq, gsp, gspc, gss, gssc, hpp, hpp1, hpp2, hsp, hsp1, hsp2, &
       hspc, p, p4, q1, q2, q3, qf, qn, qq, udd, upp, uss, zp, zs
