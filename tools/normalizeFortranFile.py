@@ -559,8 +559,8 @@ def cleanDeclarations(routine,logFile=sys.stdout):
         paramDecl.extend(localDecl)
         enforceDeclDependecies(paramDecl)
         splitPos=0
-        for i in xrange(len(argDecl)-1,-1,-1):
-            if 'parameter' in map(str.lower,argDecl[i]['attributes']):
+        for i in xrange(len(paramDecl)-1,-1,-1):
+            if 'parameter' in map(str.lower,paramDecl[i]['attributes']):
                 splitPos=i+1
                 break
         localDecl=paramDecl[splitPos:]
