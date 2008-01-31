@@ -226,7 +226,7 @@ MODULE hartree_local_types
       END IF
 
       DEALLOCATE(hartree_local,stat=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineN,error)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
 
   END SUBROUTINE hartree_local_release

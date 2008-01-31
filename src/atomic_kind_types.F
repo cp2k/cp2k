@@ -184,7 +184,7 @@ CONTAINS
     END IF
 
     ALLOCATE (atomic_kind_set(nkind),STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineN, error, failure)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     DO ikind=1,nkind
        NULLIFY (atomic_kind_set(ikind)%all_potential)
@@ -287,11 +287,11 @@ CONTAINS
 
           IF (ASSOCIATED(atomic_kind_set(ikind)%atom_list)) THEN
              DEALLOCATE (atomic_kind_set(ikind)%atom_list,STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineN, error, failure)
+             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           END IF
           IF (ASSOCIATED(atomic_kind_set(ikind)%elec_conf)) THEN
              DEALLOCATE (atomic_kind_set(ikind)%elec_conf,STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineN, error, failure)
+             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
           END IF
           CALL shell_release(atomic_kind_set(ikind)%shell,error)
 
@@ -301,7 +301,7 @@ CONTAINS
           END IF
        END DO
        DEALLOCATE (atomic_kind_set,STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineN, error, failure)
+       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer atomic_kind_set is not associated and "//&
@@ -1520,7 +1520,7 @@ CONTAINS
        CASE (do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg, do_method_pm3, do_method_pm6)
           ! Setup proper semiempirical parameters
           check = .NOT.ASSOCIATED(atomic_kind%se_parameter)
-          CPPostcondition(check, cp_failure_level, routineN, error, failure)
+          CPPostcondition(check, cp_failure_level, routineP, error, failure)
           CALL allocate_se_param(atomic_kind%se_parameter,error)
           ! Set default parameters
           CALL se_param_set_default(atomic_kind%se_parameter,z,method_id)
@@ -1532,7 +1532,7 @@ CONTAINS
           ! Do nothing at this stage.. The initialization of the parameters will be done
           ! later
        CASE DEFAULT
-          CPPostcondition(.FALSE., cp_failure_level, routineN, error, failure)
+          CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
        END SELECT
 
        check = ((potential_name /= '').OR.explicit_potential)

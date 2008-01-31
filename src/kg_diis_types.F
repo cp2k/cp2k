@@ -212,8 +212,8 @@ CONTAINS
     IF(PRESENT(mol_diis_block)) mol_diis_block => mol_diis_buffer_set%mol_diis_block
     IF(PRESENT(imol)) THEN
       nmol_local =  mol_diis_buffer_set%nmol_local
-      CPPostconditionNoFail(imol<=nmol_local,cp_failure_level,routineN,error)
-      CPPostconditionNoFail(ASSOCIATED(mol_diis_buffer_set%mol_diis_block),cp_failure_level,routineN,error)
+      CPPostconditionNoFail(imol<=nmol_local,cp_failure_level,routineP,error)
+      CPPostconditionNoFail(ASSOCIATED(mol_diis_buffer_set%mol_diis_block),cp_failure_level,routineP,error)
       IF(PRESENT(mol_diis_iblock)) mol_diis_iblock => &
                             mol_diis_buffer_set%mol_diis_block(imol)
     END IF

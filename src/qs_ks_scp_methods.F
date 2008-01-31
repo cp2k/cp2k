@@ -417,7 +417,7 @@ SUBROUTINE qs_ks_scp_update ( qs_env, just_energy, error )
        CALL pw_fft_wrap(vhscp_gspace%pw,ks_scp_env%v_scp_rspace%pw)
        CALL pw_pool_give_back_pw(auxbas_pw_pool,vhscp_gspace%pw,error=error)
        DEALLOCATE(vhscp_gspace,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineN,error)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
        IF(.NOT.energy_only) THEN
           ks_scp_env%rho_changed=.FALSE.

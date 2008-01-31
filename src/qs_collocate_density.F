@@ -242,22 +242,12 @@ CONTAINS
 
     CALL timeset(routineN,"I"," ",handle)
 
-    !ALLOCATE(pab(1,1),STAT=ierr)
-    !IF ( ierr /= 0 ) CALL stop_memory ( routineN, "pab", 1 )
-
     logger => cp_error_get_logger(error)
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
                     particle_set=particle_set, pw_env=pw_env, rho=rho_struct, &
                     dft_control=dft_control, error=error)
 
-    !CALL pw_env_get(pw_env=pw_env, auxbas_rs_pool=auxbas_rs_pool, &
-    !                auxbas_pw_pool=auxbas_pw_pool, error=error)
-
-    !CALL rs_pool_create_rs(auxbas_rs_pool, rs_rho)
-    !CALL rs_grid_zero(rs_rho)
-
-    !cube_info => pw_env%cube_info(1)
     cube_info => pw_env%cube_info
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
     map_consistent = dft_control%qs_control%map_consistent
@@ -265,7 +255,7 @@ CONTAINS
     gridlevel_info=>pw_env%gridlevel_info
 
     ! *** set up the pw multi-grids *** !
-    CPPrecondition(ASSOCIATED(pw_env), cp_failure_level, routineN, error, failure)
+    CPPrecondition(ASSOCIATED(pw_env), cp_failure_level, routineP, error, failure)
     CALL pw_env_get(pw_env=pw_env, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
 
     CALL pw_pools_create_pws(pw_pools, mgrid_rspace, &
