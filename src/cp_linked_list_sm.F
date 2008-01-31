@@ -1140,10 +1140,10 @@ FUNCTION cp_sll_sm_to_array(sll,error) RESULT(res)
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: res
 
+    INTEGER                                  :: i, len, stat
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_sm_to_array', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, len, stat
     LOGICAL                                  :: failure
     TYPE(cp_sll_sm_type), POINTER            :: iter
 

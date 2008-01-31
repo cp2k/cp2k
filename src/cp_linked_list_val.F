@@ -1132,10 +1132,10 @@ FUNCTION cp_sll_val_to_array(sll,error) RESULT(res)
     TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(val_p_type), DIMENSION(:), POINTER  :: res
 
+    INTEGER                                  :: i, len, stat
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_to_array', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, len, stat
     LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: iter
 

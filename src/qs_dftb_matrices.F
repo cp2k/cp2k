@@ -1147,11 +1147,12 @@ CONTAINS
       !
       ! Purpose: s-s interaction (no rotation necessary)
       !
-      IMPLICIT NONE
       !
-      REAL(dp), INTENT(inout) :: mat(:,:)
-      REAL(dp), INTENT(in) :: skpar(:)
-      !
+    REAL(dp), INTENT(in)                     :: skpar(:)
+    REAL(dp), INTENT(inout)                  :: mat(:,:)
+
+!
+
       mat(1,1) = mat(1,1) + skpar(1)
       !
     END SUBROUTINE skss

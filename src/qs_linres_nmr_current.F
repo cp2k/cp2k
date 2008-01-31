@@ -68,7 +68,8 @@ MODULE qs_linres_nmr_current
                                              section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_path_length,&
-                                             dp, int_8
+                                             dp,&
+                                             int_8
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: ncoset
@@ -83,8 +84,7 @@ MODULE qs_linres_nmr_current
        COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_axpy, &
        pw_copy, pw_integrate_function, pw_p_type, pw_scale, pw_zero
   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace,&
-                                             density_rs2pw,&
-                                             lgrid_type
+                                             density_rs2pw
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_linres_nmr_atom_current,      ONLY: calculate_jrho_atom_coeff,&
@@ -109,10 +109,12 @@ MODULE qs_linres_nmr_current
   USE realspace_grid_cube,             ONLY: pw_to_cube
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                              realspace_grid_type,&
-                                             rs_grid_zero,&
-                                             rs_find_node
-  USE realspace_task_selection,        ONLY: rs_get_my_tasks,&
-                                             int2pair, pair2int, distribute_matrix
+                                             rs_find_node,&
+                                             rs_grid_zero
+  USE realspace_task_selection,        ONLY: distribute_matrix,&
+                                             int2pair,&
+                                             pair2int,&
+                                             rs_get_my_tasks
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              allocate_matrix,&
                                              deallocate_matrix,&
@@ -702,37 +704,34 @@ CONTAINS
                                                 max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: ab, bcol, brow, curr_tasks, dir, handle, i, iatom, &
-      igrid_level, iiB, iiiB, ijatoms, ijsets, ikind, ilist, inode, ipgf, &
-      iset, istat, itask, ithread, j, jatom, jkind, jpgf, jset, k, maxco, &
-      maxsgf, maxsgf_set, n, na1, na2, natom, nb1, nb2, ncoa, ncob, &
-      nkind, nlist, nnode, npme, nseta, nsetb, nthread,  &
-      sgfa, sgfb, stat, tp(3),iatom_old, jatom_old,&
-      iset_old, jset_old, ikind_old, jkind_old, ntasks, maxset, maxpgf, dest, ilevel
-    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
-                                                lb_min, npgfa, npgfb, nsgfa, &
-                                                nsgfb, ub, atom_pair_send, atom_pair_recv
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb 
-    INTEGER(kind=int_8), DIMENSION(:, :),&
-         POINTER                             :: tasks
-    LOGICAL                                  :: distributed_rs_grids, &
-                                                failure, map_consistent, &
-                                                my_minimum_image, my_soft, &
-                                                atom_pair_changed, atom_pair_done,&
-                                                set_pair_changeed
+    INTEGER :: ab, bcol, brow, curr_tasks, dest, dir, handle, i, iatom, &
+      iatom_old, igrid_level, iiB, iiiB, ikind, ikind_old, ilist, inode, &
+      ipgf, iset, iset_old, istat, itask, ithread, jatom, jatom_old, jkind, &
+      jkind_old, jpgf, jset, jset_old, maxco, maxpgf, maxset, maxsgf, &
+      maxsgf_set, n, na1, na2, natom, nb1, nb2, ncoa, ncob, nkind, nlist, &
+      nnode, nseta, nsetb, ntasks, nthread, sgfa, sgfb, stat, tp(3)
+    INTEGER(kind=int_8), DIMENSION(:, :), &
+      POINTER                                :: tasks
+    INTEGER, DIMENSION(:), POINTER           :: atom_pair_recv, &
+                                                atom_pair_send, la_max, &
+                                                la_min, lb, lb_max, lb_min, &
+                                                npgfa, npgfb, nsgfa, nsgfb
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+    LOGICAL :: atom_pair_changed, distributed_rs_grids, failure, &
+      map_consistent, my_minimum_image, my_soft
     REAL(KIND=dp)                            :: dab, eps_rho_rspace, &
                                                 kind_radius_a, kind_radius_b, &
                                                 Lxo2, Lyo2, Lzo2, rab2, &
                                                 scale, zetp
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb, rp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: jp_block, &
+    REAL(KIND=dp), DIMENSION(:, :), POINTER :: dist_ab, jp_block, &
       jp_block_rii, jp_block_riii, jpab, jpab_ii, jpab_iii, jpblock, &
       jpblock_rii, jpblock_riii, rpgfa, rpgfb, sphi_a, sphi_b, work, zeta, &
-      zetb, dist_ab 
+      zetb
     REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: jpabt, jpabt_ii, &
-                                                jpabt_iii, workt
+      POINTER                                :: jpabt, jpabt_ii, jpabt_iii, &
+                                                workt
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -745,7 +744,6 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(lgrid_type)                         :: lgrid
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list
@@ -773,7 +771,6 @@ CONTAINS
     NULLIFY(jp_block,jp_block_rii,jp_block_riii)
     NULLIFY(jpblock,jpblock_rii,jpblock_riii)
     NULLIFY(jpabt,jpabt_ii,jpabt_iii)
-    NULLIFY(lgrid%r)
 
 !    debug_count=debug_count+1
 
@@ -850,7 +847,7 @@ CONTAINS
 
     tasks = 0
     ntasks = 0
-    curr_tasks = size(tasks,2)
+    curr_tasks = SIZE(tasks,2)
 
     !   get maximum numbers
     natom = SIZE( particle_set )

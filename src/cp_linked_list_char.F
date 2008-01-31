@@ -1149,10 +1149,10 @@ FUNCTION cp_sll_char_to_array(sll,error) RESULT(res)
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: res
 
+    INTEGER                                  :: i, len, stat
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_to_array', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, len, stat
     LOGICAL                                  :: failure
     TYPE(cp_sll_char_type), POINTER          :: iter
 

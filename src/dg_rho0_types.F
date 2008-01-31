@@ -70,8 +70,9 @@ CONTAINS
 
 !   ***************************************************************************
 
+    INTEGER, OPTIONAL                        :: TYPE
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
-    INTEGER, OPTIONAL                        :: TYPE, grid, kind
+    INTEGER, OPTIONAL                        :: grid, kind
     REAL(KIND=dp), OPTIONAL                  :: cutoff_radius
     REAL(KIND=dp), OPTIONAL, POINTER         :: gcc( : ), zet( : )
     TYPE(pw_p_type), OPTIONAL                :: density
@@ -97,8 +98,8 @@ CONTAINS
 
 !   ***************************************************************************
 
+    INTEGER, OPTIONAL                        :: TYPE, kind, grid
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
-    INTEGER, OPTIONAL                        :: kind, grid, TYPE
     REAL(KIND=dp), OPTIONAL                  :: cutoff_radius
     REAL(KIND=dp), OPTIONAL, POINTER         :: gcc( : ), zet( : )
     TYPE(pw_p_type), OPTIONAL, POINTER       :: density

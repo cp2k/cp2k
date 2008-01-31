@@ -29,7 +29,8 @@ MODULE semi_empirical_integrals
                                              do_method_pm3,&
                                              do_method_pm6
   USE kinds,                           ONLY: dp
-  USE physcon,                         ONLY: angstrom, bohr, evolt
+  USE physcon,                         ONLY: angstrom,&
+                                             evolt
   USE semi_empirical_types,            ONLY: semi_empirical_type
 #include "cp_common_uses.h"
 
@@ -602,9 +603,9 @@ CONTAINS
     LOGICAL                                  :: si, sj
     REAL(dp) :: a, aab, alpi, alpj, apdg, ax, cppp1, cppp2, cpps1, cpps2, &
       csp1, csp2, css1, css2, dai, daj, dbi, dbj, pai, paj, pbi, pbj, qcorr, &
-      rij, scale, ssss, xab, xx11, xx21, xx22, xx31, xx32, xx33, yy11, yy21, &
-      yy22, yyzz11, yyzz21, yyzz22, zaf, zbf, zz, zz11, zz21, zz22, zz31, &
-      zz32, zz33, rija
+      rij, rija, scale, ssss, xab, xx11, xx21, xx22, xx31, xx32, xx33, yy11, &
+      yy21, yy22, yyzz11, yyzz21, yyzz22, zaf, zbf, zz, zz11, zz21, zz22, &
+      zz31, zz32, zz33
     REAL(dp), DIMENSION(3)                   :: x, y, z
     REAL(dp), DIMENSION(4)                   :: fni1, fni2, fni3, fnj1, fnj2, &
                                                 fnj3

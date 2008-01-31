@@ -16,10 +16,11 @@ MODULE fparser
   ! Roland Schmehl <Roland.Schmehl@mach.uni-karlsruhe.de>
   !
   !------- -------- --------- --------- --------- --------- --------- --------- -------
-  USE kinds,                    ONLY: rn => dp
-  USE termination,              ONLY: stop_program
   USE f77_blas
+  USE kinds,                           ONLY: rn => dp
+  USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   !------- -------- --------- --------- --------- --------- --------- --------- -------
   PUBLIC                     :: initf,    & ! Initialize function parser for n functions
@@ -92,9 +93,10 @@ CONTAINS
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Finalize function parser 
     !----- -------- --------- --------- --------- --------- --------- --------- -------
-    IMPLICIT NONE
-    INTEGER             :: i, istat
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
+    INTEGER                                  :: i, istat
+
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
     DO i = 1, SIZE(Comp)
        IF (ASSOCIATED(Comp(i)%ByteCode)) THEN
           DEALLOCATE ( Comp(i)%ByteCode, stat = istat) 
@@ -129,10 +131,13 @@ CONTAINS
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Initialize function parser for n functions
     !----- -------- --------- --------- --------- --------- --------- --------- -------
-    IMPLICIT NONE
-    INTEGER, INTENT(in) :: n                                 ! Number of functions
-    INTEGER             :: i
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
+    INTEGER, INTENT(in)                      :: n
+
+    INTEGER                                  :: i
+
+! Number of functions
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
     ALLOCATE (Comp(n))
     DO i=1,n
        NULLIFY (Comp(i)%ByteCode,Comp(i)%Immed,Comp(i)%Stack)
@@ -143,12 +148,19 @@ CONTAINS
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Parse ith function string FuncStr and compile it into bytecode
     !----- -------- --------- --------- --------- --------- --------- --------- -------
-    IMPLICIT NONE
-    INTEGER,                         INTENT(in) :: i         ! Function identifier
-    CHARACTER (LEN=*),               INTENT(in) :: FuncStr   ! Function string
-    CHARACTER (LEN=*), DIMENSION(:), INTENT(in) :: Var       ! Array with variable names
-    CHARACTER (LEN=LEN(FuncStr))                :: Func      ! Function string, local use
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
+    INTEGER, INTENT(in)                      :: i
+    CHARACTER(LEN=*), INTENT(in)             :: FuncStr
+    CHARACTER(LEN=*), DIMENSION(:), &
+      INTENT(in)                             :: Var
+
+    CHARACTER(LEN=LEN(FuncStr))              :: Func
+
+! Function identifier
+! Function string
+! Array with variable names
+! Function string, local use
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
     IF (i < 1 .OR. i > SIZE(Comp)) THEN
        WRITE(*,*) '*** Parser error: Function number ',i,' out of range'
        STOP
@@ -166,16 +178,22 @@ CONTAINS
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Evaluate bytecode of ith function for the values passed in array Val(:)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
-    IMPLICIT NONE
-    INTEGER,                INTENT(in) :: i                  ! Function identifier
-    REAL(rn), DIMENSION(:), INTENT(in) :: Val                ! Variable values
-    REAL(rn)                           :: res                ! Result
-    INTEGER                            :: IP,              & ! Instruction pointer
-                                          DP,              & ! Data pointer
-                                          SP                 ! Stack pointer
-    REAL(rn),                PARAMETER :: zero = 0._rn
-    INTEGER                            :: ipow
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
+    INTEGER, INTENT(in)                      :: i
+    REAL(rn), DIMENSION(:), INTENT(in)       :: Val
+    REAL(rn)                                 :: res
+
+    REAL(rn), PARAMETER                      :: zero = 0._rn
+
+    INTEGER                                  :: DP, IP, ipow, SP
+
+! Function identifier
+! Variable values
+! Result
+! Instruction pointer
+! Data pointer
+! Stack pointer
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
     DP = 1
     SP = 0
     DO IP=1,Comp(i)%ByteCodeSize
@@ -233,17 +251,22 @@ CONTAINS
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Check syntax of function string,  returns 0 if syntax is ok
     !----- -------- --------- --------- --------- --------- --------- --------- -------
-    IMPLICIT NONE
-    CHARACTER (LEN=*),               INTENT(in) :: Func      ! Function string without spaces
-    CHARACTER (LEN=*),               INTENT(in) :: FuncStr   ! Original function string
-    CHARACTER (LEN=*), DIMENSION(:), INTENT(in) :: Var       ! Array with variable names
-    INTEGER(is)                                 :: n
-    CHARACTER (LEN=1)                           :: c
-    REAL(rn)                                    :: r
-    LOGICAL                                     :: err
-    INTEGER                                     :: ParCnt, & ! Parenthesis counter
-                                                   j,ib,in,lFunc
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
+    CHARACTER(LEN=*), INTENT(in)             :: Func, FuncStr
+    CHARACTER(LEN=*), DIMENSION(:), &
+      INTENT(in)                             :: Var
+
+    INTEGER                                  :: ib, in, j, lFunc, ParCnt
+    CHARACTER(LEN=1)                         :: c
+    INTEGER(is)                              :: n
+    LOGICAL                                  :: err
+    REAL(rn)                                 :: r
+
+! Function string without spaces
+! Original function string
+! Array with variable names
+! Parenthesis counter
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
     j = 1
     ParCnt = 0
     lFunc = LEN_TRIM(Func)
@@ -315,13 +338,14 @@ CONTAINS
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Return error message
     !----- -------- --------- --------- --------- --------- --------- --------- -------
-    IMPLICIT NONE
-    CHARACTER (LEN=*), DIMENSION(4), PARAMETER :: m = (/ 'Division by zero                ', &
-                                                         'Argument of SQRT negative       ', &
-                                                         'Argument of LOG negative        ', &
-                                                         'Argument of ASIN or ACOS illegal' /)
-    CHARACTER (LEN=LEN(m))                     :: msg
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
+    CHARACTER(LEN=*), DIMENSION(4), PARAMETER :: m = (/ &
+      'Division by zero                ', 'Argument of SQRT negative       ', &
+      'Argument of LOG negative        ', 'Argument of ASIN or ACOS illegal' &
+      /)
+    CHARACTER(LEN=LEN(m))                    :: msg
+
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
     IF (EvalErrType < 1 .OR. EvalErrType > SIZE(m)) THEN
        msg = ''
     ELSE
@@ -333,12 +357,15 @@ CONTAINS
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Print error message and terminate program
     !----- -------- --------- --------- --------- --------- --------- --------- -------
-    IMPLICIT NONE
-    INTEGER,                     INTENT(in) :: j
-    CHARACTER (LEN=*),           INTENT(in) :: FuncStr       ! Original function string
-    CHARACTER (LEN=*), OPTIONAL, INTENT(in) :: Msg
-    INTEGER                                 :: k
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
+    INTEGER, INTENT(in)                      :: j
+    CHARACTER(LEN=*), INTENT(in)             :: FuncStr
+    CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: Msg
+
+    INTEGER                                  :: k
+
+! Original function string
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
     IF (PRESENT(Msg)) THEN
        WRITE(*,*) '*** Error in syntax of function string: '//Msg
     ELSE
@@ -357,10 +384,13 @@ CONTAINS
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Return operator index
     !----- -------- --------- --------- --------- --------- --------- --------- -------
-    IMPLICIT NONE
-    CHARACTER (LEN=1), INTENT(in) :: c
-    INTEGER(is)                   :: n,j
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
+    CHARACTER(LEN=1), INTENT(in)             :: c
+    INTEGER(is)                              :: n
+
+    INTEGER(is)                              :: j
+
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
     n = 0
     DO j=cAdd,cPow
        IF (c == Ops(j)) THEN
@@ -374,12 +404,15 @@ CONTAINS
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Return index of math function beginnig at 1st position of string str
     !----- -------- --------- --------- --------- --------- --------- --------- -------
-    IMPLICIT NONE
-    CHARACTER (LEN=*), INTENT(in) :: str
-    INTEGER(is)                   :: n,j
-    INTEGER                       :: k
-    CHARACTER (LEN=LEN(Funcs))    :: fun
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
+    CHARACTER(LEN=*), INTENT(in)             :: str
+    INTEGER(is)                              :: n
+
+    CHARACTER(LEN=LEN(Funcs))                :: fun
+    INTEGER                                  :: k
+    INTEGER(is)                              :: j
+
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
     n = 0
     DO j=cAbs,cAtan                                          ! Check all math functions
        k = MIN(LEN_TRIM(Funcs(j)), LEN(str))   
@@ -395,14 +428,21 @@ CONTAINS
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Return index of variable at begin of string str (returns 0 if no variable found)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
-    IMPLICIT NONE
-    CHARACTER (LEN=*),               INTENT(in) :: str       ! String
-    CHARACTER (LEN=*), DIMENSION(:), INTENT(in) :: Var       ! Array with variable names
-    INTEGER(is)                                 :: n         ! Index of variable
-    INTEGER, OPTIONAL,              INTENT(out) :: ibegin, & ! Start position of variable name
-                                                   inext     ! Position of character after name
-    INTEGER                                     :: j,ib,in,lstr
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
+    CHARACTER(LEN=*), INTENT(in)             :: str
+    CHARACTER(LEN=*), DIMENSION(:), &
+      INTENT(in)                             :: Var
+    INTEGER, INTENT(out), OPTIONAL           :: ibegin, inext
+    INTEGER(is)                              :: n
+
+    INTEGER                                  :: ib, in, j, lstr
+
+! String
+! Array with variable names
+! Index of variable
+! Start position of variable name
+! Position of character after name
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
     n = 0
     lstr = LEN_TRIM(str)
     IF (lstr > 0) THEN
@@ -427,10 +467,12 @@ CONTAINS
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Remove Spaces from string, remember positions of characters in old string
     !----- -------- --------- --------- --------- --------- --------- --------- -------
-    IMPLICIT NONE
-    CHARACTER (LEN=*), INTENT(inout) :: str
-    INTEGER                          :: k,lstr
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
+    CHARACTER(LEN=*), INTENT(inout)          :: str
+
+    INTEGER                                  :: k, lstr
+
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
     lstr = LEN_TRIM(str)
     ipos = (/ (k,k=1,lstr) /)
     k = 1
@@ -448,12 +490,15 @@ CONTAINS
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Replace ALL appearances of character set ca in string str by character set cb
     !----- -------- --------- --------- --------- --------- --------- --------- -------
-    IMPLICIT NONE
-    CHARACTER (LEN=*),       INTENT(in) :: ca
-    CHARACTER (LEN=LEN(ca)), INTENT(in) :: cb                ! LEN(ca) must be LEN(cb)
-    CHARACTER (LEN=*),    INTENT(inout) :: str
-    INTEGER                             :: j,lca
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
+    CHARACTER(LEN=*), INTENT(in)             :: ca
+    CHARACTER(LEN=LEN(ca)), INTENT(in)       :: cb
+    CHARACTER(LEN=*), INTENT(inout)          :: str
+
+    INTEGER                                  :: j, lca
+
+! LEN(ca) must be LEN(cb)
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
     lca = LEN(ca)
     DO j=1,LEN_TRIM(str)-lca+1
        IF (str(j:j+lca-1) == ca) str(j:j+lca-1) = cb
@@ -464,12 +509,18 @@ CONTAINS
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Compile i-th function string F into bytecode
     !----- -------- --------- --------- --------- --------- --------- --------- -------
-    IMPLICIT NONE
-    INTEGER,                         INTENT(in) :: i         ! Function identifier
-    CHARACTER (LEN=*),               INTENT(in) :: F         ! Function string
-    CHARACTER (LEN=*), DIMENSION(:), INTENT(in) :: Var       ! Array with variable names
-    INTEGER                                     :: istat
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
+    INTEGER, INTENT(in)                      :: i
+    CHARACTER(LEN=*), INTENT(in)             :: F
+    CHARACTER(LEN=*), DIMENSION(:), &
+      INTENT(in)                             :: Var
+
+    INTEGER                                  :: istat
+
+! Function identifier
+! Function string
+! Array with variable names
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
     IF (ASSOCIATED(Comp(i)%ByteCode)) DEALLOCATE ( Comp(i)%ByteCode, &
                                                    Comp(i)%Immed,    &
                                                    Comp(i)%Stack     )
@@ -499,10 +550,13 @@ CONTAINS
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Add compiled byte to bytecode
     !----- -------- --------- --------- --------- --------- --------- --------- -------
-    IMPLICIT NONE
-    INTEGER,     INTENT(in) :: i                             ! Function identifier  
-    INTEGER(is), INTENT(in) :: b                             ! Value of byte to be added
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
+    INTEGER, INTENT(in)                      :: i
+    INTEGER(is), INTENT(in)                  :: b
+
+! Function identifier  
+! Value of byte to be added
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
     Comp(i)%ByteCodeSize = Comp(i)%ByteCodeSize + 1
     IF (ASSOCIATED(Comp(i)%ByteCode)) Comp(i)%ByteCode(Comp(i)%ByteCodeSize) = b
   END SUBROUTINE AddCompiledByte
@@ -511,12 +565,18 @@ CONTAINS
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Return math item index, if item is real number, enter it into Comp-structure
     !----- -------- --------- --------- --------- --------- --------- --------- -------
-    IMPLICIT NONE
-    INTEGER,                         INTENT(in) :: i         ! Function identifier  
-    CHARACTER (LEN=*),               INTENT(in) :: F         ! Function substring
-    CHARACTER (LEN=*), DIMENSION(:), INTENT(in) :: Var       ! Array with variable names
-    INTEGER(is)                                 :: n         ! Byte value of math item
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
+    INTEGER, INTENT(in)                      :: i
+    CHARACTER(LEN=*), INTENT(in)             :: F
+    CHARACTER(LEN=*), DIMENSION(:), &
+      INTENT(in)                             :: Var
+    INTEGER(is)                              :: n
+
+! Function identifier  
+! Function substring
+! Array with variable names
+! Byte value of math item
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
     n = 0
     IF (SCAN(F(1:1),'0123456789.') > 0) THEN                 ! Check for begin of a number
        Comp(i)%ImmedSize = Comp(i)%ImmedSize + 1
@@ -532,13 +592,17 @@ CONTAINS
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Check if function substring F(b:e) is completely enclosed by a pair of parenthesis
     !----- -------- --------- --------- --------- --------- --------- --------- -------
-    IMPLICIT NONE
-    CHARACTER (LEN=*), INTENT(in) :: F                       ! Function substring
-    INTEGER,           INTENT(in) :: b,e                     ! First and last pos. of substring
-    LOGICAL                       :: res
-    INTEGER                       :: j,k
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
-    res=.false.
+    CHARACTER(LEN=*), INTENT(in)             :: F
+    INTEGER, INTENT(in)                      :: b, e
+    LOGICAL                                  :: res
+
+    INTEGER                                  :: j, k
+
+! Function substring
+! First and last pos. of substring
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
+    res=.FALSE.
     IF (F(b:b) == '(' .AND. F(e:e) == ')') THEN
        k = 0
        DO j=b+1,e-1
@@ -549,7 +613,7 @@ CONTAINS
           END IF
           IF (k < 0) EXIT
        END DO
-       IF (k == 0) res=.true.                                ! All opened parenthesis closed
+       IF (k == 0) res=.TRUE.                                ! All opened parenthesis closed
     END IF
   END FUNCTION CompletelyEnclosed
   !
@@ -557,18 +621,26 @@ CONTAINS
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Compile i-th function string F into bytecode
     !----- -------- --------- --------- --------- --------- --------- --------- -------
-    IMPLICIT NONE
-    INTEGER,                         INTENT(in) :: i         ! Function identifier  
-    CHARACTER (LEN=*),               INTENT(in) :: F         ! Function substring
-    INTEGER,                         INTENT(in) :: b,e       ! Begin and end position substring
-    CHARACTER (LEN=*), DIMENSION(:), INTENT(in) :: Var       ! Array with variable names
-    INTEGER(is)                                 :: n
-    INTEGER                                     :: b2,j,k,io
-    CHARACTER (LEN=*),                PARAMETER :: calpha = 'abcdefghijklmnopqrstuvwxyz'// &
-                                                            'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
-    ! Check for special cases of substring
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
+    INTEGER, INTENT(in)                      :: i
+    CHARACTER(LEN=*), INTENT(in)             :: F
+    INTEGER, INTENT(in)                      :: b, e
+    CHARACTER(LEN=*), DIMENSION(:), &
+      INTENT(in)                             :: Var
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      calpha = 'abcdefghijklmnopqrstuvwxyz'// 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+    INTEGER                                  :: b2, io, j, k
+    INTEGER(is)                              :: n
+
+! Function identifier  
+! Function substring
+! Begin and end position substring
+! Array with variable names
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+! Check for special cases of substring
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
     IF     (F(b:b) == '+') THEN                              ! Case 1: F(b:e) = '+...'
 !      WRITE(*,*)'1. F(b:e) = "+..."'
        CALL CompileSubstr (i, F, b+1, e, Var)
@@ -655,38 +727,43 @@ CONTAINS
     ! Special cases already covered elsewhere:              (that is corrected in v1.1)
     ! - operator character F(j:j) is first character of string (j=1)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
-    IMPLICIT NONE
-    INTEGER,           INTENT(in) :: j                       ! Position of Operator
-    CHARACTER (LEN=*), INTENT(in) :: F                       ! String
-    LOGICAL                       :: res                     ! Result
-    INTEGER                       :: k
-    LOGICAL                       :: Dflag,Pflag
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
-    res=.true.
+    INTEGER, INTENT(in)                      :: j
+    CHARACTER(LEN=*), INTENT(in)             :: F
+    LOGICAL                                  :: res
+
+    INTEGER                                  :: k
+    LOGICAL                                  :: Dflag, Pflag
+
+! Position of Operator
+! String
+! Result
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
+    res=.TRUE.
     IF (F(j:j) == '+' .OR. F(j:j) == '-') THEN               ! Plus or minus sign:
        IF (j == 1) THEN                                      ! - leading unary operator ?
-          res = .false.
+          res = .FALSE.
        ELSEIF (SCAN(F(j-1:j-1),'+-*/^(') > 0) THEN           ! - other unary operator ?
-          res = .false.
+          res = .FALSE.
        ELSEIF (SCAN(F(j+1:j+1),'0123456789') > 0 .AND. &     ! - in exponent of real number ?
                SCAN(F(j-1:j-1),'eEdD')       > 0) THEN
-          Dflag=.false.; Pflag=.false.
+          Dflag=.FALSE.; Pflag=.FALSE.
           k = j-1
           DO WHILE (k > 1)                                   !   step to the left in mantissa 
              k = k-1
              IF     (SCAN(F(k:k),'0123456789') > 0) THEN
-                Dflag=.true.
+                Dflag=.TRUE.
              ELSEIF (F(k:k) == '.') THEN
                 IF (Pflag) THEN
                    EXIT                                      !   * EXIT: 2nd appearance of '.'
                 ELSE
-                   Pflag=.true.                              !   * mark 1st appearance of '.'
+                   Pflag=.TRUE.                              !   * mark 1st appearance of '.'
                 ENDIF
              ELSE
                 EXIT                                         !   * all other characters
              END IF
           END DO
-          IF (Dflag .AND. (k == 1 .OR. SCAN(F(k:k),'+-*/^(') > 0)) res = .false.
+          IF (Dflag .AND. (k == 1 .OR. SCAN(F(k:k),'+-*/^(') > 0)) res = .FALSE.
        END IF
     END IF
   END FUNCTION IsBinaryOp
@@ -695,24 +772,32 @@ CONTAINS
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Get real number from string - Format: [blanks][+|-][nnn][.nnn][e|E|d|D[+|-]nnn]
     !----- -------- --------- --------- --------- --------- --------- --------- -------
-    IMPLICIT NONE
-    CHARACTER (LEN=*),  INTENT(in) :: str                    ! String
-    REAL(rn)                       :: res                    ! Real number
-    INTEGER, OPTIONAL, INTENT(out) :: ibegin,              & ! Start position of real number
-                                      inext                  ! 1st character after real number
-    LOGICAL, OPTIONAL, INTENT(out) :: error                  ! Error flag
-    INTEGER                        :: ib,in,istat
-    LOGICAL                        :: Bflag,               & ! .T. at begin of number in str
-                                      InMan,               & ! .T. in mantissa of number
-                                      Pflag,               & ! .T. after 1st '.' encountered
-                                      Eflag,               & ! .T. at exponent identifier 'eEdD'
-                                      InExp,               & ! .T. in exponent of number
-                                      DInMan,              & ! .T. if at least 1 digit in mant.
-                                      DInExp,              & ! .T. if at least 1 digit in exp.
-                                      err                    ! Local error flag
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
-    Bflag=.true.; InMan=.false.; Pflag=.false.; Eflag=.false.; InExp=.false.
-    DInMan=.false.; DInExp=.false.
+    CHARACTER(LEN=*), INTENT(in)             :: str
+    INTEGER, INTENT(out), OPTIONAL           :: ibegin, inext
+    LOGICAL, INTENT(out), OPTIONAL           :: error
+    REAL(rn)                                 :: res
+
+    INTEGER                                  :: ib, in, istat
+    LOGICAL                                  :: Bflag, DInExp, DInMan, Eflag, &
+                                                err, InExp, InMan, Pflag
+
+! String
+! Real number
+! Start position of real number
+! 1st character after real number
+! Error flag
+! .T. at begin of number in str
+! .T. in mantissa of number
+! .T. after 1st '.' encountered
+! .T. at exponent identifier 'eEdD'
+! .T. in exponent of number
+! .T. if at least 1 digit in mant.
+! .T. if at least 1 digit in exp.
+! Local error flag
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
+    Bflag=.TRUE.; InMan=.FALSE.; Pflag=.FALSE.; Eflag=.FALSE.; InExp=.FALSE.
+    DInMan=.FALSE.; DInExp=.FALSE.
     ib   = 1
     in   = 1
     DO WHILE (in <= LEN_TRIM(str))
@@ -722,32 +807,32 @@ CONTAINS
           IF (InMan .OR. Eflag .OR. InExp) EXIT
        CASE ('+','-')                                        ! Permitted only
           IF     (Bflag) THEN           
-             InMan=.true.; Bflag=.false.                     ! - at beginning of mantissa
+             InMan=.TRUE.; Bflag=.FALSE.                     ! - at beginning of mantissa
           ELSEIF (Eflag) THEN               
-             InExp=.true.; Eflag=.false.                     ! - at beginning of exponent
+             InExp=.TRUE.; Eflag=.FALSE.                     ! - at beginning of exponent
           ELSE
              EXIT                                            ! - otherwise STOP
           ENDIF
        CASE ('0':'9')                                        ! Mark
           IF     (Bflag) THEN           
-             InMan=.true.; Bflag=.false.                     ! - beginning of mantissa
+             InMan=.TRUE.; Bflag=.FALSE.                     ! - beginning of mantissa
           ELSEIF (Eflag) THEN               
-             InExp=.true.; Eflag=.false.                     ! - beginning of exponent
+             InExp=.TRUE.; Eflag=.FALSE.                     ! - beginning of exponent
           ENDIF
-          IF (InMan) DInMan=.true.                           ! Mantissa contains digit
-          IF (InExp) DInExp=.true.                           ! Exponent contains digit
+          IF (InMan) DInMan=.TRUE.                           ! Mantissa contains digit
+          IF (InExp) DInExp=.TRUE.                           ! Exponent contains digit
        CASE ('.')
           IF     (Bflag) THEN
-             Pflag=.true.                                    ! - mark 1st appearance of '.'
-             InMan=.true.; Bflag=.false.                     !   mark beginning of mantissa
+             Pflag=.TRUE.                                    ! - mark 1st appearance of '.'
+             InMan=.TRUE.; Bflag=.FALSE.                     !   mark beginning of mantissa
           ELSEIF (InMan .AND..NOT.Pflag) THEN
-             Pflag=.true.                                    ! - mark 1st appearance of '.'
+             Pflag=.TRUE.                                    ! - mark 1st appearance of '.'
           ELSE
              EXIT                                            ! - otherwise STOP
           END IF
        CASE ('e','E','d','D')                                ! Permitted only
           IF (InMan) THEN
-             Eflag=.true.; InMan=.false.                     ! - following mantissa
+             Eflag=.TRUE.; InMan=.FALSE.                     ! - following mantissa
           ELSE
              EXIT                                            ! - otherwise STOP
           ENDIF
@@ -772,13 +857,16 @@ CONTAINS
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Transform upper case letters in str1 into lower case letters, result is str2
     !----- -------- --------- --------- --------- --------- --------- --------- -------
-    IMPLICIT NONE
-    CHARACTER (LEN=*),  INTENT(in) :: str1
-    CHARACTER (LEN=*), INTENT(out) :: str2
-    INTEGER                        :: j,k
-    CHARACTER (LEN=*),   PARAMETER :: lc = 'abcdefghijklmnopqrstuvwxyz'
-    CHARACTER (LEN=*),   PARAMETER :: uc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-    !----- -------- --------- --------- --------- --------- --------- --------- -------
+    CHARACTER(LEN=*), INTENT(in)             :: str1
+    CHARACTER(LEN=*), INTENT(out)            :: str2
+
+    CHARACTER(LEN=*), PARAMETER :: lc = 'abcdefghijklmnopqrstuvwxyz', &
+      uc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+    INTEGER                                  :: j, k
+
+!----- -------- --------- --------- --------- --------- --------- --------- -------
+
     str2 = str1
     DO j=1,LEN_TRIM(str1)
        k = INDEX(uc,str1(j:j))

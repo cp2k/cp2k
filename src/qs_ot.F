@@ -1354,11 +1354,12 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   CONTAINS
     FUNCTION cint(e1,e2)
-      IMPLICIT NONE
-      COMPLEX(KIND=dp) :: cint
-      REAL(KIND=dp) :: e1,e2
-      COMPLEX(KIND=dp) :: l1,l2,x
-      INTEGER :: I
+    REAL(KIND=dp)                            :: e1, e2
+    COMPLEX(KIND=dp)                         :: cint
+
+    COMPLEX(KIND=dp)                         :: l1, l2, x
+    INTEGER                                  :: I
+
       l1=(0.0_dp,-1.0_dp)*e1
       l2=(0.0_dp,-1.0_dp)*e2
       IF (ABS(l1-l2) .GT. 0.5_dp) THEN

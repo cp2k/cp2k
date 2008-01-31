@@ -489,13 +489,13 @@ CONTAINS
     REAL(dp), INTENT(IN)                     :: my_chi
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'mult_G_ov_G2_grid', &
-      routineP = moduleN//':'//routineN
-
     INTEGER                                  :: ig, ng
     LOGICAL                                  :: failure
     REAL(dp)                                 :: g2
     TYPE(pw_grid_type), POINTER              :: grid
+    CHARACTER(len=*), PARAMETER :: routineN = 'mult_G_ov_G2_grid', &
+      routineP = moduleN//':'//routineN
+
     TYPE(pw_type), POINTER                   :: frho, influence_fn
 
     failure = .FALSE.

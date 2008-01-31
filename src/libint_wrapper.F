@@ -176,11 +176,10 @@ MODULE libint_wrapper
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libint', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                          :: failure
-    INTEGER(KIND=C_INT)              :: max_am_local
-    INTEGER(KIND=C_INT)              :: lib_storage 
-    INTEGER(KIND=C_INT)              :: max_prim
-    
+    INTEGER(KIND=C_INT)                      :: lib_storage, max_am_local, &
+                                                max_prim
+    LOGICAL                                  :: failure
+
     failure = .FALSE.
     max_am_local= max_am
     max_prim = 1
@@ -203,11 +202,10 @@ MODULE libint_wrapper
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libderiv', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                          :: failure
-    INTEGER(KIND=C_INT)              :: max_am_local
-    INTEGER(KIND=C_INT)              :: lib_deriv_storage
-    INTEGER(KIND=C_INT)              :: max_prim
-    INTEGER(KIND=C_INT)              :: max_classes
+    INTEGER(KIND=C_INT)                      :: lib_deriv_storage, &
+                                                max_am_local, max_classes, &
+                                                max_prim
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     max_am_local= max_am
@@ -226,24 +224,26 @@ MODULE libint_wrapper
 !***************************************************************************
 
   SUBROUTINE terminate_libint(lib)
-    TYPE(lib_int)                    :: lib
+    TYPE(lib_int)                            :: lib
+
       CALL free_lib_int(lib)
   END SUBROUTINE terminate_libint
 !***************************************************************************
 
   SUBROUTINE terminate_libderiv(deriv)
-    TYPE(lib_deriv)                    :: deriv
+    TYPE(lib_deriv)                          :: deriv
+
       CALL free_lib_deriv(deriv)
   END SUBROUTINE terminate_libderiv
 !***************************************************************************
  
   SUBROUTINE get_eris(n_d, n_c, n_b, n_a, lib, prim, p_work, a_mysize)
-    INTEGER , INTENT(IN)                    :: n_d, n_c, n_b, n_a  
-    TYPE(lib_int)                           :: lib
-    TYPE(prim_data), TARGET                 :: prim
-    REAL(dp), DIMENSION(:), POINTER         :: p_work
-    INTEGER                                 :: a_mysize(1)
-    
+    INTEGER, INTENT(IN)                      :: n_d, n_c, n_b, n_a
+    TYPE(lib_int)                            :: lib
+    TYPE(prim_data), TARGET                  :: prim
+    REAL(dp), DIMENSION(:), POINTER          :: p_work
+    INTEGER                                  :: a_mysize(1)
+
     PROCEDURE(build), POINTER               :: pbuild
     TYPE(C_PTR)                             :: pc_result 
     REAL(dp), DIMENSION(:), POINTER         :: p_tmp
@@ -257,11 +257,12 @@ MODULE libint_wrapper
 !***************************************************************************
 
   SUBROUTINE get_derivs(n_d, n_c, n_b, n_a, deriv, prim, work_forces, a_mysize)
-    INTEGER , INTENT(IN)                    :: n_d, n_c, n_b, n_a  
-    TYPE(lib_deriv)                         :: deriv
-    TYPE(prim_data), TARGET                 :: prim
-    REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d),12) :: work_forces
-    INTEGER                                 :: a_mysize(1)
+    INTEGER, INTENT(IN)                      :: n_d, n_c, n_b, n_a
+    TYPE(lib_deriv)                          :: deriv
+    TYPE(prim_data), TARGET                  :: prim
+    REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*&
+      nco(n_c)*nco(n_d), 12)                 :: work_forces
+    INTEGER                                  :: a_mysize(1)
 
     PROCEDURE(build_deriv1), POINTER        :: pbuild_deriv1
     TYPE(C_PTR)                             :: pc_result 
@@ -402,11 +403,10 @@ MODULE libint_wrapper
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libint', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                          :: failure
-    INTEGER(KIND=C_INT)              :: max_am_local
-    INTEGER(KIND=C_INT)              :: lib_storage 
-    INTEGER(KIND=C_INT)              :: max_prim
-    
+    INTEGER(KIND=C_INT)                      :: lib_storage, max_am_local, &
+                                                max_prim
+    LOGICAL                                  :: failure
+
     failure = .FALSE.
     max_am_local= max_am
     max_prim = 1
@@ -428,11 +428,10 @@ MODULE libint_wrapper
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libderiv', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                          :: failure
-    INTEGER(KIND=C_INT)              :: max_am_local
-    INTEGER(KIND=C_INT)              :: lib_deriv_storage
-    INTEGER(KIND=C_INT)              :: max_prim
-    INTEGER(KIND=C_INT)              :: max_classes
+    INTEGER(KIND=C_INT)                      :: lib_deriv_storage, &
+                                                max_am_local, max_classes, &
+                                                max_prim
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     max_am_local= max_am
@@ -451,26 +450,28 @@ MODULE libint_wrapper
 !***************************************************************************
 
   SUBROUTINE terminate_libint(lib)
-    TYPE(lib_int)                    :: lib
+    TYPE(lib_int)                            :: lib
+
       CALL free_lib_int(lib)
   END SUBROUTINE terminate_libint
 !***************************************************************************
 
   SUBROUTINE terminate_libderiv(deriv)
-    TYPE(lib_deriv)                    :: deriv
+    TYPE(lib_deriv)                          :: deriv
+
       CALL free_lib_deriv(deriv)
   END SUBROUTINE terminate_libderiv
 !***************************************************************************
  
   SUBROUTINE get_eris(n_d, n_c, n_b, n_a, lib, prim, p_work, a_mysize)
-    INTEGER , INTENT(IN)                    :: n_d, n_c, n_b, n_a  
-    TYPE(lib_int)                           :: lib
-    TYPE(prim_data), TARGET                 :: prim
-    REAL(dp), DIMENSION(:), POINTER         :: p_work
-    INTEGER                                 :: a_mysize(1)
-    
-    TYPE(C_PTR)                             :: pc_result 
-    REAL(dp), DIMENSION(:), POINTER         :: p_tmp
+    INTEGER, INTENT(IN)                      :: n_d, n_c, n_b, n_a
+    TYPE(lib_int)                            :: lib
+    TYPE(prim_data), TARGET                  :: prim
+    REAL(dp), DIMENSION(:), POINTER          :: p_work
+    INTEGER                                  :: a_mysize(1)
+
+    REAL(dp), DIMENSION(:), POINTER          :: p_tmp
+    TYPE(C_PTR)                              :: pc_result
 
     lib%PrimQuartet = C_LOC(prim)
     pc_result= wrapper_build_eri(n_a, n_b, n_c, n_d, lib)
@@ -480,15 +481,16 @@ MODULE libint_wrapper
 !***************************************************************************
 
   SUBROUTINE get_derivs(n_d, n_c, n_b, n_a, deriv, prim, work_forces, a_mysize)
-    INTEGER , INTENT(IN)                    :: n_d, n_c, n_b, n_a  
-    TYPE(lib_deriv)                         :: deriv
-    TYPE(prim_data), TARGET                 :: prim
-    REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d),12) :: work_forces
-    INTEGER                                 :: a_mysize(1)
+    INTEGER, INTENT(IN)                      :: n_d, n_c, n_b, n_a
+    TYPE(lib_deriv)                          :: deriv
+    TYPE(prim_data), TARGET                  :: prim
+    REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*&
+      nco(n_c)*nco(n_d), 12)                 :: work_forces
+    INTEGER                                  :: a_mysize(1)
 
-    TYPE(C_PTR)                             :: pc_result 
-    INTEGER                                 :: i, k
-    REAL(C_DOUBLE), DIMENSION(:), POINTER   :: tmp_data
+    INTEGER                                  :: i, k
+    REAL(C_DOUBLE), DIMENSION(:), POINTER    :: tmp_data
+    TYPE(C_PTR)                              :: pc_result
 
     deriv%PrimQuartet = C_LOC(prim)
     CALL wrapper_build_deriv1_eri(n_a, n_b, n_c, n_d, deriv)
@@ -623,11 +625,10 @@ MODULE libint_wrapper
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libint', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                          :: failure
-    INTEGER(KIND=C_INT)              :: max_am_local
-    INTEGER(KIND=C_INT)              :: lib_storage 
-    INTEGER(KIND=C_INT)              :: max_prim
-    
+    INTEGER(KIND=C_INT)                      :: lib_storage, max_am_local, &
+                                                max_prim
+    LOGICAL                                  :: failure
+
     failure = .FALSE.
     max_am_local= max_am
     max_prim = 1
@@ -649,11 +650,10 @@ MODULE libint_wrapper
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libderiv', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                          :: failure
-    INTEGER(KIND=C_INT)              :: max_am_local
-    INTEGER(KIND=C_INT)              :: lib_deriv_storage
-    INTEGER(KIND=C_INT)              :: max_prim
-    INTEGER(KIND=C_INT)              :: max_classes
+    INTEGER(KIND=C_INT)                      :: lib_deriv_storage, &
+                                                max_am_local, max_classes, &
+                                                max_prim
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     max_am_local= max_am
@@ -672,26 +672,28 @@ MODULE libint_wrapper
 !***************************************************************************
 
   SUBROUTINE terminate_libint(lib)
-    TYPE(lib_int)                    :: lib
+    TYPE(lib_int)                            :: lib
+
       CALL free_lib_int(lib)
   END SUBROUTINE terminate_libint
 !***************************************************************************
 
   SUBROUTINE terminate_libderiv(deriv)
-    TYPE(lib_deriv)                    :: deriv
+    TYPE(lib_deriv)                          :: deriv
+
       CALL free_lib_deriv(deriv)
   END SUBROUTINE terminate_libderiv
 !***************************************************************************
  
   SUBROUTINE get_eris(n_d, n_c, n_b, n_a, lib, prim, p_work, a_mysize)
-    INTEGER , INTENT(IN)                    :: n_d, n_c, n_b, n_a  
-    TYPE(lib_int)                           :: lib
-    TYPE(prim_data), TARGET                 :: prim
-    REAL(dp), DIMENSION(:), POINTER         :: p_work
-    INTEGER                                 :: a_mysize(1)
-    
-    TYPE(C_PTR)                             :: pc_result 
-    REAL(dp), DIMENSION(:), POINTER         :: p_tmp
+    INTEGER, INTENT(IN)                      :: n_d, n_c, n_b, n_a
+    TYPE(lib_int)                            :: lib
+    TYPE(prim_data), TARGET                  :: prim
+    REAL(dp), DIMENSION(:), POINTER          :: p_work
+    INTEGER                                  :: a_mysize(1)
+
+    REAL(dp), DIMENSION(:), POINTER          :: p_tmp
+    TYPE(C_PTR)                              :: pc_result
 
     lib%PrimQuartet = C_LOC(prim)
     pc_result= wrapper_build_eri(n_a, n_b, n_c, n_d, lib)
@@ -701,15 +703,16 @@ MODULE libint_wrapper
 !***************************************************************************
 
   SUBROUTINE get_derivs(n_d, n_c, n_b, n_a, deriv, prim, work_forces, a_mysize)
-    INTEGER , INTENT(IN)                    :: n_d, n_c, n_b, n_a  
-    TYPE(lib_deriv)                         :: deriv
-    TYPE(prim_data), TARGET                 :: prim
-    REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d),12) :: work_forces
-    INTEGER                                 :: a_mysize(1)
+    INTEGER, INTENT(IN)                      :: n_d, n_c, n_b, n_a
+    TYPE(lib_deriv)                          :: deriv
+    TYPE(prim_data), TARGET                  :: prim
+    REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*&
+      nco(n_c)*nco(n_d), 12)                 :: work_forces
+    INTEGER                                  :: a_mysize(1)
 
-    TYPE(C_PTR)                             :: pc_result 
-    INTEGER                                 :: i, k
-    REAL(C_DOUBLE), DIMENSION(:), POINTER   :: tmp_data
+    INTEGER                                  :: i, k
+    REAL(C_DOUBLE), DIMENSION(:), POINTER    :: tmp_data
+    TYPE(C_PTR)                              :: pc_result
 
     deriv%PrimQuartet = C_LOC(prim)
     CALL wrapper_build_deriv1_eri(n_a, n_b, n_c, n_d, deriv)
@@ -792,12 +795,12 @@ MODULE libint_wrapper
     INTEGER                                  :: max_am
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    LOGICAL                                  :: failure
-    INTEGER                                  :: max_am_local
-    INTEGER                                  :: max_prim
-    INTEGER                                  :: lib_storage
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libint', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: lib_storage, max_am_local, &
+                                                max_prim
+    LOGICAL                                  :: failure
 
     EXTERNAL wrapper_init_lib
   
@@ -822,12 +825,11 @@ MODULE libint_wrapper
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libderiv', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                          :: failure
-    INTEGER                          :: max_am_local
-    INTEGER                          :: lib_deriv_storage
-    INTEGER                          :: max_prim
-    INTEGER                          :: max_classes
-    
+    INTEGER                                  :: lib_deriv_storage, &
+                                                max_am_local, max_classes, &
+                                                max_prim
+    LOGICAL                                  :: failure
+
     EXTERNAL wrapper_init_deriv
 
     failure = .FALSE.
@@ -846,7 +848,7 @@ MODULE libint_wrapper
 !***************************************************************************
 
   SUBROUTINE terminate_libint(lib)
-    TYPE(lib_int)                    :: lib
+    TYPE(lib_int)                            :: lib
 
     EXTERNAL wrapper_free_libint
 
@@ -855,7 +857,7 @@ MODULE libint_wrapper
 !***************************************************************************
 
   SUBROUTINE terminate_libderiv(deriv)
-    TYPE(lib_deriv)                  :: deriv
+    TYPE(lib_deriv)                          :: deriv
 
     EXTERNAL wrapper_free_libderiv
 
@@ -872,10 +874,10 @@ MODULE libint_wrapper
 
 #if defined (__UGLY_BUT_FAST)   
     REAL(dp), TARGET                        :: tmp(*)
-    POINTER(pointer,tmp)
+    POINTER(POINTER,tmp)
     EXTERNAL wrapper_build_eri_cray
 
-    CALL wrapper_build_eri_cray(n_a, n_b, n_c, n_d, lib, prim, pointer)
+    CALL wrapper_build_eri_cray(n_a, n_b, n_c, n_d, lib, prim, POINTER)
     p_work => tmp(1:a_mysize(1))
 #else
     EXTERNAL wrapper_build_eri
@@ -887,11 +889,12 @@ MODULE libint_wrapper
 !***************************************************************************
 
   SUBROUTINE get_derivs(n_d, n_c, n_b, n_a, deriv, prim, work_forces, a_mysize)
-    INTEGER , INTENT(IN)                    :: n_d, n_c, n_b, n_a
-    TYPE(lib_deriv)                         :: deriv
-    TYPE(prim_data), TARGET                 :: prim
-    REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d),12) :: work_forces
-    INTEGER                                 :: a_mysize(1)
+    INTEGER, INTENT(IN)                      :: n_d, n_c, n_b, n_a
+    TYPE(lib_deriv)                          :: deriv
+    TYPE(prim_data), TARGET                  :: prim
+    REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*&
+      nco(n_c)*nco(n_d), 12)                 :: work_forces
+    INTEGER                                  :: a_mysize(1)
 
     EXTERNAL wrapper_build_deriv1_eri
     
@@ -948,12 +951,12 @@ MODULE libint_wrapper
     INTEGER                                  :: max_am
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    LOGICAL                                  :: failure
-    INTEGER                                  :: max_am_local
-    INTEGER                                  :: max_prim
-    INTEGER                                  :: lib_storage
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libint', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: lib_storage, max_am_local, &
+                                                max_prim
+    LOGICAL                                  :: failure
 
     EXTERNAL wrapper_init_lib
   
@@ -978,12 +981,11 @@ MODULE libint_wrapper
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libderiv', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                          :: failure
-    INTEGER                          :: max_am_local
-    INTEGER                          :: lib_deriv_storage
-    INTEGER                          :: max_prim
-    INTEGER                          :: max_classes
-    
+    INTEGER                                  :: lib_deriv_storage, &
+                                                max_am_local, max_classes, &
+                                                max_prim
+    LOGICAL                                  :: failure
+
     EXTERNAL wrapper_init_deriv
 
     failure = .FALSE.
@@ -1002,7 +1004,7 @@ MODULE libint_wrapper
 !***************************************************************************
 
   SUBROUTINE terminate_libint(lib)
-    TYPE(lib_int)                    :: lib
+    TYPE(lib_int)                            :: lib
 
     EXTERNAL wrapper_free_libint
 
@@ -1011,7 +1013,7 @@ MODULE libint_wrapper
 !***************************************************************************
 
   SUBROUTINE terminate_libderiv(deriv)
-    TYPE(lib_deriv)                  :: deriv
+    TYPE(lib_deriv)                          :: deriv
 
     EXTERNAL wrapper_free_libderiv
 
@@ -1028,10 +1030,10 @@ MODULE libint_wrapper
 
 #if defined (__UGLY_BUT_FAST)   
     REAL(dp), TARGET                        :: tmp(*)
-    POINTER(pointer,tmp)
+    POINTER(POINTER,tmp)
     EXTERNAL wrapper_build_eri_cray
 
-    CALL wrapper_build_eri_cray(n_a, n_b, n_c, n_d, lib, prim, pointer)
+    CALL wrapper_build_eri_cray(n_a, n_b, n_c, n_d, lib, prim, POINTER)
     p_work => tmp(1:a_mysize(1))
 #else
     EXTERNAL wrapper_build_eri
@@ -1042,11 +1044,12 @@ MODULE libint_wrapper
 !***************************************************************************
 
   SUBROUTINE get_derivs(n_d, n_c, n_b, n_a, deriv, prim, work_forces, a_mysize)
-    INTEGER , INTENT(IN)                    :: n_d, n_c, n_b, n_a
-    TYPE(lib_deriv)                         :: deriv
-    TYPE(prim_data), TARGET                 :: prim
-    REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d),12) :: work_forces
-    INTEGER                                 :: a_mysize(1)
+    INTEGER, INTENT(IN)                      :: n_d, n_c, n_b, n_a
+    TYPE(lib_deriv)                          :: deriv
+    TYPE(prim_data), TARGET                  :: prim
+    REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*&
+      nco(n_c)*nco(n_d), 12)                 :: work_forces
+    INTEGER                                  :: a_mysize(1)
 
     EXTERNAL wrapper_build_deriv1_eri
     
@@ -1117,9 +1120,10 @@ MODULE libint_wrapper
     INTEGER                                  :: max_am
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    LOGICAL                                  :: failure
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libint', &
       routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
@@ -1137,7 +1141,8 @@ MODULE libint_wrapper
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libderiv', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                          :: failure
+    LOGICAL                                  :: failure
+
     failure = .FALSE.
     CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
                            " This compiler does not support interfacing to libint." ,error,failure)
@@ -1147,34 +1152,34 @@ MODULE libint_wrapper
 !***************************************************************************
 
   SUBROUTINE terminate_libint(lib)
-    TYPE(lib_int)                    :: lib
+    TYPE(lib_int)                            :: lib
 
   END SUBROUTINE terminate_libint
 !***************************************************************************
 
   SUBROUTINE terminate_libderiv(deriv)
-    TYPE(lib_deriv)                  :: deriv
+    TYPE(lib_deriv)                          :: deriv
 
   END SUBROUTINE terminate_libderiv
 !***************************************************************************
 
   SUBROUTINE get_eris(n_d, n_c, n_b, n_a, lib, prim, p_work, a_mysize)
-    INTEGER , INTENT(IN)                    :: n_d, n_c, n_b, n_a  
-    TYPE(lib_int)                           :: lib
-    TYPE(prim_data), TARGET                 :: prim
-    REAL(dp), DIMENSION(:), POINTER         :: p_work
-    INTEGER                                 :: a_mysize(1)
-    
+    INTEGER, INTENT(IN)                      :: n_d, n_c, n_b, n_a
+    TYPE(lib_int)                            :: lib
+    TYPE(prim_data), TARGET                  :: prim
+    REAL(dp), DIMENSION(:), POINTER          :: p_work
+    INTEGER                                  :: a_mysize(1)
 
   END SUBROUTINE get_eris
 !***************************************************************************
 
   SUBROUTINE get_derivs(n_d, n_c, n_b, n_a, deriv, prim, work_forces, a_mysize)
-    INTEGER , INTENT(IN)                    :: n_d, n_c, n_b, n_a
-    TYPE(lib_deriv)                         :: deriv
-    TYPE(prim_data), TARGET                 :: prim
-    REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d),12) :: work_forces
-    INTEGER                                 :: a_mysize(1)
+    INTEGER, INTENT(IN)                      :: n_d, n_c, n_b, n_a
+    TYPE(lib_deriv)                          :: deriv
+    TYPE(prim_data), TARGET                  :: prim
+    REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*&
+      nco(n_c)*nco(n_d), 12)                 :: work_forces
+    INTEGER                                  :: a_mysize(1)
 
   END SUBROUTINE get_derivs
 !***************************************************************************

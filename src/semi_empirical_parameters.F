@@ -5879,14 +5879,13 @@ CONTAINS
     REAL(KIND=dp)                            :: zeff
     INTEGER, INTENT(OUT)                     :: natorb
 
-    INTEGER, DIMENSION(0:nelem), PARAMETER :: norb= (/ -1, 1,  1,  4,  4,  4,&
+    INTEGER, DIMENSION(0:nelem), PARAMETER :: norb = (/ -1, 1,  1,  4,  4,  4,&
       4,  4,  4,  4,  4,  0,  4,  4,  4,  4,  4,  4,  4,0,  4,  9,  9,  9,  9,&
       9,  9,  9,  9,  9,  4,  4,  4,  4,  4,  4,  4,4,  4,  9,  9,  9,  9,  9,&
       9,  9,  9,  9,  4,  4,  4,  4,  4,  4,  4,2,  2,  8,  8,  8,  8,  8,  8,&
       8,  8,  8,  8,  8,  8,  8,  8,  9,  9,9,  9,  9,  9,  9,  9,  9,  4,  4,&
       4,  4,  4,  4, -1, -1, -1, -1,  9,-1,  9, -1, -1, -1, -1, -1, -1, -1, -1&
-      , -1, -1, -1, -1, -1, -1         /)
-    INTEGER, DIMENSION(0:nelem), PARAMETER :: zval = (/ -1, 1,  2,  1,  2,  3,  4&
+      , -1, -1, -1, -1, -1, -1         /), zval = (/ -1, 1,  2,  1,  2,  3,  4&
       ,  5,  6,  7,  8,  1,  2,  3,  4,  5,  6,  7,  8,1,  2,  3,  4,  5,  6, &
       7,  8,  9, 10, 11,  2,  3,  4,  5,  6,  7,  8,1,  2,  3,  4,  5,  6,  7,&
       8,  9, 10, 11,  2,  3,  4,  5,  6,  7,  8,1,  2,  3,  4,  5,  6,  7,  8,&
@@ -5927,6 +5926,7 @@ CONTAINS
       1.6288, 1.8273, 2.0387, 2.2547 /) , crtab3s = (/ 0.0000, 0.0000, 0.0000,&
       0.0000, 0.0000, 0.0000, 0.0000,0.0000, 0.0000, 0.0000,0.8358, 1.1025, &
       1.3724, 1.6344,1.8806, 2.1223, 2.3561, 2.5856 /)
+
     INTEGER                                  :: i, j, l, nj
     INTEGER, DIMENSION(1:4)                  :: no
     INTEGER, DIMENSION(1:4, 1:7)             :: ne
@@ -5985,6 +5985,7 @@ CONTAINS
 
     REAL(dp), DIMENSION(7), PARAMETER :: &
       xns = (/ 1.0_dp,2.0_dp,3.0_dp,3.7_dp,4.0_dp,4.2_dp,4.4_dp /)
+
     INTEGER                                  :: i, l1, l2, m, m1, m2
     REAL(dp)                                 :: s
 
@@ -6039,6 +6040,7 @@ CONTAINS
     INTEGER                                  :: iod, iop, ios, j, jmax, k, l
     INTEGER, DIMENSION(107), PARAMETER :: nspqn = (/(1,j=1,2), (2,j=1,8), (3,j&
       =1,8), (4,j=1,18), (5,j=1,18), (6,j=1,32), (0,j=1,21)/)
+
     REAL(KIND=dp) :: ad, am, aq, d1, d2, d3, dd, df, eisol, gdd1, gp2, gp2c, &
       gpp, gppc, gqq, gsp, gspc, gss, gssc, hpp, hpp1, hpp2, hsp, hsp1, hsp2, &
       hspc, p, p4, q1, q2, q3, qf, qn, qq, udd, upp, uss, zp, zs

@@ -764,9 +764,10 @@ CPSourceFileRef,&
 
   CONTAINS
     SUBROUTINE execute_job(i)
-       INTEGER :: i
+    INTEGER                                  :: i
 
-       ! change to the new working directory
+! change to the new working directory
+
        CALL m_chdir(TRIM(farming_env%Job(i)%cwd),ierr)
        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
 

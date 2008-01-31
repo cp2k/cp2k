@@ -1145,8 +1145,6 @@ CONTAINS
     INTEGER                                  :: i, imatch, imax, irank, j, k
     LOGICAL                                  :: failure
 
-
-
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
     CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,error,failure)

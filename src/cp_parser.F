@@ -303,8 +303,9 @@ END SUBROUTINE parser_retain
 FUNCTION parser_location(parser,error) RESULT(res)
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(cp_error_type), INTENT(inout)       :: error
-    CHARACTER(len=default_path_length+&
-      default_string_length)                 :: res
+    CHARACTER(len=&
+      default_path_length+default_string_length&
+      )                                      :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'parser_location', &
       routineP = moduleN//':'//routineN

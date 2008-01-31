@@ -62,56 +62,49 @@ MODULE qs_integrate_potential
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp,int_8,&
+  USE kinds,                           ONLY: dp,&
+                                             int_8,&
                                              int_size
   USE mathconstants,                   ONLY: fac
   USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_max,&
-                                             mp_shift,&
-                                             mp_sync
+  USE message_passing,                 ONLY: mp_sync
   USE orbital_pointers,                ONLY: coset,&
                                              ncoset
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
-                                             pw_pools_give_back_pws,&
-                                             pw_pools_create_pws
+                                             pw_pools_create_pws,&
+                                             pw_pools_give_back_pws
   USE pw_spline_utils,                 ONLY: pw_restrict_s3
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_copy,&
-                                             pw_transfer,&
                                              pw_p_type,&
+                                             pw_transfer,&
                                              pw_zero
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_interactions,                 ONLY: exp_radius_very_extended
-  USE qs_neighbor_list_types,          ONLY: &
-       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
-       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
-       neighbor_node_type, next
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE realspace_grid_types,            ONLY: pw2rs,&
                                              realspace_grid_p_type,&
                                              realspace_grid_type,&
-                                             rs_pw_transfer,&
-                                             rs_find_node
-  USE realspace_task_selection,        ONLY: int2pair,&
-                                             distribute_matrix
+                                             rs_pw_transfer
+  USE realspace_task_selection,        ONLY: distribute_matrix,&
+                                             int2pair
   USE sparse_matrix_types,             ONLY: &
        add_block_node, allocate_matrix, allocate_matrix_set, &
-       cp_sm_get_block_list, cp_sm_scale_and_add, deallocate_matrix, &
-       deallocate_matrix_set, get_block_node, real_matrix_p_type, &
-       real_matrix_type, replicate_matrix
+       deallocate_matrix, deallocate_matrix_set, get_block_node, &
+       real_matrix_p_type, real_matrix_type, replicate_matrix
   USE task_list_types,                 ONLY: task_list_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: get_limit
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
@@ -157,36 +150,34 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
-         "SUBROUTINE integrate_v_core_rspace (MODULE qs_integrate_potential)"
+      "SUBROUTINE integrate_v_core_rspace (MODULE qs_integrate_potential)"
 
-    INTEGER                                  :: atom_a, dir,dest, handle, iatom, &
-                                                idir, ierr, ikind, j, &
-                                                natom_of_kind, npme,tp(3)
-    INTEGER, DIMENSION(2)                    :: bo
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    INTEGER, DIMENSION(:), POINTER           :: cores
+    INTEGER                                  :: atom_a, dir, handle, iatom, &
+                                                ierr, ikind, j, &
+                                                natom_of_kind, npme, tp(3)
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     LOGICAL                                  :: use_virial
     REAL(KIND=dp)                            :: alpha_core_charge, &
-         ccore_charge, eps_rho_rspace
+                                                ccore_charge, eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra
-    REAL(KIND=dp), DIMENSION(3,3)            :: my_virial_a, my_virial_b
+    REAL(KIND=dp), DIMENSION(3, 3)           :: my_virial_a, my_virial_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab, pab
     TYPE(atomic_kind_type), DIMENSION(:), &
-         POINTER                                :: atomic_kind_set
+      POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                                :: particle_set
+      POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_force_type), DIMENSION(:), &
-         POINTER                                :: force
+      POINTER                                :: force
     TYPE(realspace_grid_type), POINTER       :: rs_v
     TYPE(virial_type), POINTER               :: virial
 
-    !   --------------------------------------------------------------------
+!   --------------------------------------------------------------------
 
     CALL timeset("integrate_v_core_rspace","I","",handle)
 
@@ -327,89 +318,81 @@ CONTAINS
 
     TYPE(pw_p_type)                          :: v_rspace
     TYPE(real_matrix_p_type), INTENT(IN), &
-         OPTIONAL                            :: p
+      OPTIONAL                               :: p
     TYPE(real_matrix_p_type), INTENT(INOUT)  :: h
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, gapw
     TYPE(real_matrix_p_type), DIMENSION(:), &
-         OPTIONAL, TARGET                    :: matrix_dv
+      OPTIONAL, TARGET                       :: matrix_dv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
-         "SUBROUTINE integrate_v_rspace (MODULE qs_integrate_potential)"
+      "SUBROUTINE integrate_v_rspace (MODULE qs_integrate_potential)"
     INTEGER, PARAMETER                       :: add_tasks = 1000, &
-         max_tasks = 3000
+                                                max_tasks = 3000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: ab, atom_a, atom_b, bcol, brow, curr_tasks, dir, dest, handle, i, ilevel, &
-         iatom, idir, igrid_level, ijatoms, ijsets, ikind, ikind_old, ilist, inode, ipgf, &
-         iset, istat, itask, ithread, jatom, jkind, jkind_old, jpgf, jset, maxco, &
-         maxsgf_set, n, na1, na2, natom, natom_pairs, nb1, nb2, &
-         ncoa, ncob, nkind, nlist, nnode, npme, nseta, nsetb, ntasks, nthread, offs_dv, &
-         sgfa, sgfb, stat, tp(3), maxset,&
-         maxpgf, iatom_old, jatom_old, iset_old, jset_old, ipgf_old, jpgf_old,&
-         iatom_new, jatom_new, iset_new, jset_new, ipgf_new, jpgf_new
+    INTEGER :: atom_a, atom_b, bcol, brow, handle, i, iatom, iatom_new, &
+      iatom_old, idir, igrid_level, ikind, ikind_old, ilevel, ipgf, ipgf_new, &
+      iset, iset_new, iset_old, istat, itask, ithread, jatom, jatom_new, &
+      jatom_old, jkind, jkind_old, jpgf, jpgf_new, jset, jset_new, jset_old, &
+      maxco, maxpgf, maxset, maxsgf_set, n, na1, na2, natom, nb1, nb2, ncoa, &
+      ncob, nkind, nseta, nsetb, ntasks, nthread, offs_dv, sgfa, sgfb, stat
+    INTEGER(kind=int_8), DIMENSION(:, :), &
+      POINTER                                :: tasks
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
-    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
-         lb_min, npgfa, npgfb, nsgfa, &
-         nsgfb, touched
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, &
-         first_sgfb
-
-    INTEGER(kind=int_8), DIMENSION(:, :),&
-         POINTER                             :: tasks
-    INTEGER, DIMENSION(:), POINTER           :: atom_pair_recv, atom_pair_send
-    LOGICAL :: failure, h_duplicated, has_dv, map_consistent, my_compute_tau, &
-         my_gapw, p_duplicated, use_virial, atom_pair_changed, new_set_pair_coming,&
-         atom_pair_done, scatter, pab_required, distributed_grids
+    INTEGER, DIMENSION(:), POINTER           :: atom_pair_recv, &
+                                                atom_pair_send, la_max, &
+                                                la_min, lb_max, lb_min, &
+                                                npgfa, npgfb, nsgfa, nsgfb
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+    LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, failure, &
+      h_duplicated, has_dv, map_consistent, my_compute_tau, my_gapw, &
+      new_set_pair_coming, p_duplicated, pab_required, scatter, use_virial
     REAL(KIND=dp)                            :: dab, eps_gvg_rspace, &
-         kind_radius_b, rab2, zetp
-    REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, rab, ra, rb, rp
-    REAL(KIND=dp), DIMENSION(3,3)            :: my_virial_a, my_virial_b
+                                                kind_radius_b, rab2, zetp
+    REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, rb
+    REAL(KIND=dp), DIMENSION(3, 3)           :: my_virial_a, my_virial_b
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dp_block, dist_ab, h_block, &
-         hab, p_block, pab, rpgfa, &
-         rpgfb, sphi_a, sphi_b, work, &
-         zeta, zetb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dist_ab, h_block, hab, &
+                                                p_block, pab, rpgfa, rpgfb, &
+                                                sphi_a, sphi_b, work, zeta, &
+                                                zetb
     REAL(KIND=dp), DIMENSION(:, :, :), &
-         POINTER                             :: habt, hadb, hdab, &
-         pabt, workt
+      POINTER                                :: habt, hadb, hdab, pabt, workt
     REAL(kind=dp), DIMENSION(:, :, :, :), &
-         POINTER                             :: hadbt, hdabt
+      POINTER                                :: hadbt, hdabt
     TYPE(atomic_kind_type), DIMENSION(:), &
-         POINTER                             :: atomic_kind_set
+      POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: dv_block
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-         POINTER                                :: rs_pools
+      POINTER                                :: rs_pools
     TYPE(cube_info_type), DIMENSION(:), &
-         POINTER                                :: cube_info
+      POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
-         DIMENSION(:), POINTER                  :: sab_orb
-    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list
-    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
+      DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                                :: particle_set
+      POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_force_type), DIMENSION(:), &
-         POINTER                                :: force
+      POINTER                                :: force
     TYPE(real_matrix_p_type), DIMENSION(:), &
-         POINTER                                :: ddv
+      POINTER                                :: ddv
     TYPE(real_matrix_type), POINTER          :: deltap, dh
     TYPE(realspace_grid_p_type), &
-         DIMENSION(:), POINTER                  :: rs_v
+      DIMENSION(:), POINTER                  :: rs_v
     TYPE(section_vals_type), POINTER         :: input, interp_section
+    TYPE(task_list_type), POINTER            :: task_list, task_list_soft
     TYPE(virial_type), POINTER               :: virial
-    TYPE(task_list_type), POINTER            :: task_list
-    TYPE(task_list_type), POINTER            :: task_list_soft
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     failure=.FALSE.
     NULLIFY(pw_env, rs_pools, tasks, dist_ab)
@@ -770,7 +753,7 @@ CONTAINS
        rb(2) = ra(2) + rab(2)
        rb(3) = ra(3) + rab(3)
        zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
-       dab=sqrt(rab2)
+       dab=SQRT(rab2)
        IF (dab.lt.0.1E0_dp .AND. dft_control%qs_control%map_paa) THEN
           igrid_level = 1
        ELSE
@@ -1040,12 +1023,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: auxbas_grid, handle, &
-                                                igrid_level, interp_kind, stat
-    LOGICAL                                  :: failure
+                                                igrid_level, interp_kind
     REAL(KIND=dp)                            :: scale
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace, &
-                                                mgrid_temp_rspace
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
 
@@ -1580,24 +1561,23 @@ CONTAINS
     END SUBROUTINE xyz_to_vab
 
     SUBROUTINE integrate_general_opt()
-      INTEGER :: index_min(3),index_max(3),i,j,k,i_index,j_index,k_index
-      REAL(KIND=dp) :: point(3),radius2,fval,hmatgrid(3,3)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: coef_ijk
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:,:) :: hmatgridp
-      INTEGER, ALLOCATABLE, DIMENSION(:,:,:) :: coef_map
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: grid_map
-      INTEGER :: offset(3),dir
-      INTEGER :: ilx,jlx,klx,ily,jly,kly,ilz,jlz,klz,lpx,lpy,lpz,lx,ly,lz,il,jl,kl,ismin,ismax
-      
-      REAL(KIND=dp) :: res,pointk(3),pointj(3),pointi(3), &
-                       rsq,a,b,c,v(3),d,exp2i,exp1i,exp0i,&
-                       dk,dj,di,dkp,djp,dip,gp(3), gridval
+    INTEGER :: dir, i, i_index, il, ilx, ily, ilz, index_max(3), &
+      index_min(3), ismax, ismin, j, j_index, jl, jlx, jly, jlz, k, k_index, &
+      kl, klx, kly, klz, lpx, lpy, lpz, lx, ly, lz, offset(3)
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: grid_map
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: coef_map
+    REAL(KIND=dp) :: a, b, c, d, di, dip, dj, djp, dk, dkp, exp0i, exp1i, &
+      exp2i, gp(3), gridval, hmatgrid(3,3), pointj(3), pointk(3), v(3)
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: coef_ijk
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: hmatgridp
 
-      ! 
-      ! transform P_{lxp,lyp,lzp} into a P_{lip,ljp,lkp} such that
-      ! sum_{lxp,lyp,lzp} P_{lxp,lyp,lzp} (x-x_p)**lxp (y-y_p)**lyp (z-z_p)**lzp =
-      ! sum_{lip,ljp,lkp} P_{lip,ljp,lkp} (i-i_p)**lip (j-j_p)**ljp (k-k_p)**lkp
-      ! 
+! 
+! transform P_{lxp,lyp,lzp} into a P_{lip,ljp,lkp} such that
+! sum_{lxp,lyp,lzp} P_{lxp,lyp,lzp} (x-x_p)**lxp (y-y_p)**lyp (z-z_p)**lzp =
+! sum_{lip,ljp,lkp} P_{lip,ljp,lkp} (i-i_p)**lip (j-j_p)**ljp (k-k_p)**lkp
+! 
+
       lp=la_max_local+lb_max_local
       ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6))
       ALLOCATE(coef_ijk(((lp+1)*(lp+2)*(lp+3))/6))
@@ -1689,7 +1669,7 @@ CONTAINS
           IF (d<0) THEN
               CYCLE
           ELSE
-              d=sqrt(d)
+              d=SQRT(d)
               ismin=CEILING((-b-d)/(2*a))
               ismax=FLOOR((-b+d)/(2*a))
           ENDIF
@@ -1698,9 +1678,9 @@ CONTAINS
           b=-zetp*b
           c=-zetp*c
           i=ismin-1
-          exp2i=exp((a*i+b)*i+c)
-          exp1i=exp(2*a*i+a+b)
-          exp0i=exp(2*a)
+          exp2i=EXP((a*i+b)*i+c)
+          exp1i=EXP(2*a*i+a+b)
+          exp0i=EXP(2*a)
 
           coef_xtt=0.0_dp
 
@@ -1804,8 +1784,9 @@ CONTAINS
     END SUBROUTINE integrate_general_opt
 
     SUBROUTINE integrate_general()
-      INTEGER :: index_min(3),index_max(3),i,j,k,ipoint(3)
-      REAL(KIND=dp) :: point(3),radius2,gridval
+    INTEGER                                  :: i, index_max(3), &
+                                                index_min(3), ipoint(3), j, k
+    REAL(KIND=dp)                            :: gridval, point(3)
 
       CALL return_cube_nonortho(cube_info,radius,index_min,index_max,rp)
 
@@ -1816,7 +1797,7 @@ CONTAINS
          ! point in real space
          point=MATMUL(cell%hmat,REAL((/i,j,k/),KIND=dp)/ng)
          ! skip if outside of the sphere
-         if (SUM((point-rp)**2)>radius**2) CYCLE
+         IF (SUM((point-rp)**2)>radius**2) CYCLE
          ! point on the grid (including pbc)
          ipoint=MODULO((/i,j,k/),ng)+1
          ! integrate on the grid
@@ -1828,10 +1809,12 @@ CONTAINS
     END SUBROUTINE integrate_general
 
     SUBROUTINE primitive_integrate(point,gridval)
-      REAL(KIND=dp) :: point(3),gridval
-       REAL(KIND=dp) :: dra(3),drb(3),myexp,drap(3),drbp(3)
+    REAL(KIND=dp)                            :: point(3), gridval
 
-       myexp=exp(-zetp*SUM((point-rp)**2))*prefactor*gridval
+    REAL(KIND=dp)                            :: dra(3), drap(3), drb(3), &
+                                                drbp(3), myexp
+
+       myexp=EXP(-zetp*SUM((point-rp)**2))*prefactor*gridval
         dra=point-ra
         drb=point-rb
         drap(1)=1.0_dp
@@ -1889,7 +1872,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE virial_update(my_virial_a,my_virial_b,rab,pab,&
                            ftza,ftzb,ax,ay,az,bx,by,bz,vab)
-    REAL(KIND=dp), DIMENSION(3,3), &
+    REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(INOUT)                          :: my_virial_a, my_virial_b
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     REAL(KIND=dp), INTENT(IN)                :: pab, ftza, ftzb
@@ -2005,7 +1988,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ax, ay, az, bx, by, bz
     REAL(KIND=dp)                            :: vab(:,:)
 
-    REAL(kind=dp)                            :: axm1, axp1, axpm0, aym1, &
+    REAL(KIND=dp)                            :: axm1, axp1, axpm0, aym1, &
                                                 ayp1, azm1, azp1, bxm1, bym1, &
                                                 bzm1
 
@@ -2051,7 +2034,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ax, ay, az, bx, by, bz
     REAL(KIND=dp)                            :: vab(:,:)
 
-    REAL(kind=dp)                            :: axm1, axp1, axpm0, aym1, &
+    REAL(KIND=dp)                            :: axm1, axp1, axpm0, aym1, &
                                                 ayp1, azm1, azp1, bxm1, bym1, &
                                                 bzm1
 

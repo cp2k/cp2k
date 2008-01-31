@@ -72,40 +72,31 @@ MODULE qs_collocate_density
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kahan_sum,                       ONLY: accurate_sum
-  USE kinds,                           ONLY: dp, int_8,&
-                                             dp_size
-  USE mathconstants,                   ONLY: pi,&
-                                             twopi, &
-                                             fac
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
+                                             int_8
+  USE mathconstants,                   ONLY: fac,&
+                                             pi,&
+                                             twopi
   USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_sum, &
-                                             mp_sync
+  USE message_passing,                 ONLY: mp_sync
   USE orbital_pointers,                ONLY: coset,&
                                              indco,&
                                              ncoset
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
-                                             pw_pool_create_pw,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_p_type,&
                                              pw_pool_type,&
-                                             pw_pools_give_back_pws,&
-                                             pw_pools_create_pws
+                                             pw_pools_create_pws,&
+                                             pw_pools_give_back_pws
   USE pw_spline_utils,                 ONLY: pw_prolongate_s3
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_copy,&
-                                             pw_integrate_function,&
-                                             pw_axpy,&
-                                             pw_transfer,&
-                                             pw_p_type,&
-                                             pw_type,&
-                                             pw_zero
+  USE pw_types,                        ONLY: &
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_axpy, &
+       pw_copy, pw_integrate_function, pw_p_type, pw_transfer, pw_type, &
+       pw_zero
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_interactions,                 ONLY: exp_radius_very_extended
@@ -116,32 +107,25 @@ MODULE qs_collocate_density
                                              prepare_adb_m_dab,&
                                              prepare_ardb_m_darb,&
                                              prepare_dadb
-  USE qs_neighbor_list_types,          ONLY: &
-       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
-       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
-       neighbor_node_type, next
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                              realspace_grid_type,&
                                              rs2pw,&
+                                             rs_find_node,&
                                              rs_grid_zero,&
-                                             rs_pw_transfer,&
-                                             rs_find_node
-  USE realspace_task_selection,        ONLY: rs_get_my_tasks,&
-                                             distribute_matrix,&
+                                             rs_pw_transfer
+  USE realspace_task_selection,        ONLY: distribute_matrix,&
                                              int2pair
-  USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             allocate_matrix,&
-                                             deallocate_matrix,&
+  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              get_block_node,&
-                                             replicate_matrix,&
-                                             real_matrix_type
+                                             real_matrix_type,&
+                                             replicate_matrix
   USE task_list_types,                 ONLY: task_list_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: get_limit
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -226,7 +210,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
@@ -238,6 +221,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(qs_rho_type), POINTER               :: rho_struct
@@ -422,13 +406,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_core', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, dest, dir, handle, &
+    INTEGER                                  :: atom_a, dest, dir, handle, i, &
                                                 iatom, ierr, ikind, ithread, &
-                                                j, natom, npme, &
-                                                nthread,i,k,n, &
-                                                tp(3)
-    INTEGER, DIMENSION(:), POINTER           :: atom_list,ub,lb
-    INTEGER, DIMENSION(:), POINTER           :: cores
+                                                j, natom, npme, nthread, tp(3)
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, cores, lb
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
@@ -436,7 +417,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_p_type)                          :: rhoc_r
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(cube_info_type)                     :: cube_info
@@ -444,16 +424,15 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: rhoc_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(realspace_grid_type), POINTER       :: rs_rho
-    TYPE(lgrid_type)                         :: lgrid
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_rho_core","I"," ",handle)
     NULLIFY(atomic_kind,cell,dft_control,pab,atomic_kind_set,particle_set,&
          atom_list,pw_env,rs_rho,auxbas_rs_pool,auxbas_pw_pool,cores)
-    NULLIFY(lgrid%r)
     ALLOCATE(pab(1,1),STAT=ierr)
     IF ( ierr /= 0 ) CALL stop_memory ( "calculate_rho_core", "pab", 1 )
 
@@ -586,79 +565,67 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
-         routine = "SUBROUTINE calculate_rho_elec (MODULE qs_collocate_density)"
+      routine = "SUBROUTINE calculate_rho_elec (MODULE qs_collocate_density)"
     INTEGER, PARAMETER                       :: add_tasks = 1000, &
-         max_tasks = 2000
+                                                max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: ab, bcol, brow, curr_tasks, dest, dir, ilevel, &
-         ga_gb_function, handle, i, iatom, igrid_level, ijatoms, ijsets, ikind, ikind_old, &
-         ilist, inode, ipgf, iset, istat, itask, ithread, j, jatom, jkind, jkind_old, jpgf, &
-         jset, k, maxco, maxsgf, maxsgf_set, n, na1, na2, natoms, natom_pairs, nb1, nb2, &
-         maxset, maxpgf, ncoa, ncob, nkind, nlist, nnode, nseta, nsetb, nthread, &
-         sgfa, sgfb, stat, tp(3), ntasks, ntasks_rep, ntasks_dist,&
-         iatom_old, jatom_old, iset_old, jset_old
-    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
-                                                lb_min, npgfa, npgfb, nsgfa, &
-                                                nsgfb, ub
-    INTEGER, DIMENSION(:), POINTER           :: atom_pair_send, atom_pair_recv
-
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, &
-                                                first_sgfb
-    INTEGER(kind=int_8), DIMENSION(:, :),&
-         POINTER                             :: tasks
-    LOGICAL                                  :: distributed_rs_grids, &
-         failure, map_consistent, &
-         my_compute_tau, my_soft, &
-         atom_pair_changed
-    REAL(KIND=dp)                            :: dab, eps_rho_rspace, &
-         kind_radius_b, rab2, scale, &
-         zetp
-    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb, rp
+    INTEGER :: bcol, brow, ga_gb_function, handle, i, iatom, iatom_old, &
+      igrid_level, ikind, ikind_old, ipgf, iset, iset_old, istat, itask, &
+      ithread, jatom, jatom_old, jkind, jkind_old, jpgf, jset, jset_old, &
+      maxco, maxpgf, maxset, maxsgf, maxsgf_set, n, na1, na2, natoms, nb1, &
+      nb2, ncoa, ncob, nkind, nseta, nsetb, ntasks, nthread, sgfa, sgfb, stat
+    INTEGER(kind=int_8), DIMENSION(:, :), &
+      POINTER                                :: tasks
+    INTEGER, DIMENSION(:), POINTER           :: atom_pair_recv, &
+                                                atom_pair_send, la_max, &
+                                                la_min, lb_max, lb_min, &
+                                                npgfa, npgfb, nsgfa, nsgfb
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+    LOGICAL :: atom_pair_changed, distributed_rs_grids, failure, &
+      map_consistent, my_compute_tau, my_soft
+    REAL(KIND=dp)                            :: eps_rho_rspace, &
+                                                kind_radius_b, rab2, scale, &
+                                                zetp
+    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block, pab, &
-         pblock, rpgfa, rpgfb, sphi_a, &
-         sphi_b, work, zeta, zetb, dist_ab
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dist_ab, p_block, pab, rpgfa, &
+                                                rpgfb, sphi_a, sphi_b, work, &
+                                                zeta, zetb
     REAL(KIND=dp), DIMENSION(:, :, :), &
-         POINTER                             :: pabt, workt
+      POINTER                                :: pabt, workt
     TYPE(atomic_kind_type), DIMENSION(:), &
-         POINTER                             :: atomic_kind_set
+      POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-         POINTER                             :: rs_pools
+      POINTER                                :: rs_pools
     TYPE(cube_info_type), DIMENSION(:), &
-         POINTER                             :: cube_info
+      POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(lgrid_type)                         :: lgrid
     TYPE(neighbor_list_set_p_type), &
-         DIMENSION(:), POINTER                  :: sab_orb
-    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list
-    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
+      DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                             :: particle_set
+      POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(real_matrix_type), POINTER          :: deltap
     TYPE(realspace_grid_p_type), &
-         DIMENSION(:), POINTER               :: rs_rho
+      DIMENSION(:), POINTER                  :: rs_rho
     TYPE(section_vals_type), POINTER         :: input, interp_section
-    TYPE(task_list_type), POINTER            :: task_list
-    TYPE(task_list_type), POINTER            :: task_list_soft
+    TYPE(task_list_type), POINTER            :: task_list, task_list_soft
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     failure=.FALSE.
-    NULLIFY(atomic_kind,cell,dft_control,orb_basis_set,sab_orb_neighbor_list,&
-         sab_orb_neighbor_node,deltap,atomic_kind_set,sab_orb,particle_set,&
-         rs_rho,pw_env,rs_pools,para_env,pblock,dist_ab,&
-         set_radius_a,set_radius_b,la_max,la_min,&
-         lb_max,lb_min,npgfa,npgfb,nsgfa,nsgfb,p_block,&
-         rpgfa,rpgfb,sphi_a,sphi_b,zeta,zetb,first_sgfa,first_sgfb,&
-         tasks,pabt,workt)
-    NULLIFY(lgrid%r)
+    NULLIFY(atomic_kind, cell, dft_control, orb_basis_set, deltap, &
+         atomic_kind_set, sab_orb, particle_set, rs_rho, pw_env, rs_pools, &
+         para_env, dist_ab, set_radius_a, set_radius_b, la_max, la_min, &
+         lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, p_block, rpgfa, rpgfb, &
+         sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb, tasks, pabt, &
+         workt)
 
     debug_count=debug_count+1
 
@@ -994,31 +961,30 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_wavefunction', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iatom, igrid_level, ipgf, iset, istat, maxco, &
-      maxsgf_set, na1, na2, nao, natom, ncoa, ncol_global, nseta, offset, &
-      sgfa, stat, group, my_pos, group_size, dir
+    INTEGER :: dir, group, group_size, handle, i, iatom, igrid_level, ipgf, &
+      iset, istat, maxco, maxsgf_set, my_pos, na1, na2, nao, natom, ncoa, &
+      ncol_global, nseta, offset, sgfa, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: where_is_the_point
+    INTEGER, DIMENSION(3)                    :: lb, location, tp, ub
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: failure, local
+    LOGICAL                                  :: failure, local, map_it_here
     REAL(KIND=dp)                            :: dab, eps_rho_rspace, rab2, &
                                                 scale, zetp
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvector
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab, sphi_a, work, zeta
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(REALSPACE_GRID_P_TYPE), &
       DIMENSION(:), POINTER                  :: rs_rho
-    LOGICAL                                  :: map_it_here
-    INTEGER, DIMENSION(:), ALLOCATABLE       :: where_is_the_point
-    INTEGER, DIMENSION(3)                    :: location, lb, ub, tp
 
     failure=.FALSE.
 
@@ -1644,22 +1610,23 @@ CONTAINS
 !
     SUBROUTINE collocate_general_opt()
 
-      INTEGER :: index_min(3),index_max(3),i,j,k,i_index,j_index,k_index
-      REAL(KIND=dp) :: point(3),radius2,fval,hmatgrid(3,3)
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: coef_ijk
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:,:) :: hmatgridp
-      INTEGER, ALLOCATABLE, DIMENSION(:,:,:) :: coef_map
-      INTEGER, ALLOCATABLE, DIMENSION(:) :: grid_map
-      INTEGER :: ilx,jlx,klx,ily,jly,kly,ilz,jlz,klz,lpx,lpy,lpz,lx,ly,lz,il,jl,kl,ismin,ismax,dir
-      INTEGER :: offset(3)
-      REAL(KIND=dp) :: res,pointk(3),pointj(3),pointi(3), &
-                       rsq,a,b,c,v(3),d,exp2i,exp1i,exp0i,&
-                       dk,dj,di,dkp,djp,dip,gp(3)
-      ! 
-      ! transform P_{lxp,lyp,lzp} into a P_{lip,ljp,lkp} such that
-      ! sum_{lxp,lyp,lzp} P_{lxp,lyp,lzp} (x-x_p)**lxp (y-y_p)**lyp (z-z_p)**lzp =
-      ! sum_{lip,ljp,lkp} P_{lip,ljp,lkp} (i-i_p)**lip (j-j_p)**ljp (k-k_p)**lkp
-      ! 
+    INTEGER :: dir, i, i_index, il, ilx, ily, ilz, index_max(3), &
+      index_min(3), ismax, ismin, j, j_index, jl, jlx, jly, jlz, k, k_index, &
+      kl, klx, kly, klz, lpx, lpy, lpz, lx, ly, lz, offset(3)
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: grid_map
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: coef_map
+    REAL(KIND=dp) :: a, b, c, d, di, dip, dj, djp, dk, dkp, exp0i, exp1i, &
+      exp2i, gp(3), hmatgrid(3,3), pointj(3), pointk(3), res, v(3)
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: coef_ijk
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: hmatgridp
+
+! 
+! transform P_{lxp,lyp,lzp} into a P_{lip,ljp,lkp} such that
+! sum_{lxp,lyp,lzp} P_{lxp,lyp,lzp} (x-x_p)**lxp (y-y_p)**lyp (z-z_p)**lzp =
+! sum_{lip,ljp,lkp} P_{lip,ljp,lkp} (i-i_p)**lip (j-j_p)**ljp (k-k_p)**lkp
+! 
+
       ALLOCATE(coef_ijk(((lp+1)*(lp+2)*(lp+3))/6))
 
       ! aux mapping array to simplify life
@@ -1801,7 +1768,7 @@ CONTAINS
           IF (d<0) THEN
               CYCLE
           ELSE
-              d=sqrt(d)
+              d=SQRT(d)
               ismin=CEILING((-b-d)/(2*a))
               ismax=FLOOR((-b+d)/(2*a))
           ENDIF
@@ -1814,9 +1781,9 @@ CONTAINS
           ! the recursion relation might have to be done
           ! from the center of the gaussian (in both directions)
           ! instead as the current implementation from an edge
-          exp2i=exp((a*i+b)*i+c)
-          exp1i=exp(2*a*i+a+b)
-          exp0i=exp(2*a)
+          exp2i=EXP((a*i+b)*i+c)
+          exp1i=EXP(2*a*i+a+b)
+          exp0i=EXP(2*a)
 
           DO i=ismin,ismax
              di=i-gp(1)
@@ -1859,10 +1826,12 @@ CONTAINS
 !
     SUBROUTINE collocate_general()
  
-      INTEGER :: index_min(3),index_max(3),i,j,k,ipoint(3)
-      REAL(KIND=dp) :: point(3),radius2,fval
+    INTEGER                                  :: i, index_max(3), &
+                                                index_min(3), ipoint(3), j, k
+    REAL(KIND=dp)                            :: point(3)
 
-      ! still hard-wired (see MODULO)
+! still hard-wired (see MODULO)
+
       CPPostcondition(ALL(rsgrid % perd==1),cp_failure_level,routineP,error,failure)
 
       CALL return_cube_nonortho(cube_info,radius,index_min,index_max,rp)
@@ -1874,7 +1843,7 @@ CONTAINS
          ! point in real space
          point=MATMUL(cell%hmat,REAL((/i,j,k/),KIND=dp)/ng)
          ! skip if outside of the sphere
-         if (SUM((point-rp)**2)>radius**2) CYCLE
+         IF (SUM((point-rp)**2)>radius**2) CYCLE
          ! point on the grid (including pbc)
          ipoint=MODULO((/i,j,k/),ng)+1
          ! add to grid
@@ -1891,10 +1860,14 @@ CONTAINS
     END SUBROUTINE collocate_general
 
     FUNCTION primitive_value(point) RESULT(res)
-       REAL(KIND=dp) :: point(3),dra(3),drb(3), res,myexp,drap(3),drbp(3)
+    REAL(KIND=dp)                            :: point(3), res
+
+    REAL(KIND=dp)                            :: dra(3), drap(3), drb(3), &
+                                                drbp(3), myexp
+
        res=0.0_dp
 
-        myexp=exp(-zetp*SUM((point-rp)**2))*prefactor
+        myexp=EXP(-zetp*SUM((point-rp)**2))*prefactor
         dra=point-ra
         drb=point-rb
         drap(1)=1.0_dp
@@ -2176,19 +2149,18 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, igrid_level, &
-                                                interp_kind, stat
+                                                interp_kind
     LOGICAL                                  :: failure
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace, &
-                                                mgrid_temp_rspace
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
-    NULLIFY(gridlevel_info,mgrid_gspace, mgrid_rspace,mgrid_temp_rspace,rs_pools,pw_pools)
+    NULLIFY(gridlevel_info, mgrid_gspace, mgrid_rspace, rs_pools, pw_pools)
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineN,error,failure)
     CALL pw_env_get(pw_env, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
 

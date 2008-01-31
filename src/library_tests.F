@@ -262,10 +262,10 @@ CONTAINS
     INTEGER                                  :: iw
     TYPE(global_environment_type), POINTER   :: globenv
 
+    INTEGER                                  :: i, ierr, j, len, ntim, siz
     CHARACTER(len=*), PARAMETER :: routineN = 'copy_test', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, j, len, ntim, siz
     REAL(KIND=dp)                            :: perf, t, tend, tstart
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ca, cb
 
@@ -335,10 +335,10 @@ CONTAINS
     INTEGER                                  :: iw
     TYPE(global_environment_type), POINTER   :: globenv
 
+    INTEGER                                  :: i, ierr, j, len, ntim, siz
     CHARACTER(len=*), PARAMETER :: routineN = 'matmul_test', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr, j, len, ntim, siz
     REAL(KIND=dp)                            :: perf, t, tend, tstart, xdum
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: ma, mb, mc
@@ -559,13 +559,13 @@ CONTAINS
     INTEGER                                  :: iw
     TYPE(global_environment_type), POINTER   :: globenv
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fft_test', &
-      routineP = moduleN//':'//routineN
-
     INTEGER                                  :: iall, ierr, it, j, len, n(3), &
                                                 ndate( 3 ) = (/ 12, 48, 96 /),&
                                                 ntim, radix_in, radix_out, &
                                                 siz, stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'fft_test', &
+      routineP = moduleN//':'//routineN
+
     COMPLEX(KIND=dp), DIMENSION(4, 4, 4)     :: zz
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: ca, cb, cc

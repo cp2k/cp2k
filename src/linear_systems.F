@@ -138,8 +138,8 @@ SUBROUTINE solve_system ( matrix, mysize, eigenvectors )
     INTEGER, INTENT(IN)                      :: mysize
     REAL(KIND=dp), INTENT(INOUT)             :: eigenvectors( :, : )
 
-    INTEGER                                  :: info, lda, ldb, nrhs
-    INTEGER                                  :: ipiv( mysize )
+    INTEGER                                  :: info, lda, ldb, nrhs, &
+                                                ipiv( mysize )
 
   lda = SIZE ( matrix, 1 )
   ldb = SIZE ( eigenvectors, 1 )

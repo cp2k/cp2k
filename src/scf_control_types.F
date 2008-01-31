@@ -396,12 +396,12 @@ CONTAINS
                                                 force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: PARAMETER, r_vals
+    LOGICAL                                  :: failure
+    INTEGER, DIMENSION(:), POINTER           :: added_mos
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_read_parameters', &
       routineP = moduleN//':'//routineN
 
-    INTEGER, DIMENSION(:), POINTER           :: added_mos
-    LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: PARAMETER, r_vals
     TYPE(section_vals_type), POINTER         :: outer_scf_section, scf_section
 
 ! -------------------------------------------------------------------------

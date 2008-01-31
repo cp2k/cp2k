@@ -1896,9 +1896,10 @@ MODULE four_center_integrals
     REAL(dp) :: bintime_start, bintime_stop, box_size(3), box_size_inv(3), &
       cartesian_estimate, center1(3), center2(3), center2_folded(3), eps_box, &
       eps_schwarz, fac, hf_fraction, Kbox, max_contraction_val, max_val1, &
-      max_val2, omega2Inv, omega_box, pbc_center(3), pmax_entry, pmax_max, &
-      R1, R2, ra(3), rb(3), Rbox, rc(3), rd(3), screen_max, symm_fac, &
-      temp(3), temp1, temp1b, temp2, temp3, temp3b
+      max_val2, my_adiabatic_rescale_factor, omega2Inv, omega_box, &
+      pbc_center(3), pmax_entry, pmax_max, R1, R2, ra(3), rb(3), Rbox, rc(3), &
+      rd(3), screen_max, symm_fac, temp(3), temp1, temp1b, temp2, temp3, &
+      temp3b
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: work_forces
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       TARGET                                 :: primitive_forces
@@ -1922,7 +1923,6 @@ MODULE four_center_integrals
     TYPE(x_hf_potential_type)                :: potential_parameter
     TYPE(x_hf_screening_type)                :: screening_parameter
     TYPE(x_hf_type), POINTER                 :: actual_x_data
-    REAL(dp)                                 :: my_adiabatic_rescale_factor
 
     CALL mp_sync(para_env%group)
     CALL timeset(routineN,"I",'',handle)
