@@ -3,46 +3,35 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/mol_kind_new_list_types [1.0] *
-!!
-!!   NAME
-!!     mol_kind_new_list_types
-!!
-!!   FUNCTION
-!!     represent a simple array based list of the given type
-!!
-!!   NOTES
-!!    ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _ 
-!!   |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
-!!   | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
-!!   | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
-!!   |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!!                                                       |___/                                        
-!!     ____ _                  ___                              _ _       _       _       
-!!    / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _ 
-!!   | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
-!!   | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
-!!    \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
-!!                                                                                  |___/ 
-!!    _____ _     _       _____ _ _      _ 
-!!   |_   _| |__ (_)___  |  ___(_) | ___| |
-!!     | | | '_ \| / __| | |_  | | |/ _ \ |
-!!     | | | | | | \__ \ |  _| | | |  __/_|
-!!     |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!!   
-!!     This is a template
-!!
-!!     **** DO NOT MODIFY THE .F FILES ****
-!!     modify the .template and .instantition instead
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief represent a simple array based list of the given type
+!> \note
+!>     ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _ 
+!>    |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
+!>    | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
+!>    | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
+!>    |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
+!>                                                        |___/                                        
+!>      ____ _                  ___                              _ _       _       _       
+!>     / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _ 
+!>    | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
+!>    | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
+!>     \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
+!>                                                                                   |___/ 
+!>     _____ _     _       _____ _ _      _ 
+!>    |_   _| |__ (_)___  |  ___(_) | ___| |
+!>      | | | '_ \| / __| | |_  | | |/ _ \ |
+!>      | | | | | | \__ \ |  _| | | |  __/_|
+!>      |_| |_| |_|_|___/ |_|   |_|_|\___(_)
+!> 
+!>      This is a template
+!> 
+!>      **** DO NOT MODIFY THE .F FILES ****
+!>      modify the .template and .instantition instead
+!> \par History
+!>      08.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE mol_kind_new_list_types
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -64,103 +53,54 @@ MODULE mol_kind_new_list_types
        mol_kind_new_list_release
        
 !***
-!****************************************************************************
 
-!!****s* mol_kind_new_list_types/mol_kind_new_list_type [1.0] *
-!!
-!!   NAME
-!!     mol_kind_new_list_type
-!!
-!!   FUNCTION
-!!     represent a list of objects
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - id_nr: identification number of this list
-!!     - ref_count: reference count (see doc/ReferenceCounting.html)
-!!     - n_el: the number of elements in the list
-!!     - owns_list: if the els are owned by this structure, and
-!!       should be deallocated by it
-!!     - list: the array of object, might be oversized,
-!!       only the fist n_el have some meaning
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [fawzi]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief represent a list of objects
+!> \param id_nr identification number of this list
+!> \param ref_count reference count (see doc/ReferenceCounting.html)
+!> \param n_el the number of elements in the list
+!> \param owns_list if the els are owned by this structure, and
+!>        should be deallocated by it
+!> \param list the array of object, might be oversized,
+!>        only the fist n_el have some meaning
+!> \par History
+!>      08.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE mol_kind_new_list_type
      INTEGER :: id_nr, ref_count, n_els
      LOGICAL :: owns_els
      TYPE(molecule_kind_type), DIMENSION(:), POINTER :: els
   END TYPE mol_kind_new_list_type
-!!***
-!****************************************************************************
 
-!!****s* mol_kind_new_list_types/mol_kind_new_list_p_type [1.0] *
-!!
-!!   NAME
-!!     mol_kind_new_list_p_type
-!!
-!!   FUNCTION
-!!     represents a pointer to a list
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - list: the pointer to the list
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [fawzi]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief represents a pointer to a list
+!> \param list the pointer to the list
+!> \par History
+!>      08.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE mol_kind_new_list_p_type
      TYPE(mol_kind_new_list_type), POINTER :: list
   END TYPE mol_kind_new_list_p_type
-!!***
-!****************************************************************************
 
 CONTAINS
 
-!!****f* mol_kind_new_list_types/mol_kind_new_list_create [1.0] *
-!!
-!!   NAME
-!!     mol_kind_new_list_create
-!!
-!!   FUNCTION
-!!     creates a list
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - list: the list to allocate and initialize
-!!     - els_ptr: the elements to store in the list (the array is only,
-!!       referenced, not copied!)
-!!     - owns_els: if the list takes the ownership of els_ptr and
-!!       will deallocate it (defaults to true)
-!!     - n_els: number of elements in the list (at least one els_ptr or
-!!       n_els should be given)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a list
+!> \param list the list to allocate and initialize
+!> \param els_ptr the elements to store in the list (the array is only,
+!>        referenced, not copied!)
+!> \param owns_els if the list takes the ownership of els_ptr and
+!>        will deallocate it (defaults to true)
+!> \param n_els number of elements in the list (at least one els_ptr or
+!>        n_els should be given)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE mol_kind_new_list_create(list, els_ptr, &
      owns_els, n_els, error)
     TYPE(mol_kind_new_list_type), OPTIONAL, &
@@ -207,31 +147,16 @@ SUBROUTINE mol_kind_new_list_create(list, els_ptr, &
      END IF
   END IF
 END SUBROUTINE mol_kind_new_list_create
-!***************************************************************************
 
-!!****f* mol_kind_new_list_types/mol_kind_new_list_retain [1.0] *
-!!
-!!   NAME
-!!     mol_kind_new_list_retain
-!!
-!!   FUNCTION
-!!     retains a list (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - list: the list to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains a list (see doc/ReferenceCounting.html)
+!> \param list the list to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE mol_kind_new_list_retain(list, error)
     TYPE(mol_kind_new_list_type), POINTER    :: list
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -249,31 +174,16 @@ SUBROUTINE mol_kind_new_list_retain(list, error)
      list%ref_count=list%ref_count+1
   END IF
 END SUBROUTINE mol_kind_new_list_retain
-!***************************************************************************
 
-!!****f* mol_kind_new_list_types/mol_kind_new_list_release [1.0] *
-!!
-!!   NAME
-!!     mol_kind_new_list_release
-!!
-!!   FUNCTION
-!!     releases a  list (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - list: the list to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases a  list (see doc/ReferenceCounting.html)
+!> \param list the list to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE mol_kind_new_list_release(list, error)
     TYPE(mol_kind_new_list_type), POINTER    :: list
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -302,7 +212,6 @@ SUBROUTINE mol_kind_new_list_release(list, error)
   END IF
   NULLIFY(list)
 END SUBROUTINE mol_kind_new_list_release
-!***************************************************************************
 
 ! template def put here so that line numbers in template and derived 
 ! files are almost the same (multi-line use change it a bit)

@@ -3,46 +3,35 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/cp_fm_pool_types [1.0] *
-!!
-!!   NAME
-!!     cp_fm_pool_types
-!!
-!!   FUNCTION
-!!     pool for for elements that are retained and released
-!!
-!!   NOTES
-!!    ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _ 
-!!   |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
-!!   | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
-!!   | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
-!!   |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!!                                                       |___/                                        
-!!     ____ _                  ___                              _ _       _       _       
-!!    / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _ 
-!!   | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
-!!   | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
-!!    \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
-!!                                                                                  |___/ 
-!!    _____ _     _       _____ _ _      _ 
-!!   |_   _| |__ (_)___  |  ___(_) | ___| |
-!!     | | | '_ \| / __| | |_  | | |/ _ \ |
-!!     | | | | | | \__ \ |  _| | | |  __/_|
-!!     |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!!   
-!!     This is a template
-!!
-!!     **** DO NOT MODIFY THE .F FILES ****
-!!     modify the .template and .instantition instead
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief pool for for elements that are retained and released
+!> \note
+!>     ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _ 
+!>    |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
+!>    | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
+!>    | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
+!>    |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
+!>                                                        |___/                                        
+!>      ____ _                  ___                              _ _       _       _       
+!>     / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _ 
+!>    | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
+!>    | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
+!>     \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
+!>                                                                                   |___/ 
+!>     _____ _     _       _____ _ _      _ 
+!>    |_   _| |__ (_)___  |  ___(_) | ___| |
+!>      | | | '_ \| / __| | |_  | | |/ _ \ |
+!>      | | | | | | \__ \ |  _| | | |  __/_|
+!>      |_| |_| |_|_|___/ |_|   |_|_|\___(_)
+!> 
+!>      This is a template
+!> 
+!>      **** DO NOT MODIFY THE .F FILES ****
+!>      modify the .template and .instantition instead
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE cp_fm_pool_types
   USE cp_fm_struct,                    ONLY: cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
@@ -81,32 +70,16 @@ MODULE cp_fm_pool_types
        fm_pools_flush_cache, fm_pools_create_fm_vect,&
        fm_pools_give_back_fm_vect
 !***
-!****************************************************************************
 
-!!****s* cp_fm_pool_types/cp_fm_pool_type [1.0] *
-!!
-!!   NAME
-!!     cp_fm_pool_type
-!!
-!!   FUNCTION
-!!     represent a pool of elements with the same structure
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - ref_count: reference count (see /cp2k/doc/ReferenceCounting.html)
-!!     - el_struct: the structure of the elements stored in this pool
-!!     - cache: linked list with the elements in the pool
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief represent a pool of elements with the same structure
+!> \param ref_count reference count (see /cp2k/doc/ReferenceCounting.html)
+!> \param el_struct the structure of the elements stored in this pool
+!> \param cache linked list with the elements in the pool
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE cp_fm_pool_type
      PRIVATE
      INTEGER :: ref_count, id_nr
@@ -114,65 +87,31 @@ MODULE cp_fm_pool_types
      
      TYPE(cp_sll_fm_type), POINTER :: cache
   END TYPE cp_fm_pool_type
-!!***
-!****************************************************************************
 
-
-!!****s* cp_fm_pool_types/cp_fm_pool_p_type [1.0] *
-!!
-!!   NAME
-!!     cp_fm_pool_p_type
-!!
-!!   FUNCTION
-!!     to create arrays of pools
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - pool: the pool
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief to create arrays of pools
+!> \param pool the pool
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE cp_fm_pool_p_type
      TYPE(cp_fm_pool_type), POINTER :: pool
   END TYPE cp_fm_pool_p_type
-!!***
-!****************************************************************************
 
 CONTAINS
 
-!!****f* cp_fm_pool_types/fm_pool_create [1.0] *
-!!
-!!   NAME
-!!     fm_pool_create
-!!
-!!   FUNCTION
-!!     creates a pool of elements
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pool: the pool to create
-!!     - el_struct: the structure of the elements that are stored in
-!!       this pool
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a pool of elements
+!> \param pool the pool to create
+!> \param el_struct the structure of the elements that are stored in
+!>        this pool
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE fm_pool_create(pool, el_struct,&
         error)
     TYPE(cp_fm_pool_type), POINTER           :: pool
@@ -199,31 +138,16 @@ CONTAINS
        
     END IF
   END SUBROUTINE fm_pool_create
-!***************************************************************************
 
-!!****f* cp_fm_pool_types/cp_fm_pool_retain [1.0] *
-!!
-!!   NAME
-!!     cp_fm_pool_retain
-!!
-!!   FUNCTION
-!!     retains the pool (see cp2k/doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pool: the pool to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the pool (see cp2k/doc/ReferenceCounting.html)
+!> \param pool the pool to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE fm_pool_retain(pool,error)
     TYPE(cp_fm_pool_type), POINTER           :: pool
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -242,31 +166,16 @@ CONTAINS
        pool%ref_count=pool%ref_count+1
     END IF
   END SUBROUTINE fm_pool_retain
-!***************************************************************************
 
-!!****f* cp_fm_pool_types/fm_pool_flush_cache [1.0] *
-!!
-!!   NAME
-!!     fm_pool_flush_cache
-!!
-!!   FUNCTION
-!!     deallocates all the cached elements
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pool: the pool to flush
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates all the cached elements
+!> \param pool the pool to flush
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE fm_pool_flush_cache(pool,error)
     TYPE(cp_fm_pool_type), POINTER           :: pool
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -291,31 +200,16 @@ CONTAINS
        CALL cp_sll_fm_dealloc(pool%cache,error=error)
     END IF
   END SUBROUTINE fm_pool_flush_cache
-!***************************************************************************
 
-!!****f* cp_fm_pool_types/cp_fm_pool_release [1.0] *
-!!
-!!   NAME
-!!     cp_fm_pool_release
-!!
-!!   FUNCTION
-!!     releases the given pool (see cp2k/doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pool: the pool to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given pool (see cp2k/doc/ReferenceCounting.html)
+!> \param pool the pool to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE fm_pool_release(pool,error)
     TYPE(cp_fm_pool_type), POINTER           :: pool
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -343,33 +237,18 @@ CONTAINS
     END IF
     NULLIFY(pool)
   END SUBROUTINE fm_pool_release
-!***************************************************************************
 
-!!****f* cp_fm_pool_types/fm_pool_create_fm [1.0] *
-!!
-!!   NAME
-!!     fm_pool_create_fm
-!!
-!!   FUNCTION
-!!     returns an element, allocating it if none is in the pool
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pool: the pool from where you get the element
-!!     - element: will contain the new element
-!!     - name: the name for the new matrix (optional)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns an element, allocating it if none is in the pool
+!> \param pool the pool from where you get the element
+!> \param element will contain the new element
+!>\param name the name for the new matrix (optional)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE fm_pool_create_fm(pool, element,&
        name, error)
     TYPE(cp_fm_pool_type), POINTER           :: pool
@@ -409,35 +288,20 @@ CONTAINS
     CPPostcondition(ASSOCIATED(element),cp_failure_level,routineP,error,failure)
     CPPostcondition(element%ref_count==1,cp_warning_level,routineP,error,failure)
   END SUBROUTINE fm_pool_create_fm
-!***************************************************************************
 
-!!****f* cp_fm_pool_types/fm_pool_create_fm_vect [1.0] *
-!!
-!!   NAME
-!!     fm_pool_create_fm_vect
-!!
-!!   FUNCTION
-!!     returns a vector of elements, allocating them, if none
-!!     is in the pool
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pool: the pool from where you get the elements
-!!     - n_elements: the number of elements in the vector
-!!     - elements: will contain the new vector
-!!     - name: the name for the new matrixes (optional)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns a vector of elements, allocating them, if none
+!>      is in the pool
+!> \param pool the pool from where you get the elements
+!> \param n_elements the number of elements in the vector
+!> \param elements will contain the new vector
+!> \param name: the name for the new matrixes (optional)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE fm_pool_create_fm_vect(pool, n_elements,&
        elements, name, error)
     TYPE(cp_fm_pool_type), POINTER           :: pool
@@ -475,34 +339,21 @@ CONTAINS
        
     END IF
   END SUBROUTINE fm_pool_create_fm_vect
-!***************************************************************************
 
-!!****f* cp_fm_pool_types/fm_pool_give_back_fm [1.0] *
-!!
-!!   NAME
-!!     fm_pool_give_back_fm
-!!
-!!   FUNCTION
-!!     returns the element to the pool
-!!
-!!   NOTES
-!!     transfers the ownership of the element to the pool
-!!     (it is as if you had called cp_fm_release)
-!!     Accept give_backs of non associated elements?
-!!
-!!   INPUTS
-!!     - pool: the pool where to cache the element
-!!     - element: the element to give back
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the element to the pool
+!> \param pool the pool where to cache the element
+!> \param element the element to give back
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      transfers the ownership of the element to the pool
+!>      (it is as if you had called cp_fm_release)
+!>      Accept give_backs of non associated elements?
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE fm_pool_give_back_fm(pool, element, error)
     TYPE(cp_fm_pool_type), POINTER           :: pool
     TYPE(cp_fm_type), POINTER                :: element
@@ -538,35 +389,22 @@ CPSourceFileRef,&
     END IF
     NULLIFY(element)
   END SUBROUTINE fm_pool_give_back_fm
-!***************************************************************************
 
-!!****f* cp_fm_pool_types/fm_pool_give_back_fm_vect [1.0] *
-!!
-!!   NAME
-!!     fm_pool_give_back_fm_vect
-!!
-!!   FUNCTION
-!!     returns the elements to the pool
-!!
-!!   NOTES
-!!     transfers the ownership of the elements to the pool
-!!     and deallocates the array of elements
-!!     (it is as if you had called cp_fm_vect_dealloc)
-!!     Accept give_backs of non associated arrays?
-!!
-!!   INPUTS
-!!     - pool: the pool where to cache the elements
-!!     - elements: the elements to give back
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the elements to the pool
+!> \param pool the pool where to cache the elements
+!> \param elements the elements to give back
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      transfers the ownership of the elements to the pool
+!>      and deallocates the array of elements
+!>      (it is as if you had called cp_fm_vect_dealloc)
+!>      Accept give_backs of non associated arrays?
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE fm_pool_give_back_fm_vect(pool, elements, error)
     TYPE(cp_fm_pool_type), POINTER           :: pool
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -597,31 +435,16 @@ CPSourceFileRef,&
     END IF
     NULLIFY(elements)
   END SUBROUTINE fm_pool_give_back_fm_vect
-!***************************************************************************
 
-!!****f* cp_fm_pool_types/fm_pool_get_el_struct [1.0] *
-!!
-!!   NAME
-!!     fm_pool_get_el_struct
-!!
-!!   FUNCTION
-!!     returns the structure of the elements in this pool
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pool: the pool you are interested in
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     05.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the structure of the elements in this pool
+!> \param pool the pool you are interested in
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      05.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 FUNCTION fm_pool_get_el_struct(pool,error) RESULT(res)
     TYPE(cp_fm_pool_type), POINTER           :: pool
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -642,34 +465,19 @@ FUNCTION fm_pool_get_el_struct(pool,error) RESULT(res)
      NULLIFY(res)
   END IF
 END FUNCTION fm_pool_get_el_struct
-!***************************************************************************
 
 !================== pools ================
 
-!!****f* cp_fm_pool_types/fm_pools_copy [1.0] *
-!!
-!!   NAME
-!!     fm_pools_copy
-!!
-!!   FUNCTION
-!!     shallow copy of an array of pools (retains each pool)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - source_pools: the pools to copy
-!!     - target_pools: will contains the new pools
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief shallow copy of an array of pools (retains each pool)
+!> \param source_pools the pools to copy
+!> \param target_pools will contains the new pools
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      11.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE fm_pools_copy(source_pools, target_pools, error)
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: source_pools, target_pools
@@ -695,31 +503,16 @@ SUBROUTINE fm_pools_copy(source_pools, target_pools, error)
      END DO
   END IF
 END SUBROUTINE fm_pools_copy
-!***************************************************************************
 
-!!****f* cp_fm_pool_types/fm_pools_dealloc [1.0] *
-!!
-!!   NAME
-!!     fm_pools_dealloc
-!!
-!!   FUNCTION
-!!     deallocate an array of pools (releasing each pool)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pools: the pools to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocate an array of pools (releasing each pool)
+!> \param pools the pools to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      11.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE fm_pools_dealloc(pools, error)
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
@@ -741,31 +534,16 @@ SUBROUTINE fm_pools_dealloc(pools, error)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF
 END SUBROUTINE fm_pools_dealloc
-!***************************************************************************
 
-!!****f* cp_fm_pool_types/fm_pools_flush_cache [1.0] *
-!!
-!!   NAME
-!!     fm_pools_flush_cache
-!!
-!!   FUNCTION
-!!     deallocates all the cached elements of an array of pools
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pools: the pools to flush
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     09.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates all the cached elements of an array of pools
+!> \param pools the pools to flush
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      09.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE fm_pools_flush_cache(pools, error)
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
@@ -786,33 +564,18 @@ SUBROUTINE fm_pools_flush_cache(pools, error)
      END DO
   END IF
 END SUBROUTINE fm_pools_flush_cache
-!***************************************************************************
 
-!!****f* cp_fm_pool_types/fm_pools_create_fm_vect [1.0] *
-!!
-!!   NAME
-!!     fm_pools_create_fm_vect
-!!
-!!   FUNCTION
-!!     Returns a vector with an element from each pool
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pools: the pools to create the elements from
-!!     - elements: will contain the vector of elements
-!!     - name: the name for the new matrixes (optional)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     09.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Returns a vector with an element from each pool
+!> \param pools the pools to create the elements from
+!> \param elements will contain the vector of elements
+!> \param name: the name for the new matrixes (optional)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      09.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE fm_pools_create_fm_vect(pools,elements,&
      name,error)
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -854,33 +617,20 @@ SUBROUTINE fm_pools_create_fm_vect(pools,elements,&
      
   END IF
 END SUBROUTINE fm_pools_create_fm_vect
-!***************************************************************************
 
-!!****f* cp_fm_pool_p_types/fm_pools_give_back_fm_vect [1.0] *
-!!
-!!   NAME
-!!     fm_pools_give_back_fm_vect
-!!
-!!   FUNCTION
-!!     returns a vector to the pools. The vector is deallocated
-!!     (like cp_fm_vect_dealloc)
-!!
-!!   NOTES
-!!     accept unassociated vect?
-!!
-!!   INPUTS
-!!     - pools: the pool where to give back the vector
-!!     - elements: the vector of elements to give back
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     09.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns a vector to the pools. The vector is deallocated
+!>      (like cp_fm_vect_dealloc)
+!> \param pools the pool where to give back the vector
+!> \param elements the vector of elements to give back
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      accept unassociated vect?
+!> \par History
+!>      09.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE fm_pools_give_back_fm_vect(pools,elements,error)
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
@@ -909,6 +659,5 @@ SUBROUTINE fm_pools_give_back_fm_vect(pools,elements,error)
   END IF
   NULLIFY(elements)
 END SUBROUTINE fm_pools_give_back_fm_vect
-!***************************************************************************
 
 END MODULE cp_fm_pool_types

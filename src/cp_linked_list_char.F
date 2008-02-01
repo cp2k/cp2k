@@ -6,53 +6,43 @@
 #define CP_SLL_C_LESS_Q(el1,el2,error) ( el1 < el2 )
 #define CP_SLL_C_EQUAL_Q(el1,el2,error) ( el1 == el2 )
 
-!!****h* cp2k/cp_linked_list_char [1.0] *
-!!
-!!   NAME
-!!     cp_linked_list_char
-!!
-!!   FUNCTION
-!!     describes a generic linked list template.
-!!     Linked list are supposed to always use pointers to the nodes for
-!!     basically everything: a pointer to the node is a list, an element of
-!!     the list, an iterator between the elment of the list.
-!!     An empty list is represented by an unassociated pointer.
-!!
-!!   NOTES
-!!    ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _ 
-!!   |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
-!!   | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
-!!   | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
-!!   |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!!                                                       |___/                                        
-!!     ____ _                  ___                              _ _       _       _       
-!!    / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _ 
-!!   | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
-!!   | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
-!!    \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
-!!                                                                                  |___/ 
-!!    _____ _     _       _____ _ _      _ 
-!!   |_   _| |__ (_)___  |  ___(_) | ___| |
-!!     | | | '_ \| / __| | |_  | | |/ _ \ |
-!!     | | | | | | \__ \ |  _| | | |  __/_|
-!!     |_| |_| |_|_|___/ |_|   |_|_|\___(_)
-!!   
-!!     This is a template
-!!
-!!     **** DO NOT MODIFY THE .F FILES ****
-!!     modify the .template and .instantition instead
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     1.2002 created
-!!     4.2002 changed most of the methods, by making access to the list 
-!!            always through pointers (identifying pointer, list and iterators)
-!!     6.2004 removed %initialized from list elements
-!!
-!!   SOURCE
-!*****************************************************************************
+
+! *****************************************************************************
+!> \brief describes a generic linked list template.
+!>      Linked list are supposed to always use pointers to the nodes for
+!>      basically everything: a pointer to the node is a list, an element of
+!>      the list, an iterator between the elment of the list.
+!>      An empty list is represented by an unassociated pointer.
+!> \note
+!>     ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _ 
+!>    |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
+!>    | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
+!>    | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
+!>    |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
+!>                                                        |___/                                        
+!>      ____ _                  ___                              _ _       _       _       
+!>     / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _ 
+!>    | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
+!>    | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
+!>     \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
+!>                                                                                   |___/ 
+!>     _____ _     _       _____ _ _      _ 
+!>    |_   _| |__ (_)___  |  ___(_) | ___| |
+!>      | | | '_ \| / __| | |_  | | |/ _ \ |
+!>      | | | | | | \__ \ |  _| | | |  __/_|
+!>      |_| |_| |_|_|___/ |_|   |_|_|\___(_)
+!> 
+!>      This is a template
+!> 
+!>      **** DO NOT MODIFY THE .F FILES ****
+!>      modify the .template and .instantition instead
+!> \par History
+!>      1.2002 created
+!>      4.2002 changed most of the methods, by making access to the list 
+!>             always through pointers (identifying pointer, list and iterators)
+!>      6.2004 removed %initialized from list elements
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE cp_linked_list_char
   USE f77_blas
   USE kinds,                           ONLY: default_string_length
@@ -168,78 +158,44 @@ MODULE cp_linked_list_char
   INTERFACE cp_to_array
      MODULE PROCEDURE cp_sll_char_to_array
   END INTERFACE
-!!***
-!****************************************************************************
 
-!!****s* cp2k/cp_sll_char_type [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_type
-!!
-!!   FUNCTION
-!!     represent a single linked list that stores pointers to the elements
-!!
-!!   NOTES
-!!     List are alway accessed through pointers, so every node of the 
-!!     linked list can be seen as a list, its first element
-!!     a pointer to the position before itself, in a very natural way:
-!!     all the insertions take place before the actual element, and 
-!!     you still can insert an element at the end.
-!!     This way I could identify nodes, lists and pointers between the
-!!     elements of the list.
-!!     Indexing is 1 based.
-!!
-!!   ATTRIBUTES
-!!     first_el: the element that is stored in this node. 
-!!     rest: the rest of the list
-!!
-!!     empty: true if the list pointer is not associated, if it points to
-!!            to a not it is always false (as there is at least the 
-!!            first_el in the list)
-!!     length: the number of elements in the list
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief represent a single linked list that stores pointers to the elements
+!> \param first_el the element that is stored in this node. 
+!> \param rest the rest of the list
+!> 
+!> \param empty true if the list pointer is not associated, if it points to
+!>             to a not it is always false (as there is at least the 
+!>             first_el in the list)
+!> \param length the number of elements in the list
+!> \note
+!>      List are alway accessed through pointers, so every node of the 
+!>      linked list can be seen as a list, its first element
+!>      a pointer to the position before itself, in a very natural way:
+!>      all the insertions take place before the actual element, and 
+!>      you still can insert an element at the end.
+!>      This way I could identify nodes, lists and pointers between the
+!>      elements of the list.
+!>      Indexing is 1 based.
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE cp_sll_char_type
      CHARACTER(len=default_string_length) :: first_el
      TYPE(cp_sll_char_type), POINTER :: rest
   END TYPE cp_sll_char_type
-!!***
-!****************************************************************************
 
-!!****s* cp2k/cp_sll_char_p_type [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_p_type
-!!
-!!   FUNCTION
-!!     pointer to a linked list (to make arrays of pointers)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     list: the pointer to the list
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief pointer to a linked list (to make arrays of pointers)
+!> \param list the pointer to the list
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE cp_sll_char_p_type
      TYPE(cp_sll_char_type), POINTER :: list
   END TYPE cp_sll_char_p_type
-!!***
-!****************************************************************************
 
 CONTAINS
 
@@ -253,31 +209,17 @@ END SUBROUTINE write_string
 
 ! =========== creation / distruction ========
 
-!!****f* cp_linked_list_char/cp_sll_char_create [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_create
-!!
-!!   FUNCTION
-!!    allocates and initializes a single linked list
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     sll: the single linked list to initialize
-!!     first_el: the first element of this list
-!!     rest: the following elements (if not given: empty)
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief allocates and initializes a single linked list
+!> \param sll the single linked list to initialize
+!> \param first_el the first element of this list
+!> \param rest the following elements (if not given: empty)
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_sll_char_create(sll,first_el,rest,error)
     TYPE(cp_sll_char_type), POINTER          :: sll
     CHARACTER(len=default_string_length), &
@@ -308,33 +250,20 @@ END SUBROUTINE write_string
     END IF
     IF (failure) NULLIFY(sll)
   END SUBROUTINE cp_sll_char_create
-!***************************************************************************
 
-!!****f* cp_linked_list_char/cp_sll_char_dealloc [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_dealloc
-!!
-!!   FUNCTION
-!!     deallocates the singly linked list starting at sll.
-!!     Does not work if loops are present!
-!!
-!!   NOTES
-!!     does not deallocate the elments that are stored in the list
-!!     check more?
-!!
-!!   INPUTS
-!!     sll: the list to be deallocated
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates the singly linked list starting at sll.
+!>      Does not work if loops are present!
+!> \param sll the list to be deallocated
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \note
+!>      does not deallocate the elments that are stored in the list
+!>      check more?
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_sll_char_dealloc(sll,error)
     TYPE(cp_sll_char_type), POINTER          :: sll
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -344,33 +273,18 @@ END SUBROUTINE write_string
 
     CALL cp_sll_char_rm_all_el(sll,error)
   END SUBROUTINE cp_sll_char_dealloc
-!***************************************************************************
 
 ! * low-level *
 
-!!****f* cp_linked_list_char/cp_sll_char_dealloc_node [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_dealloc_node
-!!
-!!   FUNCTION
-!!     deallocates a node of a singly linked list (low level)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     sll: the node to be deallocated
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates a node of a singly linked list (low level)
+!> \param sll the node to be deallocated
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_sll_char_dealloc_node(sll,error)
     TYPE(cp_sll_char_type), POINTER          :: sll
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -386,37 +300,22 @@ END SUBROUTINE write_string
     DEALLOCATE(sll, stat=stat)
     CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
   END SUBROUTINE cp_sll_char_dealloc_node
-!***************************************************************************
 
 ! ============= get/set ============
 
-!!****f* cp_linked_list_char/cp_sll_char_set [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_set
-!!
-!!   FUNCTION
-!!     sets tha various attributes of a single linked list
-!!     It is an error to set the rest of an empty list without setting 
-!!     the first_el (change and make it simply a sll=>rest ?)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     sll: the single linked list to change
-!!     first_el: the element to replace the first element of this list
-!!     rest: the rest of the list (can be unassociated)
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief sets tha various attributes of a single linked list
+!>      It is an error to set the rest of an empty list without setting 
+!>      the first_el (change and make it simply a sll=>rest ?)
+!> \param sll the single linked list to change
+!> \param first_el the element to replace the first element of this list
+!> \param rest the rest of the list (can be unassociated)
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_sll_char_set(sll,first_el,rest,error)
     TYPE(cp_sll_char_type), POINTER          :: sll
     CHARACTER(len=default_string_length), &
@@ -443,34 +342,19 @@ END SUBROUTINE write_string
        IF (PRESENT(rest)) sll%rest => rest
     END IF
   END SUBROUTINE cp_sll_char_set
-!***************************************************************************
 
-!!****f* cp_linked_list_char/cp_sll_char_get [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_get
-!!
-!!   FUNCTION
-!!     returns various attributes from the linked list
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     sll: the single linked list to change
-!!     first_el: the first element of this list (can be unassociated)
-!!     rest: the rest of the list (can be unassociated)
-!!     length: the length of the list
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns various attributes from the linked list
+!> \param sll the single linked list to change
+!> \param first_el the first element of this list (can be unassociated)
+!> \param rest the rest of the list (can be unassociated)
+!> \param length the length of the list
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_sll_char_get(sll,first_el,rest,empty,length,error)
     TYPE(cp_sll_char_type), POINTER          :: sll
     CHARACTER(len=default_string_length), &
@@ -501,31 +385,16 @@ END SUBROUTINE write_string
             length = cp_sll_char_get_length(sll,error=error)
     END IF
   END SUBROUTINE cp_sll_char_get
-!***************************************************************************
 
-!!****f* cp_linked_list_char/cp_sll_char_get_first_el [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_get_first_el
-!!
-!!   FUNCTION
-!!     returns the first element stored in the list
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     sll: the single linked list to get the element from
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the first element stored in the list
+!> \param sll the single linked list to get the element from
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+! *****************************************************************************
   FUNCTION cp_sll_char_get_first_el(sll,error) RESULT(res)
     TYPE(cp_sll_char_type), POINTER          :: sll
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -545,33 +414,20 @@ END SUBROUTINE write_string
        res = sll%first_el
     END IF
   END FUNCTION cp_sll_char_get_first_el
-!***************************************************************************
 
-!!****f* cp_linked_list_char/cp_sll_char_get_rest [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_get_rest
-!!
-!!   FUNCTION
-!!     returns the rest of the list
-!!
-!!   NOTES
-!!     split the case iter=1 to make it more optimized?
-!!
-!!   INPUTS
-!!     sll: the single linked list to get the rest from
-!!     iter: how many times the call to rest should be iterated,
-!!           defaults to 1; -1 means till end of the list.
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the rest of the list
+!> \param sll the single linked list to get the rest from
+!> \param iter how many times the call to rest should be iterated,
+!>            defaults to 1; -1 means till end of the list.
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \note
+!>      split the case iter=1 to make it more optimized?
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+! *****************************************************************************
   FUNCTION cp_sll_char_get_rest(sll, iter, error) RESULT(res)
     TYPE(cp_sll_char_type), POINTER          :: sll
     INTEGER, OPTIONAL                        :: iter
@@ -616,31 +472,15 @@ CPSourceFileRef,&
        END IF
     END IF
   END FUNCTION cp_sll_char_get_rest
-!***************************************************************************
 
-!!****f* cp_linked_list_char/cp_sll_char_get_empty [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_get_empty
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     sll: the single linked list to get the rest from
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param sll the single linked list to get the rest from
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+! *****************************************************************************
   FUNCTION cp_sll_char_get_empty(sll,error) RESULT(res)
     TYPE(cp_sll_char_type), POINTER          :: sll
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -655,31 +495,18 @@ CPSourceFileRef,&
 
     res = .NOT.ASSOCIATED(sll)
   END FUNCTION cp_sll_char_get_empty
-!***************************************************************************
 
-!!****f* cp_linked_list_char/cp_sll_char_get_length [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_get_length
-!!
-!!   FUNCTION
-!!     returns the length of the list
-!!
-!!   NOTES
-!!     slow (O(n))
-!!
-!!   INPUTS
-!!     sll: the list you want to know the length of
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the length of the list
+!> \param sll the list you want to know the length of
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \note
+!>      slow (O(n))
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+! *****************************************************************************
   FUNCTION cp_sll_char_get_length(sll,error) RESULT(res)
     TYPE(cp_sll_char_type), POINTER          :: sll
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -704,32 +531,19 @@ CPSourceFileRef,&
        END IF
     END DO
   END FUNCTION cp_sll_char_get_length
-!***************************************************************************
 
-!!****f* cp_linked_list_char/cp_sll_char_get_el_at [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_get_el_at
-!!
-!!   FUNCTION
-!!     returns the element at the given index
-!!
-!!   NOTES
-!!     slow (O(index))
-!!
-!!   INPUTS
-!!     sll: the list you get the element from
-!!     index: the position of the element (stating at 1)
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the element at the given index
+!> \param sll the list you get the element from
+!> \param index the position of the element (stating at 1)
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \note
+!>      slow (O(index))
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+! *****************************************************************************
   FUNCTION cp_sll_char_get_el_at(sll,index,error) RESULT(res)
     TYPE(cp_sll_char_type), POINTER          :: sll
     INTEGER, INTENT(in)                      :: index
@@ -757,34 +571,21 @@ CPSourceFileRef,&
        res = pos%first_el
     END IF
   END FUNCTION cp_sll_char_get_el_at
-!***************************************************************************
 
-!!****f* cp_linked_list_char/cp_sll_char_set_el_at [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_set_el_at
-!!
-!!   FUNCTION
-!!     sets the element at the given index
-!!
-!!   NOTES
-!!     slow (O(index))
-!!
-!!   INPUTS
-!!     sll: the list you get the element from
-!!     index: the position of the element (stating at 1)
-!!            -1 means at the end
-!!     value: the new element
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief sets the element at the given index
+!> \param sll the list you get the element from
+!> \param index the position of the element (stating at 1)
+!>             -1 means at the end
+!> \param value the new element
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \note
+!>      slow (O(index))
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_sll_char_set_el_at(sll,index,value,error)
     TYPE(cp_sll_char_type), POINTER          :: sll
     INTEGER, INTENT(in)                      :: index
@@ -810,35 +611,20 @@ CPSourceFileRef,&
        pos%first_el = value
     END IF
   END SUBROUTINE cp_sll_char_set_el_at
-!***************************************************************************
 
 ! * iteration *
 
-!!****f* cp_linked_list_char/cp_sll_char_next [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_next
-!!
-!!   FUNCTION
-!!     returns true if the actual element is valid (i.e. iterator ont at end)
-!!     moves the iterator to the next element
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     iterator: iterator that moves along the list
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!     el_att: the actual element (valid only if the function returns true)
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns true if the actual element is valid (i.e. iterator ont at end)
+!>      moves the iterator to the next element
+!> \param iterator iterator that moves along the list
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \param el_att the actual element (valid only if the function returns true)
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+! *****************************************************************************
   FUNCTION cp_sll_char_next(iterator,el_att,error) RESULT(res)
     TYPE(cp_sll_char_type), POINTER          :: iterator
     CHARACTER(len=default_string_length), &
@@ -861,35 +647,22 @@ CPSourceFileRef,&
        res=.FALSE.
     END IF
   END FUNCTION cp_sll_char_next
-!***************************************************************************
 
 ! ============ structure modifications ============
 
-!!****f* cp_linked_list_char/cp_sll_char_insert_el [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_insert_el
-!!
-!!   FUNCTION
-!!     insert an element at the beginning of the list
-!!
-!!   NOTES
-!!     fast (O(1))
-!!
-!!   INPUTS
-!!     sll: the single linked list point at the beginning of which 
-!!          you want to add the element
-!!     el: the element to add
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief insert an element at the beginning of the list
+!> \param sll the single linked list point at the beginning of which 
+!>           you want to add the element
+!> \param el the element to add
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \note
+!>      fast (O(1))
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_sll_char_insert_el(sll,el,error)
     TYPE(cp_sll_char_type), POINTER          :: sll
     CHARACTER(len=default_string_length), &
@@ -909,31 +682,18 @@ CPSourceFileRef,&
          rest=sll,error=error)
     sll => newSlot
   END SUBROUTINE cp_sll_char_insert_el
-!***************************************************************************
 
-!!****f* cp_linked_list_char/cp_sll_char_rm_first_el [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_rm_first_el
-!!
-!!   FUNCTION
-!!     remove the first element of the linked list
-!!
-!!   NOTES
-!!     fast (O(1))
-!!
-!!   INPUTS
-!!     sll: the list whose first element has to be removed
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief remove the first element of the linked list
+!> \param sll the list whose first element has to be removed
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \note
+!>      fast (O(1))
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_sll_char_rm_first_el(sll,error)
     TYPE(cp_sll_char_type), POINTER          :: sll
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -957,34 +717,21 @@ CPSourceFileRef,&
             error,failure)
     END IF
   END SUBROUTINE cp_sll_char_rm_first_el
-!***************************************************************************
 
-!!****f* cp_linked_list_char/cp_sll_char_insert_el_at [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_insert_el_at
-!!
-!!   FUNCTION
-!!     inserts the element at the given index
-!!
-!!   NOTES
-!!     slow (O(index))
-!!
-!!   INPUTS
-!!     sll: the list you get the element from
-!!     index: the position of the element (stating at 1). 
-!!            If it is -1, it means at end
-!!     el: the new element
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief inserts the element at the given index
+!> \param sll the list you get the element from
+!> \param index the position of the element (stating at 1). 
+!>             If it is -1, it means at end
+!> \param el the new element
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \note
+!>      slow (O(index))
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_sll_char_insert_el_at(sll,el,index,error)
     TYPE(cp_sll_char_type), POINTER          :: sll
     CHARACTER(len=default_string_length), &
@@ -1014,33 +761,20 @@ CPSourceFileRef,&
        END IF
     END IF
   END SUBROUTINE cp_sll_char_insert_el_at
-!***************************************************************************
 
-!!****f* cp_linked_list_char/cp_sll_char_rm_el_at [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_rm_el_at
-!!
-!!   FUNCTION
-!!     removes the element at the given index
-!!
-!!   NOTES
-!!     slow (O(index))
-!!
-!!   INPUTS
-!!     sll: the list you get the element from
-!!     index: the position of the element (stating at 1)
-!!     el: the new element
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief removes the element at the given index
+!> \param sll the list you get the element from
+!> \param index the position of the element (stating at 1)
+!> \param el the new element
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \note
+!>      slow (O(index))
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_sll_char_rm_el_at(sll,index,error)
     TYPE(cp_sll_char_type), POINTER          :: sll
     INTEGER, INTENT(in)                      :: index
@@ -1071,31 +805,18 @@ CPSourceFileRef,&
        END IF
     END IF
   END SUBROUTINE cp_sll_char_rm_el_at
-!***************************************************************************
 
-!!****f* cp_linked_list_char/cp_sll_char_rm_all_el [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_rm_all_el
-!!
-!!   FUNCTION
-!!     removes all the elements from the list
-!!
-!!   NOTES
-!!     check more?
-!!
-!!   INPUTS
-!!     sll: the list that should be removed
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief removes all the elements from the list
+!> \param sll the list that should be removed
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \note
+!>      check more?
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_sll_char_rm_all_el(sll,error)
     TYPE(cp_sll_char_type), POINTER          :: sll
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1117,32 +838,17 @@ CPSourceFileRef,&
     END DO
     NULLIFY(sll)
   END SUBROUTINE cp_sll_char_rm_all_el
-!***************************************************************************
 
-!!****f* cp_linked_list_char/cp_sll_char_to_array [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_to_array
-!!
-!!   FUNCTION
-!!     returns a newly allocated array with the same contents as
-!!     the linked list
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - sll: the list to trasform in array
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns a newly allocated array with the same contents as
+!>      the linked list
+!> \param sll the list to trasform in array
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      07.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 FUNCTION cp_sll_char_to_array(sll,error) RESULT(res)
     TYPE(cp_sll_char_type), POINTER          :: sll
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1171,31 +877,16 @@ FUNCTION cp_sll_char_to_array(sll,error) RESULT(res)
      END DO
   END IF
 END FUNCTION cp_sll_char_to_array
-!***************************************************************************
 
-!!****f* cp_linked_list_char/cp_sll_char_from_array [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_from_array
-!!
-!!   FUNCTION
-!!     returns a linked list with the same contents as the given array
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - array: the array you want to copy
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns a linked list with the same contents as the given array
+!> \param array the array you want to copy
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      07.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 FUNCTION cp_sll_char_from_array(array,error) RESULT(res)
     CHARACTER(len=default_string_length), &
       DIMENSION(:), INTENT(in)               :: array
@@ -1225,37 +916,22 @@ FUNCTION cp_sll_char_from_array(array,error) RESULT(res)
      last_el => last_el%rest
   END DO
 END FUNCTION cp_sll_char_from_array
-!***************************************************************************
 
-!!****f* cp_linked_list_char/cp_sll_char_insert_ordered [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_insert_ordered
-!!
-!!   FUNCTION
-!!     insert an element mantaining the order
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - sll: the list you want to insert in
-!!     - el: the element that you want to insert
-!!     - insert_equals: if equal elements should be inserted
-!!       (defaults to false)
-!!     - did_insert: true if it did insert the element
-!!     - pos: node where the element has been inserted (or of the same
-!!       element that was already in the list)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief insert an element mantaining the order
+!> \param sll the list you want to insert in
+!> \param el the element that you want to insert
+!> \param insert_equals if equal elements should be inserted
+!>        (defaults to false)
+!> \param did_insert true if it did insert the element
+!> \param pos node where the element has been inserted (or of the same
+!>        element that was already in the list)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      07.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE cp_sll_char_insert_ordered(sll,el,insert_equals,&
      did_insert,pos,error)
     TYPE(cp_sll_char_type), POINTER          :: sll
@@ -1313,43 +989,29 @@ SUBROUTINE cp_sll_char_insert_ordered(sll,el,insert_equals,&
      CPAssert(ASSOCIATED(iter),cp_failure_level,routineP,error,failure)
   END IF
 END SUBROUTINE cp_sll_char_insert_ordered
-!***************************************************************************
 
-!!****f* cp_linked_list_char/cp_sll_char_insert_ordered2 [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_insert_ordered2
-!!
-!!   FUNCTION
-!!     insert an element mantaining the order defined by a user given function
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - sll: the list you want to insert in
-!!     - el: the element that you want to insert
-!!     - compare_function: a function used to compare two elements,
-!!       it should return a negative number if the first argument is less
-!!       than the second, 0 if they are equal, otherwise a positive number
-!!     - insert_equals: if equal elements should be inserted
-!!       (defaults to false)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief insert an element mantaining the order defined by a user given function
+!> \param sll the list you want to insert in
+!> \param el the element that you want to insert
+!> \param compare_function a function used to compare two elements,
+!>        it should return a negative number if the first argument is less
+!>        than the second, 0 if they are equal, otherwise a positive number
+!> \param insert_equals if equal elements should be inserted
+!>        (defaults to false)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      07.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE cp_sll_char_insert_ordered2(sll,el,compare_function,&
      insert_equals,did_insert,pos,error)
     TYPE(cp_sll_char_type), POINTER          :: sll
     CHARACTER(len=default_string_length), &
       INTENT(in)                             :: el
   INTERFACE
+! *****************************************************************************
      FUNCTION compare_function(el1,el2)
        USE kinds, ONLY: default_string_length
        INTEGER :: compare_function
@@ -1412,34 +1074,21 @@ SUBROUTINE cp_sll_char_insert_ordered2(sll,el,compare_function,&
      CPAssert(ASSOCIATED(iter),cp_failure_level,routineP,error,failure)
   END IF
 END SUBROUTINE cp_sll_char_insert_ordered2
-!***************************************************************************
 
-!!****f* cp_linked_list_char/cp_sll_char_contains [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_contains
-!!
-!!   FUNCTION
-!!     returns true if the list contains the given element
-!!
-!!   NOTES
-!!     marginally faster if ordered (n/2 instread of n)
-!!
-!!   INPUTS
-!!     - sll: the linked list you want to control
-!!     - el: the element to control
-!!     - ordered: if true assumes that the list is ordered in growing order.
-!!       (defaults to false)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns true if the list contains the given element
+!> \param sll the linked list you want to control
+!> \param el the element to control
+!> \param ordered if true assumes that the list is ordered in growing order.
+!>        (defaults to false)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      marginally faster if ordered (n/2 instread of n)
+!> \par History
+!>      07.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 FUNCTION cp_sll_char_contains(sll,el,ordered,error) RESULT(res)
     TYPE(cp_sll_char_type), POINTER          :: sll
     CHARACTER(len=default_string_length), &
@@ -1478,43 +1127,31 @@ FUNCTION cp_sll_char_contains(sll,el,ordered,error) RESULT(res)
      END DO
   END IF
 END FUNCTION cp_sll_char_contains
-!***************************************************************************
 
-!!****f* cp_linked_list_char/cp_sll_char_contains [1.0] *
-!!
-!!   NAME
-!!     cp_sll_char_contains
-!!
-!!   FUNCTION
-!!     returns true if the list contains the given element
-!!
-!!   NOTES
-!!     marginally faster if ordered (n/2 instread of n)
-!!
-!!   INPUTS
-!!     - sll: the linked list you want to control
-!!     - el: the element to control
-!!     - compare_function: a function used to compare two elements,
-!!       it should return a negative number if the first argument is less
-!!       than the second, 0 if they are equal, otherwise a positive number
-!!     - ordered: if true assumes that the list is ordered in growing order.
-!!       (defaults to false)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns true if the list contains the given element
+!> \param sll the linked list you want to control
+!> \param el the element to control
+!> \param compare_function a function used to compare two elements,
+!>        it should return a negative number if the first argument is less
+!>        than the second, 0 if they are equal, otherwise a positive number
+!> \param ordered if true assumes that the list is ordered in growing order.
+!>        (defaults to false)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      marginally faster if ordered (n/2 instread of n)
+!> \par History
+!>      07.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 FUNCTION cp_sll_char_contains2(sll,el,compare_function,ordered,error)&
      RESULT(res)
     TYPE(cp_sll_char_type), POINTER          :: sll
     CHARACTER(len=default_string_length), &
       INTENT(in)                             :: el
   INTERFACE
+! *****************************************************************************
      FUNCTION compare_function(el1,el2)
        USE kinds, ONLY: default_string_length
        INTEGER :: compare_function
@@ -1556,7 +1193,6 @@ FUNCTION cp_sll_char_contains2(sll,el,compare_function,ordered,error)&
      END DO
   END IF
 END FUNCTION cp_sll_char_contains2
-!***************************************************************************
 
 ! template def put here so that line numbers in template and derived 
 ! files are almost the same (multi-line use change it a bit)

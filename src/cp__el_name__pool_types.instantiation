@@ -27,7 +27,7 @@
 
     'create_el-extra_args':'name,',
     'create_el-extra_args_types':'character(len=*), intent(in), optional :: name',
-    'create_el-extra_args_doc':"!!     - name: the name for the new matrix (optional)\n",
+    'create_el-extra_args_doc':"\n!>\param name the name for the new matrix (optional)",
     'create_el-reuse_commands':"",
     'create_el-create_commands':'    call cp_fm_create(element,matrix_struct=pool%el_struct,error=error)',
     'create_el-post_create_commands':"""
@@ -50,7 +50,7 @@ CPSourceFileRef,&
     'create_els-extra_args':'name,',
     'create_els-extra_args_types':
       'character(len=*),intent(in),optional :: name',
-    'create_els-extra_args_doc':"!!     - name: the name for the new matrixes (optional)\n",
+    'create_els-extra_args_doc':"\n!> \param name: the name for the new matrixes (optional)",
     'create_els-local_types':"",
     'create_els-create_el_commands':
       """IF (PRESENT(name)) THEN
