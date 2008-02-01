@@ -2,25 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/cp_fm_basic_linalg [1.0] *
-!!
-!!   NAME
-!!     cp_fm_basic_linalg
-!!
-!!   FUNCTION
-!!     basic linear algebra operations for full matrixes
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 splitted out of qs_blacs [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief basic linear algebra operations for full matrixes
+!> \par History
+!>      08.2002 splitted out of qs_blacs [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE cp_fm_basic_linalg
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent
   USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -60,33 +48,14 @@ MODULE cp_fm_basic_linalg
             cp_fm_invert,&                 ! computes the inverse and determinant 
             cp_fm_frobenius_norm           ! frobenius norm
 
-!****************************************************************************
 CONTAINS
 
-!!****f* cp2k/cp_fm_basic_linalg/cp_fm_scale_and_add *
-!!
-!!   NAME
-!!     cp_fm_scale_and_add
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_fm_scale_and_add(alpha, matrix_a, beta, matrix_b,&
-!!         error)
-!!       Implicit None
-!!       Type(cp_fm_type), Pointer:: matrix_a
-!!       Real(KIND = dp), Intent (IN):: alpha
-!!       Real(KIND = dp), Intent (IN), Optional:: beta
-!!       Type(cp_fm_type), Pointer, Optional:: matrix_b
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine cp_fm_scale_and_add
-!!
-!!   FUNCTION
-!!     calc A <- alpha*A + beta*B
-!!     optimized for alpha == 1.0 (just add beta*B) and beta == 0.0 (just
-!!     scale A)
-!!
-!!****
+! *****************************************************************************
+!> \brief calc A <- alpha*A + beta*B
+!>      optimized for alpha == 1.0 (just add beta*B) and beta == 0.0 (just
+!>      scale A)
+! *****************************************************************************
   SUBROUTINE cp_fm_scale_and_add(alpha,matrix_a,beta,matrix_b,error)
-
 
     REAL(KIND=dp), INTENT(IN)                :: alpha
     TYPE(cp_fm_type), POINTER                :: matrix_a
@@ -170,38 +139,19 @@ CPSourceFileRef,&
 
   END SUBROUTINE cp_fm_scale_and_add
 
-!!****f* cp_fm_basic_linalg/cp_fm_decompose [1.0] *
-!!
-!!   NAME
-!!     cp_fm_lu_decompose
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_fm_lu_decompose(matrix_a, almost_determinant)
-!!       Type(cp_fm_type), Pointer:: matrix_a
-!!       Real(KIND = dp), Intent (OUT):: almost_determinant
-!!     End Subroutine cp_fm_lu_decompose
-!!
-!!   FUNCTION
-!!
-!!     Computes the LU-decomposition of the matrix, and the determinant of the matrix
-!!     IMPORTANT : the sign of the determinant is not defined correctly yet ....
-!!
-!!   NOTES
-!!     - matrix_a is overwritten
-!!     - the sign of the determinant might be wrong
-!!     - SERIOUS WARNING (KNOWN BUG) : the sign of the determinant depends on ipivot
-!!     - one should be able to find out if ipivot is an even or an odd permutation...
-!!       if you need the correct sign, just add correct_sign==.TRUE. (fschiff)
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!
-!!     added correct_sign 02.07 (fschiff)
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief Computes the LU-decomposition of the matrix, and the determinant of the matrix
+!>      IMPORTANT : the sign of the determinant is not defined correctly yet ....
+!> \note
+!>      - matrix_a is overwritten
+!>      - the sign of the determinant might be wrong
+!>      - SERIOUS WARNING (KNOWN BUG) : the sign of the determinant depends on ipivot
+!>      - one should be able to find out if ipivot is an even or an odd permutation...
+!>        if you need the correct sign, just add correct_sign==.TRUE. (fschiff)
+!> \par History
+!>      added correct_sign 02.07 (fschiff)
+!> \author Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE cp_fm_lu_decompose(matrix_a,almost_determinant,correct_sign)
     TYPE(cp_fm_type), POINTER                :: matrix_a
     REAL(KIND=dp), INTENT(OUT)               :: almost_determinant
@@ -263,43 +213,18 @@ CPSourceFileRef,&
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE
 
-
-!!****f* cp_basic_linalg/cp_fm_gemm [1.0] *
-!!
-!!   NAME
-!!     cp_fm_gemm
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_fm_gemm(transa, transb, m, n, k, alpha, matrix_a,&
-!!         matrix_b, beta, matrix_c, error, b_first_col)
-!!       Type(cp_fm_type), Pointer:: matrix_a, matrix_b, matrix_c
-!!       Character(Len=1), Intent (IN):: transa, transb
-!!       Real(KIND = dp), Intent (IN):: alpha, beta
-!!       Integer, Intent (IN):: k, m, n
-!!       Integer, Optional, Intent (IN):: b_first_col
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine cp_fm_gemm
-!!
-!!   FUNCTION
-!!     computes matrix_c = beta * matrix_c + alpha * ( matrix_a  ** transa ) * ( matrix_b ** transb )
-!!
-!!   NOTES
-!!     matrix_c should have no overlap with matrix_a, matrix_b
-!!
-!!   INPUTS
-!!     matrix_a :: m x k matrix ( ! for transa = 'N')
-!!     matrix_b :: k x n matrix ( ! for transb = 'N')
-!!     matrix_c :: m x n matrix 
-!!     transa :: 'N' -> normal   'T' -> transpose
-!!     alpha,beta :: can be 0.0_dp and 1.0_dp  
-!!     b_first_col :: the k x n matrix starts at col b_first_col of matrix_b (avoid usage)
-!!
-!!   AUTHOR
-!!      Matthias Krack
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief computes matrix_c = beta * matrix_c + alpha * ( matrix_a  ** transa ) * ( matrix_b ** transb )
+!> \param matrix_a : m x k matrix ( ! for transa = 'N')
+!> \param matrix_b : k x n matrix ( ! for transb = 'N')
+!> \param matrix_c : m x n matrix 
+!> \param transa : 'N' -> normal   'T' -> transpose
+!>      alpha,beta :: can be 0.0_dp and 1.0_dp  
+!> \param b_first_col : the k x n matrix starts at col b_first_col of matrix_b (avoid usage)
+!> \note
+!>      matrix_c should have no overlap with matrix_a, matrix_b
+!> \author Matthias Krack
+! *****************************************************************************
   SUBROUTINE cp_fm_gemm(transa,transb,m,n,k,alpha,matrix_a,matrix_b,beta,&
        matrix_c,error,b_first_col,a_first_row,b_first_row,c_first_col,c_first_row)
 
@@ -382,45 +307,22 @@ CPSourceFileRef,&
 
   END SUBROUTINE cp_fm_gemm
 
-!!****f* cp_fm_basic_linalg/cp_fm_symm [1.0] *
-!!
-!!   NAME
-!!     cp_fm_symm
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_fm_symm(side, uplo, m, n, alpha, matrix_a, matrix_b,&
-!!         beta, matrix_c, error)
-!!       Type(cp_fm_type), Pointer:: matrix_a, matrix_b, matrix_c
-!!       Character(Len=1), Intent (IN):: side, uplo
-!!       Real(KIND = dp), Intent (IN):: alpha, beta
-!!       Integer, Intent (IN):: m, n
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine cp_fm_symm
-!!
-!!   FUNCTION
-!!     computes matrix_c = beta * matrix_c + alpha *  matrix_a  *  matrix_b 
-!!     computes matrix_c = beta * matrix_c + alpha *  matrix_b  *  matrix_a 
-!!     where matrix_a is symmetric
-!!
-!!   NOTES
-!!     matrix_c should have no overlap with matrix_a, matrix_b
-!!     all matrices in QS are upper triangular, so uplo should be 'U' always
-!!     matrix_a is always an m x m matrix
-!!     it is typically slower to do cp_fm_symm than cp_fm_gemm (especially in parallel easily 50 percent !)
-!!
-!!   INPUTS
-!!     matrix_a :: m x m matrix 
-!!     matrix_b :: m x n matrix 
-!!     matrix_c :: m x n matrix
-!!     side     :: 'L' -> matrix_a is on the left 'R' -> matrix_a is on the right
-!!     alpha,beta :: can be 0.0_dp and 1.0_dp
-!!
-!!   AUTHOR
-!!      Matthias Krack
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief computes matrix_c = beta * matrix_c + alpha *  matrix_a  *  matrix_b 
+!>      computes matrix_c = beta * matrix_c + alpha *  matrix_b  *  matrix_a 
+!>      where matrix_a is symmetric
+!> \param matrix_a : m x m matrix 
+!> \param matrix_b : m x n matrix 
+!> \param matrix_c : m x n matrix
+!> \param side : 'L' -> matrix_a is on the left 'R' -> matrix_a is on the right
+!>      alpha,beta :: can be 0.0_dp and 1.0_dp
+!> \note
+!>      matrix_c should have no overlap with matrix_a, matrix_b
+!>      all matrices in QS are upper triangular, so uplo should be 'U' always
+!>      matrix_a is always an m x m matrix
+!>      it is typically slower to do cp_fm_symm than cp_fm_gemm (especially in parallel easily 50 percent !)
+!> \author Matthias Krack
+! *****************************************************************************
   SUBROUTINE cp_fm_symm(side,uplo,m,n,alpha,matrix_a,matrix_b,beta,matrix_c,&
        error)
 
@@ -478,27 +380,11 @@ CPSourceFileRef,&
 
   END SUBROUTINE cp_fm_symm
 
-!!****f* cp_fm_basic_linalg/cp_fm_frobenius_norm [1.0] *
-!!
-!!   NAME
-!!     cp_fm_frobenius_norm
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     computes the Frobenius norm of matrix_a 
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!     matrix_a :: m x n matrix 
-!!
-!!   AUTHOR
-!!     VW
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief computes the Frobenius norm of matrix_a 
+!> \param matrix_a : m x n matrix 
+!> \author VW
+! *****************************************************************************
   SUBROUTINE cp_fm_frobenius_norm(matrix_a,norm,error)
     TYPE(cp_fm_type), POINTER                :: matrix_a
     REAL(KIND=dp), INTENT(inout)             :: norm
@@ -526,41 +412,17 @@ CPSourceFileRef,&
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE cp_fm_frobenius_norm
 
-!!****f* cp_fm_basic_linalg/cp_fm_syrk [1.0] *
-!!
-!!   NAME
-!!     cp_fm_syrk
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_fm_syrk(uplo, trans, k, alpha, matrix_a, ia, ja, beta,&
-!!         matrix_c, error)
-!!       Type(cp_fm_type), Pointer:: matrix_a, matrix_c
-!!       Character(Len=1), Intent (IN):: trans, uplo
-!!       Real(KIND = dp), Intent (IN):: alpha, beta
-!!       Integer, Intent (IN):: ia, ja, k
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine cp_fm_syrk
-!!
-!!   FUNCTION
-!!     performs a rank-k update of a symmetric matrix_c
-!!        matrix_c = beta * matrix_c + alpha * matrix_a * transpose ( matrix_a )
-!!
-!!   NOTES
-!!     In QS uplo should 'U' (upper part updated)
-!!
-!!   INPUTS
-!!     uplo :: 'U'   ('L')
-!!     trans :: 'N'  ('T')
-!!     k :: number of cols to use in matrix_a
-!!     ia,ja ::  1,1 (could be used for selecting subblock of a)
-!!
-!!   AUTHOR
-!!     Matthias Krack
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
-
+! *****************************************************************************
+!> \brief performs a rank-k update of a symmetric matrix_c
+!>         matrix_c = beta * matrix_c + alpha * matrix_a * transpose ( matrix_a )
+!> \param uplo : 'U'   ('L')
+!> \param trans : 'N'  ('T')
+!> \param k : number of cols to use in matrix_a
+!>      ia,ja ::  1,1 (could be used for selecting subblock of a)
+!> \note
+!>      In QS uplo should 'U' (upper part updated)
+!> \author Matthias Krack
+! *****************************************************************************
   SUBROUTINE cp_fm_syrk(uplo,trans,k,alpha,matrix_a,ia,ja,beta,matrix_c,error)
     CHARACTER(LEN=1), INTENT(IN)             :: uplo, trans
     INTEGER, INTENT(IN)                      :: k
@@ -613,32 +475,11 @@ CPSourceFileRef,&
 
   END SUBROUTINE cp_fm_syrk
 
-
-!!****f* cp_fm_basic_linalg/cp_fm_schur_product [1.0] *
-!!
-!!   NAME
-!!     cp_fm_schur_product
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_fm_schur_product(matrix_a, matrix_b, matrix_c, error)
-!!       Type(cp_fm_type), Pointer:: matrix_a, matrix_b, matrix_c
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine cp_fm_schur_product
-!!
-!!   FUNCTION
-!!     computes the schur product of two matrices
-!!      c_ij = a_ij * b_ij
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief computes the schur product of two matrices
+!>       c_ij = a_ij * b_ij
+!> \author Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE cp_fm_schur_product(matrix_a,matrix_b,matrix_c,error)
 
     TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_b, matrix_c
@@ -682,39 +523,19 @@ CPSourceFileRef,&
   END SUBROUTINE cp_fm_schur_product
 
 ! *****************************************************************************
-!!****f* cp_fm_basic_linalg/cp_fm_trace [1.0] *
-!!
-!!   NAME
-!!     cp_fm_trace
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_fm_trace(matrix_a, matrix_b, trace, error)
-!!       Type(cp_fm_type), Pointer:: matrix_a, matrix_b
-!!       Real(KIND = dp), Intent (OUT):: trace
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine cp_fm_trace
-!!
-!!   FUNCTION
-!!     returns the trace of matrix_a^T matrix_b, i.e 
-!!     sum_{i,j}(matrix_a(i,j)*matrix_b(i,j))
-!!
-!!   NOTES
-!!     note the transposition of matrix_a!
-!!
-!!   ARGUMENTS
-!!     - matrix_a: a matrix
-!!     - matrix_b: another matrix
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Matthias Krack
-!!
-!!   MODIFICATION HISTORY
-!!     11.06.2001 Creation (Matthias Krack)
-!!     12.2002 added doc [fawzi]
-!!
-!!*** *********************************************************************
+!> \brief returns the trace of matrix_a^T matrix_b, i.e 
+!>      sum_{i,j}(matrix_a(i,j)*matrix_b(i,j))
+!> \param matrix_a a matrix
+!> \param matrix_b another matrix
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      note the transposition of matrix_a!
+!> \par History
+!>      11.06.2001 Creation (Matthias Krack)
+!>      12.2002 added doc [fawzi]
+!> \author Matthias Krack
+! *****************************************************************************
   SUBROUTINE cp_fm_trace(matrix_a,matrix_b,trace,error)
 
     TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_b
@@ -759,67 +580,39 @@ CPSourceFileRef,&
   END SUBROUTINE cp_fm_trace
 
 ! *****************************************************************************
-
-
-!!****f* cp_fm_basic_linalg/cp_fm_triangular_multiply [1.0] *
-!!
-!!   NAME
-!!     cp_fm_triangular_multiply
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_fm_triangular_multiply(triangular_matrix, matrix_b,&
-!!         side, transpose_tr, invert_tr, uplo_tr, unit_diag_tr, n_rows,&
-!!         n_cols, alpha, error)
-!!       Type(cp_fm_type), Pointer:: triangular_matrix, matrix_b
-!!       Character, Intent (IN), Optional:: side, uplo_tr
-!!       Logical, Intent (IN), Optional:: transpose_tr, invert_tr,&
-!!         unit_diag_tr
-!!       Integer, Intent (IN), Optional:: n_rows, n_cols
-!!       Real(KIND = dp), Intent (IN), Optional:: alpha
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_fm_triangular_multiply
-!!
-!!   FUNCTION
-!!     multiplies in place by a triangular matrix:
-!!      matrix_b = alpha op(triangular_matrix) matrix_b
-!!     or (if side='R')
-!!      matrix_b = alpha matrix_b op(triangular_matrix)
-!!     op(triangular_matrix) is:
-!!      triangular_matrix (if transpose_tr=.false. and invert_tr=.false.)
-!!      triangular_matrix^T (if transpose_tr=.true. and invert_tr=.false.)
-!!      triangular_matrix^(-1) (if transpose_tr=.false. and invert_tr=.true.)
-!!      triangular_matrix^(-T) (if transpose_tr=.true. and invert_tr=.true.)
-!!
-!!   NOTES
-!!     needs an mpi env
-!!
-!!   INPUTS
-!!     - triangular_matrix: the triangular matrix that multiplies the other
-!!     - matrix_b: the matrix that gets multiplied and stores the result
-!!     - side: on which side of matrix_b stays op(triangular_matrix)
-!!       (defaults to 'L')
-!!     - transpose_tr: if the triangular matrix should be transposed
-!!       (defaults to false)
-!!     - invert_tr: if the triangular matrix should be inverted
-!!       (defaults to false)
-!!     - uplo_tr: if triangular_matrix is stored in the upper ('U') or
-!!       lower ('L') triangle (defaults to 'U')
-!!     - unit_diag_tr: if the diagonal elements of triangular_matrix should
-!!       be assumed to be 1 (defaults to false)
-!!     - n_rows: the number of rows of the result (defaults to 
-!!       size(matrix_b,1))
-!!     - n_cols: the number of columns of the result (defaults to
-!!       size(matrix_b,2))
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+!> \brief multiplies in place by a triangular matrix:
+!>       matrix_b = alpha op(triangular_matrix) matrix_b
+!>      or (if side='R')
+!>       matrix_b = alpha matrix_b op(triangular_matrix)
+!>      op(triangular_matrix) is:
+!>       triangular_matrix (if transpose_tr=.false. and invert_tr=.false.)
+!>       triangular_matrix^T (if transpose_tr=.true. and invert_tr=.false.)
+!>       triangular_matrix^(-1) (if transpose_tr=.false. and invert_tr=.true.)
+!>       triangular_matrix^(-T) (if transpose_tr=.true. and invert_tr=.true.)
+!> \param triangular_matrix the triangular matrix that multiplies the other
+!> \param matrix_b the matrix that gets multiplied and stores the result
+!> \param side on which side of matrix_b stays op(triangular_matrix)
+!>        (defaults to 'L')
+!> \param transpose_tr if the triangular matrix should be transposed
+!>        (defaults to false)
+!> \param invert_tr if the triangular matrix should be inverted
+!>        (defaults to false)
+!> \param uplo_tr if triangular_matrix is stored in the upper ('U') or
+!>        lower ('L') triangle (defaults to 'U')
+!> \param unit_diag_tr if the diagonal elements of triangular_matrix should
+!>        be assumed to be 1 (defaults to false)
+!> \param n_rows the number of rows of the result (defaults to 
+!>        size(matrix_b,1))
+!> \param n_cols the number of columns of the result (defaults to
+!>        size(matrix_b,2))
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      needs an mpi env
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
      transpose_tr, invert_tr, uplo_tr,unit_diag_tr, n_rows, n_cols, &
      alpha,error)
@@ -907,34 +700,12 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
   CALL timestop(0.0_dp,handle)     
   END SUBROUTINE cp_fm_triangular_multiply
 
-
-!!****f* cp_fm_basic_linalg/cp_fm_scale [1.0] *
-!!
-!!   NAME
-!!     cp_fm_scale
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_fm_scale(alpha, matrix_a, error)
-!!       Type(cp_fm_type), Pointer:: matrix_a
-!!       Real(KIND = dp), Intent (IN):: alpha
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine cp_fm_scale
-!!
-!!   FUNCTION
-!!     scales a matrix
-!!     matrix_a = alpha * matrix_b
-!!
-!!   NOTES
-!!     use cp_fm_set_all to zero (avoids problems with nan)
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
-
+! *****************************************************************************
+!> \brief scales a matrix
+!>      matrix_a = alpha * matrix_b
+!> \note
+!>      use cp_fm_set_all to zero (avoids problems with nan)
+! *****************************************************************************
   SUBROUTINE cp_fm_scale(alpha, matrix_a, error)
     REAL(KIND=dp), INTENT(IN)                :: alpha
     TYPE(cp_fm_type), POINTER                :: matrix_a
@@ -966,33 +737,13 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
   END SUBROUTINE cp_fm_scale
 
-!!****f* cp_fm_basic_linalg/cp_fm_transpose [1.0] *
-!!
-!!   NAME
-!!     cp_fm_transpose
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_fm_transpose(matrix, matrixt, error)
-!!       Type(cp_fm_type), Pointer:: matrix, matrixt
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine cp_fm_transpose
-!!
-!!   FUNCTION
-!!     transposes a matrix
-!!     matrixt = matrix ^ T
-!!
-!!   NOTES
-!!     all matrix elements are transpose (see cp_fm_upper_to_half to symmetrise a matrix)
-!!     all matrix elements are transpose (see cp_fm_upper_to_half to symmetrize a matrix)
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
-
+! *****************************************************************************
+!> \brief transposes a matrix
+!>      matrixt = matrix ^ T
+!> \note
+!>      all matrix elements are transpose (see cp_fm_upper_to_half to symmetrise a matrix)
+!>      all matrix elements are transpose (see cp_fm_upper_to_half to symmetrize a matrix)
+! *****************************************************************************
   SUBROUTINE cp_fm_transpose(matrix,matrixt,error)
     TYPE(cp_fm_type), POINTER                :: matrix, matrixt
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1027,7 +778,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     nprow=context%num_pe(1)
     npcol=context%num_pe(2)
 
-
     a => matrix%local_data
     c => matrixt%local_data
 
@@ -1046,34 +796,14 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
   END SUBROUTINE cp_fm_transpose
 
-
-!!****f* cp_fm_basic_linalg/cp_fm_upper_to_full [1.0] *
-!!
-!!   NAME
-!!     cp_fm_upper_to_full
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_fm_upper_to_full(matrix, work, error)
-!!       Type(cp_fm_type), Pointer:: matrix, work
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine cp_fm_upper_to_full
-!!
-!!   FUNCTION
-!!      given an upper triangular matrix computes the corresponding full matrix
-!!
-!!   NOTES
-!!      the lower triangular part is irrelevant
-!!
-!!   INPUTS
-!!      matrix : the upper triangular matrix
-!!      work   : a matrix of the same size as matrix
-!!
-!!   AUTHOR
-!!      Matthias Krack
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief given an upper triangular matrix computes the corresponding full matrix
+!> \param matrix the upper triangular matrix
+!> \param work a matrix of the same size as matrix
+!> \note
+!>       the lower triangular part is irrelevant
+!> \author Matthias Krack
+! *****************************************************************************
   SUBROUTINE cp_fm_upper_to_full(matrix,work,error)
 
     TYPE(cp_fm_type), POINTER          :: matrix,work
@@ -1120,7 +850,6 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     npcol=context%num_pe(2)
 
 #if defined(__SCALAPACK)
-
 
     nrow_block = matrix%matrix_struct%nrow_block
     ncol_block = matrix%matrix_struct%ncol_block
@@ -1169,34 +898,15 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
   END SUBROUTINE cp_fm_upper_to_full
 
-!!****f* cp_fm_basic_linalg/cp_fm_column_scale [1.0] *
-!!
-!!   NAME
-!!     cp_fm_column_scale
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_fm_column_scale(matrixa, scaling)
-!!       Type(cp_fm_type), Pointer:: matrixa
-!!       Real(KIND = dp), Dimension(:), Intent (IN):: scaling
-!!     End Subroutine cp_fm_column_scale
-!!
-!!   FUNCTION
-!!     scales column i of matrix a with scaling(i)
-!!
-!!   NOTES
-!!     this is very useful as a first step in the computation of C = sum_i alpha_i A_i transpose (A_i)
-!!     that is a rank-k update (cp_fm_syrk , cp_sm_plus_fm_fm_t) where every vector has a different prefactor
-!!     this procedure can be up to 20 times faster than calling cp_fm_syrk n times
-!!
-!!   INPUTS
-!!     scaling :: an array used for scaling the columns, SIZE(scaling) determines the number of columns to be scaled
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief scales column i of matrix a with scaling(i)
+!> \param scaling : an array used for scaling the columns, SIZE(scaling) determines the number of columns to be scaled
+!> \note
+!>      this is very useful as a first step in the computation of C = sum_i alpha_i A_i transpose (A_i)
+!>      that is a rank-k update (cp_fm_syrk , cp_sm_plus_fm_fm_t) where every vector has a different prefactor
+!>      this procedure can be up to 20 times faster than calling cp_fm_syrk n times
+!> \author Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE cp_fm_column_scale(matrixa,scaling)
     TYPE(cp_fm_type), POINTER                :: matrixa
     REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: scaling
@@ -1235,35 +945,15 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 #endif
   END SUBROUTINE cp_fm_column_scale
 
-
-!!****f* cp_fm_basic_linalg/cp_fm_column_scale [1.0] *
-!!
-!!   NAME
-!!     cp_fm_invert
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_fm_invert(matrixa, scaling)
-!!       Type(cp_fm_type), Pointer:: matrixa
-!!       Real(KIND = dp), Dimension(:), Intent (IN):: scaling
-!!     End Subroutine cp_fm_column_scale
-!!
-!!   FUNCTION
-!!     scales column i of matrix a with scaling(i)
-!!
-!!   NOTES
-!!     this is very useful as a first step in the computation of C = sum_i alpha_i A_i transpose (A_i)
-!!     that is a rank-k update (cp_fm_syrk , cp_sm_plus_fm_fm_t) where every vector has a different prefactor
-!!     this procedure can be up to 20 times faster than calling cp_fm_syrk n times
-!!
-!!   INPUTS
-!!     scaling :: an array used for scaling the columns, SIZE(scaling) determines the number of columns to be scaled
-!!
-!!   AUTHOR
-!!     Florian Schiffmann(02.2007)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief scales column i of matrix a with scaling(i)
+!> \param scaling : an array used for scaling the columns, SIZE(scaling) determines the number of columns to be scaled
+!> \note
+!>      this is very useful as a first step in the computation of C = sum_i alpha_i A_i transpose (A_i)
+!>      that is a rank-k update (cp_fm_syrk , cp_sm_plus_fm_fm_t) where every vector has a different prefactor
+!>      this procedure can be up to 20 times faster than calling cp_fm_syrk n times
+!> \author Florian Schiffmann(02.2007)
+! *****************************************************************************
   SUBROUTINE cp_fm_invert(matrix_a,matrix_inverse,det_a,error)
   
     TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_inverse

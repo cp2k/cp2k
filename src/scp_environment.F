@@ -2,19 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/scp_environment [1.0] *
-!!
-!!   NAME
-!!     scp_environment
-!!
-!!   FUNCTION
-!!    initialize scp environment
-!!   AUTHOR
-!!     CJM
-!!   HISTORY
-!!*****
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief initialize scp environment
+!> \author CJM
+! *****************************************************************************
 MODULE scp_environment
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
@@ -56,21 +48,10 @@ MODULE scp_environment
 CONTAINS
 
 !-----------------------------------------------------------------------------!
-!!****** scp_environment/scp_init [1.0] *
-!!
-!!   NAME
-!!     scp_init
-!!
-!!   FUNCTION
-!!   Initializes the SCP environment using the QS environment
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!****
-!!*****************************************************************************
 
+! *****************************************************************************
+!> \brief Initializes the SCP environment using the QS environment
+! *****************************************************************************
   SUBROUTINE scp_init ( scp_env, qs_env, error )
 !  SUBROUTINE scp_init ( scp_env, qs_env, fist_env, error )
 
@@ -110,7 +91,6 @@ CONTAINS
     NULLIFY ( atomic_kind_set )
     NULLIFY ( local_particles )
 
-
 !    IF ( PRESENT ( qs_env ) ) THEN
       CALL get_qs_env (qs_env, para_env = para_env, input = input, &
                        atomic_kind_set = atomic_kind_set, &
@@ -124,7 +104,6 @@ CONTAINS
     ionode = para_env%ionode
     logger => cp_error_get_logger(error)
     IF(ionode) output_unit = cp_logger_get_default_unit_nr(logger)
-
 
 !    scp_section =>  section_vals_get_subs_vals( input, "SCP", error = error )
 ! Set the input section of the SCP
@@ -162,13 +141,11 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "natom_of_kind")
 
-
     ! set the scp_env
     CALL set_scp_env ( scp_env=scp_env,&
                        energy=energy,&
                        force=force,&
                        error=error)
-
 
    !Sets up pw, grids, densities
     IF ( PRESENT ( qs_env ) )  CALL scp_qs_env_setup(scp_env,qs_env,error)
@@ -180,7 +157,5 @@ CONTAINS
 
   END SUBROUTINE scp_init
 
-!***************************************************************************
 END MODULE scp_environment
-!******************************************************************************
 

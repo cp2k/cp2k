@@ -2,26 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/paw_proj_set_types [1.0] *
-!!
-!!   NAME
-!!   paw_proj_set_types 
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     MI (08.01.2004)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
-
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author MI (08.01.2004)
+! *****************************************************************************
 MODULE paw_proj_set_types
-
-  ! *****************************************************************************
 
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
@@ -29,7 +16,6 @@ MODULE paw_proj_set_types
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE input_section_types,             ONLY: section_vals_type
-! *****************************************************************************
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: dfac,&
@@ -61,6 +47,7 @@ MODULE paw_proj_set_types
 
   ! *** Define the projectors types ***
 
+! *****************************************************************************
   TYPE paw_proj_set_type
      INTEGER                                  :: maxl,ncgauprj,nsgauprj
      INTEGER, DIMENSION(:), POINTER           :: nprj       ! 0:maxl
@@ -82,8 +69,6 @@ MODULE paw_proj_set_types
 
   END TYPE paw_proj_set_type
 
-
-
   ! *** Public subroutines ***
 
   PUBLIC ::  allocate_paw_proj_set,&
@@ -96,17 +81,12 @@ MODULE paw_proj_set_types
 
   PUBLIC ::  paw_proj_set_type
 
-  ! *****************************************************************************
-
 CONTAINS
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE allocate_paw_proj_set(paw_proj_set,error)
 
     !  Purpose: Allocate projector type for GAPW 
-
-    ! *****************************************************************************
 
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -151,13 +131,10 @@ CONTAINS
 
   END SUBROUTINE allocate_paw_proj_set
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE deallocate_paw_proj_set(paw_proj_set,error)
 
     !   Purpose: Deallocate a projector-type set data set.
-
-    !   ***************************************************************************
 
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -220,14 +197,11 @@ CONTAINS
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE deallocate_paw_proj_set
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE projectors(paw_proj,orb_basis,rc,qs_control,max_rad_local_type,&
        force_env_section,error)
 
     !   Purpose: initialize the projector-type set data set.
-
-    !   ***************************************************************************
 
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
@@ -243,8 +217,6 @@ CONTAINS
     REAL(dp)                                 :: eps_fit, eps_iso, eps_orb, &
                                                 eps_svd, max_rad_local
 
-!   ***************************************************************************
-
     eps_fit =  qs_control%gapw_control%eps_fit
     eps_iso =  qs_control%gapw_control%eps_iso
     eps_svd =  qs_control%gapw_control%eps_svd
@@ -259,14 +231,11 @@ CONTAINS
 
   END SUBROUTINE  projectors
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE build_projector(paw_proj,orb_basis,eps_fit,eps_iso,eps_svd, &
        rc,eps_orb,max_rad_local,force_env_section,error)
 
     !   Purpose: initialize the projector-type set data set.
-
-    !   ***************************************************************************
 
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
@@ -305,8 +274,6 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    !   ***************************************************************************
-
     NULLIFY (first_cgf,first_sgf,last_cgf,last_sgf,gcc,l,set_radius,set_radius2)
     NULLIFY (cphi,sphi,lmax,lmin,npgf,nshell,zet,zetp,smat,work,gcca)
 
@@ -314,7 +281,6 @@ CONTAINS
     CPPrecondition(ASSOCIATED(paw_proj),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(orb_basis),cp_failure_level,routineP,error,failure)
 
-    !   ***************************************************************************
     IF(.NOT. failure) THEN
        CALL get_gto_basis_set(gto_basis_set=orb_basis,name=bsname,&
             ncgf=ncgf,nset=nset,nsgf=nsgf,&
@@ -385,7 +351,6 @@ CONTAINS
           maxnprj = MAX(maxnprj,np)
           paw_proj%nprj(lshell) = np 
        ENDDO                  ! lshell
-
 
        !   *** Allocate exponents and coefficients ***
        ALLOCATE(paw_proj%zetprj(maxnprj,0:maxl),STAT=stat)
@@ -664,7 +629,6 @@ CONTAINS
           ms = ms + maxso
        ENDDO                ! iset
 
-
        ms = 0
        DO iset=1,orb_basis%nset
           ns = nsoset(lmax(iset))
@@ -706,7 +670,6 @@ CONTAINS
        ALLOCATE(paw_proj%sphi_h(maxco,nsgf),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        paw_proj%sphi_h = 0.0_dp
-
 
        ALLOCATE(paw_proj%local_oce_cphi_s(maxco,ncgf),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -807,8 +770,7 @@ CONTAINS
     END IF  ! failure
   END SUBROUTINE  build_projector
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE get_paw_proj_set(paw_proj_set,cprj,cprj_s,&
        first_prj,first_prjs,last_prj, & 
        local_oce_sphi_h,local_oce_sphi_s,&
@@ -816,8 +778,6 @@ CONTAINS
        rcprj,rzetprj,zisomin,zetprj)
 
     !   Purpose: Get informations about a paw projectors set.
-
-    !   ***************************************************************************
 
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
@@ -866,13 +826,10 @@ CONTAINS
 
   END SUBROUTINE get_paw_proj_set
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE set_paw_proj_set(paw_proj_set, rzetprj, rcprj)
 
     !   Purpose: Set informations about a paw projectors set.
-
-    !   ***************************************************************************
 
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
@@ -881,8 +838,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_paw_proj_set', &
       routineP = moduleN//':'//routineN
-
-!   ***************************************************************************
 
     IF (ASSOCIATED(paw_proj_set)) THEN
        IF (PRESENT(rzetprj)) paw_proj_set%rzetprj(:,0:) = rzetprj(:,0:)
@@ -893,8 +848,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE set_paw_proj_set
-  ! *****************************************************************************
 
 END MODULE paw_proj_set_types
 
-! *****************************************************************************

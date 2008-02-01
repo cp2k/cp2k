@@ -2,22 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/dgs [1.0] *
-!!
-!!   NAME
-!!     dgs
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (15-Mar-2001) : Update small grid when cell changes
-!!                         with dg_grid_change
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      JGH (15-Mar-2001) : Update small grid when cell changes
+!>                          with dg_grid_change
+! *****************************************************************************
 MODULE dgs
   USE cell_types,                      ONLY: cell_create,&
                                              cell_release,&
@@ -83,12 +73,9 @@ MODULE dgs
      MODULE PROCEDURE dg_int_patch_simple_1d, dg_int_patch_folded_1d
   END INTERFACE
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
+! *****************************************************************************
 SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
            para_env, grid_ref, rs_dims, iounit, fft_usage, error )
 
@@ -137,7 +124,7 @@ SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
   CALL cell_release(unit_box,error=error)
 END SUBROUTINE dg_pme_grid_setup
 
-!******************************************************************************
+! *****************************************************************************
 SUBROUTINE dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s,  &
                             grid_b, cutoff, error)
 
@@ -189,10 +176,9 @@ SUBROUTINE dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s,  &
   cutoff = pw_find_cutoff ( grid_b % npts, box_b%h_inv, error=error)
 
 END SUBROUTINE  dg_find_cutoff
-!******************************************************************************
 
+! *****************************************************************************
 SUBROUTINE dg_get_spacing ( npts, cutoff_radius, dr )
-
 
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
     REAL(KIND=dp), INTENT(IN)                :: cutoff_radius
@@ -204,9 +190,7 @@ SUBROUTINE dg_get_spacing ( npts, cutoff_radius, dr )
 
  END SUBROUTINE dg_get_spacing
 
-!******************************************************************************
-
-
+! *****************************************************************************
 SUBROUTINE dg_grid_change ( box_b, grid_b, grid_s, error)
     TYPE(cell_type), POINTER                 :: box_b
     TYPE(pw_grid_type), POINTER              :: grid_b, grid_s
@@ -224,10 +208,8 @@ SUBROUTINE dg_grid_change ( box_b, grid_b, grid_s, error)
   CALL cell_release(box_s,error=error)
 END SUBROUTINE dg_grid_change
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE dg_find_radix ( dr, cell_lengths, npts )
-
 
     REAL(KIND=dp), INTENT(INOUT)             :: dr( 3 )
     REAL(KIND=dp), INTENT(IN)                :: cell_lengths( 3 )
@@ -248,8 +230,7 @@ SUBROUTINE dg_find_radix ( dr, cell_lengths, npts )
 
 END SUBROUTINE dg_find_radix
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE dg_find_basis( npts, box, unit_box )
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
     TYPE(cell_type), POINTER                 :: box, unit_box
@@ -264,10 +245,9 @@ SUBROUTINE dg_find_basis( npts, box, unit_box )
 
 END SUBROUTINE dg_find_basis
 
-!******************************************************************************
-
 !! Calculation of the basis on the mesh 'box'
 
+! *****************************************************************************
 SUBROUTINE dg_set_cell (npts, unit_box, box )
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
     TYPE(cell_type), POINTER                 :: unit_box, box
@@ -282,10 +262,8 @@ SUBROUTINE dg_set_cell (npts, unit_box, box )
 
 END SUBROUTINE dg_set_cell
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE dg_find_max_cutoff ( npts, grid_b )
-
 
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
     TYPE(pw_grid_type), DIMENSION(:), &
@@ -297,8 +275,7 @@ SUBROUTINE dg_find_max_cutoff ( npts, grid_b )
 
 END SUBROUTINE dg_find_max_cutoff
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE dg_get_strucfac ( box, r, npts_s, npts_b, centre, lb, ex, ey, ez )
 
     TYPE(cell_type), INTENT(IN)              :: box
@@ -323,8 +300,7 @@ SUBROUTINE dg_get_strucfac ( box, r, npts_s, npts_b, centre, lb, ex, ey, ez )
 
 END SUBROUTINE dg_get_strucfac
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE dg_get_delta ( box, r, npts_s, npts_b, centre, delta )
 
     TYPE(cell_type), INTENT(IN)              :: box
@@ -356,10 +332,8 @@ SUBROUTINE dg_get_delta ( box, r, npts_s, npts_b, centre, delta )
 
 END SUBROUTINE dg_get_delta
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE dg_sum_patch_coef ( rs, rhos, center )
-
 
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(pw_p_type), INTENT(IN)              :: rhos
@@ -424,10 +398,9 @@ SUBROUTINE dg_sum_patch_coef ( rs, rhos, center )
   END IF
 
 END SUBROUTINE dg_sum_patch_coef
-!******************************************************************************
 
+! *****************************************************************************
 SUBROUTINE dg_sum_patch_arr ( rs, rhos, center )
-
 
     TYPE(realspace_grid_type), POINTER       :: rs
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -498,10 +471,8 @@ SUBROUTINE dg_sum_patch_arr ( rs, rhos, center )
 
 END SUBROUTINE dg_sum_patch_arr
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE dg_sum_patch_force_arr_3d ( drpot, rhos, center, force )
-
 
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: drpot
@@ -577,10 +548,8 @@ SUBROUTINE dg_sum_patch_force_arr_3d ( drpot, rhos, center, force )
 
 END SUBROUTINE dg_sum_patch_force_arr_3d
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE dg_sum_patch_force_arr_1d ( drpot, rhos, center, force )
-
 
     TYPE(realspace_grid_type), POINTER       :: drpot
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -653,10 +622,8 @@ SUBROUTINE dg_sum_patch_force_arr_1d ( drpot, rhos, center, force )
 
 END SUBROUTINE dg_sum_patch_force_arr_1d
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE dg_sum_patch_force_coef_3d ( drpot, rhos, center, force )
-
 
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: drpot
@@ -726,10 +693,8 @@ SUBROUTINE dg_sum_patch_force_coef_3d ( drpot, rhos, center, force )
 
 END SUBROUTINE dg_sum_patch_force_coef_3d
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE dg_sum_patch_force_coef_1d ( drpot, rhos, center, force )
-
 
     TYPE(realspace_grid_type), POINTER       :: drpot
     TYPE(pw_p_type), INTENT(IN)              :: rhos
@@ -796,10 +761,8 @@ SUBROUTINE dg_sum_patch_force_coef_1d ( drpot, rhos, center, force )
 
 END SUBROUTINE dg_sum_patch_force_coef_1d
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE dg_get_patch_1 ( rho0, rhos1, charge1, ex1, ey1, ez1 )
-
 
     TYPE(pw_p_type), INTENT(IN)              :: rho0
     TYPE(pw_p_type), INTENT(INOUT)           :: rhos1
@@ -856,11 +819,9 @@ SUBROUTINE dg_get_patch_1 ( rho0, rhos1, charge1, ex1, ey1, ez1 )
 
 END SUBROUTINE dg_get_patch_1
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE dg_get_patch_2 ( rho0, rhos1, rhos2, charge1, charge2, &
            ex1, ey1, ez1, ex2, ey2, ez2 )
-
 
     TYPE(pw_p_type), INTENT(IN)              :: rho0
     TYPE(pw_p_type), INTENT(INOUT)           :: rhos1, rhos2
@@ -920,10 +881,8 @@ SUBROUTINE dg_get_patch_2 ( rho0, rhos1, rhos2, charge1, charge2, &
 
 END SUBROUTINE dg_get_patch_2
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE dg_add_patch_simple ( rb, rs, ns, nc )
-
 
     REAL(KIND=dp), INTENT(INOUT)             :: rb( :, :, : )
     REAL(KIND=dp), INTENT(IN)                :: rs( :, :, : )
@@ -946,10 +905,8 @@ SUBROUTINE dg_add_patch_simple ( rb, rs, ns, nc )
 
 END SUBROUTINE dg_add_patch_simple
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE dg_add_patch_folded ( rb, rs, ns, px, py, pz )
-
 
     REAL(KIND=dp), INTENT(INOUT)             :: rb( :, :, : )
     REAL(KIND=dp), INTENT(IN)                :: rs( :, :, : )
@@ -973,10 +930,8 @@ SUBROUTINE dg_add_patch_folded ( rb, rs, ns, px, py, pz )
 
 END SUBROUTINE dg_add_patch_folded
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE dg_int_patch_simple_3d ( rbx, rby, rbz, rs, f, ns, nc )
-
 
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: rbx, rby, rbz, rs
@@ -1005,10 +960,8 @@ SUBROUTINE dg_int_patch_simple_3d ( rbx, rby, rbz, rs, f, ns, nc )
 
 END SUBROUTINE dg_int_patch_simple_3d
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE dg_int_patch_simple_1d ( rb, rs, f, ns, nc )
-
 
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: rb, rs
@@ -1035,10 +988,8 @@ SUBROUTINE dg_int_patch_simple_1d ( rb, rs, f, ns, nc )
 
 END SUBROUTINE dg_int_patch_simple_1d
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE dg_int_patch_folded_3d ( rbx, rby, rbz, rs, f, ns, px, py, pz )
-
 
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: rbx, rby, rbz, rs
@@ -1069,10 +1020,8 @@ SUBROUTINE dg_int_patch_folded_3d ( rbx, rby, rbz, rs, f, ns, px, py, pz )
 
 END SUBROUTINE dg_int_patch_folded_3d
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE dg_int_patch_folded_1d ( rb, rs, f, ns, px, py, pz )
-
 
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: rb, rs
@@ -1100,8 +1049,5 @@ SUBROUTINE dg_int_patch_folded_1d ( rb, rs, f, ns, px, py, pz )
 
 END SUBROUTINE dg_int_patch_folded_1d
 
-!******************************************************************************
-
 END MODULE dgs
 
-!******************************************************************************

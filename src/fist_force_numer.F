@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/fist_force_numer [1.0] *
-!!
-!!   NAME
-!!     fist_force_numer
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     Torsions added (DG) 05-Dec-2000
-!!     Variable names changed (DG) 05-Dec-2000
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      Torsions added (DG) 05-Dec-2000
+!>      Variable names changed (DG) 05-Dec-2000
+!> \author CJM
+! *****************************************************************************
 MODULE fist_force_numer
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -100,29 +90,14 @@ MODULE fist_force_numer
 
 ! *** Public subroutines ***
 
-
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** fist_force_numer/force_bond_numer [1.0] *
-!!
-!!   NAME
-!!     force_bond_numer
-!!
-!!   FUNCTION
-!!     Computes numerically the forces from the bonds
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Computes numerically the forces from the bonds
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE force_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
        particle_set, f_bond_numer, pot_bond, numerical_shift, cell, error)
 
@@ -196,23 +171,12 @@ CONTAINS
 
   END SUBROUTINE force_bond_numer
 
-!******************************************************************************
-!!****** fist_force_numer/force_onefour_numer [1.0] *
-!!
-!!   NAME
-!!     force_onefour_numer
-!!
-!!   FUNCTION
-!!     Computes numerically the forces from the onefours
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Computes numerically the forces from the onefours
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, &
        particle_set, f_numer, pot, numerical_shift, cell, logger, error)
 
@@ -306,24 +270,12 @@ CONTAINS
 
   END SUBROUTINE force_onefour_numer
 
-!******************************************************************************
-!!****** fist_force_numer/force_ub_numer [1.0] *
-!!
-!!   NAME
-!!     force_bond_numer
-!!
-!!   FUNCTION
-!!     Computes numerically the forces from the urey bradley
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Computes numerically the forces from the urey bradley
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE force_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
        particle_set, f_ub_numer, pot_ub, numerical_shift,cell,error)
 
@@ -396,25 +348,12 @@ CONTAINS
 
   END SUBROUTINE force_ub_numer
 
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/force_bend_numer [1.0] *
-!!
-!!   NAME
-!!     force_bend_numer
-!!
-!!   FUNCTION
-!!     Computes numerically the forces from the bends
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Computes numerically the forces from the bends
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE force_bend_numer ( molecule_set, molecule_kind_set, local_molecules, &
        particle_set, f_bend_numer, pot_bend, numerical_shift, cell, error)
 
@@ -565,25 +504,12 @@ CONTAINS
 
   END SUBROUTINE force_bend_numer
 
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/force_torsion_numer [1.0] *
-!!
-!!   NAME
-!!     force_torsion_numer
-!!
-!!   FUNCTION
-!!     Computes numerically the forces from the torsions
-!!
-!!   AUTHOR
-!!     DG
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Computes numerically the forces from the torsions
+!> \par History
+!>      none
+!> \author DG
+! *****************************************************************************
   SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, &
        particle_set, f_torsion_numer, pot_torsion, numerical_shift,cell, error )
 
@@ -789,25 +715,13 @@ CONTAINS
     f_torsion_numer = f_torsion_numer / ( 2.0_dp * numerical_shift )
 
   END SUBROUTINE force_torsion_numer
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/force_imptors_numer [1.0] *
-!!
-!!   NAME
-!!     force_imptors_numer
-!!
-!!   FUNCTION
-!!     Computes numerically the forces from the torsions
-!!
-!!   AUTHOR
-!!     DG
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Computes numerically the forces from the torsions
+!> \par History
+!>      none
+!> \author DG
+! *****************************************************************************
   SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, &
        particle_set, f_numer, pot, numerical_shift, cell, error )
 
@@ -1011,24 +925,11 @@ CONTAINS
 
   END SUBROUTINE force_imptors_numer
 
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/ewald_force_numer [1.0] *
-!!
-!!   NAME
-!!     ewald_force_numer
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE ewald_force_numer ( ewald_env, ewald_pw, cell, atomic_kind_set,&
        particle_set, local_particles, numerical_shift, f_numer, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -1108,28 +1009,14 @@ CONTAINS
 
   END SUBROUTINE ewald_force_numer
 
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/pv_bond_numer [1.0] *
-!!
-!!   NAME
-!!     pv_bond_numer
-!!
-!!   FUNCTION
-!!     Computes numerically the pressure tensor from the bonds
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Computes numerically the pressure tensor from the bonds
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE pv_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
        particle_set, cell, pv_test, delta, error )
-
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -1222,28 +1109,14 @@ CONTAINS
 
   END SUBROUTINE pv_bond_numer
 
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/pv_onefour_numer [1.0] *
-!!
-!!   NAME
-!!     pv_onefour_numer
-!!
-!!   FUNCTION
-!!     Computes numerically the pressure tensor from the onefours
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Computes numerically the pressure tensor from the onefours
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, &
        particle_set, cell, pv_test, delta, error, logger )
-
 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
@@ -1336,25 +1209,12 @@ CONTAINS
 
   END SUBROUTINE pv_onefour_numer
 
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/pv_ub_numer [1.0] *
-!!
-!!   NAME
-!!     pv_ub_numer
-!!
-!!   FUNCTION
-!!     Computes numerically the pressure tensor from the urey-bradley
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Computes numerically the pressure tensor from the urey-bradley
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE pv_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
        particle_set, cell, pv_test, delta, error )
 
@@ -1449,25 +1309,12 @@ CONTAINS
 
   END SUBROUTINE pv_ub_numer
 
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/pv_bend_numer [1.0] *
-!!
-!!   NAME
-!!     pv_bend_numer
-!!
-!!   FUNCTION
-!!     Computes numerically the pressure tensor from the bends
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Computes numerically the pressure tensor from the bends
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE pv_bend_numer ( molecule_set, molecule_kind_set, local_molecules, &
        particle_set, cell, pv_test, delta, error )
 
@@ -1555,25 +1402,12 @@ CONTAINS
 
   END SUBROUTINE pv_bend_numer
 
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/pv_torsion_numer [1.0] *
-!!
-!!   NAME
-!!     pv_torsion_numer
-!!
-!!   FUNCTION
-!!     Computes numerically the pressure tensor from the torsions
-!!
-!!   AUTHOR
-!!     DG
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Computes numerically the pressure tensor from the torsions
+!> \par History
+!>      none
+!> \author DG
+! *****************************************************************************
   SUBROUTINE pv_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, &
        particle_set, cell, pv_test, delta, error )
 
@@ -1659,25 +1493,13 @@ CONTAINS
     CALL cell_release ( cell_local ,error=error)
 
   END SUBROUTINE pv_torsion_numer
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/pv_imptors_numer [1.0] *
-!!
-!!   NAME
-!!     pv_imptors_numer
-!!
-!!   FUNCTION
-!!     Computes numerically the pressure tensor from the torsions
-!!
-!!   AUTHOR
-!!     DG
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Computes numerically the pressure tensor from the torsions
+!> \par History
+!>      none
+!> \author DG
+! *****************************************************************************
   SUBROUTINE pv_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, &
        particle_set, cell, pv_test, delta, error )
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -1711,7 +1533,6 @@ CONTAINS
     DO i = 1, natoms
        s(:,i) = MATMUL(cell_local % h_inv,particle_set(i)% r)
     END DO
-
 
     ! Defining the increments
     idelta = 1.0_dp/(2.0_dp*delta)
@@ -1764,25 +1585,12 @@ CONTAINS
 
   END SUBROUTINE pv_imptors_numer
 
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/pv_nonbond_numer [1.0] *
-!!
-!!   NAME
-!!     ptens_numer
-!!
-!!   FUNCTION
-!!     Computes the numerical pressure tensor
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Computes the numerical pressure tensor
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
        particle_set, local_particles, cell, pv_test, delta, para_env, force_env_section, error )
 
@@ -1823,7 +1631,6 @@ CONTAINS
     DO i = 1, natoms
        s(:,i) = MATMUL(cell_local % h_inv, particle_set ( i ) % r )
     END DO
-
 
     ! Defining the increments
     idelta = 1.0_dp / (2.0_dp * delta )
@@ -1893,25 +1700,12 @@ CONTAINS
 
   END SUBROUTINE pv_nonbond_numer
 
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/pv_g_numer [1.0] *
-!!
-!!   NAME
-!!     pv_g_numer
-!!
-!!   FUNCTION
-!!     Computes the numerical pressure tensor
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Computes the numerical pressure tensor
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE pv_g_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, particle_set,  &
        local_particles, delta, pv_test, error )
 
@@ -2062,23 +1856,11 @@ CONTAINS
 
   END SUBROUTINE pv_g_numer
 
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/structure_factor [1.0] *
-!!
-!!   NAME
-!!     potential_g_numer
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE structure_factor ( atomic_kind_set, particle_set, local_particles, &
        sum_igr, gauss, alpha, glocal, ngtot, group)
 
@@ -2127,24 +1909,11 @@ CONTAINS
     CALL mp_sum ( sum_igr, group )
   END SUBROUTINE structure_factor
 
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/force_g_numer [1.0] *
-!!
-!!   NAME
-!!     de_g_numer
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE force_g_numer(energy,sum_igr,gauss,r,r_delta,charge,glocal,igtot)
 
     REAL(KIND=dp), INTENT(INOUT)             :: energy
@@ -2181,24 +1950,11 @@ CONTAINS
 
   END SUBROUTINE force_g_numer
 
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/pme_force_numer [1.0] *
-!!
-!!   NAME
-!!     pme_force_numer
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE pme_force_numer ( ewald_env, ewald_pw, cell, particle_set, delta, f_part ,&
        force_env_section, use_virial, error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -2236,23 +1992,11 @@ CONTAINS
 
   END SUBROUTINE pme_force_numer
 
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/ewald_energy_numer [1.0] *
-!!
-!!   NAME
-!!     ewald_energy_numer
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE ewald_energy_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, &
        particle_set, local_particles, energy_numer, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -2294,14 +2038,12 @@ CONTAINS
     CALL structure_factor ( atomic_kind_set, particle_set, local_particles, &
          sum_igr, gauss, alpha, g, ngtot, group )
 
-
     ! computing the potential energy
     energy_numer = 0.0_dp
     DO ig = 1, ngtot
        energy_numer = energy_numer + gauss(ig)* REAL ( sum_igr ( ig ) *  &
             CONJG( sum_igr ( ig ) ),KIND=dp)
     END DO
-
 
     energy_numer = energy_numer / epsilon0 / pw_grid % vol
     DEALLOCATE (sum_igr,STAT=isos)
@@ -2311,25 +2053,12 @@ CONTAINS
 
   END SUBROUTINE ewald_energy_numer
 
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/potential_bond [1.0] *
-!!
-!!   NAME
-!!     potential_bond
-!!
-!!   FUNCTION
-!!     Computes analytically the potential from the bonds
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Computes analytically the potential from the bonds
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE potential_bond ( molecule_set, molecule_kind_set, local_molecules, &
        particle_set, energy,cell, error )
 
@@ -2380,25 +2109,13 @@ CONTAINS
     END DO MOL
 
   END SUBROUTINE potential_bond
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/potential_onefour [1.0] *
-!!
-!!   NAME
-!!     potential_onefour
-!!
-!!   FUNCTION
-!!     Computes analytically the potential from the onefours
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Computes analytically the potential from the onefours
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE potential_onefour ( molecule_set, molecule_kind_set, local_molecules, &
        particle_set, energy, cell, logger, error )
 
@@ -2464,25 +2181,12 @@ CONTAINS
 
   END SUBROUTINE potential_onefour
 
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/potential_ub [1.0] *
-!!
-!!   NAME
-!!     potential_ub
-!!
-!!   FUNCTION
-!!     Computes analytically the potential from the urey-bradley
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Computes analytically the potential from the urey-bradley
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE potential_ub ( molecule_set, molecule_kind_set, local_molecules, &
        particle_set, energy ,cell, error )
 
@@ -2534,25 +2238,12 @@ CONTAINS
 
   END SUBROUTINE potential_ub
 
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/potential_bend [1.0] *
-!!
-!!   NAME
-!!     potential_bend
-!!
-!!   FUNCTION
-!!     Computes analytically the potential from the bends
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Computes analytically the potential from the bends
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE potential_bend ( molecule_set, molecule_kind_set, local_molecules, &
        particle_set, energy, cell, error )
 
@@ -2619,25 +2310,12 @@ CONTAINS
 
   END SUBROUTINE potential_bend
 
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/potential_torsion [1.0] *
-!!
-!!   NAME
-!!     potential_torsion
-!!
-!!   FUNCTION
-!!     Computes analytically the potential from the torsions
-!!
-!!   AUTHOR
-!!     DG
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Computes analytically the potential from the torsions
+!> \par History
+!>      none
+!> \author DG
+! *****************************************************************************
   SUBROUTINE potential_torsion ( molecule_set, molecule_kind_set, local_molecules, &
        particle_set,energy,cell,error )
 
@@ -2707,25 +2385,13 @@ CONTAINS
     END DO MOL
 
   END SUBROUTINE potential_torsion
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/potential_imptors [1.0] *
-!!
-!!   NAME
-!!     potential_imptors
-!!
-!!   FUNCTION
-!!     Computes analytically the potential from the torsions
-!!
-!!   AUTHOR
-!!     DG
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Computes analytically the potential from the torsions
+!> \par History
+!>      none
+!> \author DG
+! *****************************************************************************
   SUBROUTINE potential_imptors ( molecule_set, molecule_kind_set, local_molecules, &
        particle_set,energy,cell,error )
 
@@ -2799,24 +2465,11 @@ CONTAINS
 
   END SUBROUTINE potential_imptors
 
-!!*****
-!******************************************************************************
-!!****** fist_force_numer/potential_nonbond [1.0] *
-!!
-!!   NAME
-!!     getv_ptens
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, local_particles, &
        atomic_kind_set, ewald_env, cell, vnb, error )
 
@@ -2907,8 +2560,6 @@ CONTAINS
 !   Purpose: Build all the required neighbor lists for FIST.
 
 !   History: - Creation (19.11.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -3034,11 +2685,9 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-
   END SUBROUTINE force_nonbond_numer
 
 ! *****************************************************************************
-
   SUBROUTINE force_nonbond_evaluate ( fist_nonbond_env, atomic_kind_set, local_particles, &
        particle_set, atom, ewald_env, cell, potparm, energy_numer, f_numer, numerical_shift,&
        maxatom_local, error )
@@ -3046,8 +2695,6 @@ CONTAINS
 !   Purpose: Build simple pair neighbor lists.
 
 !   History: - Creation (20.03.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -3194,8 +2841,7 @@ CONTAINS
 
   END SUBROUTINE force_nonbond_evaluate
 
-!******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE finite_difference_evaluate ( ewald_env, potparm, rab, ikind, jkind,&
        atom_a, atom_b, qi, qj, numerical_shift, f_numer, energy_numer, error )
 
@@ -3252,8 +2898,7 @@ CONTAINS
 
   END SUBROUTINE finite_difference_evaluate
 
-!******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE fi_di_ev_many(fist_nonbond_env,particle_set,local_particles,atomic_kind_set,cell,&
        numerical_shift,f_numer,error)
 
@@ -3306,10 +2951,5 @@ CONTAINS
 
   END SUBROUTINE fi_di_ev_many
 
-
-!!*****
-!******************************************************************************
-
 END MODULE fist_force_numer
 
-!******************************************************************************

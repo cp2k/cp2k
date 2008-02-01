@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qmmm_links_methods [1.0] *
-!!
-!!   NAME
-!!     qmmm_links_methods
-!!
-!!   FUNCTION
-!!     A collection of methods to treat the QM/MM links
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     12.2004 created [tlaino]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief A collection of methods to treat the QM/MM links
+!> \par History
+!>      12.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
 MODULE qmmm_links_methods
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -43,30 +29,16 @@ MODULE qmmm_links_methods
              qmmm_added_chrg_coord,  &
              qmmm_added_chrg_forces
 
-
 CONTAINS
-!!****f* qmmm_links_methods/ qmmm_link_Imomm_coord [1.0] *
-!!
-!!   NAME
-!!     qmmm_link_Imomm_coord
-!!
-!!   FUNCTION
-!!     correct the position for qm/mm IMOMM link type
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     12.2004 created [tlaino]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief correct the position for qm/mm IMOMM link type
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      12.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE  qmmm_link_Imomm_coord( qmmm_links, particles, qm_atom_index, error)
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
     TYPE(particle_type), DIMENSION(:), &
@@ -108,28 +80,14 @@ CONTAINS
 
   END SUBROUTINE qmmm_link_Imomm_coord
 
-!!****f* qmmm_links_methods/ qmmm_link_Imomm_forces [1.0] *
-!!
-!!   NAME
-!!     qmmm_link_Imomm_forces
-!!
-!!   FUNCTION
-!!     correct the forces for qm/mm IMOMM link type
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     12.2004 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief correct the forces for qm/mm IMOMM link type
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      12.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE  qmmm_link_Imomm_forces(qmmm_links, particles_qm, qm_atom_index, error)
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
     TYPE(particle_type), DIMENSION(:), &
@@ -172,28 +130,14 @@ CONTAINS
 
   END SUBROUTINE qmmm_link_Imomm_forces
 
-!!****f* qmmm_links_methods/ qmmm_added_chrg_coord [1.0] *
-!!
-!!   NAME
-!!     qmmm_added_chrg_coord
-!!
-!!   FUNCTION
-!!     correct the position for added charges in qm/mm link scheme
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     01.2005 created [tlaino]
-!!
-!!*** **********************************************************************    
+! *****************************************************************************
+!> \brief correct the position for added charges in qm/mm link scheme
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      01.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_added_chrg_coord(qmmm_env, particles, error)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &
@@ -220,28 +164,14 @@ CONTAINS
 
   END SUBROUTINE qmmm_added_chrg_coord
 
-!!****f* qmmm_links_methods/ qmmm_added_chrg_forces [1.0] *
-!!
-!!   NAME
-!!     qmmm_added_chrg_forces
-!!
-!!   FUNCTION
-!!     correct the forces due to the  added charges in qm/mm link scheme
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     01.2005 created [tlaino]
-!!
-!!*** **********************************************************************    
+! *****************************************************************************
+!> \brief correct the forces due to the  added charges in qm/mm link scheme
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      01.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_added_chrg_forces(qmmm_env, particles, error)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &

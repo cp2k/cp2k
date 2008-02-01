@@ -2,22 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_dftb_utils [1.0] *
-!!
-!!   NAME
-!!     qs_dftb_utils
-!!
-!!   FUNCTION
-!!     Working with the DFTB parameter types.
-!!
-!!   AUTHOR
-!!     JGH (24.02.2007)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Working with the DFTB parameter types.
+!> \author JGH (24.02.2007)
+! *****************************************************************************
 MODULE qs_dftb_utils 
 
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -43,13 +32,9 @@ MODULE qs_dftb_utils
             set_dftb_atom_param,&
             write_dftb_atom_param
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE allocate_dftb_atom_param(dftb_parameter,error)
 
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
@@ -87,7 +72,6 @@ CONTAINS
   END SUBROUTINE allocate_dftb_atom_param
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_dftb_atom_param(dftb_parameter,error)
 
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
@@ -108,7 +92,6 @@ CONTAINS
   END SUBROUTINE deallocate_dftb_atom_param
 
 ! *****************************************************************************
-
   SUBROUTINE get_dftb_atom_param(dftb_parameter,name,typ,defined,z,zeff,natorb,&
     lmax,skself,occupation,eta,energy,cutoff,xi,di,rcdisp,error)
 
@@ -152,7 +135,6 @@ CONTAINS
   END SUBROUTINE get_dftb_atom_param
 
 ! *****************************************************************************
-
   SUBROUTINE set_dftb_atom_param(dftb_parameter,name,typ,defined,z,zeff,natorb,&
     lmax,skself,occupation,eta,energy,cutoff,xi,di,rcdisp,error)
 
@@ -195,7 +177,6 @@ CONTAINS
   END SUBROUTINE set_dftb_atom_param
 
 ! *****************************************************************************
-
   SUBROUTINE write_dftb_atom_param(dftb_parameter,subsys_section,error)
 
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
@@ -244,8 +225,5 @@ CONTAINS
 
   END SUBROUTINE write_dftb_atom_param
 
-! *****************************************************************************
-
 END MODULE qs_dftb_utils
 
-! *****************************************************************************

@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/cp_fm_struct [1.0] *
-!!
-!!   NAME
-!!     cp_fm_struct
-!!
-!!   FUNCTION
-!!     represent the structure of a full matrix
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief represent the structure of a full matrix
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE cp_fm_struct
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain,&
@@ -59,56 +45,42 @@ MODULE cp_fm_struct
        cp_fm_struct_equivalent, cp_fm_struct_compatible, cp_fm_struct_write,&
        cp_fm_struct_get
 !***
-!****************************************************************************
 
-!!****s* cp_fm_struct/cp_fm_struct_type [1.0] *
-!!
-!!   NAME
-!!     cp_fm_struct_type
-!!
-!!   FUNCTION
-!!     keeps the information about the structure of a full matrix
-!!
-!!   NOTES
-!!     use cp_fm_struct_get to extract information from this structure
-!!
-!!   ATTRIBUTES
-!!     - para_env: the parallel environment of the matrixes with this structure
-!!     - context: the blacs context (parallel environment for scalapack),
-!!       should be compatible wih para_env
-!!     - descriptor: the scalapack descriptor of the matrixes, when using
-!!       scalapack (ncol_block=descriptor(6), ncol_global=descriptor(4),
-!!       nrow_block=descriptor(5), nrow_global=descriptor(3))
-!!     - ncol_block: number of columns of a scalapack block
-!!     - nrow_block: number of rows of a scalapack block
-!!     - nrow_global: number of rows of the matrix
-!!     - ncol_global: number of rows
-!!     - first_p_pos: position of the first processor (for scalapack)
-!!     - row_indices: real (global) indexes of the rows (defined only for
-!!       the local rows really used)
-!!     - col_indices: real (global) indexes of the cols (defined only for
-!!       the local cols really used)
-!!     - nrow_locals: nrow_locals(i) number of local rows of the matrix really
-!!       used on the processors with context%mepos(1)==i
-!!     - ncol_locals: ncol_locals(i) number of local rows of the matrix really
-!!       used on the processors with context%mepos(2)==i
-!!     - id_nr: an identification number (guaranteed to be unique)
-!!     - ref_count: reference count (see doc/ReferenceCounting.html)
-!!     - local_leading_dimension: leading dimension of the data that is
-!!       stored on this processor
-!!     
-!!     readonly attributes:
-!!     - nrow_local: number of local rows really used on the actual processor
-!!     - ncol_local: number of local cols really used on the actual processor
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief keeps the information about the structure of a full matrix
+!> \param para_env the parallel environment of the matrixes with this structure
+!> \param context the blacs context (parallel environment for scalapack),
+!>        should be compatible wih para_env
+!> \param descriptor the scalapack descriptor of the matrixes, when using
+!>        scalapack (ncol_block=descriptor(6), ncol_global=descriptor(4),
+!>        nrow_block=descriptor(5), nrow_global=descriptor(3))
+!> \param ncol_block number of columns of a scalapack block
+!> \param nrow_block number of rows of a scalapack block
+!> \param nrow_global number of rows of the matrix
+!> \param ncol_global number of rows
+!> \param first_p_pos position of the first processor (for scalapack)
+!> \param row_indices real (global) indexes of the rows (defined only for
+!>        the local rows really used)
+!> \param col_indices real (global) indexes of the cols (defined only for
+!>        the local cols really used)
+!> \param nrow_locals nrow_locals(i) number of local rows of the matrix really
+!>        used on the processors with context%mepos(1)==i
+!> \param ncol_locals ncol_locals(i) number of local rows of the matrix really
+!>        used on the processors with context%mepos(2)==i
+!> \param id_nr an identification number (guaranteed to be unique)
+!> \param ref_count reference count (see doc/ReferenceCounting.html)
+!> \param local_leading_dimension leading dimension of the data that is
+!>        stored on this processor
+!> 
+!>      readonly attributes:
+!> \param nrow_local number of local rows really used on the actual processor
+!> \param ncol_local number of local cols really used on the actual processor
+!> \note
+!>      use cp_fm_struct_get to extract information from this structure
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE cp_fm_struct_type
      TYPE(cp_para_env_type), POINTER :: para_env
      TYPE(cp_blacs_env_type), POINTER :: context
@@ -119,50 +91,33 @@ MODULE cp_fm_struct
           nrow_locals, ncol_locals
      INTEGER :: id_nr, ref_count, local_leading_dimension
   END TYPE cp_fm_struct_type
-!!***
-!****************************************************************************
+! *****************************************************************************
   TYPE cp_fm_struct_p_type
      TYPE(cp_fm_struct_type), POINTER :: struct
   END TYPE cp_fm_struct_p_type
-!!***
-!****************************************************************************
   
 CONTAINS
 
-!!****f* cp_fm_struct/cp_fm_struct_create [1.0] *
-!!
-!!   NAME
-!!     cp_fm_struct_create
-!!
-!!   FUNCTION
-!!     allocates and initializes a full matrix structure
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - fmstruct: the pointer that will point to the new structure
-!!     - para_env: the parallel environment
-!!     - nrow_global: the number of row of the full matrix
-!!     - ncol_global: the number of colums of the full matrix
-!!     - nrow_block: the number of rows of a block of the matrix ! useful defaults are in, do not specify
-!!     - ncol_block: the number of colums of a block of the matrix ! useful defaults are in, do not specify
-!!     - context: the blacs context of this matrix
-!!     - local_leading_dimension: the leading dimension of the locally stored
-!!       data block
-!!     - descriptor: the scalapack descriptor of the matrix (if not given
-!!       a new one is allocated
-!!     - template_fmstruct: a matrix structure where to take the default values
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief allocates and initializes a full matrix structure
+!> \param fmstruct the pointer that will point to the new structure
+!> \param para_env the parallel environment
+!> \param nrow_global the number of row of the full matrix
+!> \param ncol_global the number of colums of the full matrix
+!> \param nrow_block the number of rows of a block of the matrix ! useful defaults are in, do not specify
+!> \param ncol_block the number of colums of a block of the matrix ! useful defaults are in, do not specify
+!> \param context the blacs context of this matrix
+!> \param local_leading_dimension the leading dimension of the locally stored
+!>        data block
+!> \param descriptor the scalapack descriptor of the matrix (if not given
+!>        a new one is allocated
+!> \param template_fmstruct a matrix structure where to take the default values
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      ncol_global, nrow_block, ncol_block, descriptor, first_p_pos, &
      local_leading_dimension, template_fmstruct, square_blocks, error)
@@ -346,31 +301,16 @@ CPSourceFileRef,&
      END IF
   END IF
 END SUBROUTINE cp_fm_struct_create
-!***************************************************************************
 
-!!****f* cp_fm_struct/cp_fm_struct_retain [1.0] *
-!!
-!!   NAME
-!!     cp_fm_struct_retain
-!!
-!!   FUNCTION
-!!     retains a full matrix structure
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - fmstruct: the structure to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains a full matrix structure
+!> \param fmstruct the structure to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE cp_fm_struct_retain(fmstruct,error)
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -388,31 +328,16 @@ SUBROUTINE cp_fm_struct_retain(fmstruct,error)
      fmstruct%ref_count=fmstruct%ref_count+1
   END IF
 END SUBROUTINE cp_fm_struct_retain
-!***************************************************************************
 
-!!****f* cp_fm_struct/cp_fm_struct_release [1.0] *
-!!
-!!   NAME
-!!     cp_fm_struct_release
-!!
-!!   FUNCTION
-!!     releases a full matrix structure
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - fmstruct: the structure to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases a full matrix structure
+!> \param fmstruct the structure to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE cp_fm_struct_release(fmstruct,error)
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -453,33 +378,18 @@ SUBROUTINE cp_fm_struct_release(fmstruct,error)
   END IF
   NULLIFY(fmstruct)
 END SUBROUTINE cp_fm_struct_release
-!***************************************************************************
 
-!!****f* cp_fm_struct/cp_fm_struct_equivalent [1.0] *
-!!
-!!   NAME
-!!     cp_fm_struct_equivalent
-!!
-!!   FUNCTION
-!!     returns true if the two matrix structures are equivalent, false
-!!     otherwise.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - fmstruct1: one of the full matrix structures to compare
-!!     - fmstruct2: the second of the full matrix structures to compare
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns true if the two matrix structures are equivalent, false
+!>      otherwise.
+!> \param fmstruct 1: one of the full matrix structures to compare
+!> \param fmstruct 2: the second of the full matrix structures to compare
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 FUNCTION cp_fm_struct_equivalent(fmstruct1,fmstruct2,error) RESULT(res)
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct1, fmstruct2
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -512,33 +422,18 @@ FUNCTION cp_fm_struct_equivalent(fmstruct1,fmstruct2,error) RESULT(res)
      END IF
   END IF
 END FUNCTION cp_fm_struct_equivalent
-!***************************************************************************
 
-!!****f* cp_fm_struct/cp_fm_struct_compatible [1.0] *
-!!
-!!   NAME
-!!     cp_fm_struct_compatible
-!!
-!!   FUNCTION
-!!     returns true if the two matrix structures are compatible,
-!!     (i.e. in the same parallel environment) false otherwise.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - fmstruct1: one of the full matrix structures to compare
-!!     - fmstruct2: the second of the full matrix structures to compare
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns true if the two matrix structures are compatible,
+!>      (i.e. in the same parallel environment) false otherwise.
+!> \param fmstruct 1: one of the full matrix structures to compare
+!> \param fmstruct 2: the second of the full matrix structures to compare
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 FUNCTION cp_fm_struct_compatible(fmstruct1,fmstruct2,error) RESULT(res)
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct1, fmstruct2
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -563,32 +458,17 @@ FUNCTION cp_fm_struct_compatible(fmstruct1,fmstruct2,error) RESULT(res)
      END IF
   END IF
 END FUNCTION cp_fm_struct_compatible
-!***************************************************************************
 
-!!****f* cp_fm_struct/cp_fm_struct_write [1.0] *
-!!
-!!   NAME
-!!     cp_fm_struct_write
-!!
-!!   FUNCTION
-!!     writes a description of the matrix structure to the given unit
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - fmstruct: the structure to print
-!!     - unit_nr: the number of the unit where to write the description
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes a description of the matrix structure to the given unit
+!> \param fmstruct the structure to print
+!> \param unit_nr the number of the unit where to write the description
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description,error)
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct
     INTEGER, INTENT(in)                      :: unit_nr
@@ -690,32 +570,17 @@ SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description,error)
      WRITE (unit=unit_nr, fmt="(a)",iostat=iostat)"<cp_fm_struct>:*null*"
   END IF
 END SUBROUTINE cp_fm_struct_write
-!***************************************************************************
 
-!!****f* cp_fm_struct/cp_fm_struct_get [1.0] *
-!!
-!!   NAME
-!!     cp_fm_struct_get
-!!
-!!   FUNCTION
-!!     returns the values of various attributes of the matrix structure
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - fmstruct: the structure you whant info about
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!     see cp_fm_struct_type attributes for the other arguments
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the values of various attributes of the matrix structure
+!> \param fmstruct the structure you whant info about
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!>      see cp_fm_struct_type attributes for the other arguments
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
      descriptor, ncol_block, nrow_block, nrow_global,&
      ncol_global, id_nr, ref_count, first_p_pos, row_indices,&
@@ -815,6 +680,5 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
     ENDIF
   END IF
 END SUBROUTINE cp_fm_struct_get
-!***************************************************************************
 
 END MODULE cp_fm_struct

@@ -2,28 +2,18 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/fist_neighbor_lists [1.0] *
-!!
-!!   NAME
-!!     fist_neighbor_lists
-!!
-!!   FUNCTION
-!!     Generate the atomic neighbor lists for FIST.
-!!
-!!   AUTHOR
-!!     MK (19.11.2002,24.07.2003)
-!!     Teodoro Laino (08.2006) - MAJOR REWRITING
-!!
-!!   MODIFICATION HISTORY
-!!     - build and update merged (11.02.2005,MK)
-!!     - bug fix for PERIODIC NONE (24.02.06,MK)
-!!     - Major rewriting (light memory neighbor lists): teo and joost (05.2006)
-!!     - Completely new algorithm for the neighbor lists 
-!!       (faster and memory lighter) (Teo 08.2006)
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Generate the atomic neighbor lists for FIST.
+!> \par History
+!>      - build and update merged (11.02.2005,MK)
+!>      - bug fix for PERIODIC NONE (24.02.06,MK)
+!>      - Major rewriting (light memory neighbor lists): teo and joost (05.2006)
+!>      - Completely new algorithm for the neighbor lists 
+!>        (faster and memory lighter) (Teo 08.2006)
+!> \author MK (19.11.2002,24.07.2003)
+!>      Teodoro Laino (08.2006) - MAJOR REWRITING
+! *****************************************************************************
 MODULE fist_neighbor_lists
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -79,28 +69,13 @@ MODULE fist_neighbor_lists
 
 CONTAINS
 
-!!****f* fist_neighbor_lists/build_fist_neighbor_lists [1.0] *
-!!
-!!   NAME
-!!     build_fist_neighbor_lists
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2006 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2006 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE build_fist_neighbor_lists(atomic_kind_set,particle_set,&
        local_particles,cell,r_max, r_minsq, nonbonded,para_env,&
        build_from_scratch,geo_check,force_env_section,pot_type,error)
@@ -267,28 +242,13 @@ CONTAINS
 
   END SUBROUTINE build_fist_neighbor_lists
 
-!!****f* fist_neighbor_lists/build_neighbor_lists [1.0] *
-!!
-!!   NAME
-!!     build_neighbor_lists
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2006 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2006 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE build_neighbor_lists(nonbonded,particle_set,atom,cell,maxatom_local,&
        print_subcell_grid,output_unit,r_max,r_minsq,geo_check,name,skip_kind,&
        full_nl,error)
@@ -657,28 +617,13 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE build_neighbor_lists
 
-!!****f* fist_neighbor_lists/give_ijk_subcell [1.0] *
-!!
-!!   NAME
-!!     give_ijk_subcell
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2006 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2006 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE give_ijk_subcell(r,i,j,k,cell,nsubcell)
     REAL(KIND=dp)                            :: r(3)
     INTEGER, INTENT(OUT)                     :: i, j, k
@@ -699,28 +644,13 @@ CONTAINS
     
   END SUBROUTINE give_ijk_subcell
 
-!!****f* fist_neighbor_lists/reorder_atoms_subcell [1.0] *
-!!
-!!   NAME
-!!     reorder_atoms_subcell
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2006 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2006 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE reorder_atoms_subcell(atom_list,particle_set,work)
     ! work needs to be dimensioned 3xSIZE(atom_list)
     INTEGER, DIMENSION(:), POINTER           :: atom_list
@@ -747,28 +677,14 @@ CONTAINS
     END DO
   END SUBROUTINE reorder_atoms_subcell
 
-!!****f* fist_neighbor_lists/write_neighbor_lists [1.0] *
-!!
-!!   NAME
-!!     write_neighbor_lists
-!!
-!!   FUNCTION
-!!     Write a set of neighbor lists to the output unit.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2006 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Write a set of neighbor lists to the output unit.
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2006 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE write_neighbor_lists(nonbonded,particle_set,cell,para_env,output_unit,&
                                   name,error)
 
@@ -841,29 +757,15 @@ CONTAINS
 
   END SUBROUTINE write_neighbor_lists
 
-!!****f* fist_neighbor_lists/sort_neighbor_lists [1.0] *
-!!
-!!   NAME
-!!     sort_neighbor_lists
-!!
-!!   FUNCTION
-!!     Sort the generated neighbor list according the kind
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [tlaino] University of Zurich - Reducing memory usage 
-!!             for the FIST neighbor lists
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Sort the generated neighbor list according the kind
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2007 created [tlaino] University of Zurich - Reducing memory usage 
+!>              for the FIST neighbor lists
+!> \author Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE sort_neighbor_lists(nonbonded, nkinds, error)
 
     TYPE(fist_neighbor_type), POINTER        :: nonbonded

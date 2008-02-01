@@ -1,19 +1,11 @@
-
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/kg_core [1.0] *
-!!
-!!   NAME
-!!     kg_core
-!!
-!!   FUNCTION
-!!     Calculation of the energies concerning the core charge distribution
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Calculation of the energies concerning the core charge distribution
+! *****************************************************************************
 MODULE kg_core
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -62,18 +54,12 @@ MODULE kg_core
   PUBLIC :: calculate_ecore_rspace,&
             calculate_eself
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE calculate_ecore_rspace(kg_env,para_env,calculate_forces,error)
 
     ! Purpose: Calculate the overlap energy of the core charge distribution.
-
-    ! *************************************************************************
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -626,15 +612,12 @@ CONTAINS
 
   END SUBROUTINE calculate_ecore_rspace
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE calculate_eself(kg_env,ecore_self,error)
 
     ! Purpose: Calculate the self energy of the core charge distribution.
 
     ! History: - Creation (14.10.2002)
-
-    ! *************************************************************************
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     REAL(KIND=dp), INTENT(OUT)               :: ecore_self
@@ -671,7 +654,5 @@ CONTAINS
     ecore_self = ecore_self/SQRT(twopi)
 
   END SUBROUTINE calculate_eself
-
-  ! ***************************************************************************
 
 END MODULE kg_core

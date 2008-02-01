@@ -3,20 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/sto_ng *
-!!
-!!   NAME
-!!     sto_ng
-!!
-!!   AUTHOR
-!!     jgh
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 created 
-!!
-!***
-!****************************************************************************
+! *****************************************************************************
+!> \par History
+!>      06.2004 created 
+!> \author jgh
+! *****************************************************************************
 MODULE sto_ng
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -30,35 +21,21 @@ MODULE sto_ng
 
   PUBLIC :: get_sto_ng
 
-!****************************************************************************
-
-!!****s* sto_ng/get_sto_ng [1.0] *
-!!
-!!   NAME
-!!     get_sto_ng
-!!
-!!   FUNCTION
-!!     return STO-NG parameters;
-!!       INPUT: zeta (Slater exponent)
-!!              n    (Expansion length)
-!!              nq   (principle quantum number)
-!!              lq   (angular quantum number)
-!!       OUTPUT: alpha (n Gaussian exponents)
-!!               coef  (n corresponding expansion coefficients)
-!!
-!!   AUTHOR
-!!     jgh 
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 created using parameters from : RF Stewart JCP 52 p431 1970
-!!     01.2008 added newly generated parameters for 6s - 7i
-!!
-!***
-!****************************************************************************
-
+! *****************************************************************************
+!> \brief return STO-NG parameters;
+!>        INPUT: zeta (Slater exponent)
+!>               n    (Expansion length)
+!>               nq   (principle quantum number)
+!>               lq   (angular quantum number)
+!>        OUTPUT: alpha (n Gaussian exponents)
+!>                coef  (n corresponding expansion coefficients)
+!> \par History
+!>      06.2004 created using parameters from : RF Stewart JCP 52 p431 1970
+!>      01.2008 added newly generated parameters for 6s - 7i
+!> \author jgh 
 CONTAINS
 
-!***************************************************************************
+! *****************************************************************************
 SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef, error ) 
 
     REAL(KIND=dp), INTENT(IN)                :: zeta
@@ -997,8 +974,5 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef, error )
 
 END SUBROUTINE get_sto_ng 
 
-!***************************************************************************
-
 END MODULE sto_ng
 
-!***************************************************************************

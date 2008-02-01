@@ -2,26 +2,16 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!***** cp2k/extended_system_types [1.0] *
-!!
-!!   NAME
-!!     extended_system_types
-!!
-!!   FUNCTION
-!!   Lumps all possible extended system variables into one
-!!   type for easy access and passing
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     Teodoro Laino - 09.2007 - University of Zurich
-!!       Cleaned the typo.. no need to have an extended
-!!       type. Thermostat and Barostat type have been created
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Lumps all possible extended system variables into one
+!>    type for easy access and passing
+!> \par History
+!>      Teodoro Laino - 09.2007 - University of Zurich
+!>        Cleaned the typo.. no need to have an extended
+!>        type. Thermostat and Barostat type have been created
+!> \author CJM
+! *****************************************************************************
 MODULE extended_system_types
   USE bibliography,                    ONLY: Nose1984a,&
                                              Nose1984b,&
@@ -50,6 +40,7 @@ MODULE extended_system_types
   LOGICAL, PARAMETER, PUBLIC :: debug_isotropic_limit = .FALSE.
   LOGICAL, PARAMETER, PUBLIC :: debug_uniaxial_limit  = .FALSE.
 
+! *****************************************************************************
   TYPE extended_energy_type
      REAL(KIND=dp)   ::  energy_g3x3_restraint,&
                          energy_fixd_restraint,&
@@ -57,6 +48,7 @@ MODULE extended_system_types
                          energy_colv_restraint
   END TYPE extended_energy_type
 
+! *****************************************************************************
   TYPE npt_info_type
      REAL (KIND=dp) :: eps
      REAL (KIND=dp) :: v
@@ -64,6 +56,7 @@ MODULE extended_system_types
      REAL (KIND=dp) :: mass
   END TYPE npt_info_type
 
+! *****************************************************************************
   TYPE nhc_info_type
      REAL (KIND=dp) :: eta
      REAL (KIND=dp) :: v
@@ -72,10 +65,12 @@ MODULE extended_system_types
      REAL (KIND=dp) :: mass
   END TYPE nhc_info_type
 
+! *****************************************************************************
   TYPE point_info_type
      REAL (KIND=dp), POINTER :: point
   END TYPE point_info_type
 
+! *****************************************************************************
   TYPE map_info_type
      INTEGER                                         :: dis_type
      INTEGER, POINTER, DIMENSION(:)                  :: index, map_index
@@ -85,6 +80,7 @@ MODULE extended_system_types
      TYPE (point_info_type), POINTER, DIMENSION(:,:) :: p_kin
   END TYPE map_info_type
 
+! *****************************************************************************
   TYPE lnhc_parameters_type
      INTEGER                                 :: nyosh, nc, nhc_len
      INTEGER                                 :: glob_num_nhc, loc_num_nhc, region
@@ -99,28 +95,10 @@ MODULE extended_system_types
 CONTAINS
 
 ! *****************************************************************************
-!!****f* extended_system_types/lnhc_init [1.0] *
-!!
-!!   NAME
-!!    lnhc_init 
-!!
-!!   FUNCTION
-!!     Initialize type for Nose-Hoover thermostat
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+!> \brief Initialize type for Nose-Hoover thermostat
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE lnhc_init(lnhc, section, error)
     TYPE(lnhc_parameters_type), POINTER      :: lnhc
     TYPE(section_vals_type), POINTER         :: section
@@ -145,28 +123,10 @@ CONTAINS
   END SUBROUTINE lnhc_init
 
 ! *****************************************************************************
-!!****f* extended_system_types/create_map_info_type [1.0] *
-!!
-!!   NAME
-!!     create_map_info_type
-!!
-!!   FUNCTION
-!!     create the map_info type
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+!> \brief create the map_info type
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE create_map_info_type(map_info, error)
     TYPE(map_info_type), POINTER             :: map_info
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -190,28 +150,10 @@ CONTAINS
   END SUBROUTINE create_map_info_type
 
 ! *****************************************************************************
-!!****f* extended_system_types/release_map_info_type [1.0] *
-!!
-!!   NAME
-!!     release_map_info_type
-!!
-!!   FUNCTION
-!!     release the map_info type
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+!> \brief release the map_info type
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE release_map_info_type(map_info, error)
     TYPE(map_info_type), POINTER             :: map_info
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -257,28 +199,10 @@ CONTAINS
   END SUBROUTINE release_map_info_type
 
 ! *****************************************************************************
-!!****f* extended_system_types/lnhc_dealloc [1.0] *
-!!
-!!   NAME
-!!     lnhc_dealloc
-!!
-!!   FUNCTION
-!!     Deallocate type for Nose-Hoover thermostat
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+!> \brief Deallocate type for Nose-Hoover thermostat
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE lnhc_dealloc ( lnhc, error )
     TYPE(lnhc_parameters_type), POINTER      :: lnhc
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -308,4 +232,3 @@ CONTAINS
   END SUBROUTINE lnhc_dealloc
 
 END MODULE extended_system_types
-!******************************************************************************

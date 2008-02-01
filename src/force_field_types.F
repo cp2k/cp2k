@@ -3,24 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/force_field_types [1.0] *
-!!
-!!   NAME
-!!     force_field_types
-!!
-!!   FUNCTION
-!!     Define all structures types related to force_fields
-!!
-!!   AUTHOR
-!!     MK (29.08.2003)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Define all structures types related to force_fields
+!> \par History
+!>      none
+!> \author MK (29.08.2003)
+! *****************************************************************************
 MODULE force_field_types
 
   USE f77_blas
@@ -44,28 +32,31 @@ MODULE force_field_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_field_types'
   
-
 ! *** Define the derived structure types ***
 
   ! k(3) ... allow for IPBV bond types sum(i=2,4) k_i (r-r0)**i/i
+! *****************************************************************************
   TYPE bond_kind_type
      INTEGER                        :: id_type
      REAL(KIND = dp)                :: k(3),r0   
      INTEGER                        :: kind_number
   END TYPE bond_kind_type
 
+! *****************************************************************************
   TYPE bend_kind_type
      INTEGER                        :: id_type
      REAL(KIND = dp)                :: k,theta0
      INTEGER                        :: kind_number
   END TYPE bend_kind_type
 
+! *****************************************************************************
   TYPE ub_kind_type
      INTEGER                        :: id_type
      REAL(KIND = dp)                :: k(3),r0
      INTEGER                        :: kind_number
   END TYPE ub_kind_type
 
+! *****************************************************************************
   TYPE torsion_kind_type
      INTEGER                        :: id_type
      INTEGER                        :: nmul
@@ -74,18 +65,21 @@ MODULE force_field_types
      INTEGER                        :: kind_number
   END TYPE torsion_kind_type
 
+! *****************************************************************************
   TYPE impr_kind_type
      INTEGER                        :: id_type
      REAL(KIND = dp)                :: k,phi0
      INTEGER                        :: kind_number
   END TYPE impr_kind_type
 
+! *****************************************************************************
   TYPE onfo_kind_type
      TYPE ( spline_factor_type ), POINTER               :: spl_f
      TYPE ( spline_data_p_type ), POINTER, DIMENSION(:) :: spl_p
      INTEGER                                            :: kind_number
   END TYPE onfo_kind_type
 
+! *****************************************************************************
   TYPE input_info_type
     CHARACTER (LEN=default_string_length), POINTER :: charge_atm(:)
     REAL(KIND=dp), POINTER                         :: charge(:)
@@ -126,6 +120,7 @@ MODULE force_field_types
     TYPE (shell_p_type), DIMENSION(:), POINTER     :: shell_list
   END TYPE input_info_type
 
+! *****************************************************************************
   TYPE charmm_info_type
     CHARACTER (LEN=default_string_length), POINTER :: charge_atm(:)
     REAL(KIND=dp), POINTER                         :: charge(:)
@@ -164,6 +159,7 @@ MODULE force_field_types
     REAL (KIND=dp), POINTER                        :: nonbond_rmin2_14(:)
   END TYPE charmm_info_type
 
+! *****************************************************************************
   TYPE gromos_info_type
     REAL(KIND=dp), POINTER                         :: solvent_k(:)
     REAL(KIND=dp), POINTER                         :: solvent_r0(:)
@@ -184,6 +180,7 @@ MODULE force_field_types
     REAL (KIND=dp), POINTER                        :: nonbond_c12_14(:,:)
   END TYPE gromos_info_type
 
+! *****************************************************************************
   TYPE force_field_type
     LOGICAL                                   :: scale_cutoff,&
                                                  nonbonded,&
@@ -237,27 +234,11 @@ MODULE force_field_types
             input_info_type,&
             force_field_type
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
-!******************************************************************************
-!!****** force_field_types/allocate_bend_kind_set [1.0] *
-!!
-!!   NAME
-!!     allocate_bend_kind_set
-!!
-!!   FUNCTION
-!!     Allocate and initialize a bend kind set.
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+!> \brief Allocate and initialize a bend kind set.
+! *****************************************************************************
   SUBROUTINE allocate_bend_kind_set(bend_kind_set,nkind,error)
 
     TYPE(bend_kind_type), DIMENSION(:), &
@@ -286,22 +267,8 @@ CONTAINS
   END SUBROUTINE allocate_bend_kind_set
 
 ! *****************************************************************************
-
-!******************************************************************************
-!!****** force_field_types/allocate_bond_kind_set [1.0] *
-!!
-!!   NAME
-!!     allocate_bond_kind_set
-!!
-!!   FUNCTION
-!!     Allocate and initialize a bond kind set.
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+!> \brief Allocate and initialize a bond kind set.
+! *****************************************************************************
   SUBROUTINE allocate_bond_kind_set(bond_kind_set,nkind,error)
 
     TYPE(bond_kind_type), DIMENSION(:), &
@@ -330,22 +297,8 @@ CONTAINS
   END SUBROUTINE allocate_bond_kind_set
 
 ! *****************************************************************************
-
-!******************************************************************************
-!!****** force_field_types/allocate_torsion_kind_set [1.0] *
-!!
-!!   NAME
-!!     allocate_torsion_kind_set
-!!
-!!   FUNCTION
-!!     Allocate and initialize a torsion kind set.
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+!> \brief Allocate and initialize a torsion kind set.
+! *****************************************************************************
   SUBROUTINE allocate_torsion_kind_set(torsion_kind_set,nkind,error)
 
     TYPE(torsion_kind_type), DIMENSION(:), &
@@ -377,22 +330,8 @@ CONTAINS
   END SUBROUTINE allocate_torsion_kind_set
 
 ! *****************************************************************************
-
-!******************************************************************************
-!!****** force_field_types/allocate_ub_kind_set [1.0] *
-!!
-!!   NAME
-!!     allocate_ub_kind_set
-!!
-!!   FUNCTION
-!!     Allocate and initialize a ub kind set.
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+!> \brief Allocate and initialize a ub kind set.
+! *****************************************************************************
   SUBROUTINE allocate_ub_kind_set(ub_kind_set,nkind,error)
 
     TYPE(ub_kind_type), DIMENSION(:), &
@@ -418,21 +357,9 @@ CONTAINS
     END DO
   END SUBROUTINE allocate_ub_kind_set
 
-!******************************************************************************
-!!****** force_field_types/allocate_impr_kind_set [1.0] *
-!!
-!!   NAME
-!!     allocate_impr_kind_set
-!!
-!!   FUNCTION
-!!     Allocate and initialize a impr kind set.
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Allocate and initialize a impr kind set.
+! *****************************************************************************
   SUBROUTINE allocate_impr_kind_set(impr_kind_set,nkind,error)
 
     TYPE(impr_kind_type), DIMENSION(:), &
@@ -458,20 +385,9 @@ CONTAINS
     END DO
   END SUBROUTINE allocate_impr_kind_set
 
-!!****** force_field_types/allocate_onfo_kind_set [1.0] *
-!!
-!!   NAME
-!!     allocate_onfo_kind_set
-!!
-!!   FUNCTION
-!!     Allocate and initialize a onfo kind set.
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Allocate and initialize a onfo kind set.
+! *****************************************************************************
   SUBROUTINE allocate_onfo_kind_set(onfo_kind_set,nkind,error)
 
     TYPE(onfo_kind_type), DIMENSION(:), &
@@ -496,22 +412,10 @@ CONTAINS
     END DO
   END SUBROUTINE allocate_onfo_kind_set
 
-!******************************************************************************
-!!****** force_field_types/init_force_field [1.0] *
-!!
-!!   NAME
-!!     init_force_field
-!!
-!!   FUNCTION
-!!     1. Just NULLIFY and zero all the stuff
-!!
-!!   AUTHOR
-!!     ikuo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief 1. Just NULLIFY and zero all the stuff
+!> \author ikuo
+! *****************************************************************************
   SUBROUTINE init_ff_type (ff_type,error)
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -555,23 +459,10 @@ CONTAINS
     
   END SUBROUTINE init_ff_type
 
-
-!******************************************************************************
-!!****** force_field_types/init_gromos_info0 [1.0] *
-!!
-!!   NAME
-!!     init_gromos_info
-!!
-!!   FUNCTION
-!!     Specific function to initialize the gro_info
-!!
-!!   AUTHOR
-!!     ikuo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Specific function to initialize the gro_info
+!> \author ikuo
+! *****************************************************************************
 SUBROUTINE init_gromos_info(gro_info)
     TYPE(gromos_info_type), POINTER          :: gro_info
 
@@ -595,25 +486,12 @@ SUBROUTINE init_gromos_info(gro_info)
   
 END SUBROUTINE init_gromos_info
 
-
-
-!******************************************************************************
-!!****** force_field_types/init_chm_info [1.0] *
-!!
-!!   NAME
-!!     init_chm_info
-!!
-!!   FUNCTION
-!!     Specific function to initialize the chm_info
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Specific function to initialize the chm_info
+!> \par History
+!>      none
+!> \author teo
+! *****************************************************************************
 SUBROUTINE init_chm_info(chm_info)
     TYPE(charmm_info_type), POINTER          :: chm_info
 
@@ -655,24 +533,12 @@ SUBROUTINE init_chm_info(chm_info)
   
 END SUBROUTINE init_chm_info
 
-
-!******************************************************************************
-!!****** force_field_types/init_inp_info [1.0] *
-!!
-!!   NAME
-!!     init_inp_info
-!!
-!!   FUNCTION
-!!     Specific function to initialize the inp_info
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Specific function to initialize the inp_info
+!> \par History
+!>      none
+!> \author teo
+! *****************************************************************************
 SUBROUTINE init_inp_info(inp_info)
     TYPE(input_info_type), POINTER           :: inp_info
 
@@ -716,22 +582,9 @@ SUBROUTINE init_inp_info(inp_info)
 
 END SUBROUTINE init_inp_info
 
-
-!******************************************************************************
-!!****** force_field_types/deallocate_ff_type [1.0] *
-!!
-!!   NAME
-!!     deallocate_ff_type
-!!
-!!   FUNCTION
-!!     1. Just DEALLOCATE all the stuff
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief 1. Just DEALLOCATE all the stuff
+! *****************************************************************************
 SUBROUTINE deallocate_ff_type (ff_type,error)
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -780,22 +633,10 @@ SUBROUTINE deallocate_ff_type (ff_type,error)
 
 END SUBROUTINE deallocate_ff_type
 
-!******************************************************************************
-!!****** force_field_types/deallocate_gromos_info [1.0] *
-!!
-!!   NAME
-!!     deallocate_gromos_info
-!!
-!!   FUNCTION
-!!     Specific function to deallocate the gro_info
-!!
-!!   AUTHOR
-!!     ikuo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Specific function to deallocate the gro_info
+!> \author ikuo
+! *****************************************************************************
 SUBROUTINE deallocate_gromos_info(gro_info,error)
     TYPE(gromos_info_type), POINTER          :: gro_info
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -878,23 +719,12 @@ SUBROUTINE deallocate_gromos_info(gro_info,error)
 
 END SUBROUTINE deallocate_gromos_info
 
-!******************************************************************************
-!!****** force_field_types/deallocate_chm_info [1.0] *
-!!
-!!   NAME
-!!     deallocate_chm_info
-!!
-!!   FUNCTION
-!!     Specific function to deallocate the chm_info
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Specific function to deallocate the chm_info
+!> \par History
+!>      none
+!> \author teo
+! *****************************************************************************
 SUBROUTINE deallocate_chm_info(chm_info,error)
     TYPE(charmm_info_type), POINTER          :: chm_info
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1049,23 +879,12 @@ SUBROUTINE deallocate_chm_info(chm_info,error)
 
 END SUBROUTINE deallocate_chm_info
 
-!******************************************************************************
-!!****** force_field_types/deallocate_inp_info [1.0] *
-!!
-!!   NAME
-!!     deallocate_inp_info
-!!
-!!   FUNCTION
-!!     Specific function to deallocate the inp_info
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Specific function to deallocate the inp_info
+!> \par History
+!>      none
+!> \author teo
+! *****************************************************************************
 SUBROUTINE deallocate_inp_info(inp_info, error)
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1225,21 +1044,9 @@ SUBROUTINE deallocate_inp_info(inp_info, error)
 
 END SUBROUTINE deallocate_inp_info
 
-!******************************************************************************
-!!****** force_field_types/deallocate_bend_kind_set [1.0] *
-!!
-!!   NAME
-!!     deallocate_bend_kind_set
-!!
-!!   FUNCTION
-!!     Deallocate a bend kind set.
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Deallocate a bend kind set.
+! *****************************************************************************
   SUBROUTINE deallocate_bend_kind_set(bend_kind_set,error)
 
     TYPE(bend_kind_type), DIMENSION(:), &
@@ -1258,22 +1065,8 @@ END SUBROUTINE deallocate_inp_info
   END SUBROUTINE deallocate_bend_kind_set
 
 ! *****************************************************************************
-
-!******************************************************************************
-!!****** force_field_types/deallocate_bond_kind_set [1.0] *
-!!
-!!   NAME
-!!     deallocate_bond_kind_set
-!!
-!!   FUNCTION
-!!     Deallocate a bond kind set.
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+!> \brief Deallocate a bond kind set.
+! *****************************************************************************
   SUBROUTINE deallocate_bond_kind_set(bond_kind_set,error)
 
     TYPE(bond_kind_type), DIMENSION(:), &
@@ -1293,22 +1086,8 @@ END SUBROUTINE deallocate_inp_info
   END SUBROUTINE deallocate_bond_kind_set
 
 ! *****************************************************************************
-
-!******************************************************************************
-!!****** force_field_types/torsion_kind_dealloc_ref [1.0] *
-!!
-!!   NAME
-!!     torsion_kind_dealloc_ref
-!!
-!!   FUNCTION
-!!     Deallocate a torsion kind element
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+!> \brief Deallocate a torsion kind element
+! *****************************************************************************
   SUBROUTINE torsion_kind_dealloc_ref(torsion_kind,error)
 
     TYPE(torsion_kind_type), INTENT(INOUT)   :: torsion_kind
@@ -1338,22 +1117,8 @@ END SUBROUTINE deallocate_inp_info
   END SUBROUTINE torsion_kind_dealloc_ref
 
 ! *****************************************************************************
-
-!******************************************************************************
-!!****** force_field_types/ub_kind_dealloc_ref [1.0] *
-!!
-!!   NAME
-!!     ub_kind_dealloc_ref
-!!
-!!   FUNCTION
-!!     Deallocate a ub kind set.
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+!> \brief Deallocate a ub kind set.
+! *****************************************************************************
   SUBROUTINE ub_kind_dealloc_ref(ub_kind_set, error)
     TYPE(ub_kind_type), DIMENSION(:), &
       POINTER                                :: ub_kind_set
@@ -1370,23 +1135,10 @@ END SUBROUTINE deallocate_inp_info
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE ub_kind_dealloc_ref
-! *****************************************************************************
 
-!******************************************************************************
-!!****** force_field_types/impr_kind_dealloc_ref [1.0] *
-!!
-!!   NAME
-!!     impr_kind_dealloc_ref
-!!
-!!   FUNCTION
-!!     Deallocate a impr kind element
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Deallocate a impr kind element
+! *****************************************************************************
   SUBROUTINE impr_kind_dealloc_ref(impr_kind, error)
 
     TYPE(impr_kind_type), INTENT(INOUT)      :: impr_kind
@@ -1406,21 +1158,8 @@ END SUBROUTINE deallocate_inp_info
   END SUBROUTINE impr_kind_dealloc_ref
 
 ! *****************************************************************************
-
-!!****** force_field_types/onfo_kind_dealloc_ref [1.0] *
-!!
-!!   NAME
-!!     deallocate_onfo_kind_set
-!!
-!!   FUNCTION
-!!     Deallocate a onfo kind set.
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+!> \brief Deallocate a onfo kind set.
+! *****************************************************************************
   SUBROUTINE  onfo_kind_dealloc_ref(onfo_kind_set, error)
     TYPE(onfo_kind_type), DIMENSION(:), &
       POINTER                                :: onfo_kind_set
@@ -1440,6 +1179,5 @@ END SUBROUTINE deallocate_inp_info
     DEALLOCATE(onfo_kind_set,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE onfo_kind_dealloc_ref
-! *****************************************************************************
 
 END MODULE force_field_types

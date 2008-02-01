@@ -3,18 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/qs_dftb_matrices [1.1] *
-!!
-!!   FUNCTION
-!!     Calculation of Overlap and Hamiltonian matrices in DFTB
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!***
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Calculation of Overlap and Hamiltonian matrices in DFTB
+!> \author JGH
+! *****************************************************************************
 MODULE qs_dftb_matrices
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -97,12 +89,9 @@ MODULE qs_dftb_matrices
 
   PUBLIC :: build_dftb_matrices, build_dftb_ks_matrix
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE build_dftb_matrices(qs_env,para_env,calculate_forces,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -619,7 +608,6 @@ CONTAINS
   END SUBROUTINE build_dftb_matrices
 
 ! *****************************************************************************
-
   SUBROUTINE build_dftb_ks_matrix (ks_env,qs_env,ks_matrix,rho,energy,&
                calculate_forces,just_energy,error)
 
@@ -773,7 +761,6 @@ CONTAINS
   END SUBROUTINE build_dftb_ks_matrix
 
 ! *****************************************************************************
-
   SUBROUTINE setup_matrices(qs_env,calculate_forces,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -880,11 +867,11 @@ CONTAINS
 
   END SUBROUTINE setup_matrices
 
-! *****************************************************************************
 ! module dftb_sktools
 !
 ! Creation: 07. Feb. 2004, TH
 !
+! *****************************************************************************
   SUBROUTINE getskz(slakotab,skpar,dx,ngrd,ngrdcut,dgrd,llm)
     !
     ! Gets matrix elements on z axis, as they are stored in the tables
@@ -927,6 +914,7 @@ CONTAINS
     END IF
   END SUBROUTINE getskz
 
+! *****************************************************************************
   SUBROUTINE interpol(slakotab,skpar,dx,ngrd,dgrd,llm,clgp)
     REAL(dp), INTENT(in)                     :: slakotab(:,:), dx
     INTEGER, INTENT(in)                      :: ngrd
@@ -970,6 +958,7 @@ CONTAINS
     END DO
   END SUBROUTINE interpol
 
+! *****************************************************************************
   SUBROUTINE extrapol(slakotab,skpar,dx,ngrd,dgrd,llm)
     REAL(dp), INTENT(in)                     :: slakotab(:,:), dx
     INTEGER, INTENT(in)                      :: ngrd
@@ -1019,6 +1008,7 @@ CONTAINS
     END DO
   END SUBROUTINE extrapol  
 
+! *****************************************************************************
   SUBROUTINE turnsk(mat,skab1,skab2,dxv,dx,lmaxa,lmaxb)
     !
     ! Purpose: Turn matrix element from z-axis to orientation of dxv
@@ -1143,6 +1133,7 @@ CONTAINS
     ! They are both turning the matrix elements and placing them appropriately 
     ! into the matrix block
     !
+! *****************************************************************************
     SUBROUTINE skss(skpar,mat)
       !
       ! Purpose: s-s interaction (no rotation necessary)
@@ -1157,6 +1148,7 @@ CONTAINS
       !
     END SUBROUTINE skss
     
+! *****************************************************************************
     SUBROUTINE sksp(skpar,mat,ind,transposed)
       !
       ! s-p interaction (simple rotation)
@@ -1187,6 +1179,7 @@ CONTAINS
     END SUBROUTINE sksp
     !
     !
+! *****************************************************************************
     SUBROUTINE skpp(skpar,mat,ind)
       !
       !
@@ -1226,6 +1219,7 @@ CONTAINS
     END SUBROUTINE skpp
     !
     !
+! *****************************************************************************
     SUBROUTINE sksd(skpar,mat,ind,transposed)
       !
       !
@@ -1263,6 +1257,7 @@ CONTAINS
     END SUBROUTINE sksd
     !
     !
+! *****************************************************************************
     SUBROUTINE skpd(skpar,mat,ind,transposed)
       !
       !
@@ -1339,6 +1334,7 @@ CONTAINS
     END SUBROUTINE skpd
     !
     !
+! *****************************************************************************
     SUBROUTINE skdd(skpar,mat,ind)
       !
       !
@@ -1423,6 +1419,7 @@ CONTAINS
     !
   END SUBROUTINE turnsk
 
+! *****************************************************************************
   SUBROUTINE polint(xa,ya,n,x,y,dy)
     INTEGER, INTENT(in)                      :: n
     REAL(dp), INTENT(in)                     :: ya(n), xa(n), x
@@ -1580,6 +1577,7 @@ CONTAINS
 
 ! gamma************************************************************************
 
+! *****************************************************************************
   FUNCTION gamma_rab_sr(r,ga,gb) RESULT(gamma)
     !
     ! Purpose: Computes the short-range gamma parameter from exact Coulomb 
@@ -1622,9 +1620,5 @@ CONTAINS
     !
   END FUNCTION gamma_rab_sr
 
-! *****************************************************************************
-
 END MODULE qs_dftb_matrices
-
-! *****************************************************************************
 

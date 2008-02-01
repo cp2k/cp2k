@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/kg_rho_methods [1.0] *
-!!
-!!   NAME
-!!     kg_rspw_methods
-!!
-!!   FUNCTION
-!!     rho_methods
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (22-Feb-03) PW grid options added
-!!     gt 16-nov-03 moved initialization in this new module
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief rho_methods
+!> \par History
+!>      JGH (22-Feb-03) PW grid options added
+!>      gt 16-nov-03 moved initialization in this new module
+! *****************************************************************************
 MODULE kg_rspw_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -84,7 +74,7 @@ MODULE kg_rspw_methods
 
 CONTAINS
 
-!!*** **********************************************************************
+! *****************************************************************************
 SUBROUTINE kg_rspw_create(kg_rspw,kg_env,error)
     TYPE(kg_rspw_type), POINTER              :: kg_rspw
     TYPE(kg_environment_type), OPTIONAL, &
@@ -109,28 +99,13 @@ SUBROUTINE kg_rspw_create(kg_rspw,kg_env,error)
      IF (PRESENT(kg_env)) CALL kg_rspw_rebuild(kg_rspw,kg_env=kg_env,error=error)
   END IF
 END SUBROUTINE kg_rspw_create
-!***************************************************************************
-!!**** kg_rspw_methods/kg_rspw_rebuild        [1.0] *
-!!
-!!   NAME
-!!     kg_rspw_rebuild
-!!
-!!   FUNCTION
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - kg_rspw: the density/potential env to be initialized
-!!     - kg_env: the kg environment
-!!     - error: error
-!!
-!!   AUTHOR
-!!    gloria
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \param kg_rspw the density/potential env to be initialized
+!> \param kg_env the kg environment
+!> \param error error
+!> \author gloria
+! *****************************************************************************
   SUBROUTINE kg_rspw_rebuild(kg_rspw, kg_env, error )
 
     TYPE(kg_rspw_type), POINTER              :: kg_rspw
@@ -217,7 +192,6 @@ END SUBROUTINE kg_rspw_create
        END IF
        NULLIFY(kg_rspw%pw_pools, kg_rspw%cube_info,kg_rspw%rs_pools)
     END IF
-
 
 !
 !
@@ -317,7 +291,6 @@ END SUBROUTINE kg_rspw_create
      END DO
      CALL cp_print_key_finished_output(iounit,logger,print_section,&
          "",error=error)
-
 
        kg_rspw%pw_pools => pw_pools
 
@@ -478,15 +451,11 @@ END SUBROUTINE kg_rspw_create
      CALL cp_print_key_finished_output(iounit,logger,print_section,&
          "",error=error)
 
-
    END IF
 
    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE kg_rspw_rebuild
 
-! **************************************************************************
-
 END MODULE kg_rspw_methods
 
-!******************************************************************************

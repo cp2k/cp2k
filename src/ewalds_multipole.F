@@ -3,21 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/ewalds_multipole [1.0] *
-!!
-!!   NAME
-!!     ewalds_multipole
-!!
-!!   FUNCTION
-!!     Treats the electrostatic for multipoles (up to quadrupoles)
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - 12.2007 - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Treats the electrostatic for multipoles (up to quadrupoles)
+!> \author Teodoro Laino [tlaino] - 12.2007 - University of Zurich
+! *****************************************************************************
 MODULE ewalds_multipole
   USE bibliography,                    ONLY: Aguado2003,&
                                              cite_reference
@@ -60,27 +49,14 @@ MODULE ewalds_multipole
 
   PRIVATE
   PUBLIC :: ewald_multipole_evaluate
-!******************************************************************************
 
 CONTAINS
 
-!******************************************************************************
-!!****** ewalds_multipole/ewald_multipole_evaluate [1.0] *
-!!
-!!   NAME
-!!     ewald_multipole_evaluate
-!!
-!!   FUNCTION
-!!     computes the potential and the force for a lattice sum of multipoles
-!!     (up to quadrupole)
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - 12.2007 - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief computes the potential and the force for a lattice sum of multipoles
+!>      (up to quadrupole)
+!> \author Teodoro Laino [tlaino] - 12.2007 - University of Zurich
+! *****************************************************************************
   SUBROUTINE ewald_multipole_evaluate(ewald_env, ewald_pw, nonbond_env, cell, &
        particle_set, local_particles, energy_local, energy_glob, e_neut, e_self,&
        task, do_forces, do_stress, do_efield, charges, dipoles, quadrupoles,&
@@ -161,23 +137,11 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE ewald_multipole_evaluate
   
-!******************************************************************************
-!!****** ewalds_multipole/ewald_multipole_SR [1.0] *
-!!
-!!   NAME
-!!     ewald_multipole_SR
-!!
-!!   FUNCTION
-!!     computes the potential and the force for a lattice sum of multipoles
-!!     up to quadrupole - Short Range (Real Space) Term
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - 12.2007 - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief computes the potential and the force for a lattice sum of multipoles
+!>      up to quadrupole - Short Range (Real Space) Term
+!> \author Teodoro Laino [tlaino] - 12.2007 - University of Zurich
+! *****************************************************************************
   SUBROUTINE ewald_multipole_SR (nonbond_env, ewald_env, cell, energy, task,&
        do_forces, do_efield, do_stress, charges, dipoles, quadrupoles, forces,&
        pv, efield1, efield2, error)
@@ -1241,23 +1205,11 @@ CONTAINS
     CALL timestop ( handle )
   END SUBROUTINE ewald_multipole_SR
 
-!******************************************************************************
-!!****** ewalds_multipole/ewald_multipole_LR [1.0] *
-!!
-!!   NAME
-!!     ewald_multipole_LR
-!!
-!!   FUNCTION
-!!     computes the potential and the force for a lattice sum of multipoles
-!!     up to quadrupole - Long Range (Reciprocal Space) Term
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - 12.2007 - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief computes the potential and the force for a lattice sum of multipoles
+!>      up to quadrupole - Long Range (Reciprocal Space) Term
+!> \author Teodoro Laino [tlaino] - 12.2007 - University of Zurich
+! *****************************************************************************
   SUBROUTINE ewald_multipole_LR(ewald_env, ewald_pw, cell, particle_set, &
        local_particles, energy, task, do_forces, do_efield, do_stress, &
        charges, dipoles, quadrupoles, forces, pv, efield1, efield2, error)
@@ -1592,22 +1544,12 @@ CONTAINS
 
   END SUBROUTINE ewald_multipole_LR
 
-!!****** ewalds_multipole/get_atom_factor [1.0] *
-!!
-!!   NAME
-!!     get_atom_factor
-!!
-!!   FUNCTION
-!     Computes the atom factor including charge, dipole and quadrupole
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - 12.2007 - University of Zurich 
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Computes the atom factor including charge, dipole and quadrupole
+!> \par History
+!>      none
+!> \author Teodoro Laino [tlaino] - 12.2007 - University of Zurich 
+! *****************************************************************************
   SUBROUTINE get_atom_factor(atm_factor, pw_grid, gpt, iparticle, task, charges,&
        dipoles, quadrupoles, error)
     COMPLEX(KIND=dp), INTENT(OUT)            :: atm_factor
@@ -1655,23 +1597,11 @@ CONTAINS
 
   END SUBROUTINE get_atom_factor
 
-!!****** ewalds_multipole/ewald_multipole_self [1.0] *
-!!
-!!   NAME
-!!     ewald_multipole_self
-!!
-!!   FUNCTION
-!!    Computes the self interaction from g-space and the neutralizing background
-!!    when using multipoles
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - University of Zurich - 12.2007
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Computes the self interaction from g-space and the neutralizing background
+!>     when using multipoles
+!> \author Teodoro Laino [tlaino] - University of Zurich - 12.2007
+! *****************************************************************************
   SUBROUTINE ewald_multipole_self (ewald_env, local_particles, e_self, e_neut,&
        task, do_efield, charges, dipoles, quadrupoles, efield1, efield2, error)
 
@@ -1785,21 +1715,9 @@ CONTAINS
 
   END SUBROUTINE ewald_multipole_self
 
-!!****** ewalds_multipole/ewald_multipole_print [1.0] *
-!!
-!!   NAME
-!!     ewald_multipole_print
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - University of Zurich - 12.2007
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author Teodoro Laino [tlaino] - University of Zurich - 12.2007
+! *****************************************************************************
   SUBROUTINE ewald_multipole_print ( iw, cell, e_gspace, e_self, e_neut, e_bonded )
 
     INTEGER, INTENT(IN)                      :: iw

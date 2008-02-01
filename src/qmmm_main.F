@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qmmm_main [1.0] *
-!!
-!!   NAME
-!!     qmmm_main
-!!
-!!   FUNCTION
-!!     Initialize a QM/MM calculation
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     5.2004 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Initialize a QM/MM calculation
+!> \par History
+!>      5.2004 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE qmmm_main
   USE bibliography,                    ONLY: Laino2005,&
                                              Laino2006,&
@@ -84,31 +70,15 @@ MODULE qmmm_main
 
   PUBLIC :: qmmm_create_force_env
 !***
-!****************************************************************************
 CONTAINS
 
-!!****f* qmmm_main/qmmm_create_force_env [1.0] *
-!!
-!!   NAME
-!!     qmmm_create_force_env
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      05.2004 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE  qmmm_create_force_env(force_env, root_section, para_env, globenv,&
        force_env_section, subsys_section, use_motion_section, error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -323,7 +293,6 @@ CPSourceFileRef,&
        CALL print_qmmm_charges(mm_atom_index, mm_atom_chrg, mm_el_pot_radius,&
                                mm_el_pot_radius_corr, qmmm_env_qm%added_charges,&
                                qmmm_section, nocompatibility, error)
-
 
        CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_qs,error=error)
        CALL create_small_subsys(subsys_qm,&

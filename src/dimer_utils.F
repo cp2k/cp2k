@@ -3,25 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/dimer_utils [1.0] *
-!!
-!!   NAME
-!!     dimer_utils
-!!
-!!   FUNCTION
-!!     Contains utilities for a Dimer Method calculations
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!*****************************************************************************
+! *****************************************************************************
+!> \brief Contains utilities for a Dimer Method calculations
+!> \par History
+!>      none
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+! *****************************************************************************
 MODULE dimer_utils
   USE dimer_types,                     ONLY: dimer_env_type
   USE f77_blas
@@ -45,27 +32,12 @@ MODULE dimer_utils
 
 CONTAINS
 
-!!****f* dimer_utils/rotate_dimer [1.0] *
-!!
-!!   NAME
-!!     rotate_dimer
-!!
-!!   FUNCTION
-!!     Performs a rotation of the unit dimer vector
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     -
-!!
-!!   AUTHOR
-!!     Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Performs a rotation of the unit dimer vector
+!> \par History
+!>      none
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+! *****************************************************************************
   SUBROUTINE rotate_dimer(nvec,theta,dt,error)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: nvec, theta
     REAL(KIND=dp)                            :: dt
@@ -95,27 +67,12 @@ CONTAINS
 
   END SUBROUTINE rotate_dimer
 
-!!****f* dimer_utils/update_dimer_vec [1.0] *
-!!
-!!   NAME
-!!     update_dimer_vec
-!!
-!!   FUNCTION
-!!     Updates the orientation of the dimer vector in the input file
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     -
-!!
-!!   AUTHOR
-!!     Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Updates the orientation of the dimer vector in the input file
+!> \par History
+!>      none
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+! *****************************************************************************
   SUBROUTINE update_dimer_vec(dimer_env, motion_section, error)
     TYPE(dimer_env_type), POINTER            :: dimer_env
     TYPE(section_vals_type), POINTER         :: motion_section

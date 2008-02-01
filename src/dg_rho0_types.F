@@ -2,21 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/dg_rho0_types [1.0] *
-!!
-!!   NAME
-!!     dg_rho0_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
 MODULE dg_rho0_types
 
   USE f77_blas
@@ -47,6 +37,7 @@ MODULE dg_rho0_types
   ! grid = grid number
   ! gcc = Gaussian contraction coefficient
   ! zet = Gaussian exponent
+! *****************************************************************************
   TYPE dg_rho0_type
      INTEGER :: ref_count, id_nr
      INTEGER :: TYPE
@@ -58,17 +49,13 @@ MODULE dg_rho0_types
      TYPE ( pw_p_type ) :: density
   END TYPE dg_rho0_type
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 !-----------------------------------------------------------------------------!
+! *****************************************************************************
  SUBROUTINE dg_rho0_set ( dg_rho0, TYPE, grid, kind, cutoff_radius, &
                           gcc, zet, density )
 
 !   Purpose: Set the dg_rho0_type
-
-!   ***************************************************************************
 
     INTEGER, OPTIONAL                        :: TYPE
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
@@ -92,11 +79,10 @@ CONTAINS
 
   END SUBROUTINE dg_rho0_set
 !-----------------------------------------------------------------------------!
+! *****************************************************************************
  SUBROUTINE dg_rho0_get ( dg_rho0, cutoff_radius, TYPE, grid, kind, gcc, zet, density )
 
 !   Purpose: Get the dg_rho0_type
-
-!   ***************************************************************************
 
     INTEGER, OPTIONAL                        :: TYPE, kind, grid
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
@@ -120,12 +106,9 @@ CONTAINS
   END SUBROUTINE dg_rho0_get
 
 ! *****************************************************************************
-
   SUBROUTINE dg_rho0_create ( dg_rho0, error )
 
 !   Purpose: create the dg_rho0 structure
-
-!   ***************************************************************************
 
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -151,37 +134,18 @@ CONTAINS
     NULLIFY ( dg_rho0%density%pw )
 
   END SUBROUTINE dg_rho0_create
-!***************************************************************************
 
-!!****f* dg_rho0_types/dg_rho0_retain [1.0] *
-!!
-!!   NAME
-!!     dg_rho0_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine dg_rho0_retain(dg, error)
-!!       Type(dg_rho0_type), Pointer:: dg
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine dg_rho0_retain
-!!
-!!   FUNCTION
-!!     retains the given dg_rho0_type
-!!
-!!   NOTES
-!!     see doc/ReferenceCounting.html
-!!
-!!   ARGUMENTS
-!!     - dg_rho0_type: the dg_rho0_type to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given dg_rho0_type
+!> \param dg_rho 0_type: the dg_rho0_type to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      see doc/ReferenceCounting.html
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE dg_rho0_retain ( dg_rho0, error)
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -199,36 +163,18 @@ SUBROUTINE dg_rho0_retain ( dg_rho0, error)
      dg_rho0%ref_count=dg_rho0%ref_count+1
   END IF
 END SUBROUTINE dg_rho0_retain
-!***************************************************************************
-!!****f* dg_rho0_types/dg_rho0_release [1.0] *
-!!
-!!   NAME
-!!     dg_rho0_release
-!!
-!!   SYNOPSIS
-!!     Subroutine dg_rho0_release(dg, error)
-!!       Type(dg_rho0_type), Pointer:: dg
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine dg_rho0_release
-!!
-!!   FUNCTION
-!!     releases the given dg_rho0_type
-!!
-!!   NOTES
-!!     see doc/ReferenceCounting.html
-!!
-!!   ARGUMENTS
-!!     - dg: the dg_rho0_type to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief releases the given dg_rho0_type
+!> \param dg the dg_rho0_type to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      see doc/ReferenceCounting.html
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE dg_rho0_release(dg_rho0, error)
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -263,8 +209,7 @@ SUBROUTINE dg_rho0_release(dg_rho0, error)
   NULLIFY(dg_rho0)
 END SUBROUTINE dg_rho0_release
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE dg_rho0_init ( dg_rho0, pw_grid, error )
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -284,10 +229,8 @@ SUBROUTINE dg_rho0_init ( dg_rho0, pw_grid, error )
 
 END SUBROUTINE dg_rho0_init
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE dg_rho0_pme_gauss ( dg_rho0, alpha )
-
 
     TYPE(pw_p_type), INTENT(INOUT)           :: dg_rho0
     REAL(KIND=dp), INTENT(IN)                :: alpha
@@ -363,6 +306,5 @@ SUBROUTINE dg_rho0_pme_gauss ( dg_rho0, alpha )
   END DO
 
 END SUBROUTINE dg_rho0_pme_gauss
-!******************************************************************************
 
 END MODULE dg_rho0_types

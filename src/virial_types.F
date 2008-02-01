@@ -2,20 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/virial_types [1.0] *
-!!
-!!   NAME
-!!     virial_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     JGH [04042007] refactoring
-!!
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      JGH [04042007] refactoring
+! *****************************************************************************
 MODULE virial_types
 
   USE f77_blas
@@ -32,6 +23,7 @@ MODULE virial_types
 
   INTEGER, PRIVATE, SAVE :: last_virial_id_nr=0
 
+! *****************************************************************************
   TYPE virial_type
      INTEGER                            :: ref_count, id_nr
      REAL (KIND=dp), DIMENSION ( 3, 3 ) :: pv_total, &
@@ -45,22 +37,17 @@ MODULE virial_types
                                            pv_diagonal
   END TYPE virial_type
 
+! *****************************************************************************
   TYPE virial_p_type
      TYPE(virial_type),  POINTER        :: virial
   END TYPE virial_p_type
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE cp_virial ( virial_in, virial_out )
 
 !   Purpose:  copy virial_in into virial_out
-
-!   ***************************************************************************
 
     TYPE(virial_type), POINTER               :: virial_in, virial_out
 
@@ -79,8 +66,7 @@ CONTAINS
 
   END SUBROUTINE  cp_virial
 
-!******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE zero_virial ( virial, reset )
 
     TYPE(virial_type), INTENT(OUT)           :: virial
@@ -108,7 +94,6 @@ CONTAINS
   END SUBROUTINE  zero_virial
 
 ! *****************************************************************************
-
   SUBROUTINE virial_set ( virial, pv_total, pv_virial, pv_xc, pv_constraint, &
     pv_kinetic, pv_availability, pv_calculate, pv_numer, pv_diagonal )
 
@@ -137,7 +122,6 @@ CONTAINS
   END SUBROUTINE virial_set
 
 ! *****************************************************************************
-
   SUBROUTINE virial_get ( virial, pv_total, pv_virial, pv_xc, pv_constraint, &
     pv_kinetic, pv_availability, pv_calculate, pv_numer, pv_diagonal )
 
@@ -166,7 +150,6 @@ CONTAINS
   END SUBROUTINE virial_get
 
 ! *****************************************************************************
-
   SUBROUTINE virial_create ( virial, error )
 
     TYPE(virial_type), POINTER               :: virial
@@ -190,36 +173,17 @@ CONTAINS
 
   END SUBROUTINE virial_create
 
-!***************************************************************************
-!!****f* virial_types/virial_retain [1.0] *
-!!
-!!   NAME
-!!     virial_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine virial_retain(virial, error)
-!!       Type(virial_type), Pointer:: virial
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine virial_retain
-!!
-!!   FUNCTION
-!!     retains the given virial_type
-!!
-!!   NOTES
-!!     see doc/ReferenceCounting.html
-!!
-!!   ARGUMENTS
-!!     - virial_type: the virial_type to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given virial_type
+!> \param virial_type the virial_type to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      see doc/ReferenceCounting.html
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE virial_retain ( virial, error)
     TYPE(virial_type), POINTER               :: virial
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -238,36 +202,17 @@ SUBROUTINE virial_retain ( virial, error)
   END IF
 END SUBROUTINE virial_retain
 
-!***************************************************************************
-!!****f* virial_types/virial_release [1.0] *
-!!
-!!   NAME
-!!     virial_release
-!!
-!!   SYNOPSIS
-!!     Subroutine virial_release(virial, error)
-!!       Type(virial_type), Pointer:: virial
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine virial_release
-!!
-!!   FUNCTION
-!!     releases the given virial_type
-!!
-!!   NOTES
-!!     see doc/ReferenceCounting.html
-!!
-!!   ARGUMENTS
-!!     - virial: the virial_type to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given virial_type
+!> \param virial the virial_type to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      see doc/ReferenceCounting.html
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE virial_release(virial, error)
     TYPE(virial_type), POINTER               :: virial
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -290,8 +235,5 @@ SUBROUTINE virial_release(virial, error)
   NULLIFY(virial)
 END SUBROUTINE virial_release
 
-!******************************************************************************
-
 END MODULE virial_types
 
-!******************************************************************************

@@ -2,22 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/scp_rho_methods [1.0] *
-!!
-!!   NAME
-!!     scp_rho_methods
-!!
-!!   FUNCTION
-!!     rho_methods
-!!
-!!   AUTHOR
-!!    CJM
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief rho_methods
+!> \author CJM
+! *****************************************************************************
 MODULE scp_rho_methods
   USE kinds,                           ONLY: dp
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -45,7 +34,7 @@ MODULE scp_rho_methods
 
 CONTAINS
 
-!!*************************************************************************
+! *****************************************************************************
 SUBROUTINE scp_rho_create( scp_rho, auxbas_pw_pool, error )
     TYPE(scp_rho_type), POINTER              :: scp_rho
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -105,8 +94,6 @@ SUBROUTINE scp_rho_create( scp_rho, auxbas_pw_pool, error )
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE scp_rho_create
-!!*** **********************************************************************
 
 END MODULE scp_rho_methods
 
-!******************************************************************************

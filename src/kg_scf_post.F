@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/kg_scf_post [1.0] *
-!!
-!!   NAME
-!!     kg_scf_post
-!!
-!!   FUNCTION
-!!     Does all kind of post scf calculations
-!!
-!!   AUTHOR
-!!     JGH (19.07.2006)
-!!
-!!   MODIFICATION HISTORY
-!!     Adapted from qs_scf_post
-!!
-!!***
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Does all kind of post scf calculations
+!> \par History
+!>      Adapted from qs_scf_post
+!> \author JGH (19.07.2006)
+! *****************************************************************************
 MODULE kg_scf_post
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -74,28 +64,14 @@ MODULE kg_scf_post
 
   PUBLIC :: scf_post_calculation
 
-! *****************************************************************************
-
 CONTAINS
 
-!!****f* kg_scf/scf_post_calculation [1.0] *
-!!
-!!   NAME
-!!     scf_post_calculation
-!!
-!!   FUNCTION
-!!     collects post-scf calculations and prints info
-!!
-!!   NOTES
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief collects post-scf calculations and prints info
+!> \par History
+!>      none
+!> \author JGH
+! *****************************************************************************
   SUBROUTINE scf_post_calculation(dft_section,kg_env,error)
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(kg_environment_type), POINTER       :: kg_env
@@ -160,7 +136,6 @@ CONTAINS
     IF (ionode) THEN
       WRITE(output_unit,'(/,A,/)') " +++ Molecular Properties Calculation"
     END IF
-
 
     CPPrecondition(ASSOCIATED(kg_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -313,7 +288,6 @@ CONTAINS
            END DO 
         END IF
 
-
         IF (ionode) THEN
           DO jmol = 1, SIZE(mmol,2)
              WRITE(output_unit,'(A,i7)') " Molecule Nr. ", jmol
@@ -367,8 +341,5 @@ CONTAINS
 
   END SUBROUTINE scf_post_calculation
 
-!***************************************************************************
-
 END MODULE kg_scf_post
 
-!***************************************************************************

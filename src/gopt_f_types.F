@@ -3,27 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/gopt_f_types [1.0] *
-!!
-!!   NAME
-!!     gopt_f_types
-!!
-!!   FUNCTION
-!!     contains a functional that calculates the energy and its derivatives
-!!     for the geometry optimizer
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     -
-!!
-!!   MODIFICATION HISTORY
-!!     01.2008 - Luca Bellucci and Teodoro Laino - Generalizing for Dimer Method.
-!!
-!!   SOURCE
-!*****************************************************************************
+! *****************************************************************************
+!> \brief contains a functional that calculates the energy and its derivatives
+!>      for the geometry optimizer
+!> \par History
+!>      01.2008 - Luca Bellucci and Teodoro Laino - Generalizing for Dimer Method.
+! *****************************************************************************
 MODULE gopt_f_types
   USE dimer_types,                     ONLY: dimer_env_create,&
                                              dimer_env_release,&
@@ -58,27 +43,11 @@ MODULE gopt_f_types
 
   PUBLIC :: gopt_f_type, gopt_f_create, gopt_f_retain, gopt_f_release
 
-!!****s* gopt_f_types/gopt_f_type [1.0] *
-!!
-!!   NAME
-!!     gopt_f_type
-!!
-!!   FUNCTION
-!!     calculates the potential energy of a system, and its derivatives
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     -
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief calculates the potential energy of a system, and its derivatives
+!> \par History
+!>      none
+! *****************************************************************************
   TYPE gopt_f_type
      INTEGER                                  :: ref_count, id_nr, its
      INTEGER                                  :: type_id, ts_method_id
@@ -92,35 +61,18 @@ MODULE gopt_f_types
      TYPE(gopt_f_type), POINTER               :: gopt_dimer_env
      TYPE(gopt_param_type), POINTER           :: gopt_dimer_param
   END TYPE gopt_f_type
-!!***
-  !****************************************************************************
 
 CONTAINS
   
-!!****f* gopt_f_types/gopt_f_create [1.0] *
-!!
-!!   NAME
-!!     gopt_f_create
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     gopt_env: the geometry optimization environment to be created
-!!     force_env:
-!!     globenv:
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param gopt_env the geometry optimization environment to be created
+!>      force_env:
+!>      globenv:
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \par History
+!>      none
+! *****************************************************************************
   RECURSIVE SUBROUTINE gopt_f_create(gopt_env, gopt_param, force_env, globenv, geo_opt_section, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
@@ -181,30 +133,14 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE gopt_f_create
-!***************************************************************************
 
-!!****f* gopt_f_types/gopt_f_retain [1.0] *
-!!
-!!   NAME
-!!     gopt_f_retain
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     gopt_env: the geometry optimization environment to retain
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param gopt_env the geometry optimization environment to retain
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE gopt_f_retain(gopt_env, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -222,30 +158,14 @@ CONTAINS
        gopt_env%ref_count=gopt_env%ref_count+1
     END IF
   END SUBROUTINE gopt_f_retain
-!***************************************************************************
 
-!!****f* gopt_f_types/gopt_f_release [1.0] *
-!!
-!!   NAME
-!!     gopt_f_release
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     gopt_env: the geometry optimization environment to release
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param gopt_env the geometry optimization environment to release
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \par History
+!>      none
+! *****************************************************************************
   RECURSIVE SUBROUTINE gopt_f_release(gopt_env, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -275,6 +195,5 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE gopt_f_release
-!***************************************************************************
 
 END MODULE gopt_f_types

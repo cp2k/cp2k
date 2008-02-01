@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/moments_utils [1.0] *
-!!
-!!   NAME
-!!     moments_utils
-!!
-!!   FUNCTION
-!!     Calculates the moment integrals <a|r^m|b>
-!!
-!!   AUTHOR
-!!     JGH (20.07.2006)
-!!
-!!   MODIFICATION HISTORY
-!!     12.2007 [tlaino] - Splitting common routines to QS and FIST
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Calculates the moment integrals <a|r^m|b>
+!> \par History
+!>      12.2007 [tlaino] - Splitting common routines to QS and FIST
+!> \author JGH (20.07.2006)
+! *****************************************************************************
 MODULE moments_utils
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -53,13 +43,9 @@ MODULE moments_utils
 
   PUBLIC :: get_reference_point
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE get_reference_point(rpoint,drpoint,qs_env,fist_env,reference,ref_point,error)
     REAL(dp), DIMENSION(3), INTENT(OUT)      :: rpoint
     REAL(dp), DIMENSION(3), INTENT(OUT), &
@@ -154,4 +140,3 @@ CONTAINS
 
 END MODULE moments_utils
 
-! *****************************************************************************

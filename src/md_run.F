@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/md_run [1.0] *
-!!
-!!   NAME
-!!     md_run
-!!
-!!   FUNCTION
-!!     Perform a molecular dynamics (MD) run using QUICKSTEP
-!!
-!!   AUTHOR
-!!     Matthias Krack (07.11.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Perform a molecular dynamics (MD) run using QUICKSTEP
+!> \par History
+!>      none
+!> \author Matthias Krack (07.11.2002)
+! *****************************************************************************
 MODULE md_run
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE barostat_types,                  ONLY: barostat_type,&
@@ -108,28 +98,10 @@ MODULE md_run
 CONTAINS
 
 ! *****************************************************************************
-!!****f* md_run/qs_mol_dyn [1.0] *
-!!
-!!   NAME
-!!     qs_mol_dyn
-!!
-!!   FUNCTION
-!!     Main driver module for Molecular Dynamics
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+!> \brief Main driver module for Molecular Dynamics
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE qs_mol_dyn ( force_env, globenv, error )
 
     TYPE(force_env_type), POINTER            :: force_env
@@ -152,28 +124,13 @@ CONTAINS
   END SUBROUTINE qs_mol_dyn
 
 ! *****************************************************************************
-!!****f* md_run/qs_mol_dyn_low [1.0] *
-!!
-!!   NAME
-!!     qs_mol_dyn_low
-!!
-!!   FUNCTION
-!!     Purpose: Driver routine for MD run using QUICKSTEP.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Creation (07.11.2002,MK)
-!!
-!!   MODIFICATION HISTORY
-!!     Cleaning (09.2007) Teodoro Laino [tlaino] - University of Zurich
-!!
-!!*** **********************************************************************
+!> \brief Purpose: Driver routine for MD run using QUICKSTEP.
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      Cleaning (09.2007) Teodoro Laino [tlaino] - University of Zurich
+!> \author Creation (07.11.2002,MK)
+! *****************************************************************************
   SUBROUTINE qs_mol_dyn_low ( md_env, force_env, globenv, error )
 
     TYPE(md_environment_type), POINTER       :: md_env
@@ -245,7 +202,6 @@ CONTAINS
     simpar%dump_lm = BTEST(cp_print_key_should_output(logger%iter_info,root_section,&
          "MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error),cp_p_file)
 
-
     ! Create the structure for the md energies
     CALL create_md_ener(md_ener, error=error)
     CALL set_md_env(md_env, md_ener=md_ener, error=error)
@@ -277,7 +233,6 @@ CONTAINS
         CALL release_reftraj(reftraj,error=error)
     END IF
 
-    
     CALL force_env_get(force_env, subsys=subsys, cell=cell, force_env_section=force_env_section,&
          error=error )
 
@@ -393,7 +348,6 @@ CONTAINS
 
       ! Velocity Verlet Integrator
       CALL velocity_verlet(md_env,error)
-
 
       ! Close Shake output if requested...
       CALL cp_print_key_finished_output(simpar%info_constraint, logger,&

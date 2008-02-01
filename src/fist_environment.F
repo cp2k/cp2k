@@ -1,23 +1,12 @@
-
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/fist_environment [1.0] *
-!!
-!!   NAME
-!!     fist_environment
-!!
-!!   FUNCTION
-!!    initialize fist environment
-!!   AUTHOR
-!!     CJM
-!!   HISTORY
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief initialize fist environment
+!> \author CJM
+! *****************************************************************************
 MODULE fist_environment
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
@@ -97,7 +86,6 @@ MODULE fist_environment
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_environment'
   PUBLIC :: fist_init
 
-!!*****
 !-----------------------------------------------------------------------------!
 
 CONTAINS
@@ -105,24 +93,12 @@ CONTAINS
 !-----------------------------------------------------------------------------!
 ! FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST  FIST
 !-----------------------------------------------------------------------------!
-!!
-!!   NAME
-!!     fist_init
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!   reads the input and database file for fist
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   USED BY
-!!     fist_main
-!!
-!!*** *************************************************************************
 
+! *****************************************************************************
+!> \brief reads the input and database file for fist
+!> \par Used By
+!>      fist_main
+! *****************************************************************************
 SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_section,&
      subsys_section, use_motion_section, error )
 
@@ -255,7 +231,6 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
   CALL mol_new_list_release ( mols, error = error )
   CALL mol_kind_new_list_release ( mol_kinds, error = error )
 
-
   CALL fist_init_subsys ( fist_env, subsys, cell, cell_ref, use_ref_cell, &
                           fist_nonbond_env, ewald_env, force_env_section,&
                           subsys_section,error )
@@ -270,7 +245,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
 
   END SUBROUTINE fist_init
 
-!   ***************************************************************************
+! *****************************************************************************
   SUBROUTINE fist_init_subsys ( fist_env, subsys, cell, cell_ref, use_ref_cell, &
                                 fist_nonbond_env, ewald_env, force_env_section,&
                                 subsys_section, error )
@@ -280,7 +255,6 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
 
 !   History: - Creation (22.05.2000,MK)
 
-!   ***************************************************************************
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(cell_type), POINTER                 :: cell, cell_ref
@@ -375,6 +349,4 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
     CALL timestop(0.0_dp,handle)
     
   END SUBROUTINE fist_init_subsys
-!******************************************************************************
 END MODULE fist_environment
-!******************************************************************************

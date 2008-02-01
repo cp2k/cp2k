@@ -3,25 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_cp2k_resp *
-!!
-!!   NAME
-!!     input_cp2k_resp
-!!
-!!   FUNCTION
-!!     function that builds the resp section of the input
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!     02.2007 created
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief function that builds the resp section of the input
+!> \par History
+!>      02.2007 created
+!> \author Joost VandeVondele
+! *****************************************************************************
 MODULE input_cp2k_resp
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
@@ -48,29 +35,15 @@ MODULE input_cp2k_resp
 
   PUBLIC :: create_resp_section
 
-!****************************************************************************
 CONTAINS
 
-!!****f* input_cp2k_resp/create_poisson_resp [1.0] *
-!!
-!!   NAME
-!!     create_resp_section
-!!
-!!   FUNCTION
-!!     Creates the RESP section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the RESP section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE create_resp_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -157,27 +130,14 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_resp_section
-!***************************************************************************
-!!****f* input_cp2k_resp/create_constraint_section [1.0] *
-!!
-!!   NAME
-!!     create_constraint_section
-!!
-!!   FUNCTION
-!!     specifies constraints to be satisfied in a resp fit
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief specifies constraints to be satisfied in a resp fit
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE create_constraint_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -225,27 +185,14 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_constraint_section
-!**************************************************************************
-!!****f* input_cp2k_resp/create_restraint_section [1.0] *
-!!
-!!   NAME
-!!     create_restraint_section
-!!
-!!   FUNCTION
-!!     specifies restraints to be added to a resp fit
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief specifies restraints to be added to a resp fit
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE create_restraint_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -300,6 +247,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_restraint_section
-!**************************************************************************
 
 END MODULE input_cp2k_resp

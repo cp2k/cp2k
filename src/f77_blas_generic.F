@@ -1,3 +1,4 @@
+! *****************************************************************************
 MODULE f77_blas_generic
 !
 ! Provides generic interfaces for BLAS as distributed
@@ -51,6 +52,7 @@ PUBLIC :: BL_GEMM, BL_SYMM, BL_HEMM, BL_SYRK, BL_HERK, BL_SYR2K,         &
 ! Level 1 BLAS
 !
 INTERFACE BL_ROTG
+! *****************************************************************************
    SUBROUTINE SROTG(A,B,C,S)
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
                                                 SP = KIND(0.0)
@@ -58,6 +60,7 @@ INTERFACE BL_ROTG
     REAL(SP), INTENT(INOUT)                  :: B, A
 
    END SUBROUTINE SROTG
+! *****************************************************************************
    SUBROUTINE DROTG(A,B,C,S)
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
                                                 SP = KIND(0.0)
@@ -65,6 +68,7 @@ INTERFACE BL_ROTG
     REAL(DP), INTENT(INOUT)                  :: B, A
 
    END SUBROUTINE DROTG
+! *****************************************************************************
    SUBROUTINE CROTG(A,B,C,S)
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
                                                 SP = KIND(0.0)
@@ -73,6 +77,7 @@ INTERFACE BL_ROTG
     COMPLEX(SP), INTENT(INOUT)               :: B, A
 
    END SUBROUTINE CROTG
+! *****************************************************************************
    SUBROUTINE ZROTG(A,B,C,S)
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
                                                 SP = KIND(0.0)
@@ -83,6 +88,7 @@ INTERFACE BL_ROTG
    END SUBROUTINE ZROTG
 END INTERFACE BL_ROTG
 INTERFACE BL_ROTMG
+! *****************************************************************************
    SUBROUTINE SROTMG(D1,D2,A,B,PARAM)
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
                                                 SP = KIND(0.0)
@@ -91,6 +97,7 @@ INTERFACE BL_ROTMG
     REAL(SP), INTENT(INOUT)                  :: A, D2, D1
 
    END SUBROUTINE SROTMG
+! *****************************************************************************
    SUBROUTINE DROTMG(D1,D2,A,B,PARAM)
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
                                                 SP = KIND(0.0)
@@ -101,6 +108,7 @@ INTERFACE BL_ROTMG
    END SUBROUTINE DROTMG
 END INTERFACE BL_ROTMG
 INTERFACE BL_ROT
+! *****************************************************************************
    SUBROUTINE SROT(N,X,INCX,Y,INCY,C,S)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -112,6 +120,7 @@ INTERFACE BL_ROT
     REAL(SP), INTENT(INOUT)                  :: X(*)
 
    END SUBROUTINE SROT
+! *****************************************************************************
    SUBROUTINE DROT(N,X,INCX,Y,INCY,C,S)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -123,6 +132,7 @@ INTERFACE BL_ROT
     REAL(DP), INTENT(INOUT)                  :: X(*)
 
    END SUBROUTINE DROT
+! *****************************************************************************
    SUBROUTINE CSROT(N,X,INCX,Y,INCY,C,S)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -134,6 +144,7 @@ INTERFACE BL_ROT
     COMPLEX(SP), INTENT(INOUT)               :: X(*)
 
    END SUBROUTINE CSROT
+! *****************************************************************************
    SUBROUTINE ZDROT(N,X,INCX,Y,INCY,C,S)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -147,6 +158,7 @@ INTERFACE BL_ROT
    END SUBROUTINE ZDROT
 END INTERFACE BL_ROT
 INTERFACE BL_ROTM
+! *****************************************************************************
    SUBROUTINE SROTM(N,X,INCX,Y,INCY,PARAM)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -158,6 +170,7 @@ INTERFACE BL_ROTM
     REAL(SP), INTENT(INOUT)                  :: X(*)
 
    END SUBROUTINE SROTM
+! *****************************************************************************
    SUBROUTINE DROTM(N,X,INCX,Y,INCY,PARAM)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -171,6 +184,7 @@ INTERFACE BL_ROTM
    END SUBROUTINE DROTM
 END INTERFACE BL_ROTM
 INTERFACE BL_SWAP
+! *****************************************************************************
    SUBROUTINE SSWAP(N,X,INCX,Y,INCY)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -181,6 +195,7 @@ INTERFACE BL_SWAP
     REAL(SP), INTENT(INOUT)                  :: X(*)
 
    END SUBROUTINE SSWAP
+! *****************************************************************************
    SUBROUTINE DSWAP(N,X,INCX,Y,INCY)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -191,6 +206,7 @@ INTERFACE BL_SWAP
     REAL(DP), INTENT(INOUT)                  :: X(*)
 
    END SUBROUTINE DSWAP
+! *****************************************************************************
    SUBROUTINE CSWAP(N,X,INCX,Y,INCY)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -201,6 +217,7 @@ INTERFACE BL_SWAP
     COMPLEX(SP), INTENT(INOUT)               :: X(*)
 
    END SUBROUTINE CSWAP
+! *****************************************************************************
    SUBROUTINE ZSWAP(N,X,INCX,Y,INCY)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -213,6 +230,7 @@ INTERFACE BL_SWAP
    END SUBROUTINE ZSWAP
 END INTERFACE BL_SWAP
 INTERFACE BL_SCAL
+! *****************************************************************************
    SUBROUTINE SSCAL(N,ALPHA,X,INCX)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -222,6 +240,7 @@ INTERFACE BL_SCAL
     REAL(SP), INTENT(IN)                     :: ALPHA
 
    END SUBROUTINE SSCAL
+! *****************************************************************************
    SUBROUTINE DSCAL(N,ALPHA,X,INCX)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -231,6 +250,7 @@ INTERFACE BL_SCAL
     REAL(DP), INTENT(IN)                     :: ALPHA
 
    END SUBROUTINE DSCAL
+! *****************************************************************************
    SUBROUTINE CSCAL(N,ALPHA,X,INCX)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -240,6 +260,7 @@ INTERFACE BL_SCAL
     COMPLEX(SP), INTENT(IN)                  :: ALPHA
 
    END SUBROUTINE CSCAL
+! *****************************************************************************
    SUBROUTINE ZSCAL(N,ALPHA,X,INCX)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -249,6 +270,7 @@ INTERFACE BL_SCAL
     COMPLEX(DP), INTENT(IN)                  :: ALPHA
 
    END SUBROUTINE ZSCAL
+! *****************************************************************************
    SUBROUTINE CSSCAL(N,ALPHA,X,INCX)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -258,6 +280,7 @@ INTERFACE BL_SCAL
     REAL(SP), INTENT(IN)                     :: ALPHA
 
    END SUBROUTINE CSSCAL
+! *****************************************************************************
    SUBROUTINE ZDSCAL(N,ALPHA,X,INCX)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -269,6 +292,7 @@ INTERFACE BL_SCAL
    END SUBROUTINE ZDSCAL
 END INTERFACE BL_SCAL
 INTERFACE BL_COPY
+! *****************************************************************************
    SUBROUTINE SCOPY(N,X,INCX,Y,INCY)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -279,6 +303,7 @@ INTERFACE BL_COPY
     REAL(SP), INTENT(IN)                     :: X(*)
 
    END SUBROUTINE SCOPY
+! *****************************************************************************
    SUBROUTINE DCOPY(N,X,INCX,Y,INCY)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -289,6 +314,7 @@ INTERFACE BL_COPY
     REAL(DP), INTENT(IN)                     :: X(*)
 
    END SUBROUTINE DCOPY
+! *****************************************************************************
    SUBROUTINE CCOPY(N,X,INCX,Y,INCY)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -299,6 +325,7 @@ INTERFACE BL_COPY
     COMPLEX(SP), INTENT(IN)                  :: X(*)
 
    END SUBROUTINE CCOPY
+! *****************************************************************************
    SUBROUTINE ZCOPY(N,X,INCX,Y,INCY)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -311,6 +338,7 @@ INTERFACE BL_COPY
    END SUBROUTINE ZCOPY
 END INTERFACE BL_COPY
 INTERFACE BL_AXPY
+! *****************************************************************************
    SUBROUTINE SAXPY(N,ALPHA,X,INCX,Y,INCY)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -321,6 +349,7 @@ INTERFACE BL_AXPY
     REAL(SP), INTENT(IN)                     :: X(*), ALPHA
 
    END SUBROUTINE SAXPY
+! *****************************************************************************
    SUBROUTINE DAXPY(N,ALPHA,X,INCX,Y,INCY)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -331,6 +360,7 @@ INTERFACE BL_AXPY
     REAL(DP), INTENT(IN)                     :: X(*), ALPHA
 
    END SUBROUTINE DAXPY
+! *****************************************************************************
    SUBROUTINE CAXPY(N,ALPHA,X,INCX,Y,INCY)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -341,6 +371,7 @@ INTERFACE BL_AXPY
     COMPLEX(SP), INTENT(IN)                  :: X(*), ALPHA
 
    END SUBROUTINE CAXPY
+! *****************************************************************************
    SUBROUTINE ZAXPY(N,ALPHA,X,INCX,Y,INCY)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -353,6 +384,7 @@ INTERFACE BL_AXPY
    END SUBROUTINE ZAXPY
 END INTERFACE BL_AXPY
 INTERFACE BL_DOT
+! *****************************************************************************
    FUNCTION SDOT(N,X,INCX,Y,INCY)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -364,6 +396,7 @@ INTERFACE BL_DOT
     REAL(SP), INTENT(IN)                     :: X(*)
 
    END FUNCTION SDOT
+! *****************************************************************************
    FUNCTION DDOT(N,X,INCX,Y,INCY)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -377,6 +410,7 @@ INTERFACE BL_DOT
    END FUNCTION DDOT
 END INTERFACE BL_DOT
 INTERFACE BL_DOTU
+! *****************************************************************************
    FUNCTION CDOTU(N,X,INCX,Y,INCY)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -388,6 +422,7 @@ INTERFACE BL_DOTU
     COMPLEX(SP), INTENT(IN)                  :: X(*)
 
    END FUNCTION CDOTU
+! *****************************************************************************
    FUNCTION ZDOTU(N,X,INCX,Y,INCY)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -401,6 +436,7 @@ INTERFACE BL_DOTU
    END FUNCTION ZDOTU
 END INTERFACE BL_DOTU
 INTERFACE BL_DOTC
+! *****************************************************************************
    FUNCTION CDOTC(N,X,INCX,Y,INCY)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -412,6 +448,7 @@ INTERFACE BL_DOTC
     COMPLEX(SP), INTENT(IN)                  :: X(*)
 
    END FUNCTION CDOTC
+! *****************************************************************************
    FUNCTION ZDOTC(N,X,INCX,Y,INCY)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -425,6 +462,7 @@ INTERFACE BL_DOTC
    END FUNCTION ZDOTC
 END INTERFACE BL_DOTC
 INTERFACE BL_NRM2
+! *****************************************************************************
    FUNCTION SNRM2(N,X,INCX)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -434,6 +472,7 @@ INTERFACE BL_NRM2
     REAL(SP), INTENT(IN)                     :: X(*)
 
    END FUNCTION SNRM2
+! *****************************************************************************
    FUNCTION DNRM2(N,X,INCX)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -443,6 +482,7 @@ INTERFACE BL_NRM2
     REAL(DP), INTENT(IN)                     :: X(*)
 
    END FUNCTION DNRM2
+! *****************************************************************************
    FUNCTION SCNRM2(N,X,INCX)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -452,6 +492,7 @@ INTERFACE BL_NRM2
     COMPLEX(SP), INTENT(IN)                  :: X(*)
 
    END FUNCTION SCNRM2
+! *****************************************************************************
    FUNCTION DZNRM2(N,X,INCX)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -463,6 +504,7 @@ INTERFACE BL_NRM2
    END FUNCTION DZNRM2
 END INTERFACE BL_NRM2
 INTERFACE BL_ASUM
+! *****************************************************************************
    FUNCTION SASUM(N,X,INCX)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -472,6 +514,7 @@ INTERFACE BL_ASUM
     REAL(SP), INTENT(IN)                     :: X(*)
 
    END FUNCTION SASUM
+! *****************************************************************************
    FUNCTION SCASUM(N,X,INCX)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -481,6 +524,7 @@ INTERFACE BL_ASUM
     COMPLEX(SP), INTENT(IN)                  :: X(*)
 
    END FUNCTION SCASUM
+! *****************************************************************************
    FUNCTION DASUM(N,X,INCX)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -490,6 +534,7 @@ INTERFACE BL_ASUM
     REAL(DP), INTENT(IN)                     :: X(*)
 
    END FUNCTION DASUM
+! *****************************************************************************
    FUNCTION DZASUM(N,X,INCX)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -501,6 +546,7 @@ INTERFACE BL_ASUM
    END FUNCTION DZASUM
 END INTERFACE BL_ASUM
 INTERFACE BL_IAMAX
+! *****************************************************************************
    FUNCTION ISAMAX(N,X,INCX)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -510,6 +556,7 @@ INTERFACE BL_IAMAX
     REAL(SP), INTENT(IN)                     :: X(*)
 
    END FUNCTION ISAMAX
+! *****************************************************************************
    FUNCTION IDAMAX(N,X,INCX)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -519,6 +566,7 @@ INTERFACE BL_IAMAX
     REAL(DP), INTENT(IN)                     :: X(*)
 
    END FUNCTION IDAMAX
+! *****************************************************************************
    FUNCTION ICAMAX(N,X,INCX)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -528,6 +576,7 @@ INTERFACE BL_IAMAX
     COMPLEX(SP), INTENT(IN)                  :: X(*)
 
    END FUNCTION ICAMAX
+! *****************************************************************************
    FUNCTION IZAMAX(N,X,INCX)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -542,6 +591,7 @@ END INTERFACE BL_IAMAX
 ! Level 1 BLAS
 !
 INTERFACE BL_GEMV
+! *****************************************************************************
    SUBROUTINE SGEMV(TRANS,M,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
     CHARACTER(LEN=1), INTENT(IN)             :: TRANS
     INTEGER, INTENT(IN)                      :: M, N
@@ -556,6 +606,7 @@ INTERFACE BL_GEMV
     REAL(SP), INTENT(IN)                     :: A(LDA,*), ALPHA
 
    END SUBROUTINE SGEMV
+! *****************************************************************************
    SUBROUTINE DGEMV(TRANS,M,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
     CHARACTER(LEN=1), INTENT(IN)             :: TRANS
     INTEGER, INTENT(IN)                      :: M, N
@@ -570,6 +621,7 @@ INTERFACE BL_GEMV
     REAL(DP), INTENT(IN)                     :: A(LDA,*), ALPHA
 
    END SUBROUTINE DGEMV
+! *****************************************************************************
    SUBROUTINE CGEMV(TRANS,M,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
     CHARACTER(LEN=1), INTENT(IN)             :: TRANS
     INTEGER, INTENT(IN)                      :: M, N
@@ -584,6 +636,7 @@ INTERFACE BL_GEMV
     COMPLEX(SP), INTENT(IN)                  :: A(LDA,*), ALPHA
 
    END SUBROUTINE CGEMV
+! *****************************************************************************
    SUBROUTINE ZGEMV(TRANS,M,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
     CHARACTER(LEN=1), INTENT(IN)             :: TRANS
     INTEGER, INTENT(IN)                      :: M, N
@@ -600,6 +653,7 @@ INTERFACE BL_GEMV
    END SUBROUTINE ZGEMV
 END INTERFACE BL_GEMV
 INTERFACE BL_GBMV
+! *****************************************************************************
    SUBROUTINE SGBMV(TRANS,M,N,KL,KU,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
     CHARACTER(LEN=1), INTENT(IN)             :: TRANS
     INTEGER, INTENT(IN)                      :: M, N, KL, KU
@@ -614,6 +668,7 @@ INTERFACE BL_GBMV
     REAL(SP), INTENT(IN)                     :: A(LDA,*), ALPHA
 
    END SUBROUTINE SGBMV
+! *****************************************************************************
    SUBROUTINE DGBMV(TRANS,M,N,KL,KU,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
     CHARACTER(LEN=1), INTENT(IN)             :: TRANS
     INTEGER, INTENT(IN)                      :: M, N, KL, KU
@@ -628,6 +683,7 @@ INTERFACE BL_GBMV
     REAL(DP), INTENT(IN)                     :: A(LDA,*), ALPHA
 
    END SUBROUTINE DGBMV
+! *****************************************************************************
    SUBROUTINE CGBMV(TRANS,M,N,KL,KU,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
     CHARACTER(LEN=1), INTENT(IN)             :: TRANS
     INTEGER, INTENT(IN)                      :: M, N, KL, KU
@@ -642,6 +698,7 @@ INTERFACE BL_GBMV
     COMPLEX(SP), INTENT(IN)                  :: A(LDA,*), ALPHA
 
    END SUBROUTINE CGBMV
+! *****************************************************************************
    SUBROUTINE ZGBMV(TRANS,M,N,KL,KU,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
     CHARACTER(LEN=1), INTENT(IN)             :: TRANS
     INTEGER, INTENT(IN)                      :: M, N, KL, KU
@@ -658,6 +715,7 @@ INTERFACE BL_GBMV
    END SUBROUTINE ZGBMV
 END INTERFACE BL_GBMV
 INTERFACE BL_HEMV
+! *****************************************************************************
    SUBROUTINE CHEMV(UPLO,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -672,6 +730,7 @@ INTERFACE BL_HEMV
     COMPLEX(SP), INTENT(IN)                  :: A(LDA,*), ALPHA
 
    END SUBROUTINE CHEMV
+! *****************************************************************************
    SUBROUTINE ZHEMV(UPLO,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -688,6 +747,7 @@ INTERFACE BL_HEMV
    END SUBROUTINE ZHEMV
 END INTERFACE BL_HEMV
 INTERFACE BL_HBMV
+! *****************************************************************************
    SUBROUTINE CHBMV(UPLO,N,K,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N, K
@@ -702,6 +762,7 @@ INTERFACE BL_HBMV
     COMPLEX(SP), INTENT(IN)                  :: A(LDA,*), ALPHA
 
    END SUBROUTINE CHBMV
+! *****************************************************************************
    SUBROUTINE ZHBMV(UPLO,N,K,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N, K
@@ -718,6 +779,7 @@ INTERFACE BL_HBMV
    END SUBROUTINE ZHBMV
 END INTERFACE BL_HBMV
 INTERFACE BL_HPMV
+! *****************************************************************************
    SUBROUTINE CHPMV(UPLO,N,ALPHA,A,X,INCX,BETA,Y,INCY)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -730,6 +792,7 @@ INTERFACE BL_HPMV
     COMPLEX(SP), INTENT(IN)                  :: X(*), A(*), ALPHA
 
    END SUBROUTINE CHPMV
+! *****************************************************************************
    SUBROUTINE ZHPMV(UPLO,N,ALPHA,A,X,INCX,BETA,Y,INCY)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -744,6 +807,7 @@ INTERFACE BL_HPMV
    END SUBROUTINE ZHPMV
 END INTERFACE BL_HPMV
 INTERFACE BL_SYMV
+! *****************************************************************************
    SUBROUTINE SSYMV(UPLO,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -758,6 +822,7 @@ INTERFACE BL_SYMV
     REAL(SP), INTENT(IN)                     :: A(LDA,*), ALPHA
 
    END SUBROUTINE SSYMV
+! *****************************************************************************
    SUBROUTINE DSYMV(UPLO,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -774,6 +839,7 @@ INTERFACE BL_SYMV
    END SUBROUTINE DSYMV
 END INTERFACE BL_SYMV
 INTERFACE BL_SBMV
+! *****************************************************************************
    SUBROUTINE SSBMV(UPLO,N,K,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N, K
@@ -788,6 +854,7 @@ INTERFACE BL_SBMV
     REAL(SP), INTENT(IN)                     :: A(LDA,*), ALPHA
 
    END SUBROUTINE SSBMV
+! *****************************************************************************
    SUBROUTINE DSBMV(UPLO,N,K,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N, K
@@ -804,6 +871,7 @@ INTERFACE BL_SBMV
    END SUBROUTINE DSBMV
 END INTERFACE BL_SBMV
 INTERFACE BL_SPMV
+! *****************************************************************************
    SUBROUTINE SSPMV(UPLO,N,ALPHA,A,X,INCX,BETA,Y,INCY)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -816,6 +884,7 @@ INTERFACE BL_SPMV
     REAL(SP), INTENT(IN)                     :: X(*), A(*), ALPHA
 
    END SUBROUTINE SSPMV
+! *****************************************************************************
    SUBROUTINE DSPMV(UPLO,N,ALPHA,A,X,INCX,BETA,Y,INCY)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -830,6 +899,7 @@ INTERFACE BL_SPMV
    END SUBROUTINE DSPMV
 END INTERFACE BL_SPMV
 INTERFACE BL_TRMV
+! *****************************************************************************
    SUBROUTINE STRMV(UPLO,TRANS,DIAG,N,A,LDA,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N
@@ -841,6 +911,7 @@ INTERFACE BL_TRMV
     REAL(SP), INTENT(IN)                     :: A(LDA,*)
 
    END SUBROUTINE STRMV
+! *****************************************************************************
    SUBROUTINE DTRMV(UPLO,TRANS,DIAG,N,A,LDA,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N
@@ -852,6 +923,7 @@ INTERFACE BL_TRMV
     REAL(DP), INTENT(IN)                     :: A(LDA,*)
 
    END SUBROUTINE DTRMV
+! *****************************************************************************
    SUBROUTINE CTRMV(UPLO,TRANS,DIAG,N,A,LDA,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N
@@ -863,6 +935,7 @@ INTERFACE BL_TRMV
     COMPLEX(SP), INTENT(IN)                  :: A(LDA,*)
 
    END SUBROUTINE CTRMV
+! *****************************************************************************
    SUBROUTINE ZTRMV(UPLO,TRANS,DIAG,N,A,LDA,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N
@@ -876,6 +949,7 @@ INTERFACE BL_TRMV
    END SUBROUTINE ZTRMV
 END INTERFACE BL_TRMV
 INTERFACE BL_TBMV
+! *****************************************************************************
    SUBROUTINE STBMV(UPLO,TRANS,DIAG,N,K,A,LDA,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N, K
@@ -887,6 +961,7 @@ INTERFACE BL_TBMV
     REAL(SP), INTENT(IN)                     :: A(LDA,*)
 
    END SUBROUTINE STBMV
+! *****************************************************************************
    SUBROUTINE DTBMV(UPLO,TRANS,DIAG,N,K,A,LDA,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N, K
@@ -898,6 +973,7 @@ INTERFACE BL_TBMV
     REAL(DP), INTENT(IN)                     :: A(LDA,*)
 
    END SUBROUTINE DTBMV
+! *****************************************************************************
    SUBROUTINE CTBMV(UPLO,TRANS,DIAG,N,K,A,LDA,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N, K
@@ -909,6 +985,7 @@ INTERFACE BL_TBMV
     COMPLEX(SP), INTENT(IN)                  :: A(LDA,*)
 
    END SUBROUTINE CTBMV
+! *****************************************************************************
    SUBROUTINE ZTBMV(UPLO,TRANS,DIAG,N,K,A,LDA,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N, K
@@ -922,6 +999,7 @@ INTERFACE BL_TBMV
    END SUBROUTINE ZTBMV
 END INTERFACE BL_TBMV
 INTERFACE BL_TPMV
+! *****************************************************************************
    SUBROUTINE STPMV(UPLO,TRANS,DIAG,N,A,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N
@@ -932,6 +1010,7 @@ INTERFACE BL_TPMV
     REAL(SP), INTENT(IN)                     :: A(*)
 
    END SUBROUTINE STPMV
+! *****************************************************************************
    SUBROUTINE DTPMV(UPLO,TRANS,DIAG,N,A,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N
@@ -942,6 +1021,7 @@ INTERFACE BL_TPMV
     REAL(DP), INTENT(IN)                     :: A(*)
 
    END SUBROUTINE DTPMV
+! *****************************************************************************
    SUBROUTINE CTPMV(UPLO,TRANS,DIAG,N,A,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N
@@ -952,6 +1032,7 @@ INTERFACE BL_TPMV
     COMPLEX(SP), INTENT(IN)                  :: A(*)
 
    END SUBROUTINE CTPMV
+! *****************************************************************************
    SUBROUTINE ZTPMV(UPLO,TRANS,DIAG,N,A,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N
@@ -964,6 +1045,7 @@ INTERFACE BL_TPMV
    END SUBROUTINE ZTPMV
 END INTERFACE BL_TPMV
 INTERFACE BL_TRSV
+! *****************************************************************************
    SUBROUTINE STRSV(UPLO,TRANS,DIAG,N,A,LDA,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N
@@ -975,6 +1057,7 @@ INTERFACE BL_TRSV
     REAL(SP), INTENT(IN)                     :: A(LDA,*)
 
    END SUBROUTINE STRSV
+! *****************************************************************************
    SUBROUTINE DTRSV(UPLO,TRANS,DIAG,N,A,LDA,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N
@@ -986,6 +1069,7 @@ INTERFACE BL_TRSV
     REAL(DP), INTENT(IN)                     :: A(LDA,*)
 
    END SUBROUTINE DTRSV
+! *****************************************************************************
    SUBROUTINE CTRSV(UPLO,TRANS,DIAG,N,A,LDA,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N
@@ -997,6 +1081,7 @@ INTERFACE BL_TRSV
     COMPLEX(SP), INTENT(IN)                  :: A(LDA,*)
 
    END SUBROUTINE CTRSV
+! *****************************************************************************
    SUBROUTINE ZTRSV(UPLO,TRANS,DIAG,N,A,LDA,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N
@@ -1010,6 +1095,7 @@ INTERFACE BL_TRSV
    END SUBROUTINE ZTRSV
 END INTERFACE BL_TRSV
 INTERFACE BL_TBSV
+! *****************************************************************************
    SUBROUTINE STBSV(UPLO,TRANS,DIAG,N,K,A,LDA,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N, K
@@ -1021,6 +1107,7 @@ INTERFACE BL_TBSV
     REAL(SP), INTENT(IN)                     :: A(LDA,*)
 
    END SUBROUTINE STBSV
+! *****************************************************************************
    SUBROUTINE DTBSV(UPLO,TRANS,DIAG,N,K,A,LDA,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N, K
@@ -1032,6 +1119,7 @@ INTERFACE BL_TBSV
     REAL(DP), INTENT(IN)                     :: A(LDA,*)
 
    END SUBROUTINE DTBSV
+! *****************************************************************************
    SUBROUTINE CTBSV(UPLO,TRANS,DIAG,N,K,A,LDA,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N, K
@@ -1043,6 +1131,7 @@ INTERFACE BL_TBSV
     COMPLEX(SP), INTENT(IN)                  :: A(LDA,*)
 
    END SUBROUTINE CTBSV
+! *****************************************************************************
    SUBROUTINE ZTBSV(UPLO,TRANS,DIAG,N,K,A,LDA,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N, K
@@ -1056,6 +1145,7 @@ INTERFACE BL_TBSV
    END SUBROUTINE ZTBSV
 END INTERFACE BL_TBSV
 INTERFACE BL_TPSV
+! *****************************************************************************
    SUBROUTINE STPSV(UPLO,TRANS,DIAG,N,A,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N
@@ -1066,6 +1156,7 @@ INTERFACE BL_TPSV
     REAL(SP), INTENT(IN)                     :: A(*)
 
    END SUBROUTINE STPSV
+! *****************************************************************************
    SUBROUTINE DTPSV(UPLO,TRANS,DIAG,N,A,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N
@@ -1076,6 +1167,7 @@ INTERFACE BL_TPSV
     REAL(DP), INTENT(IN)                     :: A(*)
 
    END SUBROUTINE DTPSV
+! *****************************************************************************
    SUBROUTINE CTPSV(UPLO,TRANS,DIAG,N,A,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N
@@ -1086,6 +1178,7 @@ INTERFACE BL_TPSV
     COMPLEX(SP), INTENT(IN)                  :: A(*)
 
    END SUBROUTINE CTPSV
+! *****************************************************************************
    SUBROUTINE ZTPSV(UPLO,TRANS,DIAG,N,A,X,INCX)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS, DIAG
     INTEGER, INTENT(IN)                      :: N
@@ -1098,6 +1191,7 @@ INTERFACE BL_TPSV
    END SUBROUTINE ZTPSV
 END INTERFACE BL_TPSV
 INTERFACE BL_GER
+! *****************************************************************************
    SUBROUTINE SGER(M,N,ALPHA,X,INCX,Y,INCY,A,LDA)
     INTEGER, INTENT(IN)                      :: M, N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -1110,6 +1204,7 @@ INTERFACE BL_GER
     REAL(SP), INTENT(IN)                     :: X(*), ALPHA
 
    END SUBROUTINE SGER
+! *****************************************************************************
    SUBROUTINE DGER(M,N,ALPHA,X,INCX,Y,INCY,A,LDA)
     INTEGER, INTENT(IN)                      :: M, N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -1124,6 +1219,7 @@ INTERFACE BL_GER
    END SUBROUTINE DGER
 END INTERFACE BL_GER
 INTERFACE BL_GERU
+! *****************************************************************************
    SUBROUTINE CGERU(M,N,ALPHA,X,INCX,Y,INCY,A,LDA)
     INTEGER, INTENT(IN)                      :: M, N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -1136,6 +1232,7 @@ INTERFACE BL_GERU
     COMPLEX(SP), INTENT(IN)                  :: X(*), ALPHA
 
    END SUBROUTINE CGERU
+! *****************************************************************************
    SUBROUTINE ZGERU(M,N,ALPHA,X,INCX,Y,INCY,A,LDA)
     INTEGER, INTENT(IN)                      :: M, N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -1150,6 +1247,7 @@ INTERFACE BL_GERU
    END SUBROUTINE ZGERU
 END INTERFACE BL_GERU
 INTERFACE BL_GERC
+! *****************************************************************************
    SUBROUTINE CGERC(M,N,ALPHA,X,INCX,Y,INCY,A,LDA)
     INTEGER, INTENT(IN)                      :: M, N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -1162,6 +1260,7 @@ INTERFACE BL_GERC
     COMPLEX(SP), INTENT(IN)                  :: X(*), ALPHA
 
    END SUBROUTINE CGERC
+! *****************************************************************************
    SUBROUTINE ZGERC(M,N,ALPHA,X,INCX,Y,INCY,A,LDA)
     INTEGER, INTENT(IN)                      :: M, N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -1176,6 +1275,7 @@ INTERFACE BL_GERC
    END SUBROUTINE ZGERC
 END INTERFACE BL_GERC
 INTERFACE BL_HER
+! *****************************************************************************
    SUBROUTINE CHER(UPLO,N,ALPHA,X,INCX,A,LDA)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -1188,6 +1288,7 @@ INTERFACE BL_HER
     REAL(SP), INTENT(IN)                     :: ALPHA
 
    END SUBROUTINE CHER
+! *****************************************************************************
    SUBROUTINE ZHER(UPLO,N,ALPHA,X,INCX,A,LDA)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -1202,6 +1303,7 @@ INTERFACE BL_HER
    END SUBROUTINE ZHER
 END INTERFACE BL_HER
 INTERFACE BL_HPR
+! *****************************************************************************
    SUBROUTINE CHPR(UPLO,N,ALPHA,X,INCX,AP)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -1213,6 +1315,7 @@ INTERFACE BL_HPR
     REAL(SP), INTENT(IN)                     :: ALPHA
 
    END SUBROUTINE CHPR
+! *****************************************************************************
    SUBROUTINE ZHPR(UPLO,N,ALPHA,X,INCX,AP)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -1226,6 +1329,7 @@ INTERFACE BL_HPR
    END SUBROUTINE ZHPR
 END INTERFACE BL_HPR
 INTERFACE BL_HER2
+! *****************************************************************************
    SUBROUTINE CHER2(UPLO,N,ALPHA,X,INCX,Y,INCY,A,LDA)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -1239,6 +1343,7 @@ INTERFACE BL_HER2
     COMPLEX(SP), INTENT(IN)                  :: X(*), ALPHA
 
    END SUBROUTINE CHER2
+! *****************************************************************************
    SUBROUTINE ZHER2(UPLO,N,ALPHA,X,INCX,Y,INCY,A,LDA)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -1254,6 +1359,7 @@ INTERFACE BL_HER2
    END SUBROUTINE ZHER2
 END INTERFACE BL_HER2
 INTERFACE BL_HPR2
+! *****************************************************************************
    SUBROUTINE CHPR2(UPLO,N,ALPHA,X,INCX,Y,INCY,AP)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -1266,6 +1372,7 @@ INTERFACE BL_HPR2
     COMPLEX(SP), INTENT(IN)                  :: X(*), ALPHA
 
    END SUBROUTINE CHPR2
+! *****************************************************************************
    SUBROUTINE ZHPR2(UPLO,N,ALPHA,X,INCX,Y,INCY,AP)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -1280,6 +1387,7 @@ INTERFACE BL_HPR2
    END SUBROUTINE ZHPR2
 END INTERFACE BL_HPR2
 INTERFACE BL_SYR
+! *****************************************************************************
    SUBROUTINE SSYR(UPLO,N,ALPHA,X,INCX,A,LDA)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -1291,6 +1399,7 @@ INTERFACE BL_SYR
     REAL(SP), INTENT(IN)                     :: X(*), ALPHA
 
    END SUBROUTINE SSYR
+! *****************************************************************************
    SUBROUTINE DSYR(UPLO,N,ALPHA,X,INCX,A,LDA)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -1304,6 +1413,7 @@ INTERFACE BL_SYR
    END SUBROUTINE DSYR
 END INTERFACE BL_SYR
 INTERFACE BL_SPR
+! *****************************************************************************
    SUBROUTINE SSPR(UPLO,N,ALPHA,X,INCX,AP)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -1314,6 +1424,7 @@ INTERFACE BL_SPR
     REAL(SP), INTENT(IN)                     :: X(*), ALPHA
 
    END SUBROUTINE SSPR
+! *****************************************************************************
    SUBROUTINE DSPR(UPLO,N,ALPHA,X,INCX,AP)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -1326,6 +1437,7 @@ INTERFACE BL_SPR
    END SUBROUTINE DSPR
 END INTERFACE BL_SPR
 INTERFACE BL_SYR2
+! *****************************************************************************
    SUBROUTINE SSYR2(UPLO,N,ALPHA,X,INCX,Y,INCY,A,LDA)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -1339,6 +1451,7 @@ INTERFACE BL_SYR2
     REAL(SP), INTENT(IN)                     :: X(*), ALPHA
 
    END SUBROUTINE SSYR2
+! *****************************************************************************
    SUBROUTINE DSYR2(UPLO,N,ALPHA,X,INCX,Y,INCY,A,LDA)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -1354,6 +1467,7 @@ INTERFACE BL_SYR2
    END SUBROUTINE DSYR2
 END INTERFACE BL_SYR2
 INTERFACE BL_SPR2
+! *****************************************************************************
    SUBROUTINE SSPR2(UPLO,N,ALPHA,X,INCX,Y,INCY,AP)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -1366,6 +1480,7 @@ INTERFACE BL_SPR2
     REAL(SP), INTENT(IN)                     :: X(*), ALPHA
 
    END SUBROUTINE SSPR2
+! *****************************************************************************
    SUBROUTINE DSPR2(UPLO,N,ALPHA,X,INCX,Y,INCY,AP)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO
     INTEGER, INTENT(IN)                      :: N
@@ -1383,6 +1498,7 @@ END INTERFACE BL_SPR2
 ! Level 3 BLAS
 !
 INTERFACE BL_GEMM
+! *****************************************************************************
    SUBROUTINE SGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
     CHARACTER(LEN=1), INTENT(IN)             :: TRANSA, TRANSB
     INTEGER, INTENT(IN)                      :: M, N, K
@@ -1397,6 +1513,7 @@ INTERFACE BL_GEMM
     REAL(SP), INTENT(IN)                     :: A(LDA,*), ALPHA
 
    END SUBROUTINE SGEMM
+! *****************************************************************************
    SUBROUTINE DGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
     CHARACTER(LEN=1), INTENT(IN)             :: TRANSA, TRANSB
     INTEGER, INTENT(IN)                      :: M, N, K
@@ -1411,6 +1528,7 @@ INTERFACE BL_GEMM
     REAL(DP), INTENT(IN)                     :: A(LDA,*), ALPHA
 
    END SUBROUTINE DGEMM
+! *****************************************************************************
    SUBROUTINE CGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
     CHARACTER(LEN=1), INTENT(IN)             :: TRANSA, TRANSB
     INTEGER, INTENT(IN)                      :: M, N, K
@@ -1425,6 +1543,7 @@ INTERFACE BL_GEMM
     COMPLEX(SP), INTENT(IN)                  :: A(LDA,*), ALPHA
 
    END SUBROUTINE CGEMM
+! *****************************************************************************
    SUBROUTINE ZGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
     CHARACTER(LEN=1), INTENT(IN)             :: TRANSA, TRANSB
     INTEGER, INTENT(IN)                      :: M, N, K
@@ -1441,6 +1560,7 @@ INTERFACE BL_GEMM
    END SUBROUTINE ZGEMM
 END INTERFACE BL_GEMM
 INTERFACE BL_SYMM
+! *****************************************************************************
    SUBROUTINE SSYMM(SIDE,UPLO,M,N,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
     CHARACTER(LEN=1), INTENT(IN)             :: SIDE, UPLO
     INTEGER, INTENT(IN)                      :: M, N
@@ -1455,6 +1575,7 @@ INTERFACE BL_SYMM
     REAL(SP), INTENT(IN)                     :: A(LDA,*), ALPHA
 
    END SUBROUTINE SSYMM
+! *****************************************************************************
    SUBROUTINE DSYMM(SIDE,UPLO,M,N,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
     CHARACTER(LEN=1), INTENT(IN)             :: SIDE, UPLO
     INTEGER, INTENT(IN)                      :: M, N
@@ -1469,6 +1590,7 @@ INTERFACE BL_SYMM
     REAL(DP), INTENT(IN)                     :: A(LDA,*), ALPHA
 
    END SUBROUTINE DSYMM
+! *****************************************************************************
    SUBROUTINE CSYMM(SIDE,UPLO,M,N,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
     CHARACTER(LEN=1), INTENT(IN)             :: SIDE, UPLO
     INTEGER, INTENT(IN)                      :: M, N
@@ -1483,6 +1605,7 @@ INTERFACE BL_SYMM
     COMPLEX(SP), INTENT(IN)                  :: A(LDA,*), ALPHA
 
    END SUBROUTINE CSYMM
+! *****************************************************************************
    SUBROUTINE ZSYMM(SIDE,UPLO,M,N,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
     CHARACTER(LEN=1), INTENT(IN)             :: SIDE, UPLO
     INTEGER, INTENT(IN)                      :: M, N
@@ -1499,6 +1622,7 @@ INTERFACE BL_SYMM
    END SUBROUTINE ZSYMM
 END INTERFACE BL_SYMM
 INTERFACE BL_HEMM
+! *****************************************************************************
    SUBROUTINE CHEMM(SIDE,UPLO,M,N,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
     CHARACTER(LEN=1), INTENT(IN)             :: SIDE, UPLO
     INTEGER, INTENT(IN)                      :: M, N
@@ -1513,6 +1637,7 @@ INTERFACE BL_HEMM
     COMPLEX(SP), INTENT(IN)                  :: A(LDA,*), ALPHA
 
    END SUBROUTINE CHEMM
+! *****************************************************************************
    SUBROUTINE ZHEMM(SIDE,UPLO,M,N,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
     CHARACTER(LEN=1), INTENT(IN)             :: SIDE, UPLO
     INTEGER, INTENT(IN)                      :: M, N
@@ -1529,6 +1654,7 @@ INTERFACE BL_HEMM
    END SUBROUTINE ZHEMM
 END INTERFACE BL_HEMM
 INTERFACE BL_SYRK
+! *****************************************************************************
    SUBROUTINE SSYRK(UPLO,TRANS,N,K,ALPHA,A,LDA,BETA,C,LDC)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS
     INTEGER, INTENT(IN)                      :: N, K
@@ -1541,6 +1667,7 @@ INTERFACE BL_SYRK
     REAL(SP), INTENT(IN)                     :: A(LDA,*), ALPHA
 
    END SUBROUTINE SSYRK
+! *****************************************************************************
    SUBROUTINE DSYRK(UPLO,TRANS,N,K,ALPHA,A,LDA,BETA,C,LDC)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS
     INTEGER, INTENT(IN)                      :: N, K
@@ -1553,6 +1680,7 @@ INTERFACE BL_SYRK
     REAL(DP), INTENT(IN)                     :: A(LDA,*), ALPHA
 
    END SUBROUTINE DSYRK
+! *****************************************************************************
    SUBROUTINE CSYRK(UPLO,TRANS,N,K,ALPHA,A,LDA,BETA,C,LDC)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS
     INTEGER, INTENT(IN)                      :: N, K
@@ -1565,6 +1693,7 @@ INTERFACE BL_SYRK
     COMPLEX(SP), INTENT(IN)                  :: A(LDA,*), ALPHA
 
    END SUBROUTINE CSYRK
+! *****************************************************************************
    SUBROUTINE ZSYRK(UPLO,TRANS,N,K,ALPHA,A,LDA,BETA,C,LDC)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS
     INTEGER, INTENT(IN)                      :: N, K
@@ -1579,6 +1708,7 @@ INTERFACE BL_SYRK
    END SUBROUTINE ZSYRK
 END INTERFACE BL_SYRK
 INTERFACE BL_HERK
+! *****************************************************************************
    SUBROUTINE CHERK(UPLO,TRANS,N,K,ALPHA,A,LDA,BETA,C,LDC)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS
     INTEGER, INTENT(IN)                      :: N, K
@@ -1592,6 +1722,7 @@ INTERFACE BL_HERK
     REAL(SP), INTENT(IN)                     :: ALPHA
 
    END SUBROUTINE CHERK
+! *****************************************************************************
    SUBROUTINE ZHERK(UPLO,TRANS,N,K,ALPHA,A,LDA,BETA,C,LDC)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS
     INTEGER, INTENT(IN)                      :: N, K
@@ -1607,6 +1738,7 @@ INTERFACE BL_HERK
    END SUBROUTINE ZHERK
 END INTERFACE BL_HERK
 INTERFACE BL_SYR2K
+! *****************************************************************************
    SUBROUTINE SSYR2K(UPLO,TRANS,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS
     INTEGER, INTENT(IN)                      :: N, K
@@ -1621,6 +1753,7 @@ INTERFACE BL_SYR2K
     REAL(SP), INTENT(IN)                     :: A(LDA,*), ALPHA
 
    END SUBROUTINE SSYR2K
+! *****************************************************************************
    SUBROUTINE DSYR2K(UPLO,TRANS,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS
     INTEGER, INTENT(IN)                      :: N, K
@@ -1635,6 +1768,7 @@ INTERFACE BL_SYR2K
     REAL(DP), INTENT(IN)                     :: A(LDA,*), ALPHA
 
    END SUBROUTINE DSYR2K
+! *****************************************************************************
    SUBROUTINE CSYR2K(UPLO,TRANS,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS
     INTEGER, INTENT(IN)                      :: N, K
@@ -1649,6 +1783,7 @@ INTERFACE BL_SYR2K
     COMPLEX(SP), INTENT(IN)                  :: A(LDA,*), ALPHA
 
    END SUBROUTINE CSYR2K
+! *****************************************************************************
    SUBROUTINE ZSYR2K(UPLO,TRANS,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS
     INTEGER, INTENT(IN)                      :: N, K
@@ -1665,6 +1800,7 @@ INTERFACE BL_SYR2K
    END SUBROUTINE ZSYR2K
 END INTERFACE BL_SYR2K
 INTERFACE BL_HER2K
+! *****************************************************************************
    SUBROUTINE CHER2K(UPLO,TRANS,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS
     INTEGER, INTENT(IN)                      :: N, K
@@ -1679,6 +1815,7 @@ INTERFACE BL_HER2K
     COMPLEX(SP), INTENT(IN)                  :: A(LDA,*), ALPHA
 
    END SUBROUTINE CHER2K
+! *****************************************************************************
    SUBROUTINE ZHER2K(UPLO,TRANS,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
     CHARACTER(LEN=1), INTENT(IN)             :: UPLO, TRANS
     INTEGER, INTENT(IN)                      :: N, K
@@ -1695,6 +1832,7 @@ INTERFACE BL_HER2K
    END SUBROUTINE ZHER2K
 END INTERFACE BL_HER2K
 INTERFACE BL_TRMM
+! *****************************************************************************
    SUBROUTINE STRMM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
     CHARACTER(LEN=1), INTENT(IN)             :: SIDE, UPLO, TRANSA, DIAG
     INTEGER, INTENT(IN)                      :: M, N
@@ -1706,6 +1844,7 @@ INTERFACE BL_TRMM
     REAL(SP), INTENT(IN)                     :: A(LDA,*), ALPHA
 
    END SUBROUTINE STRMM
+! *****************************************************************************
    SUBROUTINE DTRMM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
     CHARACTER(LEN=1), INTENT(IN)             :: SIDE, UPLO, TRANSA, DIAG
     INTEGER, INTENT(IN)                      :: M, N
@@ -1717,6 +1856,7 @@ INTERFACE BL_TRMM
     REAL(DP), INTENT(IN)                     :: A(LDA,*), ALPHA
 
    END SUBROUTINE DTRMM
+! *****************************************************************************
    SUBROUTINE CTRMM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
     CHARACTER(LEN=1), INTENT(IN)             :: SIDE, UPLO, TRANSA, DIAG
     INTEGER, INTENT(IN)                      :: M, N
@@ -1728,6 +1868,7 @@ INTERFACE BL_TRMM
     COMPLEX(SP), INTENT(IN)                  :: A(LDA,*), ALPHA
 
    END SUBROUTINE CTRMM
+! *****************************************************************************
    SUBROUTINE ZTRMM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
     CHARACTER(LEN=1), INTENT(IN)             :: SIDE, UPLO, TRANSA, DIAG
     INTEGER, INTENT(IN)                      :: M, N
@@ -1741,6 +1882,7 @@ INTERFACE BL_TRMM
    END SUBROUTINE ZTRMM
 END INTERFACE BL_TRMM
 INTERFACE BL_TRSM
+! *****************************************************************************
    SUBROUTINE STRSM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
     CHARACTER(LEN=1), INTENT(IN)             :: SIDE, UPLO, TRANSA, DIAG
     INTEGER, INTENT(IN)                      :: M, N
@@ -1752,6 +1894,7 @@ INTERFACE BL_TRSM
     REAL(SP), INTENT(IN)                     :: A(LDA,*), ALPHA
 
    END SUBROUTINE STRSM
+! *****************************************************************************
    SUBROUTINE DTRSM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
     CHARACTER(LEN=1), INTENT(IN)             :: SIDE, UPLO, TRANSA, DIAG
     INTEGER, INTENT(IN)                      :: M, N
@@ -1763,6 +1906,7 @@ INTERFACE BL_TRSM
     REAL(DP), INTENT(IN)                     :: A(LDA,*), ALPHA
 
    END SUBROUTINE DTRSM
+! *****************************************************************************
    SUBROUTINE CTRSM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
     CHARACTER(LEN=1), INTENT(IN)             :: SIDE, UPLO, TRANSA, DIAG
     INTEGER, INTENT(IN)                      :: M, N
@@ -1774,6 +1918,7 @@ INTERFACE BL_TRSM
     COMPLEX(SP), INTENT(IN)                  :: A(LDA,*), ALPHA
 
    END SUBROUTINE CTRSM
+! *****************************************************************************
    SUBROUTINE ZTRSM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
     CHARACTER(LEN=1), INTENT(IN)             :: SIDE, UPLO, TRANSA, DIAG
     INTEGER, INTENT(IN)                      :: M, N

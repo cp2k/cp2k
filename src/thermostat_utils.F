@@ -3,22 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!***** cp2k/thermostat_utils [1.0] *
-!!
-!!   NAME
-!!     thermostat_utils
-!!
-!!   FUNCTION
-!!     Utilities for thermostats
-!!
-!!   AUTHOR
-!!     teo [tlaino] - University of Zurich - 10.2007
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Utilities for thermostats
+!> \author teo [tlaino] - University of Zurich - 10.2007
+! *****************************************************************************
 MODULE thermostat_utils
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -86,26 +74,13 @@ MODULE thermostat_utils
             get_csvr_energies,&
             communication_thermo_low2
 
-
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermostat_utils'
 
 CONTAINS
 
-!******************************************************************************
-!!****** thermostat_utils/compute_degrees_of_freedom [1.0] *
-!!
-!!   NAME
-!!    compute_degrees_of_freedom 
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     10.2007 [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE compute_degrees_of_freedom ( thermostats, cell, simpar, molecule_kind_set,&
        local_molecules, molecules, particles, print_section, region_sections, gci,&
        region, qmmm_env, error)
@@ -173,21 +148,9 @@ CONTAINS
 
   END SUBROUTINE compute_degrees_of_freedom
 
-!******************************************************************************
-!!****** thermostat_utils/setup_thermostat_info [1.0] *
-!!
-!!   NAME
-!!     setup_thermostat_info
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     10.2007 [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE setup_thermostat_info(thermostat_info, molecule_kind_set, local_molecules,&
        molecules, particles, region, ensemble, nfree, shell, region_sections, qmmm_env,&
        error)
@@ -326,21 +289,9 @@ CONTAINS
     thermostat_info%dis_type              = dis_type
   END SUBROUTINE setup_thermostat_info
 
-!******************************************************************************
-!!****** thermostat_utils/get_defined_region_info [1.0] *
-!!
-!!   NAME
-!!    get_defined_region_info
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     11.2007 [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author 11.2007 [tlaino] - Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE get_defined_region_info(region_sections, number, sum_of_thermostats,&
        map_loc_thermo_gen, local_molecules, molecule_kind_set, molecules, particles,&
        qmmm_env, error)
@@ -503,21 +454,9 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE get_defined_region_info
   
-!******************************************************************************
-!!****** thermostat_utils/setup_thermostat_subsys [1.0] *
-!!
-!!   NAME
-!!    setup_thermostat_subsys
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     11.2007 [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author 11.2007 [tlaino] - Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE setup_thermostat_subsys(region_sections, qmmm_env, thermolist, molecule_set, subsys_qm, ig, error)
     TYPE(section_vals_type), POINTER         :: region_sections
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
@@ -593,21 +532,9 @@ CONTAINS
     
   END SUBROUTINE setup_thermostat_subsys
   
-!******************************************************************************
-!!****** thermostat_utils/ke_region_coeffs [1.0] *
-!!
-!!   NAME
-!!    ke_region_coeffs
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     10.2007 [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE ke_region_coeffs(map_info, dyn_coeff_set, coeffs, group, flops, error)
     TYPE(map_info_type), POINTER             :: map_info
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
@@ -650,21 +577,9 @@ CONTAINS
 
   END SUBROUTINE ke_region_coeffs
 
-!******************************************************************************
-!!****** thermostat_utils/vel_rescale_coeffs [1.0] *
-!!
-!!   NAME
-!!     vel_rescale_coeffs
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     10.2007 [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE vel_rescale_coeffs(map_info, dyn_coeff_set, coeffs, flops, error)
     TYPE(map_info_type), POINTER             :: map_info
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
@@ -697,21 +612,9 @@ CONTAINS
 
   END SUBROUTINE vel_rescale_coeffs
 
-!******************************************************************************
-!!****** thermostat_utils/ke_region_baro [1.0] *
-!!
-!!   NAME
-!!    ke_region_baro
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     10.2007 [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE ke_region_baro(map_info, npt, group, flops, error)
     TYPE(map_info_type), POINTER             :: map_info
     TYPE(npt_info_type), DIMENSION(:, :), &
@@ -743,21 +646,9 @@ CONTAINS
 
   END SUBROUTINE ke_region_baro
 
-!******************************************************************************
-!!****** thermostat_utils/vel_rescale_baro [1.0] *
-!!
-!!   NAME
-!!     vel_rescale_baro
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     10.2007 [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE vel_rescale_baro(map_info, npt, flops, error)
     TYPE(map_info_type), POINTER             :: map_info
     TYPE(npt_info_type), DIMENSION(:, :), &
@@ -781,21 +672,9 @@ CONTAINS
 
   END SUBROUTINE vel_rescale_baro
 
-!******************************************************************************
-!!****** thermostat_utils/ke_region_particles [1.0] *
-!!
-!!   NAME
-!!     ke_region_particles
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     10.2007 [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE ke_region_particles(map_info, particle_set, molecule_kind_set,&
          local_molecules, molecule_set, group, flops, vel, error)
     
@@ -853,21 +732,9 @@ CONTAINS
 
   END SUBROUTINE ke_region_particles
   
-!******************************************************************************
-!!****** thermostat_utils/vel_rescale_particles [1.0] *
-!!
-!!   NAME
-!!     vel_rescale_particles
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     10.2007 [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE vel_rescale_particles(map_info, molecule_kind_set, molecule_set,&
        particle_set, local_molecules, shell_adiabatic, flops, shell_particle_set,&
        core_particle_set, vel, shell_vel, core_vel, error)
@@ -969,21 +836,9 @@ CONTAINS
 
   END SUBROUTINE vel_rescale_particles
 
-!******************************************************************************
-!!****** thermostat_utils/ke_region_shells [1.0] *
-!!
-!!   NAME
-!!     ke_region_shells
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     10.2007 [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE ke_region_shells(map_info, particle_set, atomic_kind_set,&
        local_particles, group, flops, core_particle_set, shell_particle_set,&
        core_vel, shell_vel, error)
@@ -1057,21 +912,9 @@ CONTAINS
 
   END SUBROUTINE ke_region_shells
 
-!******************************************************************************
-!!****** thermostat_utils/vel_rescale_shells [1.0] *
-!!
-!!   NAME
-!!     vel_rescale_shells 
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     10.2007 [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE vel_rescale_shells(map_info, atomic_kind_set, particle_set, local_particles, &
        flops, shell_particle_set, core_particle_set, shell_vel, core_vel, vel, error)
 
@@ -1151,23 +994,15 @@ CONTAINS
 
   END SUBROUTINE vel_rescale_shells
 
-  !******************************************************************************
-  !!****** thermostat_utils/get_nhc_energies [1.0] *
-  !!
-  !!   NAME
-  !!     get_nhc_energies
-  !!
-  !!   FUNCTION
-  !!     Calculates kinetic energy and potential energy
-  !!     of the nhc variables
-  !!
-  !!   AUTHOR
-  !!     CJM
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!***8*************************************************************************
+! *****************************************************************************
+!> \brief Calculates kinetic energy and potential energy
+!>      of the nhc variables
+!> \par History
+!>      none
+!> \par
+!> ***8*************************************************************************
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE get_nhc_energies ( nhc, nhc_pot, nhc_kin, para_env, error )
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     REAL(KIND=dp), INTENT(OUT)               :: nhc_pot, nhc_kin
@@ -1217,23 +1052,11 @@ CONTAINS
     CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
   END SUBROUTINE get_nhc_energies
 
-  !******************************************************************************
-  !!****** thermostat_utils/get_csvr_energies [1.0] *
-  !!
-  !!   NAME
-  !!     get_csvr_energies
-  !!
-  !!   FUNCTION
-  !!     Calculates kinetic energy and potential energy
-  !!     of the csvr thermostat
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [tlaino] - University of Zurich 10.2007
-  !!
-  !!   MODIFICATION HISTORY
-  !!    
-  !!
-  !!*****************************************************************************
+! *****************************************************************************
+!> \brief Calculates kinetic energy and potential energy
+!>      of the csvr thermostat
+!> \author Teodoro Laino [tlaino] - University of Zurich 10.2007
+! *****************************************************************************
   SUBROUTINE get_csvr_energies ( csvr, csvr_kin, para_env, array, error )
     TYPE(csvr_system_type), POINTER          :: csvr
     REAL(KIND=dp), INTENT(OUT)               :: csvr_kin
@@ -1274,22 +1097,10 @@ CONTAINS
     CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
   END SUBROUTINE get_csvr_energies
 
-  !******************************************************************************
-  !!****** thermostat_utils/get_thermostat_energies [1.0] *
-  !!
-  !!   NAME
-  !!     get_thermostat_energies
-  !!
-  !!   FUNCTION
-  !!     Calculates energy associated with a thermostat
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [tlaino] - 10.2007 - University of Zurich
-  !!
-  !!   MODIFICATION HISTORY
-  !!     
-  !!
-  !!*****************************************************************************
+! *****************************************************************************
+!> \brief Calculates energy associated with a thermostat
+!> \author Teodoro Laino [tlaino] - 10.2007 - University of Zurich
+! *****************************************************************************
   SUBROUTINE get_thermostat_energies ( thermostat, thermostat_pot, thermostat_kin, para_env, error )
     TYPE(thermostat_type), POINTER           :: thermostat
     REAL(KIND=dp), INTENT(OUT)               :: thermostat_pot, thermostat_kin
@@ -1318,22 +1129,10 @@ CONTAINS
 
   END SUBROUTINE get_thermostat_energies
 
-  !******************************************************************************
-  !!****** thermostat_utils/communication_thermo_low1 [1.0] *
-  !!
-  !!   NAME
-  !!     communication_thermo_low1
-  !!
-  !!   FUNCTION
-  !!     Handles the communication for thermostats (1D array)
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [tlaino] - University of Zurich 11.2007
-  !!
-  !!   MODIFICATION HISTORY
-  !!    
-  !!
-  !!*****************************************************************************
+! *****************************************************************************
+!> \brief Handles the communication for thermostats (1D array)
+!> \author Teodoro Laino [tlaino] - University of Zurich 11.2007
+! *****************************************************************************
   SUBROUTINE communication_thermo_low1(array, number, para_env, error)
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: array
@@ -1379,22 +1178,10 @@ CONTAINS
     CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
   END SUBROUTINE communication_thermo_low1
   
-  !******************************************************************************
-  !!****** thermostat_utils/communication_thermo_low2 [1.0] *
-  !!
-  !!   NAME
-  !!     communication_thermo_low2
-  !!
-  !!   FUNCTION
-  !!     Handles the communication for thermostats (2D array)
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [tlaino] - University of Zurich 11.2007
-  !!
-  !!   MODIFICATION HISTORY
-  !!    
-  !!
-  !!*****************************************************************************
+! *****************************************************************************
+!> \brief Handles the communication for thermostats (2D array)
+!> \author Teodoro Laino [tlaino] - University of Zurich 11.2007
+! *****************************************************************************
   SUBROUTINE communication_thermo_low2(array, number1, number2, para_env, error)
     INTEGER, DIMENSION(:, :), INTENT(INOUT)  :: array
     INTEGER, INTENT(IN)                      :: number1, number2
@@ -1446,4 +1233,3 @@ CONTAINS
   END SUBROUTINE communication_thermo_low2
 
 END MODULE thermostat_utils
-!******************************************************************************

@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/fist_intra_force [1.0] *
-!!
-!!   NAME
-!!     fist_intra_force
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     Torsions added (DG) 05-Dec-2000
-!!     Variable names changed (DG) 05-Dec-2000
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      Torsions added (DG) 05-Dec-2000
+!>      Variable names changed (DG) 05-Dec-2000
+!> \author CJM
+! *****************************************************************************
 MODULE fist_intra_force
 
   USE cell_types,                      ONLY: cell_type,&
@@ -53,29 +43,14 @@ MODULE fist_intra_force
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_intra_force'
   PUBLIC :: force_intra_control
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** fist_intra_force/force_intra_control [1.0] *
-!!
-!!   NAME
-!!     force_intra_control
-!!
-!!   FUNCTION
-!!     Computes the the intramolecular energies, forces, and pressure tensors
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!!******************************************************************************
-
+! *****************************************************************************
+!> \brief Computes the the intramolecular energies, forces, and pressure tensors
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecules,&
        particle_set, shell_particle_set, core_particle_set, pot_bond, pot_bend,&
        pot_urey_bradley, pot_torsion, pot_imp_torsion, pot_onef, pot_shell, pv_bond,&
@@ -484,9 +459,5 @@ CONTAINS
     
   END SUBROUTINE force_intra_control
   
-!!*****
-!******************************************************************************
-
 END MODULE fist_intra_force
 
-!******************************************************************************

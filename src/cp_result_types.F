@@ -2,20 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/cp_result_types [1.0] *
-!!
-!!   NAME
-!!    cp_result_types  
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     fschiff (12.2007)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+
+! *****************************************************************************
+!> \author fschiff (12.2007)
+! *****************************************************************************
   MODULE cp_result_types
 
   USE kinds,                           ONLY: dp
@@ -54,33 +44,14 @@
      MODULE PROCEDURE get_result_r1, get_result_r2,get_nreps
   END INTERFACE
   
-
-!!***
-!****************************************************************************
-
-!!****t* cp_result_types/cp_result_type [1.0] *
-!!
-!!   NAME
-!!     cp_result_types
-!!
-!!   FUNCTION
-!!     contains arbitrary information which need to be stored
-!!
-!!   NOTES
-!!     result_list is a character list, in which everthing can be stored
-!!     before passing any variable just name the variable like '[NAME]'
-!!     brackets will be used to identify the start of a new set 
-!!
-!!   ATTRIBUTES
-!!
-!!   AUTHOR
-!!     fschiff (12.2007)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief contains arbitrary information which need to be stored
+!> \note
+!>      result_list is a character list, in which everthing can be stored
+!>      before passing any variable just name the variable like '[NAME]'
+!>      brackets will be used to identify the start of a new set 
+!> \author fschiff (12.2007)
+! *****************************************************************************
   TYPE cp_result_type
      CHARACTER(LEN=description_length),DIMENSION(:),&
           POINTER                                         :: result_list
@@ -88,28 +59,19 @@
      INTEGER :: ref_count
   END TYPE cp_result_type
 
+! *****************************************************************************
   TYPE cp_result_p_type
      TYPE(cp_result_type), POINTER                        :: results
   END TYPE cp_result_p_type
 
 CONTAINS
-!!****f*  cp_result_types/cp_result_type [1.0] *
-!!
-!!   NAME
-!!     cp_result_create
-!!
-!!   FUNCTION
-!!     allocates and intitializes the cp_result
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!!     fschiff
-!!
-!!   MODIFICATION HISTORY
-!!     12.2007 created
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief allocates and intitializes the cp_result
+!> \par History
+!>      12.2007 created
+!> \author fschiff
+! *****************************************************************************
   SUBROUTINE cp_result_create(results,error)
     TYPE(cp_result_type), POINTER            :: results
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -141,23 +103,11 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE cp_result_create
 
-
-!!****f*  cp_result_types/cp_result_type [1.0] *
-!!
-!!   NAME
-!!     cp_result_release
-!!
-!!   FUNCTION
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!!     fschiff
-!!
-!!   MODIFICATION HISTORY
-!!     12.2007 created
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \par History
+!>      12.2007 created
+!> \author fschiff
+! *****************************************************************************
   SUBROUTINE cp_result_release(results,error)
     TYPE(cp_result_type), POINTER            :: results
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -191,8 +141,7 @@ CONTAINS
     NULLIFY(results)
   END SUBROUTINE cp_result_release
 
-
-
+! *****************************************************************************
   SUBROUTINE cp_result_retain(results,error)
     TYPE(cp_result_type), POINTER            :: results
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -211,23 +160,12 @@ CONTAINS
     END IF
   END SUBROUTINE cp_result_retain
 
- !!****f*  cp_result_types/put_results [1.0] *
-!!
-!!   NAME
-!!     put_results
-!!
-!!   FUNCTION
-!!     writes an arbitrary result as a string in result_list
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!!     fschiff
-!!
-!!   MODIFICATION HISTORY
-!!     12.2007 created
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes an arbitrary result as a string in result_list
+!> \par History
+!>      12.2007 created
+!> \author fschiff
+! *****************************************************************************
   SUBROUTINE put_result_r1(results,description,values,error)
     TYPE(cp_result_type), POINTER            :: results
     CHARACTER(LEN=description_length)        :: description
@@ -288,7 +226,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
   END SUBROUTINE put_result_r1
   
-
+! *****************************************************************************
   SUBROUTINE put_result_r2(results,description,values,error)
     TYPE(cp_result_type), POINTER            :: results
     CHARACTER(LEN=description_length)        :: description
@@ -352,6 +290,7 @@ CONTAINS
        
   END SUBROUTINE put_result_r2
 
+! *****************************************************************************
   SUBROUTINE replace_full_type(results,list,map,size_list,size_map,displ_list,displ_map,error)
     TYPE(cp_result_type), POINTER            :: results
     CHARACTER(LEN=description_length), &
@@ -398,29 +337,16 @@ CONTAINS
     END IF
   END SUBROUTINE replace_full_type
 
- !!****f*  cp_result_types/get_results [1.0] *
-!!
-!!   NAME
-!!     get_results
-!!
-!!   FUNCTION
-!!     gets the required part out of the result_list
-!!
-!!   ARGUMENTS
-!!    
-!!     nval::  if more than one entry for a given description is given you may choose 
-!!             which entry you want
-!!     n_rep:: integer indicating how many times the section exists in result_list
-!!     n_entries:: gets the number of lines used for a given description
-!!
-!!   AUTHOR
-!!     fschiff
-!!
-!!   MODIFICATION HISTORY
-!!     12.2007 created
-!!
-!!*** **********************************************************************
-  
+! *****************************************************************************
+!> \brief gets the required part out of the result_list
+!> \param nval :  if more than one entry for a given description is given you may choose 
+!>              which entry you want
+!> \param n_rep : integer indicating how many times the section exists in result_list
+!> \param n_entries : gets the number of lines used for a given description
+!> \par History
+!>      12.2007 created
+!> \author fschiff
+! *****************************************************************************
   SUBROUTINE get_result_r1(results,description,values,nval,n_rep,n_entries,error)
     TYPE(cp_result_type), POINTER            :: results
     CHARACTER(LEN=description_length)        :: description
@@ -445,7 +371,6 @@ CONTAINS
     IF(PRESENT(n_rep))THEN
        n_rep=nrep
     END IF
-
 
     CPPostcondition(nrep.GT.0,cp_failure_level,routineP,error,failure)  
     DO i=1,desc_size
@@ -484,10 +409,9 @@ CONTAINS
        END IF
     END DO
 
-    
   END SUBROUTINE get_result_r1
 
-
+! *****************************************************************************
   SUBROUTINE get_result_r2(results,description,values,nval,n_rep,n_entries,error)
     TYPE(cp_result_type), POINTER            :: results
     CHARACTER(LEN=description_length)        :: description
@@ -511,7 +435,6 @@ CONTAINS
     END DO
 
     IF(PRESENT(n_rep)) n_rep=nrep
-
 
     CPPostcondition(nrep.GT.0,cp_failure_level,routineP,error,failure)  
     DO i=1,desc_size
@@ -556,9 +479,9 @@ CONTAINS
        END IF
     END DO
 
-
   END SUBROUTINE get_result_r2
 
+! *****************************************************************************
   SUBROUTINE get_nreps(results,description,n_rep,n_entries,error)
     TYPE(cp_result_type), POINTER            :: results
     CHARACTER(LEN=description_length)        :: description
@@ -584,25 +507,14 @@ CONTAINS
     END IF
   END SUBROUTINE get_nreps
 
- !!****f*  cp_result_types/erase_results [1.0] *
-!!
-!!   NAME
-!!     erase_results
-!!
-!!   FUNCTION
-!!     erase a part of  result_list
-!!
-!!   ARGUMENTS
-!!     nval:: if more than one entry for a given description is given you may choose 
-!!            which entry you want
-
-!!   AUTHOR
-!!     fschiff
-!!
-!!   MODIFICATION HISTORY
-!!     12.2007 created
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief erase a part of  result_list
+!> \param nval : if more than one entry for a given description is given you may choose 
+!>             which entry you want
+!> \par History
+!>      12.2007 created
+!> \author fschiff
+! *****************************************************************************
   SUBROUTINE erase_result(results,description,nval,error)
     TYPE(cp_result_type), POINTER            :: results
     CHARACTER(LEN=description_length), &
@@ -637,8 +549,6 @@ CONTAINS
                 EXIT
              END IF
           END DO
-
-
 
           IF(PRESENT(nval))THEN
              CPPostcondition(nval.LE.nrep,cp_failure_level,routineP,error,failure)
@@ -716,33 +626,19 @@ CONTAINS
     END IF
   END SUBROUTINE erase_result
 
-
- !!****f*  cp_result_types/transfer_results [1.0] *
-!!
-!!   NAME
-!!     transfer_results
-!!
-!!   FUNCTION
-!!     erase a part of  result_list
-!!
-!!   ARGUMENTS
-!!     res_target::           type to which you want to transfer
-!!     res_source::           type from which you want to transfer
-!!     nval(OPTIONAL)::       if more than one entry with description_source 
-!!                            is present in res_source you may chose which one to transfer
-!!                            if not present all values with this description are transfered
-!!     description_target::   new description in res_target
-!!     description_source::   description of the values you want to transfer
-!!     
-!!
-!!   AUTHOR
-!!     fschiff
-!!
-!!   MODIFICATION HISTORY
-!!     12.2007 created
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief erase a part of  result_list
+!> \param res_target :           type to which you want to transfer
+!> \param res_source :           type from which you want to transfer
+!>      nval(OPTIONAL)::       if more than one entry with description_source 
+!>                             is present in res_source you may chose which one to transfer
+!>                             if not present all values with this description are transfered
+!> \param description_target :   new description in res_target
+!> \param description_source :   description of the values you want to transfer
+!> \par History
+!>      12.2007 created
+!> \author fschiff
+! *****************************************************************************
   SUBROUTINE transfer_result_type(res_target,res_source,description_target,description_source,nval,error)
     TYPE(cp_result_type), POINTER            :: res_target, res_source
     CHARACTER(LEN=description_length), &

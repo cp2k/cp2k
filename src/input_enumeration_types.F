@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/input_enumeration_types [1.0] *
-!!
-!!   NAME
-!!     input_enumeration_types
-!!
-!!   FUNCTION
-!!     represents an enumeration, i.e. a mapping between integers and strings
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     08.2004 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief represents an enumeration, i.e. a mapping between integers and strings
+!> \par History
+!>      08.2004 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 MODULE input_enumeration_types
   USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
@@ -42,32 +28,16 @@ MODULE input_enumeration_types
   INTEGER, PARAMETER, PRIVATE :: keyword_desc_length=5*default_string_length
   PUBLIC :: enumeration_type
   PUBLIC :: enum_create, enum_retain, enum_release, enum_i2c, enum_c2i
-!!***
-!****************************************************************************
 
-!!****s* input_enumeration_types/enumeration_type [1.0] *
-!!
-!!   NAME
-!!     enumeration_type
-!!
-!!   FUNCTION
-!!     represents an enumaration, i.e. a mapping between strings and numbers
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - id_nr: identification number (unique)
-!!     - ref_count: reference count
-!!     - c_vals: string values
-!!     - i_vals: integer values
-!!     - strict: if integer values not in the list should be accepted
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief represents an enumaration, i.e. a mapping between strings and numbers
+!> \param id_nr identification number (unique)
+!> \param ref_count reference count
+!> \param c_vals string values
+!> \param i_vals integer values
+!> \param strict if integer values not in the list should be accepted
+!> \author fawzi
+! *****************************************************************************
   TYPE enumeration_type
      INTEGER :: id_nr, ref_count
      CHARACTER(len=default_string_length), DIMENSION(:), POINTER :: c_vals
@@ -75,35 +45,20 @@ MODULE input_enumeration_types
      INTEGER, DIMENSION(:), POINTER :: i_vals
      LOGICAL :: strict
   END TYPE enumeration_type
-!!***
-  !****************************************************************************
 
 CONTAINS
 
-!!****f* input_enumeration_types/enum_create [1.0] *
-!!
-!!   NAME
-!!     enum_create
-!!
-!!   FUNCTION
-!!     creates an enumeration
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - enum: the enumeration to be created
-!!     - c_vals: string values
-!!     - i_vals: integer values
-!!     - strict: if integer values not in the list should be accepted, 
-!!       defaults defaults to true
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates an enumeration
+!> \param enum the enumeration to be created
+!> \param c_vals string values
+!> \param i_vals integer values
+!> \param strict if integer values not in the list should be accepted, 
+!>        defaults defaults to true
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE enum_create(enum,c_vals,i_vals,desc,strict,error)
     TYPE(enumeration_type), POINTER          :: enum
     CHARACTER(len=*), DIMENSION(:), &
@@ -158,28 +113,14 @@ SUBROUTINE enum_create(enum,c_vals,i_vals,desc,strict,error)
      END IF
   END IF
 END SUBROUTINE enum_create
-!***************************************************************************
 
-!!****f* input_enumeration_types/enum_retain [1.0] *
-!!
-!!   NAME
-!!     enum_retain
-!!
-!!   FUNCTION
-!!     retains the given enumeration
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - enum: the obect to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given enumeration
+!> \param enum the obect to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE enum_retain(enum,error)
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -196,28 +137,14 @@ SUBROUTINE enum_retain(enum,error)
        enum%ref_count=enum%ref_count+1
     END IF
   END SUBROUTINE enum_retain
-!***************************************************************************
 
-!!****f* input_enumeration_types/enum_release [1.0] *
-!!
-!!   NAME
-!!     enum_release
-!!
-!!   FUNCTION
-!!     releases the given enumeration
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - enum: the obect to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given enumeration
+!> \param enum the obect to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE enum_release(enum,error)
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -245,29 +172,15 @@ SUBROUTINE enum_release(enum,error)
     END IF
     NULLIFY(enum)
   END SUBROUTINE enum_release
-!***************************************************************************
 
-!!****f* input_enumeration_types/enum_i2c [1.0] *
-!!
-!!   NAME
-!!     enum_i2c
-!!
-!!   FUNCTION
-!!     maps an integer to a string
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - enum: the enumeration to use for the mapping
-!!     - i: the value to map
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief maps an integer to a string
+!> \param enum the enumeration to use for the mapping
+!> \param i the value to map
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 FUNCTION enum_i2c(enum,i,error) RESULT(res)
     TYPE(enumeration_type), POINTER          :: enum
     INTEGER, INTENT(in)                      :: i
@@ -309,29 +222,15 @@ FUNCTION enum_i2c(enum,i,error) RESULT(res)
      END IF
   END IF
 END FUNCTION enum_i2c
-!***************************************************************************
 
-!!****f* input_enumeration_types/enum_c2i [1.0] *
-!!
-!!   NAME
-!!     enum_c2i
-!!
-!!   FUNCTION
-!!     maps a string to an integer
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - enum: the enumeration to use for the mapping
-!!     - c: the value to map
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief maps a string to an integer
+!> \param enum the enumeration to use for the mapping
+!> \param c the value to map
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 FUNCTION enum_c2i(enum,c,error) RESULT(res)
     TYPE(enumeration_type), POINTER          :: enum
     CHARACTER(len=*), INTENT(in)             :: c
@@ -372,6 +271,5 @@ FUNCTION enum_c2i(enum,c,error) RESULT(res)
      END IF
   END IF
 END FUNCTION enum_c2i
-!***************************************************************************
 
 END MODULE input_enumeration_types

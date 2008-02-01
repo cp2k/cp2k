@@ -2,27 +2,17 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_neighbor_lists [1.0] *
-!!
-!!   NAME
-!!     qs_neighbor_lists
-!!
-!!   FUNCTION
-!!     Generate the atomic neighbor lists.
-!!
-!!   AUTHOR
-!!     Matthias Krack (08.10.1999,26.03.2002,16.06.2003)
-!!
-!!   MODIFICATION HISTORY
-!!     - List rebuild for sab_orb neighbor list (10.09.2002,MK)
-!!     - List rebuild for all lists (25.09.2002,MK)
-!!     - Row-wise parallelized version (16.06.2003,MK)
-!!     - Row- and column-wise parallelized version (19.07.2003,MK)
-!!     - bug fix for non-periodic case (23.02.06,MK)
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Generate the atomic neighbor lists.
+!> \par History
+!>      - List rebuild for sab_orb neighbor list (10.09.2002,MK)
+!>      - List rebuild for all lists (25.09.2002,MK)
+!>      - Row-wise parallelized version (16.06.2003,MK)
+!>      - Row- and column-wise parallelized version (19.07.2003,MK)
+!>      - bug fix for non-periodic case (23.02.06,MK)
+!> \author Matthias Krack (08.10.1999,26.03.2002,16.06.2003)
+! *****************************************************************************
 MODULE qs_neighbor_lists
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -88,6 +78,7 @@ MODULE qs_neighbor_lists
 
   ! Type definitions
 
+! *****************************************************************************
   TYPE local_atoms_type
     INTEGER, DIMENSION(:), POINTER                   :: list,&
                                                         list_local_a_index,&
@@ -99,6 +90,7 @@ MODULE qs_neighbor_lists
     REAL ( dp )                                      :: qeff
   END TYPE local_atoms_type
 
+! *****************************************************************************
   TYPE subcell_type
     INTEGER                        :: natom
     REAL(KIND=dp), DIMENSION(3)    :: s_max,s_min
@@ -128,12 +120,9 @@ MODULE qs_neighbor_lists
             write_distribution,&
             write_neighbor_lists
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE build_qs_neighbor_lists(qs_env,para_env,molecular,&
                                      force_env_section,error)
 
@@ -141,8 +130,6 @@ CONTAINS
 
     ! History: - Creation (28.08.2000,MK)
     !          - Parallized version (16.06.2003,MK)
-
-    ! *************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -205,7 +192,6 @@ CONTAINS
     CALL timeset(routineN,"I"," ",handle)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-
 
     NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
@@ -604,7 +590,6 @@ CONTAINS
     ELSE
       mic = .FALSE.
     END IF
-
 
     IF (molecule_only) THEN
       CALL build_restricted_neighbor_lists(sab_orb,atom,cell,r_skin,&
@@ -1231,8 +1216,7 @@ CONTAINS
 
   END SUBROUTINE build_qs_neighbor_lists
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE build_neighbor_lists(ab,atom,cell,r_skin,maxatom_local,&
                                   print_subcell_grid,output_unit,&
                                   present_a,present_b,radius_a,radius_b,&
@@ -1242,8 +1226,6 @@ CONTAINS
     ! Purpose: Build simple pair neighbor lists.
 
     ! History: - Creation (20.03.2002,MK)
-
-    ! *************************************************************************
 
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ab
@@ -1620,16 +1602,13 @@ CONTAINS
 
   END SUBROUTINE build_neighbor_lists
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE build_restricted_neighbor_lists(ab,atom,cell,r_skin,&
                                              maxatom_local,print_subcell_grid,&
                                              output_unit,present_a,present_b,&
                                              radius_a,radius_b,name)
 
     ! Purpose: Build simple pair neighbor lists restricted to molecules.
-
-    ! *************************************************************************
 
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ab
@@ -1903,8 +1882,7 @@ CONTAINS
 
   END SUBROUTINE build_restricted_neighbor_lists
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE build_gth_ppl_neighbor_lists(ac,atom,cell,r_skin,maxatom_local,&
                                           print_subcell_grid,output_unit,&
                                           present_a,present_c,&
@@ -1916,8 +1894,6 @@ CONTAINS
     !          atom a is an atom in the cell(0,0,0).
 
     ! History: - Creation (20.03.2002,MK)
-
-    ! *************************************************************************
 
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ac
@@ -2275,8 +2251,7 @@ CONTAINS
 
   END SUBROUTINE build_gth_ppl_neighbor_lists
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE build_gth_ppnl_neighbor_lists(ac,bc,atom,cell,r_skin,&
                                            maxatom,maxatom_local,&
                                            print_subcell_grid,output_unit,&
@@ -2289,8 +2264,6 @@ CONTAINS
     !          is an atom in any cell(i,j,k).
 
     ! History: - Creation (30.05.2003,MK)
-
-    ! *************************************************************************
 
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ac, bc
@@ -2772,16 +2745,13 @@ CONTAINS
 
   END SUBROUTINE build_gth_ppnl_neighbor_lists
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE allocate_subcell(subcell,nsubcell,maxatom,cell)
 
     ! Purpose: Allocate and initialize a subcell grid structure for the atomic
     !          neighbor search.
 
     ! History: - Creation (12.06.2003,MK)
-
-    ! *************************************************************************
 
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
@@ -2853,15 +2823,12 @@ CONTAINS
 
   END SUBROUTINE allocate_subcell
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE deallocate_subcell(subcell)
 
     ! Purpose: Deallocate a subcell grid structure.
 
     ! History: - Creation (16.06.2003,MK)
-
-    ! *************************************************************************
 
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
@@ -2900,15 +2867,12 @@ CONTAINS
 
   END SUBROUTINE deallocate_subcell
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE write_distribution(ab,atomic_kind_set,output_unit,para_env,error)
 
     ! Purpose: Print the distribution of the simple pair neighbor list.
 
     ! History: - Creation (19.06.2003,MK)
-
-    ! *************************************************************************
 
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ab
@@ -3030,8 +2994,7 @@ CONTAINS
                                      "nelement")
   END SUBROUTINE write_distribution
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE write_neighbor_lists(ab,particle_set,cell,para_env,output_unit,&
                                   name,error)
 
@@ -3040,8 +3003,6 @@ CONTAINS
     ! History: - Creation (04.03.2002,MK)
     !          - Adapted to the new parallelized neighbor list version
     !            (26.06.2003,MK)
-
-    ! *************************************************************************
 
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), INTENT(IN)               :: ab
@@ -3164,7 +3125,5 @@ CONTAINS
     IF (output_unit > 0) WRITE (UNIT=output_unit,FMT="(/,T2,A)") TRIM(string)
 
   END SUBROUTINE write_neighbor_lists
-
-  ! ***************************************************************************
 
 END MODULE qs_neighbor_lists

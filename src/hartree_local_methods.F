@@ -2,18 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/hartree_local_methods
-!!
-!!   NAME
-!!     hartree_local_methods
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
 MODULE  hartree_local_methods
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -77,12 +66,9 @@ MODULE  hartree_local_methods
 
   PUBLIC :: init_coulomb_local, calculate_Vh_1center, Vh_1c_gg_integrals
 
-  !******************************************************************************
-
 CONTAINS
 
-  !******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE init_coulomb_local(qs_env,gapw_control,tddft,p_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -151,9 +137,7 @@ CONTAINS
 
   END SUBROUTINE init_coulomb_local
 
-
-  !******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE calculate_Vh_1center(vrad_h,vrad_s,rrad_h,rrad_s,rrad_0,rrad_z,grid_atom)
 
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: vrad_h, vrad_s
@@ -251,8 +235,7 @@ CONTAINS
 
   END SUBROUTINE calculate_Vh_1center
 
-  !******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE Vh_1c_gg_integrals(qs_env,energy_hartree_1c,tddft,p_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -347,7 +330,6 @@ CONTAINS
             ecoul_1c=ecoul_1c,error=error)
     END IF
 
-
     nkind = SIZE(atomic_kind_set,1)
     nspins = dft_control%nspins
 
@@ -399,7 +381,6 @@ CONTAINS
             l0_ikind=lmax0, &
             Qlm_gg=Qlm_gg, g0_h=g0_h)
 
-
        nchan_0 = nsoset(lmax0)
 
        IF(nchan_0 > max_iso_not0) CALL stop_program(routineN,moduleN,__LINE__,&
@@ -432,7 +413,6 @@ CONTAINS
           END DO  ! ipgf1
           m1 = m1 + maxso
        END DO  ! iset1
-
 
        !     Distribute the atoms of this kind
        num_pe = para_env%num_pe
@@ -498,7 +478,6 @@ CONTAINS
              END DO
              ecoul_1_z = 0.5_dp*ecoul_1_z
           END IF
-
 
           !       Calculate the contributions to Ecoul coming from  Vh1_s*rho0
           ecoul_1_0 = 0.0_dp
@@ -667,8 +646,5 @@ CONTAINS
 
   END SUBROUTINE Vh_1c_gg_integrals
 
-  !******************************************************************************
-
 END MODULE hartree_local_methods
 
-!******************************************************************************

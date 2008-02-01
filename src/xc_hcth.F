@@ -3,24 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/xc_hcth [1.0] *
-!!
-!!   NAME
-!!     xc_hcth
-!!
-!!   FUNCTION
-!!     calculate the Hamprecht, Cohen, Tozer, and Handy (HCTH) exchange 
-!!     functional
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief calculate the Hamprecht, Cohen, Tozer, and Handy (HCTH) exchange 
+!>      functional
+!> \author fawzi
+! *****************************************************************************
 MODULE xc_hcth
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -43,33 +30,18 @@ MODULE xc_hcth
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_hcth'
 
   PUBLIC :: hcth_lda_info, hcth_lda_eval
-!!***
-  !****************************************************************************
 CONTAINS
 
-!!****f* xc_hcth/hcth93_lda_info [1.0] *
-!!
-!!   NAME
-!!     hcth93_lda_info
-!!
-!!   FUNCTION
-!!     return various information on the functional
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - reference: string with the reference of the actual functional
-!!     - shortform: string with the shortform of the functional name
-!!     - needs: the components needed by this functional are set to
-!!       true (does not set the unneeded components to false)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief return various information on the functional
+!> \param reference string with the reference of the actual functional
+!> \param shortform string with the shortform of the functional name
+!> \param needs the components needed by this functional are set to
+!>        true (does not set the unneeded components to false)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE hcth_lda_info(iparset,reference,shortform, needs, max_deriv, error)
     INTEGER, INTENT(in)                      :: iparset
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
@@ -126,44 +98,20 @@ CONTAINS
     IF (PRESENT(max_deriv)) max_deriv=1
 
   END SUBROUTINE hcth_lda_info
-  !***************************************************************************
 
-!!****f* xc_hcth/hcth_lda_eval [1.0] *
-!!
-!!   NAME
-!!     hcth_lda_eval
-!!
-!!   SYNOPSIS
-!!     Subroutine hcth_lda_eval(iparset, rho_set, deriv_set, grad_deriv,&
-!!         error)
-!!       Integer, Intent (IN):: iparset
-!!       Type(xc_rho_set_type), Pointer:: rho_set
-!!       Type(xc_derivative_set_type), Pointer:: deriv_set
-!!       Integer, Intent (IN):: grad_deriv
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine hcth_lda_eval
-!!
-!!   FUNCTION
-!!     evaluates the hcth functional for lda
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - rho_set: the density where you want to evaluate the functional
-!!     - deriv_set: place where to store the functional derivatives (they are
-!!       added to the derivatives)
-!!     - grad_deriv: degree of the derivative that should be evalated,
-!!       if positive all the derivatives up to the given degree are evaluated,
-!!       if negative only the given degree is calculated
-!!     - iparset: the parameter set that should be used (93,120,147,407)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief evaluates the hcth functional for lda
+!> \param rho_set the density where you want to evaluate the functional
+!> \param deriv_set place where to store the functional derivatives (they are
+!>        added to the derivatives)
+!> \param grad_deriv degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param iparset the parameter set that should be used (93,120,147,407)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE hcth_lda_eval(iparset,rho_set,deriv_set,grad_deriv,error)
     INTEGER, INTENT(in)                      :: iparset
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -196,7 +144,6 @@ CONTAINS
             drho_cutoff=epsilon_drho,error=error)
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
-
        IF (grad_deriv>=0) THEN
           deriv => xc_dset_get_derivative(deriv_set,"",&
                allocate_deriv=.TRUE., error=error)
@@ -220,43 +167,31 @@ CONTAINS
             epsilon_drho=epsilon_drho, error=error)
     END IF
   END SUBROUTINE hcth_lda_eval
-  !***************************************************************************
 
-!!****f* xc_hcth/hcth_lda_calc *
-!!
-!!   NAME
-!!     hcth_lda_calc
-!!
-!!   FUNCTION
-!!     Calculate the gradient-corrected xc energy and potential
-!!     of Hamprecht, Cohen, Tozer, and Handy (HCTH) for a closed shell
-!!     density.
-!!
-!!   NOTES
-!!    Literature:- F. A. Hamprecht, A. J. Cohen, D. J. Tozer, and N. C. Handy,
-!!                 J. Chem. Phys. 109, 6264 (1998) -> HCTH/93
-!!               - A. D. Boese, N. L. Doltsinis, N. C. Handy, and M. Sprik,
-!!                 J. Chem. Phys. 112, 1670 (2000) -> HCTH/120 and HCTH/147
-!!               - A. D. Boese and N. C. Handy,
-!!                 J. Chem. Phys. 114, 5497 (2001) -> HCTH/407
-!!               - J. P. Perdew and Y. Wang,
-!!                 Phys. Rev. B 45, 13244 (1992) -> PW92
-!!
-!!   ARGUMENTS
-!!     - iparset: the parameter set that should be used (93,120,147,407)
-!!     - rho: the density
-!!     - norm_drho: the norm of the gradient of the density
-!!     - e_0: the value of the functional in that point
-!!     - e_rho: the derivative of the functional wrt. rho
-!!     - e_ndrho: the derivative of the functional wrt. norm_drho
-!!     - epsilon_rho: the cutoff on rho
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi (copying from the routine of Matthias Krack in functionals.F)
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief Calculate the gradient-corrected xc energy and potential
+!>      of Hamprecht, Cohen, Tozer, and Handy (HCTH) for a closed shell
+!>      density.
+!> \param iparset the parameter set that should be used (93,120,147,407)
+!> \param rho the density
+!> \param norm_drho the norm of the gradient of the density
+!> \param e_ 0: the value of the functional in that point
+!> \param e_rho the derivative of the functional wrt. rho
+!> \param e_ndrho the derivative of the functional wrt. norm_drho
+!> \param epsilon_rho the cutoff on rho
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>     Literature:- F. A. Hamprecht, A. J. Cohen, D. J. Tozer, and N. C. Handy,
+!>                  J. Chem. Phys. 109, 6264 (1998) -> HCTH/93
+!>                - A. D. Boese, N. L. Doltsinis, N. C. Handy, and M. Sprik,
+!>                  J. Chem. Phys. 112, 1670 (2000) -> HCTH/120 and HCTH/147
+!>                - A. D. Boese and N. C. Handy,
+!>                  J. Chem. Phys. 114, 5497 (2001) -> HCTH/407
+!>                - J. P. Perdew and Y. Wang,
+!>                  Phys. Rev. B 45, 13244 (1992) -> PW92
+!> \author fawzi (copying from the routine of Matthias Krack in functionals.F)
+! *****************************************************************************
   SUBROUTINE hcth_lda_calc(iparset,rho,norm_drho,e_0,e_rho,e_ndrho,&
        epsilon_rho,epsilon_drho,npoints,error)
     INTEGER, INTENT(IN)                      :: iparset
@@ -484,6 +419,5 @@ CONTAINS
     END DO
 
   END SUBROUTINE hcth_lda_calc
-  !***************************************************************************
 
 END MODULE xc_hcth

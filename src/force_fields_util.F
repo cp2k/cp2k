@@ -3,29 +3,17 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/force_fields_util [1.0] *
-!!
-!!   NAME
-!!     force_fields_util
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     Subroutine input_torsions changed (DG) 05-Dec-2000
-!!     Output formats changed (DG) 05-Dec-2000
-!!     JGH (26-01-2002) : force field parameters stored in tables, not in
-!!       matrices. Input changed to have parameters labeled by the position
-!!       and not atom pairs (triples etc)
-!!     Teo (11.2005) : Moved all information on force field  pair_potential to
-!!                     a much lighter memory structure
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      Subroutine input_torsions changed (DG) 05-Dec-2000
+!>      Output formats changed (DG) 05-Dec-2000
+!>      JGH (26-01-2002) : force field parameters stored in tables, not in
+!>        matrices. Input changed to have parameters labeled by the position
+!>        and not atom pairs (triples etc)
+!>      Teo (11.2005) : Moved all information on force field  pair_potential to
+!>                      a much lighter memory structure
+!> \author CJM
+! *****************************************************************************
 MODULE force_fields_util
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -83,31 +71,11 @@ MODULE force_fields_util
             force_field_qeff_output,&
             clean_intra_force_kind
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** force_fields_util/force_field_pack [1.0] *
-!!
-!!   NAME
-!!     force_field_pack
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Pack in all the information needed for the force_field
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief Pack in all the information needed for the force_field
+! *****************************************************************************
   SUBROUTINE force_field_pack (particle_set,atomic_kind_set,molecule_kind_set, &
        molecule_set, ewald_env,fist_nonbond_env,ff_type,root_section, qmmm, &
        qmmm_env, mm_section, subsys_section, shell_particle_set,core_particle_set,&
@@ -333,25 +301,9 @@ CONTAINS
 
   END SUBROUTINE force_field_pack
 
-!******************************************************************************
-!!****** force_fields_util/release_FF_missing_par [1.0] *
-!!
-!!   NAME
-!!     release_FF_missing_par
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Store informations on possible missing ForceFields parameters
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
+! *****************************************************************************
+!> \brief Store informations on possible missing ForceFields parameters
+! *****************************************************************************
   SUBROUTINE release_FF_missing_par(fatal, array, output_unit, iw, error)
     LOGICAL, INTENT(INOUT), OPTIONAL         :: fatal
     CHARACTER(LEN=default_string_length), &
@@ -391,25 +343,9 @@ CONTAINS
     IF (fatal) CALL stop_program(TRIM(routineN),"Missing critical ForceField parameters! Abort..")
   END SUBROUTINE release_FF_missing_par
 
-!******************************************************************************
-!!****** force_fields_util/force_field_qeff_output [1.0] *
-!!
-!!   NAME
-!!     force_field_qeff_output
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Compute the total qeff charges for each molecule kind and total system
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
+! *****************************************************************************
+!> \brief Compute the total qeff charges for each molecule kind and total system
+! *****************************************************************************
   SUBROUTINE force_field_qeff_output (particle_set,atomic_kind_set,&
        molecule_kind_set,molecule_set,mm_section,ff_type,error)
 
@@ -493,25 +429,9 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE force_field_qeff_output
 
-!******************************************************************************
-!!****** force_fields_util/clean_intra_forc_kind [1.0] *
-!!
-!!   NAME
-!!     clean_intra_forc_kind
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Removes UNSET force field types
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
+! *****************************************************************************
+!> \brief Removes UNSET force field types
+! *****************************************************************************
   SUBROUTINE clean_intra_force_kind (molecule_kind_set,mm_section,error)
 
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -1217,4 +1137,3 @@ CONTAINS
   END SUBROUTINE clean_intra_force_kind
 
 END MODULE force_fields_util
-!******************************************************************************

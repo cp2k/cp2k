@@ -3,20 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/scp_hartree_1center
-!!
-!!   NAME
-!!     scp_hartree_1center
-!!
-!!   FUNCTION
-!!     Perform the calculation of the hartree 1 center 3 electron
-!!     self-interaction terms for the SCP method
-!!
-!!   AUTHOR
-!!      CJM
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Perform the calculation of the hartree 1 center 3 electron
+!>      self-interaction terms for the SCP method
+!> \author CJM
+! *****************************************************************************
 MODULE  scp_hartree_1center
   USE ai_coulomb,                      ONLY: coulomb2,&
                                              coulomb3
@@ -64,28 +55,13 @@ MODULE  scp_hartree_1center
 
   PUBLIC :: integrate_a_vhscp_b, integrate_vhscp_gscp, integrate_vhscp_gcore
 
-  !******************************************************************************
 CONTAINS
-  !!****f* scp_hartree_1center/integrate_a_vhscp_b [1.0] *
-  !!
-  !!   NAME
-  !!     integrate_a_vscp_b
-  !!
-  !!   FUNCTION
-  !!     Analytic calculation of the 1 center integrals that make up the self-terms
-  !!     for SCP.   
-  !!
-  !!   NOTE
-  !!
-  !!   INPUTS
-  !!
-  !!
-  !!   AUTHOR
-  !!     CJM
-  !!
-  !!
-  !!*** **********************************************************************
 
+! *****************************************************************************
+!> \brief Analytic calculation of the 1 center integrals that make up the self-terms
+!>      for SCP.   
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE integrate_a_vhscp_b (qs_env,h_mat,p_mat, just_energy, error, debug)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -170,13 +146,11 @@ CONTAINS
          maxco=maxco_global,maxlgto=maxlgto,&
          maxsgf_set=maxsgf_set)
 
-
     CALL timeset(routineN,"I"," ",handle)
 
     !   Allocated diagonal matricies
     CALL allocate_matrix_set(diagmat_ks,nspins,error=error)
     CALL allocate_matrix_set(diagmat_p,nspins,error=error)
-
 
     !   Allocate the work array for the orbitals
     ALLOCATE(work(maxco_global,maxsgf_set),STAT=istat)
@@ -364,7 +338,6 @@ CONTAINS
                      sphi(1,ifs2), maxco,&
                      0.0_dp,hab(1,1),ldhab1)
 
-
                 DO ip1 = 1,npgf(iseta)
                    ic1 = ic1_min_m1+1
                    n1 = ic1_max*(ip1-1)
@@ -387,7 +360,6 @@ CONTAINS
                         1.0_dp,work(1,1),maxco_global,&
                         sphi(1,ifs2), maxco,&
                         0.0_dp,hab(1,1),ldhab1)
-
 
                    DO ip1 = 1,npgf(iseta)
                       ic1 = ic1_min_m1+1
@@ -592,27 +564,11 @@ CONTAINS
 
   END SUBROUTINE integrate_a_vhscp_b
 
-  !******************************************************************************
-  !!****f* scp_hartree_1center/integrate_vhscp_gscp [1.0] *
-  !!
-  !!   NAME
-  !!     integrate_vhscp_gscp
-  !!
-  !!   FUNCTION
-  !!     Analytic calculation of the 1 center integrals that make up the self-terms
-  !!     for SCP.   
-  !!
-  !!   NOTE
-  !!
-  !!   INPUTS
-  !!
-  !!
-  !!   AUTHOR
-  !!     CJM
-  !!
-  !!
-  !!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief Analytic calculation of the 1 center integrals that make up the self-terms
+!>      for SCP.   
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE integrate_vhscp_gscp ( scp_env, atomic_kind_set, local_particles, just_energy, error, debug )
 
     TYPE(scp_environment_type), POINTER      :: scp_env
@@ -666,7 +622,6 @@ CONTAINS
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          maxco=maxco_global,maxlgto=maxlgto)
 
-
     CALL timeset(routineN,"I"," ",handle)
 
     ALLOCATE (work (maxco_global,1),STAT=istat)
@@ -701,7 +656,6 @@ CONTAINS
        NULLIFY(atomic_kind)
        atomic_kind => atomic_kind_set(ikind)
        CALL get_atomic_kind(atomic_kind=atomic_kind,aux_basis_set=aux_basis )
-
 
        ! Check to see if the atom is an SCP atom
        IF (.NOT.ASSOCIATED(aux_basis)) CYCLE
@@ -811,26 +765,11 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE integrate_vhscp_gscp
 
-  !******************************************************************************
-  !!****f* scp_hartree_1center/integrate_vhscp_gcore [1.0] *
-  !!
-  !!   NAME
-  !!     integrate_vhscp_gcore
-  !!
-  !!   FUNCTION
-  !!     Analytic calculation of the 1 center integrals that make up the self-terms
-  !!     for SCP.   
-  !!
-  !!   NOTE
-  !!
-  !!   INPUTS
-  !!
-  !!
-  !!   AUTHOR
-  !!     CJM
-  !!
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief Analytic calculation of the 1 center integrals that make up the self-terms
+!>      for SCP.   
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE integrate_vhscp_gcore ( scp_env, atomic_kind_set, local_particles, just_energy, error, debug )
 
     TYPE(scp_environment_type), POINTER      :: scp_env
@@ -882,7 +821,6 @@ CONTAINS
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          maxco=maxco_global,maxlgto=maxlgto)
-
 
     CALL timeset(routineN,'I',' ',handle)
 
@@ -1025,6 +963,4 @@ CONTAINS
 
   END SUBROUTINE integrate_vhscp_gcore
 
-  !******************************************************************************
 END MODULE scp_hartree_1center
-!******************************************************************************

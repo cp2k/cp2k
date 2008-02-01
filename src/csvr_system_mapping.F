@@ -3,22 +3,9 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/csvr_system_mapping [1.0] *
-!!
-!!   NAME
-!!     csvr_system_mapping
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
+! *****************************************************************************
 MODULE csvr_system_mapping
 
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -63,22 +50,11 @@ MODULE csvr_system_mapping
             csvr_to_coef_mapping, csvr_to_shell_mapping
 
 CONTAINS
-!******************************************************************************
-!!****** csvr_system_mapping/csvr_to_barostat_mapping [1.0] *
-!!
-!!   NAME
-!!     csvr_to_barostat_mapping
-!!
-!!   FUNCTION
-!!     Creates the thermostatting for the barostat
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** *************************************************************************
+
+! *****************************************************************************
+!> \brief Creates the thermostatting for the barostat
+!> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
+! *****************************************************************************
   SUBROUTINE csvr_to_barostat_mapping ( simpar, csvr, para_env, error )
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
@@ -127,22 +103,10 @@ CONTAINS
     
   END SUBROUTINE csvr_to_barostat_mapping
 
-!******************************************************************************
-!!****** csvr_system_mapping/csvr_to_particle_mapping [1.0] *
-!!
-!!   NAME
-!!     csvr_to_particle_mapping
-!!
-!!   FUNCTION
-!!     Creates the thermostatting maps
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Creates the thermostatting maps
+!> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
+! *****************************************************************************
   SUBROUTINE csvr_to_particle_mapping ( thermostat_info, simpar, local_molecules,&
        molecule_set, molecule_kind_set, csvr, para_env, gci, error)
 
@@ -221,23 +185,10 @@ CONTAINS
 
   END SUBROUTINE csvr_to_particle_mapping
 
-!******************************************************************************
-!!****** csvr_system_mapping/setup_csvr_thermostat [1.0] *
-!!
-!!   NAME
-!!     setup_csvr_thermostat
-!!
-!!   FUNCTION
-!!     Main general setup for Nose-Hoover thermostats
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - University of Zurich - 10.2007
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Main general setup for Nose-Hoover thermostats
+!> \author Teodoro Laino [tlaino] - University of Zurich - 10.2007
+! *****************************************************************************
   SUBROUTINE setup_csvr_thermostat ( csvr, thermostat_info, deg_of_freedom,&
        massive_atom_list, molecule_kind_set, local_molecules, molecule_set,&
        para_env, natoms_local, simpar, sum_of_thermostats, gci, shell, error)
@@ -288,24 +239,11 @@ CONTAINS
 
   END SUBROUTINE setup_csvr_thermostat
 
-!******************************************************************************
-!!****** csvr_system_mapping/csvr_to_coef_mapping [1.0] *
-!!
-!!   NAME
-!!     csvr_to_coef_mapping
-!!
-!!   FUNCTION
-!!     Creates the thermostatting for the
-!!     polarization  coefficients'  degrees of freedom
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - University of Zurich - 10.2007
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Creates the thermostatting for the
+!>      polarization  coefficients'  degrees of freedom
+!> \author Teodoro Laino [tlaino] - University of Zurich - 10.2007
+! *****************************************************************************
   SUBROUTINE csvr_to_coef_mapping ( dyn_coeff_set, csvr, kg_coeff_section, para_env, error)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
@@ -397,23 +335,9 @@ CONTAINS
 
   END SUBROUTINE csvr_to_coef_mapping
 
-!******************************************************************************
-!!****** csvr_system_mapping/csvr_to_shell_mapping [1.0] *
-!!
-!!   NAME
-!!     csvr_to_shell_mapping
-!!
-!!   FUNCTION
-!!     
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - University of Zurich - 10.2007
-!!
-!!   MODIFICATION HISTORY
-!!   
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author Teodoro Laino [tlaino] - University of Zurich - 10.2007
+! *****************************************************************************
   SUBROUTINE csvr_to_shell_mapping( thermostat_info, simpar, local_molecules,&
        molecule_set, molecule_kind_set, csvr, para_env, gci, error)
 

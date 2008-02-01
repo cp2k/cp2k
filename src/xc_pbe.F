@@ -3,30 +3,19 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/xc_pbe [1.0] *
-!!
-!!   NAME
-!!     xc_pbe
-!!
-!!   FUNCTION
-!!     calculates the pbe correlation functional
-!!
-!!   NOTES
-!!     This was generated with the help of a maple worksheet that you can
-!!     find under doc/pbe.mw .
-!!     I did not add 3. derivatives in the polazied (lsd) case because it
-!!     would have added 2500 lines of code. If you need them the worksheet
-!!     is already prepared for them, and by uncommenting a couple of lines
-!!     you should be able to generate them.
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     09.2004 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief calculates the pbe correlation functional
+!> \note
+!>      This was generated with the help of a maple worksheet that you can
+!>      find under doc/pbe.mw .
+!>      I did not add 3. derivatives in the polazied (lsd) case because it
+!>      would have added 2500 lines of code. If you need them the worksheet
+!>      is already prepared for them, and by uncommenting a couple of lines
+!>      you should be able to generate them.
+!> \par History
+!>      09.2004 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 MODULE xc_pbe
   USE bibliography,                    ONLY: Perdew1996,&
                                              Zhang1998,&
@@ -58,43 +47,19 @@ MODULE xc_pbe
        c=0.2533_dp,d=0.349_dp
 
   PUBLIC :: pbe_lda_info, pbe_lsd_info, pbe_lda_eval, pbe_lsd_eval
-!!***
-!****************************************************************************
 CONTAINS
 
-!!****f* xc_pbe/pbe_lda_info [1.0] *
-!!
-!!   NAME
-!!     pbe_lda_info
-!!
-!!   SYNOPSIS
-!!     Subroutine pbe_lda_info(reference, shortform, needs, max_deriv,&
-!!         error)
-!!       Character(Len=*), Intent (OUT), Optional:: reference, shortform
-!!       Type(xc_rho_cflags_type), Intent (INOUT), Optional:: needs
-!!       Integer, Intent (OUT), Optional:: max_deriv
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pbe_lda_info
-!!
-!!   FUNCTION
-!!     return various information on the functional
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - pbe_params: section selecting the varius parameters for the functional
-!!     - reference: string with the reference of the actual functional
-!!     - shortform: string with the shortform of the functional name
-!!     - needs: the components needed by this functional are set to
-!!       true (does not set the unneeded components to false)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief return various information on the functional
+!> \param pbe_params section selecting the varius parameters for the functional
+!> \param reference string with the reference of the actual functional
+!> \param shortform string with the shortform of the functional name
+!> \param needs the components needed by this functional are set to
+!>        true (does not set the unneeded components to false)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE pbe_lda_info(pbe_params,reference,shortform, needs, max_deriv,&
        error)
     TYPE(section_vals_type), POINTER         :: pbe_params
@@ -175,41 +140,18 @@ CONTAINS
     IF (PRESENT(max_deriv)) max_deriv=3
 
   END SUBROUTINE pbe_lda_info
-!***************************************************************************
 
-!!****f* xc_pbe/pbe_lsd_info [1.0] *
-!!
-!!   NAME
-!!     pbe_lsd_info
-!!
-!!   SYNOPSIS
-!!     Subroutine pbe_lsd_info(reference, shortform, needs, max_deriv,&
-!!         error)
-!!       Character(Len=*), Intent (OUT), Optional:: reference, shortform
-!!       Type(xc_rho_cflags_type), Intent (INOUT), Optional:: needs
-!!       Integer, Intent (OUT), Optional:: max_deriv
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pbe_lsd_info
-!!
-!!   FUNCTION
-!!     return various information on the functional
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - pbe_params: section selecting the varius parameters for the functional
-!!     - reference: string with the reference of the actual functional
-!!     - shortform: string with the shortform of the functional name
-!!     - needs: the components needed by this functional are set to
-!!       true (does not set the unneeded components to false)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief return various information on the functional
+!> \param pbe_params section selecting the varius parameters for the functional
+!> \param reference string with the reference of the actual functional
+!> \param shortform string with the shortform of the functional name
+!> \param needs the components needed by this functional are set to
+!>        true (does not set the unneeded components to false)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pbe_lsd_info(pbe_params,reference,shortform, needs, max_deriv,&
      error)
     TYPE(section_vals_type), POINTER         :: pbe_params
@@ -287,41 +229,19 @@ SUBROUTINE pbe_lsd_info(pbe_params,reference,shortform, needs, max_deriv,&
   IF (PRESENT(max_deriv)) max_deriv=2
 
 END SUBROUTINE pbe_lsd_info
-!***************************************************************************
 
-!!****f* xc_pbe/pbe_lda_eval [1.0] *
-!!
-!!   NAME
-!!     pbe_lda_eval
-!!
-!!   SYNOPSIS
-!!     Subroutine pbe_lda_eval(rho_set, deriv_set, grad_deriv, error)
-!!       Type(xc_rho_set_type), Pointer:: rho_set
-!!       Type(xc_derivative_set_type), Pointer:: deriv_set
-!!       Integer, Intent (IN):: grad_deriv
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pbe_lda_eval
-!!
-!!   FUNCTION
-!!     evaluates the pbe correlation functional for lda
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - rho_set: the density where you want to evaluate the functional
-!!     - deriv_set: place where to store the functional derivatives (they are
-!!       added to the derivatives)
-!!     - grad_deriv: degree of the derivative that should be evalated,
-!!       if positive all the derivatives up to the given degree are evaluated,
-!!       if negative only the given degree is calculated
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief evaluates the pbe correlation functional for lda
+!> \param rho_set the density where you want to evaluate the functional
+!> \param deriv_set place where to store the functional derivatives (they are
+!>        added to the derivatives)
+!> \param grad_deriv degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -440,42 +360,20 @@ SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
   END IF
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE pbe_lda_eval
-!***************************************************************************
 
-!!****f* xc_pbe/pbe_lda_calc [1.0] *
-!!
-!!   NAME
-!!     pbe_lda_eval
-!!
-!!   SYNOPSIS
-!!     Subroutine pbe_lda_eval(rho_set, deriv_set, grad_deriv, error)
-!!       Type(xc_rho_set_type), Pointer:: rho_set
-!!       Type(xc_derivative_set_type), Pointer:: deriv_set
-!!       Integer, Intent (IN):: grad_deriv
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pbe_lda_eval
-!!
-!!   FUNCTION
-!!     evaluates the pbe correlation functional for lda
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - rho_set: the density where you want to evaluate the functional
-!!     - deriv_set: place where to store the functional derivatives (they are
-!!       added to the derivatives)
-!!     - grad_deriv: degree of the derivative that should be evalated,
-!!       if positive all the derivatives up to the given degree are evaluated,
-!!       if negative only the given degree is calculated
-!!     - pbe_params: parameters for the pbe functional
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief evaluates the pbe correlation functional for lda
+!> \param rho_set the density where you want to evaluate the functional
+!> \param deriv_set place where to store the functional derivatives (they are
+!>        added to the derivatives)
+!> \param grad_deriv degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param pbe_params parameters for the pbe functional
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pbe_lda_calc(rho, rho_1_3, norm_drho,&
      e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
      e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
@@ -1394,34 +1292,12 @@ SUBROUTINE pbe_lda_calc(rho, rho_1_3, norm_drho,&
   END SELECT
 END SUBROUTINE pbe_lda_calc
 
-!!****f* xc_pbe/pbe_lsd_eval [1.0] *
-!!
-!!   NAME
-!!     pbe_lsd_eval
-!!
-!!   SYNOPSIS
-!!     Subroutine pbe_lsd_eval(rho_set, deriv_set, grad_deriv, error)
-!!       Type(xc_rho_set_type), Pointer:: rho_set
-!!       Type(xc_derivative_set_type), Pointer:: deriv_set
-!!       Integer, Intent (IN):: grad_deriv
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pbe_lsd_eval
-!!
-!!   FUNCTION
-!!     evaluates the becke 88 exchange functional for lsd
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - 
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief evaluates the becke 88 exchange functional for lsd
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -1562,33 +1438,19 @@ SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
   END IF
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE pbe_lsd_eval
-!***************************************************************************
  
-!!****f* xc_pbe/pbe_lsd_calc [1.0] *
-!!
-!!   NAME
-!!     pbe_lsd_calc
-!!
-!!   FUNCTION
-!!     low level calculation of the pbe exchange-correlation functional for lsd
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - rhoa,rhob: alpha or beta spin density
-!!     - norm_drhoa,norm_drhob,norm_drho: || grad rhoa |||,| grad rhoa ||,
-!!       || grad (rhoa+rhob) ||
-!!     - e_0: adds to it the local value of the functional
-!!     - e_*: derivative of the functional wrt. to the variables
-!!       named where the * is.
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief low level calculation of the pbe exchange-correlation functional for lsd
+!> \param rhoa ,rhob: alpha or beta spin density
+!> \param norm_drhoa ,norm_drhob,norm_drho: || grad rhoa |||,| grad rhoa ||,
+!>        || grad (rhoa+rhob) ||
+!> \param e_ 0: adds to it the local value of the functional
+!> \param e_ *: derivative of the functional wrt. to the variables
+!>        named where the * is.
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
      e_0, e_ra, e_rb, e_ra_ndra, e_rb_ndrb, e_ndr_ndr,&
      e_ndra_ndra, e_ndrb_ndrb, e_ndr,&
@@ -1733,7 +1595,6 @@ SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
            my_norm_drho=norm_drho(ii)
            my_norm_drhoa=norm_drhoa(ii)
            my_norm_drhob=norm_drhob(ii)
-
 
            t1 = my_rhoa - my_rhob
            t2 = 0.1e1_dp / my_rho
@@ -2548,7 +2409,6 @@ SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
                    * (-0.8e1_dp * t1712 * t1713 * s_bnorm_drhob + 0.2e1_dp * t477 * &
                    s_bnorm_drhob * s_brhob + 0.2e1_dp * t477 * s_b * (-t467 * t148 * &
                    kf_brhob / 0.2e1_dp - t146 * t472 / 0.2e1_dp))) / 0.2e1_dp
-
 
               t1949 = s_bnorm_drhob ** 2
               e_ndrb_ndrb(ii) = e_ndrb_ndrb(ii)+&

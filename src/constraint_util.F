@@ -3,20 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/constraint_util [1.0] *
-!!
-!!   NAME
-!!     constraint_util
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
 MODULE constraint_util
   USE cell_types,                      ONLY: cell_type
   USE colvar_methods,                  ONLY: colvar_eval_mol_f
@@ -59,21 +49,11 @@ MODULE constraint_util
 
 CONTAINS
 
-!!****** constraint_util/getold [1.0] *
-!!
-!!   NAME
-!!     getold
-!!
-!!   FUNCTION
-!!     saves all of the old variables
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief saves all of the old variables
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE getold( gci, local_molecules, molecule_set, molecule_kind_set,&
        particle_set , cell, error)
 
@@ -139,21 +119,11 @@ CONTAINS
     END IF
   END SUBROUTINE getold
 
-!!****** constraint_util/getold_low [1.0] *
-!!
-!!   NAME
-!!     getold_low
-!!
-!!   FUNCTION
-!!     saves all of the old variables - Low Level
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief saves all of the old variables - Low Level
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE getold_low(n3x3con, n4x6con, colv_list, g3x3_list, g4x6_list, fixd_list,&
        lcolv, lg3x3, lg4x6, first_atom, particle_set, cell, error)
 
@@ -210,20 +180,10 @@ CONTAINS
 
   END SUBROUTINE getold_low
 
-!!****** constraint_util/pv_constraint [1.0] *
-!!
-!!   NAME
-!!     pv_constraint
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE pv_constraint ( gci, local_molecules, molecule_set, molecule_kind_set, &
        particle_set, virial, group )
     
@@ -290,20 +250,10 @@ CONTAINS
 
   END SUBROUTINE pv_constraint
 
-!!****** constraint_util/pv_constraint_low [1.0] *
-!!
-!!   NAME
-!!     pv_constraint_low
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE pv_constraint_low ( ng3x3, ng4x6, g3x3_list, g4x6_list, colv_list,&
        first_atom, lg3x3, lg4x6, lcolv, particle_set, pv )
 
@@ -463,20 +413,10 @@ CONTAINS
 
   END SUBROUTINE pv_constraint_low
 
-!!****** constraint_util/pv_colv_eval [1.0] *
-!!
-!!   NAME
-!!     pv_colv_eval
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE pv_colv_eval(pv, lcolv, particle_set)
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(INOUT)                          :: pv
@@ -504,20 +444,10 @@ CONTAINS
 
   END SUBROUTINE pv_colv_eval
 
-!!****** constraint_util/check_tol [1.0] *
-!!
-!!   NAME
-!!     check_tol
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE check_tol(roll_tol,iroll,char,matrix,veps)
 
     REAL(KIND=dp), INTENT(OUT)               :: roll_tol
@@ -563,22 +493,11 @@ CONTAINS
 
   END SUBROUTINE check_tol
 
-!!****** constraint_util/get_roll_matrix [1.0] *
-!!
-!!   NAME
-!!     get_roll_matrix
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE get_roll_matrix(char,r_shake,v_shake,vector_r,vector_v,u)
-
 
     CHARACTER(len=*), INTENT(IN)             :: char
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -638,20 +557,10 @@ CONTAINS
 
   END SUBROUTINE get_roll_matrix
 
-!!****** constraint_util/restore_temporary_set [1.0] *
-!!
-!!   NAME
-!!     restore_temporary_set
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     Teodoro Laino [tlaino] 2007
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      Teodoro Laino [tlaino] 2007
+! *****************************************************************************
   SUBROUTINE restore_temporary_set(particle_set, local_particles, pos, vel)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -694,20 +603,10 @@ CONTAINS
     IF (stat/=0) CALL stop_program ( "restore_temporary_set", "Error in deallocation" )
   END SUBROUTINE restore_temporary_set
 
-!!****** constraint_util/update_temporary_set [1.0] *
-!!
-!!   NAME
-!!     update_temporary_set
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     Teodoro Laino [tlaino] 2007
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      Teodoro Laino [tlaino] 2007
+! *****************************************************************************
   SUBROUTINE update_temporary_set(group, pos, vel)
     INTEGER, INTENT(IN)                      :: group
     REAL(KIND=dp), DIMENSION(:, :), &

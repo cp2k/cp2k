@@ -3,24 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/fist_environment_types [1.0] *
-!!
-!!   NAME
-!!     fist_environment_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM SEPT-01-02
-!!
-!!   MODIFICATION HISTORY
-!!   gt sept-23-02 added atomic_kind_set to replica_environment_type
-!!   to allow use of kind_based neighbor list
-!!   CJM rewrite
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>    gt sept-23-02 added atomic_kind_set to replica_environment_type
+!>    to allow use of kind_based neighbor list
+!>    CJM rewrite
+!> \author CJM SEPT-01-02
+! *****************************************************************************
 MODULE fist_environment_types
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
@@ -82,25 +71,11 @@ MODULE fist_environment_types
   IMPLICIT NONE
   PRIVATE
 
-!!****s* fist_environment_types/fist_environment_type [1.0] *
-!!
-!!   NAME
-!!     fist_environment_type
-!!
-!!   FUNCTION
-!!     
-!!
-!!   ATTRIBUTES
-!!     
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     11/03
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \par History
+!>      11/03
+!> \author CJM
+! *****************************************************************************
   TYPE fist_environment_type
     PRIVATE
     INTEGER                                      :: id_nr, ref_count
@@ -119,26 +94,13 @@ MODULE fist_environment_types
     TYPE(cp_result_type),POINTER                 :: results
  END TYPE fist_environment_type
 
-
-!!****s* fist_environment_types/fist_environment_p_type [1.0] *
-!!
-!!   NAME
-!!     fist_environment_p_type
-!!
-!!   FUNCTION
-!!     to build arrays of pointers
-!!
-!!   ATTRIBUTES
-!!     - fist_env: the pointer to the fist_env
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     11/03
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief to build arrays of pointers
+!> \param fist_env the pointer to the fist_env
+!> \par History
+!>      11/03
+!> \author CJM
+! *****************************************************************************
   TYPE fist_environment_p_type
      TYPE(fist_environment_type), POINTER :: fist_env
   END TYPE fist_environment_p_type
@@ -159,29 +121,16 @@ MODULE fist_environment_types
   INTEGER, PRIVATE, SAVE :: last_fist_env_id_nr=0
 
 !***
-! *****************************************************************************
 
 CONTAINS
 
-!!****s* fist_environment_types/get_fist_env [1.0] *
-!!
-!!   NAME
-!!     get_fist_env
-!!
-!!   FUNCTION
-!!     Purpose: Get the FIST environment.
-!!
-!!   ATTRIBUTES
-!!     - fist_env: the pointer to the fist_env
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     11/03
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief Purpose: Get the FIST environment.
+!> \param fist_env the pointer to the fist_env
+!> \par History
+!>      11/03
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE get_fist_env( fist_env, atomic_kind_set, particle_set, ewald_pw,  &
        local_particles, local_molecules, molecule_kind_set, molecule_set, cell,&
        cell_ref, ewald_env, fist_nonbond_env, thermo, para_env, subsys, qmmm,&
@@ -272,25 +221,13 @@ CONTAINS
     IF (PRESENT(multipoles)) multipoles => fist_multipoles
   END SUBROUTINE get_fist_env
 
-!!****s* fist_environment_types/init_fist_env [1.0] *
-!!
-!!   NAME
-!!     init_fist_env 
-!!
-!!   FUNCTION
-!!     Initialise the FIST environment.
-!!
-!!   ATTRIBUTES
-!!     - fist_env: the pointer to the fist_env
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     11/03
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief Initialise the FIST environment.
+!> \param fist_env the pointer to the fist_env
+!> \par History
+!>      11/03
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE init_fist_env ( fist_env, para_env, error )
 
     TYPE(fist_environment_type), INTENT(OUT) :: fist_env
@@ -321,25 +258,13 @@ CONTAINS
 
   END SUBROUTINE init_fist_env
 
-!!****s* fist_environment_types/set_fist_env [1.0] *
-!!
-!!   NAME
-!!     set_fist_env 
-!!
-!!   FUNCTION
-!!     Set the FIST environment.
-!!
-!!   ATTRIBUTES
-!!     - fist_env: the pointer to the fist_env
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     11/03
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief Set the FIST environment.
+!> \param fist_env the pointer to the fist_env
+!> \par History
+!>      11/03
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE set_fist_env( fist_env, atomic_kind_set, particle_set, ewald_pw, &
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, ewald_env,  &
@@ -482,37 +407,18 @@ CONTAINS
        fist_env%shell_model_ad = shell_model_ad
     END IF
 
-
   END SUBROUTINE set_fist_env
 
-!!****f* fist_environment_types/fist_env_create [1.0] *
-!!
-!!   NAME
-!!     fist_env_create
-!!
-!!   SYNOPSIS
-!!     Subroutine fist_env_create(fist_env, para_env, error)
-!!       Type(fist_environment_type), Pointer:: fist_env
-!!       Type(cp_para_env_type), Pointer:: para_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine fist_env_create
-!!
-!!   FUNCTION
-!!     allocates and intitializes a fist_env
-!!
-!!   ARGUMENTS
-!!     - fist_env: the object to create
-!!     - para_env: the parallel environement for the qs_env
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief allocates and intitializes a fist_env
+!> \param fist_env the object to create
+!> \param para_env the parallel environement for the qs_env
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE fist_env_create(fist_env,para_env,error)
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -533,35 +439,15 @@ CONTAINS
     END IF
   END SUBROUTINE fist_env_create
   
-!!****f* fist_environment_types/fist_env_retain [1.0] *
-!!
-!!   NAME
-!!     fist_env_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine fist_env_retain(fist_env, error)
-!!       Type(fist_environment_type), Pointer:: fist_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine fist_env_retain
-!!
-!!   FUNCTION
-!!     retains the given fist_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - fist_env: the object to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given fist_env (see doc/ReferenceCounting.html)
+!> \param fist_env the object to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE fist_env_retain(fist_env,error)
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -579,35 +465,15 @@ CONTAINS
     END IF
   END SUBROUTINE fist_env_retain
   
-!!****f* fist_environment_types/fist_env_release [1.0] *
-!!
-!!   NAME
-!!     fist_env_release
-!!
-!!   SYNOPSIS
-!!     Subroutine fist_env_release(fist_env, error)
-!!       Type(fist_environment_type), Pointer:: fist_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine fist_env_release
-!!
-!!   FUNCTION
-!!     releases the given fist_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - fist_env: the object to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given fist_env (see doc/ReferenceCounting.html)
+!> \param fist_env the object to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE fist_env_release(fist_env,error)
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(cp_error_type), INTENT(inout)       :: error

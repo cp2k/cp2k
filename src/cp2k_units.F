@@ -3,23 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/cp2k_units [1.0] *
-!!
-!!   NAME
-!!     cp2k_units
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
 MODULE cp2k_units
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -32,6 +20,7 @@ MODULE cp2k_units
   IMPLICIT NONE
   PRIVATE
 
+! *****************************************************************************
   TYPE unit_convert_type
  !   PRIVATE  later
      REAL(KIND=dp) :: mass, &
@@ -56,30 +45,16 @@ MODULE cp2k_units
   TYPE(unit_convert_type), POINTER :: units
   PUBLIC :: unit_convert_type, get_cp2k_units, init_cp2k_units, rm_cp2k_units
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_units'
-!!*****
-!******************************************************************************
 
 CONTAINS
 
-!******************************************************************************
-!!****** cp2k_units/init_cp2k_units [1.0] *
-!!
-!!   NAME
-!!     init_cp2k_units
-!!
-!!   FUNCTION
-!!     routine which defines internal units and conversion factors
-!!     internal units of CP2K are in atomic_units
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief routine which defines internal units and conversion factors
+!>      internal units of CP2K are in atomic_units
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
 SUBROUTINE init_cp2k_units (error)
 
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -132,6 +107,7 @@ SUBROUTINE init_cp2k_units (error)
 
 END SUBROUTINE init_cp2k_units
 
+! *****************************************************************************
 SUBROUTINE rm_cp2k_units (error)
 
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -149,28 +125,13 @@ SUBROUTINE rm_cp2k_units (error)
 
 END SUBROUTINE rm_cp2k_units
 
-
-
-
-!******************************************************************************
-!!****** cp2k_units/get_cp2k_units [1.0] *
-!!
-!!   NAME
-!!     get_cp2k_units
-!!
-!!   FUNCTION
-!!     routine which defines internal units and conversion factors
-!!     internal units of CP2K are in atomic_units
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief routine which defines internal units and conversion factors
+!>      internal units of CP2K are in atomic_units
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
 SUBROUTINE get_cp2k_units ( unit_struc )
 
     TYPE(unit_convert_type), POINTER         :: unit_struc
@@ -179,7 +140,5 @@ SUBROUTINE get_cp2k_units ( unit_struc )
 
 END SUBROUTINE get_cp2k_units
 
-
 END MODULE cp2k_units
 
-!******************************************************************************

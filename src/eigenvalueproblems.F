@@ -2,27 +2,16 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/eigenvalueproblems [1.0] *
-!!
-!!   NAME
-!!     eigenvalueproblems
-!!
-!!   FUNCTION
-!!     Provides interfaces to LAPACK eigenvalue/SVD routines
-!!
-!!   AUTHOR
-!!     APSI
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (26-5-2001): delay D/S C/Z problem to the lapack library call
-!!
-!!   NOTES
-!!     We are using LAPACK interfaces, so please make sure in IBM/AIX you have
-!!     the lapack library before essl: "xlf90 ... -llapack -lessl" !!!
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Provides interfaces to LAPACK eigenvalue/SVD routines
+!> \note
+!>      We are using LAPACK interfaces, so please make sure in IBM/AIX you have
+!>      the lapack library before essl: "xlf90 ... -llapack -lessl" !!!
+!> \par History
+!>      JGH (26-5-2001): delay D/S C/Z problem to the lapack library call
+!> \author APSI
+! *****************************************************************************
 MODULE eigenvalueproblems
 
   USE f77_blas
@@ -56,16 +45,11 @@ MODULE eigenvalueproblems
      MODULE PROCEDURE cp2k_cgesvd
   END INTERFACE
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE diagonalise_ssyev ( matrix, mysize, storageform, eigenvalues, &
      eigenvectors )
-
 
     REAL(KIND=dp), INTENT(IN)                :: matrix( :, : )
     INTEGER, INTENT(IN)                      :: mysize
@@ -104,11 +88,9 @@ SUBROUTINE diagonalise_ssyev ( matrix, mysize, storageform, eigenvalues, &
 
 END SUBROUTINE diagonalise_ssyev
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE diagonalise_chpev ( matrix, mysize, storageform, eigenvalues, &
      eigenvectors )
-
 
     COMPLEX(KIND=dp), INTENT(INOUT)          :: matrix( : )
     INTEGER, INTENT(IN)                      :: mysize
@@ -143,11 +125,9 @@ SUBROUTINE diagonalise_chpev ( matrix, mysize, storageform, eigenvalues, &
 
 END SUBROUTINE diagonalise_chpev
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE diagonalise_sspgv ( matrix, overlap, mysize, TYPE, storageform, &
      eigenvalues, eigenvectors )
-
 
     REAL(KIND=dp), INTENT(INOUT)             :: matrix( : ), overlap( : )
     INTEGER, INTENT(IN)                      :: mysize, TYPE
@@ -181,11 +161,9 @@ SUBROUTINE diagonalise_sspgv ( matrix, overlap, mysize, TYPE, storageform, &
 
 END SUBROUTINE diagonalise_sspgv
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE diagonalise_chpgv ( matrix, overlap, mysize, TYPE, storageform, &
      eigenvalues, eigenvectors )
-
 
     COMPLEX(KIND=dp), INTENT(INOUT)          :: matrix( : ), overlap( : )
     INTEGER, INTENT(IN)                      :: mysize, TYPE
@@ -220,10 +198,8 @@ SUBROUTINE diagonalise_chpgv ( matrix, overlap, mysize, TYPE, storageform, &
 
 END SUBROUTINE diagonalise_chpgv
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE cp2k_sgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
-
 
     REAL(KIND=dp), INTENT(IN)                :: matrix( :, : )
     REAL(KIND=dp), INTENT(OUT)               :: svalues( : )
@@ -251,10 +227,8 @@ SUBROUTINE cp2k_sgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
 
 END SUBROUTINE cp2k_sgesvd
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE cp2k_cgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
-
 
     COMPLEX(KIND=dp), INTENT(IN)             :: matrix( :, : )
     REAL(KIND=dp), INTENT(OUT)               :: svalues( : )
@@ -283,8 +257,5 @@ SUBROUTINE cp2k_cgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
 
 END SUBROUTINE cp2k_cgesvd
 
-!******************************************************************************
-
 END MODULE eigenvalueproblems
 
-!******************************************************************************

@@ -3,21 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/ewalds [1.0] *
-!!
-!!   NAME
-!!     ewalds
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (15-Mar-2001) : New routine ewald_setup (former pme_setup)
-!!     JGH (23-Mar-2001) : Get rid of global variable ewald_grp
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      JGH (15-Mar-2001) : New routine ewald_setup (former pme_setup)
+!>      JGH (23-Mar-2001) : Get rid of global variable ewald_grp
+! *****************************************************************************
 MODULE ewalds
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -65,28 +55,17 @@ MODULE ewalds
   
 CONTAINS
 
-!******************************************************************************
-!!****** ewalds/ewald_evaluate [1.0] *
-!!
-!!   NAME
-!!     ewald_evaluate
-!!
-!!   FUNCTION
-!!     computes the potential and the force from the g-space part of
-!!     the 1/r potential
-!!     Ref.: J.-P. Hansen, Enrico Fermi School, 1985
-!!     Note: Only the positive G-vectors are used in the sum.
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (28-Feb-2001) : added fft_usage flag to pw_grid_setup and calls to
-!!                         pw_grid_construct
-!!     JGH (21-Feb-2001) : changed name
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief computes the potential and the force from the g-space part of
+!>      the 1/r potential
+!>      Ref.: J.-P. Hansen, Enrico Fermi School, 1985
+!>      Note: Only the positive G-vectors are used in the sum.
+!> \par History
+!>      JGH (28-Feb-2001) : added fft_usage flag to pw_grid_setup and calls to
+!>                          pw_grid_construct
+!>      JGH (21-Feb-2001) : changed name
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, cell, atomic_kind_set, particle_set,&
        local_particles, fg_coulomb, vg_coulomb, pv_g, use_virial, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -270,23 +249,13 @@ CONTAINS
 
   END SUBROUTINE ewald_evaluate
 
-!!****** ewalds/ewald_self [1.0] *
-!!
-!!   NAME
-!!     ewald_self
-!!
-!!   FUNCTION
-!     Computes the self interaction from g-space
-!!     and the neutralizing background
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Computes the self interaction from g-space
+!>      and the neutralizing background
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE ewald_self ( ewald_env, atomic_kind_set, local_particles, e_self,&
        e_neut, error)
 
@@ -343,22 +312,12 @@ CONTAINS
 
   END SUBROUTINE ewald_self
 
-!!****** ewalds/ewald_correction [1.0] *
-!!
-!!   NAME
-!!     ewald_correction
-!!
-!!   FUNCTION
-!!     compute the value of the real-space coulomb at the cut-off
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief compute the value of the real-space coulomb at the cut-off
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   FUNCTION ewald_correction ( ewald_env, qi, qj, rcutsq, error ) RESULT ( e_cutoff_coul )
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -387,21 +346,11 @@ CONTAINS
 
   END FUNCTION ewald_correction
 
-!!****** ewalds/ewald_print [1.0] *
-!!
-!!   NAME
-!!     ewald_print
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE ewald_print ( iw, cell, e_gspace, e_self, e_neut, e_bonded )
 
     INTEGER, INTENT(IN)                      :: iw

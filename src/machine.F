@@ -2,24 +2,14 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/machine [1.0] *
-!!
-!!   NAME
-!!     machine
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     APSI & JGH
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (05.07.2001) : added G95 interface
-!!     - m_flush added (12.06.2002,MK)
-!!     - Missing print_memory added (24.09.2002,MK)
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      JGH (05.07.2001) : added G95 interface
+!>      - m_flush added (12.06.2002,MK)
+!>      - Missing print_memory added (24.09.2002,MK)
+!> \author APSI & JGH
+! *****************************************************************************
 MODULE machine
   USE  kinds,  ONLY        : dp
 #if defined ( __AIX )
@@ -112,25 +102,15 @@ MODULE machine
 
 CONTAINS
 
-!!****f* machine/m_walltime *
-!!
-!!   NAME
-!!     m_walltime
-!!
-!!   FUNCTION
-!!     returns time from a real-time clock, protected against rolling 
-!!     early/easily 
-!!
-!!   NOTES
-!!     same implementation for all machines. 
-!!     might still roll, if not called multiple times per count_max/count_rate
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns time from a real-time clock, protected against rolling 
+!>      early/easily 
+!> \note
+!>      same implementation for all machines. 
+!>      might still roll, if not called multiple times per count_max/count_rate
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
 FUNCTION m_walltime() RESULT (wt)
     REAL(KIND=dp)                            :: wt
 
@@ -170,4 +150,3 @@ FUNCTION m_walltime() RESULT (wt)
 END FUNCTION m_walltime
 
 END MODULE machine
-!!*****

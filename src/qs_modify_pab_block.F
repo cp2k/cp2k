@@ -1,28 +1,14 @@
-
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/qs_modify_pab_block [1.0] *
-!!
-!!   NAME
-!!     qs_modify_pab_block
-!!
-!!   FUNCTION
-!!     Set of procedures to modify the density matrix, in order to collocate
-!!     on the real space grid specific functions of the primitives
-!!
-!!   AUTHOR
-!!     MI 06.2006
-!!
-!
-!!   SOURCE
-!******************************************************************************
-
-MODULE  qs_modify_pab_block
-
 ! *****************************************************************************
+!> \brief Set of procedures to modify the density matrix, in order to collocate
+!>      on the real space grid specific functions of the primitives
+!> \author MI 06.2006
+! *****************************************************************************
+MODULE  qs_modify_pab_block
 
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -44,26 +30,15 @@ MODULE  qs_modify_pab_block
   INTEGER, PARAMETER :: FUNC_AB = 401, FUNC_DADB = 402
   INTEGER, PARAMETER :: FUNC_ADBmDAB = 403, FUNC_ARDBmDARB = 404
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
-! *****************************************************************************
 !
-!!****f* qs_modify_pab_block/prepare_dadb *
-!!
-!!   NAME
-!!     prepare_dadb
-!!
-!!   FUNCTION
-!!     create a new pab_local so that mapping pab_local with pgf_a pgf_b
-!!     is equivalent to mapping pab with 0.5 * (nabla pgf_a) . (nabla pgf_b)
-!!     (ddx pgf_a ) (ddx pgf_b) = (lax pgf_{a-1x} - 2*zeta*pgf_{a+1x})*(lbx pgf_{b-1x} - 2*zetb*pgf_{b+1x})
-!!
-!!
-!!*** **********************************************************************
 
+! *****************************************************************************
+!> \brief create a new pab_local so that mapping pab_local with pgf_a pgf_b
+!>      is equivalent to mapping pab with 0.5 * (nabla pgf_a) . (nabla pgf_b)
+!>      (ddx pgf_a ) (ddx pgf_b) = (lax pgf_{a-1x} - 2*zeta*pgf_{a+1x})*(lbx pgf_{b-1x} - 2*zetb*pgf_{b+1x})
+! *****************************************************************************
   SUBROUTINE prepare_dadb(pab_local,pab,lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
 
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: pab_local
@@ -125,22 +100,14 @@ CONTAINS
 
   END SUBROUTINE prepare_dadb
 
-! *****************************************************************************
 !
-!!****f* qs_modify_pab_block/prepare_adb_m_dab *
-!!
-!!   NAME
-!!     prepare_adb_m_dab
-!!
-!!   FUNCTION
-!!     create a new pab_local so that mapping pab_local with pgf_a pgf_b
-!!     is equivalent to mapping pab with  pgf_a (nabla_{idir} pgf_b) - (nabla_{idir} pgf_a) pgf_b
-!!     ( pgf_a ) (ddx pgf_b) - (ddx pgf_a)( pgf_b ) = 
-!!             pgf_a *(lbx pgf_{b-1x} - 2*zetb*pgf_{b+1x}) - (lax pgf_{a-1x} - 2*zeta*pgf_{a+1x}) pgf_b
-!!
-!!
-!!*** **********************************************************************
 
+! *****************************************************************************
+!> \brief create a new pab_local so that mapping pab_local with pgf_a pgf_b
+!>      is equivalent to mapping pab with  pgf_a (nabla_{idir} pgf_b) - (nabla_{idir} pgf_a) pgf_b
+!>      ( pgf_a ) (ddx pgf_b) - (ddx pgf_a)( pgf_b ) = 
+!>              pgf_a *(lbx pgf_{b-1x} - 2*zetb*pgf_{b+1x}) - (lax pgf_{a-1x} - 2*zeta*pgf_{a+1x}) pgf_b
+! *****************************************************************************
   SUBROUTINE prepare_adb_m_dab(pab_local,pab,idir,lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
 
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: pab_local
@@ -199,24 +166,15 @@ CONTAINS
 
   END SUBROUTINE prepare_adb_m_dab
 
-! *****************************************************************************
 !
-!!****f* qs_modify_pab_block/prepare_ardb_m_darb
-!!
-!!   NAME
-!!     prepare_ardb_m_darb
-!!
-!!   FUNCTION
-!!     create a new pab_local so that mapping pab_local with pgf_a pgf_b
-!!     pgf_a (r-Rb)_{ir} (nabla_{idir} pgf_b) - (nabla_{idir} pgf_a) (r-Rb)_{ir}  pgf_b
-!      ( pgf_a )(r-Rb)_{ir} (ddx pgf_b) - (ddx pgf_a) (r-Rb)_{ir} ( pgf_b ) = 
-!!                    pgf_a *(lbx pgf_{b-1x+1ir} - 2*zetb*pgf_{b+1x+1ir}) - 
-!!                             (lax pgf_{a-1x} - 2*zeta*pgf_{a+1x}) pgf_{b+1ir}
 
-!!
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief create a new pab_local so that mapping pab_local with pgf_a pgf_b
+!>      pgf_a (r-Rb)_{ir} (nabla_{idir} pgf_b) - (nabla_{idir} pgf_a) (r-Rb)_{ir}  pgf_b
+!>       ( pgf_a )(r-Rb)_{ir} (ddx pgf_b) - (ddx pgf_a) (r-Rb)_{ir} ( pgf_b ) = 
+!>                     pgf_a *(lbx pgf_{b-1x+1ir} - 2*zetb*pgf_{b+1x+1ir}) - 
+!>                              (lax pgf_{a-1x} - 2*zeta*pgf_{a+1x}) pgf_{b+1ir}
+! *****************************************************************************
   SUBROUTINE prepare_ardb_m_darb(pab_local,pab,idir,ir,lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
 
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: pab_local
@@ -398,6 +356,5 @@ CONTAINS
 
   END SUBROUTINE prepare_ardb_m_darb
 
-!  *****************************************************************************************
 END MODULE qs_modify_pab_block
 

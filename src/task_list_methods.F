@@ -2,25 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/task_list_methods *
-!!
-!!   NAME
-!!     task_lists
-!!
-!!   FUNCTION
-!!     generate the tasks lists used by collocate and integrate routines
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Joost VandeVondele 
-!!
-!!   MODIFICATION HISTORY
-!!     01.2008 [Joost VandeVondele] refactered out of qs_collocate / qs_integrate
-!!
-!!   SOURCE
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief generate the tasks lists used by collocate and integrate routines
+!> \par History
+!>      01.2008 [Joost VandeVondele] refactered out of qs_collocate / qs_integrate
+!> \author Joost VandeVondele 
+! *****************************************************************************
 MODULE task_list_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -68,23 +56,11 @@ MODULE task_list_methods
   PUBLIC :: generate_qs_task_list
 
 CONTAINS
-!!****f* task_lists/generate_qs_task_list *
-!!
-!!   NAME
-!!     generate_qs_task_list
-!!
-!!   FUNCTION
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!    -
-!!    -
-!!
-!!   MODIFICATION HISTORY
-!!     01.2008 factored out of calculate_rho_elec [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \par History
+!>      01.2008 factored out of calculate_rho_elec [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE generate_qs_task_list(qs_env, soft_valid, tasks, dist_ab, ntasks, atom_pair_send, atom_pair_recv, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -365,35 +341,22 @@ CONTAINS
 
   END SUBROUTINE generate_qs_task_list
 
-
-!!****f* task_list_methods/estimate_task_cost *
-!!
-!!   NAME
-!!     estimate_task_cost
-!!
-!!   FUNCTION
-!!     tries to predict the time needed for processing this task
-!!     in this way an improved load balance might be obtained
-!!
-!!   NOTES
-!!     -) this requires the radius to be computed in the same way as
-!!     collocate_pgf_product_rspace, we should factor that part into a subroutine
-!!     -) we're assuming that integrate_pgf and collocate_pgf are the same cost for load balancing 
-!!        this is more or less true for map_consistent
-!!     -) in principle, the computed radius could be recycled in integrate_pgf/collocate_pgf if it is certainly
-!!        the same, this could lead to a small speedup
-!!     -) the cost function is a fit through the median cost of mapping a pgf with a given l and a given radius (in grid points)
-!!        fitting the measured data on an opteron/g95 using the expression
-!!        a*(l+b)(r+c)**3+d which is based on the innerloop of the collocating routines
-!!
-!!   INPUTS
-!!    -
-!!    -
-!!
-!!   MODIFICATION HISTORY
-!!     01.2008 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief tries to predict the time needed for processing this task
+!>      in this way an improved load balance might be obtained
+!> \note
+!>      -) this requires the radius to be computed in the same way as
+!>      collocate_pgf_product_rspace, we should factor that part into a subroutine
+!>      -) we're assuming that integrate_pgf and collocate_pgf are the same cost for load balancing 
+!>         this is more or less true for map_consistent
+!>      -) in principle, the computed radius could be recycled in integrate_pgf/collocate_pgf if it is certainly
+!>         the same, this could lead to a small speedup
+!>      -) the cost function is a fit through the median cost of mapping a pgf with a given l and a given radius (in grid points)
+!>         fitting the measured data on an opteron/g95 using the expression
+!>         a*(l+b)(r+c)**3+d which is based on the innerloop of the collocating routines
+!> \par History
+!>      01.2008 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE estimate_task_cost(cost,rsgrid,cube_info,la_max,zeta,la_min,lb_max,zetb,lb_min,ra,rab,rab2,eps)
 
     INTEGER, INTENT(OUT)                     :: cost

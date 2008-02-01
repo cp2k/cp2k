@@ -2,23 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_linres_types [1.0] *
-!!
-!!   NAME
-!!     qs_linres_types
-!!
-!!   FUNCTION
-!!     Type definitiona for linear response calculations
-!!
-!!   AUTHOR
-!!     MI 
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Type definitiona for linear response calculations
+!> \author MI 
+! *****************************************************************************
 MODULE qs_linres_types
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -48,27 +36,17 @@ MODULE qs_linres_types
   PRIVATE
 
 !****s* qs_linres_types/linres_control_type
-!!
-!! NAME
-!!   linres_control_type
-!!
-!! FUNCTION
-!!   General settings for linear response calculations
-!!
-!! ATTRIBUTES
-!!   - property : which quantity is to be calculated by LR
-!!   - opt_method : method to optimize the psi1 by minimization of the second order term of the energy
-!!   - preconditioner : which kind of preconditioner should be used, if any
-!!   - localized_psi0 : don't use the canonical psi0, but the maximally localized wavefunctions
-!!   - do_kernel  : the kernel is zero if the rho1 is zero as for the magnetic field perturbation 
-!!   - tolerance : convergence criterium for the optimization of the psi1
-!!
-!! NOTES
-!!   
-!! AUTHOR
-!!   MI 
-!!
-!!***
+
+! *****************************************************************************
+!> \brief General settings for linear response calculations
+!> \param property which quantity is to be calculated by LR
+!> \param opt_method method to optimize the psi1 by minimization of the second order term of the energy
+!> \param preconditioner which kind of preconditioner should be used, if any
+!> \param localized_psi 0 : don't use the canonical psi0, but the maximally localized wavefunctions
+!> \param do_kernel the kernel is zero if the rho1 is zero as for the magnetic field perturbation 
+!> \param tolerance convergence criterium for the optimization of the psi1
+!> \author MI 
+! *****************************************************************************
   TYPE linres_control_type
      INTEGER                                   :: ref_count
      INTEGER                                   :: property
@@ -88,47 +66,37 @@ MODULE qs_linres_types
   END TYPE linres_control_type
 
 !****s* qs_linres_types/nmr_env_type
-!!
-!! NAME
-!!   nmr_env_type
-!!
-!! FUNCTION
-!!
-!! ATTRIBUTES
-!!   - ref_count
-!!   - full_nmr    : true if the full correction is calculated
-!!   - simplenmr_done, fullnmr_done : flags that indicate what has been
-!!                   already calculated: used for restart
-!!   - centers_set : centers of the maximally localized psi0
-!!   - spreads_set : spreads of the maximally localized psi0 
-!!   - op_p_ao     : sparse matrixes for the px, py and pz operator 
-!!                   in the contracted basis set representation 
-!!   - op_rmd_ao   : sparse matrixes used to construct the (r-d)xp operator
-!!                   in the contracted basis set representation
-!!   - p_psi0      : full matrixes, operator p applied to psi0
-!!   - rxp_psi0    : full matrixes, operator (r-d)xp applied to psi0
-!!   - psi1_p      : response wavefunctions to the perturbation given by 
-!!                   H1=p (xyz)  applied to psi0
-!!   - psi1_rxp    : response wavefunctions to the perturbation given by 
-!!                   H1=(r-d_i)xp applied to psi0_i where d_i is the center
-!!   - psi1_D      : response wavefunctions to the perturbation given by 
-!!                   H1=(d_j-d_i)xp applied to psi0_i where d_i is the center
-!!                   and d_j is the center of psi0_j and psi1_D_j is the result
-!!                   This operator has to be used in nstate scf calculations,
-!!                   one for each psi1_D_j vector
-!!   - chemical_shift: the tensor for each atom
-!!   - chi_tensor  : the susceptibility tensor
-!!   - jp1_ao :      current density matrices. 
-!!   - jp2_ao :      density matrices used to compute the r-dependent terms
-!!   - jrho1_set   : current density on the global grid, if gapw this is only the soft part
-!!   - jrho1_atom_set : current density on the local atomic grids (only if gapw)
-!!
-!! NOTES
-!!   
-!! AUTHOR
-!!   MI 
-!!***
 
+! *****************************************************************************
+!> \param ref_coun t
+!> \param full_nmr true if the full correction is calculated
+!> \param simplenmr_done , fullnmr_done : flags that indicate what has been
+!>                    already calculated: used for restart
+!> \param centers_set centers of the maximally localized psi0
+!> \param spreads_set spreads of the maximally localized psi0 
+!> \param op_p_ao sparse matrixes for the px, py and pz operator 
+!>                    in the contracted basis set representation 
+!> \param op_rmd_ao sparse matrixes used to construct the (r-d)xp operator
+!>                    in the contracted basis set representation
+!> \param p_psi 0      : full matrixes, operator p applied to psi0
+!> \param rxp_psi 0    : full matrixes, operator (r-d)xp applied to psi0
+!> \param psi 1_p      : response wavefunctions to the perturbation given by 
+!>                    H1=p (xyz)  applied to psi0
+!> \param psi 1_rxp    : response wavefunctions to the perturbation given by 
+!>                    H1=(r-d_i)xp applied to psi0_i where d_i is the center
+!> \param psi 1_D      : response wavefunctions to the perturbation given by 
+!>                    H1=(d_j-d_i)xp applied to psi0_i where d_i is the center
+!>                    and d_j is the center of psi0_j and psi1_D_j is the result
+!>                    This operator has to be used in nstate scf calculations,
+!>                    one for each psi1_D_j vector
+!> \param chemical_shift the tensor for each atom
+!> \param chi_tensor the susceptibility tensor
+!> \param jp 1_ao :      current density matrices. 
+!> \param jp 2_ao :      density matrices used to compute the r-dependent terms
+!> \param jrho 1_set   : current density on the global grid, if gapw this is only the soft part
+!> \param jrho 1_atom_set : current density on the local atomic grids (only if gapw)
+!> \author MI 
+! *****************************************************************************
   TYPE nmr_env_type
      INTEGER                                     :: gauge
      CHARACTER(LEN=30)                           :: gauge_name
@@ -168,6 +136,7 @@ MODULE qs_linres_types
           POINTER                                :: jp1_ao,jp0_ao
   END TYPE nmr_env_type
 
+! *****************************************************************************
   TYPE epr_env_type
      INTEGER                                     :: gauge
      CHARACTER(LEN=30)                           :: gauge_name
@@ -207,16 +176,19 @@ MODULE qs_linres_types
           POINTER                                :: vks_atom_set
   END TYPE epr_env_type
 
+! *****************************************************************************
   TYPE nablavks_atom_type
      TYPE(rho_atom_coeff), DIMENSION(:,:),&
           POINTER                                :: nablavks_vec_rad_h,&
                                                     nablavks_vec_rad_s
   END TYPE nablavks_atom_type
 
+! *****************************************************************************
   TYPE jrho_atom_p_type
      TYPE(jrho_atom_type), POINTER       :: jrho_atom
   END TYPE jrho_atom_p_type 
 
+! *****************************************************************************
   TYPE jrho_atom_type
     TYPE(rho_atom_coeff), DIMENSION(:),&
                                POINTER      :: cjc_h, cjc_s, cjc0_h, cjc0_s
@@ -250,8 +222,6 @@ MODULE qs_linres_types
       POINTER                               :: jrho_c_h_iii, jrho_c_s_iii
   END TYPE jrho_atom_type
 
-
-
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_types'
 
 ! *** Public data types ***
@@ -267,11 +237,9 @@ MODULE qs_linres_types
   PUBLIC :: linres_control_create, linres_control_retain, linres_control_release,&
             nmr_env_create, epr_env_create
 
-!!***
-! *****************************************************************************
-
 CONTAINS  
 
+! *****************************************************************************
   SUBROUTINE linres_control_create(linres_control,error)
  
     TYPE(linres_control_type), POINTER       :: linres_control
@@ -345,7 +313,6 @@ CONTAINS
   END SUBROUTINE linres_control_retain
 
 ! *****************************************************************************
-
   SUBROUTINE nmr_env_create(nmr_env,error)
 
     TYPE(nmr_env_type)                       :: nmr_env
@@ -388,12 +355,9 @@ CONTAINS
        NULLIFY(nmr_env%do_calc_cs_atom)
      END IF 
 
-
   END SUBROUTINE nmr_env_create
        
-
 ! *****************************************************************************
-
   SUBROUTINE epr_env_create(epr_env,error)
 
     TYPE(epr_env_type)                       :: epr_env
@@ -439,12 +403,9 @@ CONTAINS
        NULLIFY(epr_env%vks_atom_set)
      END IF 
 
-
   END SUBROUTINE epr_env_create
        
-
 ! *****************************************************************************
-
   SUBROUTINE get_nmr_env(nmr_env, n_nics, nao, nstates,&
              chi_tensor,list_cubes, cs_atom_list, do_calc_cs_atom, statetrueindex, &
              chi_tensor_loc, r_nics, chemical_shift,&
@@ -527,6 +488,7 @@ CONTAINS
     
   END SUBROUTINE get_nmr_env
 
+! *****************************************************************************
   SUBROUTINE set_nmr_env(nmr_env,shift_factor,chi_factor,chi_SI2shiftppm,chi_SI2ppmcgs,&
              chi_tensor,chi_tensor_loc,jrho1_atom_set,jrho1_set,error)
 
@@ -589,7 +551,6 @@ CONTAINS
   END SUBROUTINE set_nmr_env
 
 ! *****************************************************************************
-
   SUBROUTINE get_epr_env(epr_env, nao, nstates,&
              list_cubes, statetrueindex, &
              g_total, g_so, g_soo, bind0, &
@@ -675,6 +636,7 @@ CONTAINS
 
   END SUBROUTINE get_epr_env
 
+! *****************************************************************************
   SUBROUTINE set_epr_env(epr_env,g_free_factor,g_soo_chicorr_factor,&
                          g_soo_factor,g_so_factor,g_so_factor_gapw,&
                          g_zke_factor,jrho1_atom_set,jrho1_set,&
@@ -977,7 +939,6 @@ CONTAINS
          DEALLOCATE(jrho_atom_set(iat)%jrho_c_s_iii)
        END IF
 
-
        IF(ASSOCIATED(jrho_atom_set(iat)%jrho_vec_rad_h)) THEN
          NULLIFY(jrho_atom_set(iat)%jrho_rad_h,jrho_atom_set(iat)%jrho_rad_s)
          n = SIZE(jrho_atom_set(iat)%jrho_vec_rad_h,3)
@@ -1014,6 +975,7 @@ CONTAINS
 
   END SUBROUTINE deallocate_jrho_atom_set
 
+! *****************************************************************************
   SUBROUTINE  allocate_jrho_atom_rad(jrho1_atom,ispin,nr,max_iso_not0,error)
   
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
@@ -1075,7 +1037,6 @@ CONTAINS
          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
          jrho1_atom%jrho_c_s_ii(ispin)%r_coef = 0.0_dp
 
-
          ALLOCATE (jrho1_atom%jrho_a_h_iii(ispin)%r_coef(nr,max_iso_not0),STAT=istat)
          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
          jrho1_atom%jrho_a_h_iii(ispin)%r_coef = 0.0_dp
@@ -1103,7 +1064,6 @@ CONTAINS
   END SUBROUTINE allocate_jrho_atom_rad
 
 ! *****************************************************************************
-
   SUBROUTINE set2zero_jrho_atom_rad(jrho1_atom,ispin,error)
     !
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
@@ -1147,8 +1107,6 @@ CONTAINS
   END SUBROUTINE set2zero_jrho_atom_rad
 
 ! *****************************************************************************
-
-
   SUBROUTINE get_jrho_atom(jrho1_atom_set,iatom,cjc_h,cjc_s,cjc_ii_h,cjc_ii_s,&
              cjc_iii_h,cjc_iii_s,jrho_rad_h,jrho_rad_s,jrho_vec_rad_h,jrho_vec_rad_s,error)
 
@@ -1187,7 +1145,6 @@ CONTAINS
   END SUBROUTINE get_jrho_atom
 
 ! *****************************************************************************
-
   SUBROUTINE init_jrho_atom_set(jrho1_atom_set,atomic_kind_set,nspins,store_current,error)
 
     TYPE(jrho_atom_type), DIMENSION(:), &
@@ -1414,7 +1371,6 @@ CONTAINS
   END SUBROUTINE init_jrho_atom_set
 
 ! *****************************************************************************
-
   SUBROUTINE init_nablavks_atom_set(nablavks_atom_set,atomic_kind_set,nspins,error)
 
     TYPE(nablavks_atom_type), DIMENSION(:), &

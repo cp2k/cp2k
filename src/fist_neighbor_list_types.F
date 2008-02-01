@@ -2,23 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/fist_neighbor_list_types [1.0] *
-!!
-!!   NAME
-!!     fist_neighbor_list_types
-!!
-!!   FUNCTION
-!!     Define the neighbor list data types and the corresponding functionality
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Define the neighbor list data types and the corresponding functionality
+! *****************************************************************************
 MODULE fist_neighbor_list_types
 
   USE cell_types,                      ONLY: cell_type,&
@@ -35,6 +22,7 @@ MODULE fist_neighbor_list_types
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_neighbor_list_types'
 
+! *****************************************************************************
   TYPE neighbor_kind_pairs_type
      INTEGER, POINTER, DIMENSION(:,:)  :: list, ij_kind
      INTEGER, POINTER, DIMENSION(:)    :: id_kind
@@ -44,6 +32,7 @@ MODULE fist_neighbor_list_types
      REAL(dp)                          :: rmax
   END TYPE neighbor_kind_pairs_type
 
+! *****************************************************************************
   TYPE fist_neighbor_type
      TYPE(neighbor_kind_pairs_type), DIMENSION(:), POINTER :: neighbor_kind_pairs
      INTEGER                                               :: nlists
@@ -57,28 +46,13 @@ MODULE fist_neighbor_list_types
 
 CONTAINS
  
- !!****f* fist_neighbor_list_types/fist_neighbor_deallocate [1.0] *
-!!
-!!   NAME
-!!     fist_neighbor_deallocate
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2006 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2006 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE fist_neighbor_deallocate(fist_neighbor,error)
     TYPE(fist_neighbor_type), POINTER        :: fist_neighbor
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -123,28 +97,13 @@ CONTAINS
     END IF
   END SUBROUTINE fist_neighbor_deallocate
 
- !!****f* fist_neighbor_list_types/fist_neighbor_init [1.0] *
-!!
-!!   NAME
-!!     fist_neighbor_init
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2006 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2006 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE fist_neighbor_init(fist_neighbor, ncell, error)
     TYPE(fist_neighbor_type), POINTER        :: fist_neighbor
     INTEGER, INTENT(IN)                      :: ncell(3)
@@ -240,28 +199,13 @@ CONTAINS
     CALL timestop ( handle )
   END SUBROUTINE fist_neighbor_init
 
- !!****f* fist_neighbor_list_types/fist_neighbor_add [1.0] *
-!!
-!!   NAME
-!!     fist_neighbor_add
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2006 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2006 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b, exclusion_list,&
        particle_set, rab, added, id_kind, is_full, cell, error)
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair

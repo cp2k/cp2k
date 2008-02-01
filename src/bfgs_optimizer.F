@@ -3,23 +3,9 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/bfgs_optimizer [1.0] *
-!!
-!!   NAME
-!!     bfgs_optimizer
-!!
-!!   FUNCTION
-!!     Routines for Geometry optimization using BFGS algorithm
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!***************************************************************************
-
+! *****************************************************************************
+!> \brief Routines for Geometry optimization using BFGS algorithm
+! *****************************************************************************
 MODULE bfgs_optimizer
 
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
@@ -72,21 +58,9 @@ MODULE bfgs_optimizer
 
 CONTAINS
 
-!!****** bfgs_optimizer/geoopt_bfgs [1.0] *
-!!
-!!   NAME
-!!    geoopt_bfgs 
-!!
-!!   FUNCTION
-!!    Main driver for BFGS geometry optimizations 
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief Main driver for BFGS geometry optimizations 
+! *****************************************************************************
   SUBROUTINE geoopt_bfgs(force_env,gopt_param,globenv,force_env_section,&
        geo_section, gopt_env, x0, error)
 
@@ -356,21 +330,7 @@ CONTAINS
 
   END SUBROUTINE geoopt_bfgs
 
-!!****** bfgs_optimizer/rat_fun_opt [1.0] *
-!!
-!!   NAME
-!!    rat_fun_opt 
-!!
-!!   FUNCTION
-!!    
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
   SUBROUTINE rat_fun_opt(ndf,dg,eigval,work,eigvec,g)
 
     INTEGER, INTENT(IN)                      :: ndf
@@ -522,21 +482,7 @@ CONTAINS
 
   END SUBROUTINE  rat_fun_opt
 
-!!****** bfgs_optimizer/bfgs [1.0] *
-!!
-!!   NAME
-!!    bfgs 
-!!
-!!   FUNCTION
-!!    
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
   SUBROUTINE bfgs(ndf,dx,dg,hes,work)
     INTEGER, INTENT(IN)                      :: ndf
     REAL(KIND=dp), INTENT(INOUT)             :: dx(ndf), dg(ndf), &
@@ -550,7 +496,6 @@ CONTAINS
     REAL(KIND=dp)                            :: DDOT, dxw, gdx
 
     CALL timeset(routineN,handle)
-
 
     CALL DSPMV('U',ndf,one,hes,dx,1,zero,work,1)
 
@@ -571,21 +516,7 @@ CONTAINS
 
   END SUBROUTINE bfgs
 
-!!****** bfgs_optimizer/set_hes_eig [1.0] *
-!!
-!!   NAME
-!!    set_hes_eig 
-!!
-!!   FUNCTION
-!!    
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
   SUBROUTINE set_hes_eig(ndf,eigval,work)
     INTEGER, INTENT(IN)                      :: ndf
     REAL(KIND=dp), INTENT(INOUT)             :: eigval(ndf), work(ndf)
@@ -634,21 +565,7 @@ CONTAINS
 
   END SUBROUTINE set_hes_eig
 
-!!****** bfgs_optimizer/geoopt_get_step [1.0] *
-!!
-!!   NAME
-!!    geoopt_get_step 
-!!
-!!   FUNCTION
-!!    
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
   SUBROUTINE geoopt_get_step(ndf,eigval,eigvec,hes_mat,dr,g)
 
     INTEGER, INTENT(IN)                      :: ndf
@@ -684,21 +601,7 @@ CONTAINS
 
   END SUBROUTINE geoopt_get_step
 
-!!****** bfgs_optimizer/trust_radius [1.0] *
-!!
-!!   NAME
-!!    trust_radius 
-!!
-!!   FUNCTION
-!!    
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
   SUBROUTINE trust_radius(ndf,nfree,step,rad,rat,dr,output_unit)
     INTEGER, INTENT(IN)                      :: ndf, nfree
     REAL(KIND=dp), INTENT(INOUT)             :: step, rad, rat, dr(ndf)
@@ -732,21 +635,7 @@ CONTAINS
 
   END SUBROUTINE trust_radius
 
-!!****** bfgs_optimizer/energy_predict [1.0] *
-!!
-!!   NAME
-!!    energy_predict  
-!!
-!!   FUNCTION
-!!    
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
    SUBROUTINE energy_predict(ndf,work,hes,dr,g,output_unit,conv,pred)
 
     INTEGER, INTENT(IN)                      :: ndf
@@ -776,21 +665,7 @@ CONTAINS
 
   END SUBROUTINE energy_predict
 
-!!****** bfgs_optimizer/update_trust_rad [1.0] *
-!!
-!!   NAME
-!!     update_trust_rad 
-!!
-!!   FUNCTION
-!!    
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
    SUBROUTINE update_trust_rad(rat,rad,step,ediff)
 
     REAL(KIND=dp), INTENT(INOUT)             :: rat, rad, step, ediff

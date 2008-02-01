@@ -2,30 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/lapack [1.0] *
-!!
-!!   NAME
-!!     lapack
-!!
-!!   FUNCTION
-!!     Interface to the LAPACK F77 library
-!!
-!!   AUTHOR
-!!     APSI
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (26-5-2001): New flag __SGL
-!!                    : Added SVD routines
-!!     JGH (30-5-2001): Added Cholesky facotrisation and triangular inverse
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Interface to the LAPACK F77 library
+!> \par History
+!>      JGH (26-5-2001): New flag __SGL
+!>                     : Added SVD routines
+!>      JGH (30-5-2001): Added Cholesky facotrisation and triangular inverse
+!> \author APSI
+! *****************************************************************************
 MODULE lapack
   IMPLICIT NONE
   PUBLIC ! make all routines public 
 #if defined (__SGL)
   INTERFACE lapack_ssyev
+! *****************************************************************************
      SUBROUTINE ssyev ( jobz, uplo, n, a, lda, w, work, lwork, info )
        USE kinds, ONLY: dp
     CHARACTER                                :: jobz, uplo
@@ -37,6 +28,7 @@ MODULE lapack
   END INTERFACE
 
   INTERFACE lapack_chpev
+! *****************************************************************************
      SUBROUTINE chpev ( jobz, uplo, n, ap, w, z, ldz, work, rwork, info )
        USE kinds, ONLY: dp
     CHARACTER                                :: jobz, uplo
@@ -52,6 +44,7 @@ MODULE lapack
   END INTERFACE
 
   INTERFACE lapack_sspgv
+! *****************************************************************************
      SUBROUTINE sspgv ( itype, jobz, uplo, n, ap, bp, w, z, ldz, work, &
           info )
        USE kinds, ONLY: dp
@@ -67,6 +60,7 @@ MODULE lapack
   END INTERFACE
 
   INTERFACE lapack_chpgv
+! *****************************************************************************
      SUBROUTINE chpgv ( itype, jobz, uplo, n, ap, bp, w, z, ldz, work, &
           rwork, info )
        USE kinds, ONLY: dp
@@ -84,6 +78,7 @@ MODULE lapack
   END INTERFACE
 
   INTERFACE lapack_sgesvd
+! *****************************************************************************
      SUBROUTINE sgesvd ( jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, &
           work, lwork, info )
        USE kinds, ONLY: dp
@@ -101,6 +96,7 @@ MODULE lapack
   END INTERFACE
 
   INTERFACE lapack_cgesvd
+! *****************************************************************************
      SUBROUTINE cgesvd ( jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, &
           work, lwork, rwork, info )
        USE kinds, ONLY: dp
@@ -121,6 +117,7 @@ MODULE lapack
   END INTERFACE
 
   INTERFACE lapack_spotrf
+! *****************************************************************************
      SUBROUTINE spotrf ( uplo, n, a, lda, info )
        USE kinds, ONLY: dp
     CHARACTER                                :: uplo
@@ -132,6 +129,7 @@ MODULE lapack
   END INTERFACE
 
   INTERFACE lapack_cpotrf
+! *****************************************************************************
      SUBROUTINE cpotrf ( uplo, n, a, lda, info )
        USE kinds, ONLY: dp
     CHARACTER                                :: uplo
@@ -143,6 +141,7 @@ MODULE lapack
   END INTERFACE
 
   INTERFACE lapack_strtri
+! *****************************************************************************
      SUBROUTINE strtri ( uplo, diag, n, a, lda, info )
        USE kinds, ONLY: dp
     CHARACTER                                :: uplo, diag
@@ -154,6 +153,7 @@ MODULE lapack
   END INTERFACE
 
   INTERFACE lapack_ctrtri
+! *****************************************************************************
      SUBROUTINE ctrtri ( uplo, diag, n, a, lda, info )
        USE kinds, ONLY: dp
     CHARACTER                                :: uplo, diag
@@ -165,6 +165,7 @@ MODULE lapack
   END INTERFACE
 
   INTERFACE lapack_sgesv
+! *****************************************************************************
      SUBROUTINE sgesv ( n, nrhs, a, lda, ipiv, b, ldb, info )
        USE kinds, ONLY: dp
     INTEGER                                  :: N, NRHS, LDA
@@ -179,6 +180,7 @@ MODULE lapack
 #else
 
   INTERFACE lapack_ssyev
+! *****************************************************************************
      SUBROUTINE dsyev ( jobz, uplo, n, a, lda, w, work, lwork, info )
        USE kinds, ONLY: dp
     CHARACTER                                :: jobz, uplo
@@ -190,6 +192,7 @@ MODULE lapack
   END INTERFACE
 
   INTERFACE lapack_chpev
+! *****************************************************************************
      SUBROUTINE zhpev ( jobz, uplo, n, ap, w, z, ldz, work, rwork, info )
        USE kinds, ONLY: dp
     CHARACTER                                :: jobz, uplo
@@ -205,6 +208,7 @@ MODULE lapack
   END INTERFACE
 
   INTERFACE lapack_sspgv
+! *****************************************************************************
      SUBROUTINE dspgv ( itype, jobz, uplo, n, ap, bp, w, z, ldz, work, &
           info )
        USE kinds, ONLY: dp
@@ -220,6 +224,7 @@ MODULE lapack
   END INTERFACE
 
   INTERFACE lapack_chpgv
+! *****************************************************************************
      SUBROUTINE zhpgv ( itype, jobz, uplo, n, ap, bp, w, z, ldz, work, &
           rwork, info )
        USE kinds, ONLY: dp
@@ -237,6 +242,7 @@ MODULE lapack
   END INTERFACE
 
   INTERFACE lapack_sgesvd
+! *****************************************************************************
      SUBROUTINE dgesvd ( jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, &
           work, lwork, info )
        USE kinds, ONLY: dp
@@ -253,6 +259,7 @@ MODULE lapack
   END INTERFACE
 
   INTERFACE lapack_cgesvd
+! *****************************************************************************
      SUBROUTINE zgesvd ( jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, &
           work, lwork, rwork, info )
        USE kinds, ONLY: dp
@@ -272,6 +279,7 @@ MODULE lapack
   END INTERFACE
 
   INTERFACE lapack_spotrf
+! *****************************************************************************
      SUBROUTINE dpotrf ( uplo, n, a, lda, info )
        USE kinds, ONLY: dp
     CHARACTER                                :: uplo
@@ -283,6 +291,7 @@ MODULE lapack
   END INTERFACE
 
   INTERFACE lapack_cpotrf
+! *****************************************************************************
      SUBROUTINE zpotrf ( uplo, n, a, lda, info )
        USE kinds, ONLY: dp
     CHARACTER                                :: uplo
@@ -294,6 +303,7 @@ MODULE lapack
   END INTERFACE
 
   INTERFACE lapack_strtri
+! *****************************************************************************
      SUBROUTINE dtrtri ( uplo, diag, n, a, lda, info )
        USE kinds, ONLY: dp
     CHARACTER                                :: uplo, diag
@@ -305,6 +315,7 @@ MODULE lapack
   END INTERFACE
 
   INTERFACE lapack_ctrtri
+! *****************************************************************************
      SUBROUTINE ztrtri ( uplo, diag, n, a, lda, info )
        USE kinds, ONLY: dp
     CHARACTER                                :: uplo, diag
@@ -316,6 +327,7 @@ MODULE lapack
   END INTERFACE
 
   INTERFACE lapack_sgesv
+! *****************************************************************************
      SUBROUTINE dgesv ( n, nrhs, a, lda, ipiv, b, ldb, info )
        USE kinds, ONLY: dp
     INTEGER                                  :: N, NRHS, LDA
@@ -330,5 +342,3 @@ MODULE lapack
 
 END MODULE lapack
 
-!!*****
-!******************************************************************************

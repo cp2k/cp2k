@@ -3,23 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/pme [2.0] *
-!!
-!!   NAME
-!!     pme
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM and APSI
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (21-Mar-2001) : Complete rewrite
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      JGH (21-Mar-2001) : Complete rewrite
+!> \author CJM and APSI
+! *****************************************************************************
 MODULE pme
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -85,31 +73,16 @@ MODULE pme
   PUBLIC :: pme_evaluate
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pme'
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** pme/pme_evaluate [2.0] *
-!!
-!!   NAME
-!!     pme_evaluate
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM and APSI
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (15-Mar-2001) : New electrostatic calculation and pressure tensor
-!!     JGH (21-Mar-2001) : Complete rewrite
-!!     JGH (21-Mar-2001) : Introduced real space density type for future
-!!                         parallelisation
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      JGH (15-Mar-2001) : New electrostatic calculation and pressure tensor
+!>      JGH (21-Mar-2001) : Complete rewrite
+!>      JGH (21-Mar-2001) : Introduced real space density type for future
+!>                          parallelisation
+!> \author CJM and APSI
+! *****************************************************************************
   SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, box, particle_set, vg_coulomb, &
        fg_coulomb, pv_g, force_env_section, shell_particle_set, core_particle_set,&
        fgshell_coulomb, fgcore_coulomb, use_virial, error )
@@ -248,7 +221,6 @@ CONTAINS
          CALL dg_sum_patch ( rden, rhos1, exp_igr % centre ( :, p1 ) )
          IF ( p2 /= 0 ) CALL dg_sum_patch ( rden, rhos2, exp_igr % centre ( :, p2 ) )
        END IF
-
 
     END DO
     IF(PRESENT(shell_particle_set)) THEN
@@ -425,29 +397,15 @@ CONTAINS
 
   END SUBROUTINE pme_evaluate
 
-!!*****
-!******************************************************************************
-!!****** pme/get_patch [1.0] *
-!!
-!!   NAME
-!!     get_patch
-!!
-!!   FUNCTION
-!!     Calculates local density in a small box
-!!
-!!   AUTHOR
-!!     JGH (21-Mar-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (23-Mar-2001) : Switch to integer from particle list pointers
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Calculates local density in a small box
+!> \par History
+!>      JGH (23-Mar-2001) : Switch to integer from particle list pointers
+!> \author JGH (21-Mar-2001)
+! *****************************************************************************
 SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
            grid_b, grid_s, rhos1, rhos2 , is1_core, is2_core, is1_shell,&
            is2_shell,core_particle_set, error)
-
 
     TYPE(dg_type), POINTER                   :: dg
     TYPE(particle_type), DIMENSION(:), &
@@ -582,11 +540,9 @@ SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
 
 END SUBROUTINE get_patch
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2, is1_core, &
            is2_core, is1_shell, is2_shell )
-
 
     TYPE(dg_type), POINTER                   :: dg
     TYPE(particle_type), DIMENSION(:), &
@@ -685,4 +641,3 @@ END SUBROUTINE get_patch_again
 
 END MODULE pme
 
-!******************************************************************************

@@ -3,27 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/harris_force_types [1.0] *
-!!
-!!   NAME
-!!     harris_force_types
-!!
-!!   FUNCTION
-!!     The Harris force , which contains all the informations needed to perform 
-!!     and analyse the Harris functional force correction.
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief The Harris force , which contains all the informations needed to perform 
+!>      and analyse the Harris functional force correction.
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
 MODULE harris_force_types
 
   USE f77_blas
@@ -47,51 +33,34 @@ MODULE harris_force_types
             harris_force_get, &
             harris_force_clear, &
             harris_force_create
-!!***
-!****************************************************************************
 
-!!****s* harris_force_types/harris_force_type [1.0] *
-!!
-!!   NAME
-!!     harris_force_type
-!!
-!!   FUNCTION
-!!     The Harris force type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - id_nr: unique identifier
-!!     - ref_count: reference counter (see doc/ReferenceCounting.html)
-!!     - f_trace: The forces of the sum of eigenvalue term
-!!     - f_hartree: The forces due to the hartree repulsion of the electrons
-!!     - f_integral_vxc: The forces due to the integral over the vxc potential
-!!     - f_delta_integral_vxc: The differnece between f_integral_vxc & f_xc
-!!     - f_xc: The forces due to exchange & correlation
-!!     - f_ovrl: The forces due to the core_overlap
-!!     - f_self: The forces dur to the self-interaction
-!!     - f_rho_core: The forces due to the hartree repulsion of the cores
-!!     - EII: The forces due to the ion-ion repulsion
-!!     - f_harris: The total forces due to the harris functional
-!!     - f_cross_integrate_v: The forces of the integral of the cross terms
-!!     - f_cross_integrate_v_core: The forces of the integral of the cross terms
-!!     - f_total: The sum of the total forces of all involved atoms
-!!         In principle this sum should be zero, due to translation invariance
-!!         It can therefore be used as a criterion for the quality of the forces
-!!     - f_kinetic: The forces due to the kinetic energy
-!!     - f_gth_pp: The forces of the GTH pseudopotential
-!!     - f_overlap: The forces due to the overlap
-!!     - f_nsc: The non_self_consistent forces
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief The Harris force type
+!> \param id_nr unique identifier
+!> \param ref_count reference counter (see doc/ReferenceCounting.html)
+!> \param f_trace The forces of the sum of eigenvalue term
+!> \param f_hartree The forces due to the hartree repulsion of the electrons
+!> \param f_integral_vxc The forces due to the integral over the vxc potential
+!> \param f_delta_integral_vxc The differnece between f_integral_vxc & f_xc
+!> \param f_xc The forces due to exchange & correlation
+!> \param f_ovrl The forces due to the core_overlap
+!> \param f_self The forces dur to the self-interaction
+!> \param f_rho_core The forces due to the hartree repulsion of the cores
+!> \param EII The forces due to the ion-ion repulsion
+!> \param f_harris The total forces due to the harris functional
+!> \param f_cross_integrate_v The forces of the integral of the cross terms
+!> \param f_cross_integrate_v_core The forces of the integral of the cross terms
+!> \param f_total The sum of the total forces of all involved atoms
+!>          In principle this sum should be zero, due to translation invariance
+!>          It can therefore be used as a criterion for the quality of the forces
+!> \param f_kinetic The forces due to the kinetic energy
+!> \param f_gth_pp The forces of the GTH pseudopotential
+!> \param f_overlap The forces due to the overlap
+!> \param f_nsc The non_self_consistent forces
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   TYPE harris_force_type
     INTEGER                                          :: id_nr, &
                                                         ref_count
@@ -115,70 +84,31 @@ MODULE harris_force_types
     REAL(KIND=dp), DIMENSION(:), POINTER             :: f_total
 
   END TYPE harris_force_type
-!!***
-!****************************************************************************
 
-!!****s* harris_force_types/harris_force_p_type [1.0] *
-!!
-!!   NAME
-!!     harris_force_p_type
-!!
-!!   FUNCTION
-!!     Type which allows the use of arrays of pointers
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - harris_force_ptr: Pointer to the actual harris force type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief Type which allows the use of arrays of pointers
+!> \param harris_force_ptr Pointer to the actual harris force type
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   TYPE harris_force_p_type
      TYPE(harris_force_type), POINTER :: harris_force_ptr
   END TYPE harris_force_p_type
-!!***
-!****************************************************************************
 
 CONTAINS
 
-!!****f* harris_force_types/harris_force_retain [1.0] *
-!!
-!!   NAME
-!!     harris_force_retain
-!!
-!!   SYNOPSIS
-!!     SUBROUTINE harris_force_retain(harris_force, error)
-!!       TYPE(harris_force_type), POINTER :: harris_force
-!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
-!!     END SUBROUTINE harris_force_retain
-!!
-!!   FUNCTION
-!!     Retains a harris force type (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - harris_force: The harris force type to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!     For possible missing arguments see the attributes of harris_force_type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Retains a harris force type (see doc/ReferenceCounting.html)
+!> \param harris_force The harris force type to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> 
+!>      For possible missing arguments see the attributes of harris_force_type
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_force_retain(harris_force, error)
 
     TYPE(harris_force_type), POINTER         :: harris_force
@@ -199,39 +129,18 @@ CONTAINS
       harris_force%ref_count = harris_force%ref_count+1
     END IF
   END SUBROUTINE harris_force_retain
-!***************************************************************************
 
-!!****f* harris_force_types/harris_force_release [1.0] *
-!!
-!!   NAME
-!!     harris_force_release
-!!
-!!   SYNOPSIS
-!!     SUBROUTINE harris_force_release(harris_force, error)
-!!       TYPE(harris_force_type), POINTER :: harris_force
-!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
-!!     END SUBROUTINE harris_force_release
-!!
-!!   FUNCTION
-!!     Releases the given harris force type (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - harris_force: The harris force type to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!     For possible missing arguments see the attributes of harris_force_type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Releases the given harris force type (see doc/ReferenceCounting.html)
+!> \param harris_force The harris force type to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> 
+!>      For possible missing arguments see the attributes of harris_force_type
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_force_release(harris_force, error)
 
     TYPE(harris_force_type), POINTER         :: harris_force
@@ -247,7 +156,6 @@ CONTAINS
 
     failure = .FALSE.
 
-    
     IF (ASSOCIATED(harris_force)) THEN
       CPPrecondition(harris_force%ref_count>0, cp_failure_level, routineP, error, failure)
       harris_force%ref_count = harris_force%ref_count-1
@@ -331,76 +239,38 @@ CONTAINS
     NULLIFY(harris_force)
 
   END SUBROUTINE harris_force_release
-!***************************************************************************
 
-!!****f* harris_force_types/harris_force_get [1.0] *
-!!
-!!   NAME
-!!     harris_force_get
-!!
-!!   SYNOPSIS
-!!     SUBROUTINE harris_force_get(harris_force, id_nr, f_trace, f_V, f_hartree, 
-!!                                 f_integral_vxc, f_delta_integral_vxc, f_xc, 
-!!                                 f_ovrl, f_self, f_rho_core, f_EII, f_harris, 
-!!                                 f_cross_integrate_v, f_cross_integrate_v_core, 
-!!                                 f_kinetic, f_gth_pp, f_overlap, f_total, error)
-!!       TYPE(harris_force_type), POINTER                      :: harris_force
-!!       INTEGER, INTENT(OUT), OPTIONAL                        :: id_nr
-!!       REAL(KIND=dp), DIMENSION(:,:), POINTER, OPTIONAL      :: f_trace, f_V, 
-!!                                                                f_hartree, 
-!!                                                                f_integral_vxc, 
-!!                                                                f_delta_integral_vxc, 
-!!                                                                f_xc, f_ovrl, f_self, 
-!!                                                                f_rho_core, f_EII, 
-!!                                                                f_harris, 
-!!                                                                f_cross_integrate_v
-!!                                                                f_cross_integrate_v_core,
-!!                                                                f_kinetic, f_gth_pp,
-!!                                                                f_overlap
-!!       REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL        :: f_total
-!!       TYPE(cp_error_type), POINTER, OPTIONAL :: error
-!!     END SUBROUTINE harris_force_get
-!!
-!!   FUNCTION
-!!     Returns various attributes of the harris force type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - harris_force: The enquired harris force type
-!!     - id_nr: unique identifier
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!     - f_trace: The forces of the sum of eigenvalue term
-!!     - f_hartree: The forces due to the hartree repulsion of the electrons
-!!     - f_integral_vxc: The forces due to the integral over the vxc potential
-!!     - f_delta_integral_vxc: The differnece between f_integral_vxc & f_xc
-!!     - f_xc: The forces due to exchange & correlation
-!!     - f_ovrl: The forces due to the overalp
-!!     - f_self: The forces dur to the self-interaction
-!!     - f_rho_core: The forces due to the hartree repulsion of the cores
-!!     - EII: The forces due to the ion-ion repulsion
-!!     - f_harris: The total forces due to the harris functional
-!!     - f_cross_integrate_v: The forces of the integral of the cross terms
-!!     - f_cross_integrate_v_core: The forces of the integral of the cross terms
-!!     - f_total: The sum of the total forces of all involved atoms
-!!         In principle this sum should be zero, due to translation invariance
-!!         It can therefore be used as a criterion for the quality of the forces
-!!     - f_kinetic: The forces due to the kinetic energy
-!!     - f_gth_pp: The forces of the GTH pseudopotential
-!!     - f_overlap: The forces due to the overlap
-!!     - f_nsc: The non-self-consistent forces
-!!
-!!     For possible missing arguments see the attributes of harris_force_type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Returns various attributes of the harris force type
+!> \param harris_force The enquired harris force type
+!> \param id_nr unique identifier
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> \param f_trace The forces of the sum of eigenvalue term
+!> \param f_hartree The forces due to the hartree repulsion of the electrons
+!> \param f_integral_vxc The forces due to the integral over the vxc potential
+!> \param f_delta_integral_vxc The differnece between f_integral_vxc & f_xc
+!> \param f_xc The forces due to exchange & correlation
+!> \param f_ovrl The forces due to the overalp
+!> \param f_self The forces dur to the self-interaction
+!> \param f_rho_core The forces due to the hartree repulsion of the cores
+!> \param EII The forces due to the ion-ion repulsion
+!> \param f_harris The total forces due to the harris functional
+!> \param f_cross_integrate_v The forces of the integral of the cross terms
+!> \param f_cross_integrate_v_core The forces of the integral of the cross terms
+!> \param f_total The sum of the total forces of all involved atoms
+!>          In principle this sum should be zero, due to translation invariance
+!>          It can therefore be used as a criterion for the quality of the forces
+!> \param f_kinetic The forces due to the kinetic energy
+!> \param f_gth_pp The forces of the GTH pseudopotential
+!> \param f_overlap The forces due to the overlap
+!> \param f_nsc The non-self-consistent forces
+!> 
+!>      For possible missing arguments see the attributes of harris_force_type
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_force_get(harris_force, id_nr, f_trace, f_V, f_hartree, &
                               f_integral_vxc, f_delta_integral_vxc, f_xc, &
                               f_ovrl, f_self, f_rho_core, f_EII, f_harris, &
@@ -457,76 +327,38 @@ CONTAINS
       IF (PRESENT(f_nsc)) f_nsc = harris_force%f_nsc
     END IF
   END SUBROUTINE harris_force_get
-!***************************************************************************
 
-!!****f* harris_force_types/harris_force_set [1.0] *
-!!
-!!   NAME
-!!     harris_force_set
-!!
-!!   SYNOPSIS
-!!     SUBROUTINE harris_force_set(harris_force, id_nr, f_trace, f_V, f_hartree, 
-!!                                 f_integral_vxc, f_delta_integral_vxc, f_xc, 
-!!                                 f_ovrl, f_self, f_rho_core, f_EII, f_harris, 
-!!                                 f_cross_integrate_v, f_cross_integrate_v_core, 
-!!                                 f_kinetic, f_gth_pp, f_overlap, f_total, error)
-!!       TYPE(harris_force_type), POINTER                 :: harris_force
-!!       INTEGER, INTENT(OUT), OPTIONAL                   :: id_nr
-!!       REAL(KIND=dp), DIMENSION(:,:), POINTER, OPTIONAL :: f_trace, f_V, 
-!!                                                           f_hartree, 
-!!                                                           f_integral_vxc, 
-!!                                                           f_delta_integral_vxc, 
-!!                                                           f_xc, f_ovrl, 
-!!                                                           f_self, f_rho_core, 
-!!                                                           f_EII, f_harris, 
-!!                                                           f_cross_integrate_v, 
-!!                                                           f_cross_integrate_v_core,
-!!                                                           f_kinetic, gth_pp, 
-!!                                                           f_overlap
-!!       REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL   :: f_total
-!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)     :: error
-!!     END SUBROUTINE harris_force_set
-!!
-!!   FUNCTION
-!!     Sets various attributes of the harris force type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - harris_force: The enquired harris force type
-!!     - id_nr: unique identifier
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!     - f_trace: The forces of the sum of eigenvalue term
-!!     - f_hartree: The forces due to the hartree repulsion of the electrons
-!!     - f_integral_vxc: The forces due to the integral over the vxc potential
-!!     - f_delta_integral_vxc: The differnece between f_integral_vxc & f_xc
-!!     - f_xc: The forces due to exchange & correlation
-!!     - f_ovrl: The forces due to the overalp
-!!     - f_self: The forces dur to the self-interaction
-!!     - f_rho_core: The forces due to the hartree repulsion of the cores
-!!     - EII: The forces due to the ion-ion repulsion
-!!     - f_harris: The total forces due to the harris functional
-!!     - f_cross_integrate_v: The forces of the integral of the cross terms
-!!     - f_cross_integrate_v_core: The forces of the integral of the cross terms
-!!     - f_total: The sum of the total forces of all involved atoms
-!!         In principle this sum should be zero, due to translation invariance
-!!         It can therefore be used as a criterion for the quality of the forces
-!!     - f_kinetic: The forces due to the kinetic energy
-!!     - f_gth_pp: The forces of the GTH pseudopotential
-!!     - f_overlap: The forces due to the overlap
-!!     - f_nsc: The non-self-consistent forces
-!!
-!!     For possible missing arguments see the attributes of harris_force_type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Sets various attributes of the harris force type
+!> \param harris_force The enquired harris force type
+!> \param id_nr unique identifier
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> \param f_trace The forces of the sum of eigenvalue term
+!> \param f_hartree The forces due to the hartree repulsion of the electrons
+!> \param f_integral_vxc The forces due to the integral over the vxc potential
+!> \param f_delta_integral_vxc The differnece between f_integral_vxc & f_xc
+!> \param f_xc The forces due to exchange & correlation
+!> \param f_ovrl The forces due to the overalp
+!> \param f_self The forces dur to the self-interaction
+!> \param f_rho_core The forces due to the hartree repulsion of the cores
+!> \param EII The forces due to the ion-ion repulsion
+!> \param f_harris The total forces due to the harris functional
+!> \param f_cross_integrate_v The forces of the integral of the cross terms
+!> \param f_cross_integrate_v_core The forces of the integral of the cross terms
+!> \param f_total The sum of the total forces of all involved atoms
+!>          In principle this sum should be zero, due to translation invariance
+!>          It can therefore be used as a criterion for the quality of the forces
+!> \param f_kinetic The forces due to the kinetic energy
+!> \param f_gth_pp The forces of the GTH pseudopotential
+!> \param f_overlap The forces due to the overlap
+!> \param f_nsc The non-self-consistent forces
+!> 
+!>      For possible missing arguments see the attributes of harris_force_type
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_force_set(harris_force, id_nr, f_trace, f_V, f_hartree, &
                               f_integral_vxc, f_delta_integral_vxc, f_xc, &
                               f_ovrl, f_self, f_rho_core, f_EII, f_harris, &
@@ -583,41 +415,19 @@ CONTAINS
       IF (PRESENT(f_nsc)) harris_force%f_nsc = f_nsc
     END IF
   END SUBROUTINE harris_force_set
-!***************************************************************************
 
-!!****f* harris_force_types/harris_force_clear [1.0] *
-!!
-!!   NAME
-!!     harris_force_clear
-!!
-!!   SYNOPSIS
-!!     SUBROUTINE harris_force_clear(harris_force, natom, error)
-!!       TYPE(harris_force_type), POINTER :: harris_force
-!!       INTEGER :: natom
-!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
-!!     END SUBROUTINE harris_force_clear
-!!
-!!   FUNCTION
-!!     Reinitializes the harris force type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - harris_force: The harris force type to be cleared
-!!     - natom: The number of atoms
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!     For possible missing arguments see the attributes of harris_force_type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Reinitializes the harris force type
+!> \param harris_force The harris force type to be cleared
+!> \param natom The number of atoms
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> 
+!>      For possible missing arguments see the attributes of harris_force_type
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_force_clear(harris_force, natom, error)
 
     TYPE(harris_force_type), POINTER         :: harris_force
@@ -663,41 +473,19 @@ CONTAINS
       CALL harris_force_create(harris_force, natom, error=error)
     END IF
   END SUBROUTINE harris_force_clear
-!***************************************************************************
 
-!!****f* harris_force_types/harris_force_create [1.0] *
-!!
-!!   NAME
-!!     harris_force_create
-!!
-!!   SYNOPSIS
-!!     SUBROUTINE harris_force_create(harris_force, natom, error)
-!!       TYPE(harris_force_type), POINTER :: harris_force
-!!       INTEGER :: natom
-!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
-!!     END SUBROUTINE harris_force_create
-!!
-!!   FUNCTION
-!!     Creates a harris force type instance
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - harris_force: The harris force type to be created
-!!     - natom: The number of atoms
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!     For possible missing arguments see the attributes of harris_force_type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates a harris force type instance
+!> \param harris_force The harris force type to be created
+!> \param natom The number of atoms
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> 
+!>      For possible missing arguments see the attributes of harris_force_type
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_force_create(harris_force, natom, error)
 
     TYPE(harris_force_type), POINTER         :: harris_force
@@ -760,6 +548,5 @@ CONTAINS
       CALL harris_force_clear(harris_force, natom, error=error)
     END IF
   END SUBROUTINE harris_force_create
-!***************************************************************************
 
 END MODULE harris_force_types

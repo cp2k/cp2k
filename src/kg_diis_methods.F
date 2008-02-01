@@ -3,23 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/kg_diis_methods [1.0] *
-!!
-!!   NAME
-!!     kg_diis_methods
-!!
-!!   FUNCTION
-!!     Perform a direct inversion in the iterative subspace (DIIS).
-!!
-!!   AUTHOR
-!!    MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Perform a direct inversion in the iterative subspace (DIIS).
+!> \author MI
+! *****************************************************************************
 MODULE kg_diis_methods
   USE kg_diis_types,                   ONLY: allocate_diis_block,&
                                              get_mol_diis_set,&
@@ -65,12 +52,9 @@ MODULE kg_diis_methods
   PUBLIC :: alloc_mol_diis_iblock, kg_diis_step_A, kg_diis_step_B, &
             kg_diis_b_create, kg_diis_b_clear
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE alloc_mol_diis_iblock(scf_diis_buffer,mol_diis_iblock,nao,error)
 
     TYPE(kg_diis_buffer_type), POINTER       :: scf_diis_buffer
@@ -133,7 +117,6 @@ CONTAINS
   END SUBROUTINE alloc_mol_diis_iblock
 
 ! *****************************************************************************
-
   SUBROUTINE kg_diis_b_clear(scf_diis_buffer,error)
 
     TYPE(kg_diis_buffer_type), POINTER       :: scf_diis_buffer
@@ -155,14 +138,12 @@ CONTAINS
   END SUBROUTINE kg_diis_b_clear
 
 ! *****************************************************************************
-
   SUBROUTINE kg_diis_b_create(scf_diis_buffer, kg_fm_mol_set,&
                               nbuffer,nspins, error)
 
 !    FUNCTION
 !       Allocates the kg_scf buffer for each molecule
 !
-! *****************************************************************************
 
     TYPE(kg_diis_buffer_type), POINTER       :: scf_diis_buffer
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
@@ -214,7 +195,6 @@ CONTAINS
   END SUBROUTINE kg_diis_b_create
 
 ! *****************************************************************************
-
   SUBROUTINE kg_diis_step_A(diis_buffer,ibuffer,nb_active,&
                             kg_fm_mol_set,diis_mat,&
                             nspins,diis_error,matrix_ks,overlap,error)
@@ -280,7 +260,6 @@ CONTAINS
                              n_ao = n_ao_kind , &
                              fm_mol_blocks = fm_mol_blocks,&
                              nmolecule_local = nmol_local)
-
 
       ALLOCATE(aux2_matrix(n_ao_kind,n_ao_kind), STAT = istat)
       IF (istat /= 0) CALL stop_memory(routineP,"aux2_matrix",&
@@ -394,7 +373,6 @@ CONTAINS
   END SUBROUTINE kg_diis_step_A
 
 ! *****************************************************************************
-
   SUBROUTINE kg_diis_step_B(diis_buffer,ibuffer,nb_active,&
                             kg_fm_set,scf_control,diis_ev,&
                             nspins,matrix_ks,matrix_p,&
@@ -535,7 +513,5 @@ CONTAINS
 
   END SUBROUTINE kg_diis_step_B
 
-! *****************************************************************************
 END MODULE kg_diis_methods
-!******************************************************************************
 

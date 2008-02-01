@@ -2,24 +2,14 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/gamma [1.0] *
-!!
-!!   NAME
-!!     gamma
-!!
-!!   FUNCTION
-!!     Calculation of the incomplete Gamma function F_n(t) for multi-center
-!!     integrals over Cartesian Gaussian functions.
-!!
-!!   AUTHOR
-!!     Matthias Krack (07.01.1999)
-!!
-!!   MODIFICATION HISTORY
-!!     - restructured and cleaned (24.05.2004,MK)
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Calculation of the incomplete Gamma function F_n(t) for multi-center
+!>      integrals over Cartesian Gaussian functions.
+!> \par History
+!>      - restructured and cleaned (24.05.2004,MK)
+!> \author Matthias Krack (07.01.1999)
+! *****************************************************************************
 MODULE gamma
 
   USE f77_blas
@@ -54,19 +44,13 @@ MODULE gamma
             fgamma,&
             init_md_ftable
 
-! *****************************************************************************
-
   INTERFACE fgamma
     MODULE PROCEDURE fgamma_0,fgamma_1
   END INTERFACE
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE create_md_ftable(nmax,tmin,tmax,tdelta)
 
 !   Purpose: Build a table of F_n(t) values in the range tmin <= t <= tmax
@@ -74,14 +58,10 @@ CONTAINS
 
 !   History: - Creation (11.01.1999,MK)
 
-!   ***************************************************************************
-
 !   nmax  : Maximum n value of F_n(t).
 !   tdelta: Difference between two consecutive t abcissas (step size).
 !   tmax  : Maximum t value.
 !   tmin  : Minimum t value.
-
-!   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: nmax
     REAL(KIND=dp), INTENT(IN)                :: tmin, tmax, tdelta
@@ -142,14 +122,11 @@ CONTAINS
   END SUBROUTINE create_md_ftable
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_md_ftable()
 
 !   Purpose: Deallocate the table of F_n(t) values.
 
 !   History: - Creation (24.05.2004,MK)
-
-!   ***************************************************************************
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_md_ftable', &
       routineP = moduleN//':'//routineN
@@ -172,7 +149,6 @@ CONTAINS
   END SUBROUTINE deallocate_md_ftable
 
 ! *****************************************************************************
-
   SUBROUTINE fgamma_0(nmax,t,f)
 
 !   Purpose: Calculation of the incomplete Gamma function F(t) for multicenter
@@ -185,8 +161,6 @@ CONTAINS
 !            - Changed from a FUNCTION to a SUBROUTINE
 !              (09.06.1999,MK)
 
-!   ***************************************************************************
-
 !   f   : The incomplete Gamma function F_n(t).
 !   nmax: Maximum n value of F_n(t).
 !   t   : Argument of the incomplete Gamma function.
@@ -198,8 +172,6 @@ CONTAINS
 !   List of local variables:
 
 !   expt: Exponential term in the upward recursion of F_n(t).
-
-!   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: nmax
     REAL(KIND=dp), INTENT(IN)                :: t
@@ -310,7 +282,6 @@ CONTAINS
   END SUBROUTINE fgamma_0
 
 ! *****************************************************************************
-
   SUBROUTINE fgamma_1(nmax,t,f)
 
 !   Purpose: Calculation of the incomplete Gamma function F(t) for multicenter
@@ -321,13 +292,9 @@ CONTAINS
 
 !   History: - Creation (08.01.1999,MK)
 
-!   ***************************************************************************
-
 !   f   : The incomplete Gamma function F_n(t).
 !   nmax: Maximum n value of F_n(t).
 !   t   : Argument of the incomplete Gamma function.
-
-!   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: nmax
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: t
@@ -444,7 +411,6 @@ CONTAINS
   END SUBROUTINE fgamma_1
 
 ! *****************************************************************************
-
   FUNCTION fgamma_ref(nmax,t) RESULT(f)
 
 !   Purpose: Calculation of the incomplete Gamma function F_n(t) using a
@@ -460,8 +426,6 @@ CONTAINS
 
 !   History: - Creation (07.01.1999,MK)
 
-!   ***************************************************************************
-
 !   eps : Numerical convergence criterion.
 !   kmax: Maximum number of iterations.
 
@@ -474,8 +438,6 @@ CONTAINS
 !   r      : Quotients of the Bessel functions.
 !   sumterm: One term in the sum over products of Bessel functions.
 !   t      : Argument of the incomplete Gamma function.
-
-!   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: nmax
     REAL(KIND=dp), INTENT(IN)                :: t
@@ -586,7 +548,6 @@ CONTAINS
   END FUNCTION fgamma_ref
 
 ! *****************************************************************************
-
   SUBROUTINE init_md_ftable(nmax)
 
 !   Purpose: Initalize a table of F_n(t) values in the range 0 <= t <= 12 with
@@ -594,8 +555,6 @@ CONTAINS
 !            expansion used by McMurchie-Davidson (MD).
 
 !   History: - Creation (10.06.1999,MK)
-
-!   ***************************************************************************
 
 !   nmax: Maximum n value of F_n(t)
 
@@ -628,7 +587,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE init_md_ftable
-
-! *****************************************************************************
 
 END MODULE gamma

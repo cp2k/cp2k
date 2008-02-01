@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_neighbor_list_types [1.0] *
-!!
-!!   NAME
-!!     qs_neighbor_list_types
-!!
-!!   FUNCTION
-!!     Define the neighbor list data types and the corresponding functionality
-!!
-!!   AUTHOR
-!!     Matthias Krack (21.06.2000)
-!!
-!!   MODIFICATION HISTORY
-!!     - cleaned (23.07.2003,MK)
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Define the neighbor list data types and the corresponding functionality
+!> \par History
+!>      - cleaned (23.07.2003,MK)
+!> \author Matthias Krack (21.06.2000)
+! *****************************************************************************
 MODULE qs_neighbor_list_types
 
   USE block_p_types,                   ONLY: block_p_type
@@ -38,6 +28,7 @@ MODULE qs_neighbor_list_types
 
 ! *** Definition of the data types for a linked list of neighbors ***
 
+! *****************************************************************************
   TYPE qlist_type
     TYPE(block_p_type), DIMENSION(:), POINTER :: sac
     REAL(KIND = dp), DIMENSION(:), POINTER    :: r2
@@ -46,6 +37,7 @@ MODULE qs_neighbor_list_types
     INTEGER, DIMENSION(:), POINTER            :: index_list,list
   END TYPE qlist_type
 
+! *****************************************************************************
   TYPE reduced_3c_list_type
     INTEGER                           :: nnode
     INTEGER, DIMENSION(:),  POINTER   :: index_atom
@@ -53,6 +45,7 @@ MODULE qs_neighbor_list_types
     REAL(dp), DIMENSION(:,:), POINTER :: rac, rbc
   END TYPE reduced_3c_list_type
 
+! *****************************************************************************
   TYPE neighbor_node_type
     PRIVATE
     TYPE(neighbor_node_type), POINTER :: next_neighbor_node
@@ -64,6 +57,7 @@ MODULE qs_neighbor_list_types
                                          reduced_3c_rho0
   END TYPE neighbor_node_type
 
+! *****************************************************************************
   TYPE neighbor_list_type
     PRIVATE
     TYPE(neighbor_list_type), POINTER :: next_neighbor_list
@@ -73,6 +67,7 @@ MODULE qs_neighbor_list_types
     INTEGER, DIMENSION(3)             :: cell
   END TYPE neighbor_list_type
 
+! *****************************************************************************
   TYPE neighbor_list_set_type
     PRIVATE
     TYPE(neighbor_list_type), POINTER :: first_neighbor_list,&
@@ -81,10 +76,12 @@ MODULE qs_neighbor_list_types
     INTEGER                           :: nlist
   END TYPE neighbor_list_set_type
 
+! *****************************************************************************
   TYPE neighbor_list_p_type
     TYPE(neighbor_list_type), POINTER :: neighbor_list
   END TYPE neighbor_list_p_type
 
+! *****************************************************************************
   TYPE neighbor_list_set_p_type
     TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
   END TYPE neighbor_list_set_p_type
@@ -118,15 +115,12 @@ MODULE qs_neighbor_list_types
             set_neighbor_list_set,&
             set_neighbor_node
 
-
 ! *** Public functions ***
 
   PUBLIC :: find_neighbor_list,&
             first_list,&
             first_node,&
             next
-
-! *****************************************************************************
 
   INTERFACE find_neighbor_list
     MODULE PROCEDURE find_neighbor_list_1,&
@@ -138,19 +132,14 @@ MODULE qs_neighbor_list_types
                      next_neighbor_node
   END INTERFACE
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE add_neighbor_list(neighbor_list_set,atom,cell,neighbor_list)
 
 !   Purpose: Add a new neighbor list to a neighbor list set.
 
 !   History: - Creation (13.09.2000,MK)
-
-!   ***************************************************************************
 
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     INTEGER, INTENT(IN)                      :: atom
@@ -246,7 +235,6 @@ CONTAINS
   END SUBROUTINE add_neighbor_list
 
 ! *****************************************************************************
-
   SUBROUTINE add_neighbor_node(neighbor_list,neighbor,cell,r,s,exclusion_list,&
                                l3c_oce,l3c_rho0,nkind)
 
@@ -254,8 +242,6 @@ CONTAINS
 
 !   History: - Creation (23.06.2000,MK)
 !            - Exclusion list added for classic code (MK)
-
-!   ***************************************************************************
 
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     INTEGER, INTENT(IN)                      :: neighbor
@@ -377,14 +363,11 @@ CONTAINS
   END SUBROUTINE add_neighbor_node
 
 ! *****************************************************************************
-
   SUBROUTINE allocate_neighbor_list_set(neighbor_list_set,r_max)
 
 !   Purpose: Allocate and initialize a set of neighbor lists.
 
 !   History: - Creation (23.06.2000,MK)
-
-!   ***************************************************************************
 
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     REAL(dp)                                 :: r_max
@@ -418,15 +401,12 @@ CONTAINS
   END SUBROUTINE allocate_neighbor_list_set
 
 ! *****************************************************************************
-
   SUBROUTINE clean_neighbor_list_set(neighbor_list_set)
 
 !   Purpose: Deallocate all unused neighbor lists and neighbor nodes in a
 !            neighbor list set.
 
 !   History: - Creation (20.09.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
 
@@ -498,7 +478,6 @@ CONTAINS
   END SUBROUTINE clean_neighbor_list_set
 
 ! *****************************************************************************
-
   SUBROUTINE create_reduced_3c_list(reduced_3c_list,nkind)
 
     TYPE(reduced_3c_list_type), &
@@ -528,7 +507,6 @@ CONTAINS
   END SUBROUTINE create_reduced_3c_list
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_reduced_3c_list(reduced_3c_list)
 
     TYPE(reduced_3c_list_type), &
@@ -569,14 +547,11 @@ CONTAINS
   END SUBROUTINE deallocate_reduced_3c_list
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_neighbor_list(neighbor_list)
 
 !   Purpose: Deallocate a neighbor list.
 
 !   History: - Creation (20.09.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
@@ -616,14 +591,11 @@ CONTAINS
   END SUBROUTINE deallocate_neighbor_list
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_neighbor_list_set(neighbor_list_set)
 
 !   Purpose: Deallocate a neighbor list set.
 
 !   History: - Creation (03.11.2000,MK)
-
-!   ***************************************************************************
 
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
 
@@ -656,14 +628,11 @@ CONTAINS
   END SUBROUTINE deallocate_neighbor_list_set
 
 ! *****************************************************************************
-
   SUBROUTINE extract_neighbor_list(neighbor_list,neighbors,r)
 
 !   Purpose: Return the entire data set of the reqested neighbor list.
 
 !   History: - Creation (02.10.2000, Matthias Krack)
-
-!   ***************************************************************************
 
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     INTEGER, DIMENSION(:), INTENT(OUT)       :: neighbors
@@ -713,7 +682,6 @@ CONTAINS
   END SUBROUTINE extract_neighbor_list
 
 ! *****************************************************************************
-
   FUNCTION find_neighbor_list_1(neighbor_list_set,atom)&
     RESULT(neighbor_list)
 
@@ -721,8 +689,6 @@ CONTAINS
 !            neighbor list set. The whole list is traversed.
 
 !   History: - Creation (14.09.2000,MK)
-
-!   ***************************************************************************
 
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     INTEGER, INTENT(IN)                      :: atom
@@ -760,7 +726,6 @@ CONTAINS
   END FUNCTION find_neighbor_list_1
 
 ! *****************************************************************************
-
   FUNCTION find_neighbor_list_2(neighbor_list_set,atom,cell)&
     RESULT(neighbor_list)
 
@@ -768,8 +733,6 @@ CONTAINS
 !            "cell" in a neighbor list set. The whole list is traversed.
 
 !   History: - Creation (14.09.2000,MK)
-
-!   ***************************************************************************
 
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     INTEGER, INTENT(IN)                      :: atom
@@ -812,7 +775,6 @@ CONTAINS
   END FUNCTION find_neighbor_list_2
 
 ! *****************************************************************************
-
   FUNCTION first_list(neighbor_list_set)&
     RESULT(first_neighbor_list)
 
@@ -820,8 +782,6 @@ CONTAINS
 !            set.
 
 !   History: - Creation (13.09.2000,MK)
-
-!   ***************************************************************************
 
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: first_neighbor_list
@@ -833,15 +793,12 @@ CONTAINS
   END FUNCTION first_list
 
 ! *****************************************************************************
-
   FUNCTION first_node(neighbor_list)&
     RESULT(first_neighbor_node)
 
 !   Purpose: Return a pointer to the first neighbor node of a neighbor list.
 
 !   History: - Creation (23.06.2000,MK)
-
-!   ***************************************************************************
 
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     TYPE(neighbor_node_type), POINTER        :: first_neighbor_node
@@ -853,14 +810,11 @@ CONTAINS
   END FUNCTION first_node
 
 ! *****************************************************************************
-
   SUBROUTINE get_neighbor_list(neighbor_list,atom,cell,nnode)
 
 !   Purpose: Return the reqested data of a neighbor list.
 
 !   History: - Creation (13.09.2000,MK)
-
-!   ***************************************************************************
 
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     INTEGER, INTENT(OUT), OPTIONAL           :: atom
@@ -889,14 +843,11 @@ CONTAINS
   END SUBROUTINE get_neighbor_list
 
 ! *****************************************************************************
-
   SUBROUTINE get_neighbor_list_set(neighbor_list_set,r_max,nlist)
 
 !   Purpose: Return the components of a neighbor list set.
 
 !   History: - Creation (10.11.2000,MK)
-
-!   ***************************************************************************
 
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     REAL(dp), INTENT(OUT), OPTIONAL          :: r_max
@@ -922,15 +873,12 @@ CONTAINS
   END SUBROUTINE get_neighbor_list_set
 
 ! *****************************************************************************
-
   SUBROUTINE get_neighbor_node(neighbor_node,neighbor,cell,r,s,&
                                reduced_3c_oce,reduced_3c_rho0)
 
 !   Purpose: Return the reqested data of a neighbor node.
 
 !   History: - Creation (23.06.2000,MK)
-
-!   ***************************************************************************
 
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
     INTEGER, INTENT(OUT), OPTIONAL           :: neighbor
@@ -968,7 +916,6 @@ CONTAINS
   END SUBROUTINE get_neighbor_node
 
 ! *****************************************************************************
-
   SUBROUTINE init_neighbor_list(neighbor_list)
 
 !   Purpose: Initialize a neighbor list. Nothing is (de)allocated here.
@@ -976,8 +923,6 @@ CONTAINS
 !            overwriting.
 
 !   History: - Creation (21.09.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
@@ -1006,7 +951,6 @@ CONTAINS
   END SUBROUTINE init_neighbor_list
 
 ! *****************************************************************************
-
   SUBROUTINE init_neighbor_list_set(neighbor_list_set,r_max)
 
 !   Purpose: Initialize a neighbor list set. Nothing is (de)allocated here.
@@ -1014,8 +958,6 @@ CONTAINS
 !            overwriting.
 
 !   History: - Creation (20.09.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     REAL(dp), INTENT(IN), OPTIONAL           :: r_max
@@ -1049,15 +991,12 @@ CONTAINS
   END SUBROUTINE init_neighbor_list_set
 
 ! *****************************************************************************
-
   FUNCTION next_neighbor_list(neighbor_list)&
     RESULT (next_list)
 
 !   Purpose: Return the pointer to the next neighbor list.
 
 !   History: - Creation (13.09.2000,MK)
-
-!   ***************************************************************************
 
     TYPE(neighbor_list_type), POINTER        :: neighbor_list, next_list
 
@@ -1068,14 +1007,11 @@ CONTAINS
   END FUNCTION next_neighbor_list
 
 ! *****************************************************************************
-
   FUNCTION next_neighbor_node(neighbor_node) RESULT(next_node)
 
 !   Purpose: Return the pointer to the next neighbor node.
 
 !   History: - Creation (23.06.2000,MK)
-
-!   ***************************************************************************
 
     TYPE(neighbor_node_type), POINTER        :: neighbor_node, next_node
 
@@ -1086,14 +1022,11 @@ CONTAINS
   END FUNCTION next_neighbor_node
 
 ! *****************************************************************************
-
   SUBROUTINE set_neighbor_list(neighbor_list,atom,cell)
 
 !   Purpose: Set the reqested data of a neighbor list.
 
 !   History: - Creation (10.09.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     INTEGER, INTENT(IN), OPTIONAL            :: atom
@@ -1120,14 +1053,11 @@ CONTAINS
   END SUBROUTINE set_neighbor_list
 
 ! *****************************************************************************
-
   SUBROUTINE set_neighbor_list_set(neighbor_list_set,r_max)
 
 !   Purpose: Set the components of a neighbor list set.
 
 !   History: - Creation (18.09.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     REAL(dp), INTENT(IN), OPTIONAL           :: r_max
@@ -1151,14 +1081,11 @@ CONTAINS
   END SUBROUTINE set_neighbor_list_set
 
 ! *****************************************************************************
-
   SUBROUTINE set_neighbor_node(neighbor_node,neighbor,cell,r,s)
 
 !   Purpose: Set the reqested data of a neighbor node.
 
 !   History: - Creation (10.09.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
     INTEGER, INTENT(IN), OPTIONAL            :: neighbor
@@ -1187,7 +1114,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE set_neighbor_node
-
-! *****************************************************************************
 
 END MODULE qs_neighbor_list_types

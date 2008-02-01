@@ -3,28 +3,14 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/harris_env_types [1.0] *
-!!
-!!   NAME
-!!     harris_energy_types
-!!
-!!   FUNCTION
-!!     The Harris environment, which contains beside the harris energy and force 
-!!     types all the informations needed to perform and analyse the Harris 
-!!     functional energy and force corrections.
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     07.2005 initial create [tdk]
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief The Harris environment, which contains beside the harris energy and force 
+!>      types all the informations needed to perform and analyse the Harris 
+!>      functional energy and force corrections.
+!> \par History
+!>      07.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
 MODULE harris_env_types
 
   USE f77_blas
@@ -57,39 +43,22 @@ MODULE harris_env_types
             harris_env_get, &
             harris_env_clear, &
             harris_env_create
-!!***
-!****************************************************************************
 
-!!****s* harris_env_types/harris_env_type [1.0] *
-!!
-!!   NAME
-!!     harris_env_type
-!!
-!!   FUNCTION
-!!     The Harris Environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - id_nr: unique identifier
-!!     - ref_count: reference counter (see doc/ReferenceCounting.html)
-!!     - harris_energy: The harris energy type
-!!     - harris_force: The harris force type
-!!     - rho: The rho data structure in which diverse representations of 
-!!            the density are stored
-!!     - rho_diff: rho_out - rho_in
-!!     - natom: The number of involved atoms
-!!     - nspins: The number of spins
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     07.2005 initial create [tdk]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief The Harris Environment
+!> \param id_nr unique identifier
+!> \param ref_count reference counter (see doc/ReferenceCounting.html)
+!> \param harris_energy The harris energy type
+!> \param harris_force The harris force type
+!> \param rho The rho data structure in which diverse representations of 
+!>             the density are stored
+!> \param rho_diff rho_out - rho_in
+!> \param natom The number of involved atoms
+!> \param nspins The number of spins
+!> \par History
+!>      07.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   TYPE harris_env_type
     INTEGER                                          :: id_nr, &
                                                         ref_count
@@ -101,70 +70,31 @@ MODULE harris_env_types
                                                         nspins
 
   END TYPE harris_env_type
-!!***
-!****************************************************************************
 
-!!****s* harris_env_types/harris_env_p_type [1.0] *
-!!
-!!   NAME
-!!     harris_env_p_type
-!!
-!!   FUNCTION
-!!     Type which allows the use of arrays of pointers
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - harris_env_ptr: Pointer to the actual harris environment
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     07.2005 initial create [tdk]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief Type which allows the use of arrays of pointers
+!> \param harris_env_ptr Pointer to the actual harris environment
+!> \par History
+!>      07.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   TYPE harris_env_p_type
     TYPE(harris_env_type), POINTER :: harris_env_ptr
   END TYPE harris_env_p_type
-!!***
-!****************************************************************************
 
 CONTAINS
 
-!!****f* harris_env_types/harris_env_retain [1.0] *
-!!
-!!   NAME
-!!     harris_env_retain
-!!
-!!   SYNOPSIS
-!!     SUBROUTINE harris_env_retain(harris_env, error)
-!!       TYPE(harris_env_type), POINTER :: harris_env
-!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT):: error
-!!     END SUBROUTINE harris_env_retain
-!!
-!!   FUNCTION
-!!     Retains an harris environment (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - harris_env: The harris environment to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!     For possible missing arguments see the attributes of harris_env_type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     07.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Retains an harris environment (see doc/ReferenceCounting.html)
+!> \param harris_env The harris environment to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> 
+!>      For possible missing arguments see the attributes of harris_env_type
+!> \par History
+!>      07.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_env_retain(harris_env, error)
 
     TYPE(harris_env_type), POINTER           :: harris_env
@@ -185,33 +115,18 @@ CONTAINS
       harris_env%ref_count = harris_env%ref_count+1
     END IF
   END SUBROUTINE harris_env_retain
-!***************************************************************************
 
-!!****f* harris_env_types/harris_env_release [1.0] *
-!!
-!!   NAME
-!!     harris_env_release
-!!
-!!   FUNCTION
-!!     Releases the given harris environment (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - harris_env: The harris environment to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!     For possible missing arguments see the attributes of harris_env_type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     07.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Releases the given harris environment (see doc/ReferenceCounting.html)
+!> \param harris_env The harris environment to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> 
+!>      For possible missing arguments see the attributes of harris_env_type
+!> \par History
+!>      07.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_env_release(harris_env, error)
 
     TYPE(harris_env_type), POINTER           :: harris_env
@@ -249,39 +164,24 @@ CONTAINS
     END IF
     NULLIFY(harris_env)
   END SUBROUTINE harris_env_release
-!***************************************************************************
 
-!!****f* harris_env_types/harris_env_get [1.0] *
-!!
-!!   NAME
-!!     harris_env_get
-!!
-!!   FUNCTION
-!!     Returns various attributes of the harris environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - harris_env: The enquired harris environment
-!!     - id_nr: unique identifier
-!!     - harris_energy: The harris energy type
-!!     - harris_force: The harris force type
-!!       see module cp_error_handling
-!!     - rho: The rho data structure in which diverse representations of 
-!!            the density are stored
-!!     - rho_diff: rho_out - rho_in
-!!     - error: variable to control error logging, stopping,... 
-!!
-!!     For possible missing arguments see the attributes of harris_env_type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     07.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Returns various attributes of the harris environment
+!> \param harris_env The enquired harris environment
+!> \param id_nr unique identifier
+!> \param harris_energy The harris energy type
+!> \param harris_force The harris force type
+!>        see module cp_error_handling
+!> \param rho The rho data structure in which diverse representations of 
+!>             the density are stored
+!> \param rho_diff rho_out - rho_in
+!> \param error variable to control error logging, stopping,... 
+!> 
+!>      For possible missing arguments see the attributes of harris_env_type
+!> \par History
+!>      07.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_env_get(harris_env, id_nr, harris_energy, harris_force, &
                             rho, rho_diff, error)
 
@@ -315,39 +215,24 @@ CONTAINS
     END IF
 
   END SUBROUTINE harris_env_get
-!***************************************************************************
 
-!!****f* harris_env_types/harris_env_set [1.0] *
-!!
-!!   NAME
-!!     harris_env_set
-!!
-!!   FUNCTION
-!!     Sets various attributes of the harris environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - harris_env: The enquired harris environment
-!!     - id_nr: unique identifier
-!!     - harris_energy: The harris energy type
-!!     - harris_force: The harris force type
-!!     - rho: The rho data structure in which diverse representations of 
-!!            the density are stored
-!!     - rho_diff: rho_out - rho_in
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!     For possible missing arguments see the attributes of harris_env_type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     07.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Sets various attributes of the harris environment
+!> \param harris_env The enquired harris environment
+!> \param id_nr unique identifier
+!> \param harris_energy The harris energy type
+!> \param harris_force The harris force type
+!> \param rho The rho data structure in which diverse representations of 
+!>             the density are stored
+!> \param rho_diff rho_out - rho_in
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> 
+!>      For possible missing arguments see the attributes of harris_env_type
+!> \par History
+!>      07.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_env_set(harris_env, id_nr, harris_energy, harris_force, &
                             rho, rho_diff, error)
 
@@ -380,35 +265,20 @@ CONTAINS
       IF (PRESENT(rho_diff)) harris_env%rho_diff => rho_diff
     END IF
   END SUBROUTINE harris_env_set
-!***************************************************************************
 
-!!****f* harris_env_types/harris_env_clear [1.0] *
-!!
-!!   NAME
-!!     harris_env_clear
-!!
-!!   FUNCTION
-!!     Reinitializes the harris environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - harris_env: The harris energy environment to be reinitialized
-!!     - natom: Number of atoms
-!!     - nspins: Number of spins
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!     For possible missing arguments see the attributes of harris_env_type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     07.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Reinitializes the harris environment
+!> \param harris_env The harris energy environment to be reinitialized
+!> \param natom Number of atoms
+!> \param nspins Number of spins
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> 
+!>      For possible missing arguments see the attributes of harris_env_type
+!> \par History
+!>      07.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_env_clear(harris_env, natom, nspins, error)
 
     TYPE(harris_env_type), POINTER           :: harris_env
@@ -445,35 +315,20 @@ CONTAINS
       CALL harris_env_create(harris_env, natom, nspins, error=error)
     END IF
   END SUBROUTINE harris_env_clear
-!***************************************************************************
 
-!!****f* harris_env_types/harris_env_create [1.0] *
-!!
-!!   NAME
-!!     harris_env_create
-!!
-!!   FUNCTION
-!!     Creates an harris environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - harris_env: The harris environment to be created
-!!     - natom: Number of atoms
-!!     - nspins: Number of spins
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!     For possible missing arguments see the attributes of harris_env_type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     07.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates an harris environment
+!> \param harris_env The harris environment to be created
+!> \param natom Number of atoms
+!> \param nspins Number of spins
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> 
+!>      For possible missing arguments see the attributes of harris_env_type
+!> \par History
+!>      07.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_env_create(harris_env, natom, nspins, error)
 
     TYPE(harris_env_type), POINTER           :: harris_env
@@ -520,6 +375,5 @@ CONTAINS
 
     END IF
   END SUBROUTINE harris_env_create
-!***************************************************************************
 
 END MODULE harris_env_types

@@ -2,26 +2,16 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/xc_tfw [1.0] *
-!!
-!!   NAME
-!!     xc_tfw
-!!
-!!   FUNCTION
-!!     Calculate the Thomas-Fermi kinetic energy functional
-!!     plus the von Weizsaecker term
-!!
-!!   AUTHOR
-!!     JGH (18.02.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (26.02.2003) : OpenMP enabled
-!!     fawzi (04.2004)  : adapted to the new xc interface
-!!
-!!*** *************************************************************************
 
-MODULE xc_tfw
 ! *****************************************************************************
+!> \brief Calculate the Thomas-Fermi kinetic energy functional
+!>      plus the von Weizsaecker term
+!> \par History
+!>      JGH (26.02.2003) : OpenMP enabled
+!>      fawzi (04.2004)  : adapted to the new xc interface
+!> \author JGH (18.02.2002)
+! *****************************************************************************
+MODULE xc_tfw
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -55,12 +45,9 @@ MODULE xc_tfw
   REAL(KIND=dp) :: eps_rho
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_tfw'
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE tfw_init ( cutoff )
 
     REAL(KIND=dp), INTENT(IN)                :: cutoff
@@ -76,7 +63,6 @@ CONTAINS
   END SUBROUTINE tfw_init
 
 ! *****************************************************************************
-
   SUBROUTINE tfw_lda_info ( reference, shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
@@ -100,7 +86,6 @@ CONTAINS
   END SUBROUTINE tfw_lda_info
 
 ! *****************************************************************************
-
   SUBROUTINE tfw_lsd_info ( reference, shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
@@ -124,7 +109,6 @@ CONTAINS
   END SUBROUTINE tfw_lsd_info
 
 ! *****************************************************************************
-
   SUBROUTINE tfw_lda_eval (rho_set,deriv_set,order,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -237,8 +221,8 @@ CONTAINS
       END IF
     END DO
   END SUBROUTINE calc_s
-! *****************************************************************************
 
+! *****************************************************************************
   SUBROUTINE tfw_lsd_eval(rho_set,deriv_set,order,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -355,7 +339,6 @@ CONTAINS
   END SUBROUTINE tfw_lsd_eval
 
 ! *****************************************************************************
-
   SUBROUTINE tfw_u_0 ( rho, r13, s, e_0, npoints, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13, s
@@ -382,7 +365,6 @@ CONTAINS
   END SUBROUTINE tfw_u_0
 
 ! *****************************************************************************
-
   SUBROUTINE tfw_u_1 ( rho, grho, r13, s, e_rho, e_ndrho, npoints, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13, s
@@ -413,7 +395,6 @@ CONTAINS
   END SUBROUTINE tfw_u_1
 
 ! *****************************************************************************
-
   SUBROUTINE tfw_u_2 ( rho, grho, r13, s, e_rho_rho, e_rho_ndrho, e_ndrho_ndrho,&
        npoints, error)
 
@@ -447,7 +428,6 @@ CONTAINS
   END SUBROUTINE tfw_u_2
 
 ! *****************************************************************************
-
   SUBROUTINE tfw_u_3 ( rho, grho, r13, s, e_rho_rho_rho, e_rho_rho_ndrho,&
        e_rho_ndrho_ndrho, npoints, error)
 
@@ -484,7 +464,6 @@ CONTAINS
   END SUBROUTINE tfw_u_3
 
 ! *****************************************************************************
-
   SUBROUTINE tfw_p_0 ( rhoa, grhoa, r13a, sa, e_0, npoints, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, grhoa, r13a, sa
@@ -509,7 +488,6 @@ CONTAINS
   END SUBROUTINE tfw_p_0
 
 ! *****************************************************************************
-
   SUBROUTINE tfw_p_1 ( rhoa, grhoa, r13a, sa, e_rho, e_ndrho, npoints,&
        error )
 
@@ -539,7 +517,6 @@ CONTAINS
   END SUBROUTINE tfw_p_1
 
 ! *****************************************************************************
-
   SUBROUTINE tfw_p_2 ( rhoa, grhoa, r13a, sa, e_rho_rho, e_rho_ndrho,&
        e_ndrho_ndrho, npoints, error )
 
@@ -573,7 +550,6 @@ CONTAINS
   END SUBROUTINE tfw_p_2
 
 ! *****************************************************************************
-
   SUBROUTINE tfw_p_3 ( rhoa, grhoa, r13a, sa, e_rho_rho_rho, e_rho_rho_ndrho,&
        e_rho_ndrho_ndrho, npoints, error )
 
@@ -609,8 +585,5 @@ CONTAINS
 
   END SUBROUTINE tfw_p_3
 
-! *****************************************************************************
-
 END MODULE xc_tfw
 
-! *****************************************************************************

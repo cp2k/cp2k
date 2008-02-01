@@ -3,25 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/pw_poisson_methods *
-!!
-!!   NAME
-!!     pw_poisson_methods
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     09.2005 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \par History
+!>      09.2005 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 MODULE pw_poisson_methods
   USE cell_types,                      ONLY: cell_release,&
                                              cell_retain,&
@@ -73,24 +59,15 @@ MODULE pw_poisson_methods
 
   PUBLIC :: pw_poisson_cleanup, pw_poisson_rebuild, pw_poisson_check, &
        pw_poisson_solve, pw_poisson_set
-  !!***
-  !****************************************************************************
 CONTAINS
 
-  !!****** pw_poisson_methods/pw_poisson_cleanup [1.0] *
-  !!
-  !!   NAME
-  !!     pw_poisson_cleanup
-  !!
-  !!   FUNCTION
-  !!     removes all the object created from the parameters pw_pools and cell
-  !!     and used to solve the poisson equation like the green function and
-  !!     all the things allocated in pw_poisson_rebuild
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** *************************************************************************
+! *****************************************************************************
+!> \brief removes all the object created from the parameters pw_pools and cell
+!>      and used to solve the poisson equation like the green function and
+!>      all the things allocated in pw_poisson_rebuild
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE pw_poisson_cleanup (poisson_env, error)
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -115,28 +92,14 @@ CONTAINS
        
     END IF
   END SUBROUTINE pw_poisson_cleanup
-  !******************************************************************************
 
-  !!****f* pw_poisson_methods/pw_poisson_check *
-  !!
-  !!   NAME
-  !!     pw_poisson_check
-  !!
-  !!   FUNCTION
-  !!     checks if pw_poisson_rebuild has to be called and calls it if needed
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - poisson_env: the object to be checked
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief checks if pw_poisson_rebuild has to be called and calls it if needed
+!> \param poisson_env the object to be checked
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE pw_poisson_check(poisson_env,error)
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -218,28 +181,16 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE pw_poisson_check
-  !***************************************************************************
 
-  !!****f* pw_poisson_methods/pw_poisson_rebuild *
-  !!
-  !!   NAME
-  !!     pw_poisson_rebuild
-  !!
-  !!   FUNCTION
-  !!     rebuilds all the internal values needed to use the poisson solver
-  !!
-  !!   NOTES
-  !!     rebuilds if poisson_env%rebuild is true
-  !!
-  !!   ARGUMENTS
-  !!     - poisson_env: the environment to rebuild
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief rebuilds all the internal values needed to use the poisson solver
+!> \param poisson_env the environment to rebuild
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      rebuilds if poisson_env%rebuild is true
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE pw_poisson_rebuild(poisson_env,density,error)
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_type), OPTIONAL, POINTER         :: density
@@ -281,26 +232,15 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE pw_poisson_rebuild
-  !***************************************************************************
 
-  !!****** pw_poisson_methods/pw_poisson_solve [1.0] *
-  !!
-  !!   NAME
-  !!     pw_poisson_solve
-  !!
-  !!   FUNCTION
-  !!     Solve Poisson equation in a plane wave basis set
-  !!     Obtains electrostatic potential and its derivatives with respect to r
-  !!     from the density
-  !!
-  !!   AUTHOR
-  !!     apsi
-  !!
-  !!   MODIFICATION HISTORY
-  !!     JGH (13-Mar-2001) : completely revised
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Solve Poisson equation in a plane wave basis set
+!>      Obtains electrostatic potential and its derivatives with respect to r
+!>      from the density
+!> \par History
+!>      JGH (13-Mar-2001) : completely revised
+!> \author apsi
+! *****************************************************************************
   SUBROUTINE pw_poisson_solve ( poisson_env, density, ehartree, vhartree,&
        dvhartree, h_stress, error )
 
@@ -511,28 +451,19 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE pw_poisson_solve
-  !****************************************************************************
-  !!****** pw_poisson_methods/pw_poisson_set [1.0] *
-  !!
-  !!   NAME
-  !!     pw_poisson_set
-  !!
-  !!   FUNCTION
-  !!     sets cell, grids and parameters used by the poisson solver
-  !!     You should call this at least once (and set everything)
-  !!     before using the poisson solver.
-  !!     Smart, doesn't set the thing twice to the same value
-  !!     Keeps track of the need to rebuild the poisson_env
-  !!
-  !!   NOTES
-  !!     Checks everything at the end. This means that after *each* call to
-  !!     this method the poisson env must be fully ready, so the first time
-  !!     you have to set everything at once. Change this behaviour?
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** *************************************************************************
+
+! *****************************************************************************
+!> \brief sets cell, grids and parameters used by the poisson solver
+!>      You should call this at least once (and set everything)
+!>      before using the poisson solver.
+!>      Smart, doesn't set the thing twice to the same value
+!>      Keeps track of the need to rebuild the poisson_env
+!> \note
+!>      Checks everything at the end. This means that after *each* call to
+!>      this method the poisson env must be fully ready, so the first time
+!>      you have to set everything at once. Change this behaviour?
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE pw_poisson_set ( poisson_env, cell, parameters, pw_pools,&
        use_level, mt_super_ref_pw_grid, force_rebuild, error )
 
@@ -605,6 +536,5 @@ CONTAINS
     END IF
     CALL pw_poisson_check(poisson_env,error=error)
   END SUBROUTINE pw_poisson_set
-  !******************************************************************************
 
 END MODULE pw_poisson_methods

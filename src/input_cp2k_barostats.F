@@ -3,25 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_cp2k_barostats *
-!!
-!!   NAME
-!!     input_cp2k_barostats
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     teo & fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 split input_cp2k into smaller modules [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \par History
+!>      10.2005 split input_cp2k into smaller modules [fawzi]
+!> \author teo & fawzi
+! *****************************************************************************
 MODULE input_cp2k_barostats
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
@@ -51,30 +37,14 @@ MODULE input_cp2k_barostats
 PUBLIC :: create_barostat_section
 
 !***
-!****************************************************************************
 CONTAINS
 
-!***************************************************************************
-!!****f* input_cp2k_barostats/create_barostat_section *
-!!
-!!   NAME
-!!     create_barostat_section
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: will contain the coeff section 
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param section will contain the coeff section 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_barostat_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error

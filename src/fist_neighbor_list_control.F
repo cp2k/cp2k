@@ -2,24 +2,14 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/fist_neighbor_list_control [1.0] *
-!!
-!!   NAME
-!!     fist_neighbor_list_control
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM,MK
-!!
-!!   MODIFICATION HISTORY
-!!     Harald Forbert (Dec-2000): Changes for multiple linked lists
-!!                                linklist_internal_data_type
-!!     07.02.2005: using real coordinates for r_last_update; cleaned (MK)
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      Harald Forbert (Dec-2000): Changes for multiple linked lists
+!>                                 linklist_internal_data_type
+!>      07.02.2005: using real coordinates for r_last_update; cleaned (MK)
+!> \author CJM,MK
+! *****************************************************************************
 MODULE fist_neighbor_list_control
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -59,17 +49,15 @@ MODULE fist_neighbor_list_control
   PUBLIC :: list_control
 
 !***
-!******************************************************************************
 
 CONTAINS
-
-!******************************************************************************
 
 ! to decide whether the neighbor list is to be updated or not
 ! based on a displacement criterion;
 ! if any particle has moved by 0.5*verlet_skin from the previous
 ! list update, then the list routine is called.
 
+! *****************************************************************************
   SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
        cell, fist_nonbond_env, para_env, force_env_section,shell_particle_set,&
        core_particle_set, force_update, error)
@@ -299,7 +287,5 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE list_control
-
-!******************************************************************************
 
 END MODULE fist_neighbor_list_control

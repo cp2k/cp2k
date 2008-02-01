@@ -2,22 +2,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/et_coupling_types [1.0] *
-!!
-!!   NAME
-!!     et_coupling_types
-!!
-!!   FUNCTION
-!!     Definition and initialisation of the et_coupling data type.
-!!
-!!   AUTHOR
-!!     Florian Schiffmann (01.2007,fschiff)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Definition and initialisation of the et_coupling data type.
+!> \author Florian Schiffmann (01.2007,fschiff)
+! *****************************************************************************
 MODULE et_coupling_types
 
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
@@ -44,26 +32,11 @@ MODULE et_coupling_types
             get_et_coupling_type,&
             set_et_coupling_type
 
-!!***** et_coupling/et_coupling_type [1.0] *
-!!
-!!   NAME
-!!     et_coupling_type
-!!
-!!   FUNCTION
-!!     
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!
-!!   AUTHOR
-!!     fschiff
-!!
-!!   MODIFICATION HISTORY
-!!     01.2007 created [Florian Schiffmann]
-!!
-!***************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      01.2007 created [Florian Schiffmann]
+!> \author fschiff
+! *****************************************************************************
   TYPE et_coupling_type
     TYPE(cp_fm_p_type),DIMENSION(:), POINTER           :: et_mo_coeff
     TYPE(real_matrix_p_type),DIMENSION(:), POINTER     :: rest_mat
@@ -74,8 +47,7 @@ MODULE et_coupling_types
 
   CONTAINS
 
-
-
+! *****************************************************************************
     SUBROUTINE et_coupling_create(et_coupling,error)
     TYPE(et_coupling_type), POINTER          :: et_coupling
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -101,6 +73,7 @@ MODULE et_coupling_types
       
     END SUBROUTINE et_coupling_create
 
+! *****************************************************************************
     SUBROUTINE get_et_coupling_type(et_coupling,et_mo_coeff,rest_mat,error)
     TYPE(et_coupling_type), POINTER          :: et_coupling
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -117,6 +90,7 @@ MODULE et_coupling_types
       
     END SUBROUTINE get_et_coupling_type
 
+! *****************************************************************************
     SUBROUTINE set_et_coupling_type(et_coupling,et_mo_coeff,rest_mat,error)
     TYPE(et_coupling_type), POINTER          :: et_coupling
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -133,6 +107,7 @@ MODULE et_coupling_types
       
     END SUBROUTINE set_et_coupling_type
 
+! *****************************************************************************
     SUBROUTINE et_coupling_release(et_coupling,error)
     TYPE(et_coupling_type), POINTER          :: et_coupling
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -160,7 +135,3 @@ MODULE et_coupling_types
     
   END MODULE et_coupling_types
   
-
-
-
-

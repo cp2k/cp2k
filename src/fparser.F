@@ -1,3 +1,4 @@
+! *****************************************************************************
 MODULE fparser
   !------- -------- --------- --------- --------- --------- --------- --------- -------
   ! Fortran 90 function parser v1.1
@@ -75,6 +76,7 @@ MODULE fparser
                                                                        'asin ', &
                                                                        'acos ', &
                                                                        'atan ' /)
+! *****************************************************************************
   TYPE tComp
      INTEGER(is), DIMENSION(:), POINTER :: ByteCode
      INTEGER                            :: ByteCodeSize
@@ -89,6 +91,7 @@ MODULE fparser
   !
 CONTAINS
   !
+! *****************************************************************************
   SUBROUTINE finalizef()
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Finalize function parser 
@@ -127,6 +130,7 @@ CONTAINS
     END IF
   END SUBROUTINE finalizef
   !
+! *****************************************************************************
   SUBROUTINE initf (n)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Initialize function parser for n functions
@@ -144,6 +148,7 @@ CONTAINS
     END DO
   END SUBROUTINE initf
   !
+! *****************************************************************************
   SUBROUTINE parsef (i, FuncStr, Var)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Parse ith function string FuncStr and compile it into bytecode
@@ -174,6 +179,7 @@ CONTAINS
     CALL Compile (i,Func,Var)                                ! Compile into bytecode
   END SUBROUTINE parsef
   !
+! *****************************************************************************
   FUNCTION evalf (i, Val) RESULT (res)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Evaluate bytecode of ith function for the values passed in array Val(:)
@@ -247,6 +253,7 @@ CONTAINS
     res = Comp(i)%Stack(1)
   END FUNCTION evalf
   !
+! *****************************************************************************
   SUBROUTINE CheckSyntax (Func,FuncStr,Var)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Check syntax of function string,  returns 0 if syntax is ok
@@ -334,6 +341,7 @@ CONTAINS
     IF (ParCnt > 0) CALL ParseErrMsg (j, FuncStr, 'Missing )')
   END SUBROUTINE CheckSyntax
   !
+! *****************************************************************************
   FUNCTION EvalErrMsg () RESULT (msg)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Return error message
@@ -353,6 +361,7 @@ CONTAINS
     ENDIF
   END FUNCTION EvalErrMsg
   !
+! *****************************************************************************
   SUBROUTINE ParseErrMsg (j, FuncStr, Msg)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Print error message and terminate program
@@ -380,6 +389,7 @@ CONTAINS
     STOP
   END SUBROUTINE ParseErrMsg
   !
+! *****************************************************************************
   FUNCTION OperatorIndex (c) RESULT (n)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Return operator index
@@ -400,6 +410,7 @@ CONTAINS
     END DO
   END FUNCTION OperatorIndex
   !
+! *****************************************************************************
   FUNCTION MathFunctionIndex (str) RESULT (n)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Return index of math function beginnig at 1st position of string str
@@ -424,6 +435,7 @@ CONTAINS
     END DO
   END FUNCTION MathFunctionIndex
   !
+! *****************************************************************************
   FUNCTION VariableIndex (str, Var, ibegin, inext) RESULT (n)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Return index of variable at begin of string str (returns 0 if no variable found)
@@ -463,6 +475,7 @@ CONTAINS
     IF (PRESENT(inext))  inext  = in
   END FUNCTION VariableIndex
   !
+! *****************************************************************************
   SUBROUTINE RemoveSpaces (str)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Remove Spaces from string, remember positions of characters in old string
@@ -486,6 +499,7 @@ CONTAINS
     END DO
   END SUBROUTINE RemoveSpaces
   !
+! *****************************************************************************
   SUBROUTINE Replace (ca,cb,str)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Replace ALL appearances of character set ca in string str by character set cb
@@ -505,6 +519,7 @@ CONTAINS
     END DO
   END SUBROUTINE Replace
   !
+! *****************************************************************************
   SUBROUTINE Compile (i, F, Var)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Compile i-th function string F into bytecode
@@ -546,6 +561,7 @@ CONTAINS
     !
   END SUBROUTINE Compile
   !
+! *****************************************************************************
   SUBROUTINE AddCompiledByte (i, b)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Add compiled byte to bytecode
@@ -561,6 +577,7 @@ CONTAINS
     IF (ASSOCIATED(Comp(i)%ByteCode)) Comp(i)%ByteCode(Comp(i)%ByteCodeSize) = b
   END SUBROUTINE AddCompiledByte
   !
+! *****************************************************************************
   FUNCTION MathItemIndex (i, F, Var) RESULT (n)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Return math item index, if item is real number, enter it into Comp-structure
@@ -588,6 +605,7 @@ CONTAINS
     END IF
   END FUNCTION MathItemIndex
   !
+! *****************************************************************************
   FUNCTION CompletelyEnclosed (F, b, e) RESULT (res)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Check if function substring F(b:e) is completely enclosed by a pair of parenthesis
@@ -617,6 +635,7 @@ CONTAINS
     END IF
   END FUNCTION CompletelyEnclosed
   !
+! *****************************************************************************
   RECURSIVE SUBROUTINE CompileSubstr (i, F, b, e, Var)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Compile i-th function string F into bytecode
@@ -721,6 +740,7 @@ CONTAINS
     IF (b2 > b) CALL AddCompiledByte (i, cNeg)
   END SUBROUTINE CompileSubstr
   !
+! *****************************************************************************
   FUNCTION IsBinaryOp (j, F) RESULT (res)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Check if operator F(j:j) in string F is binary operator
@@ -768,6 +788,7 @@ CONTAINS
     END IF
   END FUNCTION IsBinaryOp
   !
+! *****************************************************************************
   FUNCTION RealNum (str, ibegin, inext, error) RESULT (res)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Get real number from string - Format: [blanks][+|-][nnn][.nnn][e|E|d|D[+|-]nnn]
@@ -853,6 +874,7 @@ CONTAINS
     IF (PRESENT(error))  error  = err
   END FUNCTION RealNum
   !  
+! *****************************************************************************
   SUBROUTINE LowCase (str1, str2)
     !----- -------- --------- --------- --------- --------- --------- --------- -------
     ! Transform upper case letters in str1 into lower case letters, result is str2
@@ -874,23 +896,11 @@ CONTAINS
     END DO
   END SUBROUTINE LowCase
 
-  !!****** fparser/evalfd [1.0] *
-  !!
-  !!   NAME
-  !!     evalfd
-  !!
-  !!   FUNCTION
-  !!     Evaluates derivatives 
-  !!
-  !!   AUTHOR
-  !!     Main algorithm from Numerical Recipes
-  !!     Ridders, C.J.F. 1982 - Advances in Engineering Software, Vol.4, no. 2, pp. 75-76
-  !!
-  !!   MODIFICATION HISTORY
-  !!     
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Evaluates derivatives 
+!> \author Main algorithm from Numerical Recipes
+!>      Ridders, C.J.F. 1982 - Advances in Engineering Software, Vol.4, no. 2, pp. 75-76
+! *****************************************************************************
   FUNCTION evalfd(id_fun,ipar,vals,h,err) RESULT(derivative)
     INTEGER, INTENT(IN)                      :: id_fun, ipar
     REAL(KIND=rn), DIMENSION(:), POINTER     :: vals

@@ -3,24 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/sparse_matrix_types [1.0] *
-!!
-!!   NAME
-!!     sparse_matrix_types
-!!
-!!   FUNCTION
-!!     Define the matrix data types.
-!!
-!!   AUTHOR
-!!     MK (23.06.2000)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Define the matrix data types.
+!> \par History
+!>      none
+!> \author MK (23.06.2000)
+! *****************************************************************************
 MODULE sparse_matrix_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
@@ -47,6 +35,7 @@ MODULE sparse_matrix_types
 
 ! *** Define a real matrix data type ***
 
+! *****************************************************************************
   TYPE real_block_node_type
     PRIVATE
     TYPE(real_block_node_type), POINTER :: next_block_node
@@ -54,6 +43,7 @@ MODULE sparse_matrix_types
     REAL(KIND = dp), DIMENSION(:,:), POINTER   :: BLOCK
   END TYPE real_block_node_type
 
+! *****************************************************************************
   TYPE real_block_list_type
     PRIVATE
     TYPE(real_block_node_type), POINTER :: first_block_node
@@ -61,6 +51,7 @@ MODULE sparse_matrix_types
     TYPE(real_block_node_type), POINTER :: last_used_block_node ! not last in list
   END TYPE real_block_list_type
 
+! *****************************************************************************
   TYPE real_matrix_type
 !    PRIVATE
     TYPE(real_block_list_type), DIMENSION(:), POINTER :: block_list
@@ -82,6 +73,7 @@ MODULE sparse_matrix_types
     INTEGER                                           ::  sparsity_id
   END TYPE real_matrix_type
 
+! *****************************************************************************
   TYPE real_matrix_p_type
     TYPE(real_matrix_type), POINTER :: matrix
   END TYPE real_matrix_p_type
@@ -132,8 +124,6 @@ MODULE sparse_matrix_types
   PUBLIC :: first_block_node,&
             next_block_node,&
             find_block_node
-
-! *****************************************************************************
 
   INTERFACE add_block_node
     MODULE PROCEDURE add_real_matrix_block
@@ -229,48 +219,24 @@ MODULE sparse_matrix_types
      MODULE PROCEDURE cp_sm_sm_trace_scalar, cp_sm_sm_trace_vector
   END INTERFACE
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-!!****f* sparse_matrix_types/cp_sm_scale_and_add [1.0] *
-!!
-!!   NAME
-!!     cp_sm_scale_and_add
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_sm_scale_and_add(matrix_a, alpha, matrix_b, beta,&
-!!         error)
-!!       Type(real_matrix_type), Pointer:: matrix_a
-!!       Type(real_matrix_type), Pointer, Optional:: matrix_b
-!!       Real(KIND = dp), Intent (IN), Optional:: alpha, beta
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_sm_scale_and_add
-!!
-!!   FUNCTION
-!!     scales the matrix and add another matrix
-!!     matrix_a=alpha*matrix_a+beta*matrix_b
-!!     filters the result with the structure (sparsity) of matrix_a
-!!
-!!   NOTES
-!!     should be rewitten avoiding the get_block_node taht calls find_block_node
-!!
-!!   INPUTS
-!!     - matrix_a: a sparse matrix (inout)
-!!     - alpha: scaling factor of matrix_a (defaults to 1.0)
-!!     - matrix_b: a sparse matrix (in)
-!!     - beta: scaling factor of matrix_b (defaults to 1.0)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     2.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+!> \brief scales the matrix and add another matrix
+!>      matrix_a=alpha*matrix_a+beta*matrix_b
+!>      filters the result with the structure (sparsity) of matrix_a
+!> \param matrix_a a sparse matrix (inout)
+!> \param alpha scaling factor of matrix_a (defaults to 1.0)
+!> \param matrix_b a sparse matrix (in)
+!> \param beta scaling factor of matrix_b (defaults to 1.0)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      should be rewitten avoiding the get_block_node taht calls find_block_node
+!> \par History
+!>      2.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE cp_sm_scale_and_add(matrix_a,alpha,matrix_b,beta,error)
     TYPE(real_matrix_type), POINTER          :: matrix_a
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: alpha
@@ -356,8 +322,8 @@ SUBROUTINE cp_sm_scale_and_add(matrix_a,alpha,matrix_b,beta,error)
   END IF
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE cp_sm_scale_and_add
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE add_real_matrices(c,alpha,a,beta,b)
 
 !   Purpose: Calculate the sum of the sparse matrices a and b which have the
@@ -366,8 +332,6 @@ END SUBROUTINE cp_sm_scale_and_add
 !            c = alpha*a + beta*b
 
 !   History: - Creation (10.04.2002, MK)
-
-!   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: c
     REAL(KIND=dp), INTENT(IN)                :: alpha
@@ -488,15 +452,12 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE add_real_matrices
 
 ! *****************************************************************************
-
   SUBROUTINE add_real_matrix_block(matrix,block_row,block_col,BLOCK,&
        error)
 
 !   Purpose: Allocate and initialize a new block node.
 
 !   History: - Creation (28.07.2000, MK)
-
-!   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(IN)                      :: block_row, block_col
@@ -602,13 +563,11 @@ END SUBROUTINE cp_sm_scale_and_add
       matrix%block_list(block_row)%nblock_node + 1
 
   END SUBROUTINE add_real_matrix_block
-!*****************************************************************************************
 
+! *****************************************************************************
   SUBROUTINE  add_1d_block_node(matrix,block_row,block_col,BLOCK,error)
 
 !   Purpose: Allocate and initialize a new block node in the oce matrix
-
-! *****************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(IN)                      :: block_row, block_col
@@ -695,11 +654,10 @@ END SUBROUTINE cp_sm_scale_and_add
 
   END SUBROUTINE add_1d_block_node
 
-!*****************************************************************************************
 ! writes for all local blocks the maximum absolute value of
 ! the block entries to unit fileunit
-!*****************************************************************************************
 
+! *****************************************************************************
   SUBROUTINE write_blocks_maxabsval(sparse_matrix,fileunit)
 
     TYPE(real_matrix_type), POINTER          :: sparse_matrix
@@ -743,8 +701,6 @@ END SUBROUTINE cp_sm_scale_and_add
 !   distribution_2d if present and not NULL, implies that this matrix has a distribution_2d compatible shape
 
 !   History: - Creation (16.06.2000, MK)
-
-!   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(IN)                      :: nrow, ncol, nblock_row, &
@@ -833,14 +789,11 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE allocate_real_matrix
 
 ! *****************************************************************************
-
   SUBROUTINE allocate_real_matrix_set(matrix_set,nmatrix,error)
 
 !   Purpose: Allocate and initialize a real matrix set.
 
 !   History: - Creation (13.03.2002, MK)
-
-!   ***************************************************************************
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_set
@@ -864,15 +817,13 @@ END SUBROUTINE cp_sm_scale_and_add
     END DO
 
   END SUBROUTINE allocate_real_matrix_set
-! *****************************************************************************
 
+! *****************************************************************************
   SUBROUTINE allocate_real_matrix_set_2d(matrix_set,nmatrix,mmatrix,error)
 
 !   Purpose: Allocate and initialize a real matrix set.
 
 !   History: - Creation (13.03.2002, MK)
-
-!   ***************************************************************************
 
     TYPE(real_matrix_p_type), &
       DIMENSION(:, :), POINTER               :: matrix_set
@@ -898,16 +849,14 @@ END SUBROUTINE cp_sm_scale_and_add
     END DO
 
   END SUBROUTINE allocate_real_matrix_set_2d
-! *****************************************************************************
 
+! *****************************************************************************
   SUBROUTINE copy_local_sm_to_replicated_fm(sparse_matrix,fm)
 
 !   Purpose: copy to local blocks of a sparse matrix in a replicated full matrix (why ??)
 !            ! according to me this routine is a bug in parallel JVDV
 
 !   History: - Creation (19.06.2001, MK)
-
-!   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: sparse_matrix
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fm
@@ -983,14 +932,13 @@ END SUBROUTINE cp_sm_scale_and_add
 
   END SUBROUTINE copy_local_sm_to_replicated_fm
 
-! *****************************************************************************
 ! multiplies a sparse matrix times ncol local vectors, adding it the the output
 ! (that are stored as rows ! in v_in leading dimension nblock )
 ! if the sparse_matrix is symmetric, off diagonal blocks will be used twice
 ! it is still assumed that the diagonal blocks are symmetric (and hence full)
 ! Joost VandeVondele july 2002
-! *****************************************************************************
   ! notice, adding a beta is incompatible with the definition of this function
+! *****************************************************************************
   SUBROUTINE sparse_times_local(sparse_matrix,rep_v_in,rep_v_out,ncol,nblock, alpha)
     TYPE(real_matrix_type), POINTER          :: sparse_matrix
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rep_v_in, rep_v_out
@@ -1055,7 +1003,6 @@ END SUBROUTINE cp_sm_scale_and_add
       CALL stop_program(routineP,"n x n * n x k ?")
     ENDIF
 
-
 !   *** Traverse all block nodes of the sparse matrix ***
 !   no simple parallel do because we write both the iblock_row and iblock_col
 
@@ -1118,7 +1065,6 @@ END SUBROUTINE cp_sm_scale_and_add
 
   END SUBROUTINE sparse_times_local
 
-! *****************************************************************************
 ! intended to compute sparse=sparse+alpha*v*g^T
 ! for all the local blocks of the sparse matrix
 ! same comment as sparse_times_local, v,g stored as rows instead of cols
@@ -1204,16 +1150,11 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE sparse_plus_loc_loct
 
 ! *****************************************************************************
-
-! *****************************************************************************
-
   SUBROUTINE copy_real_matrix(source,TARGET)
 
 !   Purpose: Copy the real matrix source to the existing real matrix target.
 
 !   History: - Creation (07.07.2000, MK)
-
-!   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: source, TARGET
 
@@ -1324,14 +1265,11 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE copy_real_matrix
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_real_matrix(matrix,error)
 
 !   Purpose: Deallocate a real matrix at the real_matrix_type level.
 
 !   History: - Creation (11.07.2000, MK)
-
-!   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1372,14 +1310,11 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE deallocate_real_matrix
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_real_matrix_row(matrix,block_row)
 
 !   Purpose: Deallocate a matrix row.
 
 !   History: - Creation (30.11.2000, MK)
-
-!   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(IN)                      :: block_row
@@ -1412,14 +1347,11 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE deallocate_real_matrix_row
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_real_matrix_set(matrix_set,error)
 
 !   Purpose: Deallocate a real matrix set.
 
 !   History: - Creation (13.03.2002, MK)
-
-!   ***************************************************************************
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_set
@@ -1443,14 +1375,11 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE deallocate_real_matrix_set
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_real_matrix_set_2d(matrix_set,error)
 
 !   Purpose: Deallocate a real matrix set.
 
 !   History: - Creation (13.03.2002, MK)
-
-!   ***************************************************************************
 
     TYPE(real_matrix_p_type), &
       DIMENSION(:, :), POINTER               :: matrix_set
@@ -1475,15 +1404,13 @@ END SUBROUTINE cp_sm_scale_and_add
     END IF
 
   END SUBROUTINE deallocate_real_matrix_set_2d
-! *****************************************************************************
 
+! *****************************************************************************
   FUNCTION find_real_block_node(matrix,block_row,block_col) RESULT(block_node)
 
 !   Purpose: Return a pointer to the requested block node.
 
 !   History: - Creation (23.06.2000, MK)
-
-!   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(IN)                      :: block_row, block_col
@@ -1519,14 +1446,11 @@ END SUBROUTINE cp_sm_scale_and_add
   END FUNCTION find_real_block_node
 
 ! *****************************************************************************
-
   FUNCTION first_real_block_node(matrix,block_row) RESULT(first_block_node)
 
 !   Purpose: Return a pointer to the first block node of a block list.
 
 !   History: - Creation (23.06.2000, MK)
-
-!   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(IN)                      :: block_row
@@ -1539,7 +1463,6 @@ END SUBROUTINE cp_sm_scale_and_add
   END FUNCTION first_real_block_node
 
 ! *****************************************************************************
-
   SUBROUTINE get_matrix_info(matrix,matrix_name,matrix_symmetry,&
                              nblock_row,nblock_col,nrow,ncol,&
                              first_row,last_row,first_col,last_col,&
@@ -1548,8 +1471,6 @@ END SUBROUTINE cp_sm_scale_and_add
 !   Purpose: Return the requested matrix information.
 
 !   History: - Creation (10.07.2000, MK)
-
-!   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: matrix
     CHARACTER(LEN=80), INTENT(OUT), OPTIONAL :: matrix_name
@@ -1603,14 +1524,11 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE get_matrix_info
 
 ! *****************************************************************************
-
   SUBROUTINE get_real_block_node(block_node,block_col,BLOCK)
 
 !   Purpose: Get the the column and/or matrix-block for a given sparse matrix block node.
 
 !   History: - Creation (28.05.2000, MK)
-
-!   ***************************************************************************
 
     TYPE(real_block_node_type), INTENT(IN)   :: block_node
     INTEGER, INTENT(OUT), OPTIONAL           :: block_col
@@ -1625,7 +1543,6 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE get_real_block_node
 
 ! *****************************************************************************
-
   SUBROUTINE get_real_matrix_block(matrix,block_row,block_col,&
                                    first_row,last_row,first_col,last_col,&
                                    block_node,BLOCK)
@@ -1633,8 +1550,6 @@ END SUBROUTINE cp_sm_scale_and_add
 !   Purpose: Get a specific (block_row,block_col)-block from the real matrix
 
 !   History: - Creation (28.05.2000, MK)
-
-!   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(IN)                      :: block_row, block_col
@@ -1668,14 +1583,11 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE get_real_matrix_block
 
 ! *****************************************************************************
-
   SUBROUTINE get_real_matrix_diagonal(matrix,vector)
 
 !   Purpose: Set the diagonal elements of matrix to the values of vector.
 
 !   History: - Creation (06.11.2003,MK)
-
-!   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: matrix
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: vector
@@ -1725,14 +1637,11 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE get_real_matrix_diagonal
 
 ! *****************************************************************************
-
   FUNCTION next_real_block_node(block_node) RESULT(next_block_node)
 
 !   Purpose: Return a pointer to the next block node of a block list.
 
 !   History: - Creation (28.06.2000, MK)
-
-!   ***************************************************************************
 
     TYPE(real_block_node_type), POINTER      :: block_node, next_block_node
 
@@ -1749,15 +1658,12 @@ END SUBROUTINE cp_sm_scale_and_add
   END FUNCTION next_real_block_node
 
 ! *****************************************************************************
-
   SUBROUTINE put_real_block_node(block_node,matrix,block_row,block_col,BLOCK,&
                                  add)
 
 !   Purpose: Set block node data set.
 
 !   History: - Creation (27.07.2000, MK)
-
-!   ***************************************************************************
 
     TYPE(real_block_node_type), POINTER      :: block_node
     TYPE(real_matrix_type), POINTER          :: matrix
@@ -1809,15 +1715,12 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE put_real_block_node
 
 ! *****************************************************************************
-
   SUBROUTINE put_real_matrix_block(matrix,block_row,block_col,BLOCK,add,error)
 
 !   Purpose: Allocate and initialize a new block node or update an existing
 !            block node.
 
 !   History: - Creation (07.07.2000, MK)
-
-!   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(IN)                      :: block_row, block_col
@@ -1889,7 +1792,6 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE put_real_matrix_block
 
 ! *****************************************************************************
-
   SUBROUTINE replicate_real_matrix(source,TARGET,target_name,allocate_blocks,error)
 
 !   Purpose: Replicate the existing matrix source. The replicated matrix is
@@ -1898,8 +1800,6 @@ END SUBROUTINE cp_sm_scale_and_add
 !            if optional allocate_blocks=false then no blocks are allocated
 
 !   History: - Creation (17.11.2000, MK)
-
-!   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: source, TARGET
     CHARACTER(LEN=*), INTENT(IN)             :: target_name
@@ -1975,7 +1875,6 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE replicate_real_matrix
 
 ! *****************************************************************************
-
   SUBROUTINE replicate_real_matrix_structure(source,TARGET,target_name,&
                                              target_symmetry,error)
 
@@ -1984,8 +1883,6 @@ END SUBROUTINE cp_sm_scale_and_add
 !            structure.
 
 !   History: - Creation (17.11.2000, MK)
-
-!   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: source, TARGET
     CHARACTER(LEN=*), INTENT(IN)             :: target_name
@@ -2062,7 +1959,6 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE replicate_real_matrix_structure
 
 ! *****************************************************************************
-
   SUBROUTINE scale_real_matrix(a,alpha)
 
 !   Purpose: Multiply the sparse matrix a with alpha.
@@ -2070,8 +1966,6 @@ END SUBROUTINE cp_sm_scale_and_add
 !            a <- alpha*a
 
 !   History: - Creation (17.07.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: a
     REAL(KIND=dp), INTENT(IN)                :: alpha
@@ -2120,7 +2014,6 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE scale_real_matrix
 
 ! *****************************************************************************
-
   FUNCTION checksum_real_matrix(a,para_env)
     TYPE(real_matrix_type), POINTER          :: a
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -2156,15 +2049,13 @@ END SUBROUTINE cp_sm_scale_and_add
     END DO
     CALL mp_sum(checksum_real_matrix,para_env%group)
   END FUNCTION checksum_real_matrix
-! *****************************************************************************
 
+! *****************************************************************************
   SUBROUTINE set_real_matrix(matrix,value)
 
 !   Purpose: Set all elements of matrix to value.
 
 !   History: - Creation (10.04.2002, MK)
-
-!   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: matrix
     REAL(KIND=dp), INTENT(IN)                :: value
@@ -2205,14 +2096,11 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE set_real_matrix
 
 ! *****************************************************************************
-
   SUBROUTINE set_real_matrix_diagonal(matrix,vector)
 
 !   Purpose: Set the diagonal elements of matrix to the values of vector.
 
 !   History: - Creation (06.11.2003,MK)
-
-!   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: matrix
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: vector
@@ -2260,35 +2148,21 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE set_real_matrix_diagonal
 
 ! *****************************************************************************
-
-!!****f* sparse_matrix_types/transfer_real_matrix [1.0] *
-!!
-!!   NAME
-!!     transfer_real_matrix
-!!
-!!   FUNCTION
-!!   Transfers source matrix to target matrix (copies the values)
-!!   filtering the result through the structure (sparsity) of target matrix
-!!   zeros blocks as necessary
-!!
-!!   NOTES
-!!     assumes that both matrixes have the same distribution
-!!     XXXXX very dangerous (i.e. wrong?) in parallell, if the sparsities are not the same XXXXXXX
-!!
-!!   INPUTS
-!!     source_matrix: the matrix to copy
-!!     target_matrix: the matrix that will contain the copy
-!!     error: variable to control error logging, stopping,...
-!!            see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Matthias Krack
-!!
-!!   MODIFICATION HISTORY
-!!     - 10.04.2002 Creation [MK]
-!!     - 4.2003 extended for matrixes with different structures [fawzi]
-!!
-!!*** *********************************************************************
+!> \brief Transfers source matrix to target matrix (copies the values)
+!>    filtering the result through the structure (sparsity) of target matrix
+!>    zeros blocks as necessary
+!> \param source_matrix the matrix to copy
+!> \param target_matrix the matrix that will contain the copy
+!> \param error variable to control error logging, stopping,...
+!>             see module cp_error_handling
+!> \note
+!>      assumes that both matrixes have the same distribution
+!>      XXXXX very dangerous (i.e. wrong?) in parallell, if the sparsities are not the same XXXXXXX
+!> \par History
+!>      - 10.04.2002 Creation [MK]
+!>      - 4.2003 extended for matrixes with different structures [fawzi]
+!> \author Matthias Krack
+! *****************************************************************************
   SUBROUTINE transfer_real_matrix(source_matrix,target_matrix ,error)
 
     TYPE(real_matrix_type), POINTER          :: source_matrix, target_matrix
@@ -2363,32 +2237,16 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE transfer_real_matrix
 
 ! *****************************************************************************
-
-!!****f* sparse_matrix_types/remove_real_matrix_block [1.0] *
-!!
-!!   NAME
-!!     remove_real_matrix_block
-!!
-!!   FUNCTION
-!!     removes a block from the matrix
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - matrix: the matrix you remove the block from
-!!     - block_row: the row of the block to remove
-!!     - block_col: the column of the block to remove
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     7.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+!> \brief removes a block from the matrix
+!> \param matrix the matrix you remove the block from
+!> \param block_row the row of the block to remove
+!> \param block_col the column of the block to remove
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      7.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE remove_real_matrix_block(matrix,block_row, block_col, error)
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(in)                      :: block_row, block_col
@@ -2428,10 +2286,9 @@ END SUBROUTINE cp_sm_scale_and_add
        END IF
     END IF
   END SUBROUTINE remove_real_matrix_block
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE get_real_matrix_occupation(matrix, block_occupation, memory_occupation, fill_symmetric)
-
 
     TYPE(real_matrix_type), POINTER          :: matrix
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: block_occupation, &
@@ -2482,36 +2339,15 @@ END SUBROUTINE cp_sm_scale_and_add
 
   END SUBROUTINE get_real_matrix_occupation
 
-!!****f* sparse_matrix_types/cp_sm_get_id_nr [1.0] *
-!!
-!!   NAME
-!!     cp_sm_get_id_nr
-!!
-!!   SYNOPSIS
-!!     Function cp_sm_get_id_nr(matrix, error) Result(res)
-!!       Integer:: res
-!!       Type(real_matrix_type), Intent (IN), Target:: matrix
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_sm_get_id_nr
-!!
-!!   FUNCTION
-!!     returns the id of the given matrix
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - matrix: the matrix you want info about
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the id of the given matrix
+!> \param matrix the matrix you want info about
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 FUNCTION cp_sm_get_id_nr(matrix,error) RESULT(res)
     TYPE(real_matrix_type), POINTER          :: matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2531,37 +2367,15 @@ FUNCTION cp_sm_get_id_nr(matrix,error) RESULT(res)
     res=0
   END IF
 END FUNCTION cp_sm_get_id_nr
-!***************************************************************************
 
-!!****f* sparse_matrix_types/cp_sm_set [1.0] *
-!!
-!!   NAME
-!!     cp_sm_set
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_sm_set(matrix, name, error)
-!!       Type(real_matrix_type), Pointer:: matrix
-!!       Character(Len=*), Intent (IN), Optional:: name
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_sm_set
-!!
-!!   FUNCTION
-!!     sets various attributes of the given matrix
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief sets various attributes of the given matrix
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE cp_sm_set(matrix,name,error)
     TYPE(real_matrix_type), POINTER          :: matrix
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
@@ -2581,37 +2395,15 @@ SUBROUTINE cp_sm_set(matrix,name,error)
   END IF
 END SUBROUTINE cp_sm_set
 
-!***************************************************************************
-!!****f* sparse_matrix_types/cp_sm_get_block_list [1.0] *
-!!
-!!   NAME
-!!     cp_sm_get_block_list
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_sm_get_block_list(matrix, list, error)
-!!       Type(real_matrix_type), Pointer:: matrix
-!!       Integer, Dimension(:,:), Pointer:: list
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_sm_get_block_list
-!!
-!!   FUNCTION
-!!     gets a list of indices of all allocated blocks (locally) of a
-!!     given matrix
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     JGH (04-07-2003)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief gets a list of indices of all allocated blocks (locally) of a
+!>      given matrix
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      none
+!> \author JGH (04-07-2003)
+! *****************************************************************************
 SUBROUTINE cp_sm_get_block_list ( matrix, list, error )
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, DIMENSION(:, :), POINTER        :: list
@@ -2653,39 +2445,15 @@ SUBROUTINE cp_sm_get_block_list ( matrix, list, error )
 
 END SUBROUTINE cp_sm_get_block_list
 
-!***************************************************************************
-
-!!****f* cp_sm_maxabsval [1.0] *
-!!
-!!   NAME
-!!     cp_sm_maxabsval
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_sm_maxabsval(matrix, maxabsval, para_env, error)
-!!       Type(real_matrix_type), Pointer:: matrix
-!!       Real(KIND = dp), Intent (OUT):: maxabsval
-!!       Type(cp_para_env_type), Pointer:: para_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_sm_maxabsval
-!!
-!!   FUNCTION
-!!     returns the maximum of the abs of the matrix entries
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - matrix: the matrix you are interested in
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the maximum of the abs of the matrix entries
+!> \param matrix the matrix you are interested in
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE cp_sm_maxabsval(matrix,maxabsval,para_env,error)
     TYPE(real_matrix_type), POINTER          :: matrix
     REAL(KIND=dp), INTENT(out)               :: maxabsval
@@ -2729,39 +2497,18 @@ SUBROUTINE cp_sm_maxabsval(matrix,maxabsval,para_env,error)
     CALL mp_max(maxabsval,para_env%group)
 
   END SUBROUTINE cp_sm_maxabsval
-!***************************************************************************
-!!****f* cp_sm_sm_trace [1.0] *
-!!
-!!   NAME
-!!     cp_sm_sm_trace_scalar
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_sm_sm_trace_scalar(matrix1, matrix2, trace, para_env, error)
-!!       Type(real_matrix_type), Pointer:: matrix1
-!!       Type(real_matrix_type), Pointer:: matrix2
-!!       Real(KIND = dp), Intent (OUT):: trace
-!!       Type(cp_para_env_type), Pointer:: para_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_sm_sm_trace_scalar
-!!
-!!   FUNCTION
-!!     returns the trace of the product of two sparse matrices
-!!
-!!   NOTES
-!!     uses Kahan's sum
-!!
-!!   ARGUMENTS
-!!     - matrix: the matrix you are interested in
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     jgh
-!!
-!!   MODIFICATION HISTORY
-!!     10.2004 created [jgh]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief returns the trace of the product of two sparse matrices
+!> \param matrix the matrix you are interested in
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      uses Kahan's sum
+!> \par History
+!>      10.2004 created [jgh]
+!> \author jgh
+! *****************************************************************************
 SUBROUTINE cp_sm_sm_trace_scalar(matrix1,matrix2,trace,para_env,error)
     TYPE(real_matrix_type), POINTER          :: matrix1, matrix2
     REAL(KIND=dp), INTENT(out)               :: trace
@@ -2808,7 +2555,6 @@ SUBROUTINE cp_sm_sm_trace_scalar(matrix1,matrix2,trace,para_env,error)
                             block_col=block_col2,BLOCK=matrix_block2)
         CPPostcondition(block_col1==block_col2,cp_warning_level,routineP,error,failure)
 
-
         trace_block = accurate_sum ( matrix_block1*matrix_block2 )
 
         IF ( iblock_row == block_col1 ) THEN
@@ -2835,36 +2581,22 @@ SUBROUTINE cp_sm_sm_trace_scalar(matrix1,matrix2,trace,para_env,error)
     CALL mp_sum(trace,para_env%group)
 
 END SUBROUTINE cp_sm_sm_trace_scalar
-!***************************************************************************
 
-!!****f* sparse_matrix_types/cp_sm_sm_trace_vector [1.0] *
-!!
-!!   NAME
-!!     cp_sm_sm_trace_vector
-!!
-!!   FUNCTION
-!!     Calculates blockwise the trace of a matrix product of two sparse matrices,
-!!     this is necessary if the forceone application is the calculation of the
-!!     forces via F=Tr[p*(dH/dR)]
-!!
-!!   NOTES
-!!     - matrix1: 1st multiplier
-!!     - matrix2: 2nd multiplier
-!!     - trace_vec: The vector in which the blockwise traces are written
-!!     - para_env: The paralle environment
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   INPUTS
-!!     -
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     02.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Calculates blockwise the trace of a matrix product of two sparse matrices,
+!>      this is necessary if the forceone application is the calculation of the
+!>      forces via F=Tr[p*(dH/dR)]
+!> \note
+!>      - matrix1: 1st multiplier
+!>      - matrix2: 2nd multiplier
+!>      - trace_vec: The vector in which the blockwise traces are written
+!>      - para_env: The paralle environment
+!>      - error: variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
 SUBROUTINE cp_sm_sm_trace_vector(matrix1, matrix2, trace_vec, para_env, error)
     TYPE(real_matrix_type), POINTER          :: matrix1, matrix2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: trace_vec
@@ -2929,13 +2661,11 @@ SUBROUTINE cp_sm_sm_trace_vector(matrix1, matrix2, trace_vec, para_env, error)
 
 END SUBROUTINE cp_sm_sm_trace_vector
 
-!***************************************************************************
-
+! *****************************************************************************
 SUBROUTINE create_dbm_from_sm(dbm,sm,matrix_name,copy_in,para_env,error)
 
 !   Purpose: Create a diagonal block matrix from a real sparse matrix
 !            same structure.
-!   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: dbm, sm
     CHARACTER(LEN=*), INTENT(IN)             :: matrix_name
@@ -3005,11 +2735,10 @@ SUBROUTINE create_dbm_from_sm(dbm,sm,matrix_name,copy_in,para_env,error)
 
 END SUBROUTINE create_dbm_from_sm
 
-!***************************************************************************
+! *****************************************************************************
 SUBROUTINE deallocate_dbm_from_sm(dbm,sm,copy_out,para_env,error)
 
 !   Purpose: Deallocate a diagonal block matrix
-!   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: dbm, sm
     LOGICAL, INTENT(IN)                      :: copy_out
@@ -3059,32 +2788,17 @@ SUBROUTINE deallocate_dbm_from_sm(dbm,sm,copy_out,para_env,error)
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE deallocate_dbm_from_sm
-!***************************************************************************
 
-!!****f* sparse_matrix_types/cp_sm_add_constant [1.0] *
-!!
-!!   NAME
-!!     cp_sm_add_constant
-!!
-!!   FUNCTION
-!!     Adds a constant value to each matrix element
-!!
-!!   NOTES
-!!     
-!!
-!!   INPUTS
-!!     - matrix_a: a sparse matrix (inout)
-!!     - alpha: value to be added
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon 
-!!
-!!   MODIFICATION HISTORY
-!!     01.2008 created [mguidon]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Adds a constant value to each matrix element
+!> \param matrix_a a sparse matrix (inout)
+!> \param alpha value to be added
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      01.2008 created [mguidon]
+!> \author Manuel Guidon 
+! *****************************************************************************
 SUBROUTINE cp_sm_add_constant(matrix_a,alpha,error)
     TYPE(real_matrix_type), POINTER          :: matrix_a
     REAL(KIND=dp), INTENT(in)                :: alpha
@@ -3121,7 +2835,5 @@ SUBROUTINE cp_sm_add_constant(matrix_a,alpha,error)
   END DO
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE cp_sm_add_constant
-
-!***************************************************************************
 
 END MODULE sparse_matrix_types

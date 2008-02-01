@@ -2,25 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!******************************************************************************
-!!
-!!   NAME
-!!     preconditioner
-!!
-!!   FUNCTION
-!!     computes preconditioners, and implements methods to apply them
-!!     currently used in qs_ot
-!!
-!!   AUTHOR
-!!     Joost VandeVondele (09.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     None
-!!
-!!   SOURCE
-!******************************************************************************
-MODULE preconditioner
+
 ! *****************************************************************************
+!> \brief computes preconditioners, and implements methods to apply them
+!>      currently used in qs_ot
+!> \par History
+!>      None
+!> \author Joost VandeVondele (09.2002)
+! *****************************************************************************
+MODULE preconditioner
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -89,6 +79,7 @@ MODULE preconditioner
 
   PRIVATE :: make_sparse_diag, make_full_single, make_local_block
 
+! *****************************************************************************
   TYPE preconditioner_type
 !    PRIVATE
        TYPE(real_matrix_type),    POINTER :: sparse_matrix
@@ -100,12 +91,14 @@ MODULE preconditioner
        REAL(KIND = dp) :: energy_gap
   END TYPE preconditioner_type
 
+! *****************************************************************************
   TYPE preconditioner_p_type
      TYPE(preconditioner_type), POINTER :: preconditioner
   END TYPE preconditioner_p_type
 
 CONTAINS
 
+! *****************************************************************************
 FUNCTION preconditioner_in_use(preconditioner)
     TYPE(preconditioner_type)                :: preconditioner
     LOGICAL                                  :: preconditioner_in_use
@@ -113,6 +106,7 @@ FUNCTION preconditioner_in_use(preconditioner)
   preconditioner_in_use = .NOT. (preconditioner%in_use .EQ. 0)
 END FUNCTION
 
+! *****************************************************************************
 SUBROUTINE init_preconditioner(preconditioner_env,para_env,blacs_env, error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
@@ -132,6 +126,7 @@ SUBROUTINE init_preconditioner(preconditioner_env,para_env,blacs_env, error)
 
 END SUBROUTINE init_preconditioner
 
+! *****************************************************************************
 SUBROUTINE destroy_preconditioner(preconditioner_env, error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
@@ -159,14 +154,13 @@ SUBROUTINE destroy_preconditioner(preconditioner_env, error)
 
 END SUBROUTINE destroy_preconditioner
 
-!*******************************************************************************
 ! creates a preconditioner for the system (H-energy_homo S)
 ! this preconditioner is (must be) symmetric positive definite.
 ! currently uses a atom-block-diagonal form
 ! each block will be  ....
 ! might overwrite matrix_h, matrix_t
-!*******************************************************************************
 
+! *****************************************************************************
 SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h, matrix_s, &
                                       matrix_t,mo_coeff, energy_gap ,error)
 
@@ -191,7 +185,6 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h,
   CALL cp_fm_get_info(mo_coeff,ncol_global=k,error=error)
 
   ALLOCATE(eigenvalues_ot(k))
-
 
   ! XXXXXXXXXXXXXXXX do not touch the initial MOs, could be harmful for either
   !                  the case of non-equivalent MOs but also for the derivate
@@ -243,13 +236,13 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h,
     CALL stop_program("make preconditioner","Type not implemented")
   END SELECT
 
-
   DEALLOCATE(eigenvalues_ot)
 
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE make_preconditioner_single
 
+! *****************************************************************************
 SUBROUTINE make_preconditioner_lr(preconditioner_env, precon_type, ev_h0,&
                                   matrix_h, matrix_s, energy_gap ,error)
 
@@ -425,7 +418,6 @@ SUBROUTINE make_preconditioner_lr(preconditioner_env, precon_type, ev_h0,&
 
     END DO
 
-
   CASE DEFAULT
     CALL stop_program("make preconditioner","Type not implemented")
   END SELECT
@@ -434,9 +426,8 @@ SUBROUTINE make_preconditioner_lr(preconditioner_env, precon_type, ev_h0,&
 
 END SUBROUTINE make_preconditioner_lr
 
-!*******************************************************************************
 ! applies a previously created preconditioner to a full matrix
-!*******************************************************************************
+! *****************************************************************************
 SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out, error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
@@ -469,6 +460,7 @@ SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out, error
 
 END SUBROUTINE apply_preconditioner
 
+! *****************************************************************************
 SUBROUTINE apply_preconditioner_lr(preconditioner_env, matrix_in, matrix_out,error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
@@ -497,13 +489,10 @@ SUBROUTINE apply_preconditioner_lr(preconditioner_env, matrix_in, matrix_out,err
 
   CALL timestop(0.0_dp,handle)
 
-
-
 END SUBROUTINE apply_preconditioner_lr
-!***************************************************************************
 ! different types of preconditioner come here
-!***************************************************************************
 ! a sparse block diagonal approximation
+! *****************************************************************************
 SUBROUTINE apply_sparse_diag(preconditioner_env, matrix_in, matrix_out, error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
@@ -520,6 +509,7 @@ SUBROUTINE apply_sparse_diag(preconditioner_env, matrix_in, matrix_out, error)
 
 END SUBROUTINE apply_sparse_diag
 
+! *****************************************************************************
 SUBROUTINE make_sparse_diag(preconditioner_env, matrix_h, matrix_s, &
                           energy_homo, energy_gap, error)
 
@@ -580,6 +570,7 @@ SUBROUTINE make_sparse_diag(preconditioner_env, matrix_h, matrix_s, &
      END DO
   ENDDO
 END SUBROUTINE make_sparse_diag
+! *****************************************************************************
 SUBROUTINE make_local_block(block_h,block_s,block_pre, &
                                  energy_homo,energy_gap, TYPE)
 
@@ -705,12 +696,11 @@ SUBROUTINE make_local_block(block_h,block_s,block_pre, &
   DEALLOCATE(evals)
 
 END SUBROUTINE make_local_block
-!***************************************************************************
 ! different types of preconditioner come here
-!***************************************************************************
 ! a sparse one based on 2inv(A)-inv(A) F inv(A) where F is S
 ! turns out that this inverse is not symmetric positive definite unless
 ! inv(A) is scaled by some number
+! *****************************************************************************
 SUBROUTINE make_sparse_first_order(preconditioner_env, matrix_h, matrix_s, &
                                    energy_homo, energy_gap, error)
 
@@ -828,10 +818,9 @@ SUBROUTINE make_sparse_first_order(preconditioner_env, matrix_h, matrix_s, &
 
 END SUBROUTINE make_sparse_first_order
 
-!***************************************************************************
 ! different types of preconditioner come here
-!***************************************************************************
 ! a full matrix preconditioner
+! *****************************************************************************
 SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out,error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
@@ -847,25 +836,15 @@ SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out,error)
                   matrix_in,0.0_dp,matrix_out,error=error)
 END SUBROUTINE apply_full_single
 
-!!****f* preconditioner/make_full_single_inverse *
-!!
-!!   NAME
-!!     make_full_single_inverse
-!!
-!!   FUNCTION
-!!     generates a preconditioner by cholesky inverting H-lambda S+(SC)shifts(SC)^T
-!!
-!!   NOTES
-!!     this might fail if the initial guess is bad, or if the system has 'holes'
-!!
-!!   INPUTS
-!!    - matrix_c0 must be already rotated correctly.
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!     10.2006 made more robust [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief generates a preconditioner by cholesky inverting H-lambda S+(SC)shifts(SC)^T
+!> \param matrix_c 0 must be already rotated correctly.
+!> \note
+!>      this might fail if the initial guess is bad, or if the system has 'holes'
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+!>      10.2006 made more robust [Joost VandeVondele]
+! *****************************************************************************
 SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_evals, energy_gap,error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
@@ -984,30 +963,20 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
 
 END SUBROUTINE make_full_single_inverse
 
-!!****f* preconditioner/make_full_all *
-!!
-!!   NAME
-!!     make_full_all
-!!
-!!   FUNCTION
-!!     generates a state by state preconditioner based on the full hamiltonian matrix 
-!!
-!!   NOTES
-!!     includes error estimate on the hamiltonian matrix to result in a stable preconditioner
-!!     a preconditioner for each eigenstate i is generated by keeping the factorized form
-!!     U diag( something i ) U^T. It is important to only precondition in the subspace orthogonal to c0.
-!!     not only is it the only part that matters, it also simplifies the computation of
-!!     the lagrangian multipliers in the OT minimization  (i.e. if the c0 here is different
-!!     from the c0 used in the OT setup, there will be a bug).
-!!
-!!   INPUTS
-!!     - energy_gap:  should be a slight underestimate of the physical energy gap for almost all systems
-!!     the c0 are already ritz states of (h,s)
-!!
-!!   MODIFICATION HISTORY
-!!     10.2006 made more stable [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief generates a state by state preconditioner based on the full hamiltonian matrix 
+!> \param energy_gap should be a slight underestimate of the physical energy gap for almost all systems
+!>      the c0 are already ritz states of (h,s)
+!> \note
+!>      includes error estimate on the hamiltonian matrix to result in a stable preconditioner
+!>      a preconditioner for each eigenstate i is generated by keeping the factorized form
+!>      U diag( something i ) U^T. It is important to only precondition in the subspace orthogonal to c0.
+!>      not only is it the only part that matters, it also simplifies the computation of
+!>      the lagrangian multipliers in the OT minimization  (i.e. if the c0 here is different
+!>      from the c0 used in the OT setup, there will be a bug).
+!> \par History
+!>      10.2006 made more stable [Joost VandeVondele]
+! *****************************************************************************
 SUBROUTINE make_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_evals, energy_gap, error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
@@ -1141,6 +1110,7 @@ END SUBROUTINE make_full_all
 ! the corresponding apply_full_all uses the decomposed form to apply the preconditioner
 !
 
+! *****************************************************************************
 SUBROUTINE apply_full_all(preconditioner_env, matrix_in, matrix_out, error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
@@ -1183,6 +1153,7 @@ SUBROUTINE apply_full_all(preconditioner_env, matrix_in, matrix_out, error)
 
 END SUBROUTINE apply_full_all
 
+! *****************************************************************************
 SUBROUTINE make_full_single(preconditioner_env, fm, matrix_h, matrix_s, &
                        energy_homo, energy_gap , error)
 
@@ -1236,11 +1207,10 @@ SUBROUTINE make_full_single(preconditioner_env, fm, matrix_h, matrix_s, &
 
 END SUBROUTINE make_full_single
 
-!***************************************************************************
 ! different types of preconditioner come here
-!***************************************************************************
 ! only inv(S)
 ! a full matrix preconditioner
+! *****************************************************************************
 SUBROUTINE apply_full_s_inverse(preconditioner_env, matrix_in, matrix_out, error)
 
     TYPE(preconditioner_type)                :: preconditioner_env
@@ -1257,6 +1227,7 @@ SUBROUTINE apply_full_s_inverse(preconditioner_env, matrix_in, matrix_out, error
                         0.0_dp,matrix_out,error=error)
 
 END SUBROUTINE apply_full_s_inverse
+! *****************************************************************************
 SUBROUTINE make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
                                energy_homo, energy_gap, error)
 
@@ -1293,8 +1264,7 @@ SUBROUTINE make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
 
 END SUBROUTINE make_full_s_inverse
 
-
-
+! *****************************************************************************
 SUBROUTINE make_full_kinetic(preconditioner_env, fm, matrix_t, matrix_s, &
                                energy_homo, energy_gap, error)
 

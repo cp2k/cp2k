@@ -2,21 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/structure_factors [1.0] *
-!!
-!!   NAME
-!!     structure_factors
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
 MODULE structure_factors
 
   USE f77_blas
@@ -32,13 +22,9 @@ MODULE structure_factors
   PUBLIC :: structure_factor_evaluate, structure_factor_allocate
   PUBLIC :: structure_factor_deallocate, structure_factor_init
 
-!!*****
-!*****************************************************************************
-
 CONTAINS
 
-!*****************************************************************************
-
+! *****************************************************************************
 SUBROUTINE structure_factor_init(exp_igr)
     TYPE(structure_factor_type), &
       INTENT(INOUT)                          :: exp_igr
@@ -50,10 +36,8 @@ SUBROUTINE structure_factor_init(exp_igr)
 
 END SUBROUTINE structure_factor_init
 
-!*****************************************************************************
-
+! *****************************************************************************
 SUBROUTINE structure_factor_deallocate ( exp_igr )
-
 
     TYPE(structure_factor_type), &
       INTENT(INOUT)                          :: exp_igr
@@ -101,8 +85,7 @@ SUBROUTINE structure_factor_deallocate ( exp_igr )
 
 END SUBROUTINE structure_factor_deallocate
 
-!*****************************************************************************
-
+! *****************************************************************************
 SUBROUTINE structure_factor_allocate ( bds, nparts, exp_igr, &
                                       allocate_centre, allocate_shell_e, &
                                       allocate_shell_centre,nshell)
@@ -184,13 +167,10 @@ SUBROUTINE structure_factor_allocate ( bds, nparts, exp_igr, &
 
   ENDIF
 
-
 END SUBROUTINE structure_factor_allocate
 
-!*****************************************************************************
-
+! *****************************************************************************
 SUBROUTINE structure_factor_evaluate ( delta, npts, lb, ex, ey, ez )
-
 
     REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: delta
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
@@ -247,7 +227,5 @@ SUBROUTINE structure_factor_evaluate ( delta, npts, lb, ex, ey, ez )
   END DO
 
 END SUBROUTINE structure_factor_evaluate
-
-!*****************************************************************************
 
 END MODULE structure_factors

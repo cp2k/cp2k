@@ -3,22 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/ewald_environment_types [1.0] *
-!!
-!!   NAME
-!!     ewald_environment_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM NOV-30-2003
-!!
-!!   MODIFICATION HISTORY
-!!     JGH FEB-13-2007 : Distributed/replicated realspace grids
-!!     Teodoro Laino [tlaino] - University of Zurich - 12.2007
-!!
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      JGH FEB-13-2007 : Distributed/replicated realspace grids
+!>      Teodoro Laino [tlaino] - University of Zurich - 12.2007
+!> \author CJM NOV-30-2003
+! *****************************************************************************
 MODULE ewald_environment_types
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
@@ -53,24 +43,13 @@ MODULE ewald_environment_types
   IMPLICIT NONE
   PRIVATE
 
-!!****s* ewald_environment_types/ewald_environment_p_type [1.0] *
-!!
-!!   NAME
-!!     ewald_environment_p_type
-!!
-!!   FUNCTION
-!!     to build arrays of pointers
-!!
-!!   ATTRIBUTES
-!!     - ewald_env: the pointer to the ewald_env
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     11/03
-!!
-!******************************************************************************
+! *****************************************************************************
+!> \brief to build arrays of pointers
+!> \param ewald_env the pointer to the ewald_env
+!> \par History
+!>      11/03
+!> \author CJM
+! *****************************************************************************
   TYPE ewald_environment_type
     PRIVATE
     INTEGER   :: id_nr, ref_count
@@ -87,24 +66,13 @@ MODULE ewald_environment_types
     TYPE(section_vals_type), POINTER     :: poisson_section
   END TYPE ewald_environment_type
 
-!!****s* ewald_environment_types/ewald_environment_p_type [1.0] *
-!!
-!!   NAME
-!!     ewald_environment_p_type
-!!
-!!   FUNCTION
-!!     to build arrays of pointers
-!!
-!!   ATTRIBUTES
-!!     - ewald_env: the pointer to the ewald_env
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     11/03
-!!
-!******************************************************************************
+! *****************************************************************************
+!> \brief to build arrays of pointers
+!> \param ewald_env the pointer to the ewald_env
+!> \par History
+!>      11/03
+!> \author CJM
+! *****************************************************************************
   TYPE ewald_environment_p_type
      TYPE(ewald_environment_type), POINTER :: ewald_env
   END TYPE ewald_environment_p_type
@@ -124,28 +92,15 @@ MODULE ewald_environment_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_environment_types'
   INTEGER, PRIVATE, SAVE :: last_ewald_env_id_nr=0
 
-! *****************************************************************************
-
 CONTAINS
 
-!!****s* ewald_environment_types/ewald_env_get [1.0] *
-!!
-!!   NAME
-!!    ewald_env_get 
-!!
-!!   FUNCTION
-!!     Purpose: Get the EWALD environment.
-!!
-!!   ATTRIBUTES
-!!     - ewald_env: the pointer to the ewald_env
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     11/03
-!!
-!******************************************************************************
+! *****************************************************************************
+!> \brief Purpose: Get the EWALD environment.
+!> \param ewald_env the pointer to the ewald_env
+!> \par History
+!>      11/03
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE ewald_env_get( ewald_env, ewald_type, alpha, eps0, epsilon, gmax,&
        ns_max, o_spline, group, para_env, id_nr, poisson_section,&
        rcut, do_multipoles, max_multipole, error)
@@ -190,24 +145,13 @@ CONTAINS
 
   END SUBROUTINE ewald_env_get
 
-!!****s* ewald_environment_types/ewald_env_set [1.0] *
-!!
-!!   NAME
-!!    ewald_env_set 
-!!
-!!   FUNCTION
-!!     Purpose: Set the EWALD environment.
-!!
-!!   ATTRIBUTES
-!!     - ewald_env: the pointer to the ewald_env
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     11/03
-!!
-!******************************************************************************
+! *****************************************************************************
+!> \brief Purpose: Set the EWALD environment.
+!> \param ewald_env the pointer to the ewald_env
+!> \par History
+!>      11/03
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE ewald_env_set( ewald_env, ewald_type, alpha, eps0, epsilon, gmax, ns_max,&
        o_spline, para_env, id_nr, poisson_section, error )
 
@@ -249,32 +193,15 @@ CONTAINS
     ENDIF
   END SUBROUTINE ewald_env_set
 
-!!****f* ewald_environment_types/ewald_env_create [1.0] *
-!!
-!!   NAME
-!!     ewald_env_create
-!!
-!!   SYNOPSIS
-!!     Subroutine ewald_env_create(ewald_env, error)
-!!       Type(ewald_environment_type), Pointer:: ewald_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine ewald_env_create
-!!
-!!   FUNCTION
-!!     allocates and intitializes a ewald_env
-!!
-!!   ARGUMENTS
-!!     - ewald_env: the object to create
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief allocates and intitializes a ewald_env
+!> \param ewald_env the object to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE ewald_env_create ( ewald_env, para_env, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -303,37 +230,16 @@ CONTAINS
        ewald_env%para_env => para_env
     END IF
   END SUBROUTINE ewald_env_create
-!***************************************************************************
 
-!!****f* ewald_environment_types/ewald_env_retain [1.0] *
-!!
-!!   NAME
-!!     ewald_env_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine ewald_env_retain(ewald_env, error)
-!!       Type(ewald_environment_type), Pointer:: ewald_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine ewald_env_retain
-!!
-!!   FUNCTION
-!!     retains the given ewald_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - ewald_env: the object to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given ewald_env (see doc/ReferenceCounting.html)
+!> \param ewald_env the object to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE ewald_env_retain(ewald_env,error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -352,35 +258,15 @@ CONTAINS
     END IF
   END SUBROUTINE ewald_env_retain
 
-!!****f* ewald_environment_types/ewald_env_release [1.0] *
-!!
-!!   NAME
-!!     ewald_env_release
-!!
-!!   SYNOPSIS
-!!     Subroutine ewald_env_release(ewald_env, error)
-!!       Type(ewald_environment_type), Pointer:: ewald_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine ewald_env_release
-!!
-!!   FUNCTION
-!!     releases the given ewald_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - ewald_env: the object to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given ewald_env (see doc/ReferenceCounting.html)
+!> \param ewald_env the object to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE ewald_env_release(ewald_env,error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -406,24 +292,11 @@ CONTAINS
     NULLIFY(ewald_env)
   END SUBROUTINE ewald_env_release
 
-!!****s* ewald_environment_types/read_ewald_section [1.0] *
-!!
-!!   NAME
-!!     read_ewald_section
-!!
-!!   FUNCTION
-!!     Purpose: read the EWALD section
-!!
-!!   ATTRIBUTES
-!!     - ewald_env: the pointer to the ewald_env
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] -University of Zurich - 2005
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!******************************************************************************
+! *****************************************************************************
+!> \brief Purpose: read the EWALD section
+!> \param ewald_env the pointer to the ewald_env
+!> \author Teodoro Laino [tlaino] -University of Zurich - 2005
+! *****************************************************************************
   SUBROUTINE read_ewald_section ( ewald_env, ewald_section, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(section_vals_type), POINTER         :: ewald_section
@@ -548,25 +421,12 @@ CONTAINS
 
   END SUBROUTINE read_ewald_section
 
-!!****s* ewald_environment_types/find_ewald_optimal_value [1.0] *
-!!
-!!   NAME
-!!     find_ewald_optimal_value
-!!
-!!   FUNCTION
-!!     triggers (by bisection) the optimal value for EWALD parameter x
-!!     EXP(-x^2)/x^2 = EWALD_ACCURACY
-!!
-!!   ATTRIBUTES
-!!     - ewald_env: the pointer to the ewald_env
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - University of Zurich - 12.2007
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!******************************************************************************
+! *****************************************************************************
+!> \brief triggers (by bisection) the optimal value for EWALD parameter x
+!>      EXP(-x^2)/x^2 = EWALD_ACCURACY
+!> \param ewald_env the pointer to the ewald_env
+!> \author Teodoro Laino [tlaino] - University of Zurich - 12.2007
+! *****************************************************************************
   FUNCTION find_ewald_optimal_value(precs,error) RESULT(value)
     REAL(KIND=dp)                            :: precs
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -605,8 +465,6 @@ CONTAINS
     END DO
     value = s
   END FUNCTION find_ewald_optimal_value
-!***************************************************************************
 
 END MODULE ewald_environment_types
 
-!***************************************************************************

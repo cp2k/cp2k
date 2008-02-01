@@ -2,30 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/global_types [1.0] *
-!!
-!!   NAME
-!!     global_types
-!!
-!!   FUNCTION
-!!     represent the global information of a run: the input file,
-!!     parallel environment (and partially output).
-!!     Use sparingly, try not to send it too deep in your structures.
-!!
-!!   AUTHOR
-!!     JGH,MK,fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     - print keys, basis_set_file name and potential_file_name added to the
-!!       global type (27.02.2001, MK)
-!!     - JGH (28.11.2001) : added pp_library_path to type
-!!     - Merged with MODULE print_keys (17.01.2002, MK)
-!!     -  reference counting, create (08.2004, fawzi)
-!!     - new (parallel) random number generator (11.03.06,MK)
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief represent the global information of a run: the input file,
+!>      parallel environment (and partially output).
+!>      Use sparingly, try not to send it too deep in your structures.
+!> \par History
+!>      - print keys, basis_set_file name and potential_file_name added to the
+!>        global type (27.02.2001, MK)
+!>      - JGH (28.11.2001) : added pp_library_path to type
+!>      - Merged with MODULE print_keys (17.01.2002, MK)
+!>      -  reference counting, create (08.2004, fawzi)
+!>      - new (parallel) random number generator (11.03.06,MK)
+!> \author JGH,MK,fawzi
+! *****************************************************************************
 MODULE global_types
 
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -78,30 +68,18 @@ MODULE global_types
             globenv_retain,&
             globenv_release
 
-!!*** ************************************************************************
-
-!!****s* global_types/global_environment_type [1.0] *
-!!
-!!   NAME
-!!     global_environment_type
-!!
-!!   FUNCTION
-!!     contains the initally parsed file and the initial parallel environment
-!!
-!!   NOTES
-!!     This is not but really should be passed as pointer and use reference
-!!     counting. Use it accordingly wherever possible.
-!!
-!!   ATTRIBUTES
-!!     - id_nr: identification number (unique)
-!!     - ref_count: reference count (see doc/ReferenceCounting.html)
-!!     - handle: handle with the total time of the computation
-!!
-!!     Personally I think that all the other attributes should go away
-!!     (and maybe add  a logger)[fawzi]
-!!
-!!   SOURCE
-!!
+! *****************************************************************************
+!> \brief contains the initally parsed file and the initial parallel environment
+!> \param id_nr identification number (unique)
+!> \param ref_count reference count (see doc/ReferenceCounting.html)
+!> \param handle handle with the total time of the computation
+!> 
+!>      Personally I think that all the other attributes should go away
+!>      (and maybe add  a logger)[fawzi]
+!> \note
+!>      This is not but really should be passed as pointer and use reference
+!>      counting. Use it accordingly wherever possible.
+! *****************************************************************************
   TYPE global_environment_type
      INTEGER :: id_nr, ref_count
      TYPE(rng_stream_type), POINTER          :: gaussian_rng_stream
@@ -115,31 +93,16 @@ MODULE global_types
      REAL(KIND=dp) :: cp2k_start_time, cp2k_target_time
      INTEGER :: handle
   END TYPE global_environment_type
-!!***
-! *****************************************************************************
 
 CONTAINS
 
-!!****f* global_types/globenv_create [1.0] *
-!!
-!!   NAME
-!!     globenv_create
-!!
-!!   FUNCTION
-!!     creates a globenv
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - globenv: the globenv to create
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a globenv
+!> \param globenv the globenv to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE globenv_create(globenv, error)
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -168,29 +131,14 @@ CONTAINS
        NULLIFY (globenv%gaussian_rng_stream)
     END IF
   END SUBROUTINE globenv_create
-!***************************************************************************
 
-
-!!****f* global_types/globenv_retain [1.0] *
-!!
-!!   NAME
-!!     globenv_retain
-!!
-!!   FUNCTION
-!!     retains the global environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - globenv: the global environment to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the global environment
+!> \param globenv the global environment to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE globenv_retain(globenv, error)
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -208,28 +156,14 @@ SUBROUTINE globenv_retain(globenv, error)
      globenv%ref_count=globenv%ref_count+1
   END IF
 END SUBROUTINE globenv_retain
-!***************************************************************************
 
-!!****f* global_types/globenv_release [1.0] *
-!!
-!!   NAME
-!!     globenv_release
-!!
-!!   FUNCTION
-!!     releases the global environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - globenv: the global environment to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the global environment
+!> \param globenv the global environment to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE globenv_release(globenv, para_env, error)
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -256,6 +190,5 @@ SUBROUTINE globenv_release(globenv, para_env, error)
   END IF
   NULLIFY(globenv)
 END SUBROUTINE globenv_release
-!***************************************************************************
 
 END MODULE global_types

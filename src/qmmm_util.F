@@ -3,26 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/qmmm_util *
-!!
-!!   NAME
-!!    qmmm_util
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     09.2004 created [tlaino]
-!!
-!!   SOURCE
-!**************************************************************************** 
- 
+! *****************************************************************************
+!> \par History
+!>      09.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
 MODULE qmmm_util
   USE cell_types,                      ONLY: cell_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
@@ -52,29 +37,15 @@ MODULE qmmm_util
 
 CONTAINS
 
-  !!****f* qmmm_util/apply_qmmm_walls [1.0] *
-  !!
-  !!   NAME
-  !!     apply_qmmm_walls
-  !!
-  !!   FUNCTION
-  !!     Apply QM walls in order to avoid QM atoms escaping from the QM
-  !!     Box
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     08.2007 created [tlaino] - Zurich University
-  !!
-  !!*** ********************************************************************** 
+! *****************************************************************************
+!> \brief Apply QM walls in order to avoid QM atoms escaping from the QM
+!>      Box
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2007 created [tlaino] - Zurich University
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE apply_qmmm_walls(force_env,error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -173,29 +144,15 @@ CPSourceFileRef,&
 
   END SUBROUTINE apply_qmmm_walls
 
-  !!****f* qmmm_util/apply_qmmm_translate [1.0] *
-  !!
-  !!   NAME
-  !!    apply_qmmm_translate 
-  !!
-  !!   FUNCTION
-  !!     Apply translation to the full system in order to center the QM
-  !!     system into the QM box
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     08.2007 created [tlaino] - Zurich University
-  !!
-  !!*** ********************************************************************** 
+! *****************************************************************************
+!> \brief Apply translation to the full system in order to center the QM
+!>      system into the QM box
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2007 created [tlaino] - Zurich University
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE apply_qmmm_translate(force_env,error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout)       :: error

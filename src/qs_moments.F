@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_moments [1.0] *
-!!
-!!   NAME
-!!     qs_moments
-!!
-!!   FUNCTION
-!!     Calculates the moment integrals <a|r^m|b>
-!!
-!!   AUTHOR
-!!     JGH (20.07.2006)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Calculates the moment integrals <a|r^m|b>
+!> \par History
+!>      none
+!> \author JGH (20.07.2006)
+! *****************************************************************************
 MODULE qs_moments
 
   USE ai_moments,                      ONLY: contract_cossin,&
@@ -93,13 +83,9 @@ MODULE qs_moments
   PUBLIC :: build_local_moment_matrix, build_berry_moment_matrix
   PUBLIC :: qs_moment_berry_phase, qs_moment_locop
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE build_local_moment_matrix(qs_env,moments,nmoments,ref_point,ref_points,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -360,7 +346,6 @@ CONTAINS
 
                 END DO
 
-
               END DO
             END DO
 
@@ -392,7 +377,6 @@ CONTAINS
   END SUBROUTINE build_local_moment_matrix
 
 ! *****************************************************************************
-
   SUBROUTINE build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -608,7 +592,6 @@ CONTAINS
   END SUBROUTINE build_berry_moment_matrix
 
 ! *****************************************************************************
-
   SUBROUTINE qs_moment_berry_phase (qs_env,nmoments,reference,ref_point,unit_number,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -979,6 +962,7 @@ CONTAINS
 
   END SUBROUTINE qs_moment_berry_phase
 
+! *****************************************************************************
   SUBROUTINE op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
 
     TYPE(real_matrix_type), POINTER          :: cosmat, sinmat
@@ -1005,8 +989,7 @@ CONTAINS
 
   END SUBROUTINE op_orbbas
 
-! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE qs_moment_locop (qs_env,nmoments,reference,ref_point,unit_number,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1136,6 +1119,7 @@ CONTAINS
 
   END SUBROUTINE qs_moment_locop
 
+! *****************************************************************************
   SUBROUTINE set_label(label,ix,iy,iz)
     CHARACTER(LEN=*), INTENT(OUT)            :: label
     INTEGER, INTENT(IN)                      :: ix, iy, iz
@@ -1155,6 +1139,7 @@ CONTAINS
     
   END SUBROUTINE set_label
 
+! *****************************************************************************
   SUBROUTINE print_moments(unit_number,nmom,rmom,rlab,rcc)
     INTEGER, INTENT(IN)                      :: unit_number, nmom
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: rmom
@@ -1217,10 +1202,5 @@ CONTAINS
 
   END SUBROUTINE print_moments
 
-!***************************************************************************
-
-!***************************************************************************
-
 END MODULE qs_moments
 
-! *****************************************************************************

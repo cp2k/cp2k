@@ -3,23 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/memory_utilities [1.0] *
-!!
-!!   NAME
-!!     memory_utilities
-!!
-!!   FUNCTION
-!!     Utility routines for the memory handling.
-!!     Uses stop_memory to handle exceptions
-!!
-!!   AUTHOR
-!!     Matthias Krack (25.06.1999)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Utility routines for the memory handling.
+!>      Uses stop_memory to handle exceptions
+!> \par History
+!>      none
+!> \author Matthias Krack (25.06.1999)
+! *****************************************************************************
 MODULE memory_utilities
 
   USE f77_blas
@@ -45,27 +35,14 @@ MODULE memory_utilities
                      reallocate_8i2
   END INTERFACE
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
-!!****** memory_utilities/reallocate_c1 [1.0] *
-!!
-!!   NAME
-!!     reallocate_c1
-!!
-!!   FUNCTION
-!!     (Re)Allocate a complex vector with a new dimension 
-!!
-!!   AUTHOR
-!!     Matthias Krack (28.11.2005,MK)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief (Re)Allocate a complex vector with a new dimension 
+!> \par History
+!>      none
+!> \author Matthias Krack (28.11.2005,MK)
+! *****************************************************************************
   SUBROUTINE reallocate_c1(p,lb1_new,ub1_new)
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: p
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
@@ -80,22 +57,12 @@ CONTAINS
 
   END SUBROUTINE reallocate_c1
 
-!!****** memory_utilities/reallocate_c2 [1.0] *
-!!
-!!   NAME
-!!     reallocate_c2
-!!
-!!   FUNCTION
-!!     (Re)Allocate a complex array 2D with a new dimension 
-!!
-!!   AUTHOR
-!!     Matthias Krack (28.11.2005,MK)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief (Re)Allocate a complex array 2D with a new dimension 
+!> \par History
+!>      none
+!> \author Matthias Krack (28.11.2005,MK)
+! *****************************************************************************
   SUBROUTINE reallocate_c2(p,lb1_new,ub1_new,lb2_new,ub2_new)
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: p
@@ -112,22 +79,12 @@ CONTAINS
 
   END SUBROUTINE reallocate_c2
 
-!!****** memory_utilities/reallocate_c3 [1.0] *
-!!
-!!   NAME
-!!     reallocate_c3
-!!
-!!   FUNCTION
-!!     (Re)Allocate a complex array 3D with a new dimension 
-!!
-!!   AUTHOR
-!!     Matthias Krack (28.11.2005,MK)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief (Re)Allocate a complex array 3D with a new dimension 
+!> \par History
+!>      none
+!> \author Matthias Krack (28.11.2005,MK)
+! *****************************************************************************
   SUBROUTINE reallocate_c3(p,lb1_new,ub1_new,lb2_new,ub2_new,lb3_new,ub3_new)
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: p
@@ -144,22 +101,12 @@ CONTAINS
 
   END SUBROUTINE reallocate_c3
 
-!!****** memory_utilities/reallocate_c4 [1.0] *
-!!
-!!   NAME
-!!     reallocate_c4
-!!
-!!   FUNCTION
-!!     (Re)Allocate a complex array 4D with a new dimension 
-!!
-!!   AUTHOR
-!!     Matthias Krack (28.11.2005,MK)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief (Re)Allocate a complex array 4D with a new dimension 
+!> \par History
+!>      none
+!> \author Matthias Krack (28.11.2005,MK)
+! *****************************************************************************
   SUBROUTINE reallocate_c4(p,lb1_new,ub1_new,lb2_new,ub2_new,lb3_new,ub3_new,&
        lb4_new,ub4_new)
     COMPLEX(KIND=dp), &
@@ -178,22 +125,12 @@ CONTAINS
 
   END SUBROUTINE reallocate_c4
 
-!!****** memory_utilities/reallocate_i1 [1.0] *
-!!
-!!   NAME
-!!     reallocate_i1
-!!
-!!   FUNCTION
-!!     (Re)Allocate an integer vector with a new dimension.
-!!
-!!   AUTHOR
-!!     Matthias Krack (18.07.2002,MK)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief (Re)Allocate an integer vector with a new dimension.
+!> \par History
+!>      none
+!> \author Matthias Krack (18.07.2002,MK)
+! *****************************************************************************
   SUBROUTINE reallocate_i1(p,lb1_new,ub1_new)
     INTEGER, DIMENSION(:), POINTER           :: p
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
@@ -207,22 +144,12 @@ CONTAINS
 
   END SUBROUTINE reallocate_i1
 
-!!****** memory_utilities/reallocate_8i1 [1.0] *
-!!
-!!   NAME
-!!     reallocate_8i1
-!!
-!!   FUNCTION
-!!     (Re)Allocate an integer (int_8) vector with a new dimension.
-!!
-!!   AUTHOR
-!!     Matthias Krack (18.07.2002,MK)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief (Re)Allocate an integer (int_8) vector with a new dimension.
+!> \par History
+!>      none
+!> \author Matthias Krack (18.07.2002,MK)
+! *****************************************************************************
   SUBROUTINE reallocate_8i1(p,lb1_new,ub1_new)
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: p
@@ -238,22 +165,12 @@ CONTAINS
 
   END SUBROUTINE reallocate_8i1
 
-!!****** memory_utilities/reallocate_8i2 [1.0] *
-!!
-!!   NAME
-!!     reallocate_8i2
-!!
-!!   FUNCTION
-!!     (Re)Allocate an integer (int_8) array with a new dimension.
-!!
-!!   AUTHOR
-!!     Matthias Krack (18.07.2002,MK)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief (Re)Allocate an integer (int_8) array with a new dimension.
+!> \par History
+!>      none
+!> \author Matthias Krack (18.07.2002,MK)
+! *****************************************************************************
   SUBROUTINE reallocate_8i2(p,lb1_new,ub1_new,lb2_new,ub2_new)
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: p
@@ -270,22 +187,12 @@ CONTAINS
 
   END SUBROUTINE reallocate_8i2
 
-!!****** memory_utilities/reallocate_i2 [1.0] *
-!!
-!!   NAME
-!!     reallocate_i2
-!!
-!!   FUNCTION
-!!     (Re)Allocate an integer array with a new dimension.
-!!
-!!   AUTHOR
-!!     Matthias Krack (18.07.2002,MK)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief (Re)Allocate an integer array with a new dimension.
+!> \par History
+!>      none
+!> \author Matthias Krack (18.07.2002,MK)
+! *****************************************************************************
   SUBROUTINE reallocate_i2(p,lb1_new,ub1_new,lb2_new,ub2_new)
     INTEGER, DIMENSION(:, :), POINTER        :: p
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new, lb2_new, &
@@ -300,22 +207,12 @@ CONTAINS
 
   END SUBROUTINE reallocate_i2
 
-!!****** memory_utilities/reallocate_i3 [1.0] *
-!!
-!!   NAME
-!!     reallocate_i3
-!!
-!!   FUNCTION
-!!     (Re)Allocate an integer array 3D with a new dimension.
-!!
-!!   AUTHOR
-!!     Matthias Krack (18.07.2002,MK)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief (Re)Allocate an integer array 3D with a new dimension.
+!> \par History
+!>      none
+!> \author Matthias Krack (18.07.2002,MK)
+! *****************************************************************************
   SUBROUTINE reallocate_i3(p,lb1_new,ub1_new,lb2_new,ub2_new,lb3_new,ub3_new)
     INTEGER, DIMENSION(:, :, :), POINTER     :: p
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new, lb2_new, &
@@ -330,22 +227,12 @@ CONTAINS
 
   END SUBROUTINE reallocate_i3
 
-!!****** memory_utilities/reallocate_i3 [1.0] *
-!!
-!!   NAME
-!!     reallocate_i3
-!!
-!!   FUNCTION
-!!     (Re)Allocate an integer array 3D with a new dimension.
-!!
-!!   AUTHOR
-!!     Matthias Krack (04.10.2002,MK)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief (Re)Allocate an integer array 3D with a new dimension.
+!> \par History
+!>      none
+!> \author Matthias Krack (04.10.2002,MK)
+! *****************************************************************************
   SUBROUTINE reallocate_i4(p,lb1_new,ub1_new,lb2_new,ub2_new,lb3_new,ub3_new,&
        lb4_new,ub4_new)
     INTEGER, DIMENSION(:, :, :, :), POINTER  :: p
@@ -363,22 +250,12 @@ CONTAINS
 
   END SUBROUTINE reallocate_i4
 
-!!****** memory_utilities/reallocate_r1 [1.0] *
-!!
-!!   NAME
-!!     reallocate_r1
-!!
-!!   FUNCTION
-!!     (Re)Allocate an real vector with a new dimension.
-!!
-!!   AUTHOR
-!!     Matthias Krack (18.07.2002,MK)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief (Re)Allocate an real vector with a new dimension.
+!> \par History
+!>      none
+!> \author Matthias Krack (18.07.2002,MK)
+! *****************************************************************************
   SUBROUTINE reallocate_r1(p,lb1_new,ub1_new)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: p
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
@@ -392,22 +269,12 @@ CONTAINS
 
   END SUBROUTINE reallocate_r1
 
-!!****** memory_utilities/reallocate_r2 [1.0] *
-!!
-!!   NAME
-!!     reallocate_r2
-!!
-!!   FUNCTION
-!!     (Re)Allocate an real array with new dimensions.
-!!
-!!   AUTHOR
-!!     Matthias Krack (18.07.2002,MK)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief (Re)Allocate an real array with new dimensions.
+!> \par History
+!>      none
+!> \author Matthias Krack (18.07.2002,MK)
+! *****************************************************************************
   SUBROUTINE reallocate_r2(p,lb1_new,ub1_new,lb2_new,ub2_new)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new, lb2_new, &
@@ -423,22 +290,12 @@ CONTAINS
 
   END SUBROUTINE reallocate_r2
 
-!!****** memory_utilities/reallocate_r3 [1.0] *
-!!
-!!   NAME
-!!     reallocate_r3
-!!
-!!   FUNCTION
-!!     (Re)Allocate an real array 3D with new dimensions.
-!!
-!!   AUTHOR
-!!     Matthias Krack (18.07.2002,MK)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief (Re)Allocate an real array 3D with new dimensions.
+!> \par History
+!>      none
+!> \author Matthias Krack (18.07.2002,MK)
+! *****************************************************************************
   SUBROUTINE reallocate_r3(p,lb1_new,ub1_new,lb2_new,ub2_new,lb3_new,ub3_new)
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: p
@@ -455,22 +312,12 @@ CONTAINS
 
   END SUBROUTINE reallocate_r3
 
-!!****** memory_utilities/reallocate_r4 [1.0] *
-!!
-!!   NAME
-!!     reallocate_r4
-!!
-!!   FUNCTION
-!!     (Re)Allocate an real array 4D with new dimensions.
-!!
-!!   AUTHOR
-!!     Matthias Krack (04.10.2002,MK)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief (Re)Allocate an real array 4D with new dimensions.
+!> \par History
+!>      none
+!> \author Matthias Krack (04.10.2002,MK)
+! *****************************************************************************
   SUBROUTINE reallocate_r4(p,lb1_new,ub1_new,lb2_new,ub2_new,lb3_new,ub3_new,&
                              lb4_new,ub4_new)
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
@@ -489,22 +336,12 @@ CONTAINS
 
   END SUBROUTINE reallocate_r4
 
-!!****** memory_utilities/reallocate_r5 [1.0] *
-!!
-!!   NAME
-!!     reallocate_r5
-!!
-!!   FUNCTION
-!!     (Re)Allocate an real array 5D with new dimensions.
-!!
-!!   AUTHOR
-!!     Matthias Krack (04.10.2002,MK)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief (Re)Allocate an real array 5D with new dimensions.
+!> \par History
+!>      none
+!> \author Matthias Krack (04.10.2002,MK)
+! *****************************************************************************
   SUBROUTINE reallocate_r5(p,lb1_new,ub1_new,lb2_new,ub2_new,lb3_new,ub3_new,&
                              lb4_new,ub4_new,lb5_new,ub5_new)
     REAL(KIND=dp), &
@@ -524,22 +361,12 @@ CONTAINS
 
   END SUBROUTINE reallocate_r5
 
-!!****** memory_utilities/reallocate_l1 [1.0] *
-!!
-!!   NAME
-!!     reallocate_l1
-!!
-!!   FUNCTION
-!!     (Re)Allocate a logical vector with a new dimension.
-!!
-!!   AUTHOR
-!!     Matthias Krack (18.07.2002,MK)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief (Re)Allocate a logical vector with a new dimension.
+!> \par History
+!>      none
+!> \author Matthias Krack (18.07.2002,MK)
+! *****************************************************************************
   SUBROUTINE reallocate_l1(p,lb1_new,ub1_new)
     LOGICAL, DIMENSION(:), POINTER           :: p
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
@@ -553,25 +380,15 @@ CONTAINS
 
   END SUBROUTINE reallocate_l1
 
-!!****** memory_utilities/reallocate_s1 [1.0] *
-!!
-!!   NAME
-!!     reallocate_s1
-!!
-!!   FUNCTION
-!!     (Re)Allocate a vector of string variables of default string length.
-!!
-!!   AUTHOR
-!!     Matthias Krack (18.07.2002,MK)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   NOTES
-!!     (Maybe outdated) This routine doesnt work on SUN/Solaris!!! 
-!!                      It should probably not be used. (Thomas Chassaing)
-!!
-!******************************************************************************
+! *****************************************************************************
+!> \brief (Re)Allocate a vector of string variables of default string length.
+!> \note
+!>      (Maybe outdated) This routine doesnt work on SUN/Solaris!!! 
+!>                       It should probably not be used. (Thomas Chassaing)
+!> \par History
+!>      none
+!> \author Matthias Krack (18.07.2002,MK)
+! *****************************************************************************
   SUBROUTINE reallocate_s1(p,lb1_new,ub1_new)
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: p

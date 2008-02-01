@@ -2,29 +2,17 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/ai_moments [1.0] *
-!!
-!!   NAME
-!!     ai_moments
-!!
-!!   FUNCTION
-!!     Calculation of the moment integrals over Cartesian Gaussian-type
-!!     functions.
-!!
-!!   AUTHOR
-!!     J. Hutter (16.02.2005)
-!!
-!!   LITERATURE
-!!     S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!******************************************************************************
-
-MODULE ai_moments
 
 ! *****************************************************************************
+!> \brief Calculation of the moment integrals over Cartesian Gaussian-type
+!>      functions.
+!> \par Literature
+!>      S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
+!> \par History
+!>      none
+!> \author J. Hutter (16.02.2005)
+! *****************************************************************************
+MODULE ai_moments
 
 ! ax,ay,az  : Angular momentum index numbers of orbital a.
 ! bx,by,bz  : Angular momentum index numbers of orbital b.
@@ -38,8 +26,6 @@ MODULE ai_moments
 ! rpgf{a,b} : Radius of the primitive Gaussian-type function a or b.
 ! zet{a,b}  : Exponents of the Gaussian-type functions a or b.
 ! zetp      : Reciprocal of the sum of the exponents of orbital a and b.
-
-! *****************************************************************************
 
   USE ai_derivatives,                  ONLY: adbdr,&
                                              dabdr
@@ -57,13 +43,9 @@ MODULE ai_moments
 
   PUBLIC :: cossin, moment, diffop, diff_momop, contract_cossin
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE contract_cossin(cos_block, sin_block,&
                              iatom,ncoa,nsgfa,sgfa,sphi_a,ldsa,&
                              jatom,ncob,nsgfb,sgfb,sphi_b,ldsb,&
@@ -121,11 +103,9 @@ CONTAINS
                     SIZE(sin_block,1))
        END IF
 
-    
   END SUBROUTINE contract_cossin
 
 ! *****************************************************************************
-
   SUBROUTINE cossin(la_max,npgfa,zeta,rpgfa,la_min,&
                     lb_max,npgfb,zetb,rpgfb,lb_min,&
                     rac,rbc,kvec,cosab,sinab)
@@ -189,7 +169,6 @@ CONTAINS
         f2 = 0.5_dp*zetp
 
         kdp = zetp * DOT_PRODUCT ( kvec, zeta(ipgf)*rac + zetb(jpgf)*rbc ) 
-
 
 !       *** Calculate the basic two-center cos/sin integral [s|cos/sin|s] ***
 
@@ -676,7 +655,6 @@ CONTAINS
   END SUBROUTINE cossin
 
 ! *****************************************************************************
-
   SUBROUTINE moment(la_max,npgfa,zeta,rpgfa,la_min,&
                     lb_max,npgfb,zetb,rpgfb,lb_min,&
                     lc_max,rac,rbc,mab)
@@ -1198,18 +1176,10 @@ CONTAINS
   END SUBROUTINE moment
 
 ! *****************************************************************************
-!!
-!!   NAME
-!!     diffop
-!!
-!!   FUNCTION
-!!      This returns the derivative of the overlap integrals [a|b], with respect
-!!      to the position of the primitive on the  left, i.e.
-!!      [da/dR_ai|b] =  2*zeta*[a+1i|b] - Ni(a)[a-1i|b]
-!!      
-!!   SOURCE
-!******************************************************************************
-
+!> \brief This returns the derivative of the overlap integrals [a|b], with respect
+!>       to the position of the primitive on the  left, i.e.
+!>       [da/dR_ai|b] =  2*zeta*[a+1i|b] - Ni(a)[a-1i|b]
+! *****************************************************************************
   SUBROUTINE diffop(la_max,npgfa,zeta,rpgfa,la_min,&
                     lb_max,npgfb,zetb,rpgfb,lb_min,&
                     rab,difab)
@@ -1256,27 +1226,17 @@ CONTAINS
   END SUBROUTINE diffop
 
 ! *****************************************************************************
-
+!> \brief This returns the derivative of the moment integrals [a|\mu|b], with respect
+!>       to the position of the primitive on the  left, i.e.
+!>       [da/dR_ai|\mu|b] =  2*zeta*[a+1i|\mu|b] - Ni(a)[a-1i|\mu|b]
+!>       order indicates the max order of the moment operator to be calculated
+!>       1: dipole
+!>       2: quadrupole
+!>       ...
+!> \note
+!>       Since the momentum operator is symmetric, if R_c does not depend on a and b,
+!>       [da/dR_ai|\mu|b]=-[a|\mu|db/dR_bi]=[a|\mu|db/dr_i]
 ! *****************************************************************************
-!!
-!!   NAME
-!!     diff_momop
-!!
-!!   FUNCTION
-!!      This returns the derivative of the moment integrals [a|\mu|b], with respect
-!!      to the position of the primitive on the  left, i.e.
-!!      [da/dR_ai|\mu|b] =  2*zeta*[a+1i|\mu|b] - Ni(a)[a-1i|\mu|b]
-!!      order indicates the max order of the moment operator to be calculated
-!!      1: dipole
-!!      2: quadrupole
-!!      ...
-!!   NOTE
-!!      Since the momentum operator is symmetric, if R_c does not depend on a and b,
-!!      [da/dR_ai|\mu|b]=-[a|\mu|db/dR_bi]=[a|\mu|db/dr_i]
-!!      
-!!   SOURCE
-!******************************************************************************
-
   SUBROUTINE diff_momop(la_max,npgfa,zeta,rpgfa,la_min,&
                     lb_max,npgfb,zetb,rpgfb,lb_min,&
                     order,rac,rbc,difmab,mab_ext)
@@ -1387,8 +1347,5 @@ CONTAINS
     DEALLOCATE(difmab_tmp,STAT=istat)
 
   END SUBROUTINE diff_momop
-
-! *****************************************************************************
-
 
 END MODULE ai_moments

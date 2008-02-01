@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_val_types [1.0] *
-!!
-!!   NAME
-!!     input_val_types
-!!
-!!   FUNCTION
-!!     a wrapper for basic fortran types.
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 created
-!!
-!!   SOURCE
-!****************************************************************************
-
+! *****************************************************************************
+!> \brief a wrapper for basic fortran types.
+!> \par History
+!>      06.2004 created
+!> \author fawzi
+! *****************************************************************************
 MODULE input_val_types
   USE cp_parser,                       ONLY: default_continuation_character
   USE cp_units,                        ONLY: cp_unit_create,&
@@ -53,60 +39,29 @@ MODULE input_val_types
   PUBLIC :: val_create, val_retain, val_release, val_get, val_write,&
             val_write_internal, val_duplicate
 !***
-!****************************************************************************
 
   INTEGER, PARAMETER, PUBLIC :: no_t=0, logical_t=1, &
        integer_t=2, real_t=3, char_t=4, enum_t=5, lchar_t=6
 
-!!****s* input_val_types/val_p_type [1.0] *
-!!
-!!   NAME
-!!     val_p_type
-!!
-!!   FUNCTION
-!!     pointer to a val, to create arrays of pointers
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - val: to pointer to the val
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief pointer to a val, to create arrays of pointers
+!> \param val to pointer to the val
+!> \author fawzi
+! *****************************************************************************
   TYPE val_p_type
      TYPE(val_type), POINTER :: val
   END TYPE val_p_type
-!!***
-  !****************************************************************************
 
-!!****s* input_val_types/val_type *
-!!
-!!   NAME
-!!     val_type
-!!
-!!   FUNCTION
-!!     a type to  have a wrapper that stores any basic fortran type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - type_of_var: type stored in the val (should be one of no_t,
-!!       integer_t, logical_t, real_t, char_t)
-!!     - l_val, i_val, c_val, r_val: arrays with logical,integer,character
-!!       or real values. Only one should be associated (and namely the one
-!!       specified in type_of_var).
-!!     - enum: an enumaration to map char to integers
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief a type to  have a wrapper that stores any basic fortran type
+!> \param type_of_var type stored in the val (should be one of no_t,
+!>        integer_t, logical_t, real_t, char_t)
+!> \param l_val , i_val, c_val, r_val: arrays with logical,integer,character
+!>        or real values. Only one should be associated (and namely the one
+!>        specified in type_of_var).
+!> \param enum an enumaration to map char to integers
+!> \author fawzi
+! *****************************************************************************
   TYPE val_type
      INTEGER :: ref_count, id_nr, type_of_var
      LOGICAL, DIMENSION(:), POINTER :: l_val
@@ -116,37 +71,24 @@ MODULE input_val_types
      REAL(kind=dp), DIMENSION(:), POINTER :: r_val
      TYPE(enumeration_type), POINTER :: enum
   END TYPE val_type
-!!***
-  !****************************************************************************
 CONTAINS
 
-!!****f* input_val_types/val_create *
-!!
-!!   NAME
-!!     val_create
-!!
-!!   FUNCTION
-!!     creates a keyword value
-!!
-!!   NOTES
-!!     using an enumeration only i_val/i_vals/i_vals_ptr are accepted
-!!
-!!   INPUTS
-!!     - val: the object to be created
-!!     - l_val,i_val,r_val,c_val,lc_val: a logical,integer,real,string, long
-!!       string to be stored in the val
-!!     - l_vals, i_vals, r_vals, c_vals: an array of logicals,
-!!       integers, reals, characters, long strings to be stored in val
-!!     - l_vals_ptr, i_vals_ptr, r_vals_ptr, c_vals_ptr: an array of logicals,
-!!       ... to be stored in val, val will get the ownership of the pointer
-!!     - enum: the enumaration type this value is using
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a keyword value
+!> \param val the object to be created
+!> \param l_val ,i_val,r_val,c_val,lc_val: a logical,integer,real,string, long
+!>        string to be stored in the val
+!> \param l_vals , i_vals, r_vals, c_vals: an array of logicals,
+!>        integers, reals, characters, long strings to be stored in val
+!> \param l_vals_ptr , i_vals_ptr, r_vals_ptr, c_vals_ptr: an array of logicals,
+!>        ... to be stored in val, val will get the ownership of the pointer
+!> \param enum the enumaration type this value is using
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      using an enumeration only i_val/i_vals/i_vals_ptr are accepted
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
      r_val,r_vals,r_vals_ptr,c_val,c_vals,c_vals_ptr,lc_val,lc_vals,&
      lc_vals_ptr,enum,error)
@@ -340,28 +282,14 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
      CPPostcondition(ASSOCIATED(val%enum).eqv.val%type_of_var==enum_t,cp_failure_level,routineP,error,failure)
   END IF
 END SUBROUTINE val_create
-!***************************************************************************
 
-!!****f* input_val_types/val_release *
-!!
-!!   NAME
-!!     val_release
-!!
-!!   FUNCTION
-!!     releases the given val
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - val: the val to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given val
+!> \param val the val to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE val_release(val,error)
     TYPE(val_type), POINTER                  :: val
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -402,28 +330,14 @@ SUBROUTINE val_release(val,error)
   END IF
   NULLIFY(val)
 END SUBROUTINE val_release
-!***************************************************************************
 
-!!****f* input_val_types/val_retain *
-!!
-!!   NAME
-!!     val_retain
-!!
-!!   FUNCTION
-!!     retains the given val
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - val: the val to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given val
+!> \param val the val to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE val_retain(val,error)
     TYPE(val_type), POINTER                  :: val
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -441,37 +355,24 @@ SUBROUTINE val_retain(val,error)
      val%ref_count=val%ref_count+1
   END IF
 END SUBROUTINE val_retain
-!***************************************************************************
 
-!!****f* input_val_types/val_get *
-!!
-!!   NAME
-!!     val_get
-!!
-!!   FUNCTION
-!!     returns the stored values
-!!
-!!   NOTES
-!!     using an enumeration only i_val/i_vals/i_vals_ptr are accepted
-!!     add something like ignore_string_cut that if true does not warn if
-!!     the c_val is too short to contain the string
-
-!!
-!!   INPUTS
-!!     - val: the object from which you want to extract the values
-!!     - l_val,i_val,r_val,c_val: gets a logical, integer, real, char
-!!       from the val
-!!     - logical_vals: gets an array of logicals, integers, reals, chars
-!!       from the val
-!!     - len_c: len_trim of c_val (if it was a lc_val, of type lchar_t
-!!       it might be longet than default_string_length)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the stored values
+!> \param val the object from which you want to extract the values
+!> \param l_val ,i_val,r_val,c_val: gets a logical, integer, real, char
+!>        from the val
+!> \param logical_vals gets an array of logicals, integers, reals, chars
+!>        from the val
+!> \param len_c len_trim of c_val (if it was a lc_val, of type lchar_t
+!>        it might be longet than default_string_length)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      using an enumeration only i_val/i_vals/i_vals_ptr are accepted
+!>      add something like ignore_string_cut that if true does not warn if
+!>      the c_val is too short to contain the string
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
      i_vals,r_val,r_vals,c_val,c_vals,len_c,type_of_var,enum,error)
     TYPE(val_type), POINTER                  :: val
@@ -610,32 +511,20 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
   IF (PRESENT(enum)) enum => val%enum
 
 END SUBROUTINE val_get
-!***************************************************************************
 
-!!****f* input_val_types/val_write *
-!!
-!!   NAME
-!!     val_write
-!!
-!!   FUNCTION
-!!     writes out the valuse stored in the val
-!!
-!!   NOTES
-!!     unit of mesure used only for reals
-!!
-!!   INPUTS
-!!     - val: the val to write
-!!     - unit_nr: the number of the unit to write to
-!!     - unit: the unit of mesure in wich the output should be written
-!!       (overrides unit_str)
-!!     - unit_str: the unit of mesure in wich the output should be written
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes out the valuse stored in the val
+!> \param val the val to write
+!> \param unit_nr the number of the unit to write to
+!> \param unit the unit of mesure in wich the output should be written
+!>        (overrides unit_str)
+!> \param unit_str the unit of mesure in wich the output should be written
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      unit of mesure used only for reals
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
     TYPE(val_type), POINTER                  :: val
     INTEGER, INTENT(in)                      :: unit_nr
@@ -773,8 +662,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
   WRITE(unit=unit_nr,fmt="()")
 END SUBROUTINE val_write
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE val_write_internal(val,string,unit,error)
 
     ! Purpose: Write values to an internal file, i.e. string variable.
@@ -782,8 +670,6 @@ END SUBROUTINE val_write
     ! History: - Creation (10.03.2005,MK)
     !          - Optional argument unit for the conversion to the external unit
     !            added (17.01.2006,MK)
-
-    ! *************************************************************************
 
     TYPE(val_type), POINTER                  :: val
     CHARACTER(LEN=*), INTENT(OUT)            :: string
@@ -876,29 +762,14 @@ END SUBROUTINE val_write
 
   END SUBROUTINE val_write_internal
 
-  ! ***************************************************************************
-
-!!****f* input_val_types/val_duplicate *
-!!
-!!   NAME
-!!     val_duplicate
-!!
-!!   FUNCTION
-!!     creates a copy of the given value
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - val_in: the value to copy
-!!     - val_out: the value tha will be created
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a copy of the given value
+!> \param val_in the value to copy
+!> \param val_out the value tha will be created
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE val_duplicate(val_in,val_out,error)
     TYPE(val_type), POINTER                  :: val_in, val_out
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -947,6 +818,5 @@ SUBROUTINE val_duplicate(val_in,val_out,error)
      END IF
   END IF
 END SUBROUTINE val_duplicate
-!***************************************************************************
 
 END MODULE input_val_types

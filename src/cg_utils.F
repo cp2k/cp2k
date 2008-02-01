@@ -3,24 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/cg_utils [1.0] *
-!!
-!!   NAME
-!!     cg_utils
-!!
-!!   FUNCTION
-!!     Utilities for Geometry optimization using  Conjugate Gradients
-!!
-!!   AUTHOR
-!!     Teodoro Laino [teo]
-!!     10.2005
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!***************************************************************************
-
+! *****************************************************************************
+!> \brief Utilities for Geometry optimization using  Conjugate Gradients
+!> \author Teodoro Laino [teo]
+!>      10.2005
+! *****************************************************************************
 MODULE cg_utils
   USE dimer_types,                     ONLY: dimer_env_type
   USE dimer_utils,                     ONLY: dimer_thrs,&
@@ -51,28 +38,14 @@ MODULE cg_utils
 
 CONTAINS
 
-!!****f* cg_utils/cg_linmin [1.0] *
-!!
-!!   NAME
-!!     cg_linmin
-!!
-!!   FUNCTION
-!!     Main driver for line minimization routines for CG
-!!
-!!   NOTES
-!!     
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Main driver for line minimization routines for CG
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE cg_linmin(gopt_env, xvec, xi, opt_energy, output_unit, gopt_param,&
        globenv, error)
 
@@ -130,28 +103,12 @@ CONTAINS
 
   END SUBROUTINE cg_linmin
 
-!!****f* cg_utils/tslmin_2pnt [1.0] *
-!!
-!!   NAME
-!!     tslmin_2pnt
-!!
-!!   FUNCTION
-!!     Translational minimization for the Dimer Method - 2pnt LS
-!!
-!!   NOTES
-!!     
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Translational minimization for the Dimer Method - 2pnt LS
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+! *****************************************************************************
   SUBROUTINE tslmin_2pnt(gopt_env, dimer_env, x0, tls_vec, opt_energy, gopt_param, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(dimer_env_type), POINTER            :: dimer_env
@@ -200,28 +157,12 @@ CONTAINS
 
   END SUBROUTINE tslmin_2pnt
 
-!!****f* cg_utils/rotmin_2pnt [1.0] *
-!!
-!!   NAME
-!!     rotmin_2pnt
-!!
-!!   FUNCTION
-!!     Rotational minimization for the Dimer Method - 2 pnt LS
-!!
-!!   NOTES
-!!     
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Rotational minimization for the Dimer Method - 2 pnt LS
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+! *****************************************************************************
   SUBROUTINE rotmin_2pnt(gopt_env, dimer_env, x0, theta, opt_energy, gopt_param, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(dimer_env_type), POINTER            :: dimer_env
@@ -290,30 +231,18 @@ CONTAINS
 
   END SUBROUTINE rotmin_2pnt
 
-!!****f* cg_utils/linmin_fit [1.0] *
-!!
-!!   NAME
-!!     linmin_fit
-!!
-!!   FUNCTION
-!!     Line Minimization - Fit
-!!
-!!   NOTES
-!!     Given as input the vector XVEC and XI, finds the scalar
-!!     xmin that minimizes the energy XVEC+xmin*XI. Replace step
-!!     with the optimal value. Enhanced Version
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Line Minimization - Fit
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      Given as input the vector XVEC and XI, finds the scalar
+!>      xmin that minimizes the energy XVEC+xmin*XI. Replace step
+!>      with the optimal value. Enhanced Version
+!> \par History
+!>      10.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE linmin_fit(gopt_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, &
        brack_limit, step, output_unit, gopt_param, globenv, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
@@ -396,30 +325,18 @@ CONTAINS
 
   END SUBROUTINE linmin_fit
 
-!!****f* cg_utils/linmin_gold [1.0] *
-!!
-!!   NAME
-!!     linmin_gold
-!!
-!!   FUNCTION
-!!     Line Minimization routine - GOLD
-!!
-!!   NOTES
-!!     Given as input the vector XVEC and XI, finds the scalar
-!!     xmin that minimizes the energy XVEC+xmin*XI. Replaces XMIN
-!!     with the optimal value
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Line Minimization routine - GOLD
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      Given as input the vector XVEC and XI, finds the scalar
+!>      xmin that minimizes the energy XVEC+xmin*XI. Replaces XMIN
+!>      with the optimal value
+!> \par History
+!>      10.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE linmin_gold(gopt_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, &
        brack_limit, step, output_unit, globenv, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
@@ -470,31 +387,19 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE linmin_gold
 
-!!****f* cg_utils/cg_mnbrak [1.0] *
-!!
-!!   NAME
-!!     cg_mnbrak
-!!
-!!   FUNCTION
-!!     Routine for intially bracketing a minimum based on the golden search
-!!     minimum
-!!
-!!   NOTES
-!!     Given two distinct initial points ax and bx this routine searches
-!!     in the downhill direction and returns new points ax, bx, cx that
-!!     bracket the minimum of the function
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Routine for intially bracketing a minimum based on the golden search
+!>      minimum
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      Given two distinct initial points ax and bx this routine searches
+!>      in the downhill direction and returns new points ax, bx, cx that
+!>      bracket the minimum of the function
+!> \par History
+!>      10.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE cg_mnbrak(gopt_env, ax, bx, cx, pcom, xicom, brack_limit, output_unit,&
        histpoint, globenv, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
@@ -664,35 +569,23 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE cg_mnbrak
 
-!!****f* cg_utils/cg_dbrent [1.0] *
-!!
-!!   NAME
-!!     cg_dbrent
-!!
-!!   FUNCTION
-!!     Routine implementing the Brent Method
-!!     Brent,R.P. Algorithm for Minimization without Derivatives, Chapt.5
-!!     1973
-!!     Extension in the use of derivatives
-!!
-!!   NOTES
-!!     Given a bracketing  triplet of abscissas ax, bx, cx (such that bx
-!!     is between ax and cx and energy of bx is less than energy of ax and cx),
-!!     this routine isolates the minimum to a precision of about tol using
-!!     Brent method. This routine implements the extension of the Brent Method
-!!     using derivatives
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Routine implementing the Brent Method
+!>      Brent,R.P. Algorithm for Minimization without Derivatives, Chapt.5
+!>      1973
+!>      Extension in the use of derivatives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      Given a bracketing  triplet of abscissas ax, bx, cx (such that bx
+!>      is between ax and cx and energy of bx is less than energy of ax and cx),
+!>      this routine isolates the minimum to a precision of about tol using
+!>      Brent method. This routine implements the extension of the Brent Method
+!>      using derivatives
+!> \par History
+!>      10.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   FUNCTION cg_dbrent(gopt_env,ax,bx,cx,tol,itmax,xmin,pcom,xicom,output_unit,&
        globenv, error) RESULT(dbrent)
     TYPE(gopt_f_type), POINTER               :: gopt_env
@@ -832,29 +725,15 @@ CONTAINS
 
   END FUNCTION cg_dbrent
 
-!!****f* cg_utils/cg_eval1d [1.0] *
-!!
-!!   NAME
-!!     cg_eval1d
-!!
-!!   FUNCTION
-!!     Evaluates energy in one dimensional space defined by the point
-!!     pcom and with direction xicom, position x
-!!
-!!   NOTES
-!!
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Evaluates energy in one dimensional space defined by the point
+!>      pcom and with direction xicom, position x
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   FUNCTION cg_eval1d(gopt_env,x,pcom,xicom,error) RESULT(my_val)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp)                            :: x
@@ -886,29 +765,15 @@ CONTAINS
 
   END FUNCTION cg_eval1d
 
-!!****f* cg_utils/cg_deval1d [1.0] *
-!!
-!!   NAME
-!!     cg_deval1d
-!!
-!!   FUNCTION
-!!     Evaluates derivatives in one dimensional space defined by the point
-!!     pcom and with direction xicom, position x
-!!
-!!   NOTES
-!!
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Evaluates derivatives in one dimensional space defined by the point
+!>      pcom and with direction xicom, position x
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   FUNCTION cg_deval1d(gopt_env,x,pcom,xicom,fval,error) RESULT(my_val)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp)                            :: x
@@ -947,29 +812,14 @@ CONTAINS
 
   END FUNCTION cg_deval1d
 
-
-!!****f* cg_utils/FindFit [1.0] *
-!!
-!!   NAME
-!!     FindMin
-!!
-!!   FUNCTION
-!!     Find the minimum of a parabolic function obtained with a least square fit
-!!
-!!   NOTES
-!!
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Find the minimum of a parabolic function obtained with a least square fit
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2005 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   FUNCTION FindMin(x,y,dy,error) RESULT(res)
     REAL(kind=dp), DIMENSION(:)              :: x, y, dy
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1035,32 +885,18 @@ CONTAINS
     END IF
   END FUNCTION FindMin
 
-!!****f* cg_utils/get_conjugate_direction [1.0] *
-!!
-!!   NAME
-!!     get_conjugate_direction
-!!
-!!   FUNCTION
-!!     Computes the Conjugate direction for the next search
-!!
-!!   NOTES
-!!
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!     - g:  contains the theta  of the previous step.. (norm 1.0 vector)
-!!     - xi: contains the -theta of the present step.. (norm 1.0 vector)
-!!     - h:  contains the search direction of the previous step (must be orthogonal
-!!           to nvec of the previous step (nvec_old))
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Computes the Conjugate direction for the next search
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \param g contains the theta  of the previous step.. (norm 1.0 vector)
+!> \param xi contains the -theta of the present step.. (norm 1.0 vector)
+!> \param h contains the search direction of the previous step (must be orthogonal
+!>            to nvec of the previous step (nvec_old))
+!> \par History
+!>      10.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE get_conjugate_direction(gopt_env, Fletcher_Reeves, g, xi, h, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     LOGICAL, INTENT(IN)                      :: Fletcher_Reeves

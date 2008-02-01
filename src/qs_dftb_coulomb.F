@@ -3,18 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/qs_dftb_coulomb [1.1] *
-!!
-!!   FUNCTION
-!!     Calculation of Coulomb contributions in DFTB
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!***
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Calculation of Coulomb contributions in DFTB
+!> \author JGH
+! *****************************************************************************
 MODULE qs_dftb_coulomb
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -105,12 +97,9 @@ MODULE qs_dftb_coulomb
 
   PUBLIC :: build_dftb_coulomb
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE build_dftb_coulomb(ks_env,qs_env,ks_matrix,rho,mcharge,energy,&
                calculate_forces,just_energy,error)
 
@@ -375,7 +364,6 @@ CONTAINS
   END SUBROUTINE build_dftb_coulomb
 
 ! *****************************************************************************
-
   SUBROUTINE dftb_spme_evaluate (ewald_env,ewald_pw,particle_set,box,&
        gmcharge,mcharge,calculate_forces,virial,use_virial,error)
 
@@ -588,7 +576,6 @@ CONTAINS
   END SUBROUTINE dftb_spme_evaluate
 
 ! *****************************************************************************
-
   SUBROUTINE dftb_ewald_overlap(gmcharge,mcharge,alpha,n_list,&
                                 virial,use_virial,error)
 
@@ -672,9 +659,5 @@ CONTAINS
 
   END SUBROUTINE dftb_ewald_overlap
 
-! *****************************************************************************
-
 END MODULE qs_dftb_coulomb
-
-! *****************************************************************************
 

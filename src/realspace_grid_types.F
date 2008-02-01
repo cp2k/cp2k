@@ -2,28 +2,17 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****s* cp2k/realspace_grid_types [1.0] *
-!!
-!!   NAME
-!!     realspace_grid_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     JGH (18-Mar-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (22-May-2002) : New routine rs_grid_zero
-!!     JGH (12-Jun-2002) : Bug fix for mpi groups
-!!     JGH (19-Jun-2003) : Added routine for task distribution
-!!     JGH (23-Nov-2003) : Added routine for task loop separation
-!!
-!!   NOTES
-!!     Basic type for real space grid methods
-!!
-!*****
-!******************************************************************************
 
+! *****************************************************************************
+!> \note
+!>      Basic type for real space grid methods
+!> \par History
+!>      JGH (22-May-2002) : New routine rs_grid_zero
+!>      JGH (12-Jun-2002) : Bug fix for mpi groups
+!>      JGH (19-Jun-2003) : Added routine for task distribution
+!>      JGH (23-Nov-2003) : Added routine for task loop separation
+!> \author JGH (18-Mar-2001)
+! *****************************************************************************
 MODULE realspace_grid_types
   USE input_constants,                 ONLY: rsgrid_automatic,&
                                              rsgrid_replicated
@@ -72,6 +61,7 @@ MODULE realspace_grid_types
   INTEGER, SAVE, PRIVATE :: allocated_rs_grid_count=0
   INTEGER, PARAMETER, PUBLIC :: rs2pw=11,pw2rs=12
 
+! *****************************************************************************
   TYPE realspace_grid_input_type
      INTEGER       :: distribution_type
      INTEGER       :: distribution_layout(3)
@@ -79,6 +69,7 @@ MODULE realspace_grid_types
      INTEGER       :: nsmax
   END TYPE realspace_grid_input_type
 
+! *****************************************************************************
   TYPE realspace_grid_type
      INTEGER :: grid_id                                  ! tag of the pw_grid
      INTEGER :: id_nr                                    ! unique identifier of rs
@@ -118,6 +109,7 @@ MODULE realspace_grid_types
 
   END TYPE realspace_grid_type
 
+! *****************************************************************************
   TYPE realspace_grid_p_type
      TYPE(realspace_grid_type), POINTER :: rs_grid
   END TYPE realspace_grid_p_type
@@ -126,25 +118,13 @@ MODULE realspace_grid_types
 
 CONTAINS
 
-!!****f* realspace_grid_types/init_input_type *
-!!
-!!   NAME
-!!     init_input_type
-!!
-!!   FUNCTION
-!!     parses an input section to assign the proper values to the input type
-!!
-!!   NOTES
-!!     if rs_grid_section is not present we setup for an replicated setup
-!!
-!!   INPUTS
-!!    -
-!!    -
-!!
-!!   MODIFICATION HISTORY
-!!     01.2008 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief parses an input section to assign the proper values to the input type
+!> \note
+!>      if rs_grid_section is not present we setup for an replicated setup
+!> \par History
+!>      01.2008 created [Joost VandeVondele]
+! *****************************************************************************
 SUBROUTINE init_input_type(input_settings,nsmax,rs_grid_section,ilevel,error)
     TYPE(realspace_grid_input_type), &
       INTENT(OUT)                            :: input_settings
@@ -190,23 +170,13 @@ SUBROUTINE init_input_type(input_settings,nsmax,rs_grid_section,ilevel,error)
        input_settings%distribution_type=rsgrid_replicated
    ENDIF
 END SUBROUTINE init_input_type
-!******************************************************************************
-!!****** realspace_grid_types/rs_grid_create [1.0] *
-!!
-!!   NAME
-!!     rs_grid_create
-!!
-!!   FUNCTION
-!!     Determine the setup of real space grids
-!!
-!!   AUTHOR
-!!     JGH (18-Mar-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (08-Jun-2003) : nsmax <= 0 indicates fully replicated grid
-!*****
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Determine the setup of real space grids
+!> \par History
+!>      JGH (08-Jun-2003) : nsmax <= 0 indicates fully replicated grid
+!> \author JGH (18-Mar-2001)
+! *****************************************************************************
   SUBROUTINE rs_grid_create ( rs, pw_grid, input_settings, error)
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -340,7 +310,6 @@ END SUBROUTINE init_input_type
           ENDDO
           ENDDO
 
-
           ! if automatic we can still decide this is a replicated grid
           ! if the memory gain (or the gain is messages) is too small.
           IF (input_settings % distribution_type == rsgrid_automatic) THEN
@@ -423,7 +392,6 @@ END SUBROUTINE init_input_type
 
     END IF
 
-
     allocated_rs_grid_count = allocated_rs_grid_count + 1
 
     ALLOCATE ( rs % r (rs % lb_local(1):rs % ub_local(1), &
@@ -441,22 +409,10 @@ END SUBROUTINE init_input_type
 
   END SUBROUTINE rs_grid_create
 
-!******************************************************************************
-!!****** realspace_grid_types/rs_grid_print [1.0] *
-!!
-!!   NAME
-!!     rs_grid_print
-!!
-!!   FUNCTION
-!!     Print information on grids to output
-!!
-!!   AUTHOR
-!!     JGH (17-May-2007)
-!!
-!!   MODIFICATION HISTORY
-!*****
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Print information on grids to output
+!> \author JGH (17-May-2007)
+! *****************************************************************************
   SUBROUTINE rs_grid_print ( rs, iounit, error)
     TYPE(realspace_grid_type), POINTER       :: rs
     INTEGER, INTENT(in)                      :: iounit
@@ -532,26 +488,15 @@ END SUBROUTINE init_input_type
 
   END SUBROUTINE rs_grid_print
 
-!******************************************************************************
-!!****** realspace_grid_types/rs_pw_transfer [1.0] *
-!!
-!!   NAME
-!!     rs_pw_transfer
-!!
-!!   FUNCTION
-!!     Copy a function from/to a PW grid type to/from a real
-!!     space type
-!!     dir is the named constant rs2pw or pw2rs
-!!
-!!   AUTHOR
-!!     JGH (18-Mar-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (15-Feb-2003) reduced additional memory usage
-!!     Joost VandeVondele (Sep-2003) moved from sum/bcast to shift
-!*****
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Copy a function from/to a PW grid type to/from a real
+!>      space type
+!>      dir is the named constant rs2pw or pw2rs
+!> \par History
+!>      JGH (15-Feb-2003) reduced additional memory usage
+!>      Joost VandeVondele (Sep-2003) moved from sum/bcast to shift
+!> \author JGH (18-Mar-2001)
+! *****************************************************************************
   SUBROUTINE rs_pw_transfer ( rs, pw, dir )
 
     TYPE(realspace_grid_type), POINTER       :: rs
@@ -609,24 +554,13 @@ END SUBROUTINE init_input_type
     CALL timestop(0.0_dp,handle2)
   END SUBROUTINE rs_pw_transfer
 
-!!****f* realspace_grid_types/rs_pw_transfer_replicated *
-!!
-!!   NAME
-!!     rs_pw_transfer_replicated
-!!
-!!   FUNCTION
-!!     transfer from a realspace grid to a planewave grid or the other way around
-!!
-!!   NOTES
-!!     rs2pw sums all data on the rs grid into the respective pw grid
-!!     pw2rs will scatter all pw data to the rs grids
-!!
-!!   INPUTS
-!!     - dir == rs2pw or dir == pw2rs
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief transfer from a realspace grid to a planewave grid or the other way around
+!> \param dir == rs2pw or dir == pw2rs
+!> \note
+!>      rs2pw sums all data on the rs grid into the respective pw grid
+!>      pw2rs will scatter all pw data to the rs grids
+! *****************************************************************************
   SUBROUTINE rs_pw_transfer_replicated(rs,pw,dir)
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(pw_type), POINTER                   :: pw
@@ -747,33 +681,21 @@ END SUBROUTINE init_input_type
     IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "recvbuf" )
   END SUBROUTINE rs_pw_transfer_replicated
 
-!!****f* realspace_grid_types/rs_pw_transfer_distributed *
-!!
-!!   NAME
-!!      rs_pw_transfer_distributed
-!!
-!!   FUNCTION
-!!      does the rs2pw and pw2rs transfer in the case where the rs grid is 
-!!      distributed (3D domain decomposition)
-!!
-!!   NOTES
-!!      the transfer is a two step procedure. For example, for the rs2pw transfer:
-!!     
-!!      1) Halo-exchange in 3D so that the local part of the rs_grid contains the full data
-!!      2) an alltoall communication to redistribute the local rs_grid to the local pw_grid
-!!
-!!      the halo exchange is most expensive on a large number of CPUs. Particular in this halo
-!!      exchange is that the border region is rather large (e.g. 20 points) and that it might overlap
-!!      with the central domain of several CPUs (i.e. next nearest neighbors)
-!!
-!!   INPUTS
-!!    -
-!!    -
-!!
-!!   MODIFICATION HISTORY
-!!     12.2007 created [Matt Watkins]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief does the rs2pw and pw2rs transfer in the case where the rs grid is 
+!>       distributed (3D domain decomposition)
+!> \note
+!>       the transfer is a two step procedure. For example, for the rs2pw transfer:
+!> 
+!>       1) Halo-exchange in 3D so that the local part of the rs_grid contains the full data
+!>       2) an alltoall communication to redistribute the local rs_grid to the local pw_grid
+!> 
+!>       the halo exchange is most expensive on a large number of CPUs. Particular in this halo
+!>       exchange is that the border region is rather large (e.g. 20 points) and that it might overlap
+!>       with the central domain of several CPUs (i.e. next nearest neighbors)
+!> \par History
+!>      12.2007 created [Matt Watkins]
+! *****************************************************************************
   SUBROUTINE rs_pw_transfer_distributed(rs,pw,dir)
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(pw_type), POINTER                   :: pw
@@ -1297,7 +1219,6 @@ END SUBROUTINE init_input_type
           CPPrecondition(recv_sizes(i)==k,cp_failure_level,routineP,error,failure)
        ENDDO
 
- 
        DEALLOCATE ( send_buf, STAT=ierr)
        IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf")
        DEALLOCATE ( recv_buf, STAT=ierr)
@@ -1340,7 +1261,6 @@ END SUBROUTINE init_input_type
                 position = MODULO ( rs % group_coor (idir) + n_shifts, rs % group_dim (idir))
                 neighbours = get_limit ( rs % npts ( idir ), rs % group_dim ( idir ), position )
                 ushifts(n_shifts) = ushifts(n_shifts-1) + ( neighbours (2) - neighbours (1) + 1 )
-
 
                 ! The border data has to be send/received from the neighbors
                 ! First we calculate the source and destination processes for the shift
@@ -1391,7 +1311,6 @@ END SUBROUTINE init_input_type
                 IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","send_buf_3d")
                 DEALLOCATE ( recv_buf_3d, STAT=ierr )
                 IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","recv_buf_3d")
-
 
                 ! Now for the other direction
 
@@ -1452,26 +1371,14 @@ END SUBROUTINE init_input_type
     DEALLOCATE(rank_pw2rs, STAT=ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","rank_pw2rs")
 
-
   END SUBROUTINE rs_pw_transfer_distributed
 
-!******************************************************************************
-!!****** realspace_grid_types/rs_grid_zero [1.0] *
-!!
-!!   NAME
-!!     rs_grid_zero
-!!
-!!   FUNCTION
-!!     Initialize grid to zero
-!!
-!!   AUTHOR
-!!     JGH (23-Mar-2002)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!*****
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Initialize grid to zero
+!> \par History
+!>      none
+!> \author JGH (23-Mar-2002)
+! *****************************************************************************
 SUBROUTINE rs_grid_zero ( rs )
 
     TYPE(realspace_grid_type), POINTER       :: rs
@@ -1490,24 +1397,13 @@ SUBROUTINE rs_grid_zero ( rs )
 
 END SUBROUTINE rs_grid_zero
 
-!******************************************************************************
-!!****** realspace_grid_types/rs_grid_set_box [1.0] *
-!!
-!!   NAME
-!!     rs_grid_set_box
-!!
-!!   FUNCTION
-!!     Set box matrix info for real space grid
-!!     This is needed for variable cell simulations
-!!
-!!   AUTHOR
-!!     JGH (15-May-2007)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!*****
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Set box matrix info for real space grid
+!>      This is needed for variable cell simulations
+!> \par History
+!>      none
+!> \author JGH (15-May-2007)
+! *****************************************************************************
 SUBROUTINE rs_grid_set_box ( pw_grid, rs, error )
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -1529,31 +1425,15 @@ SUBROUTINE rs_grid_set_box ( pw_grid, rs, error )
 
 END SUBROUTINE rs_grid_set_box
 
-!***************************************************************************
-!!****f* realspace_grid_types/rs_grid_retain [1.0] *
-!!
-!!   NAME
-!!     rs_grid_retain
-!!
-!!   FUNCTION
-!!     retains the given rs grid (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - rs_grid: the grid to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     03.2003 created [fawzi]
-!*****
-!!**************************************************************************
-
+! *****************************************************************************
+!> \brief retains the given rs grid (see doc/ReferenceCounting.html)
+!> \param rs_grid the grid to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      03.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE rs_grid_retain(rs_grid, error)
     TYPE(realspace_grid_type), POINTER       :: rs_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1572,31 +1452,15 @@ SUBROUTINE rs_grid_retain(rs_grid, error)
   END IF
 END SUBROUTINE rs_grid_retain
 
-!***************************************************************************
-!!****f* realspace_grid_types/rs_grid_release [1.0] *
-!!
-!!   NAME
-!!     rs_grid_release
-!!
-!!   FUNCTION
-!!     releases the given rs grid (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - rs_grid: the rs grid to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     03.2003 created [fawzi]
-!*****
-!!**************************************************************************
-
+! *****************************************************************************
+!> \brief releases the given rs grid (see doc/ReferenceCounting.html)
+!> \param rs_grid the rs grid to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      03.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE rs_grid_release(rs_grid,error)
     TYPE(realspace_grid_type), POINTER       :: rs_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1635,23 +1499,12 @@ SUBROUTINE rs_grid_release(rs_grid,error)
     NULLIFY(rs_grid)
 END SUBROUTINE rs_grid_release
 
-!***************************************************************************
-!!****f* realspace_grid_types/rs_find_node  
-!!
-!!   NAME
-!!     rs_find_node
-!!
-!!   FUNCTION
-!!     determines the rank of the processor who's real rs grid contains point
-!!
-!!   AUTHOR
-!!     MattW
-!!
-!!   MODIFICATION HISTORY
-!!     11.2007 created [MattW]
-!*****
-!!**************************************************************************
-
+! *****************************************************************************
+!> \brief determines the rank of the processor who's real rs grid contains point
+!> \par History
+!>      11.2007 created [MattW]
+!> \author MattW
+! *****************************************************************************
 SUBROUTINE rs_find_node(rs,point,dest)
 
     TYPE(realspace_grid_type), POINTER       :: rs
@@ -1695,4 +1548,3 @@ END SUBROUTINE rs_find_node
 
 END MODULE realspace_grid_types
 
-!******************************************************************************

@@ -2,19 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/hartree_local_types [1.0] *
-!!
-!!   NAME
-!!     hartree_local_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
 MODULE hartree_local_types
 
   USE f77_blas
@@ -36,12 +24,14 @@ MODULE hartree_local_types
 
 ! *** Define the ecoul_1center_type ***
 
+! *****************************************************************************
   TYPE ecoul_1center_type
     TYPE(rho_atom_coeff), POINTER   :: Vh1_h, Vh1_s
     REAL(dp)                        :: ecoul_1_h, ecoul_1_s, &
                                        ecoul_1_z, ecoul_1_0
   END TYPE ecoul_1center_type
 
+! *****************************************************************************
   TYPE hartree_local_type
     TYPE(ecoul_1center_type), &
             DIMENSION(:), POINTER   :: ecoul_1c
@@ -59,12 +49,9 @@ MODULE hartree_local_types
 
   PUBLIC :: ecoul_1center_type, hartree_local_type
 
-! *****************************************************************************
-
   CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE  allocate_ecoul_1center(ecoul_1c,natom)
 
     TYPE(ecoul_1center_type), DIMENSION(:), &
@@ -96,7 +83,6 @@ MODULE hartree_local_types
   END SUBROUTINE allocate_ecoul_1center
 
 ! *****************************************************************************
-
   SUBROUTINE  deallocate_ecoul_1center(ecoul_1c)
 
     TYPE(ecoul_1center_type), DIMENSION(:), &
@@ -139,7 +125,6 @@ MODULE hartree_local_types
   END SUBROUTINE deallocate_ecoul_1center
 
 ! *****************************************************************************
-
   SUBROUTINE get_ecoul_1c(ecoul_1c,iatom,Vh1_h,Vh1_s)
 
     TYPE(ecoul_1center_type), DIMENSION(:), &
@@ -158,7 +143,6 @@ MODULE hartree_local_types
   END SUBROUTINE get_ecoul_1c
 
 ! *****************************************************************************
-
   SUBROUTINE get_hartree_local(hartree_local,ecoul_1c,vtriple)
 
     TYPE(hartree_local_type), POINTER        :: hartree_local
@@ -178,7 +162,6 @@ MODULE hartree_local_types
   END SUBROUTINE get_hartree_local
 
 ! *****************************************************************************
-
   SUBROUTINE hartree_local_create(hartree_local, error)
 
     TYPE(hartree_local_type), POINTER        :: hartree_local
@@ -203,7 +186,6 @@ MODULE hartree_local_types
   END SUBROUTINE hartree_local_create
 
 ! *****************************************************************************
-
   SUBROUTINE hartree_local_release(hartree_local, error)
 
     TYPE(hartree_local_type), POINTER        :: hartree_local
@@ -232,7 +214,6 @@ MODULE hartree_local_types
   END SUBROUTINE hartree_local_release
 
 ! *****************************************************************************
-
   SUBROUTINE set_ecoul_1c(ecoul_1c,iatom,ecoul_1_h,ecoul_1_s,ecoul_1_z,ecoul_1_0)
 
     TYPE(ecoul_1center_type), DIMENSION(:), &
@@ -253,7 +234,6 @@ MODULE hartree_local_types
     END SUBROUTINE set_ecoul_1c
 
 ! *****************************************************************************
-
   SUBROUTINE set_hartree_local(hartree_local,ecoul_1c,vtriple)
 
     TYPE(hartree_local_type), POINTER        :: hartree_local
@@ -272,9 +252,5 @@ MODULE hartree_local_types
 
   END SUBROUTINE set_hartree_local
 
-! *****************************************************************************
-
 END MODULE hartree_local_types
-
-! ****************************************************************************
 

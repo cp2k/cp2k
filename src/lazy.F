@@ -3,23 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/lazy [1.0] *
-!!
-!!   NAME
-!!     lazy
-!!
-!!   FUNCTION
-!!     Filters for interpolating scaling functions .
-!!
-!!   AUTHOR
-!!      Florian Schiffmann (09.2007,fschiff)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Filters for interpolating scaling functions .
+!> \author Florian Schiffmann (09.2007,fschiff)
+! *****************************************************************************
 MODULE lazy
 
   USE f77_blas
@@ -37,27 +24,12 @@ MODULE lazy
   PUBLIC :: lazy_arrays
 
 CONTAINS
-!***************************************************************************
-!!*****  cp2k/lazy_arrays [1.0] *
-!!
-!!   NAME
-!!     lazy_arrays
-!!
-!!   FUNCTION
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!
-!!   AUTHOR
-!!     fschiff
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [Florian Schiffmann]
-!!
-!***************************************************************************
-  
+
+! *****************************************************************************
+!> \par History
+!>      09.2007 created [Florian Schiffmann]
+!> \author fschiff
+! *****************************************************************************
   SUBROUTINE lazy_arrays(itype,m,ch,cg,cgt,cht)
     INTEGER, INTENT(in)                      :: itype, m
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ch, cg, cgt, cht
@@ -398,7 +370,6 @@ CONTAINS
             -1.80960777804178984e-19_dp,&
             0._dp, 0._dp, 0._dp   /)
 
-
        DO i=-m,m
           cht(i)=0._dp
           cg(i)=0._dp
@@ -474,7 +445,6 @@ CONTAINS
             -6.41198417717232202e-28_dp,0._dp,1.28158741180595538e-29_dp,0._dp,&
             -1.2683805626484815e-31_dp,&
             0._dp, 0._dp, 0._dp   /)
-
 
        DO i=-m,m
           cht(i)=0._dp

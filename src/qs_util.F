@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_util [1.0] *
-!!
-!!   NAME
-!!     util
-!!
-!!   FUNCTION
-!!     All kind of helpfull little routines
-!!
-!!   AUTHOR
-!!     CJM & JGH
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief All kind of helpfull little routines
+!> \par History
+!>      none
+!> \author CJM & JGH
+! *****************************************************************************
 MODULE qs_util
 
   USE f77_blas
@@ -126,12 +116,9 @@ MODULE qs_util
        transform_c2s_new,&
        transform_s2c
 
-  ! *****************************************************************************
-
 CONTAINS
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   FUNCTION gauss_exponent(l,radius,threshold,prefactor) RESULT(exponent)
 
     !   Purpose: The exponent of a primitive Gaussian function for a given radius
@@ -139,16 +126,12 @@ CONTAINS
 
     !   History: - Creation (07.03.1999,MK)
 
-    !   ***************************************************************************
-
     !   exponent : Exponent of the primitive Gaussian function.
     !   l        : Angular momentum quantum number l.
     !   prefactor: Prefactor of the Gaussian function (e.g. a contraction
     !              coefficient).
     !   radius   : Calculated radius of the Gaussian function.
     !   threshold: Threshold for radius.
-
-    !   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: l
     REAL(KIND=dp), INTENT(IN)                :: radius, threshold, prefactor
@@ -165,8 +148,7 @@ CONTAINS
 
   END FUNCTION gauss_exponent
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   FUNCTION exp_radius(l,alpha,threshold,prefactor,epsin) RESULT(radius)
 
     !   Purpose: The radius of a primitive Gaussian function for a given threshold
@@ -179,8 +161,6 @@ CONTAINS
     !            - that means the old version contains bugs .......(04.2002, Joost)
     !              so keep this one ...
 
-    !   ***************************************************************************
-
     !   alpha    : Exponent of the primitive Gaussian function.
     !   l        : Angular momentum quantum number l.
     !   prefactor: Prefactor of the Gaussian function (e.g. a contraction
@@ -191,8 +171,6 @@ CONTAINS
     !   epsiter: Convergence criterion.
     !   g      : The function g(r).
     !   maxiter: Maximum number of iterations.
-
-    !   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: l
     REAL(KIND=dp), INTENT(IN)                :: alpha, threshold, prefactor
@@ -288,14 +266,13 @@ CONTAINS
 
   END FUNCTION exp_radius
 
-  ! *****************************************************************************
+! *****************************************************************************
   FUNCTION gaussint_sph(alpha,l)
 
     !  calculates the radial integral over a spherical Gaussian
     !  of the form
     !     r**(2+l) * exp(-alpha * r**2)
     !
-    ! ***************************************************************************
 
     REAL(dp), INTENT(IN)                     :: alpha
     INTEGER, INTENT(IN)                      :: l
@@ -312,13 +289,11 @@ CONTAINS
 
   END FUNCTION gaussint_sph
 
-
-  ! *****************************************************************************
+! *****************************************************************************
   SUBROUTINE symmetric_add(A,lda,B,ldb,m)
     !
     !            A=A+B+transpose(B)
     !
-    ! *****************************************************************************
 
     INTEGER                                  :: lda
     REAL(dp)                                 :: A(lda,*)
@@ -356,8 +331,7 @@ CONTAINS
 
   END SUBROUTINE symmetric_add
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   FUNCTION trace_r_AxB(A,lda,B,ldb,m,n)
 
     INTEGER, INTENT(in)                      :: lda
@@ -425,11 +399,9 @@ CONTAINS
     trace_r_AxB=t1+t2+t3+t4
 
   END FUNCTION trace_r_AxB
-  ! *****************************************************************************
 
+! *****************************************************************************
   FUNCTION trace_r_AxB_new(A,lda,ia,ja,B,ldb,ib,jb,m,n)
-
-    ! *****************************************************************************
 
     INTEGER, INTENT(in)                      :: lda
     REAL(dp), INTENT(in)                     :: A(lda,*)
@@ -497,8 +469,7 @@ CONTAINS
 
   END FUNCTION trace_r_AxB_new
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE transform_c2s(CPC_co,CPC_so,maxl,lm1,lm2)
 
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: CPC_co
@@ -512,8 +483,6 @@ CONTAINS
                                                 lx, ly, lz
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: work
 
-! *****************************************************************************
-
     ALLOCATE (work(ncoset(maxl),nsoset(maxl)),STAT=istat)
     IF (istat /= 0) THEN
        CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -521,7 +490,6 @@ CONTAINS
     END IF
     CPC_so = 0.0_dp
     work   = 0.0_dp
-
 
     !    DO l = 0,maxl
     !      ncgf = nco(l)
@@ -554,7 +522,6 @@ CONTAINS
     !  enddo
     !
     !  stop
-
 
     CPC_so = 0.0_dp
     work = 0.0_dp
@@ -602,11 +569,9 @@ CONTAINS
             "work")
     END IF
 
-
   END SUBROUTINE transform_c2s
 
-  !****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE transform_c2s_new(CPC_co,CPC_so,maxl)
 
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: CPC_co
@@ -619,8 +584,6 @@ CONTAINS
     INTEGER                                  :: iso, istat, ldc, lds
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: work
-
-! *****************************************************************************
 
     ALLOCATE (work(ncoset(maxl),ncoset(maxl),1),STAT=istat)
     IF (istat /= 0) THEN
@@ -646,11 +609,9 @@ CONTAINS
             "work")
     END IF
 
-
   END SUBROUTINE transform_c2s_new
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE transform_s2c(matso,matco,maxl,lm1,lm2)
 
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: matso
@@ -664,8 +625,6 @@ CONTAINS
                                                 istat, l, lx, ly, lz, nc1, &
                                                 nc2, ns1, ns2
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: matsc
-
-! *****************************************************************************
 
     ALLOCATE (matsc(nsoset(maxl),ncoset(maxl)),STAT=istat)
     IF (istat /= 0) THEN
@@ -722,17 +681,15 @@ CONTAINS
        ENDDO ! l
     ENDDO ! ic2
 
-
     DEALLOCATE (matsc,STAT=istat)
     IF (istat /= 0) THEN
        CALL stop_memory(routineN,moduleN,__LINE__,&
             "matsc")
     END IF
 
-
   END SUBROUTINE transform_s2c
-  !******************************************************************************
   !------------------------------------------------------------------------------!
+! *****************************************************************************
   SUBROUTINE sph2cart_mat(mat,ld_mat,sd_mat,n,lmax1,lmax2)
     INTEGER                                  :: ld_mat, sd_mat, n
     REAL(dp)                                 :: mat(ld_mat,sd_mat,n)
@@ -901,7 +858,7 @@ CONTAINS
 
   END SUBROUTINE sph2cart_mat
 
-  !******************************************************************************
+! *****************************************************************************
   SUBROUTINE cart2sph_mat(mat,ld_mat,sd_mat,n,lmax1,lmax2)
 
     !in:
@@ -1059,6 +1016,5 @@ CONTAINS
 
   END SUBROUTINE cart2sph_mat
 
-  !******************************************************************************
 END MODULE qs_util
 

@@ -3,25 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/ep_qs_methods [1.0] *
-!!
-!!   NAME
-!!     ep_qs_methods
-!!
-!!   FUNCTION
-!!     methods that change a qs calculation to perform an ep calculation
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     06.2006 created
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief methods that change a qs calculation to perform an ep calculation
+!> \par History
+!>      06.2006 created
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE ep_qs_methods
   USE ep_qs_types,                     ONLY: ep_qs_type
   USE f77_blas
@@ -38,32 +25,17 @@ MODULE ep_qs_methods
   INTEGER, SAVE, PRIVATE :: last_ep_qs_id=0
 
   PUBLIC :: ep_qs_create
-!!***
-!****************************************************************************
 
 CONTAINS
 
-!!****f* ep_qs_types/ep_qs_create *
-!!
-!!   NAME
-!!     ep_qs_create
-!!
-!!   FUNCTION
-!!     creates an ep_qs_env
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - ep_qs_env: the environemt to create
-!!     - qs_env: the qs env the ep env will live in
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates an ep_qs_env
+!> \param ep_qs_env the environemt to create
+!> \param qs_env the qs env the ep env will live in
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE ep_qs_create(ep_qs_env,qs_env,error)
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -92,6 +64,5 @@ SUBROUTINE ep_qs_create(ep_qs_env,qs_env,error)
   END IF
   CALL timestop(handle)
 END SUBROUTINE ep_qs_create
-!***************************************************************************
 
 END MODULE ep_qs_methods

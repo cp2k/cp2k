@@ -3,24 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/topology_connectivity_util [1.0] *
-!!
-!!   NAME
-!!     topology_connectivity_util
-!!
-!!   FUNCTION
-!!     Collection of subroutine needed for topology related things
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!    jgh (23-05-2004) Last atom of molecule information added
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Collection of subroutine needed for topology related things
+!> \par History
+!>     jgh (23-05-2004) Last atom of molecule information added
+! *****************************************************************************
 MODULE topology_connectivity_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -61,31 +48,11 @@ MODULE topology_connectivity_util
   PRIVATE
   PUBLIC :: topology_connectivity_pack
 
-
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** topology/topology_connectivity_pack [1.0] *
-!!
-!!   NAME
-!!     topology_connectivity_pack
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     topology connectivity pack
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief topology connectivity pack
+! *****************************************************************************
   SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
        topology,para_env,subsys_section,error)
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -1369,26 +1336,11 @@ CONTAINS
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
   END SUBROUTINE topology_connectivity_pack
 
-!******************************************************************************
-!!****** topology_connectivity_util/find_bnd_typ [1.0] *
-!!
-!!   NAME
-!!     find_bnd_typ
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     used to achieve linear scaling in the connectivity_pack
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     Teodoro Laino
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief used to achieve linear scaling in the connectivity_pack
+!> \par History
+!>      Teodoro Laino
+! *****************************************************************************
   SUBROUTINE find_bnd_typ(nmol_type, map_vars, map_var_mol, bnd_type, nvar1, error)
     INTEGER, INTENT(IN)                      :: nmol_type
     INTEGER, DIMENSION(:), POINTER           :: map_vars, map_var_mol

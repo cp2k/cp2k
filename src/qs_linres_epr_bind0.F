@@ -3,26 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****m* cp2k/qs_linres_epr_bind0 *
-!!
-!!   NAME
-!!     qs_linres_epr_bind0
-!!
-!!   FUNCTION
-!!     from the response current density calculates
-!!     the susceptibility
-!!
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     created 02-2006 [MI]
-!!
-!!   SOURCE
-!!****
-
+! *****************************************************************************
+!> \brief from the response current density calculates
+!>      the susceptibility
+!> \par History
+!>      created 02-2006 [MI]
+!> \author MI
+! *****************************************************************************
 MODULE qs_linres_epr_bind0
 
   USE cell_types,                      ONLY: cell_type
@@ -79,11 +66,11 @@ MODULE qs_linres_epr_bind0
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_epr_bind0'
 
-!!***
 ! **************
 
 CONTAINS
 
+! *****************************************************************************
   SUBROUTINE chicorr_analytic(epr_env,qs_env,ispin,iB,error)
     !
     TYPE(epr_env_type)                       :: epr_env
@@ -451,35 +438,21 @@ CONTAINS
 
   END SUBROUTINE chicorr_analytic
 
-!!****f* qs_linres_epr_shift%mult_G_ov_G2_grid
-!!
-!!  NAME
-!!      mult_G_ov_G2_grid
-!!
-!!  FUNCTION
-!!      Given the current density on the PW grid in reciprcal space
-!!      (obtained by FFT), calculate the integral
-!!        \int_{r}[ ((r-r') x j(r))/|r-r'|^3 ] = Bind(r')
-!!      which in reciprcal space reads  (for G/=0)
-!!         i G/|G|^2 x J(G)
-!!
-!!  ARGUMENTS
-!!
-!!  NOTES
-!!     The G=0 component is not comnputed here, but can be evaluated
-!!     through the susceptibility and added to the shift in a second time
-!!
-!!     This method would not work for a non periodic system
-!!     It should be generalized like the calculation of Hartree
-!!
-!!  AUTHOR
-!!    MI
-!!
-!!*** **********************************************************************
-
-
+! *****************************************************************************
+!> \brief Given the current density on the PW grid in reciprcal space
+!>       (obtained by FFT), calculate the integral
+!>         \int_{r}[ ((r-r') x j(r))/|r-r'|^3 ] = Bind(r')
+!>       which in reciprcal space reads  (for G/=0)
+!>          i G/|G|^2 x J(G)
+!> \note
+!>      The G=0 component is not comnputed here, but can be evaluated
+!>      through the susceptibility and added to the shift in a second time
+!> 
+!>      This method would not work for a non periodic system
+!>      It should be generalized like the calculation of Hartree
+!> \author MI
+! *****************************************************************************
   SUBROUTINE  mult_G_ov_G2_grid(cell,pw_pool,rho_gspace,funcG_times_rho,idir,my_chi,error)
-
 
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
@@ -525,6 +498,4 @@ CONTAINS
   END SUBROUTINE  mult_G_ov_G2_grid
 
 END MODULE qs_linres_epr_bind0
-
-
 

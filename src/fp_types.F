@@ -2,26 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/fp_types *
-!!
-!!   NAME
-!!     fp_types
-!!
-!!   FUNCTION
-!!     types used in the flexible partitioning scheme
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!
-!!   MODIFICATION HISTORY
-!!     04.2006 [Joost VandeVondele]
-!!
-!!   SOURCE
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief types used in the flexible partitioning scheme
+!> \par History
+!>      04.2006 [Joost VandeVondele]
+!> \author Joost VandeVondele
+! *****************************************************************************
 MODULE fp_types
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -45,6 +32,7 @@ MODULE fp_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fp_types'
 
+! *****************************************************************************
   TYPE fp_type
 
     ! input related objects
@@ -68,21 +56,11 @@ MODULE fp_types
 
 CONTAINS
 
-!!****f* fp_types/fp_env_create/retain/release *
-!!
-!!   NAME
-!!      fp_env_create/retain/release
-!!   FUNCTION
-!!      create retain release the flexible partitioning environment
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     04.2006 created [Joost VandeVondele]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief create retain release the flexible partitioning environment
+!> \par History
+!>      04.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE fp_env_create(fp_env,error)
     TYPE(fp_type), POINTER                   :: fp_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -109,6 +87,7 @@ CONTAINS
 
   END SUBROUTINE fp_env_create
 
+! *****************************************************************************
   SUBROUTINE fp_env_release(fp_env,error)
     TYPE(fp_type), POINTER                   :: fp_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -137,6 +116,7 @@ CONTAINS
 
   END SUBROUTINE fp_env_release
 
+! *****************************************************************************
   SUBROUTINE fp_env_retain(fp_env,error)
     TYPE(fp_type), POINTER                   :: fp_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -152,23 +132,11 @@ CONTAINS
 
   END SUBROUTINE fp_env_retain
 
-
-!!****f* fp_types/fp_env_read *
-!!
-!!   NAME
-!!     fp_env_read
-!!
-!!   FUNCTION
-!!     reads the corresponding input section and stores it in the fp_env
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     04.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief reads the corresponding input section and stores it in the fp_env
+!> \par History
+!>      04.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE fp_env_read(fp_env,fp_section,error)
     TYPE(fp_type), POINTER                   :: fp_env
     TYPE(section_vals_type), POINTER         :: fp_section
@@ -210,22 +178,11 @@ CONTAINS
 
   END SUBROUTINE fp_env_read
 
-!!****f* fp_types/fp_env_write *
-!!
-!!   NAME
-!!     fp_env_write
-!!
-!!   FUNCTION
-!!     writes information concerning the fp_env to the output
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     04.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes information concerning the fp_env to the output
+!> \par History
+!>      04.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE fp_env_write(fp_env,fp_section,error)
     TYPE(fp_type), POINTER                   :: fp_env
     TYPE(section_vals_type), POINTER         :: fp_section

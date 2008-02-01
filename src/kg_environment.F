@@ -2,22 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/kg_environment [1.0] *
-!!
-!!   NAME
-!!     kg_environment
-!!
-!!   FUNCTION
-!!    initialize kg environment
-!!   AUTHOR
-!!     gt SEPT-23-2002
-!!   HISTORY
-!!     GT 11-13-2003 :
-!!     moved the main driver to cp2k
-!!     performs only the initialization of the environment
-!!*****
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief initialize kg environment
+!> \par History
+!>      GT 11-13-2003 :
+!>      moved the main driver to cp2k
+!>      performs only the initialization of the environment
+!> \author gt SEPT-23-2002
+! *****************************************************************************
 MODULE kg_environment
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set,&
@@ -138,21 +131,10 @@ MODULE kg_environment
 CONTAINS
 
 !-----------------------------------------------------------------------------!
-!!****** kg_environment/kg_init [1.0] *
-!!
-!!   NAME
-!!     kg_init
-!!
-!!   FUNCTION
-!!   reads the input and database file for KG
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!****
-!!*****************************************************************************
 
+! *****************************************************************************
+!> \brief reads the input and database file for KG
+! *****************************************************************************
   SUBROUTINE kg_init (kg_env,root_section,para_env,globenv,force_env_section,&
        subsys_section, use_motion_section, error)
 
@@ -394,21 +376,17 @@ CONTAINS
 
     IF (ionode) CALL m_flush(output_unit)
 
-
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE kg_init
 
-!***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE write_total_numbers(atomic_kind_set,particle_set,force_env_section,error)
 
 !   Purpose: Write the total number of kinds, atoms, etc. to the logical unit
 !            number lunit.
 
 !   History: - Creation (06.10.2000, Matthias Krack)
-
-!   ***************************************************************************
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -477,26 +455,14 @@ CONTAINS
 
   END SUBROUTINE write_total_numbers
 
-!******************************************************************************
-!!****** kg_environment/kg_subsys_setup [1.0] *
-!!
-!!   NAME
-!!     kg_subsys_setup
-!!
-!!   FUNCTION
-!!      Distribute the fm_mol_set and allocate the mos for each molecule
-!!      Distribute the electrons among the molecules
-!!      Generate a qs_environment for the system
-!!   
-!!   NOTE
-!!      Charged molecule kinds need to be specified here, reading the info from input somehow
-!!
-!!   AUTHOR
-!!      MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!****
+! *****************************************************************************
+!> \brief Distribute the fm_mol_set and allocate the mos for each molecule
+!>       Distribute the electrons among the molecules
+!>       Generate a qs_environment for the system
+!> \note
+!>       Charged molecule kinds need to be specified here, reading the info from input somehow
+!> \author MI
+! *****************************************************************************
   SUBROUTINE kg_subsys_setup(kg_env,force_env_section,subsys_section,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(section_vals_type), POINTER         :: force_env_section, &
@@ -595,7 +561,6 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "natom_of_kind")
     END IF
-
 
 !   No idea whether OT can work with KG
     CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.,error=error)
@@ -777,7 +742,6 @@ CONTAINS
     DEALLOCATE(mult_x_mol, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-
     CALL set_qs_env(qs_env=qs_env,kg_sub_pw_env=kg_sub_pw_env,error=error)
     CALL kg_sub_pw_env_release(kg_sub_pw_env,force_env_section=force_env_section,error=error)
 
@@ -801,9 +765,5 @@ CONTAINS
 
   END SUBROUTINE kg_subsys_setup
 
-!******************************************************************************
-
 END MODULE kg_environment
-
-!******************************************************************************
 

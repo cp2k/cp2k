@@ -3,25 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/kg_scf_types [1.0] *
-!!
-!!   NAME
-!!     kg_scf_types
-!!
-!!   FUNCTION
-!!     module that contains the definitions of the scf types
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi/jgh
-!!
-!!   MODIFICATION HISTORY
-!!
-!!***
-!****************************************************************************
+! *****************************************************************************
+!> \brief module that contains the definitions of the scf types
+!> \author fawzi/jgh
+! *****************************************************************************
 MODULE kg_scf_types
   USE f77_blas
   USE kg_diis_types,                   ONLY: kg_diis_b_release,&
@@ -48,27 +33,10 @@ MODULE kg_scf_types
   PUBLIC :: kg_scf_env_type, kg_scf_env_p_type,&
             kg_scf_env_retain, kg_scf_env_release
 
-!****************************************************************************
-
-!!****s* kg_scf_types/kg_scf_env_type [1.0] *
-!!
-!!   NAME
-!!     kg_scf_env_type
-!!
-!!   FUNCTION
-!!     wrapper for temporary and cached objects used in the scf iteration
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi/jgh
-!!
-!!   MODIFICATION HISTORY
-!!
-!!***
-!***************************************************************************
-
+! *****************************************************************************
+!> \brief wrapper for temporary and cached objects used in the scf iteration
+!> \author fawzi/jgh
+! *****************************************************************************
 TYPE kg_scf_env_type
    INTEGER :: id_nr
    INTEGER :: ref_count
@@ -87,45 +55,20 @@ TYPE kg_scf_env_type
    TYPE(kg_diis_buffer_type), POINTER :: scf_diis_buffer
 END TYPE kg_scf_env_type
 
-!****************************************************************************
-!!****s* kg_scf_types/kg_scf_env_p_type [1.0] *
-!!
-!!   NAME
-!!     kg_scf_env_p_type
-!!
-!!   FUNCTION
-!!     type to have arrays of pointers
-!!
-!!   AUTHOR
-!!     fawzi/jgh
-!!
-!!   MODIFICATION HISTORY
-!!
-!!***
-!***************************************************************************
-
+! *****************************************************************************
+!> \brief type to have arrays of pointers
+!> \author fawzi/jgh
+! *****************************************************************************
   TYPE kg_scf_env_p_type
      TYPE(kg_scf_env_type), POINTER :: scf_env
   END TYPE kg_scf_env_p_type
 
-!****************************************************************************
-
 CONTAINS
 
-!!****f* kg_scf_types/kg_scf_env_retain [1.0] *
-!!
-!!   NAME
-!!     kg_scf_env_retain
-!!
-!!   FUNCTION
-!!     retains an scf_env (see doc/ReferenceCounting.html)
-!!
-!!   AUTHOR
-!!     fawzi/jgh
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains an scf_env (see doc/ReferenceCounting.html)
+!> \author fawzi/jgh
+! *****************************************************************************
 SUBROUTINE kg_scf_env_retain(scf_env,error)
     TYPE(kg_scf_env_type), POINTER           :: scf_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -143,22 +86,11 @@ SUBROUTINE kg_scf_env_retain(scf_env,error)
      scf_env%ref_count=scf_env%ref_count+1
   END IF
 END SUBROUTINE kg_scf_env_retain
-!***************************************************************************
 
-!!****f* kg_scf_types/kg_scf_env_release [1.0] *
-!!
-!!   NAME
-!!     kg_scf_env_release
-!!
-!!   FUNCTION
-!!     releases an scf_env (see doc/ReferenceCounting.html)
-!!
-!!   AUTHOR
-!!     fawzi/jgh
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases an scf_env (see doc/ReferenceCounting.html)
+!> \author fawzi/jgh
+! *****************************************************************************
 SUBROUTINE kg_scf_env_release(scf_env,error)
     TYPE(kg_scf_env_type), POINTER           :: scf_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -201,6 +133,5 @@ SUBROUTINE kg_scf_env_release(scf_env,error)
   END IF
   NULLIFY(scf_env)
 END SUBROUTINE kg_scf_env_release
-!***************************************************************************
 
 END MODULE kg_scf_types

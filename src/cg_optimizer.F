@@ -3,24 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/cg_optimizer [1.0] *
-!!
-!!   NAME
-!!     cg_optimizer
-!!
-!!   FUNCTION
-!!     Routines for Geometry optimization using  Conjugate Gradients
-!!
-!!   AUTHOR
-!!     Teodoro Laino [teo]
-!!     10.2005
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!***************************************************************************
-
+! *****************************************************************************
+!> \brief Routines for Geometry optimization using  Conjugate Gradients
+!> \author Teodoro Laino [teo]
+!>      10.2005
+! *****************************************************************************
 MODULE cg_optimizer
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE cg_utils,                        ONLY: cg_linmin,&
@@ -66,28 +53,14 @@ MODULE cg_optimizer
 
 CONTAINS
 
-!!****f* cg_optimizer/geoopt_cg [1.0] *
-!!
-!!   NAME
-!!     geoopt_cg
-!!
-!!   FUNCTION
-!!     Driver for conjugate gradient optimization technique
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Driver for conjugate gradient optimization technique
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   RECURSIVE SUBROUTINE geoopt_cg(force_env,gopt_param,globenv,force_env_section,&
        geo_section, gopt_env, x0, error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -136,28 +109,14 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE geoopt_cg
 
-!!****f* cg_optimizer/cp_cg_main [1.0] *
-!!
-!!   NAME
-!!     cp_cg_main
-!!
-!!   FUNCTION
-!!     This really performs the conjugate gradients optimization
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief This really performs the conjugate gradients optimization
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   RECURSIVE SUBROUTINE cp_cg_main(force_env, x0, gopt_param, output_unit, globenv,&
        force_env_section, motion_section, gopt_env,  error)
     TYPE(force_env_type), POINTER            :: force_env

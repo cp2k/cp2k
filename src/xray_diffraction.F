@@ -3,26 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/xray_diffraction [1.0] *
-!!
-!!   NAME
-!!     xray_diffraction
-!!
-!!   FUNCTION
-!!
-!!   LITERATURE
-!!     M. Krack, A. Gambirasio, and M.\ Parrinello,
-!!     "Ab-initio x-ray scattering of liquid water",
-!!     J. Chem. Phys. 117, 9409 (2002)
-!!
-!!   AUTHOR
-!!     Matthias Krack (30.11.2005)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \par Literature
+!>      M. Krack, A. Gambirasio, and M.\ Parrinello,
+!>      "Ab-initio x-ray scattering of liquid water",
+!>      J. Chem. Phys. 117, 9409 (2002)
+!> \author Matthias Krack (30.11.2005)
+! *****************************************************************************
 MODULE xray_diffraction
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -84,12 +71,9 @@ MODULE xray_diffraction
 
   PUBLIC :: xray_diffraction_spectrum
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE xray_diffraction_spectrum(qs_env,unit_number,q_max,error)
 
     ! Calculate the coherent X-ray diffraction spectrum.
@@ -706,7 +690,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE xray_diffraction_spectrum
-
-  ! ***************************************************************************
 
 END MODULE xray_diffraction

@@ -2,25 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/mc_moves [1.0] *
-!!
-!!   NAME
-!!     mc_moves
-!!
-!!   FUNCTION
-!!     the various moves in Monte Carlo (MC) simulations, including
-!!     change of internal conformation, translation of a molecule, rotation
-!!     of a molecule, and changing the size of the simulation box
-!!
-!!   AUTHOR
-!!     Matthew J. McGrath  (10.16.2003)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief the various moves in Monte Carlo (MC) simulations, including
+!>      change of internal conformation, translation of a molecule, rotation
+!>      of a molecule, and changing the size of the simulation box
+!> \par History
+!>      none
+!> \author Matthew J. McGrath  (10.16.2003)
+! *****************************************************************************
 MODULE mc_moves
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cell_types,                      ONLY: cell_clone,&
@@ -79,41 +69,25 @@ MODULE mc_moves
   PUBLIC :: mc_conformation_change,mc_molecule_translation,&
             mc_molecule_rotation,mc_volume_move,mc_avbmc_move
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-!!****s* mc_moves.F/depth_first_search
-!!
-!!   NAME
-!!     depth_first_search
-!!
-!!   FUNCTION
-!!     essentially performs a depth-first search of the molecule structure
-!!     to find all atoms connected to a specific atom excluding one branch...
-!!     for instance, if water is labelled 1-2-3 for O-H-H, calling this
-!!     routine with current_atom=1,avoid_atom=2 returns the array
-!!     atom=(0,0,1)
-!!
-!!   ARGUMENTS
-!!     - current_atom: the atom whose connections we're looking at
-!!     - avoid_atom: the atom whose direction the search is not supposed to go
-!!     - connectivity: an array telling us the neigbors of all atoms
-!!     - atom: the array that tells us if one can get to a given atom by
-!!       starting at current_atom and not going through avoid_atom...0 is no,
-!!       1 is yes
-!!
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
-
+!> \brief essentially performs a depth-first search of the molecule structure
+!>      to find all atoms connected to a specific atom excluding one branch...
+!>      for instance, if water is labelled 1-2-3 for O-H-H, calling this
+!>      routine with current_atom=1,avoid_atom=2 returns the array
+!>      atom=(0,0,1)
+!> \param current_atom the atom whose connections we're looking at
+!> \param avoid_atom the atom whose direction the search is not supposed to go
+!> \param connectivity an array telling us the neigbors of all atoms
+!> \param atom the array that tells us if one can get to a given atom by
+!>        starting at current_atom and not going through avoid_atom...0 is no,
+!>        1 is yes
+!> \author MJM
+! *****************************************************************************
   RECURSIVE SUBROUTINE depth_first_search ( current_atom,avoid_atom,&
       connectivity,atom)
 
-!     ***************************************************************************
     INTEGER, INTENT(IN)                      :: current_atom, avoid_atom
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: connectivity
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: atom
@@ -137,47 +111,33 @@ CONTAINS
   END SUBROUTINE depth_first_search
 
 ! *****************************************************************************
-!!****s* mc_moves.F/mc_conformation_change
-!!
-!!   NAME
-!!     mc_conformation_change
-!!
-!!   FUNCTION
-!!     performs either a bond or angle change move for a given molecule
-!!
-!!   ARGUMENTS
-!!     - mc_par: the mc parameters for the force env
-!!     - force_env: the force environment used in the move
-!!     - bias_env: the force environment used to bias the move, if any (it may
-!!           be null if lbias=.false. in mc_par)
-!!     - moves: the structure that keeps track of how many moves have been
-!!              accepted/rejected
-!!     - move_updates: the structure that keeps track of how many moves have
-!!              been accepted/rejected since the last time the displacements
-!!              were updated
-!!     - start_atoml: the number of the molecule's first atom, assuming the rest of
-!!       the atoms follow sequentially
-!!     - molecule_type: the type of the molecule we're moving
-!!     - box_number: the box the molecule is in
-!!     - bias_energy: the biased energy of the system before the move
-!!     - move_type: dictates what kind of conformational change we do
-!!     - lreject: set to .true. if there is an overlap
-!!     - rng_stream: the random number stream that we draw from
-!!     - error: the cp_error type
-!!
-!!     This subroutine is designed to run in parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
-
+!> \brief performs either a bond or angle change move for a given molecule
+!> \param mc_par the mc parameters for the force env
+!> \param force_env the force environment used in the move
+!> \param bias_env the force environment used to bias the move, if any (it may
+!>            be null if lbias=.false. in mc_par)
+!> \param moves the structure that keeps track of how many moves have been
+!>               accepted/rejected
+!> \param move_updates the structure that keeps track of how many moves have
+!>               been accepted/rejected since the last time the displacements
+!>               were updated
+!> \param start_atoml the number of the molecule's first atom, assuming the rest of
+!>        the atoms follow sequentially
+!> \param molecule_type the type of the molecule we're moving
+!> \param box_number the box the molecule is in
+!> \param bias_energy the biased energy of the system before the move
+!> \param move_type dictates what kind of conformational change we do
+!> \param lreject set to .true. if there is an overlap
+!> \param rng_stream the random number stream that we draw from
+!> \param error the cp_error type
+!> 
+!>      This subroutine is designed to run in parallel.
+!> \author MJM
+! *****************************************************************************
   SUBROUTINE mc_conformation_change ( mc_par,force_env,bias_env, moves,&
                         move_updates,start_atom,molecule_type,box_number,&
                         bias_energy,move_type,lreject,&
                         rng_stream,error)
-
-!   ***************************************************************************
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
@@ -455,7 +415,6 @@ CONTAINS
 
       ENDIF
 
-
 ! deallocate some stuff
       DEALLOCATE(r_old,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -470,46 +429,32 @@ CONTAINS
 END SUBROUTINE mc_conformation_change
 
 ! *****************************************************************************
-!!****s* mc_moves.F/mc_molecule_translation
-!!
-!!   NAME
-!!     mc_molecule_translation
-!!
-!!   FUNCTION
-!!     translates the given molecule randomly in either the x,y, or z direction
-!!
-!!   ARGUMENTS
-!!     - mc_par: the mc parameters for the force env
-!!     - force_env: the force environment used in the move
-!!     - bias_env: the force environment used to bias the move, if any (it may
-!!           be null if lbias=.false. in mc_par)
-!!     - moves: the structure that keeps track of how many moves have been
-!!              accepted/rejected
-!!     - move_updates: the structure that keeps track of how many moves have
-!!              been accepted/rejected since the last time the displacements
-!!              were updated
-!!     - start_atom: the number of the molecule's first atom, assuming the rest of
-!!       the atoms follow sequentially
-!!     - box_number: the box the molecule is in
-!!     - bias_energy: the biased energy of the system before the move
-!!     - molecule_type: the type of molecule we're moving
-!!     - lreject: set to .true. if there is an overlap
-!!     - rng_stream: the random number stream that we draw from
-!!     - error: the cp_error type
-!!
-!!     This subroutine designed to be parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
-
+!> \brief translates the given molecule randomly in either the x,y, or z direction
+!> \param mc_par the mc parameters for the force env
+!> \param force_env the force environment used in the move
+!> \param bias_env the force environment used to bias the move, if any (it may
+!>            be null if lbias=.false. in mc_par)
+!> \param moves the structure that keeps track of how many moves have been
+!>               accepted/rejected
+!> \param move_updates the structure that keeps track of how many moves have
+!>               been accepted/rejected since the last time the displacements
+!>               were updated
+!> \param start_atom the number of the molecule's first atom, assuming the rest of
+!>        the atoms follow sequentially
+!> \param box_number the box the molecule is in
+!> \param bias_energy the biased energy of the system before the move
+!> \param molecule_type the type of molecule we're moving
+!> \param lreject set to .true. if there is an overlap
+!> \param rng_stream the random number stream that we draw from
+!> \param error the cp_error type
+!> 
+!>      This subroutine designed to be parallel.
+!> \author MJM
+! *****************************************************************************
  SUBROUTINE mc_molecule_translation(  mc_par,force_env, bias_env,moves,&
                       move_updates,start_atom,box_number,&
                       bias_energy,molecule_type,&
                         lreject,rng_stream,error)
-
-!   ***************************************************************************
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
@@ -709,7 +654,6 @@ END SUBROUTINE mc_conformation_change
 
       ENDIF
 
-
 ! deallocate some stuff
       DEALLOCATE(r_old,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -721,47 +665,33 @@ END SUBROUTINE mc_conformation_change
   END SUBROUTINE mc_molecule_translation
 
 ! *****************************************************************************
-!!****s* mc_moves.F/mc_molecule_rotation
-!!
-!!   NAME
-!!     mc_molecule_rotation
-!!
-!!   FUNCTION
-!!     rotates the given molecule randomly around the x,y, or z axis...
-!!     only works for water at the moment
-!!
-!!   ARGUMENTS
-!!     - mc_par: the mc parameters for the force env
-!!     - force_env: the force environment used in the move
-!!     - bias_env: the force environment used to bias the move, if any (it may
-!!           be null if lbias=.false. in mc_par)
-!!     - moves: the structure that keeps track of how many moves have been
-!!              accepted/rejected
-!!     - move_updates: the structure that keeps track of how many moves have
-!!              been accepted/rejected since the last time the displacements
-!!              were updated
-!!     - box_number: the box the molecule is in
-!!     - start_atom: the number of the molecule's first atom, assuming the rest of
-!!       the atoms follow sequentially
-!!     - molecule_type: the type of molecule we're moving
-!!     - bias_energy: the biased energy of the system before the move
-!!     - lreject: set to .true. if there is an overlap
-!!     - rng_stream: the random number stream that we draw from
-!!     - error: the cp_error type
-!!
-!!     This subroutine has been designed for parallel use.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
-
+!> \brief rotates the given molecule randomly around the x,y, or z axis...
+!>      only works for water at the moment
+!> \param mc_par the mc parameters for the force env
+!> \param force_env the force environment used in the move
+!> \param bias_env the force environment used to bias the move, if any (it may
+!>            be null if lbias=.false. in mc_par)
+!> \param moves the structure that keeps track of how many moves have been
+!>               accepted/rejected
+!> \param move_updates the structure that keeps track of how many moves have
+!>               been accepted/rejected since the last time the displacements
+!>               were updated
+!> \param box_number the box the molecule is in
+!> \param start_atom the number of the molecule's first atom, assuming the rest of
+!>        the atoms follow sequentially
+!> \param molecule_type the type of molecule we're moving
+!> \param bias_energy the biased energy of the system before the move
+!> \param lreject set to .true. if there is an overlap
+!> \param rng_stream the random number stream that we draw from
+!> \param error the cp_error type
+!> 
+!>      This subroutine has been designed for parallel use.
+!> \author MJM
+! *****************************************************************************
  SUBROUTINE mc_molecule_rotation ( mc_par,force_env, bias_env,moves,&
                       move_updates,box_number,&
                       start_atom,molecule_type,bias_energy,lreject,&
                       rng_stream,error)
-
-!   ***************************************************************************
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
@@ -1050,48 +980,34 @@ END SUBROUTINE mc_conformation_change
   END SUBROUTINE mc_molecule_rotation
 
 ! *****************************************************************************
-!!****s* mc_moves.F/mc_volume_move
-!!
-!!   NAME
-!!     mc_volume_move
-!!
-!!   FUNCTION
-!!     performs a Monte Carlo move that alters the volume of the simulation box
-!!
-!!   ARGUMENTS
-!!     - mc_par: the mc parameters for the force env
-!!     - force_env: the force environment whose cell we're changing
-!!     - moves: the structure that keeps track of how many moves have been
-!!              accepted/rejected
-!!     - move_updates: the structure that keeps track of how many moves have
-!!              been accepted/rejected since the last time the displacements
-!!              were updated
-!!     - nnstep: the total number of "outer moves" already performed
-!!     - old_energy: the energy of the last accepted move involving an
-!!                   unbiased calculation
-!!     - box_number: the box we're changing the volume of
-!!     - energy_check: the running total of how much the energy has changed
-!!                     since the initial configuration
-!!     - r_old: the coordinates of the last accepted move involving an
-!!              unbiased calculation
-!!     - iw: the unit number that writes to the screen
-!!     - discrete_array: tells use which volumes we can do for the discrete
-!!           case
-!!     - rng_stream: the random number stream that we draw from
-!!     - error: the cp error type
-!!
-!!     Designed for parallel use.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
-
+!> \brief performs a Monte Carlo move that alters the volume of the simulation box
+!> \param mc_par the mc parameters for the force env
+!> \param force_env the force environment whose cell we're changing
+!> \param moves the structure that keeps track of how many moves have been
+!>               accepted/rejected
+!> \param move_updates the structure that keeps track of how many moves have
+!>               been accepted/rejected since the last time the displacements
+!>               were updated
+!> \param nnstep the total number of "outer moves" already performed
+!> \param old_energy the energy of the last accepted move involving an
+!>                    unbiased calculation
+!> \param box_number the box we're changing the volume of
+!> \param energy_check the running total of how much the energy has changed
+!>                      since the initial configuration
+!> \param r_old the coordinates of the last accepted move involving an
+!>               unbiased calculation
+!> \param iw the unit number that writes to the screen
+!> \param discrete_array tells use which volumes we can do for the discrete
+!>            case
+!> \param rng_stream the random number stream that we draw from
+!> \param error the cp error type
+!> 
+!>      Designed for parallel use.
+!> \author MJM
+! *****************************************************************************
   SUBROUTINE mc_volume_move ( mc_par,force_env, moves,move_updates,&
                         nnstep,old_energy,box_number,&
                         energy_check,r_old,iw,discrete_array,rng_stream,error)
-
-!   ***************************************************************************
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
@@ -1245,7 +1161,6 @@ END SUBROUTINE mc_conformation_change
               old_cell_length(1)*old_cell_length(2)*&
               old_cell_length(3)
 
-        
          IF(temp_var .LE. 0.0E0_dp) THEN
             loverlap=.TRUE.  ! cannot have a negative volume
          ELSE
@@ -1390,8 +1305,6 @@ END SUBROUTINE mc_conformation_change
          CALL mp_bcast(rand,source,group)
       ENDIF
 
-
-
       IF (rand .LT. w) THEN
 
 ! accept the move
@@ -1422,7 +1335,6 @@ END SUBROUTINE mc_conformation_change
 
       ENDIF
 
-
 ! deallocate some stuff
       DEALLOCATE(r,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -1436,38 +1348,24 @@ END SUBROUTINE mc_conformation_change
   END SUBROUTINE mc_volume_move
 
 ! *****************************************************************************
-!!****s* mc_moves.F/change_bond_length
-!!
-!!   NAME
-!!     change_bond_length
-!!
-!!   FUNCTION
-!!     alters the length of a random bond for the given molecule, using
-!!     a mass weighted scheme so the lightest atoms move the most
-!!
-!!   ARGUMENTS
-!!     - r_old: the initial coordinates of all molecules in the system
-!!     - r_new: the new coordinates of all molecules in the system
-!!     - mc_par: the mc parameters for the force env
-!!     - molecule_type: the molecule type that we're moving
-!!     - molecule_kind: the structure containing the molecule information
-!!     - dis_length: the ratio of the new bond length to the old bond length,
-!!                   used in the acceptance rule
-!!     - particles: the particle_list_type for all particles in the force_env..
-!!            used to grab the mass of each atom
-!!     - rng_stream: the random number stream that we draw from
-!!
-!!   This subroutine is written to be parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
-
+!> \brief alters the length of a random bond for the given molecule, using
+!>      a mass weighted scheme so the lightest atoms move the most
+!> \param r_old the initial coordinates of all molecules in the system
+!> \param r_new the new coordinates of all molecules in the system
+!> \param mc_par the mc parameters for the force env
+!> \param molecule_type the molecule type that we're moving
+!> \param molecule_kind the structure containing the molecule information
+!> \param dis_length the ratio of the new bond length to the old bond length,
+!>                    used in the acceptance rule
+!> \param particles the particle_list_type for all particles in the force_env..
+!>             used to grab the mass of each atom
+!> \param rng_stream the random number stream that we draw from
+!> 
+!>    This subroutine is written to be parallel.
+!> \author MJM
+! *****************************************************************************
   SUBROUTINE change_bond_length ( r_old,r_new,mc_par,molecule_type,molecule_kind,&
       dis_length,particles,rng_stream,error)
-
-!   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: r_old
@@ -1647,37 +1545,22 @@ END SUBROUTINE mc_conformation_change
   END SUBROUTINE change_bond_length
 
 ! *****************************************************************************
-!!****s* mc_moves.F/change_bond_angle
-!!
-!!   NAME
-!!     change_bond_angle
-!!
-!!   FUNCTION
-!!     Alters the magnitude of a random angle in a molecule centered on atom C
-!!     (connected to atoms A and B).  Atoms A and B are moved amounts related
-!!     to their masses (and masses of all connecting atoms), so that heavier
-!!     segments are moved less.
-!!
-!!   ARGUMENTS
-!!     - r_old: the initial coordinates of all molecules in the system
-!!     - r_new: the new coordinates of all molecules in the system
-!!     - mc_par: the mc parameters for the force env
-!!     - molecule_type: the type of molecule we're playing with
-!!     - molecule_kind: the structure containing the molecule information
-!!     - particles: the particle_list_type for all particles in the force_env...
-!!            used to grab the mass of each atom
-!!     - rng_stream: the random number stream that we draw from
-!!
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
-
+!> \brief Alters the magnitude of a random angle in a molecule centered on atom C
+!>      (connected to atoms A and B).  Atoms A and B are moved amounts related
+!>      to their masses (and masses of all connecting atoms), so that heavier
+!>      segments are moved less.
+!> \param r_old the initial coordinates of all molecules in the system
+!> \param r_new the new coordinates of all molecules in the system
+!> \param mc_par the mc parameters for the force env
+!> \param molecule_type the type of molecule we're playing with
+!> \param molecule_kind the structure containing the molecule information
+!> \param particles the particle_list_type for all particles in the force_env...
+!>             used to grab the mass of each atom
+!> \param rng_stream the random number stream that we draw from
+!> \author MJM
+! *****************************************************************************
   SUBROUTINE change_bond_angle ( r_old,r_new,mc_par,molecule_type,molecule_kind,&
       particles,rng_stream,error)
-
-!   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: r_old
@@ -1947,40 +1830,25 @@ END SUBROUTINE mc_conformation_change
   END SUBROUTINE change_bond_angle
 
 ! *****************************************************************************
-!!****s* mc_moves.F/change_dihedral
-!!
-!!   NAME
-!!     change_dihedral
-!!
-!!   FUNCTION
-!!     Alters a dihedral (A-B-C-D) in the molecule so that all other internal
-!!     degrees of freedom remain the same.  If other dihedrals are centered
-!!     on B-C, they rotate as well to keep the relationship between the
-!!     dihedrals the same.  Atoms A and D are moved amounts related to their
-!!     masses (and masses of all connecting atoms), so that heavier segments
-!!     are moved less.  All atoms except B and C are rotated around the
-!!     B-C bond vector (B and C are not moved).
-!!
-!!   ARGUMENTS
-!!     - r_old: the initial coordinates of all molecules in the system
-!!     - r_new: the new coordinates of all molecules in the system
-!!     - mc_par: the mc parameters for the force env
-!!     - molecule_type: the type of molecule we're playing with
-!!     - molecule_kind: the structure containing the molecule information
-!!     - particles: the particle_list_type for all particles in the force_env..
-!!            used to grab the mass of each atom
-!!     - rng_stream: the random number stream that we draw from
-!!
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
-
+!> \brief Alters a dihedral (A-B-C-D) in the molecule so that all other internal
+!>      degrees of freedom remain the same.  If other dihedrals are centered
+!>      on B-C, they rotate as well to keep the relationship between the
+!>      dihedrals the same.  Atoms A and D are moved amounts related to their
+!>      masses (and masses of all connecting atoms), so that heavier segments
+!>      are moved less.  All atoms except B and C are rotated around the
+!>      B-C bond vector (B and C are not moved).
+!> \param r_old the initial coordinates of all molecules in the system
+!> \param r_new the new coordinates of all molecules in the system
+!> \param mc_par the mc parameters for the force env
+!> \param molecule_type the type of molecule we're playing with
+!> \param molecule_kind the structure containing the molecule information
+!> \param particles the particle_list_type for all particles in the force_env..
+!>             used to grab the mass of each atom
+!> \param rng_stream the random number stream that we draw from
+!> \author MJM
+! *****************************************************************************
   SUBROUTINE change_dihedral ( r_old,r_new,mc_par,molecule_type,molecule_kind,&
       particles,rng_stream,error)
-
-!   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: r_old
@@ -2131,7 +1999,6 @@ END SUBROUTINE mc_conformation_change
             r_new(1:3,iatom)=r_new(1:3,iatom)-&
                r_new(1:3,torsion_list(torsion_number)%b)
 
-
 ! multiply by the rotation matrix
                u=bond_a(1)
                v=bond_a(2)
@@ -2197,52 +2064,37 @@ END SUBROUTINE mc_conformation_change
       CALL timestop(0.0E0_dp,handle)
 
   END SUBROUTINE change_dihedral
-!*********************************************************************
 
 ! *****************************************************************************
-!!****s* mc_moves.F/mc_avbmc_move
-!!
-!!   NAME
-!!     mc_avbmc_move
-!!
-!!   FUNCTION
-!!     performs either a bond or angle change move for a given molecule
-!!
-!!   ARGUMENTS
-!!     - mc_par: the mc parameters for the force env
-!!     - force_env: the force environment used in the move
-!!     - bias_env: the force environment used to bias the move, if any (it may
-!!           be null if lbias=.false. in mc_par)
-!!     - moves: the structure that keeps track of how many moves have been
-!!              accepted/rejected
-!!     - enegy_check: the running energy difference between now and the inital energy
-!!     - r_old: the coordinates of force_env before the move
-!!     - old_energy: the energy of the force_env before the move
-!!     - start_atom_swap: the number of the swap molecule's first atom, assuming the rest of
-!!       the atoms follow sequentially
-!!     - target_atom: the number of the target atom for swapping
-!!     - molecule_type: the molecule type for the atom we're swapping
-!!     - box_number: the number of the box we're doing this move in
-!!     - bias_energy_old: the biased energy of the system before the move
-!!     - last_bias_energy: the last biased energy of the system
-!!     - move_type: dictates if we're moving to an "in" or "out" region
-!!     - rng_stream: the random number stream that we draw from
-!!     - error: the cp_error type
-!!
-!!     Designed for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
-
+!> \brief performs either a bond or angle change move for a given molecule
+!> \param mc_par the mc parameters for the force env
+!> \param force_env the force environment used in the move
+!> \param bias_env the force environment used to bias the move, if any (it may
+!>            be null if lbias=.false. in mc_par)
+!> \param moves the structure that keeps track of how many moves have been
+!>               accepted/rejected
+!> \param enegy_check the running energy difference between now and the inital energy
+!> \param r_old the coordinates of force_env before the move
+!> \param old_energy the energy of the force_env before the move
+!> \param start_atom_swap the number of the swap molecule's first atom, assuming the rest of
+!>        the atoms follow sequentially
+!> \param target_atom the number of the target atom for swapping
+!> \param molecule_type the molecule type for the atom we're swapping
+!> \param box_number the number of the box we're doing this move in
+!> \param bias_energy_old the biased energy of the system before the move
+!> \param last_bias_energy the last biased energy of the system
+!> \param move_type dictates if we're moving to an "in" or "out" region
+!> \param rng_stream the random number stream that we draw from
+!> \param error the cp_error type
+!> 
+!>      Designed for parallel.
+!> \author MJM
+! *****************************************************************************
   SUBROUTINE mc_avbmc_move ( mc_par,force_env,bias_env, moves,&
                         energy_check,r_old,old_energy,start_atom_swap,&
                         target_atom,&
                         molecule_type,box_number,bias_energy_old,last_bias_energy,&
                         move_type,rng_stream,error)
-
-!   ***************************************************************************
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
@@ -2308,7 +2160,6 @@ END SUBROUTINE mc_conformation_change
          start_mol=start_mol+SUM(nchains(:,jbox))
       ENDDO
       end_mol=start_mol+SUM(nchains(:,box_number))-1
-
 
 ! nullify some pointers
       NULLIFY(particles,subsys,molecule_kinds_new,molecule_kind,&
@@ -2435,7 +2286,6 @@ END SUBROUTINE mc_conformation_change
 ! lbias=.false. case because it doesn't appear in the acceptance rule, and
 ! we compensate in case of acceptance
          bias_energy_new=bias_energy_new+bias_energy_old
-
 
       ELSE
 
@@ -2636,6 +2486,4 @@ END SUBROUTINE mc_conformation_change
   END SUBROUTINE mc_avbmc_move
 
 END MODULE mc_moves
-
-!**********************************************************************
 

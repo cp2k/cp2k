@@ -3,29 +3,15 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/pw_env_methods [1.0] *
-!!
-!!   NAME
-!!     pw_env_methods
-!!
-!!   FUNCTION
-!!     methods of pw_env that have dependence on qs_env
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     10.2002 created [fawzi]
-!!     JGH (22-Feb-03) PW grid options added
-!!     04.2003 added rs grid pools [fawzi]
-!!     02.2004 added commensurate grids
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief methods of pw_env that have dependence on qs_env
+!> \par History
+!>      10.2002 created [fawzi]
+!>      JGH (22-Feb-03) PW grid options added
+!>      04.2003 added rs grid pools [fawzi]
+!>      02.2004 added commensurate grids
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE pw_env_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -95,33 +81,18 @@ MODULE pw_env_methods
 
   PUBLIC :: pw_env_create, pw_env_rebuild
 !***
-!****************************************************************************
 CONTAINS
 
-!!****f* pw_env_methods/pw_env_create [1.0] *
-!!
-!!   NAME
-!!     pw_env_create
-!!
-!!   FUNCTION
-!!     creates a pw_env, if qs_env is given calls pw_env_rebuild
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pw_env: the pw_env that gets created
-!!     - qs_env: if given it is used to initialize the pw_env
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     10.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a pw_env, if qs_env is given calls pw_env_rebuild
+!> \param pw_env the pw_env that gets created
+!> \param qs_env if given it is used to initialize the pw_env
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE pw_env_create(pw_env,qs_env,error)
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_environment_type), OPTIONAL, &
@@ -151,32 +122,16 @@ SUBROUTINE pw_env_create(pw_env,qs_env,error)
   END IF
 END SUBROUTINE pw_env_create
 
-!***************************************************************************
-
-!!****f* pw_env_methods/pw_env_rebuild [1.0] *
-!!
-!!   NAME
-!!     pw_env_rebuild
-!!
-!!   FUNCTION
-!!     rebuilds the pw_env data (necessary if cell or cutoffs change)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pw_env: the environment to rebuild
-!!     - qs_env: the qs_env where to get the cell, cutoffs,...
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     10.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief rebuilds the pw_env data (necessary if cell or cutoffs change)
+!> \param pw_env the environment to rebuild
+!> \param qs_env the qs_env where to get the cell, cutoffs,...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -273,7 +228,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      NULLIFY(pw_env%pw_pools, pw_env%cube_info)
   END IF
 
-
 !
 !
 ! Part two, setup the pw_grids
@@ -296,7 +250,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      CALL section_vals_val_get(input,"DFT%XC%XC_GRID%USE_FINER_GRID",&
           l_val=uf_grid,error=error)
      ngrid_level = SIZE(cutoff)
-
 
      ! init gridlevel_info XXXXXXXXX setup mapping to the effective cutoff ?
      !                     XXXXXXXXX the cutoff array here is more a 'wish-list'
@@ -631,22 +584,12 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 
 END SUBROUTINE pw_env_rebuild
 
-!***************************************************************************
-  !!****** pw_poisson_types/setup_super_ref_grid [1.0] *
-  !!
-  !!   NAME
-  !!     setup_super_ref_grid
-  !!
-  !!   FUNCTION
-  !!     Initialize the super-reference grid for Tuckerman or xc
-  !!
-  !!   AUTHOR
-  !!     03-2005 Teodoro Laino [teo]
-  !!
-  !!   NOTE
-  !!     move somewere else?
-  !!
-  !!*** ***********************************************************************
+! *****************************************************************************
+!> \brief Initialize the super-reference grid for Tuckerman or xc
+!> \note
+!>      move somewere else?
+!> \author 03-2005 Teodoro Laino [teo]
+! *****************************************************************************
   SUBROUTINE setup_super_ref_grid(super_ref_pw_grid,mt_super_ref_pw_grid,&
        xc_super_ref_pw_grid, cutilev, grid_span, spherical,&
        cell_ref, para_env, input, my_ncommensurate, uf_grid,print_section, &
@@ -733,8 +676,6 @@ END SUBROUTINE pw_env_rebuild
          "",error=error)
     END IF
   END SUBROUTINE setup_super_ref_grid
-!***************************************************************************
 
 END MODULE pw_env_methods
 
-!***************************************************************************

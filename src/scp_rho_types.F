@@ -2,22 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/scp_rho_types [1.0] *
-!!
-!!   NAME
-!!     scp_rho_types
-!!
-!!   FUNCTION
-!!     rho_types
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief rho_types
+!> \author CJM
+! *****************************************************************************
 MODULE scp_rho_types
   USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_p_type,&
@@ -33,6 +22,7 @@ MODULE scp_rho_types
   PUBLIC :: scp_rho_type, scp_rho_release, scp_rho_get, &
             scp_rho_retain
 
+! *****************************************************************************
   TYPE scp_rho_type
      INTEGER :: ref_count, id_nr
      REAL(KIND=dp) :: total_rho_gspace, total_rho_rspace
@@ -43,8 +33,7 @@ MODULE scp_rho_types
 CONTAINS
 
 !-----------------------------------------------------------------------------!
-!!***
-!******************************************************************************
+! *****************************************************************************
 SUBROUTINE scp_rho_get(rho_scp,  rhop_r, rhop_g, error)
     TYPE(scp_rho_type), POINTER              :: rho_scp
     TYPE(pw_p_type), OPTIONAL, POINTER       :: rhop_r, rhop_g
@@ -65,7 +54,7 @@ SUBROUTINE scp_rho_get(rho_scp,  rhop_r, rhop_g, error)
     IF (PRESENT(rhop_g)) rhop_g => rho_scp%rhop_g
   END IF
 END SUBROUTINE scp_rho_get
-!!**************************************************************************
+! *****************************************************************************
 SUBROUTINE scp_rho_retain(rho_scp,error)
     TYPE(scp_rho_type), POINTER              :: rho_scp
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -83,20 +72,11 @@ SUBROUTINE scp_rho_retain(rho_scp,error)
      rho_scp%ref_count=rho_scp%ref_count+1
   END IF
 END SUBROUTINE scp_rho_retain
-!***************************************************************************
-!!****f* scp_force/release_scp_rho [1.0] *
-!!
-!!   NAME
-!!     release_scp_rho
-!!
-!!   FUNCTION
-!!     releases the memory used by the scp_rho and scp_rho
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*************************************************************************
-  SUBROUTINE scp_rho_release(rho_scp,error)
 
+! *****************************************************************************
+!> \brief releases the memory used by the scp_rho and scp_rho
+! *****************************************************************************
+  SUBROUTINE scp_rho_release(rho_scp,error)
 
     TYPE(scp_rho_type), POINTER              :: rho_scp
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -133,6 +113,4 @@ END SUBROUTINE scp_rho_retain
   CALL timestop(0.0_dp,handle)
   END SUBROUTINE scp_rho_release
 
-!***************************************************************************
 END MODULE scp_rho_types
-!******************************************************************************

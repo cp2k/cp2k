@@ -2,23 +2,14 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/extended_system_init [1.0] *
-!!
-!!   NAME
-!!     extended_system_init
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     cjm, FEB 20 2001:  added subroutine initialize_extended_parameters
-!!     cjm, MAY 03 2001:  reorganized and added separtate routines for
-!!                        nhc_part, nhc_baro, nhc_ao, npt
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      cjm, FEB 20 2001:  added subroutine initialize_extended_parameters
+!>      cjm, MAY 03 2001:  reorganized and added separtate routines for
+!>                         nhc_part, nhc_baro, nhc_ao, npt
+!> \author CJM
+! *****************************************************************************
 MODULE extended_system_init
 
   USE cell_types,                      ONLY: cell_type
@@ -64,27 +55,11 @@ MODULE extended_system_init
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_init'
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** extended_system_init/initialize_npt [1.0] *
-!!
-!!   NAME
-!!     initialize_npt_type
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE initialize_npt ( simpar, para_env, globenv, npt_info, cell, work_section, error)
 
     TYPE(simulation_parameters_type), &
@@ -152,7 +127,6 @@ CONTAINS
           restart=explicit.AND.restart
        END IF
        
-
        IF ( restart ) THEN
           CALL section_vals_val_get(work_section,"VELOCITY%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
           ind = 0
@@ -179,23 +153,10 @@ CONTAINS
     END IF
   END SUBROUTINE initialize_npt
 
-!******************************************************************************
-!!****** extended_system_init/initialize_nhc_baro [1.0] *
-!!
-!!   NAME
-!!     initialize_nhc_baro
-!!
-!!   FUNCTION
-!!     fire up the thermostats, if NPT
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief fire up the thermostats, if NPT
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE initialize_nhc_baro ( simpar, para_env, globenv, nhc, nose_section, save_mem, error )
 
     TYPE(simulation_parameters_type), &
@@ -240,21 +201,9 @@ CONTAINS
     CALL init_nhc_forces ( nhc, error=error)
   END SUBROUTINE initialize_nhc_baro
 
-!******************************************************************************
-!!****** extended_system_init/initialize_nhc_part [1.0] *
-!!
-!!   NAME
-!!     initialize_nhc_part
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE initialize_nhc_part ( thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, para_env, globenv, nhc, nose_section,&
        gci, save_mem, error)
@@ -305,22 +254,11 @@ CONTAINS
     CALL init_nhc_forces ( nhc, error=error)
   END SUBROUTINE initialize_nhc_part
 
-!******************************************************************************
-!!****** extended_system_init/initialize_nhc_coef [1.0] *
-!!
-!!   NAME
-!!     initialize_nhc_coef
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!   04-02-04 gt: rewritten using new dynamical_coef_type
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>    04-02-04 gt: rewritten using new dynamical_coef_type
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE initialize_nhc_coef ( dyn_coeff_set, para_env, globenv, nhc, &
              coeff_section, dt, save_mem, nose_section, error )
 
@@ -369,21 +307,9 @@ CONTAINS
     CALL init_nhc_forces ( nhc, error=error)
   END SUBROUTINE initialize_nhc_coef
 
-!******************************************************************************
-!!****** extended_system_init/initialize_nhc_shell [1.0] *
-!!
-!!   NAME
-!!     initialize_nhc_shell
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author MI
+! *****************************************************************************
   SUBROUTINE initialize_nhc_shell( thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, para_env, globenv, nhc, nose_section,&
        gci, save_mem, error)
@@ -432,27 +358,13 @@ CONTAINS
     CALL init_nhc_forces ( nhc, error=error)
   END SUBROUTINE  initialize_nhc_shell
   
-!!*****
-!******************************************************************************
-!!****** extended_system_init/set_yoshida_coef [1.0] *
-!!
-!!   NAME
-!!     set_yoshida_coef
-!!
-!!   FUNCTION
-!!     This lists the coefficients for the Yoshida method (higher
-!!     order integrator used in NVT)
-!!
-!!   AUTHOR
-!!
-!!   CREATION DATE
-!!     14-NOV-2000
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief This lists the coefficients for the Yoshida method (higher
+!>      order integrator used in NVT)
+!> \par History
+!>      none
+!> \date 14-NOV-2000
+! *****************************************************************************
   SUBROUTINE set_yoshida_coef ( nhc, dt )
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc
@@ -519,24 +431,13 @@ CONTAINS
 
   END SUBROUTINE set_yoshida_coef
 
-!******************************************************************************
-!!****** extended_system_init/restart_nose [1.0] *
-!!
-!!   NAME
-!!     restart_nose 
-!!
-!!   FUNCTION
-!!     read coordinate, velocities, forces and masses of the
-!!     thermostat from restart file
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!    24-07-07 created 
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief read coordinate, velocities, forces and masses of the
+!>      thermostat from restart file
+!> \par History
+!>     24-07-07 created 
+!> \author MI
+! *****************************************************************************
   SUBROUTINE restart_nose(nhc,nose_section,save_mem,restart,error)
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc
@@ -638,26 +539,12 @@ CONTAINS
      ENDIF
   END SUBROUTINE restart_nose
 
-
-!******************************************************************************
-!!****** extended_system_init/init_nhc_variables [1.0] *
-!!
-!!   NAME
-!!     init_nhc_variables
-!!
-!!   FUNCTION
-!!     Initializes the NHC velocities to the Maxwellian distribution
-!!
-!!   AUTHOR
-!!
-!!   CREATION DATE
-!!     14-NOV-2000
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Initializes the NHC velocities to the Maxwellian distribution
+!> \par History
+!>      none
+!> \date 14-NOV-2000
+! *****************************************************************************
   SUBROUTINE init_nhc_variables ( nhc,temp_ext, para_env, globenv, error )
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     REAL(KIND=dp), INTENT(IN)                :: temp_ext
@@ -773,26 +660,12 @@ CONTAINS
     END SELECT
   END SUBROUTINE init_nhc_variables
 
-!!*****
-!******************************************************************************
-!!****** extended_system_init/init_barostat_variables [1.0] *
-!!
-!!   NAME
-!!     init_barostat_variables
-!!
-!!   FUNCTION
-!!     Initializes the barostat velocities to the Maxwellian distribution
-!!
-!!   AUTHOR
-!!
-!!   CREATION DATE
-!!     14-NOV-2000
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Initializes the barostat velocities to the Maxwellian distribution
+!> \par History
+!>      none
+!> \date 14-NOV-2000
+! *****************************************************************************
   SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
        cmass, para_env, globenv, error )
     
@@ -869,22 +742,10 @@ CONTAINS
     
   END SUBROUTINE init_barostat_variables
 
-!******************************************************************************
-!!****** extended_system_init/init_nhc_forces [1.0] *
-!!
-!!   NAME
-!!     init_nhc_forces
-!!
-!!   FUNCTION
-!!    Assigns extended parameters from the restart file.
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Assigns extended parameters from the restart file.
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE init_nhc_forces ( nhc, error)
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc

@@ -2,21 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****s* cp2k/qmmm_pw_grid [1.1] *
-!!
-!!   NAME
-!!     qmmm_pw_grid
-!!
-!!   FUNCTION
-!!     sets variables for the qmmm pool of pw_types
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+
+! *****************************************************************************
+!> \brief sets variables for the qmmm pool of pw_types
+!> \author Teodoro Laino
+! *****************************************************************************
 MODULE qmmm_pw_grid
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -54,30 +44,16 @@ MODULE qmmm_pw_grid
 
 CONTAINS
 
-!!****f* qmmm_pw_grid/qmmm_pw_grid_init [1.0] *
-!!
-!!   NAME
-!!     qmmm_pw_grid_init
-!!
-!!   FUNCTION
-!!     Initialize the qmmm pool of pw_type.
-!!     Then Main difference w.r.t. QS pw_type pools is that this pool
-!!     has [0,L] as boundaries.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2004 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Initialize the qmmm pool of pw_type.
+!>      Then Main difference w.r.t. QS pw_type pools is that this pool
+!>      has [0,L] as boundaries.
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_pw_grid_init(qmmm_env, pw_env, cell, para_env, error)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -140,35 +116,21 @@ CONTAINS
 
   END SUBROUTINE qmmm_pw_grid_init
 
-!***************************************************************************
-!!****f* qmmm_pw_grid/pw_grid_create_copy_no_pbc [1.0] *
-!!
-!!   NAME
-!!     pw_grid_create_copy_no_pbc
-!!
-!!   FUNCTION
-!!     creates a copy of pw_grid_in in which the pbc have been removed
-!!     (by adding a point for the upper boundary)
-!!
-!!   NOTES
-!!
-!!   ARGUMENTS
-!!     - pw_grid_in: the pw grid to duplicate
-!!     - pw_grid_out: the output pw_grid_type
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi, Teo
-!!
-!!   MODIFICATION HISTORY
-!!     08.2004 created [tlaino]
-!!     04.2005 completly rewritten the duplicate routine, fixed parallel
-!!             behaviour, narrowed scope to copy to non pbc and renamed
-!!             accordingly [fawzi]
-!!     06.2007 moved to new module [jgh]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a copy of pw_grid_in in which the pbc have been removed
+!>      (by adding a point for the upper boundary)
+!> \param pw_grid_in the pw grid to duplicate
+!> \param pw_grid_out the output pw_grid_type
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2004 created [tlaino]
+!>      04.2005 completly rewritten the duplicate routine, fixed parallel
+!>              behaviour, narrowed scope to copy to non pbc and renamed
+!>              accordingly [fawzi]
+!>      06.2007 moved to new module [jgh]
+!> \author Fawzi, Teo
+! *****************************************************************************
   SUBROUTINE pw_grid_create_copy_no_pbc(pw_grid_in, pw_grid_out, cell, pw_mode, error)
     TYPE(pw_grid_type), POINTER              :: pw_grid_in, pw_grid_out
     TYPE(cell_type), POINTER                 :: cell

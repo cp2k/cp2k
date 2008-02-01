@@ -3,31 +3,18 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/neb_types [1.0] *
-!!
-!!   NAME
-!!     neb_types
-!!
-!!   FUNCTION
-!!     Typo for Nudged Elastic Band Calculation
-!!
-!!   NOTES
-!!     Numerical accuracy for parallel runs:
-!!      Each replica starts the SCF run from the one optimized
-!!      in a previous run. It may happen then energies and derivatives
-!!      of a serial run and a parallel run could be slightly different
-!!      'cause of a different starting density matrix.
-!!      Exact results are obtained using:
-!!         EXTRAPOLATION USE_GUESS in QS section (Teo 09.2006)
-!!
-!!   AUTHOR
-!!     Teodoro Laino 10.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Typo for Nudged Elastic Band Calculation
+!> \note
+!>      Numerical accuracy for parallel runs:
+!>       Each replica starts the SCF run from the one optimized
+!>       in a previous run. It may happen then energies and derivatives
+!>       of a serial run and a parallel run could be slightly different
+!>       'cause of a different starting density matrix.
+!>       Exact results are obtained using:
+!>          EXTRAPOLATION USE_GUESS in QS section (Teo 09.2006)
+!> \author Teodoro Laino 10.2006
+! *****************************************************************************
 MODULE neb_types
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_type
@@ -44,6 +31,7 @@ MODULE neb_types
 
   PUBLIC :: neb_type
 
+! *****************************************************************************
   TYPE neb_type
      ! NEB parameters
      LOGICAL       :: rotate_frames, optimize_end_points

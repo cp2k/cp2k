@@ -3,19 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/hartree_local_3centers
-!!
-!!   NAME
-!!     hartree_local_3centers
-!!
-!!   FUNCTION
-!!     Perform the calculation of the hartree 3 center terms for the GAPW method
-!!
-!!   AUTHOR
-!!      MI
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Perform the calculation of the hartree 3 center terms for the GAPW method
+!> \author MI
+! *****************************************************************************
 MODULE  hartree_local_3centers
 
   USE ai_coulomb,                      ONLY: coulomb3
@@ -80,40 +71,24 @@ MODULE  hartree_local_3centers
 
   PUBLIC :: integrate_a_vhg0_b
 
-  !******************************************************************************
-
 CONTAINS
 
-  !!****f* hartree_local_3centers/integrate_a_vhg0_b [1.0] *
-  !!
-  !!   NAME
-  !!     integrate_a_vhg0_b
-  !!
-  !!   FUNCTION
-  !!     Analytic calculation of the 3 center integrals for the GAPW 3 center terms
-  !!     This terms give the Hartree contribution due to the interaction of the soft density
-  !!     and the (rho0_hard-rho0_soft) density, i.e. the difference between the hard and
-  !!     soft compensation charges. (rho0_hard-rho0_soft) is a sum over atomic
-  !!     contributions, which should be very shor ranged.
-  !!     For this terms, properly constructed 3 center lists are used, in order to restrict
-  !!     the calculation only to those triplets of atoms with overlapping functions.
-  !!     For atom A and atom B the only soft primitives of the basis set are taken into
-  !!     account, for the atom C, instead, the g0 primitives (see compensation charges)
-  !!     are used in the integrals.
-  !!
-  !!   NOTE
-  !!     For large systems the 3 center lists can become huge and this part of
-  !!     the calculation is the bottleneck. It needs optimization for better performance
-  !!
-  !!   INPUTS
-  !!
-  !!
-  !!   AUTHOR
-  !!     MI
-  !!
-  !!
-  !!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief Analytic calculation of the 3 center integrals for the GAPW 3 center terms
+!>      This terms give the Hartree contribution due to the interaction of the soft density
+!>      and the (rho0_hard-rho0_soft) density, i.e. the difference between the hard and
+!>      soft compensation charges. (rho0_hard-rho0_soft) is a sum over atomic
+!>      contributions, which should be very shor ranged.
+!>      For this terms, properly constructed 3 center lists are used, in order to restrict
+!>      the calculation only to those triplets of atoms with overlapping functions.
+!>      For atom A and atom B the only soft primitives of the basis set are taken into
+!>      account, for the atom C, instead, the g0 primitives (see compensation charges)
+!>      are used in the integrals.
+!> \note
+!>      For large systems the 3 center lists can become huge and this part of
+!>      the calculation is the bottleneck. It needs optimization for better performance
+!> \author MI
+! *****************************************************************************
   SUBROUTINE integrate_a_vhg0_b(qs_env,h_mat,p_mat,energy_hartree_3c,just_energy,&
        calculate_forces,tddft,p_env,error)
 
@@ -270,8 +245,6 @@ CONTAINS
 
        maxlgto1 = maxlgto
     END IF
-
-
 
     maxch0 = ncoset(lmax_0)
 
@@ -481,7 +454,6 @@ CONTAINS
                               sphi_b(1,ifs2), maxcob,&
                               0.0_dp,hab(1,1),ldhab1)
 
-
                          DO ip1 = 1,npgfa(iset1)
                             ic1 = ic1_min_m1+1
                             n1 = ic1_max*(ip1-1)
@@ -504,7 +476,6 @@ CONTAINS
                                  1.0_dp,work(1,1),maxco_global,&
                                  sphi_b(1,ifs2), maxcob,&
                                  0.0_dp,hab(1,1),ldhab1)
-
 
                             DO ip1 = 1,npgfa(iset1)
                                ic1 = ic1_min_m1+1
@@ -874,7 +845,6 @@ CONTAINS
                                        1.0_dp,h_block2(ifs1,ifs2),SIZE(h_block,1))
                                END IF
 
-
                                DO ispin = 1,nspins
                                   trace = trace_r_AxB_new(CPC_ab(:,:,ispin),ldcpc1,m1,m2,&
                                        Int_ab_sum,ldintab1,0,0,nco1,nco2)
@@ -1015,7 +985,6 @@ CONTAINS
              END DO
           END DO
 
-
        END DO  ! kat
 
     END DO  ! kkind
@@ -1076,28 +1045,15 @@ CONTAINS
 
   END SUBROUTINE integrate_a_vhg0_b
 
-  !******************************************************************************
-  !!****f* hartree_local_3centers/sumup_3c_integrals [1.0] *
-  !!
-  !!   NAME
-  !!     sumup_3c_integrals
-  !!
-  !!   FUNCTION
-  !!     Driver for the calculation of the 3 center integrals.
-  !!     It already performes the difference (rho0_h_C-rho0_s_C)rho_soft
-  !!
-  !!   NOTE
-  !!     For large systems the 3 center lists can become huge and this part of
-  !!     the calculation is the bottleneck. This routine is called too many times
-  !!     It needs optimization for better performance
-  !!
-  !!   AUTHOR
-  !!     MI
-  !!
-  !!
-  !!*** **********************************************************************
-
-
+! *****************************************************************************
+!> \brief Driver for the calculation of the 3 center integrals.
+!>      It already performes the difference (rho0_h_C-rho0_s_C)rho_soft
+!> \note
+!>      For large systems the 3 center lists can become huge and this part of
+!>      the calculation is the bottleneck. This routine is called too many times
+!>      It needs optimization for better performance
+!> \author MI
+! *****************************************************************************
   SUBROUTINE sumup_3c_integrals(l1_max,l1_min,nco1,m1,rp1,z1,nz1,&
        l2_max,l2_min,nco2,m2,rp2,z2,nz2,&
        l0_max,ng0_h,ng0_s,rp0_h,rp0_s,QN_h,QN_s,Qlm,z0_h,z0_s,&
@@ -1164,7 +1120,6 @@ CONTAINS
             r12,r122,r13,r132,r23,r232,vabc,int_tmp,&
             vv,ff(0:),maxder=maxder,vabc_plus=vabc_plus)
     ELSE
-
 
        CALL coulomb3(l1_max,nz1,z1,rp1,l1_min,&
             l2_max,nz2,z2,rp2,l2_min,&
@@ -1289,6 +1244,4 @@ CONTAINS
 
   END SUBROUTINE sumup_3c_integrals
 
-  !******************************************************************************
 END MODULE hartree_local_3centers
-!******************************************************************************

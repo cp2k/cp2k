@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/kg_force [1.0] *
-!!
-!!   NAME
-!!     kg_force
-!!
-!!   FUNCTION
-!!     kg force calculation routine
-!!
-!!   AUTHOR
-!!     gloria,30.09.2002
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (22-Feb-03) PW grid options added
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief kg force calculation routine
+!> \par History
+!>      JGH (22-Feb-03) PW grid options added
+!> \author gloria,30.09.2002
+! *****************************************************************************
 MODULE kg_force
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -110,34 +100,13 @@ MODULE kg_force
 
   PUBLIC :: kg_force_control
 
-!******************************************************************************
-
 CONTAINS
 
-!!****** kg_force/kg_force_control [1.1] *
-!!
-!!   NAME
-!!     kg_force_control
-!!
-!!   SYNOPSIS
-!!     Subroutine kg_force_control(kg_env, globenv, debug)
-!!       Implicit None
-!!       Type(kg_environment_type), Intent (INOUT):: kg_env
-!!       Type(global_environment_type), pointer:: globenv
-!!       Type(debug_variables_type), Intent (OUT), Optional:: debug
-!!     End Subroutine kg_force_control
-!!
-!!   FUNCTION
-!!     Calculates the total potential energy, total force, and the
-!!     total pressure tensor from the potentials
-!!
-!!   AUTHOR
-!!     gt
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Calculates the total potential energy, total force, and the
+!>      total pressure tensor from the potentials
+!> \author gt
+! *****************************************************************************
 SUBROUTINE kg_force_control ( kg_env, globenv, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
@@ -161,25 +130,11 @@ SUBROUTINE kg_force_control ( kg_env, globenv, error )
   END IF
   END SUBROUTINE kg_force_control
 
-
-!******************************************************************************
-!!****** kg_force/kgpol_calculate_forces [1.1] *
-!!
-!!   NAME
-!!     kgpol_calculate_forces
-!!
-!!   FUNCTION
-!!     Calculates the total potential energy, total force
-!!
-!!   AUTHOR
-!!     gt
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Calculates the total potential energy, total force
+!> \author gt
+! *****************************************************************************
 SUBROUTINE kgpol_calculate_forces ( kg_env, error )
-
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -316,7 +271,6 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
       local_coeffs%forces(:,:)=0.0_dp
     END IF
   END DO
-
 
 ! self energy
   CALL calculate_eself ( kg_env, energy % core_self ,error=error)
@@ -460,7 +414,6 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
                                 force(ikind)%f_ppl(:,:)
   END DO
 
-
   DO ikind = 1, nkind
     atomic_kind => atomic_kind_set(ikind)
     CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -484,23 +437,10 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
 
 END SUBROUTINE kgpol_calculate_forces
 
-
-!******************************************************************************
-!!****** kg_force/kg_calculate_forces [1.1] *
-!!
-!!   NAME
-!!     kg_calculate_forces
-!!
-!!   FUNCTION
-!!     Calculates the total potential energy, total force
-!!
-!!   AUTHOR
-!!     gt
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Calculates the total potential energy, total force
+!> \author gt
+! *****************************************************************************
 SUBROUTINE kg_calculate_forces ( kg_env, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
@@ -593,7 +533,6 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                               natom_of_kind=natom_of_kind)
   END IF
-
 
   CALL build_kg_neighbor_lists(kg_env,para_env,error)
 
@@ -721,7 +660,6 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
                                 force(ikind)%f_bc(:,:)
   END DO
 
-
   DO ikind = 1, nkind
     atomic_kind => atomic_kind_set(ikind)
     CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -745,46 +683,31 @@ SUBROUTINE kg_calculate_forces ( kg_env, error )
 
 END SUBROUTINE kg_calculate_forces
 
-!******************************************************************************
-
-!!****f* kg_force/kg_qs_calculate_forces [1.0] *
-!!
-!!   NAME
-!!     kg_qs_calculate_forces
-!!
-!!   FUNCTION
-!!     Calculates the total potential energy, total force
-!!     using the KG GPW method. This implies the calculation of the
-!!     GPW KS energy  and the KS matrix via qs_ks_build_kohn_sham_matrix
-!!     where the KE energy correction is added to be able to treat the
-!!     molecule separatedly in the construction of the density.
-!!     In the SCF iteration the optimization of the wavefunctions is
-!!     done by the standard diagonalization of the diagonal blocks
-!!     of the MO matrix. Each block is handled independently
-!!     This is possible because the wavefunctions located
-!!     on different molecules are orthogonal by construction.
-!!
-!!   NOTES
-!!     Even if it is a KG method energies and forces are of the type qs_energy and qs_force
-!!     because the calculation goes through the QS routines for GPW.
-!!     Therefore the kg_energy and kg_force remain not allocated.
-!!     An additional term has been added in either qs_energy and qs_force, which
-!!     is called    kg_gpw_ekin_mol and contains the contributions from the
-!!     correction calculated as by the kinetic energy functional applied to
-!!     the molecular densities.
-!!
-!!   INPUTS
-!!      - kg_env: Kg environment which contains the qs envirement as subenvironment
-!!      - globenv: global environment
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     created 11-02-05
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Calculates the total potential energy, total force
+!>      using the KG GPW method. This implies the calculation of the
+!>      GPW KS energy  and the KS matrix via qs_ks_build_kohn_sham_matrix
+!>      where the KE energy correction is added to be able to treat the
+!>      molecule separatedly in the construction of the density.
+!>      In the SCF iteration the optimization of the wavefunctions is
+!>      done by the standard diagonalization of the diagonal blocks
+!>      of the MO matrix. Each block is handled independently
+!>      This is possible because the wavefunctions located
+!>      on different molecules are orthogonal by construction.
+!> \param kg_env Kg environment which contains the qs envirement as subenvironment
+!> \param globenv global environment
+!> \note
+!>      Even if it is a KG method energies and forces are of the type qs_energy and qs_force
+!>      because the calculation goes through the QS routines for GPW.
+!>      Therefore the kg_energy and kg_force remain not allocated.
+!>      An additional term has been added in either qs_energy and qs_force, which
+!>      is called    kg_gpw_ekin_mol and contains the contributions from the
+!>      correction calculated as by the kinetic energy functional applied to
+!>      the molecular densities.
+!> \par History
+!>      created 11-02-05
+!> \author MI
+! *****************************************************************************
   SUBROUTINE kg_qs_calculate_forces( kg_env, globenv, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
@@ -980,7 +903,5 @@ END SUBROUTINE kg_calculate_forces
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE kg_qs_calculate_forces
-
-!******************************************************************************
 
 END MODULE kg_force

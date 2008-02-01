@@ -3,25 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_keyword_types [1.0] *
-!!
-!!   NAME
-!!     input_keyword_types
-!!
-!!   FUNCTION
-!!     represents keywords in an input
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 created, based on Joost cp_keywords proposal [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief represents keywords in an input
+!> \par History
+!>      06.2004 created, based on Joost cp_keywords proposal [fawzi]
+!> \author fawzi
+! *****************************************************************************
 MODULE input_keyword_types
   USE cp_units,                        ONLY: cp_unit_create,&
                                              cp_unit_desc,&
@@ -61,75 +48,44 @@ MODULE input_keyword_types
        keyword_release, keyword_get, keyword_describe,&
        keyword_describe_html, write_keyword_xml, keyword_typo_match
 
-!!***
-!****************************************************************************
-
-!!****s* input_keyword_types/keyword_p_type *
-!!
-!!   NAME
-!!     keyword_p_type
-!!
-!!   FUNCTION
-!!     represent a pointer to a keyword (to make arrays of pointers)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - keyword: the pointer to the keyword
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief represent a pointer to a keyword (to make arrays of pointers)
+!> \param keyword the pointer to the keyword
+!> \author fawzi
+! *****************************************************************************
   TYPE keyword_p_type
      TYPE(keyword_type), POINTER :: keyword
   END TYPE keyword_p_type
-!!***
-  !****************************************************************************
 
-!!****s* input_keyword_types/keyword_type *
-!!
-!!   NAME
-!!     keyword_type
-!!
-!!   FUNCTION
-!!     represent a keyword in the input
-!!
-!!   NOTES
-!!     I have expressely avoided a format string for the type of keywords:
-!!     they should easily map to basic types of fortran, if you need more
-!!     information use a subsection. [fawzi]
-!!
-!!   ATTRIBUTES
-!!     - names: the names of the current keyword (at least one should be
-!!       present) for example "MAXSCF"
-!!     - usage: how to use it "MAXSCF 10"
-!!     - description: what does it do: "MAXSCF : determines the maximum 
-!!       number of steps in an SCF run"
-!!     - citations: references to literature associated with this keyword
-!!     - type_of_var: the type of keyword (controls how it is parsed)
-!!       it can be one of: no_parse_t,logical_t, integer_t, real_t,
-!!       char_t
-!!     - n_var: number of values that should be parsed (-1=unknown)
-!!     - repeats: if the keyword can be present more than once in the
-!!       section
-!!     - required: if the keyword is required (leaving it out will give an
-!!       error)
-!!     - enum: enumeration that defines the mapping between integers and
-!!       strings
-!!     - unit: the default unit this keyword is read in (to automatically
-!!       convert to the internal cp2k units during parsing)
-!!     - default_value: the default value for the keyword
-!!     - lone_keyword_value: value to be used in presence of the keyword
-!!       without any parameter
-!!
-!!   AUTHOR
-!!     Joost & fawzi
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief represent a keyword in the input
+!> \param names the names of the current keyword (at least one should be
+!>        present) for example "MAXSCF"
+!> \param usage how to use it "MAXSCF 10"
+!> \param description what does it do: "MAXSCF : determines the maximum 
+!>        number of steps in an SCF run"
+!> \param citations references to literature associated with this keyword
+!> \param type_of_var the type of keyword (controls how it is parsed)
+!>        it can be one of: no_parse_t,logical_t, integer_t, real_t,
+!>        char_t
+!> \param n_var number of values that should be parsed (-1=unknown)
+!> \param repeats if the keyword can be present more than once in the
+!>        section
+!> \param required if the keyword is required (leaving it out will give an
+!>        error)
+!> \param enum enumeration that defines the mapping between integers and
+!>        strings
+!> \param unit the default unit this keyword is read in (to automatically
+!>        convert to the internal cp2k units during parsing)
+!> \param default_value the default value for the keyword
+!> \param lone_keyword_value value to be used in presence of the keyword
+!>        without any parameter
+!> \note
+!>      I have expressely avoided a format string for the type of keywords:
+!>      they should easily map to basic types of fortran, if you need more
+!>      information use a subsection. [fawzi]
+!> \author Joost & fawzi
+! *****************************************************************************
   TYPE keyword_type
      INTEGER :: ref_count,id_nr
      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER:: names
@@ -143,33 +99,17 @@ MODULE input_keyword_types
      TYPE(val_type), POINTER :: default_value
      TYPE(val_type), POINTER :: lone_keyword_value
   END TYPE keyword_type
-!!***
-  !****************************************************************************
 
 CONTAINS
 
-
-!!****f* keywords/keyword_create *
-!!
-!!   NAME
-!!     keyword_create
-!!
-!!   FUNCTION
-!!     creates a keyword object
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - keyword: the keyword object to be created
-!!     - name: the name of the keyword
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a keyword object
+!> \param keyword the keyword object to be created
+!> \param name the name of the keyword
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
        n_var,repeats,variants,required,default_val,&
        default_l_val, default_r_val, default_lc_val, default_c_val, default_i_val,&
@@ -450,34 +390,19 @@ CONTAINS
             cp_assertion_failed,routineP,"arrays of lchar_t not supported : "&
             //keyword%names(1), error,failure) 
 
-
        IF (PRESENT(unit_str)) THEN
           CALL cp_unit_create(keyword%unit,unit_str,error=error)
        END IF
     END IF
   END SUBROUTINE keyword_create
-!***************************************************************************
 
-!!****f* keywords/keyword_retain *
-!!
-!!   NAME
-!!     keyword_retain
-!!
-!!   FUNCTION
-!!     retains the given keyword (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - keyword: the keyword to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given keyword (see doc/ReferenceCounting.html)
+!> \param keyword the keyword to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE keyword_retain(keyword, error)
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -494,28 +419,14 @@ CONTAINS
        keyword%ref_count=keyword%ref_count+1
     END IF
   END SUBROUTINE keyword_retain
-!***************************************************************************
 
-!!****f* input_keyword_types/keyword_release *
-!!
-!!   NAME
-!!     keyword_release
-!!
-!!   FUNCTION
-!!     releases the given keyword (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - keyword: the keyword to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given keyword (see doc/ReferenceCounting.html)
+!> \param keyword the keyword to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE keyword_release(keyword, error)
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -547,27 +458,12 @@ CONTAINS
     END IF
     NULLIFY(keyword)
   END SUBROUTINE keyword_release
-!***************************************************************************
 
-!!****f* input_keyword_types/keyword_get *
-!!
-!!   NAME
-!!     keyword_get
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE keyword_get(keyword,names,usage,description,type_of_var,n_var,&
        default_value, lone_keyword_value,required,repeats,enum,citations,error)
     TYPE(keyword_type), POINTER              :: keyword
@@ -606,32 +502,18 @@ CONTAINS
        IF (PRESENT(citations)) citations => keyword%citations
     END IF
   END SUBROUTINE keyword_get
-!***************************************************************************
 
-!!****f* input_keyword_types/keyword_describe [1.0] *
-!!
-!!   NAME
-!!     keyword_describe
-!!
-!!   FUNCTION
-!!     writes out a description of the keyword
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - keyword: the keyword to describe
-!!     - unit_nr: the unit to write to
-!!     - level: the description level (0 no description, 1 name
-!!       2: +usage, 3: +variants+description+default_value+required+repeats
-!!       4: +type_of_var)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes out a description of the keyword
+!> \param keyword the keyword to describe
+!> \param unit_nr the unit to write to
+!> \param level the description level (0 no description, 1 name
+!>        2: +usage, 3: +variants+description+default_value+required+repeats
+!>        4: +type_of_var)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE keyword_describe(keyword, unit_nr, level,error)
     TYPE(keyword_type), POINTER              :: keyword
     INTEGER, INTENT(in)                      :: unit_nr, level
@@ -771,29 +653,15 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE keyword_describe
-!***************************************************************************
 
-!!****f* input_keyword_types/keyword_describe_html [1.0] *
-!!
-!!   NAME
-!!     keyword_describe_html
-!!
-!!   FUNCTION
-!!     writes out a description of the keyword
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - keyword: the keyword to describe
-!!     - unit_nr: the unit to write to
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Joost VandeVondele [10.2004], based on keyword_describe
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes out a description of the keyword
+!> \param keyword the keyword to describe
+!> \param unit_nr the unit to write to
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Joost VandeVondele [10.2004], based on keyword_describe
+! *****************************************************************************
   SUBROUTINE keyword_describe_html(keyword, unit_nr, error)
     TYPE(keyword_type), POINTER              :: keyword
     INTEGER, INTENT(in)                      :: unit_nr
@@ -947,7 +815,6 @@ CONTAINS
   END SUBROUTINE keyword_describe_html
 
 ! *****************************************************************************
-
   SUBROUTINE write_keyword_xml(keyword,level,unit_number,error)
 
     ! Dump a (special) keyword section in XML format (26.01.2006,MK)

@@ -2,25 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/xc_xwpbe [1.0] *
-!!
-!!   NAME
-!!     xc_xwpbe
-!!
-!!   FUNCTION
-!!     Calculates short range exchange part for wPBE functional and averaged
-!!     PBE exchange-hole functional (omega = 0.0 )
-!!
-!!   AUTHOR
-!!     Manuel Guidon (05.2007)
-!!
-!!   MODIFICATION HISTORY
-!!     Manuel Guidon (05.2007)  : initial version
-!!
-!******************************************************************************
 
-MODULE xc_xwpbe
 ! *****************************************************************************
+!> \brief Calculates short range exchange part for wPBE functional and averaged
+!>      PBE exchange-hole functional (omega = 0.0 )
+!> \par History
+!>      Manuel Guidon (05.2007)  : initial version
+!> \author Manuel Guidon (05.2007)
+! *****************************************************************************
+MODULE xc_xwpbe
   USE bibliography,                    ONLY: Heyd2004,&
                                              cite_reference
   USE erf_fn,                          ONLY: erfc
@@ -101,37 +91,20 @@ MODULE xc_xwpbe
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xwpbe'
 
-
   CONTAINS
 
-  !!***** xc_xwpbe/xwpbe_lda_info [1.0] **************************************
-  !!
-  !!   NAME
-  !!     xwpbe_lda_info
-  !!
-  !!   FUNCTION
-  !!     return various information on the functional
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - reference: string with the reference of the actual functional
-  !!     - shortform: string with the shortform of the functional name
-  !!     - needs: the components needed by this functional are set to
-  !!       true (does not set the unneeded components to false)
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Manuel Guidon
-  !!
-  !!   MODIFICATION HISTORY
-  !!     05.2007 created [Manuel Guidon]
-  !!
-  !!**************************************************************************
-
-
+! *****************************************************************************
+!> \brief return various information on the functional
+!> \param reference string with the reference of the actual functional
+!> \param shortform string with the shortform of the functional name
+!> \param needs the components needed by this functional are set to
+!>        true (does not set the unneeded components to false)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      05.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE xwpbe_lda_info ( reference, shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
@@ -152,41 +125,26 @@ MODULE xc_xwpbe
     IF (PRESENT(max_deriv)) max_deriv=2
   END SUBROUTINE xwpbe_lda_info
 
-
-  !!***** xc_xwpbe/xwpbe_lda_eval [1.0] **************************************
-  !!
-  !!   NAME
-  !!     xwpbe_lda_eval
-  !!
-  !!   FUNCTION
-  !!     evaluates the screened hole averaged PBE exchange functional for lda
-  !!
-  !!   NOTES
-  !!     The current version provides code for derivatives up to second order.
-  !!     Using the maple sheet in cp2k/doc it is straightforward to produce routines
-  !!     for higher derivatives. 
-  !!
-  !!   ARGUMENTS
-  !!     - rho_set: the density where you want to evaluate the functional
-  !!     - deriv_set: place where to store the functional derivatives (they are
-  !!       added to the derivatives)
-  !!     - order: degree of the derivative that should be evalated,
-  !!       if positive all the derivatives up to the given degree are evaluated,
-  !!       if negative only the given degree is calculated
-  !!     - xwpbe_params: input parameters (scaling,omega)
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Manuel Guidon
-  !!
-  !!   MODIFICATION HISTORY
-  !!     05.2007 created [Manuel Guidon]
-  !!
-  !!**************************************************************************
-
+! *****************************************************************************
+!> \brief evaluates the screened hole averaged PBE exchange functional for lda
+!> \param rho_set the density where you want to evaluate the functional
+!> \param deriv_set place where to store the functional derivatives (they are
+!>        added to the derivatives)
+!> \param order degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param xwpbe_params input parameters (scaling,omega)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      The current version provides code for derivatives up to second order.
+!>      Using the maple sheet in cp2k/doc it is straightforward to produce routines
+!>      for higher derivatives. 
+!> \par History
+!>      05.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE xwpbe_lda_eval ( rho_set, deriv_set, order, xwpbe_params, error )
-
 
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -294,42 +252,28 @@ MODULE xc_xwpbe
 
   END SUBROUTINE xwpbe_lda_eval
 
-  !!***** xc_xwpbe/xwpbe_lda_calc [1.0] **************************************
-  !!
-  !!   NAME
-  !!     xwpbe_lda_calc
-  !!
-  !!   FUNCTION
-  !!     evaluates the screened hole averaged PBE exchange functional for lda
-  !!
-  !!   NOTES
-  !!     In order to avoid numerical instabilities, this routine calls different
-  !!     subroutines. There are 4 routines for the case omega!=0 and 2 routines
-  !!     for omega=0.
-  !!
-  !!   ARGUMENTS
-  !!     - order: degree of the derivative that should be evalated,
-  !!       if positive all the derivatives up to the given degree are evaluated,
-  !!       if negative only the given degree is calculated
-  !!     - rho, ndrho: density and norm of the density gradient
-  !!     - sx, sx0: scaling factor for omega!=0 and omega=0
-  !!     - omega: screening parameter
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Manuel Guidon
-  !!
-  !!   MODIFICATION HISTORY
-  !!     05.2007 created [Manuel Guidon]
-  !!
-  !!**************************************************************************
-
+! *****************************************************************************
+!> \brief evaluates the screened hole averaged PBE exchange functional for lda
+!> \param order degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param rho , ndrho: density and norm of the density gradient
+!> \param sx , sx0: scaling factor for omega!=0 and omega=0
+!> \param omega screening parameter
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      In order to avoid numerical instabilities, this routine calls different
+!>      subroutines. There are 4 routines for the case omega!=0 and 2 routines
+!>      for omega=0.
+!> \par History
+!>      05.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE xwpbe_lda_calc(npoints, order, rho, norm_drho, e_0, e_rho, e_ndrho,&
                             e_rho_rho, e_ndrho_rho, e_ndrho_ndrho,&
                             epsilon_rho, epsilon_norm_drho, sx, sx0, omega,&
                             error)
-
 
     INTEGER, INTENT(in)                      :: npoints, order
     REAL(kind=dp), DIMENSION(1:npoints), &
@@ -371,7 +315,6 @@ MODULE xc_xwpbe
           sscale = (smax*ss2-sconst)/(ss2*ss)
         END IF
         
-
         IF(sx0/=0.0_dp) THEN
           !original PBE hole
            IF(ss*sscale>gcutoff) THEN
@@ -406,34 +349,20 @@ MODULE xc_xwpbe
     END DO
   END SUBROUTINE xwpbe_lda_calc
 
-  !!***** xc_xwpbe/xwpbe_lda_calc_0 [1.0] ************************************
-  !!
-  !!   NAME
-  !!     xwpbe_lda_calc_0
-  !!
-  !!   FUNCTION
-  !!     Evaluates the screened hole averaged PBE exchange functional for lda
-  !!
-  !!   NOTES
-  !!     This routine evaluates the exact functional for omega=0.
-  !!
-  !!   ARGUMENTS
-  !!     - order: degree of the derivative that should be evalated,
-  !!       if positive all the derivatives up to the given degree are evaluated,
-  !!       if negative only the given degree is calculated
-  !!     - rho, ndrho: density and norm of the density gradient
-  !!     - sx0: scaling factor
-  !!     - sscale: scaling factor to enforce Lieb-Oxford bound
-  !!
-  !!   AUTHOR
-  !!     Manuel Guidon
-  !!
-  !!   MODIFICATION HISTORY
-  !!     05.2007 created [Manuel Guidon]
-  !!
-  !!**************************************************************************
-
- 
+! *****************************************************************************
+!> \brief Evaluates the screened hole averaged PBE exchange functional for lda
+!> \param order degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param rho , ndrho: density and norm of the density gradient
+!> \param sx 0: scaling factor
+!> \param sscale scaling factor to enforce Lieb-Oxford bound
+!> \note
+!>      This routine evaluates the exact functional for omega=0.
+!> \par History
+!>      05.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE xwpbe_lda_calc_0(e_0, e_rho, e_ndrho, e_rho_rho, e_ndrho_rho, &
                               e_ndrho_ndrho, rho, ndrho, sscale, sx0, order)
     REAL(KIND=dp), INTENT(INOUT)             :: e_0, e_rho, e_ndrho, &
@@ -1040,34 +969,21 @@ MODULE xc_xwpbe
 
   END SUBROUTINE xwpbe_lda_calc_0
 
-  !!***** xc_xwpbe/xwpbe_lda_calc_01 [1.0] ***********************************
-  !!
-  !!   NAME
-  !!     xwpbe_lda_calc_01
-  !!
-  !!   FUNCTION
-  !!     Evaluates the screened hole averaged PBE exchange functional for lda
-  !!
-  !!   NOTES
-  !!     This routine evaluates the functional for omega=0 using a taylor
-  !!     expansion for the parameter G.
-  !!
-  !!   ARGUMENTS
-  !!     - order: degree of the derivative that should be evalated,
-  !!       if positive all the derivatives up to the given degree are evaluated,
-  !!       if negative only the given degree is calculated
-  !!     - rho, ndrho: density and norm of the density gradient
-  !!     - sx0: scaling factor
-  !!     - sscale: scaling factor to enforce Lieb-Oxford bound
-  !!
-  !!   AUTHOR
-  !!     Manuel Guidon
-  !!
-  !!   MODIFICATION HISTORY
-  !!     05.2007 created [Manuel Guidon]
-  !!
-  !!**************************************************************************
-
+! *****************************************************************************
+!> \brief Evaluates the screened hole averaged PBE exchange functional for lda
+!> \param order degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param rho , ndrho: density and norm of the density gradient
+!> \param sx 0: scaling factor
+!> \param sscale scaling factor to enforce Lieb-Oxford bound
+!> \note
+!>      This routine evaluates the functional for omega=0 using a taylor
+!>      expansion for the parameter G.
+!> \par History
+!>      05.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE xwpbe_lda_calc_01(e_0, e_rho, e_ndrho, e_rho_rho, e_ndrho_rho, &
                               e_ndrho_ndrho, rho, ndrho, sscale, sx0, order)
     REAL(KIND=dp), INTENT(INOUT)             :: e_0, e_rho, e_ndrho, &
@@ -1542,35 +1458,21 @@ MODULE xc_xwpbe
   
   END SUBROUTINE xwpbe_lda_calc_01
 
-
-  !!***** xc_xwpbe/xwpbe_lda_calc_1 [1.0] ************************************
-  !!
-  !!   NAME
-  !!     xwpbe_lda_calc_1
-  !!
-  !!   FUNCTION
-  !!     Evaluates the screened hole averaged PBE exchange functional for lda.
-  !!
-  !!   NOTES
-  !!     This routine evaluates the exact functional for omega!=0.
-  !!
-  !!   ARGUMENTS
-  !!     - order: degree of the derivative that should be evalated,
-  !!       if positive all the derivatives up to the given degree are evaluated,
-  !!       if negative only the given degree is calculated
-  !!     - rho, ndrho: density and norm of the density gradient
-  !!     - sx: scaling factor
-  !!     - sscale: scaling factor to enforce Lieb-Oxford bound
-  !!     - omega: scaling factor
-  !!
-  !!   AUTHOR
-  !!     Manuel Guidon
-  !!
-  !!   MODIFICATION HISTORY
-  !!     05.2007 created [Manuel Guidon]
-  !!
-  !!**************************************************************************
-
+! *****************************************************************************
+!> \brief Evaluates the screened hole averaged PBE exchange functional for lda.
+!> \param order degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param rho , ndrho: density and norm of the density gradient
+!> \param sx scaling factor
+!> \param sscale scaling factor to enforce Lieb-Oxford bound
+!> \param omega scaling factor
+!> \note
+!>      This routine evaluates the exact functional for omega!=0.
+!> \par History
+!>      05.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE xwpbe_lda_calc_1(e_0, e_rho, e_ndrho, e_rho_rho, e_ndrho_rho, &
                               e_ndrho_ndrho, rho, ndrho, omega, sscale, sx, order)
     REAL(KIND=dp), INTENT(INOUT)             :: e_0, e_rho, e_ndrho, &
@@ -2736,36 +2638,22 @@ MODULE xc_xwpbe
 
   END SUBROUTINE xwpbe_lda_calc_1
 
-  !!***** xc_xwpbe/xwpbe_lda_calc_2 [1.0] ************************************
-  !!
-  !!   NAME
-  !!     xwpbe_lda_calc_2
-  !!
-  !!   FUNCTION
-  !!     Evaluates the screened hole averaged PBE exchange functional for lda.
-  !!
-  !!   NOTES
-  !!     This routine evaluates the functional for omega!=0 using a taylor
-  !!     expansion for the parameter G.
-  !!
-  !!   ARGUMENTS
-  !!     - order: degree of the derivative that should be evalated,
-  !!       if positive all the derivatives up to the given degree are evaluated,
-  !!       if negative only the given degree is calculated
-  !!     - rho, ndrho: density and norm of the density gradient
-  !!     - sx: scaling factor
-  !!     - sscale: scaling factor to enforce Lieb-Oxford bound
-  !!     - omega: scaling factor
-  !!
-  !!   AUTHOR
-  !!     Manuel Guidon
-  !!
-  !!   MODIFICATION HISTORY
-  !!     05.2007 created [Manuel Guidon]
-  !!
-  !!**************************************************************************
-
-
+! *****************************************************************************
+!> \brief Evaluates the screened hole averaged PBE exchange functional for lda.
+!> \param order degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param rho , ndrho: density and norm of the density gradient
+!> \param sx scaling factor
+!> \param sscale scaling factor to enforce Lieb-Oxford bound
+!> \param omega scaling factor
+!> \note
+!>      This routine evaluates the functional for omega!=0 using a taylor
+!>      expansion for the parameter G.
+!> \par History
+!>      05.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE xwpbe_lda_calc_2(e_0, e_rho, e_ndrho, e_rho_rho, e_ndrho_rho, &
                               e_ndrho_ndrho, rho, ndrho, omega, sscale, sx, order)
     REAL(KIND=dp), INTENT(INOUT)             :: e_0, e_rho, e_ndrho, &
@@ -3757,36 +3645,22 @@ MODULE xc_xwpbe
 
   END SUBROUTINE xwpbe_lda_calc_2
 
-  !!***** xc_xwpbe/xwpbe_lda_calc_3 [1.0] ************************************
-  !!
-  !!   NAME
-  !!     xwpbe_lda_calc_3
-  !!
-  !!   FUNCTION
-  !!     Evaluates the screened hole averaged PBE exchange functional for lda.
-  !!
-  !!   NOTES
-  !!     This routine evaluates the functional for omega!=0 using a simple
-  !!     gaussian expansion for large ww.
-  !!
-  !!   ARGUMENTS
-  !!     - order: degree of the derivative that should be evalated,
-  !!       if positive all the derivatives up to the given degree are evaluated,
-  !!       if negative only the given degree is calculated
-  !!     - rho, ndrho: density and norm of the density gradient
-  !!     - sx: scaling factor
-  !!     - sscale: scaling factor to enforce Lieb-Oxford bound
-  !!     - omega: screening parameter
-  !!
-  !!   AUTHOR
-  !!     Manuel Guidon
-  !!
-  !!   MODIFICATION HISTORY
-  !!     05.2007 created [Manuel Guidon]
-  !!
-  !!**************************************************************************
-
-
+! *****************************************************************************
+!> \brief Evaluates the screened hole averaged PBE exchange functional for lda.
+!> \param order degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param rho , ndrho: density and norm of the density gradient
+!> \param sx scaling factor
+!> \param sscale scaling factor to enforce Lieb-Oxford bound
+!> \param omega screening parameter
+!> \note
+!>      This routine evaluates the functional for omega!=0 using a simple
+!>      gaussian expansion for large ww.
+!> \par History
+!>      05.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE xwpbe_lda_calc_3(e_0, e_rho, e_ndrho, e_rho_rho, e_ndrho_rho, &
                               e_ndrho_ndrho, rho, ndrho, omega, sscale, sx, order)
     REAL(KIND=dp), INTENT(INOUT)             :: e_0, e_rho, e_ndrho, &
@@ -4656,38 +4530,23 @@ MODULE xc_xwpbe
 
   END SUBROUTINE xwpbe_lda_calc_3
 
-  !!***** xc_xwpbe/xwpbe_lda_calc_4 [1.0] ************************************
-  !!
-  !!   NAME
-  !!     xwpbe_lda_calc_4
-  !!
-  !!   FUNCTION
-  !!     Evaluates the screened hole averaged PBE exchange functional for lda.
-  !!
-  !!   NOTES
-  !!     This routine evaluates the functional for omega!=0 using a simple
-  !!     gaussian expansion for large ww and a taylor expansion for the
-  !!     parameter G.
-  !!
-  !!   ARGUMENTS
-  !!     - order: degree of the derivative that should be evalated,
-  !!       if positive all the derivatives up to the given degree are evaluated,
-  !!       if negative only the given degree is calculated
-  !!     - rho, ndrho: density and norm of the density gradient
-  !!     - sx: scaling factor
-  !!     - sscale: scaling factor to enforce Lieb-Oxford bound
-  !!     - omega: screening parameter 
-  !!
-  !!   AUTHOR
-  !!     Manuel Guidon
-  !!
-  !!   MODIFICATION HISTORY
-  !!     05.2007 created [Manuel Guidon]
-  !!
-  !!**************************************************************************
-
-
-
+! *****************************************************************************
+!> \brief Evaluates the screened hole averaged PBE exchange functional for lda.
+!> \param order degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param rho , ndrho: density and norm of the density gradient
+!> \param sx scaling factor
+!> \param sscale scaling factor to enforce Lieb-Oxford bound
+!> \param omega screening parameter 
+!> \note
+!>      This routine evaluates the functional for omega!=0 using a simple
+!>      gaussian expansion for large ww and a taylor expansion for the
+!>      parameter G.
+!> \par History
+!>      05.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE xwpbe_lda_calc_4(e_0, e_rho, e_ndrho, e_rho_rho, e_ndrho_rho, &
                               e_ndrho_ndrho, rho, ndrho, omega, sscale, sx, order)
     REAL(KIND=dp), INTENT(INOUT)             :: e_0, e_rho, e_ndrho, &
@@ -5374,34 +5233,18 @@ MODULE xc_xwpbe
 
   END SUBROUTINE xwpbe_lda_calc_4
 
-  !!***** xc_xwpbe/xwpbe_lsd_info [1.0] **************************************
-  !!
-  !!   NAME
-  !!     xwpbe_lsd_info
-  !!
-  !!   FUNCTION
-  !!     return various information on the functional
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - reference: string with the reference of the actual functional
-  !!     - shortform: string with the shortform of the functional name
-  !!     - needs: the components needed by this functional are set to
-  !!       true (does not set the unneeded components to false)
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Manuel Guidon
-  !!
-  !!   MODIFICATION HISTORY
-  !!     05.2007 created [Manuel Guidon]
-  !!
-  !!**************************************************************************
-
-
+! *****************************************************************************
+!> \brief return various information on the functional
+!> \param reference string with the reference of the actual functional
+!> \param shortform string with the shortform of the functional name
+!> \param needs the components needed by this functional are set to
+!>        true (does not set the unneeded components to false)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      05.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE xwpbe_lsd_info ( reference, shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
@@ -5422,41 +5265,26 @@ MODULE xc_xwpbe
     IF (PRESENT(max_deriv)) max_deriv=2
   END SUBROUTINE xwpbe_lsd_info
 
-
-  !!***** xc_xwpbe/xwpbe_lsd_eval [1.0] **************************************
-  !!
-  !!   NAME
-  !!     xwpbe_lsd_eval
-  !!
-  !!   FUNCTION
-  !!     evaluates the screened hole averaged PBE exchange functional for lsd
-  !!
-  !!   NOTES
-  !!     The current version provides code for derivatives up to second order.
-  !!     Using the maple sheet in cp2k/doc it is straightforward to produce routines
-  !!     for higher derivatives. 
-  !!
-  !!   ARGUMENTS
-  !!     - rho_set: the density where you want to evaluate the functional
-  !!     - deriv_set: place where to store the functional derivatives (they are
-  !!       added to the derivatives)
-  !!     - order: degree of the derivative that should be evalated,
-  !!       if positive all the derivatives up to the given degree are evaluated,
-  !!       if negative only the given degree is calculated
-  !!     - xwpbe_params: input parameters (scaling,omega)
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Manuel Guidon
-  !!
-  !!   MODIFICATION HISTORY
-  !!     05.2007 created [Manuel Guidon]
-  !!
-  !!**************************************************************************
-
+! *****************************************************************************
+!> \brief evaluates the screened hole averaged PBE exchange functional for lsd
+!> \param rho_set the density where you want to evaluate the functional
+!> \param deriv_set place where to store the functional derivatives (they are
+!>        added to the derivatives)
+!> \param order degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param xwpbe_params input parameters (scaling,omega)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      The current version provides code for derivatives up to second order.
+!>      Using the maple sheet in cp2k/doc it is straightforward to produce routines
+!>      for higher derivatives. 
+!> \par History
+!>      05.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE xwpbe_lsd_eval ( rho_set, deriv_set, order, xwpbe_params, error )
-
 
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -5589,43 +5417,29 @@ MODULE xc_xwpbe
 
   END SUBROUTINE xwpbe_lsd_eval
   
-  
-  !!***** xc_xwpbe/xwpbe_lsd_calc [1.0] **************************************
-  !!
-  !!   NAME
-  !!     xwpbe_lsd_calc
-  !!
-  !!   FUNCTION
-  !!     evaluates the screened hole averaged PBE exchange functional for lsd. 
-  !!     
-  !!   NOTES
-  !!     - The lsd part is calculated using the spin-scaling relations for the
-  !!       exchange energy:
-  !!
-  !!              Ex[na,nb] = 0.5 * Ex[2*na] + 0.5 * Ex[2*nb].
-  !!
-  !!     - In order to avoid numerical instabilities, this routine calls different
-  !!       subroutines. There are 4 routines for the case omega!=0 and 2 routines
-  !!       for omega=0.
-  !!
-  !!   ARGUMENTS
-  !!     - order: degree of the derivative that should be evalated,
-  !!       if positive all the derivatives up to the given degree are evaluated,
-  !!       if negative only the given degree is calculated
-  !!     - rho, ndrho: density and norm of the density gradient
-  !!     - sx, sx0: scaling factor for omega!=0 and omega=0
-  !!     - omega: screening parameter
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Manuel Guidon
-  !!
-  !!   MODIFICATION HISTORY
-  !!     05.2007 created [Manuel Guidon]
-  !!
-  !!**************************************************************************
-
+! *****************************************************************************
+!> \brief evaluates the screened hole averaged PBE exchange functional for lsd. 
+!> \param order degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param rho , ndrho: density and norm of the density gradient
+!> \param sx , sx0: scaling factor for omega!=0 and omega=0
+!> \param omega screening parameter
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      - The lsd part is calculated using the spin-scaling relations for the
+!>        exchange energy:
+!> 
+!>               Ex[na,nb] = 0.5 * Ex[2*na] + 0.5 * Ex[2*nb].
+!> 
+!>      - In order to avoid numerical instabilities, this routine calls different
+!>        subroutines. There are 4 routines for the case omega!=0 and 2 routines
+!>        for omega=0.
+!> \par History
+!>      05.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE xwpbe_lsd_calc(npoints, order, rho, norm_drho, e_0, e_rho, e_ndrho, &
                             e_rho_rho, e_ndrho_rho, e_ndrho_ndrho, &
                             epsilon_rho, epsilon_norm_drho,sx, sx0, omega, &
@@ -5710,37 +5524,22 @@ MODULE xc_xwpbe
     END DO
   END SUBROUTINE xwpbe_lsd_calc
 
-
-  !!***** xc_xwpbe/xwpbe_exei, _exer, _dexerrho... [1.0] *********************
-  !!
-  !!   NAME
-  !!     xwpbe_exei, _exer, _dexerrho...
-  !!
-  !!   FUNCTION
-  !!     These functions evaluate products exp(x)*Ei(x) and pi*exp(x)*erfc(sqrt(x)),
-  !!     as well as their derivatives with respect to various combinations of
-  !!     rho and norm_drho.
-  !!
-  !!   NOTES
-  !!    - In order to avoid numerical instabilities, these routines use Taylor-
-  !!      expansions for the above core-products for large arguments.
-  !!    - When adapting this module for higher order derivatives, appropriate
-  !!      functions have to be provided!
-  !!
-  !!   ARGUMENTS
-  !!     - Q, dQrho, dQndrho, d2Qrhondrho.... : 
-  !!       Argument Q and derivatives with respect to various combinations of
-  !!       rho and norm_drho
-  !!
-  !!   AUTHOR
-  !!     Manuel Guidon
-  !!
-  !!   MODIFICATION HISTORY
-  !!     05.2007 created [Manuel Guidon]
-  !!
-  !!**************************************************************************
-
-
+! *****************************************************************************
+!> \brief These functions evaluate products exp(x)*Ei(x) and pi*exp(x)*erfc(sqrt(x)),
+!>      as well as their derivatives with respect to various combinations of
+!>      rho and norm_drho.
+!> \param Q , dQrho, dQndrho, d2Qrhondrho.... : 
+!>        Argument Q and derivatives with respect to various combinations of
+!>        rho and norm_drho
+!> \note
+!>     - In order to avoid numerical instabilities, these routines use Taylor-
+!>       expansions for the above core-products for large arguments.
+!>     - When adapting this module for higher order derivatives, appropriate
+!>       functions have to be provided!
+!> \par History
+!>      05.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   FUNCTION exei(Q)
     REAL(dp), INTENT(IN)                     :: Q
     REAL(dp)                                 :: exei
@@ -5755,6 +5554,7 @@ MODULE xc_xwpbe
     END IF
   END FUNCTION exei
 
+! *****************************************************************************
   FUNCTION exer(Q)
     REAL(dp), INTENT(IN)                     :: Q
     REAL(dp)                                 :: exer
@@ -5773,6 +5573,7 @@ MODULE xc_xwpbe
     END IF
   END FUNCTION exer
 
+! *****************************************************************************
   FUNCTION dexeirho(Q,dQrho)
     REAL(dp), INTENT(IN)                     :: Q, dQrho
     REAL(dp)                                 :: dexeirho
@@ -5780,6 +5581,7 @@ MODULE xc_xwpbe
     dexeirho = dQrho*(exei(Q)-1.0_dp/Q)
   END FUNCTION dexeirho
 
+! *****************************************************************************
   FUNCTION dexeindrho(Q,dQndrho)
     REAL(dp), INTENT(IN)                     :: Q, dQndrho
     REAL(dp)                                 :: dexeindrho
@@ -5787,6 +5589,7 @@ MODULE xc_xwpbe
     dexeindrho = dQndrho*(exei(Q)-1.0_dp/Q)
   END FUNCTION dexeindrho
 
+! *****************************************************************************
   FUNCTION dexerrho(Q,dQrho)
     REAL(dp), INTENT(IN)                     :: Q, dQrho
     REAL(dp)                                 :: dexerrho
@@ -5794,6 +5597,7 @@ MODULE xc_xwpbe
     dexerrho = dQrho*exer(Q)-dQrho*SQRT(pi)/SQRT(Q)
   END FUNCTION dexerrho
 
+! *****************************************************************************
   FUNCTION dexerndrho(Q,dQndrho)
     REAL(dp), INTENT(IN)                     :: Q, dQndrho
     REAL(dp)                                 :: dexerndrho
@@ -5801,6 +5605,7 @@ MODULE xc_xwpbe
     dexerndrho = dQndrho*exer(Q)-dQndrho*SQRT(pi)/SQRT(Q)
   END FUNCTION dexerndrho
 
+! *****************************************************************************
   FUNCTION d2exeirhorho(Q,dQrho,d2Qrhorho)
     REAL(dp), INTENT(IN)                     :: Q, dQrho, d2Qrhorho
     REAL(dp)                                 :: d2exeirhorho
@@ -5809,6 +5614,7 @@ MODULE xc_xwpbe
                   1.0_dp/(Q*Q)*(-Q*dQrho*dQrho-Q*d2Qrhorho+dQrho*dQrho) 
   END FUNCTION d2exeirhorho
 
+! *****************************************************************************
   FUNCTION d2exerrhorho(Q,dQrho,d2Qrhorho)
     REAL(dp), INTENT(IN)                     :: Q, dQrho, d2Qrhorho
     REAL(dp)                                 :: d2exerrhorho
@@ -5822,6 +5628,7 @@ MODULE xc_xwpbe
                    0.5_dp*dQrho*dQrho/(pi12*Q*Q12)-d2Qrhorho/(pi12*Q12)
   END FUNCTION d2exerrhorho
 
+! *****************************************************************************
   FUNCTION d2exeirhondrho(Q,dQrho,dQndrho,d2Qrhondrho)
     REAL(dp), INTENT(IN)                     :: Q, dQrho, dQndrho, d2Qrhondrho
     REAL(dp)                                 :: d2exeirhondrho
@@ -5830,6 +5637,7 @@ MODULE xc_xwpbe
                      1.0_dp/Q*(dQrho*dQndrho+d2Qrhondrho) + 1.0_dp/(Q*Q)*dQrho*dQndrho
   END FUNCTION d2exeirhondrho
 
+! *****************************************************************************
   FUNCTION d2exerrhondrho(Q,dQrho,dQndrho,d2Qrhondrho)
     REAL(dp), INTENT(IN)                     :: Q, dQrho, dQndrho, d2Qrhondrho
     REAL(dp)                                 :: d2exerrhondrho
@@ -5843,6 +5651,7 @@ MODULE xc_xwpbe
                      + 0.5_dp/(pi12*Q12*Q)*dQrho*dQndrho - 1.0_dp/(pi12*Q12)*d2Qrhondrho
   END FUNCTION d2exerrhondrho
 
+! *****************************************************************************
   FUNCTION d2exeindrhondrho(Q,dQndrho,d2Qndrhondrho)
     REAL(dp), INTENT(IN)                     :: Q, dQndrho, d2Qndrhondrho
     REAL(dp)                                 :: d2exeindrhondrho
@@ -5851,6 +5660,7 @@ MODULE xc_xwpbe
                        1.0_dp/(Q*Q)*(-Q*dQndrho*dQndrho-Q*d2Qndrhondrho+dQndrho*dQndrho)
   END FUNCTION d2exeindrhondrho
 
+! *****************************************************************************
   FUNCTION d2exerndrhondrho(Q,dQndrho,d2Qndrhondrho)
     REAL(dp), INTENT(IN)                     :: Q, dQndrho, d2Qndrhondrho
     REAL(dp)                                 :: d2exerndrhondrho
@@ -5864,8 +5674,5 @@ MODULE xc_xwpbe
                        + 0.5_dp*dQndrho*dQndrho/(pi12*Q*Q12)-d2Qndrhondrho/(pi12*Q12) 
   END FUNCTION d2exerndrhondrho
 
-! *****************************************************************************
-
 END MODULE xc_xwpbe
 
-! *****************************************************************************

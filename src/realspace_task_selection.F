@@ -3,26 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****s* cp2k/realspace_task_selection [1.0] *
-!!
-!!   NAME
-!!     realspace_task_selection
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     JGH (14-May-2007)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (14-May-2007) : split off from realspace_grid_types
-!!
-!!   NOTES
-!!     Organizes the task selection for parallel/distributed grids
-!!
-!*****
-!******************************************************************************
-
+! *****************************************************************************
+!> \note
+!>      Organizes the task selection for parallel/distributed grids
+!> \par History
+!>      JGH (14-May-2007) : split off from realspace_grid_types
+!> \author JGH (14-May-2007)
+! *****************************************************************************
 MODULE realspace_task_selection
   USE f77_blas
   USE kinds,                           ONLY: dp,&
@@ -55,29 +42,17 @@ MODULE realspace_task_selection
 
 CONTAINS
 
-!!****f* realspace_task_selection/pair2int *
-!!
-!!   NAME
-!!     pair2int
-!!
-!!   FUNCTION
-!!     converts a pgf index pair (ipgf,iset,iatom),(jpgf,jset,jatom)
-!!     to a unique integer.
-!!     a list of integers can be sorted, and will result in a list of pgf pairs
-!!     for which all atom pairs are grouped, and for each atom pair all set pairs are grouped
-!!     and for each set pair, all pgfs are grouped
-!!
-!!   NOTES
-!!     will hopefully not overflow any more
-!!
-!!   INPUTS
-!!    -
-!!    -
-!!
-!!   MODIFICATION HISTORY
-!!     11.2007 created [Joost]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief converts a pgf index pair (ipgf,iset,iatom),(jpgf,jset,jatom)
+!>      to a unique integer.
+!>      a list of integers can be sorted, and will result in a list of pgf pairs
+!>      for which all atom pairs are grouped, and for each atom pair all set pairs are grouped
+!>      and for each set pair, all pgfs are grouped
+!> \note
+!>      will hopefully not overflow any more
+!> \par History
+!>      11.2007 created [Joost]
+! *****************************************************************************
   SUBROUTINE pair2int(res,ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
     INTEGER(kind=int_8)                      :: res
     INTEGER                                  :: ilevel, iatom, jatom, iset, &
@@ -101,6 +76,7 @@ CONTAINS
 
   END SUBROUTINE pair2int
 
+! *****************************************************************************
   SUBROUTINE int2pair(res,ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
     INTEGER(kind=int_8)                      :: res
     INTEGER                                  :: ilevel, iatom, jatom, iset, &
@@ -132,31 +108,15 @@ CONTAINS
 
   END SUBROUTINE int2pair
 
-!***************************************************************************
-!!****f* realspace_grid_types/rs_get_my_tasks [1.0] *
-!!
-!!   NAME
-!!     rs_get_my_tasks
-!!
-!!   FUNCTION
-!!     Assembles tasks to be performed on local grid
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - rs: the grid
-!!     - tasks: the task set generated on this processor
-!!     - npme: Number of tasks for local processing
-!!
-!!   AUTHOR
-!!     MattW 21/11/2007
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief Assembles tasks to be performed on local grid
+!> \param rs the grid
+!> \param tasks the task set generated on this processor
+!> \param npme Number of tasks for local processing
+!> \par History
+!>      none
+!> \author MattW 21/11/2007
+! *****************************************************************************
   SUBROUTINE rs_get_my_tasks ( rs, distributed_grids, ntasks, natoms,&
        maxset,maxpgf,  tasks, rval, atom_pair_send, atom_pair_recv,&
        symmetric, error)
@@ -433,7 +393,6 @@ CONTAINS
        DEALLOCATE(recv_buf_i,STAT=stat)
        IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf",rs%group_size)
 
-       !***************************************************************************
        ! send rvals (to be removed :-)
 
        ! take care of the new task_dim in the send_sizes
@@ -483,7 +442,6 @@ CONTAINS
        DEALLOCATE(recv_buf_r,STAT=stat)
        IF (stat/=0) CALL stop_memory("get_my_tasks","recv_buf_r",rs%group_size)
 
-       !******************************************************************************
        ! prepare to send matrices
 
        ! calculate list of atom pairs I'll be sending
@@ -503,8 +461,6 @@ CONTAINS
        CALL get_atom_pair ( atom_pair_recv, tasks_recv, send,&
             my_symmetric, natoms, maxset, maxpgf )
 
-       !********************************************************************************************
-
        DEALLOCATE(send_sizes,STAT=stat)
        IF (stat/=0) CALL stop_memory("get_my_tasks","send_sizes",rs%group_size)
        DEALLOCATE(recv_sizes,STAT=stat)
@@ -522,7 +478,6 @@ CONTAINS
        ntasks_recv=ntasks
 
     ENDIF
-
 
     ALLOCATE(taskid(ntasks_recv),STAT=stat)
     IF (stat/=0) CALL stop_memory("get_my_tasks","taskid",rs%group_size)
@@ -563,8 +518,7 @@ CONTAINS
 
   END SUBROUTINE rs_get_my_tasks
 
-! ****************************************************************************************
-
+! *****************************************************************************
 SUBROUTINE get_atom_pair ( atom_pair, my_tasks, send, my_symmetric, natoms, maxset, maxpgf)
 
     INTEGER, DIMENSION(:), POINTER           :: atom_pair
@@ -627,8 +581,7 @@ SUBROUTINE get_atom_pair ( atom_pair, my_tasks, send, my_symmetric, natoms, maxs
 
 END SUBROUTINE get_atom_pair
 
-! **************************************************************************
-
+! *****************************************************************************
 SUBROUTINE distribute_matrix( rs, pmat, atom_pair_send, atom_pair_recv, natoms, scatter, error, hmat )
 
     TYPE(realspace_grid_type), POINTER       :: rs
@@ -817,12 +770,7 @@ SUBROUTINE distribute_matrix( rs, pmat, atom_pair_send, atom_pair_recv, natoms, 
 
   CALL timestop(handle)
   
-
 END SUBROUTINE distribute_matrix
-
-
-!******************************************************************************
 
 END MODULE realspace_task_selection
 
-!******************************************************************************

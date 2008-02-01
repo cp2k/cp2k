@@ -3,37 +3,22 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/distribution_1d_types [1.0] *
-!!
-!!   NAME
-!!     distribution_1d_types
-!!
-!!   FUNCTION
-!!     stores a lists of integer that are local to a processor.
-!!     The idea is that these integers represent objects that are distributed
-!!     between the different processors.
-!!     The ordering is just to make some operation more efficent, logically
-!!     these lists are like sets.
-!!     Some operations assume that the integers represent a range of values
-!!     from 1 to a (not too big) maxval, and that an element is present just
-!!     once, and only on a processor (these assumption are marked in the
-!!     documentation of such operations).
-!!     The concrete task for which this structure was developed was
-!!     distributing atoms between the processors.
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     05.2002 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
-
+! *****************************************************************************
+!> \brief stores a lists of integer that are local to a processor.
+!>      The idea is that these integers represent objects that are distributed
+!>      between the different processors.
+!>      The ordering is just to make some operation more efficent, logically
+!>      these lists are like sets.
+!>      Some operations assume that the integers represent a range of values
+!>      from 1 to a (not too big) maxval, and that an element is present just
+!>      once, and only on a processor (these assumption are marked in the
+!>      documentation of such operations).
+!>      The concrete task for which this structure was developed was
+!>      distributing atoms between the processors.
+!> \par History
+!>      05.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE distribution_1d_types
 
   USE cp_array_i_utils,                ONLY: cp_1d_i_bsearch,&
@@ -73,46 +58,30 @@ MODULE distribution_1d_types
 
   PUBLIC :: local_particle_type, init_local_particle_set
 
+! *****************************************************************************
   TYPE local_particle_type
     TYPE(rng_stream_p_type), DIMENSION(:), POINTER :: rng
   END TYPE local_particle_type
 !***
-!****************************************************************************
 
-!!****s* distribution_1d_types/distribution_1d_type [1.0] *
-!!
-!!   NAME
-!!     distribution_1d_type
-!!
-!!   FUNCTION
-!!     structure to store local (to a processor) ordered lists of integers.
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - ref_count: reference count (see doc/ReferenceCounting.html)
-!!     - n_el: n_el(i) is number of elements of list(i)
-!!     - list: list(i) contains an ordered list of integer (the array
-!!       might be bigger than n_el(i), but the extra elements should be
-!!       ignored)
-!!     - para_env: the parallel environment underlying the distribution
-!!     - global_distribution: global_distribution(i) is the id of the
-!!       processor that has "i". This is allocated only with
-!!       distribution_1d_build_gdist, try to avoid it (uses more
-!!       memory)
-!!     - listbased_distribution: true if each list has its own
-!!       distribution
-!!
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     06.2002 created [fawzi]
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief structure to store local (to a processor) ordered lists of integers.
+!> \param ref_count reference count (see doc/ReferenceCounting.html)
+!> \param n_el n_el(i) is number of elements of list(i)
+!> \param list list(i) contains an ordered list of integer (the array
+!>        might be bigger than n_el(i), but the extra elements should be
+!>        ignored)
+!> \param para_env the parallel environment underlying the distribution
+!> \param global_distribution global_distribution(i) is the id of the
+!>        processor that has "i". This is allocated only with
+!>        distribution_1d_build_gdist, try to avoid it (uses more
+!>        memory)
+!> \param listbased_distribution true if each list has its own
+!>        distribution
+!> \par History
+!>      06.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE distribution_1d_type
      INTEGER :: ref_count, id_nr
      LOGICAL :: listbased_distribution
@@ -121,78 +90,35 @@ MODULE distribution_1d_types
      TYPE(cp_para_env_type), POINTER :: para_env
      TYPE(local_particle_type), DIMENSION(:), POINTER :: local_particle_set
   END TYPE distribution_1d_type
-!!***
-  !****************************************************************************
 
-!!****s* distribution_1d_types/distribution_1d_p_type [1.0] *
-!!
-!!   NAME
-!!     distribution_1d_p_type
-!!
-!!   FUNCTION
-!!     pointer to a distribution_1d_type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - distribution_1d: the pointer to the distribution_1d
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     06.2003 created [fawzi]
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief pointer to a distribution_1d_type
+!> \param distribution_ 1d: the pointer to the distribution_1d
+!> \par History
+!>      06.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE distribution_1d_p_type
      TYPE(distribution_1d_type), POINTER :: distribution_1d
   END TYPE distribution_1d_p_type
-!!***
-  !****************************************************************************
 
 CONTAINS
 
-!!****f* distribution_1d_types/distribution_1d_create [1.0] *
-!!
-!!   NAME
-!!     distribution_1d_create
-!!
-!!   SYNOPSIS
-!!     Subroutine distribution_1d_create(distribution_1d, para_env,&
-!!         listbased_distribution, n_el, n_lists, error)
-!!       Type(distribution_1d_type), Pointer:: distribution_1d
-!!       Integer, Intent (IN), Optional:: n_lists
-!!       Type(cp_para_env_type), Pointer:: para_env
-!!       Logical, Intent (IN), Optional:: listbased_distribution
-!!       Integer, Dimension(:), Intent (IN), Optional:: n_el
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine distribution_1d_create
-!!
-!!   FUNCTION
-!!     creates a local list
-!!CALL ascii_to_string(ascii(:,iparticle),string)
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - distribution_1d: the lists to create
-!!     - n_lists: number of lists to create (defaults to 1, or size(n_el))
-!!     - para_env: parallel environement to be used
-!!     - listbased_distribution: if each list has its own distribution
-!!       (defaults to false)
-!!     - n_el: number of elements in each list (defaults to 0)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     05.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a local list
+!> CALL ascii_to_string(ascii(:,iparticle),string)
+!> \param distribution_ 1d: the lists to create
+!> \param n_lists number of lists to create (defaults to 1, or size(n_el))
+!> \param para_env parallel environement to be used
+!> \param listbased_distribution if each list has its own distribution
+!>        (defaults to false)
+!> \param n_el number of elements in each list (defaults to 0)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      05.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE distribution_1d_create(distribution_1d,para_env,listbased_distribution,&
      n_el,n_lists,error)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
@@ -249,42 +175,20 @@ SUBROUTINE distribution_1d_create(distribution_1d,para_env,listbased_distributio
         END DO
      END IF
 
-
      NULLIFY (distribution_1d%local_particle_set)
 
   END IF
 END SUBROUTINE distribution_1d_create
-!***************************************************************************
 
-!!****f* distribution_1d_types/distribution_1d_retain [1.0] *
-!!
-!!   NAME
-!!     distribution_1d_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine distribution_1d_retain(distribution_1d, error)
-!!       Type(distribution_1d_type), Pointer:: distribution_1d
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine distribution_1d_retain
-!!
-!!   FUNCTION
-!!     retains a distribution_1d
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - distribution_1d: the object to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     05.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains a distribution_1d
+!> \param distribution_ 1d: the object to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      05.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE distribution_1d_retain(distribution_1d,error)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -302,37 +206,16 @@ SUBROUTINE distribution_1d_retain(distribution_1d,error)
      distribution_1d%ref_count=distribution_1d%ref_count+1
   END IF
 END SUBROUTINE distribution_1d_retain
-!***************************************************************************
 
-!!****f* distribution_1d_types/distribution_1d_release [1.0] *
-!!
-!!   NAME
-!!     distribution_1d_release
-!!
-!!   SYNOPSIS
-!!     Subroutine distribution_1d_release(distribution_1d, error)
-!!       Type(distribution_1d_type), Pointer:: distribution_1d
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine distribution_1d_release
-!!
-!!   FUNCTION
-!!     releases the given distribution_1d
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - distribution_1d: the object to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     05.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given distribution_1d
+!> \param distribution_ 1d: the object to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      05.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE distribution_1d_release(distribution_1d,error)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -401,8 +284,7 @@ SUBROUTINE distribution_1d_release(distribution_1d,error)
 
 END SUBROUTINE distribution_1d_release
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE init_local_particle_set(distribution_1d,nparticle_kind,&
                                      nparticle,work_section,error)
 
@@ -452,39 +334,17 @@ END SUBROUTINE distribution_1d_release
 
   END SUBROUTINE init_local_particle_set
 
-  ! ***************************************************************************
-!!****f* distribution_1d_types/distribution_1d_sort_list [1.0] *
-!!
-!!   NAME
-!!     distribution_1d_sort_list
-!!
-!!   SYNOPSIS
-!!     Subroutine distribution_1d_sort_list(distribution_1d, i_list, error)
-!!       Type(distribution_1d_type), Pointer:: distribution_1d
-!!       Integer, Intent (IN), Optional:: i_list
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine distribution_1d_sort_list
-!!
-!!   FUNCTION
-!!     sorts the given list (if not specified all)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - distribution_1d: the lists to sort
-!!     - i_list: the index of the list to sort (if not specified sorts
-!!       all the lists)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     05.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief sorts the given list (if not specified all)
+!> \param distribution_ 1d: the lists to sort
+!> \param i_list the index of the list to sort (if not specified sorts
+!>        all the lists)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      05.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE distribution_1d_sort_list(distribution_1d,i_list,error)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     INTEGER, INTENT(in), OPTIONAL            :: i_list
@@ -525,52 +385,26 @@ SUBROUTINE distribution_1d_sort_list(distribution_1d,i_list,error)
      END IF
   END IF
 END SUBROUTINE distribution_1d_sort_list
-!***************************************************************************
 
-!!****f* distribution_1d_types/distribution_1d_search_el [1.0] *
-!!
-!!   NAME
-!!     distribution_1d_search_el
-!!
-!!   SYNOPSIS
-!!     Subroutine distribution_1d_search_el(distribution_1d, element, found,&
-!!         i_list_to_search, i_pos, i_list, error)
-!!       Type(distribution_1d_type), Pointer:: distribution_1d
-!!       Integer, Intent (IN):: element
-!!       Logical, Intent (OUT):: found
-!!       Integer, Intent (IN), Optional:: i_list_to_search
-!!       Integer, Optional, Intent (OUT):: i_pos, i_list
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine distribution_1d_search_el
-!!
-!!   FUNCTION
-!!     returns true if the given element is contained in the requested list
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - distribution_1d: the lists to be looked in
-!!     - element: the element to look for
-!!     - found: returns true if the element was found
-!!     - i_list_to_search: index of the list to be searched (if not given
-!!       all the lists are searched)
-!!     - i_pos: optional, returns the position of the element in the list
-!!       (makes sense only if an element was found, or if you searched only
-!!       a single list, in that case it is the place where you should insert
-!!       the element)
-!!     - i_list: optional, returns the index of the list where the element
-!!       was found (makes sense only if an element was found)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     06.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns true if the given element is contained in the requested list
+!> \param distribution_ 1d: the lists to be looked in
+!> \param element the element to look for
+!> \param found returns true if the element was found
+!> \param i_list_to_search index of the list to be searched (if not given
+!>        all the lists are searched)
+!> \param i_pos optional, returns the position of the element in the list
+!>        (makes sense only if an element was found, or if you searched only
+!>        a single list, in that case it is the place where you should insert
+!>        the element)
+!> \param i_list optional, returns the index of the list where the element
+!>        was found (makes sense only if an element was found)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      06.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE distribution_1d_search_el(distribution_1d, element, found, i_list_to_search, &
      i_pos,i_list, error)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
@@ -615,39 +449,18 @@ SUBROUTINE distribution_1d_search_el(distribution_1d, element, found, i_list_to_
      IF (PRESENT(i_pos)) i_pos=index
   END IF
 END SUBROUTINE distribution_1d_search_el
-!***************************************************************************
 
-!!****f* distribution_1d_types/distribution_1d_build_gdist [1.0] *
-!!
-!!   NAME
-!!     distribution_1d_build_gdist
-!!
-!!   SYNOPSIS
-!!     Subroutine distribution_1d_build_gdist(distribution_1d, error)
-!!       Type(distribution_1d_type), Pointer:: distribution_1d
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine distribution_1d_build_gdist
-!!
-!!   FUNCTION
-!!     build an array with the id of the processor that owns that index
-!!     (-1 if no processor owns it)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - distribution_1d: the list of which you want to build the global
-!!       distribution
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     06.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief build an array with the id of the processor that owns that index
+!>      (-1 if no processor owns it)
+!> \param distribution_ 1d: the list of which you want to build the global
+!>        distribution
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      06.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE distribution_1d_build_gdist(distribution_1d,error)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -793,38 +606,17 @@ CPSourceFileRef,&
      END IF
   END IF
 END SUBROUTINE distribution_1d_build_gdist
-!***************************************************************************
 
-!!****f* distribution_1d_types/distribution_1d_destroy_gdist [1.0] *
-!!
-!!   NAME
-!!     distribution_1d_destroy_gdist
-!!
-!!   SYNOPSIS
-!!     Subroutine distribution_1d_destroy_gdist(distribution_1d, error)
-!!       Type(distribution_1d_type), Pointer:: distribution_1d
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine distribution_1d_destroy_gdist
-!!
-!!   FUNCTION
-!!     deallocates the global dist array
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - distribution_1d: the list of which you want to destroy the global
-!!       distribution
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     06.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates the global dist array
+!> \param distribution_ 1d: the list of which you want to destroy the global
+!>        distribution
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      06.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE distribution_1d_destroy_gdist(distribution_1d,error)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -854,32 +646,17 @@ SUBROUTINE distribution_1d_destroy_gdist(distribution_1d,error)
      END IF
   END IF
 END SUBROUTINE distribution_1d_destroy_gdist
-!***************************************************************************
 
-!!****f* distribution_1d_type/distribution_1d_write [1.0] *
-!!
-!!   NAME
-!!     distribution_1d_write
-!!
-!!   FUNCTION
-!!     writes a description of the local distribution to the given unit
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - distribution_1d: the list to describe
-!!     - unit_nr: the unit to write to
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     06.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes a description of the local distribution to the given unit
+!> \param distribution_ 1d: the list to describe
+!> \param unit_nr the unit to write to
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      06.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE distribution_1d_write(distribution_1d, unit_nr, error)
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     INTEGER, INTENT(in)                      :: unit_nr
@@ -928,6 +705,5 @@ SUBROUTINE distribution_1d_write(distribution_1d, unit_nr, error)
      WRITE(unit=unit_nr, fmt="(' <distribution_1d *null*>,')")
   END IF
 END SUBROUTINE distribution_1d_write
-!***************************************************************************
 
 END MODULE distribution_1d_types

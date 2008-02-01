@@ -2,22 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****s* cp2k/pw_grid_types [1.1] *
-!!
-!!   NAME
-!!     pw_grid_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     APSI
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (20-12-2000) : Parallel data layout
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      JGH (20-12-2000) : Parallel data layout
+!> \author APSI
+! *****************************************************************************
 MODULE pw_grid_types
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -34,12 +24,14 @@ MODULE pw_grid_types
   INTEGER, PARAMETER :: PW_MODE_LOCAL = 0, PW_MODE_DISTRIBUTED=1
   
   ! maps to positive and negative g-vectors
+! *****************************************************************************
   TYPE map_pn
      INTEGER, DIMENSION ( : ), POINTER :: pos, neg
   END TYPE map_pn
   
 ! info on parallelisation
   ! contains only significant information if mode == PW_MODE_DISTRIBUTED 
+! *****************************************************************************
   TYPE pw_para_type
      INTEGER :: mode                 ! 0 = local = PW_MODE_LOCAL ; 1 = distributed = PW_MODE_DISTRIBUTED
      LOGICAL :: ray_distribution     ! block or pencil distribution
@@ -60,6 +52,7 @@ MODULE pw_grid_types
   END TYPE pw_para_type
 
   ! all you always wanted to know about grids, but were...
+! *****************************************************************************
   TYPE pw_grid_type
      INTEGER :: ngpts                             ! # grid points
      INTEGER :: ngpts_cut                         ! # grid points within cutoff
@@ -90,8 +83,5 @@ MODULE pw_grid_types
      LOGICAL :: spherical                         ! spherical cutoff?
   END TYPE pw_grid_type
   
-!!***
-  
 END MODULE pw_grid_types
 
-!******************************************************************************

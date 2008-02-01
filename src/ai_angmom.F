@@ -2,30 +2,17 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/ai_angmom [1.0] *
-!!
-!!   NAME
-!!     ai_angmom
-!!
-!!   FUNCTION
-!!     Calculation of the angular momentum integrals over 
-!!     Cartesian Gaussian-type functions.
-!!
-!!   AUTHOR
-!!     JGH (20.02.2005)
-!!
-!!   LITERATURE
-!!     S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!***
-!******************************************************************************
-
-MODULE ai_angmom
 
 ! *****************************************************************************
+!> \brief Calculation of the angular momentum integrals over 
+!>      Cartesian Gaussian-type functions.
+!> \par Literature
+!>      S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
+!> \par History
+!>      none
+!> \author JGH (20.02.2005)
+! *****************************************************************************
+MODULE ai_angmom
 
 ! ax,ay,az  : Angular momentum index numbers of orbital a.
 ! bx,by,bz  : Angular momentum index numbers of orbital b.
@@ -40,8 +27,6 @@ MODULE ai_angmom
 ! angab     : Shell set of angular momentum integrals.
 ! zet{a,b}  : Exponents of the Gaussian-type functions a or b.
 ! zetp      : Reciprocal of the sum of the exponents of orbital a and b.
-
-! *****************************************************************************
 
   USE ai_derivatives,                  ONLY: dabdr
   USE ai_moments,                      ONLY: moment
@@ -60,12 +45,9 @@ MODULE ai_angmom
 
   PUBLIC :: angmom, angmom2
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE angmom(la_max,npgfa,zeta,rpgfa,la_min,&
                     lb_max,npgfb,zetb,rpgfb,lb_min,&
                     rac,rbc,angab)
@@ -982,7 +964,5 @@ CONTAINS
     DEALLOCATE(mab,dmab,STAT=istat)
 
   END SUBROUTINE angmom2
-
-! *****************************************************************************
 
 END MODULE ai_angmom

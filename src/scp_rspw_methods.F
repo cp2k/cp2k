@@ -1,24 +1,11 @@
-
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/scp_rspw_methods [1.0] *
-!!
-!!   NAME
-!!     scp_rspw_methods
-!!
-!!   FUNCTION
-!!     set the SCP real-space plane-wave environment
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     CJM
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief set the SCP real-space plane-wave environment
+! *****************************************************************************
 MODULE scp_rspw_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -52,7 +39,7 @@ MODULE scp_rspw_methods
 CONTAINS
 !-----------------------------------------------------------------------------!
 
-!!*** **********************************************************************
+! *****************************************************************************
 SUBROUTINE scp_rspw_create(rspw,error)
     TYPE(scp_rspw_type), POINTER             :: rspw
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -73,30 +60,16 @@ SUBROUTINE scp_rspw_create(rspw,error)
   END IF
 END SUBROUTINE scp_rspw_create
 
-!!****f* scp_density_calculate/maxradius_scp_init [1.0] *
-!!
-!!   NAME
-!!     maxradius_scp_init
-!!
-!!   FUNCTION
-!!     Initialize the maxradius to be used in cube file 
-!!     initialization. Can be called from qs pw_env_methods
-!!     or wherever needed (e.g. Fist, or scp_rspw routines )
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     04.2007 
-!!
-!!*** **********************************************************************  
+! *****************************************************************************
+!> \brief Initialize the maxradius to be used in cube file 
+!>      initialization. Can be called from qs pw_env_methods
+!>      or wherever needed (e.g. Fist, or scp_rspw routines )
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      04.2007 
+!> \author CJM
+! *****************************************************************************
 SUBROUTINE maxradius_scp_init ( scp_env, atomic_kind_set, gridlevel_info, &
                               radius, eps_gvg_rspace, eps_rho_rspace, error)
     TYPE(scp_environment_type), POINTER      :: scp_env
@@ -167,28 +140,12 @@ SUBROUTINE maxradius_scp_init ( scp_env, atomic_kind_set, gridlevel_info, &
       END DO
   END SUBROUTINE maxradius_scp_init
 
-!!*** **********************************************************************
-!!**** scp_rspw_methods/scp_qs_rspw_rebuild        [1.0] *
-!!
-!!   NAME
-!!     scp_qs_rspw_rebuild
-!!
-!!   FUNCTION
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - rspw: real-space/plane-wave env to be initialized
-!!     - qs_env: the qs environment
-!!     - error: error
-!!
-!!   AUTHOR
-!!    CJM
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param rspw real-space/plane-wave env to be initialized
+!> \param qs_env the qs environment
+!> \param error error
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE scp_qs_rspw_rebuild( rspw, qs_env, error )
 
     TYPE(scp_rspw_type), POINTER             :: rspw
@@ -229,8 +186,5 @@ SUBROUTINE maxradius_scp_init ( scp_env, atomic_kind_set, gridlevel_info, &
 
   END SUBROUTINE scp_qs_rspw_rebuild
 
-! **************************************************************************
-
 END MODULE scp_rspw_methods
 
-!******************************************************************************

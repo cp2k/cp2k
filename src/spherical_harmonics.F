@@ -2,39 +2,25 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/spherical_harmonics [1.0] *
-!!
-!!   NAME
-!!     spherical_harmonics
-!!
-!!   FUNCTION
-!!     Calculate spherical harmonics
-!!
-!!   AUTHOR
-!!     JGH 6-Oct-2000
-!!
-!!   MODIFICATION HISTORY
-!!     JGH 28-Feb-2002 : Change of sign convention (-1^m)
-!!     JGH  1-Mar-2002 : Clebsch-Gordon Coefficients
-!!
-!!   TODO
-!!     1) Check if this definition is consistent with the 
-!!        Slater-Koster module
-!!
-!!   NOTES
-!!     Spherical Harmonics
-!!         Numerical Stability up to L=15
-!!         Accuracy > 1.E-12 up to L=15 tested
-!!         Definition is consistent with orbital_transformation_matrices
-!!     Clebsch-Gordon Coefficients
-!!         Tested up to l=7 (i.e. L=14)
-!!
-!!   SOURCE
-!******************************************************************************
-
-MODULE spherical_harmonics
 
 ! *****************************************************************************
+!> \brief Calculate spherical harmonics
+!> \note
+!>      Spherical Harmonics
+!>          Numerical Stability up to L=15
+!>          Accuracy > 1.E-12 up to L=15 tested
+!>          Definition is consistent with orbital_transformation_matrices
+!>      Clebsch-Gordon Coefficients
+!>          Tested up to l=7 (i.e. L=14)
+!> \todo
+!>      1) Check if this definition is consistent with the 
+!>         Slater-Koster module
+!> \par History
+!>      JGH 28-Feb-2002 : Change of sign convention (-1^m)
+!>      JGH  1-Mar-2002 : Clebsch-Gordon Coefficients
+!> \author JGH 6-Oct-2000
+! *****************************************************************************
+MODULE spherical_harmonics
 
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -72,15 +58,11 @@ MODULE spherical_harmonics
   INTEGER :: lmax=-1
   REAL(KIND=dp) :: osq2, sq2
 
-!!*****
-! *****************************************************************************
-
 CONTAINS
 
-! *****************************************************************************
 ! Clebsch-Gordon Coefficients
-! *****************************************************************************
 
+! *****************************************************************************
   SUBROUTINE clebsch_gordon_complex (l1,m1,l2,m2,clm)
     INTEGER, INTENT(IN)                      :: l1, m1, l2, m2
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: clm
@@ -106,6 +88,7 @@ CONTAINS
      
   END SUBROUTINE clebsch_gordon_complex
 
+! *****************************************************************************
   SUBROUTINE clebsch_gordon_real (l1,m1,l2,m2,rlm)
     INTEGER, INTENT(IN)                      :: l1, m1, l2, m2
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -141,7 +124,6 @@ CONTAINS
   END SUBROUTINE clebsch_gordon_real
 
 ! *****************************************************************************
-
   FUNCTION getm(m1,m2) RESULT(m)
     INTEGER, INTENT(IN)                      :: m1, m2
     INTEGER, DIMENSION(2)                    :: m
@@ -161,6 +143,7 @@ CONTAINS
      m(2) = mm
   END FUNCTION getm
 
+! *****************************************************************************
   FUNCTION get_factor(m1,m2,m) RESULT(f)
     INTEGER, INTENT(IN)                      :: m1, m2, m
     REAL(KIND=dp)                            :: f
@@ -210,8 +193,8 @@ CONTAINS
         IF ( ierr /= 0 ) CALL stop_memory ("clebsch_gordon_deallocate","cg_table")
      END IF
   END SUBROUTINE clebsch_gordon_deallocate
-! *****************************************************************************
 
+! *****************************************************************************
   SUBROUTINE clebsch_gordon_init ( l )
     INTEGER, INTENT(IN)                      :: l
 
@@ -261,7 +244,6 @@ CONTAINS
   END SUBROUTINE clebsch_gordon_init
 
 ! *****************************************************************************
-
   FUNCTION cgc(l1,m1,l2,m2,lp,mp)
     INTEGER, INTENT(IN)                      :: l1, m1, l2, m2, lp, mp
     REAL(KIND=dp)                            :: cgc
@@ -317,6 +299,7 @@ CONTAINS
 
   END FUNCTION cgc
 
+! *****************************************************************************
   FUNCTION sfac ( n ) RESULT (fval)
     INTEGER                                  :: n
     REAL(KIND=dp)                            :: fval
@@ -336,7 +319,6 @@ CONTAINS
   END FUNCTION sfac
 
 ! *****************************************************************************
-
   FUNCTION order(l1,m1,l2,m2) RESULT(ind)
     INTEGER, INTENT(IN)                      :: l1, m1, l2, m2
     INTEGER                                  :: ind
@@ -350,10 +332,9 @@ CONTAINS
     ind = (ix*(ix-1))/2+iy
   END FUNCTION order
 
-! *****************************************************************************
 ! Calculation of Spherical Harmonics
-! *****************************************************************************
 
+! *****************************************************************************
   SUBROUTINE rvy_lm ( r, y, l, m )
 !
 ! Real Spherical Harmonics
@@ -481,7 +462,6 @@ CONTAINS
   END SUBROUTINE rvy_lm
 
 ! *****************************************************************************
-
   SUBROUTINE rry_lm ( r, y, l, m )
 !
 ! Real Spherical Harmonics
@@ -604,7 +584,6 @@ CONTAINS
   END SUBROUTINE rry_lm
 
 ! *****************************************************************************
-
   SUBROUTINE cvy_lm ( r, y, l, m )
 !
 ! Complex Spherical Harmonics
@@ -781,7 +760,6 @@ CONTAINS
   END SUBROUTINE cvy_lm
 
 ! *****************************************************************************
-
   SUBROUTINE ccy_lm ( r, y, l, m )
 !
 ! Complex Spherical Harmonics
@@ -928,7 +906,6 @@ CONTAINS
   END SUBROUTINE ccy_lm
 
 ! *****************************************************************************
-
   FUNCTION legendre ( x, l, m ) RESULT ( plm )
 
     REAL(KIND=dp), INTENT(IN)                :: x
@@ -1067,7 +1044,6 @@ CONTAINS
   END FUNCTION legendre
 
 ! *****************************************************************************
-
   FUNCTION dlegendre (x, l, m) RESULT (dplm)
     REAL(KIND=dp), INTENT(IN)                :: x
     INTEGER, INTENT(IN)                      :: l, m
@@ -1234,9 +1210,6 @@ CONTAINS
   END FUNCTION dlegendre
 
 ! *****************************************************************************
-
-! *****************************************************************************
-
   FUNCTION dPof1(x, l) 
 
     REAL(KIND=dp), INTENT(IN)                :: x
@@ -1291,7 +1264,6 @@ CONTAINS
   END FUNCTION dPof1
 
 ! *****************************************************************************
-
   FUNCTION choose ( n, k )
 
     INTEGER, INTENT(IN)                      :: n, k
@@ -1306,7 +1278,6 @@ CONTAINS
   END FUNCTION choose
 
 ! *****************************************************************************
-
   FUNCTION cosn ( n, c, s )
 
     INTEGER, INTENT(IN)                      :: n
@@ -1349,7 +1320,6 @@ CONTAINS
   END FUNCTION cosn
 
 ! *****************************************************************************
-
   FUNCTION dcosn_dcp ( n, c, s )
 
     INTEGER, INTENT(IN)                      :: n
@@ -1380,7 +1350,6 @@ CONTAINS
   END FUNCTION dcosn_dcp
 
 ! *****************************************************************************
-
   FUNCTION dcosn_dsp ( n, c, s )
 
     INTEGER, INTENT(IN)                      :: n
@@ -1410,7 +1379,6 @@ CONTAINS
   END FUNCTION dcosn_dsp
 
 ! *****************************************************************************
-
   FUNCTION sinn ( n, c, s )
 
     INTEGER, INTENT(IN)                      :: n
@@ -1452,7 +1420,6 @@ CONTAINS
   END FUNCTION sinn
 
 ! *****************************************************************************
-
   FUNCTION dsinn_dcp ( n, c, s )
 
     INTEGER, INTENT(IN)                      :: n
@@ -1483,7 +1450,6 @@ CONTAINS
   END FUNCTION dsinn_dcp
 
 ! *****************************************************************************
-
   FUNCTION dsinn_dsp ( n, c, s )
 
     INTEGER, INTENT(IN)                      :: n
@@ -1513,8 +1479,7 @@ CONTAINS
 
   END FUNCTION dsinn_dsp
 
-!  **************************************************************************
-
+! *****************************************************************************
   SUBROUTINE drvy_lm ( r, dy, l, m )
 !
 ! Real Spherical Harmonics
@@ -1688,9 +1653,5 @@ CONTAINS
 
   END SUBROUTINE drvy_lm
 
-
-! *****************************************************************************
-
 END MODULE spherical_harmonics
 
-! *****************************************************************************

@@ -2,26 +2,14 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_all_potential [1.0] *
-!!
-!!   NAME
-!!     qs_all_potential
-!!
-!!   FUNCTION
-!!     Calculation of Core Hamiltonian contributions due to all-electron potential
-!!     The Coulomb integrals are calculated over Cartesian Gaussian-type functions
-!!     (electron repulsion integrals, ERIs).
-!!
-!!   AUTHOR
-!!
-!!   LITERATURE
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Calculation of Core Hamiltonian contributions due to all-electron potential
+!>      The Coulomb integrals are calculated over Cartesian Gaussian-type functions
+!>      (electron repulsion integrals, ERIs).
+!> \par History
+!>      none
+! *****************************************************************************
 MODULE qs_all_potential 
 
   USE ai_verfc,                        ONLY: verfc
@@ -48,12 +36,12 @@ MODULE qs_all_potential
 
   PRIVATE
 
-
 ! *** Global parameters (only in this module)
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_all_potential'
 
 ! *** Define vall type
+! *****************************************************************************
   TYPE vall_type
     TYPE(qlist_type), DIMENSION(:,:,:), POINTER :: neighbor
     REAL(KIND = dp)                             :: alpha_c,&
@@ -71,11 +59,9 @@ MODULE qs_all_potential
  
   PUBLIC :: all_integrals, radii_3c_orbxall
 
-!******************************************************************************
- 
   CONTAINS
  
-!******************************************************************************
+! *****************************************************************************
   SUBROUTINE  all_integrals(la_max,la_min,npgfa,rpgfa,zeta,&
                             lb_max,lb_min,npgfb,rpgfb,zetb,&
                             rab,dab,jkind,nkind,sbc_3c,&
@@ -304,8 +290,7 @@ MODULE qs_all_potential
 
   END SUBROUTINE all_integrals
 
-!******************************************************************************
-
+! *****************************************************************************
  SUBROUTINE radii_3c_orbxall(atomic_kind_set,all_potential,eps_core,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -441,8 +426,5 @@ MODULE qs_all_potential
 
   END SUBROUTINE radii_3c_orbxall
 
-!******************************************************************************
-
 END MODULE qs_all_potential
 
-!******************************************************************************

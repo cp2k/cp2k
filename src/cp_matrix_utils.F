@@ -3,28 +3,16 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/cp_matrix_utils [1.0] *
-!!
-!!   NAME
-!!     cp_matrix_utils
-!!
-!!   FUNCTION
-!!     various utilities to do operations with sparse matrices
-!!     and 2d array seen as dense matrices
-!!
-!!   NOTES
-!!     this should depend only on sparse_matrix_types
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 2.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!*****************************************************************************
+! *****************************************************************************
+!> \brief various utilities to do operations with sparse matrices
+!>      and 2d array seen as dense matrices
+!> \note
+!>      this should depend only on sparse_matrix_types
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+!>      @version 2.2002
+! *****************************************************************************
 MODULE cp_matrix_utils
   USE cp_array_utils,                  ONLY: cp_2d_r_write
   USE cp_sm_struct,                    ONLY: cp_sm_struct_type,&
@@ -57,34 +45,18 @@ MODULE cp_matrix_utils
             cp_sm_write,&
             sm_struct_add_sm_local_blocks
 
-
-!!****s* cp_matrix_utils/cp_matrix_block_iterator [1.0] *
-!!
-!!   NAME
-!!     cp_matrix_block_iterator
-!!
-!!   FUNCTION
-!!     goes through all the local blocks of the given matrix
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     initialized: true if the structure was initialized (bug catching)
-!!     matrix: the actual matrix
-!!     block_row: the actual block row (-1 if past end, -2 in case
-!!            of error, 0 after a dealloc)
-!!     block_node: the actual block
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 1.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief goes through all the local blocks of the given matrix
+!> \param initialized true if the structure was initialized (bug catching)
+!> \param matrix the actual matrix
+!> \param block_row the actual block row (-1 if past end, -2 in case
+!>             of error, 0 after a dealloc)
+!> \param block_node the actual block
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+!>      @version 1.2002
+! *****************************************************************************
   TYPE cp_matrix_block_iterator
      PRIVATE
      LOGICAL :: initialized
@@ -92,48 +64,22 @@ MODULE cp_matrix_utils
      INTEGER :: block_row
      TYPE(real_block_node_type), POINTER :: block_node
   END TYPE cp_matrix_block_iterator
-!!***
-!****************************************************************************
 
 CONTAINS
 
-!!****f* cp_matrix_utils/cp_sm_b_i_init [1.0] *
-!!
-!!   NAME
-!!     cp_sm_b_i_init
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_sm_b_i_init(block_iterator, matrix, block_row,&
-!!         block_node, error)
-!!       Type(cp_matrix_block_iterator), Intent (OUT):: block_iterator
-!!       Type(real_matrix_type), Target, Intent (IN):: matrix
-!!       Integer, Intent (IN), Optional:: block_row
-!!       Type(real_block_node_type), Target, Optional:: block_node
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_sm_b_i_init
-!!
-!!   FUNCTION
-!!     initializes the block iterator
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     block_iterator: the block iterator to be initialized
-!!     matrix: the matrix you iterate on
-!!     block_row: the initial block row (defaults to 0, before the first)
-!!     block_node: the initial block (defaults to the first of the row)
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 1.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief initializes the block iterator
+!> \param block_iterator the block iterator to be initialized
+!> \param matrix the matrix you iterate on
+!> \param block_row the initial block row (defaults to 0, before the first)
+!> \param block_node the initial block (defaults to the first of the row)
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+!>      @version 1.2002
+! *****************************************************************************
   SUBROUTINE cp_sm_b_i_init(block_iterator, matrix, block_row,&
        block_node, error)
     TYPE(cp_matrix_block_iterator), &
@@ -162,52 +108,26 @@ CONTAINS
     IF (PRESENT(block_row)) &
          block_iterator%block_row = block_row
   END SUBROUTINE cp_sm_b_i_init
-!***************************************************************************
 
-
-!!****f* cp_matrix_utils/cp_sm_b_i_get [1.0] *
-!!
-!!   NAME
-!!     cp_sm_b_i_get
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_sm_b_i_get(block_iterator, block_row, block_col,&
-!!         block_val, finished, matrix, block_node, error)
-!!       Type(cp_matrix_block_iterator), Intent (IN):: block_iterator
-!!       Integer, Optional, Intent (OUT):: block_row, block_col
-!!       Real(KIND = dp), Dimension(:,:), Pointer, Optional:: block_val
-!!       Logical, Optional, Intent (OUT):: finished
-!!       Type(real_matrix_type), Optional, Pointer:: matrix
-!!       Type(real_block_node_type), Optional, Pointer:: block_node
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_sm_b_i_get
-!!
-!!   FUNCTION
-!!     returns the vaious attrubutes of the iterator
-!!
-!!   NOTES
-!!     also att global indexig (firstRow, firstCol)??
-!!
-!!   INPUTS
-!!     block_iterator: the block iterator you get the info from
-!!     block_row: the actual block row
-!!     block_col: the actual block column
-!!     block_val: the values contained in the block (can be modified, 
-!!           and the matrix values are modified)
-!!     finished: true if the iterator is at end
-!!     matrix: the matrix you are iterating on
-!!     block_node: the block node (try not to use this)
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 1.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the vaious attrubutes of the iterator
+!> \param block_iterator the block iterator you get the info from
+!> \param block_row the actual block row
+!> \param block_col the actual block column
+!> \param block_val the values contained in the block (can be modified, 
+!>            and the matrix values are modified)
+!> \param finished true if the iterator is at end
+!> \param matrix the matrix you are iterating on
+!> \param block_node the block node (try not to use this)
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \note
+!>      also att global indexig (firstRow, firstCol)??
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+!>      @version 1.2002
+! *****************************************************************************
   SUBROUTINE cp_sm_b_i_get(block_iterator, block_row, block_col,&
        block_val, finished, matrix, block_node, error)
     TYPE(cp_matrix_block_iterator), &
@@ -261,49 +181,21 @@ CONTAINS
             block_node => block_iterator%block_node
     END IF
   END SUBROUTINE cp_sm_b_i_get
-!***************************************************************************
 
-!!****f* cp_matrix_utils/cp_sm_b_i_next [1.0] *
-!!
-!!   NAME
-!!     cp_sm_b_i_next
-!!
-!!   SYNOPSIS
-!!     Function cp_sm_b_i_next(block_iterator, block_row, block_col,&
-!!         block_val, finished, matrix, block_node, error) Result(res)
-!!       Type(cp_matrix_block_iterator), Intent (INOUT):: block_iterator
-!!       Integer, Optional, Intent (OUT):: block_row, block_col
-!!       Real(KIND = dp), Dimension(:,:), Pointer, Optional:: block_val
-!!       Logical, Optional, Intent (OUT):: finished
-!!       Type(real_matrix_type), Optional, Pointer:: matrix
-!!       Type(real_block_node_type), Optional, Pointer:: block_node
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Logical:: res
-!!     End Function cp_sm_b_i_next
-!!
-!!   FUNCTION
-!!     Moves the iterator to the next matrix block.
-!!     Returns true if the iterator is valid (not gone past end)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - block_iterator: the block iterator that you want to move
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!     the other arguments are the same as the get function, and
-!!     are valid only if the result is true
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 1.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Moves the iterator to the next matrix block.
+!>      Returns true if the iterator is valid (not gone past end)
+!> \param block_iterator the block iterator that you want to move
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> 
+!>      the other arguments are the same as the get function, and
+!>      are valid only if the result is true
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+!>      @version 1.2002
+! *****************************************************************************
   FUNCTION cp_sm_b_i_next(block_iterator, block_row, block_col,&
        block_val, finished, matrix, block_node, error)RESULT(res)
     TYPE(cp_matrix_block_iterator), &
@@ -370,39 +262,17 @@ CONTAINS
     END IF
     res=.FALSE.
   END FUNCTION cp_sm_b_i_next
-!***************************************************************************
 
-!!****f* cp_matrix_utils/cp_sm_write [1.0] *
-!!
-!!   NAME
-!!     cp_sm_write
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_sm_write(matrix, unit_nr, long_description, local,&
-!!         error)
-!!       Type(real_matrix_type), Pointer:: matrix
-!!       Integer, Intent (IN):: unit_nr
-!!       Logical, Intent (IN), Optional:: long_description, local
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_sm_write
-!!
-!!   FUNCTION
-!!     writes a matrix to the given output unit
-!!
-!!   NOTES
-!!     to do
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes a matrix to the given output unit
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      to do
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE cp_sm_write(matrix,unit_nr,long_description,local,error)
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(in)                      :: unit_nr
@@ -472,40 +342,18 @@ SUBROUTINE cp_sm_write(matrix,unit_nr,long_description,local,error)
      END IF
   END IF
 END SUBROUTINE cp_sm_write
-!***************************************************************************
 
-!!****f* cp_matrix_utils/sm_struct_add_sm_local_blocks [1.0] *
-!!
-!!   NAME
-!!     sm_struct_add_sm_local_blocks
-!!
-!!   SYNOPSIS
-!!     Subroutine sm_struct_add_sm_local_blocks(sm_struct, matrix, error)
-!!       Type(cp_sm_struct_type), Pointer:: sm_struct
-!!       Type(real_matrix_type), Pointer:: matrix
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine sm_struct_add_sm_local_blocks
-!!
-!!   FUNCTION
-!!     Adds the blocks of the given matrix to the local blocks of the
-!!     given matrix structure
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - sm_struct: the structure to update
-!!     - matrix: the matrix from where to get the blocks
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Adds the blocks of the given matrix to the local blocks of the
+!>      given matrix structure
+!> \param sm_struct the structure to update
+!> \param matrix the matrix from where to get the blocks
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE sm_struct_add_sm_local_blocks(sm_struct,matrix,error)
     TYPE(cp_sm_struct_type), POINTER         :: sm_struct
     TYPE(real_matrix_type), POINTER          :: matrix
@@ -539,6 +387,5 @@ SUBROUTINE sm_struct_add_sm_local_blocks(sm_struct,matrix,error)
   END IF
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE sm_struct_add_sm_local_blocks
-!***************************************************************************
 
 END MODULE cp_matrix_utils

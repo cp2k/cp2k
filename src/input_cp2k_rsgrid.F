@@ -3,25 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_cp2k_rsgrid *
-!!
-!!   NAME
-!!     input_cp2k_rsgrid
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Joost
-!!
-!!   MODIFICATION HISTORY
-!!     01.2008 Created
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \par History
+!>      01.2008 Created
+!> \author Joost
+! *****************************************************************************
 MODULE input_cp2k_rsgrid
   USE f77_blas
   USE input_constants
@@ -45,27 +31,11 @@ MODULE input_cp2k_rsgrid
 PUBLIC :: create_rsgrid_section
 
 !***
-!****************************************************************************
 CONTAINS
 
-!***************************************************************************
-!!****f* input_cp2k_rsgrid/create_rsgrid_section *
-!!
-!!   NAME
-!!     create_rsgrid_section
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Joost
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \author Joost
+! *****************************************************************************
   SUBROUTINE create_rsgrid_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error

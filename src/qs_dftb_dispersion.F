@@ -3,18 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/qs_dftb_dispersion [1.1] *
-!!
-!!   FUNCTION
-!!     Calculation of dispersion in DFTB
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!***
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Calculation of dispersion in DFTB
+!> \author JGH
+! *****************************************************************************
 MODULE qs_dftb_dispersion
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -50,12 +42,9 @@ MODULE qs_dftb_dispersion
 
   PUBLIC :: calculate_dftb_dispersion
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE calculate_dftb_dispersion(qs_env,para_env,calculate_forces,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -257,9 +246,5 @@ CONTAINS
 
   END SUBROUTINE calculate_dftb_dispersion
 
-! *****************************************************************************
-
 END MODULE qs_dftb_dispersion
-
-! *****************************************************************************
 

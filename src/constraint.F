@@ -3,20 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/constraint [1.0] *
-!!
-!!   NAME
-!!     constraint
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     Teodoro Laino [tlaino] 2007 - Extension to Intermolecular constraints
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      Teodoro Laino [tlaino] 2007 - Extension to Intermolecular constraints
+! *****************************************************************************
 MODULE constraint
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -84,25 +74,14 @@ MODULE constraint
 
 CONTAINS
 
-!!****** constraint/shake_control [1.0] *
-!!
-!!   NAME
-!!     shake_control
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     Teodoro Laino [tlaino] 2007 - Extension to Intermolecular constraints
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      Teodoro Laino [tlaino] 2007 - Extension to Intermolecular constraints
+! *****************************************************************************
   SUBROUTINE shake_control( gci, local_molecules, molecule_set, molecule_kind_set, &
        particle_set, pos, vel, dt, shake_tol, log_unit, lagrange_mult, dump_lm, &
        cell, group, local_particles,error )
 
-    
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -200,20 +179,10 @@ CONTAINS
     CALL timestop ( 0.0_dp, handle )
   END SUBROUTINE shake_control
 
-!!****** constraint/rattle_control [1.0] *
-!!
-!!   NAME
-!!     rattle_control
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     Teodoro Laino [tlaino] 2007 - Extension to Intermolecular constraints
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      Teodoro Laino [tlaino] 2007 - Extension to Intermolecular constraints
+! *****************************************************************************
   SUBROUTINE rattle_control( gci, local_molecules, molecule_set, molecule_kind_set,  &
        particle_set, vel, dt, rattle_tol, log_unit, lagrange_mult, dump_lm, cell, group,&
        local_particles, error )
@@ -311,20 +280,10 @@ CONTAINS
 
   END SUBROUTINE rattle_control
 
-!!****** constraint/shake_roll_control [1.0] *
-!!
-!!   NAME
-!!     shake_roll_control
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     Teodoro Laino [tlaino] 2007 - Extension to Intermolecular constraints
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      Teodoro Laino [tlaino] 2007 - Extension to Intermolecular constraints
+! *****************************************************************************
   SUBROUTINE shake_roll_control( gci, local_molecules, molecule_set,&
        molecule_kind_set, particle_set, pos, vel, simpar, roll_tol, iroll,&
        vector_r, vector_v, group, u, cell, local_particles, error )
@@ -446,20 +405,10 @@ CONTAINS
 
   END SUBROUTINE shake_roll_control
 
-!!****** constraint/rattle_roll_control [1.0] *
-!!
-!!   NAME
-!!     rattle_roll_control
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     Teodoro Laino [tlaino] 2007 - Extension to Intermolecular constraints
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      Teodoro Laino [tlaino] 2007 - Extension to Intermolecular constraints
+! *****************************************************************************
   SUBROUTINE rattle_roll_control( gci, local_molecules, molecule_set, &
        molecule_kind_set, particle_set, vel, simpar, virial, vector,&
        veps, mass, roll_tol, iroll, para_env, u, cell, local_particles, error )
@@ -586,20 +535,10 @@ CONTAINS
     CALL timestop ( 0.0_dp, handle )
   END SUBROUTINE rattle_roll_control
 
-!!****** constraint/dump_lagrange_mult [1.0] *
-!!
-!!   NAME
-!!     dump_lagrange_mult
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     Teodoro Laino [tlaino] 2007 - Dumps lagrange multipliers
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      Teodoro Laino [tlaino] 2007 - Dumps lagrange multipliers
+! *****************************************************************************
   SUBROUTINE dump_lagrange_mult(dump_lm,log_unit,local_molecules,molecule_set,gci,&
        molecule_kind_set, group, id_type, error)
     LOGICAL, INTENT(IN)                      :: dump_lm
@@ -712,20 +651,10 @@ CONTAINS
 
   END SUBROUTINE dump_lagrange_mult
 
-!!****** constraint/shake_int_info [1.0] *
-!!
-!!   NAME
-!!     shake_int_info
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     Teodoro Laino [tlaino] 2007 - Dumps more useful info about shake
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      Teodoro Laino [tlaino] 2007 - Dumps more useful info about shake
+! *****************************************************************************
   SUBROUTINE shake_int_info(log_unit,i,ishake_int,max_sigma,error)
     INTEGER, INTENT(IN)                      :: log_unit, i, ishake_int
     REAL(KIND=dp), INTENT(IN)                :: max_sigma
@@ -760,20 +689,10 @@ CONTAINS
     END IF
   END SUBROUTINE shake_int_info
 
-!!****** constraint/shake_ext_info [1.0] *
-!!
-!!   NAME
-!!     shake_ext_info
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     Teodoro Laino [tlaino] 2007 - Dumps more useful info about shake
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      Teodoro Laino [tlaino] 2007 - Dumps more useful info about shake
+! *****************************************************************************
   SUBROUTINE shake_ext_info(log_unit,ishake_ext,max_sigma,error)
     INTEGER, INTENT(IN)                      :: log_unit, ishake_ext
     REAL(KIND=dp), INTENT(IN)                :: max_sigma
@@ -804,20 +723,10 @@ CONTAINS
     END IF
   END SUBROUTINE shake_ext_info
 
-!!****** constraint/rattle_int_info [1.0] *
-!!
-!!   NAME
-!!     rattle_int_info
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     Teodoro Laino [tlaino] 2007 - Dumps more useful info about rattle
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      Teodoro Laino [tlaino] 2007 - Dumps more useful info about rattle
+! *****************************************************************************
   SUBROUTINE rattle_int_info(log_unit,i,irattle_int,max_sigma,error)
     INTEGER, INTENT(IN)                      :: log_unit, i, irattle_int
     REAL(KIND=dp), INTENT(IN)                :: max_sigma
@@ -850,20 +759,10 @@ CONTAINS
     END IF
   END SUBROUTINE rattle_int_info
 
-!!****** constraint/rattle_ext_info [1.0] *
-!!
-!!   NAME
-!!     rattle_ext_info
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     Teodoro Laino [tlaino] 2007 - Dumps more useful info about rattle
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      Teodoro Laino [tlaino] 2007 - Dumps more useful info about rattle
+! *****************************************************************************
   SUBROUTINE rattle_ext_info(log_unit,irattle_ext,max_sigma,error)
     INTEGER, INTENT(IN)                      :: log_unit, irattle_ext
     REAL(KIND=dp), INTENT(IN)                :: max_sigma

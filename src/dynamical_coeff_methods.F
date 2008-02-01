@@ -3,22 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/dynamical_coeff_methods [1.0] *
-!!
-!!   NAME
-!!     dynamical_coeff_methods
-!!
-!!   FUNCTION
-!!     collection of routines handling the integrators for dynamical_coeff_type
-!!
-!!   AUTHOR
-!!     Teo
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief collection of routines handling the integrators for dynamical_coeff_type
+!> \author Teo
+! *****************************************************************************
 MODULE dynamical_coeff_methods
 
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -42,30 +30,17 @@ MODULE dynamical_coeff_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dynamical_coeff_methods'
 
-
   PUBLIC ::dynamical_coeff_verlet1, dynamical_coeff_verlet2
 
 CONTAINS
 
-
-!******************************************************************************
-!!****** dynamical_coeff_methods/dynamical_coeff_verlet1 [1.0] *
-!!
-!!   NAME
-!!     dynamical_coeff_verlet1
-!!
-!!   FUNCTION
-!!     velocity verlet 1st part for dynamical_coeff_types
-!!     it handles both cases of NVE or NPT over coeff_types
-!!
-!!   AUTHOR
-!!     Teodoro Laino - Zurich University - 02.2008
-!!
-!!   MODIFICATION HISTORY
-!!     Split from the integrator
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief velocity verlet 1st part for dynamical_coeff_types
+!>      it handles both cases of NVE or NPT over coeff_types
+!> \par History
+!>      Split from the integrator
+!> \author Teodoro Laino - Zurich University - 02.2008
+! *****************************************************************************
   SUBROUTINE dynamical_coeff_verlet1 ( dyn_coeff_set, thermostat_coeff, para_env, dt, error)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
@@ -118,24 +93,13 @@ CONTAINS
 
   END SUBROUTINE dynamical_coeff_verlet1
 
-!******************************************************************************
-!!****** dynamical_coeff_methods/dynamical_coeff_verlet2 [1.0] *
-!!
-!!   NAME
-!!     dynamical_coeff_verlet2
-!!
-!!   FUNCTION
-!!     velocity verlet 2nd part for dynamical_coeff_types
-!!     it handles both cases of NVE or NPT over coeff_types
-!!
-!!   AUTHOR
-!!     Teodoro Laino - Zurich University - 02.2008
-!!
-!!   MODIFICATION HISTORY
-!!     Split from the integrator
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief velocity verlet 2nd part for dynamical_coeff_types
+!>      it handles both cases of NVE or NPT over coeff_types
+!> \par History
+!>      Split from the integrator
+!> \author Teodoro Laino - Zurich University - 02.2008
+! *****************************************************************************
   SUBROUTINE dynamical_coeff_verlet2 ( dyn_coeff_set, thermostat_coeff, para_env, dt, error)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
@@ -187,4 +151,3 @@ CONTAINS
 
 END MODULE dynamical_coeff_methods
 
-!******************************************************************************

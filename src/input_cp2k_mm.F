@@ -3,25 +3,14 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_cp2k_mm *
-!!
-!!   NAME
-!!     input_cp2k_mm
-!!
-!!   FUNCTION
-!!     creates the mm section of the input
-!!
-!!   NOTES
-!!     moved out of input_cp2k
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2004 created
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief creates the mm section of the input
+!> \note
+!>      moved out of input_cp2k
+!> \par History
+!>      04.2004 created
+!> \author fawzi
+! *****************************************************************************
 MODULE input_cp2k_mm
   USE bibliography,                    ONLY: Tersoff1988,&
                                              Tosi1964a,&
@@ -60,31 +49,15 @@ MODULE input_cp2k_mm
             create_Goodwin_section, create_Buck4r_section, create_Buckmorse_section,&
             create_GENPOT_section
 !***
-!****************************************************************************
 CONTAINS
 
-!***************************************************************************
-
-!!****f* input_cp2k_mm/create_mm_section [1.0] *
-!!
-!!   NAME
-!!     create_mm_section
-!!
-!!   FUNCTION
-!!     Create the input section for FIST.. Come on.. Let's get woohooo
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Create the input section for FIST.. Come on.. Let's get woohooo
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_mm_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -122,27 +95,13 @@ CONTAINS
 
   END SUBROUTINE create_mm_section
 
-!***************************************************************************
-!!****f* input_cp2k_mm/create_print_mm_section [1.0] *
-!!
-!!   NAME
-!!     create_print_mm_section
-!!
-!!   FUNCTION
-!!     Create the print mm section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Create the print mm section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_print_mm_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -266,28 +225,14 @@ CONTAINS
     END IF
   END SUBROUTINE create_print_mm_section
 
-!***************************************************************************
-!!****f* input_cp2k_mm/create_forcefield_section [1.0] *
-!!
-!!   NAME
-!!     create_forcefield_section
-!!
-!!   FUNCTION
-!!     Create the forcefield section. This section is useful to set up the
-!!     proper force_field for FIST calculations
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Create the forcefield section. This section is useful to set up the
+!>      proper force_field for FIST calculations
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_forcefield_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -416,27 +361,13 @@ CONTAINS
 
   END SUBROUTINE create_forcefield_section
 
-!***************************************************************************
-!!****f* input_cp2k_mm/create_SPLINE_section [1.0] *
-!!
-!!   NAME
-!!     create_spline_section
-!!
-!!   FUNCTION
-!!     This section specifies the parameters for the splines
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief This section specifies the parameters for the splines
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_SPLINE_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -513,27 +444,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_SPLINE_section
 
-!***************************************************************************
-!!****f* input_cp2k_mm/create_TORSION_section [1.0] *
-!!
-!!   NAME
-!!     create_torsion_section
-!!
-!!   FUNCTION
-!!     This section specifies the torsion of the MM atoms
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief This section specifies the torsion of the MM atoms
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_TORSION_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -599,27 +516,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_TORSION_section
 
-!***************************************************************************
-!!****f* input_cp2k_mm/create_BEND_section [1.0] *
-!!
-!!   NAME
-!!     create_bend_section
-!!
-!!   FUNCTION
-!!     This section specifies the bend of the MM atoms
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief This section specifies the bend of the MM atoms
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_BEND_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -724,27 +627,13 @@ CONTAINS
 
   END SUBROUTINE create_BEND_section
 
-!***************************************************************************
-!!****f* input_cp2k_mm/create_BOND_section [1.0] *
-!!
-!!   NAME
-!!     create_bond_section
-!!
-!!   FUNCTION
-!!     This section specifies the bond of the MM atoms
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief This section specifies the bond of the MM atoms
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_BOND_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -809,27 +698,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_BOND_section
 
-!***************************************************************************
-!!****f* input_cp2k_mm/create_charge_section [1.0] *
-!!
-!!   NAME
-!!     create_charge_section
-!!
-!!   FUNCTION
-!!     This section specifies the charge of the MM atoms
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief This section specifies the charge of the MM atoms
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_charge_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -868,27 +743,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_charge_section
 
-!***************************************************************************
-!!****f* input_cp2k_mm/create_shell_section [1.0] *
-!!
-!!   NAME
-!!     create_shell_section
-!!
-!!   FUNCTION
-!!     This section specifies the charge of the MM atoms
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief This section specifies the charge of the MM atoms
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_shell_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -940,7 +801,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-
        CALL keyword_create(keyword, name="SPRING",&
             description="Force constant of the spring binding core and shell",&
             usage="SPRING {real}",&
@@ -971,28 +831,14 @@ CONTAINS
 
   END SUBROUTINE create_shell_section
 
-!***************************************************************************
-!!****f* input_cp2k_mm/create_NONBONDED14_section [1.0] *
-!!
-!!   NAME
-!!     create_NONBONDED14_section
-!!
-!!   FUNCTION
-!!     This section specifies the input parameters for 1-4 NON-BONDED 
-!!     Interactions
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief This section specifies the input parameters for 1-4 NON-BONDED 
+!>      Interactions
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_NONBONDED14_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1033,28 +879,14 @@ CONTAINS
 
   END SUBROUTINE create_NONBONDED14_section
 
-!***************************************************************************
-!!****f* input_cp2k_mm/create_NONBONDED_section [1.0] *
-!!
-!!   NAME
-!!     create_NONBONDED_section
-!!
-!!   FUNCTION
-!!     This section specifies the input parameters for 1-4 NON-BONDED 
-!!     Interactions
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief This section specifies the input parameters for 1-4 NON-BONDED 
+!>      Interactions
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_NONBONDED_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1119,28 +951,14 @@ CONTAINS
 
   END SUBROUTINE create_NONBONDED_section
 
-!***************************************************************************
-!!****f* input_cp2k_mm/create_neighbor_lists_section [1.0] *
-!!
-!!   NAME
-!!     create_neighbor_lists_section
-!!
-!!   FUNCTION
-!!     This section specifies the input parameters for generation of
-!!     neighbor lists
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo [07.2007] - Zurich University
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief This section specifies the input parameters for generation of
+!>      neighbor lists
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo [07.2007] - Zurich University
+! *****************************************************************************
   SUBROUTINE create_neighbor_lists_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1193,27 +1011,13 @@ CONTAINS
 
   END SUBROUTINE create_neighbor_lists_section
 
-!***************************************************************************
-!!****f* input_cp2k_mm/create_GENPOT_section [1.0] *
-!!
-!!   NAME
-!!     create_GENPOT_section
-!!
-!!   FUNCTION
-!!     This section specifies the input parameters for a generic potential form
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief This section specifies the input parameters for a generic potential form
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_GENPOT_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1301,27 +1105,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_GENPOT_section
 
-!***************************************************************************
-!!****f* input_cp2k_mm/create_EAM_section [1.0] *
-!!
-!!   NAME
-!!     create_EAM_section
-!!
-!!   FUNCTION
-!!     This section specifies the input parameters for EAM  potential type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief This section specifies the input parameters for EAM  potential type
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_EAM_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1360,27 +1150,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_EAM_section
 
-!***************************************************************************
-!!****f* input_cp2k_mm/create_LJ_section [1.0] *
-!!
-!!   NAME
-!!     create_LJ_section
-!!
-!!   FUNCTION
-!!     This section specifies the input parameters for Lennard-Jones potential type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief This section specifies the input parameters for Lennard-Jones potential type
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_LJ_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1450,27 +1226,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_LJ_section
 
-!***************************************************************************
-!!****f* input_cp2k_mm/create_Williams_section [1.0] *
-!!
-!!   NAME
-!!     create_Williams_section
-!!
-!!   FUNCTION
-!!     This section specifies the input parameters for Williams potential type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief This section specifies the input parameters for Williams potential type
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_Williams_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1547,27 +1309,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_Williams_section
 
-!***************************************************************************
-!!****f* input_cp2k_mm/create_Goodwin_section [1.0] *
-!!
-!!   NAME
-!!     create_Goodwin_section
-!!
-!!   FUNCTION
-!!     This section specifies the input parameters for Goodwin potential type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief This section specifies the input parameters for Goodwin potential type
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_Goodwin_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1657,27 +1405,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_Goodwin_section
 
-!***************************************************************************
-!!****f* input_cp2k_mm/create_ipbv_section [1.0] *
-!!
-!!   NAME
-!!     create_ipbv_section
-!!
-!!   FUNCTION
-!!     This section specifies the input parameters for IPBV potential type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief This section specifies the input parameters for IPBV potential type
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_ipbv_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1707,7 +1441,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-
        CALL keyword_create(keyword, name="RCUT",&
             description="Defines the cutoff parameter of the IPBV potential",&
             usage="RCUT {real}",default_r_val=cp_unit_to_cp2k(value=10.0_dp,&
@@ -1734,27 +1467,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_ipbv_section
 
-!***************************************************************************
-!!****f* input_cp2k_mm/create_BMHFT_section [1.0] *
-!!
-!!   NAME
-!!     create_BMHFT_section
-!!
-!!   FUNCTION
-!!     This section specifies the input parameters for BMHFT potential type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief This section specifies the input parameters for BMHFT potential type
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_BMHFT_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1845,27 +1564,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_BMHFT_section
 
-!***************************************************************************
-!!****f* input_cp2k_mm/create_Buck4r_section [1.0] *
-!!
-!!   NAME
-!!     create_Buck4r_section
-!!
-!!   FUNCTION
-!!     This section specifies the input parameters for Buckingham 4 ranges potential type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief This section specifies the input parameters for Buckingham 4 ranges potential type
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author MI
+! *****************************************************************************
   SUBROUTINE create_Buck4r_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1955,7 +1660,6 @@ CONTAINS
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
-
        CALL keyword_create(keyword, name="RCUT",&
             description="Defines the cutoff parameter of the Buckingham potential",&
             usage="RCUT {real}",default_r_val=cp_unit_to_cp2k(value=10.0_dp,&
@@ -1982,27 +1686,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_Buck4r_section
 
-!***************************************************************************
-!!****f* input_cp2k_mm/create_Buckmorse_section [1.0] *
-!!
-!!   NAME
-!!     create_Buckmorse_section
-!!
-!!   FUNCTION
-!!     This section specifies the input parameters for Buckingham + Morse potential type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief This section specifies the input parameters for Buckingham + Morse potential type
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author MI
+! *****************************************************************************
   SUBROUTINE create_Buckmorse_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2122,23 +1812,10 @@ CONTAINS
     END IF
   END SUBROUTINE create_Buckmorse_section
 
-!***************************************************************************
-!!****f* input_cp2k_mm/create_Tersoff_section [1.0] *
-!!
-!!   NAME
-!!     create_Tersoff_section
-!!
-!!   FUNCTION
-!!     This section specifies the input parameters for Tersoff potential type
-!!     (Tersoff, J. PRB 39(8), 5566, 1989)
-!!
-!!   NOTES
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief This section specifies the input parameters for Tersoff potential type
+!>      (Tersoff, J. PRB 39(8), 5566, 1989)
+! *****************************************************************************
   SUBROUTINE create_Tersoff_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2298,7 +1975,5 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_Tersoff_section
-
-!***************************************************************************
 
 END MODULE input_cp2k_mm

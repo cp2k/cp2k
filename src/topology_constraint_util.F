@@ -3,24 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/topology_constraint_util [1.0] *
-!!
-!!   NAME
-!!     topology_constraint_util
-!!
-!!   FUNCTION
-!!     Collection of subroutine needed for topology related things
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!    jgh (23-05-2004) Last atom of molecule information added
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Collection of subroutine needed for topology related things
+!> \par History
+!>     jgh (23-05-2004) Last atom of molecule information added
+! *****************************************************************************
 MODULE topology_constraint_util
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -74,32 +61,11 @@ MODULE topology_constraint_util
   PRIVATE
   PUBLIC :: topology_constraint_pack
 
-
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** topology_constraint_util/topology_constraint_pack [1.0] *
-!!
-!!   NAME
-!!     topology_constraint_pack
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Pack in all the information needed for the constraints
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Pack in all the information needed for the constraints
+! *****************************************************************************
   SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
        topology,qmmm_env,particle_set,input_file,para_env,subsys_section,gci,&
        error)
@@ -887,27 +853,12 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE topology_constraint_pack
 
-!******************************************************************************
-!!****** topology_constraint_util/setup_colv_list [1.0] *
-!!
-!!   NAME
-!!     setup_colv_list
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Setup the colv_list for the packing of constraints
-!!
-!!   AUTHOR
-!!     Teodoro Laino [2007]
-!!
-!!   MODIFICATION HISTORY
-!!     Updated 2007 for intermolecular constraints
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Setup the colv_list for the packing of constraints
+!> \par History
+!>      Updated 2007 for intermolecular constraints
+!> \author Teodoro Laino [2007]
+! *****************************************************************************
   SUBROUTINE setup_colv_list(colv_list, ilist, gind, cons_info, topology,&
        particle_set, restart_restraint_clv, colvar_rest, first_atom, error)
 
@@ -980,27 +931,12 @@ CONTAINS
     END DO
   END SUBROUTINE setup_colv_list
 
-!******************************************************************************
-!!****** topology_constraint_util/setup_g3x3_list [1.0] *
-!!
-!!   NAME
-!!     setup_g3x3_list
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Setup the g3x3_list for the packing of constraints
-!!
-!!   AUTHOR
-!!     Teodoro Laino [2007]
-!!
-!!   MODIFICATION HISTORY
-!!     Updated 2007 for intermolecular constraints
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Setup the g3x3_list for the packing of constraints
+!> \par History
+!>      Updated 2007 for intermolecular constraints
+!> \author Teodoro Laino [2007]
+! *****************************************************************************
   SUBROUTINE setup_g3x3_list(g3x3_list, ilist, cons_info, ng3x3_restraint, error)
     TYPE(g3x3_constraint_type), &
       DIMENSION(:), POINTER                  :: g3x3_list
@@ -1032,27 +968,13 @@ CONTAINS
     END DO
 
   END SUBROUTINE setup_g3x3_list
-!******************************************************************************
-!!****** topology_constraint_util/setup_g4x6_list [1.0] *
-!!
-!!   NAME
-!!     setup_g4x6_list
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Setup the g4x6_list for the packing of constraints
-!!
-!!   AUTHOR
-!!     Teodoro Laino [2007]
-!!
-!!   MODIFICATION HISTORY
-!!     Updated 2007 for intermolecular constraints
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*** *************************************************************************
+
+! *****************************************************************************
+!> \brief Setup the g4x6_list for the packing of constraints
+!> \par History
+!>      Updated 2007 for intermolecular constraints
+!> \author Teodoro Laino [2007]
+! *****************************************************************************
 SUBROUTINE setup_g4x6_list(g4x6_list, ilist, cons_info, ng4x6_restraint, error)
     TYPE(g4x6_constraint_type), &
       DIMENSION(:), POINTER                  :: g4x6_list
@@ -1090,27 +1012,12 @@ SUBROUTINE setup_g4x6_list(g4x6_list, ilist, cons_info, ng4x6_restraint, error)
 
 END SUBROUTINE setup_g4x6_list
 
-!******************************************************************************
-!!****** topology_constraint_util/setup_lcolv [1.0] *
-!!
-!!   NAME
-!!     setup_lcolv
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Setup the lcolv for the packing of constraints
-!!
-!!   AUTHOR
-!!     Teodoro Laino [2007]
-!!
-!!   MODIFICATION HISTORY
-!!     Updated 2007 for intermolecular constraints
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Setup the lcolv for the packing of constraints
+!> \par History
+!>      Updated 2007 for intermolecular constraints
+!> \author Teodoro Laino [2007]
+! *****************************************************************************
   SUBROUTINE setup_lcolv(lcolv, ilist, first_atom, last_atom, cons_info, error)
     TYPE(local_colvar_constraint_type), &
       DIMENSION(:), POINTER                  :: lcolv
@@ -1153,27 +1060,13 @@ END SUBROUTINE setup_g4x6_list
        END IF
     END DO
   END SUBROUTINE setup_lcolv
-!******************************************************************************
-!!****** topology_constraint_util/setup_lg3x3 [1.0] *
-!!
-!!   NAME
-!!     setup_lg3x3
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Setup the lg3x3 for the packing of constraints
-!!
-!!   AUTHOR
-!!     Teodoro Laino [2007]
-!!
-!!   MODIFICATION HISTORY
-!!     Updated 2007 for intermolecular constraints
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*** *************************************************************************
+
+! *****************************************************************************
+!> \brief Setup the lg3x3 for the packing of constraints
+!> \par History
+!>      Updated 2007 for intermolecular constraints
+!> \author Teodoro Laino [2007]
+! *****************************************************************************
   SUBROUTINE setup_lg3x3(lg3x3, g3x3_list, first_atom, last_atom, error)
     TYPE(local_g3x3_constraint_type), &
       DIMENSION(:), POINTER                  :: lg3x3
@@ -1221,27 +1114,13 @@ END SUBROUTINE setup_g4x6_list
     END DO
 
   END SUBROUTINE setup_lg3x3
-!******************************************************************************
-!!****** topology_constraint_util/setup_lg4x6 [1.0] *
-!!
-!!   NAME
-!!     setup_lg4x6
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Setup the lg4x6 for the packing of constraints
-!!
-!!   AUTHOR
-!!     Teodoro Laino [2007]
-!!
-!!   MODIFICATION HISTORY
-!!     Updated 2007 for intermolecular constraints
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*** *************************************************************************
+
+! *****************************************************************************
+!> \brief Setup the lg4x6 for the packing of constraints
+!> \par History
+!>      Updated 2007 for intermolecular constraints
+!> \author Teodoro Laino [2007]
+! *****************************************************************************
 SUBROUTINE setup_lg4x6(lg4x6, g4x6_list, first_atom, last_atom, error)
     TYPE(local_g4x6_constraint_type), &
       DIMENSION(:), POINTER                  :: lg4x6
@@ -1301,27 +1180,12 @@ SUBROUTINE setup_lg4x6(lg4x6, g4x6_list, first_atom, last_atom, error)
 
 END SUBROUTINE setup_lg4x6
 
-!******************************************************************************
-!!****** topology_constraint_util/give_constraint_array [1.0] *
-!!
-!!   NAME
-!!     give_constraint_array
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Gives back a list of molecule to which apply the constraint
-!!
-!!   AUTHOR
-!!     Teodoro Laino [2006]
-!!
-!!   MODIFICATION HISTORY
-!!     Updated 2007 for intermolecular constraints
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Gives back a list of molecule to which apply the constraint
+!> \par History
+!>      Updated 2007 for intermolecular constraints
+!> \author Teodoro Laino [2006]
+! *****************************************************************************
   SUBROUTINE give_constraint_array(const_mol, const_molname, const_intermolecular,&
        constr_x_mol, constr_x_glob, molecule_kind_set, exclude_qm, exclude_mm, error)
     
@@ -1403,27 +1267,10 @@ CPSourceFileRef,&
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE give_constraint_array
 
-!******************************************************************************
-!!****** topology_constraint_util/print_warning_molname [1.0] *
-!!
-!!   NAME
-!!     print_warning_molname
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Prints a warning message if undefined molnames are used to define constraints
-!!
-!!   AUTHOR
-!!     Teodoro Laino [2007] - Zurich University
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Prints a warning message if undefined molnames are used to define constraints
+!> \author Teodoro Laino [2007] - Zurich University
+! *****************************************************************************
   SUBROUTINE print_warning_molname(found, name, error)
     LOGICAL, INTENT(IN)                      :: found
     CHARACTER(LEN=*), INTENT(IN)             :: name

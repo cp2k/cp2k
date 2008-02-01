@@ -3,24 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/cp_cfm_diag [1.0] *
-!!
-!!   NAME
-!!     cp_cfm_diag
-!!
-!!   FUNCTION
-!!     used for collecting some of the diagonalization shemes available for cp_cfm_type
-!!     cp_fm_power also moved here as it is very related
-!!
-!!   NOTES
-!!     first version : only one routine right now
-!!
-!!   AUTHOR
-!!     Joost VandeVondele (2003-09)
-!!
-! ************************************************************************************
-
+! *****************************************************************************
+!> \brief used for collecting some of the diagonalization shemes available for cp_cfm_type
+!>      cp_fm_power also moved here as it is very related
+!> \note
+!>      first version : only one routine right now
+!> \author Joost VandeVondele (2003-09)
+! *****************************************************************************
 MODULE cp_cfm_diag
 
   USE cp_cfm_types,                    ONLY: cp_cfm_type
@@ -35,12 +24,11 @@ MODULE cp_cfm_diag
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_diag'
 
-!****************************************************************************
-
 PUBLIC :: cp_cfm_heevd
 
 CONTAINS
 
+! *****************************************************************************
   SUBROUTINE cp_cfm_heevd(matrix,eigenvectors,eigenvalues,error)
 
     TYPE(cp_cfm_type), POINTER               :: matrix, eigenvectors

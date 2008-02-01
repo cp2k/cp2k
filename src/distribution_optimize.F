@@ -2,30 +2,19 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2007 - 2008 CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/distribution_optimize *
-!!
-!!   NAME
-!!     distribution_optimize
-!!
-!!   FUNCTION
-!!     optimizes the parallel distribution trying to minimize a cost function
-!!
-!!   NOTES
-!!     currently optimizes a 2D distribution for a 2D grid of CPUs
-!!     see distribute_2d_monte_carlo
-!!
-!!     The approach currently is based on Monte Carlo like annealing to find the
-!!     a good approximation of the global minimum [which appears to work well]
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     04.2007 Created [Joost VandeVondele]
-!!
-!!   SOURCE
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief optimizes the parallel distribution trying to minimize a cost function
+!> \note
+!>      currently optimizes a 2D distribution for a 2D grid of CPUs
+!>      see distribute_2d_monte_carlo
+!> 
+!>      The approach currently is based on Monte Carlo like annealing to find the
+!>      a good approximation of the global minimum [which appears to work well]
+!> \par History
+!>      04.2007 Created [Joost VandeVondele]
+!> \author Joost VandeVondele
+! *****************************************************************************
 MODULE distribution_optimize
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -53,33 +42,23 @@ MODULE distribution_optimize
 
   PUBLIC :: distribute_2d_monte_carlo
 
-
 CONTAINS
-!!****f* distribution_optimize/distribute_2d_monte_carlo *
-!!
-!!   NAME
-!!     distribute_2d_monte_carlo
-!!
-!!   FUNCTION
-!!     minimizes the cost per CPU for a 2D distribution
-!!     i.e. the maximum value of the sum of the elements of cost_ele_pair
-!!     belong to a given CPU is minimized.
-!!     For example, if cost_ele_pair=1 each cpu will have approximately the
-!!     same number of elements, and the maximum number of blocks on a given CPU is minimum.
-!!     it is up to some cost model to define reasonable costs of each element pair
-!!
-!!     P x Q : processor grid
-!!     nele : number of elements
-!!     local_rows[1..nele] : to which CPU row [1..P] belongs this ele
-!!     local_cols[1..nele] : to which CPU col [1..Q] belongs this ele
-!!
-!!   NOTES
-!!
-!!
-!!   MODIFICATION HISTORY
-!!     04.2007 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief minimizes the cost per CPU for a 2D distribution
+!>      i.e. the maximum value of the sum of the elements of cost_ele_pair
+!>      belong to a given CPU is minimized.
+!>      For example, if cost_ele_pair=1 each cpu will have approximately the
+!>      same number of elements, and the maximum number of blocks on a given CPU is minimum.
+!>      it is up to some cost model to define reasonable costs of each element pair
+!> 
+!>      P x Q : processor grid
+!>      nele : number of elements
+!>      local_rows[1..nele] : to which CPU row [1..P] belongs this ele
+!>      local_cols[1..nele] : to which CPU col [1..Q] belongs this ele
+!> \par History
+!>      04.2007 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE distribute_2d_monte_carlo(cost_ele_pair,P,Q,nele,local_rows,local_cols,mc_section,para_env,error)
     INTEGER, INTENT(IN)                      :: P, Q, nele, &
                                                 cost_ele_pair(nele,nele)
@@ -142,7 +121,6 @@ CONTAINS
 
     ! adjust this to be in units of the maximum block cost
     T_in=T_in*MAXVAL(cost_ele_pair)
-
 
     ! allocate a cost per CPU structure
     ALLOCATE(cost_cpu(P,Q))
@@ -283,24 +261,15 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE distribute_2d_monte_carlo
-!!****f* distribution_optimize/compute_cost_cpu *
-!!
-!!   NAME
-!!     compute_cost_cpu
-!!
-!!   FUNCTION
-!!     compute the cost for each CPU given a local_rows/local_cols distribution
-!!
-!!   NOTES
-!!     quadratic in the number of elements and thus expensive.
-!!     see update update_cost_cpu_row / update_cost_cpu_col / update_cost_cpu_diff
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     04.2007 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief compute the cost for each CPU given a local_rows/local_cols distribution
+!> \note
+!>      quadratic in the number of elements and thus expensive.
+!>      see update update_cost_cpu_row / update_cost_cpu_col / update_cost_cpu_diff
+!> \par History
+!>      04.2007 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE compute_cost_cpu(cost_cpu,cost_ele_pair,P,Q,nele,local_rows,local_cols)
     INTEGER, INTENT(IN)                      :: P, Q
     INTEGER, INTENT(out)                     :: cost_cpu(P,Q)
@@ -319,23 +288,14 @@ CONTAINS
     ENDDO
 
   END SUBROUTINE
-!!****f* distribution_optimize/update_cost_cpu_row *
-!!
-!!   NAME
-!!     update_cost_cpu_row
-!!
-!!   FUNCTION
-!!     update the cost_cpu matrix after changing the assignment of a single ele
-!!
-!!   NOTES
-!!     linear scaling in the number of eles
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     04.2007 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief update the cost_cpu matrix after changing the assignment of a single ele
+!> \note
+!>      linear scaling in the number of eles
+!> \par History
+!>      04.2007 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE update_cost_cpu_row(cost_cpu,cost_ele_pair,P,Q,nele,local_rows,local_cols,iele,icpu_old,icpu_new)
     INTEGER, INTENT(IN)                      :: P, Q
     INTEGER, INTENT(OUT)                     :: cost_cpu(P,Q)
@@ -350,23 +310,14 @@ CONTAINS
     ENDDO
 
   END SUBROUTINE update_cost_cpu_row
-!!****f* distribution_optimize/update_cost_cpu_col *
-!!
-!!   NAME
-!!     update_cost_cpu_col
-!!
-!!   FUNCTION
-!!     update the cost_cpu matrix after changing the assignment of a single ele
-!!
-!!   NOTES
-!!     linear scaling in the number of eles
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     04.2007 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief update the cost_cpu matrix after changing the assignment of a single ele
+!> \note
+!>      linear scaling in the number of eles
+!> \par History
+!>      04.2007 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE update_cost_cpu_col(cost_cpu,cost_ele_pair,P,Q,nele,local_rows,local_cols,iele,icpu_old,icpu_new)
     INTEGER, INTENT(IN)                      :: P, Q
     INTEGER, INTENT(OUT)                     :: cost_cpu(P,Q)
@@ -383,25 +334,16 @@ CONTAINS
     ENDDO
 
   END SUBROUTINE update_cost_cpu_col
-!!****f* distribution_optimize/update_cost_cpu_diff *
-!!
-!!   NAME
-!!     update_cost_cpu_diff
-!!
-!!   FUNCTION
-!!     update the cost_cpu matrix after changing the assignment of the local_row or local_col
-!!
-!!   NOTES
-!!     only checked if either the row or the col distribution changes
-!!     if both change at the same time one has to check this ...
-!!     (i.e. is the cost of the elements that change twice taken correctly into account)
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     04.2007 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief update the cost_cpu matrix after changing the assignment of the local_row or local_col
+!> \note
+!>      only checked if either the row or the col distribution changes
+!>      if both change at the same time one has to check this ...
+!>      (i.e. is the cost of the elements that change twice taken correctly into account)
+!> \par History
+!>      04.2007 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE update_cost_cpu_diff(cost_cpu,cost_ele_pair,P,Q,nele,local_rows_new,local_cols_new,local_rows_old,local_cols_old)
     INTEGER, INTENT(IN)                      :: P, Q
     INTEGER, INTENT(OUT)                     :: cost_cpu(P,Q)

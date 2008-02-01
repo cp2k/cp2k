@@ -2,46 +2,35 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/pw_grids [1.1] *
-!!
-!!   NAME
-!!     pw_grids
-!!
-!!   FUNCTION
-!!     This module defines the grid data type and some basic operations on it
-!!
-!!   AUTHOR
-!!     apsi
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (20-12-2000) : Adapted for parallel use
-!!     JGH (07-02-2001) : Added constructor and destructor routines
-!!     JGH (21-02-2003) : Generalized reference grid concept
-!!     JGH (19-11-2007) : Refactoring and modularization
-!!     JGH (21-12-2007) : pw_grid_setup refactoring
-!!
-!!   NOTES
-!!     pw_grid_create : set the defaults
-!!     pw_grid_release : release all memory connected to type
-!!     pw_grid_setup  : main routine to set up a grid
-!!          input: cell (the box for the grid)
-!!                 pw_grid (the grid; pw_grid%grid_span has to be set)
-!!                 cutoff (optional, if not given pw_grid%bounds has to be set)
-!!                 pe_group (optional, if not given we have a local grid)
-!!
-!!                 if no cutoff or a negative cutoff is given, all g-vectors
-!!                 in the box are included (no spherical cutoff)
-!!
-!!                 for a distributed setup the array in para rs_dims has to
-!!                 be initialized
-!!          output: pw_grid
-!!
-!!     pw_grid_change : updates g-vectors after a change of the box
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief This module defines the grid data type and some basic operations on it
+!> \note
+!>      pw_grid_create : set the defaults
+!>      pw_grid_release : release all memory connected to type
+!>      pw_grid_setup  : main routine to set up a grid
+!>           input: cell (the box for the grid)
+!>                  pw_grid (the grid; pw_grid%grid_span has to be set)
+!>                  cutoff (optional, if not given pw_grid%bounds has to be set)
+!>                  pe_group (optional, if not given we have a local grid)
+!> 
+!>                  if no cutoff or a negative cutoff is given, all g-vectors
+!>                  in the box are included (no spherical cutoff)
+!> 
+!>                  for a distributed setup the array in para rs_dims has to
+!>                  be initialized
+!>           output: pw_grid
+!> 
+!>      pw_grid_change : updates g-vectors after a change of the box
+!> \par History
+!>      JGH (20-12-2000) : Adapted for parallel use
+!>      JGH (07-02-2001) : Added constructor and destructor routines
+!>      JGH (21-02-2003) : Generalized reference grid concept
+!>      JGH (19-11-2007) : Refactoring and modularization
+!>      JGH (21-12-2007) : pw_grid_setup refactoring
+!> \author apsi
+!>      CJM
+! *****************************************************************************
 MODULE pw_grids
   USE cell_types,                      ONLY: cell_type
   USE f77_blas
@@ -79,28 +68,14 @@ MODULE pw_grids
   INTEGER :: grid_tag = 0
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_grids'
 
-  !!***
-  !******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** pw_grids/pw_grid_create [1.0] *
-!!
-!!   NAME
-!!     pw_grid_create
-!!
-!!   FUNCTION
-!!     Initialize a PW grid with all defaults
-!!
-!!   AUTHOR
-!!     JGH (7-Feb-2001) & fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (21-Feb-2003) : initialize pw_grid%reference
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Initialize a PW grid with all defaults
+!> \par History
+!>      JGH (21-Feb-2003) : initialize pw_grid%reference
+!> \author JGH (7-Feb-2001) & fawzi
+! *****************************************************************************
   SUBROUTINE pw_grid_create ( pw_grid, pe_group, local, error )
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -167,25 +142,13 @@ CONTAINS
 
   END SUBROUTINE pw_grid_create
 
-!******************************************************************************
-!!****** pw_grids/pw_grid_compare [1.0] *
-!!
-!!   NAME
-!!     pw_grid_compare
-!!
-!!   FUNCTION
-!!     Check if two pw_grids are equal
-!!
-!!   AUTHOR
-!!     JGH (14-Feb-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Check if two pw_grids are equal
+!> \par History
+!>      none
+!> \author JGH (14-Feb-2001)
+! *****************************************************************************
   FUNCTION pw_grid_compare ( grida, gridb ) RESULT ( equal )
-
 
     TYPE(pw_grid_type), INTENT(IN)           :: grida, gridb
     LOGICAL                                  :: equal
@@ -202,23 +165,12 @@ CONTAINS
 
   END FUNCTION pw_grid_compare
 
-!******************************************************************************
-!!****** pw_grids/get_pw_grid_info [1.0] *
-!!
-!!   NAME
-!!     get_pw_grid_info
-!!
-!!   FUNCTION
-!!     Access to information stored in the pw_grid_type
-!!
-!!   AUTHOR
-!!     JGH (17-Nov-2007)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Access to information stored in the pw_grid_type
+!> \par History
+!>      none
+!> \author JGH (17-Nov-2007)
+! *****************************************************************************
   SUBROUTINE get_pw_grid_info(pw_grid, id_nr, mode, vol, dvol,  npts, ngpts,&
        ngpts_cut,dr, cutoff, orthorhombic, gvectors,gsquare,error)
 
@@ -265,23 +217,12 @@ CONTAINS
 
   END SUBROUTINE get_pw_grid_info
 
-!******************************************************************************
-!!****** pw_grids/set_pw_grid_info [1.0] *
-!!
-!!   NAME
-!!     set_pw_grid_info
-!!
-!!   FUNCTION
-!!     Set some information stored in the pw_grid_type
-!!
-!!   AUTHOR
-!!     JGH (19-Nov-2007)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Set some information stored in the pw_grid_type
+!> \par History
+!>      none
+!> \author JGH (19-Nov-2007)
+! *****************************************************************************
   SUBROUTINE set_pw_grid_info(pw_grid, grid_span, npts, bounds, cutoff, spherical,&
        error)
 
@@ -331,29 +272,15 @@ CONTAINS
     END IF
 
   END SUBROUTINE set_pw_grid_info
-  !******************************************************************************
 
-!!****f* pw_grids/pw_grid_setup *
-!!
-!!   NAME
-!!     pw_grid_setup
-!!
-!!   FUNCTION
-!!     sets up a pw_grid
-!!
-!!   NOTES
-!!     this is the function that should be used in the future
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     JGH (21-Dec-2007)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief sets up a pw_grid
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      this is the function that should be used in the future
+!> \author JGH (21-Dec-2007)
+! *****************************************************************************
   SUBROUTINE pw_grid_setup ( cell, pw_grid, grid_span, cutoff, bounds, npts, &
        spherical, odd, fft_usage, ncommensurate, icommensurate, blocked, ref_grid,&
        rs_dims, iounit, error )
@@ -464,41 +391,26 @@ CONTAINS
 
   END SUBROUTINE pw_grid_setup
 
-  !******************************************************************************
-
-!!****f* pw_grids/pw_grid_setup_internal *
-!!
-!!   NAME
-!!     pw_grid_setup_internal
-!!
-!!   FUNCTION
-!!     sets up a pw_grid, needs valid bounds as input, it is up to you to
-!!     make sure of it using pw_grid_bounds_from_n
-!!
-!!   NOTES
-!!     this is the function that should be used in the future
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (20-Dec-2000) : Adapted for parallel use
-!!     JGH (28-Feb-2001) : New optional argument fft_usage
-!!     JGH (21-Mar-2001) : Reference grid code
-!!     JGH (21-Mar-2001) : New optional argument symm_usage
-!!     JGH (22-Mar-2001) : Simplify group assignment (mp_comm_dup)
-!!     JGH (21-May-2002) : Remove orthorhombic keyword (code is fast enough)
-!!     JGH (19-Feb-2003) : Negative cutoff can be used for non-spheric grids
-!!     Joost VandeVondele (Feb-2004) : optionally generate pw grids that are commensurate in rs
-!!     JGH (18-Dec-2007) : Refactoring
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief sets up a pw_grid, needs valid bounds as input, it is up to you to
+!>      make sure of it using pw_grid_bounds_from_n
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      this is the function that should be used in the future
+!> \par History
+!>      JGH (20-Dec-2000) : Adapted for parallel use
+!>      JGH (28-Feb-2001) : New optional argument fft_usage
+!>      JGH (21-Mar-2001) : Reference grid code
+!>      JGH (21-Mar-2001) : New optional argument symm_usage
+!>      JGH (22-Mar-2001) : Simplify group assignment (mp_comm_dup)
+!>      JGH (21-May-2002) : Remove orthorhombic keyword (code is fast enough)
+!>      JGH (19-Feb-2003) : Negative cutoff can be used for non-spheric grids
+!>      Joost VandeVondele (Feb-2004) : optionally generate pw grids that are commensurate in rs
+!>      JGH (18-Dec-2007) : Refactoring
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE pw_grid_setup_internal ( cell, pw_grid, blocked, ref_grid, rs_dims, iounit, error )
-
 
     TYPE(cell_type), INTENT(IN)              :: cell
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -607,8 +519,7 @@ CONTAINS
 
   END SUBROUTINE pw_grid_setup_internal
 
-  !******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE create_gvectors(pw_grid,cell,ecut,blocking,ref_grid,error)
     ! Find the number of grid points
     ! yz_mask counts the number of g-vectors orthogonal to the yz plane
@@ -657,20 +568,10 @@ CONTAINS
 
   END SUBROUTINE create_gvectors
 
-  !****************************************************************************
-
-!!****f* pw_grids/pw_grid_print *
-!!
-!!   NAME
-!!     pw_grid_print
-!!
-!!   FUNCTION
-!!     Output of information on pw_grid
-!!
-!!   AUTHOR
-!!     JGH[18-05-2007] from earlier versions
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Output of information on pw_grid
+!> \author JGH[18-05-2007] from earlier versions
+! *****************************************************************************
   SUBROUTINE pw_grid_print ( cell, pw_grid, info, error )
 
     TYPE(cell_type), INTENT(IN)              :: cell
@@ -776,28 +677,15 @@ CONTAINS
 
   END SUBROUTINE pw_grid_print
 
-
-!******************************************************************************
-!!****** pw_grids/pw_grid_distribute [1.0] *
-!!
-!!   NAME
-!!     pw_grid_distribute
-!!
-!!   FUNCTION
-!!     Distribute grids in real and Fourier Space to the processors in group
-!!
-!!   AUTHOR
-!!     JGH (22-12-2000)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (01-Mar-2001) optional reference grid
-!!     JGH (22-May-2002) bug fix for pre_tag and HALFSPACE grids
-!!     JGH (09-Sep-2003) reduce scaling for distribution
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Distribute grids in real and Fourier Space to the processors in group
+!> \par History
+!>      JGH (01-Mar-2001) optional reference grid
+!>      JGH (22-May-2002) bug fix for pre_tag and HALFSPACE grids
+!>      JGH (09-Sep-2003) reduce scaling for distribution
+!> \author JGH (22-12-2000)
+! *****************************************************************************
   SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking, rs_dims, error)
-
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, DIMENSION(:, :), INTENT(INOUT)  :: yz_mask
@@ -1083,10 +971,8 @@ CONTAINS
 
   END SUBROUTINE pw_grid_distribute
 
-  !******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE pre_tag ( pw_grid, yz_mask, ref_grid )
-
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, DIMENSION(:, :), INTENT(INOUT)  :: yz_mask
@@ -1150,8 +1036,8 @@ CONTAINS
 
   !------------------------------------------------------------------------------
 
+! *****************************************************************************
   SUBROUTINE order_mask ( yz_mask, yz_index, error )
-
 
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: yz_mask
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: yz_index
@@ -1209,26 +1095,14 @@ CONTAINS
 
   END SUBROUTINE order_mask
 
-!******************************************************************************
-!!****** pw_grids/pw_grid_count [1.1] *
-!!
-!!   NAME
-!!     pw_grid_count
-!!
-!!   FUNCTION
-!!     Count total number of g vectors
-!!
-!!   AUTHOR
-!!     apsi
-!!     Christopher Mundy
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (22-12-2000) : Adapted for parallel use
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Count total number of g vectors
+!> \par History
+!>      JGH (22-12-2000) : Adapted for parallel use
+!> \author apsi
+!>      Christopher Mundy
+! *****************************************************************************
   SUBROUTINE pw_grid_count ( h_inv, pw_grid, cutoff, yz_mask )
-
 
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_inv
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -1300,26 +1174,14 @@ CONTAINS
 
   END SUBROUTINE pw_grid_count
 
-!******************************************************************************
-!!****** pw_grids/pw_grid_assign [1.1] *
-!!
-!!   NAME
-!!     pw_grid_assign
-!!
-!!   FUNCTION
-!!     Setup maps from 1d to 3d space
-!!
-!!   AUTHOR
-!!     apsi
-!!     Christopher Mundy
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (29-12-2000) : Adapted for parallel use
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Setup maps from 1d to 3d space
+!> \par History
+!>      JGH (29-12-2000) : Adapted for parallel use
+!> \author apsi
+!>      Christopher Mundy
+! *****************************************************************************
   SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff, error )
-
 
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_inv
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -1524,29 +1386,16 @@ CONTAINS
 
   END SUBROUTINE pw_grid_assign
 
-!******************************************************************************
-!!****** pw_grids/pw_grid_set_maps [1.1] *
-!!
-!!   NAME
-!!     pw_grid_set_maps
-!!
-!!   FUNCTION
-!!     Setup maps from 1d to 3d space
-!!
-!!   AUTHOR
-!!     apsi
-!!     Christopher Mundy
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (21-12-2000) : Size of g_hat locally determined
-!!
-!!   NOTES
-!!     Maps are to full 3D space (not distributed)
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Setup maps from 1d to 3d space
+!> \note
+!>      Maps are to full 3D space (not distributed)
+!> \par History
+!>      JGH (21-12-2000) : Size of g_hat locally determined
+!> \author apsi
+!>      Christopher Mundy
+! *****************************************************************************
   SUBROUTINE pw_grid_set_maps ( grid_span, g_hat, mapl, mapm, mapn, npts )
-
 
     INTEGER, INTENT(IN)                      :: grid_span
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: g_hat
@@ -1605,27 +1454,15 @@ CONTAINS
 
   END SUBROUTINE pw_grid_set_maps
 
-  !****************************************************************************
-
-!!****** pw_grids/pw_grid_allocate [1.1] *
-!!
-!!   NAME
-!!     pw_grid_allocate
-!!
-!!   FUNCTION
-!!     Allocate all (Pointer) Arrays in pw_grid
-!!
-!!   AUTHOR
-!!     apsi
-!!     Christopher Mundy
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (20-12-2000) : Added status variable
-!!                        Bounds of arrays now from calling routine, this
-!!                        makes it independent from parallel setup
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Allocate all (Pointer) Arrays in pw_grid
+!> \par History
+!>      JGH (20-12-2000) : Added status variable
+!>                         Bounds of arrays now from calling routine, this
+!>                         makes it independent from parallel setup
+!> \author apsi
+!>      Christopher Mundy
+! *****************************************************************************
   SUBROUTINE pw_grid_allocate ( pw_grid, ng, bounds, error )
 
     ! Argument
@@ -1674,36 +1511,24 @@ CONTAINS
 
   END SUBROUTINE pw_grid_allocate
 
-!****************************************************************************
-!!****** pw_grids/pw_grid_sort [1.1] *
-!!
-!!   NAME
-!!     pw_grid_sort
-!!
-!!   FUNCTION
-!!     Sort g-vectors according to length
-!!
-!!   AUTHOR
-!!     apsi
-!!     Christopher Mundy
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (20-12-2000) : allocate idx, ng = SIZE ( pw_grid % gsq ) the
-!!                        sorting is local and independent from parallelisation
-!!                        WARNING: Global ordering depends now on the number
-!!                                 of cpus.
-!!     JGH (28-02-2001) : check for ordering against reference grid
-!!     JGH (01-05-2001) : sort spherical cutoff grids also within shells
-!!                        reference grids for non-spherical cutoffs
-!!     JGH (20-06-2001) : do not sort non-spherical grids
-!!     JGH (19-02-2003) : Order all grids, this makes subgrids also for
-!!                        non-spherical cutoffs possible
-!!     JGH (21-02-2003) : Introduce gather array for general reference grids
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Sort g-vectors according to length
+!> \par History
+!>      JGH (20-12-2000) : allocate idx, ng = SIZE ( pw_grid % gsq ) the
+!>                         sorting is local and independent from parallelisation
+!>                         WARNING: Global ordering depends now on the number
+!>                                  of cpus.
+!>      JGH (28-02-2001) : check for ordering against reference grid
+!>      JGH (01-05-2001) : sort spherical cutoff grids also within shells
+!>                         reference grids for non-spherical cutoffs
+!>      JGH (20-06-2001) : do not sort non-spherical grids
+!>      JGH (19-02-2003) : Order all grids, this makes subgrids also for
+!>                         non-spherical cutoffs possible
+!>      JGH (21-02-2003) : Introduce gather array for general reference grids
+!> \author apsi
+!>      Christopher Mundy
+! *****************************************************************************
   SUBROUTINE pw_grid_sort ( pw_grid, ref_grid, error )
-
 
     ! Argument
     TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
@@ -1875,8 +1700,8 @@ CONTAINS
 
   END SUBROUTINE pw_grid_sort
 
+! *****************************************************************************
   SUBROUTINE sort_shells ( gsq, g_hat, idx, error )
-
 
     ! Argument
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: gsq
@@ -1916,8 +1741,8 @@ CONTAINS
 
   END SUBROUTINE sort_shells
 
+! *****************************************************************************
   SUBROUTINE redist ( g_hat, idx, s1, s2, error )
-
 
     ! Argument
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: g_hat
@@ -1964,23 +1789,12 @@ CONTAINS
 
   END SUBROUTINE redist
 
-!****************************************************************************
-!!****** pw_grids/pw_grid_remap [1.0] *
-!!
-!!   NAME
-!!     pw_grid_remap
-!!
-!!   FUNCTION
-!!     Reorder yzq and yzp arrays for parallel FFT according to FFT mapping
-!!
-!!   AUTHOR
-!!     JGH (17-Jan-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Reorder yzq and yzp arrays for parallel FFT according to FFT mapping
+!> \par History
+!>      none
+!> \author JGH (17-Jan-2001)
+! *****************************************************************************
   SUBROUTINE pw_grid_remap ( pw_grid, yz, error )
 
     ! Argument
@@ -2050,28 +1864,17 @@ CONTAINS
 
   END SUBROUTINE pw_grid_remap
 
-!****************************************************************************
-!!****** pw_grids/pw_grid_change [1.1] *
-!!
-!!   NAME
-!!     pw_grid_change
-!!
-!!   FUNCTION
-!!     Recalculate the g-vectors after a change of the box
-!!
-!!   AUTHOR
-!!     apsi
-!!     Christopher Mundy
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (20-12-2000) : get local grid size from definition of g.
-!!                        Assume that gsq is allocated.
-!!                        Local routine, no information on distribution of
-!!                        PW required.
-!!     JGH (8-Mar-2001) : also update information on volume and grid spaceing
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Recalculate the g-vectors after a change of the box
+!> \par History
+!>      JGH (20-12-2000) : get local grid size from definition of g.
+!>                         Assume that gsq is allocated.
+!>                         Local routine, no information on distribution of
+!>                         PW required.
+!>      JGH (8-Mar-2001) : also update information on volume and grid spaceing
+!> \author apsi
+!>      Christopher Mundy
+! *****************************************************************************
   SUBROUTINE pw_grid_change ( cell, pw_grid )
     ! Argument
     TYPE(cell_type), POINTER                 :: cell
@@ -2118,31 +1921,17 @@ CONTAINS
 
   END SUBROUTINE pw_grid_change
 
-  !******************************************************************************
-
-!!****f* pw_grids/pw_grid_retain [1.0] *
-!!
-!!   NAME
-!!     pw_grid_retain
-!!
-!!   FUNCTION
-!!     retains the given pw grid
-!!
-!!   NOTES
-!!     see doc/ReferenceCounting.html
-!!
-!!   ARGUMENTS
-!!     - pw_grid: the pw grid to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given pw grid
+!> \param pw_grid the pw grid to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      see doc/ReferenceCounting.html
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE pw_grid_retain(pw_grid, error)
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2160,31 +1949,18 @@ CONTAINS
        pw_grid%ref_count=pw_grid%ref_count+1
     END IF
   END SUBROUTINE pw_grid_retain
-  !***************************************************************************
 
-!!****f* pw_grids/pw_grid_release [1.0] *
-!!
-!!   NAME
-!!     pw_grid_release
-!!
-!!   FUNCTION
-!!     releases the given pw grid
-!!
-!!   NOTES
-!!     see doc/ReferenceCounting.html
-!!
-!!   ARGUMENTS
-!!     - pw_grid: the pw grid to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given pw grid
+!> \param pw_grid the pw grid to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      see doc/ReferenceCounting.html
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE pw_grid_release(pw_grid, error)
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2279,4 +2055,3 @@ CONTAINS
 
 END MODULE pw_grids
 
-!******************************************************************************

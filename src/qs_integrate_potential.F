@@ -2,38 +2,29 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_integrate_potential [1.0] *
-!!
-!!   NAME
-!!     qs_integrate_potential
-!!
-!!   FUNCTION
-!!     Build up the plane wave density by collocating the primitive Gaussian
-!!     functions (pgf).
-!!
-!!   AUTHOR
-!!     Matthias Krack (03.04.2001)
-!!
-!!   MODIFICATION HISTORY
-!!     Joost VandeVondele (02.2002)
-!!           1) rewrote collocate_pgf for increased accuracy and speed
-!!           2) collocate_core hack for PGI compiler
-!!           3) added multiple grid feature
-!!           4) new way to go over the grid
-!!     Joost VandeVondele (05.2002)
-!!           1) prelim. introduction of the real space grid type
-!!     JGH [30.08.02] multigrid arrays independent from potential
-!!     JGH [17.07.03] distributed real space code
-!!     JGH [23.11.03] refactoring and new loop ordering
-!!     JGH [04.12.03] OpneMP parallelization of main loops
-!!     Joost VandeVondele (12.2003)
-!!          1) modified to compute tau
-!!     Joost removed incremental build feature
-!!     Joost introduced map consistent
-!!     Rewrote grid integration/collocation routines, [Joost VandeVondele,03.2007]
-!!
-!!   SOURCE
-!***********************************************************************
+
+! *****************************************************************************
+!> \brief Build up the plane wave density by collocating the primitive Gaussian
+!>      functions (pgf).
+!> \par History
+!>      Joost VandeVondele (02.2002)
+!>            1) rewrote collocate_pgf for increased accuracy and speed
+!>            2) collocate_core hack for PGI compiler
+!>            3) added multiple grid feature
+!>            4) new way to go over the grid
+!>      Joost VandeVondele (05.2002)
+!>            1) prelim. introduction of the real space grid type
+!>      JGH [30.08.02] multigrid arrays independent from potential
+!>      JGH [17.07.03] distributed real space code
+!>      JGH [23.11.03] refactoring and new loop ordering
+!>      JGH [04.12.03] OpneMP parallelization of main loops
+!>      Joost VandeVondele (12.2003)
+!>           1) modified to compute tau
+!>      Joost removed incremental build feature
+!>      Joost introduced map consistent
+!>      Rewrote grid integration/collocation routines, [Joost VandeVondele,03.2007]
+!> \author Matthias Krack (03.04.2001)
+! *****************************************************************************
 MODULE qs_integrate_potential
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -123,27 +114,12 @@ MODULE qs_integrate_potential
             integrate_pgf_product_rspace,&
             potential_pw2rs
 
-!!***
-! **********************************************************************
-
 CONTAINS
 
-!!****f* qs_integrate_potential/integrate_v_core_rspace *
-!!
-!!   NAME
-!!     integrate_v_core_rspace
-!!
-!!   FUNCTION
-!!     computes the forces/virial due to the ionic cores with a potential on
-!!     grid
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief computes the forces/virial due to the ionic cores with a potential on
+!>      grid
+! *****************************************************************************
   SUBROUTINE integrate_v_core_rspace(v_rspace,qs_env,error)
     TYPE(pw_p_type), INTENT(INOUT)           :: v_rspace
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -213,7 +189,6 @@ CONTAINS
             alpha_core_charge=alpha_core_charge,&
             ccore_charge=ccore_charge)
 
-       
        pab(1,1) = -ccore_charge
       
        IF (alpha_core_charge == 0.0_dp .OR. pab(1,1)== 0.0_dp) CYCLE
@@ -289,30 +264,20 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE integrate_v_core_rspace
-!!****f* qs_integrate_potential/integrate_v_rspace *
-!!
-!!   NAME
-!!     integrate_v_rspace
-!!
-!!   FUNCTION
-!!     computes matrix elements corresponding to a given potential
-!!
-!!   NOTES
-!!    integrates a given potential (or other object on a real
-!!    space grid) = v_rspace using a multi grid technique (mgrid_*)
-!!    over the basis set producing a number for every element of h
-!!    (should have the same sparsity structure of S)
-!!    additional screening is available using the magnitude of the
-!!    elements in p (? I'm not sure this is a very good idea)
-!!    this argument is optional
-!!    derivatives of these matrix elements with respect to the ionic
-!!    coordinates can be computed as well
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief computes matrix elements corresponding to a given potential
+!> \note
+!>     integrates a given potential (or other object on a real
+!>     space grid) = v_rspace using a multi grid technique (mgrid_*)
+!>     over the basis set producing a number for every element of h
+!>     (should have the same sparsity structure of S)
+!>     additional screening is available using the magnitude of the
+!>     elements in p (? I'm not sure this is a very good idea)
+!>     this argument is optional
+!>     derivatives of these matrix elements with respect to the ionic
+!>     coordinates can be computed as well
+! *****************************************************************************
   SUBROUTINE integrate_v_rspace(v_rspace, p,h,qs_env,calculate_forces,compute_tau,gapw,&
        matrix_dv,error)
 
@@ -988,28 +953,18 @@ CONTAINS
 
   END SUBROUTINE integrate_v_rspace
 
-!!****f* qs_integrate_potential/potential_pw2rs *
-!!
-!!   NAME
-!!     potential_pw2rs
-!!
-!!   FUNCTION
-!!     transfers a potential from a pw_grid to a vector of 
-!!     realspace multigrids
-!!
-!!   NOTES
-!!     extracted from integrate_v_rspace
-!!     should contain all parallel communication of integrate_v_rspace in the 
-!!     case of replicated grids.
-!!
-!!   INPUTS
-!!     v_rspace : INPUT : the potential on a planewave grid in Rspace
-!!     rs_v     : OUTPUT: the potential on the realspace multigrids
-!!
-!!   MODIFICATION HISTORY
-!!     09.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief transfers a potential from a pw_grid to a vector of 
+!>      realspace multigrids
+!> \param v_rspace INPUT : the potential on a planewave grid in Rspace
+!> \param rs_v OUTPUT: the potential on the realspace multigrids
+!> \note
+!>      extracted from integrate_v_rspace
+!>      should contain all parallel communication of integrate_v_rspace in the 
+!>      case of replicated grids.
+!> \par History
+!>      09.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE potential_pw2rs(rs_v,v_rspace,pw_env,interp_section,error)
 
     TYPE(realspace_grid_p_type), &
@@ -1097,21 +1052,9 @@ CONTAINS
 
   END SUBROUTINE potential_pw2rs
 
-!!****f* qs_integrate_potential/integrate_pgf_product_rspace *
-!!
-!!   NAME
-!!     integrate_pgf_product_rspace
-!!
-!!   FUNCTION
-!!     low level function to compute matrix elements of primitive gaussian functions
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief low level function to compute matrix elements of primitive gaussian functions
+! *****************************************************************************
     SUBROUTINE integrate_pgf_product_rspace(la_max,zeta,la_min,&
                                             lb_max,zetb,lb_min,&
                                             ra,rab,rab2,rsgrid,cell,&
@@ -1186,7 +1129,6 @@ CONTAINS
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: pol_x
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: vab
     REAL(KIND=dp) :: t_exp_1,t_exp_2,t_exp_min_1,t_exp_min_2,t_exp_plus_1,t_exp_plus_2
-
 
 !   ---------------------------------------------------------------------------
 
@@ -1379,6 +1321,7 @@ CONTAINS
 
   CONTAINS
 
+! *****************************************************************************
    SUBROUTINE integrate_ortho()
 
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)    
@@ -1455,11 +1398,8 @@ CONTAINS
 
     END SUBROUTINE integrate_ortho 
 
-
-
-
+! *****************************************************************************
     SUBROUTINE xyz_to_vab
-
 
     coef_xyz=coef_xyz*prefactor
 
@@ -1500,7 +1440,6 @@ CONTAINS
     ENDDO
     ENDDO
     ENDDO
-
 
     !
     !   compute v_{lxa,lya,lza,lxb,lyb,lzb} given v_{lxp,lyp,lzp} and alpha(ls,lxa,lxb,1)
@@ -1560,6 +1499,7 @@ CONTAINS
 
     END SUBROUTINE xyz_to_vab
 
+! *****************************************************************************
     SUBROUTINE integrate_general_opt()
     INTEGER :: dir, i, i_index, il, ilx, ily, ilz, index_max(3), &
       index_min(3), ismax, ismin, j, j_index, jl, jlx, jly, jlz, k, k_index, &
@@ -1583,7 +1523,6 @@ CONTAINS
       ALLOCATE(coef_ijk(((lp+1)*(lp+2)*(lp+3))/6))
       ALLOCATE(coef_xyt(((lp+1)*(lp+2))/2))
       ALLOCATE(coef_xtt(0:lp))
-
 
       ! aux mapping array to simplify life
       ALLOCATE(coef_map(0:lp,0:lp,0:lp))
@@ -1783,6 +1722,7 @@ CONTAINS
       DEALLOCATE(coef_xyz)
     END SUBROUTINE integrate_general_opt
 
+! *****************************************************************************
     SUBROUTINE integrate_general()
     INTEGER                                  :: i, index_max(3), &
                                                 index_min(3), ipoint(3), j, k
@@ -1808,6 +1748,7 @@ CONTAINS
       ENDDO
     END SUBROUTINE integrate_general
 
+! *****************************************************************************
     SUBROUTINE primitive_integrate(point,gridval)
     REAL(KIND=dp)                            :: point(3), gridval
 
@@ -1855,21 +1796,9 @@ CONTAINS
 
   END SUBROUTINE integrate_pgf_product_rspace
 
-!!****f* qs_integrate_potential/virial_update *
-!!
-!!   NAME
-!!     virial_update
-!!
-!!   FUNCTION
-!!     given a set of matrix elements, perform the correct contraction to obtain the virial
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief given a set of matrix elements, perform the correct contraction to obtain the virial
+! *****************************************************************************
   SUBROUTINE virial_update(my_virial_a,my_virial_b,rab,pab,&
                            ftza,ftzb,ax,ay,az,bx,by,bz,vab)
     REAL(KIND=dp), DIMENSION(3, 3), &
@@ -1963,23 +1892,10 @@ CONTAINS
         - pab*REAL(bz,dp)*vab(coset(ax,ay,az),coset(bx,by,MAX(0,bz-1)+1))  
 
   END SUBROUTINE virial_update
-!!****f* qs_integrate_potential/force_update *
-!!
-!!   NAME
-!!     force_update
-!!
-!!   FUNCTION
-!!     given a bunch of matrix elements, performe the right contractions to obtain the forces
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!    -
-!!    -
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief given a bunch of matrix elements, performe the right contractions to obtain the forces
+! *****************************************************************************
   SUBROUTINE force_update(force_a,force_b,rab,pab,ftza,ftzb,ax,ay,az,bx,by,bz,vab)
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: force_a, force_b
@@ -2011,21 +1927,10 @@ CONTAINS
 
   END SUBROUTINE force_update
 
-!!****f* qs_integrate_potential/hab_derivatives *
-!!
-!!   NAME
-!!
-!!   FUNCTION
-!!     given a bunch of matrix elements perform the right contractions to obtain the
-!!     derivatives of the hab matirx
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief given a bunch of matrix elements perform the right contractions to obtain the
+!>      derivatives of the hab matirx
+! *****************************************************************************
   SUBROUTINE hab_derivatives(der_a,der_b,rab,ftza,ftzb,ax,ay,az,bx,by,bz,vab)
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: der_a, der_b
@@ -2056,7 +1961,5 @@ CONTAINS
     der_b(3) =  (ftzb*(azp1 - rab(3)*axpm0) - REAL(bz,dp)* bzm1)
 
   END SUBROUTINE hab_derivatives
-
-! *****************************************************************************
 
 END MODULE qs_integrate_potential

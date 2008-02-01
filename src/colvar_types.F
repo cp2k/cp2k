@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/colvar_types [1.0] *
-!!
-!!   NAME
-!!     colvar_types
-!!
-!!   FUNCTION
-!!     Initialize the collective variables types
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     5.2004 created [fawzi and alessandro]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Initialize the collective variables types
+!> \par History
+!>      5.2004 created [fawzi and alessandro]
+!> \author Teodoro Laino
+! *****************************************************************************
 MODULE colvar_types
   USE f77_blas
   USE input_constants,                 ONLY: do_clv_fix_point,&
@@ -79,30 +65,17 @@ MODULE colvar_types
                                 qparm_colvar_id           = 8,&
                                 hydronium_colvar_id       = 9
 
-  !!****s* colvar/dist_colvar_param [1.0] *
-  !!
-  !!   NAME
-  !!     dist_colvar_param
-  !!
-  !!   FUNCTION
-  !!     parameters for the distance collective variable
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     - i_at,j_at: indexes of the two atoms between which you calculate
-  !!       the distance
-  !!
-  !!   AUTHOR
-  !!     alessandro laio and fawzi mohamed
-  !!
-  !!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief parameters for the distance collective variable
+!> \param i_at ,j_at: indexes of the two atoms between which you calculate
+!>        the distance
+!> \author alessandro laio and fawzi mohamed
+! *****************************************************************************
   TYPE dist_colvar_type
      INTEGER       :: i_at, j_at, axis_id
   END TYPE dist_colvar_type
 
+! *****************************************************************************
   TYPE coord_colvar_type
      LOGICAL                         :: use_kinds_from, use_kinds_to
      INTEGER                         :: n_atoms_to,&
@@ -116,20 +89,24 @@ MODULE colvar_types
      REAL(KIND=dp)                   :: r_0
   END TYPE coord_colvar_type
 
+! *****************************************************************************
   TYPE torsion_colvar_type
      REAL(KIND=dp)                   :: o0
      INTEGER, DIMENSION (4)          :: i_at_tors
   END TYPE torsion_colvar_type
 
+! *****************************************************************************
   TYPE plane_distance_colvar_type
      INTEGER, DIMENSION(3) :: plane
      INTEGER               :: point     
   END TYPE plane_distance_colvar_type
 
+! *****************************************************************************
   TYPE angle_colvar_type
      INTEGER, DIMENSION(3) :: i_at_angle
   END TYPE angle_colvar_type
 
+! *****************************************************************************
   TYPE rotation_colvar_type
      INTEGER :: i_at1_bond1,&
                 i_at2_bond1,&
@@ -137,10 +114,12 @@ MODULE colvar_types
                 i_at2_bond2
   END TYPE rotation_colvar_type
 
+! *****************************************************************************
   TYPE ddiff_colvar_type
      INTEGER, DIMENSION(4)         :: i_at_ddiff
   END TYPE ddiff_colvar_type
 
+! *****************************************************************************
   TYPE qparm_colvar_type
      INTEGER                         :: l
      INTEGER                         :: n_atoms_to,&
@@ -150,6 +129,7 @@ MODULE colvar_types
      REAL(KIND=dp)                   :: rcut, alpha
   END TYPE qparm_colvar_type
 
+! *****************************************************************************
   TYPE hydronium_colvar_type
      INTEGER                         :: n_oxygens,&
                                         n_hydrogens,&
@@ -160,25 +140,10 @@ MODULE colvar_types
      REAL(KIND=dp)                   :: r_OO, r_OH, lambda,nh
   END TYPE hydronium_colvar_type
 
-
-  !!****s* colvar_types/dist_colvar_param [1.0] *
-  !!
-  !!   NAME
-  !!     dist_colvar_param
-  !!
-  !!   FUNCTION
-  !!     parameters for a collective variable
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!
-  !!   AUTHOR
-  !!     alessandro laio and fawzi mohamed
-  !!
-  !!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief parameters for a collective variable
+!> \author alessandro laio and fawzi mohamed
+! *****************************************************************************
   TYPE colvar_type
      INTEGER :: type_id
      LOGICAL :: use_points
@@ -198,6 +163,7 @@ MODULE colvar_types
      TYPE(point_type), DIMENSION(:), POINTER  :: points
   END TYPE colvar_type
 
+! *****************************************************************************
   TYPE point_type
      INTEGER :: type_id
      INTEGER, DIMENSION (:), POINTER          :: atoms
@@ -205,10 +171,12 @@ MODULE colvar_types
      REAL(KIND=dp), DIMENSION(3)              :: r
   END TYPE point_type
 
+! *****************************************************************************
   TYPE colvar_p_type
      TYPE(colvar_type), POINTER :: colvar
   END TYPE colvar_p_type
 
+! *****************************************************************************
   TYPE colvar_counters
      INTEGER :: ndist
      INTEGER :: nangle
@@ -223,31 +191,16 @@ MODULE colvar_types
      !
      INTEGER :: ntot
   END TYPE colvar_counters
-  !!***
-  !****************************************************************************
 
 CONTAINS
 
-  !!****f* colvar_types/colvar_create *
-  !!
-  !!   NAME
-  !!     colvar_create
-  !!
-  !!   FUNCTION
-  !!     initializes a colvar_param type
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - colvar: the colvat to initialize
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     alessandro laio and fawzi mohamed
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief initializes a colvar_param type
+!> \param colvar the colvat to initialize
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author alessandro laio and fawzi mohamed
+! *****************************************************************************
   SUBROUTINE colvar_create(colvar,colvar_id,error)
     TYPE(colvar_type), POINTER               :: colvar
     INTEGER, INTENT(in)                      :: colvar_id
@@ -316,28 +269,14 @@ CONTAINS
     END IF
 
   END SUBROUTINE colvar_create
-  !***************************************************************************
   
-  !!****f* colvar_types/colvar_check_points *
-  !!
-  !!   NAME
-  !!     colvar_check_points
-  !!
-  !!   FUNCTION
-  !!     Check and setup about the use of geometrical points instead of atoms
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - colvar: the colvat to initialize
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino, [teo] 03.2007
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief Check and setup about the use of geometrical points instead of atoms
+!> \param colvar the colvat to initialize
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino, [teo] 03.2007
+! *****************************************************************************
   SUBROUTINE  colvar_check_points(colvar, section, error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(section_vals_type), POINTER         :: section
@@ -411,26 +350,13 @@ CONTAINS
     
   END SUBROUTINE colvar_check_points
 
-  !!****f* colvar_types/colvar_setup *
-  !!
-  !!   NAME
-  !!     colvar_setup
-  !!
-  !!   FUNCTION
-  !!     Finalize the setup of the collective variable
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - colvar: the colvat to initialize
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino, [teo] 09.03.2006
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief Finalize the setup of the collective variable
+!> \param colvar the colvat to initialize
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino, [teo] 09.03.2006
+! *****************************************************************************
   SUBROUTINE colvar_setup(colvar,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -677,23 +603,10 @@ CONTAINS
     END IF    
   END SUBROUTINE colvar_setup
 
-  !!****f* colvar_types/colv_size *
-  !!
-  !!   NAME
-  !!     colv_size
-  !!
-  !!   FUNCTION
-  !!     Gives back the size of an array of integer. If not associated gives back 1
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino - 03.2007
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief Gives back the size of an array of integer. If not associated gives back 1
+!> \author Teodoro Laino - 03.2007
+! *****************************************************************************
   FUNCTION colv_size(colvar,i) RESULT(my_size)
     TYPE(colvar_type), POINTER               :: colvar
     INTEGER                                  :: i, my_size
@@ -708,26 +621,13 @@ CONTAINS
     END IF
   END FUNCTION colv_size
 
-  !!****f* colvar_types/colvar_release *
-  !!
-  !!   NAME
-  !!     colvar_release
-  !!
-  !!   FUNCTION
-  !!     releases the memory that might have been allocated by the colvar
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - colvar: the colvar to deallocate
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     alessandro laio and fawzi mohamed
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the memory that might have been allocated by the colvar
+!> \param colvar the colvar to deallocate
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author alessandro laio and fawzi mohamed
+! *****************************************************************************
   SUBROUTINE colvar_release(colvar,error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -824,26 +724,13 @@ CONTAINS
 
   END SUBROUTINE colvar_release
 
-  !!****f* colvar_types/colvar_clone *
-  !!
-  !!   NAME
-  !!     colvar_clone
-  !!
-  !!   FUNCTION
-  !!     Clone a colvar type
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - colvar: the colvar to deallocate
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [tlaino] 04.2006
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief Clone a colvar type
+!> \param colvar the colvar to deallocate
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino [tlaino] 04.2006
+! *****************************************************************************
   SUBROUTINE colvar_clone(colvar_out, colvar_in, i_atom_offset, error)
     TYPE(colvar_type), POINTER               :: colvar_out, colvar_in
     INTEGER, INTENT(IN), OPTIONAL            :: i_atom_offset
@@ -957,26 +844,13 @@ CONTAINS
     CALL colvar_setup(colvar_out, error) 
   END SUBROUTINE colvar_clone
 
-  !!****f* colvar_types/colvar_clone_points *
-  !!
-  !!   NAME
-  !!     colvar_clone_points
-  !!
-  !!   FUNCTION
-  !!     Clone points type of a colvar type
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - colvar: the colvar to deallocate
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [tlaino] 03.2007
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief Clone points type of a colvar type
+!> \param colvar the colvar to deallocate
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino [tlaino] 03.2007
+! *****************************************************************************
   SUBROUTINE colvar_clone_points(colvar_out, colvar_in, offset, error)
     TYPE(colvar_type), POINTER               :: colvar_out, colvar_in
     INTEGER, INTENT(IN)                      :: offset
@@ -1021,27 +895,13 @@ CONTAINS
     
   END SUBROUTINE colvar_clone_points
 
-  !!****f* colvar_types/colvar_p_reallocate *
-  !!
-  !!   NAME
-  !!     colvar_p_reallocate
-  !!
-  !!   FUNCTION
-  !!     Change the dimension of a colvar_p_type
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - colvar: the colvar to deallocate
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [tlaino] 04.2006
-  !!
-  !!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief Change the dimension of a colvar_p_type
+!> \param colvar the colvar to deallocate
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino [tlaino] 04.2006
+! *****************************************************************************
   SUBROUTINE colvar_p_reallocate(colvar_set,lb1_new,ub1_new, error)
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: colvar_set
@@ -1102,23 +962,10 @@ CONTAINS
     END IF
   END SUBROUTINE colvar_p_reallocate
 
-  !!****f* colvar_types/eval_point_pos *
-  !!
-  !!   NAME
-  !!     eval_point_pos
-  !!
-  !!   FUNCTION
-  !!     Evaluate the position of the geometrical point
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino - 03.2007
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief Evaluate the position of the geometrical point
+!> \author Teodoro Laino - 03.2007
+! *****************************************************************************
   SUBROUTINE eval_point_pos(point, particles, r)
     TYPE(point_type)                         :: point
     TYPE(particle_type), DIMENSION(:), &
@@ -1139,23 +986,10 @@ CONTAINS
 
   END SUBROUTINE eval_point_pos
 
-  !!****f* colvar_types/eval_point_pos *
-  !!
-  !!   NAME
-  !!     eval_point_pos
-  !!
-  !!   FUNCTION
-  !!     Evaluate the position of the geometrical point
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino - 03.2007
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief Evaluate the position of the geometrical point
+!> \author Teodoro Laino - 03.2007
+! *****************************************************************************
   SUBROUTINE eval_point_der(points, i, dsdr, f)
     TYPE(point_type), DIMENSION(:), POINTER  :: points
     INTEGER, INTENT(IN)                      :: i
@@ -1183,24 +1017,11 @@ CONTAINS
 
   END SUBROUTINE eval_point_der
 
-  !!****f* colvar_types/complete_coord_colvar *
-  !!
-  !!   NAME
-  !!     complete_coord_colvar
-  !!
-  !!   FUNCTION
-  !!     Complete the description of the COORDINATION colvar when
-  !!     defined using KINDS
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino - 07.2007
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief Complete the description of the COORDINATION colvar when
+!>      defined using KINDS
+!> \author Teodoro Laino - 07.2007
+! *****************************************************************************
   SUBROUTINE post_process_colvar(colvar, particles, error)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(particle_type), DIMENSION(:), &

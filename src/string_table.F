@@ -2,31 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/string_table *
-!!
-!!   NAME
-!!     string_table
-!!
-!!   FUNCTION
-!!     generates a unique id number for a string (str2id) that can be used
-!!     two compare two strings. I.e. 
-!!     if (str1==str2) => str2id(str1)==str2id(str2)
-!!     if (str1.NE.str2) => str2id(str1).NE.str2id(str2)
-!!     and the other way around. Given an id, the string can be retrieved.
-!!
-!!   NOTES
-!!     the purpose of this routine is to speed up string handling,
-!!     string searching, ... as an operation on an int is much faster than an
-!!     operation on a long string.
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!     9.2006 [Joost VandeVondele]
-!!
-!!   SOURCE
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief generates a unique id number for a string (str2id) that can be used
+!>      two compare two strings. I.e. 
+!>      if (str1==str2) => str2id(str1)==str2id(str2)
+!>      if (str1.NE.str2) => str2id(str1).NE.str2id(str2)
+!>      and the other way around. Given an id, the string can be retrieved.
+!> \note
+!>      the purpose of this routine is to speed up string handling,
+!>      string searching, ... as an operation on an int is much faster than an
+!>      operation on a long string.
+!> \par History
+!>      9.2006 [Joost VandeVondele]
+!> \author Joost VandeVondele
+! *****************************************************************************
 MODULE string_table
   USE f77_blas
   USE kinds,                           ONLY: default_string_length
@@ -52,6 +42,7 @@ MODULE string_table
   INTEGER, SAVE      :: inserted_strings
 
   ! an element of the linked list of hashed strings
+! *****************************************************************************
   TYPE hash_element_type
     CHARACTER(LEN=default_string_length), POINTER :: str=>NULL()
     TYPE(hash_element_type), POINTER :: next=>NULL()
@@ -61,27 +52,18 @@ MODULE string_table
   TYPE(hash_element_type), SAVE, ALLOCATABLE, TARGET, DIMENSION(:) :: hash_table
 
 CONTAINS
-!!****f* string_table/str2id *
-!!
-!!   NAME
-!!     str2id
-!!
-!!   FUNCTION
-!!     returns a unique id for a given string, and stores the string for 
-!!     later retrieval using the id.
-!!
-!!   NOTES
-!!     pass literal strings using the s2s function,
-!!     which converts strings of any length to default_string_length
-!!     id=str2id(s2s("my short string"))
-!!
-!!   INPUTS
-!!     str : the string to be stored (default_string_length)
-!!
-!!   MODIFICATION HISTORY
-!!     09.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief returns a unique id for a given string, and stores the string for 
+!>      later retrieval using the id.
+!> \param str the string to be stored (default_string_length)
+!> \note
+!>      pass literal strings using the s2s function,
+!>      which converts strings of any length to default_string_length
+!>      id=str2id(s2s("my short string"))
+!> \par History
+!>      09.2006 created [Joost VandeVondele]
+! *****************************************************************************
   FUNCTION str2id(str) RESULT(id)
     CHARACTER(LEN=default_string_length)     :: str
     INTEGER                                  :: id
@@ -115,25 +97,15 @@ CONTAINS
      id=IOR(index,ISHFT(ipos,Nbit))
   END FUNCTION str2id
 
-!!****f* string_table/id2str *
-!!
-!!   NAME
-!!     id2str
-!!
-!!   FUNCTION
-!!     returns the string associated with a given id
-!!
-!!   NOTES
-!!     only id's of previously 'registered' strings (str2id) should be passed,
-!!     otherwise things crash
-!!
-!!   INPUTS
-!!     id: the id to be converted into a string
-!!
-!!   MODIFICATION HISTORY
-!!     09.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the string associated with a given id
+!> \param id the id to be converted into a string
+!> \note
+!>      only id's of previously 'registered' strings (str2id) should be passed,
+!>      otherwise things crash
+!> \par History
+!>      09.2006 created [Joost VandeVondele]
+! *****************************************************************************
   FUNCTION id2str(id) RESULT(str)
     INTEGER                                  :: id
     CHARACTER(LEN=default_string_length)     :: str
@@ -150,73 +122,44 @@ CONTAINS
      str=this%str
   END FUNCTION id2str
 
-!!****f* string_table/s2s *
-!!
-!!   NAME
-!!     s2s
-!!
-!!   FUNCTION
-!!     converts a string in a string of default_string_length
-!!
-!!   NOTES
-!!     useful to pass a literal string to str2id
-!!     i.e. id=str2id(s2s("X"))
-!!
-!!   INPUTS
-!!     str
-!!
-!!   MODIFICATION HISTORY
-!!     09.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief converts a string in a string of default_string_length
+!> \param str
+!> \note
+!>      useful to pass a literal string to str2id
+!>      i.e. id=str2id(s2s("X"))
+!> \par History
+!>      09.2006 created [Joost VandeVondele]
+! *****************************************************************************
   FUNCTION s2s(str) RESULT(res)
     CHARACTER(LEN=*)                         :: str
     CHARACTER(LEN=default_string_length)     :: res
 
      res=str
   END FUNCTION s2s
-!!****f* string_table/string_table_allocate *
-!!
-!!   NAME
-!!     string_table_allocate
-!!
-!!   FUNCTION
-!!     allocates the string table
-!!
-!!   NOTES
-!!     this needs to be done only once at program startup, before any use 
-!!     of other procedures of this module. The scope of this table is global
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     09.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief allocates the string table
+!> \note
+!>      this needs to be done only once at program startup, before any use 
+!>      of other procedures of this module. The scope of this table is global
+!> \par History
+!>      09.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE string_table_allocate()
      ALLOCATE(hash_table(0:hash_table_size-1)) 
      actual_strings=0
      inserted_strings=0
   END SUBROUTINE string_table_allocate
 
-!!****f* string_table/string_table_deallocate *
-!!
-!!   NAME
-!!     string_table_deallocate
-!!
-!!   FUNCTION
-!!     deallocates the string table
-!!
-!!   NOTES
-!!     This should be done before program termination, all associated ids become meaningless
-!!
-!!   INPUTS
-!!    - iw : a unit to which some info about the table usage can be printed
-!!
-!!   MODIFICATION HISTORY
-!!     09.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates the string table
+!> \param iw a unit to which some info about the table usage can be printed
+!> \note
+!>      This should be done before program termination, all associated ids become meaningless
+!> \par History
+!>      09.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE string_table_deallocate(iw)
     INTEGER, INTENT(IN)                      :: iw
 
@@ -254,29 +197,18 @@ CONTAINS
      inserted_strings=0
   END SUBROUTINE string_table_deallocate
   
-
-!!****f* string_table/joaat_hash *
-!!
-!!   NAME
-!!     joaat_hash
-!!
-!!   FUNCTION
-!!     generates the hash of a string and the index in the table
-!!
-!!   NOTES
-!!      http://en.wikipedia.org/wiki/Hash_table
-!!      http://www.burtleburtle.net/bob/hash/doobs.html
-!!      However, since fortran doesn't have an unsigned 4 byte int 
-!!      we compute it using an integer with the appropriate range 
-!!      we return already the index in the table as a final result
-!!
-!!   INPUTS
-!!      key : a string of any length
-!!
-!!   MODIFICATION HISTORY
-!!      09.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief generates the hash of a string and the index in the table
+!> \param key a string of any length
+!> \note
+!>       http://en.wikipedia.org/wiki/Hash_table
+!>       http://www.burtleburtle.net/bob/hash/doobs.html
+!>       However, since fortran doesn't have an unsigned 4 byte int 
+!>       we compute it using an integer with the appropriate range 
+!>       we return already the index in the table as a final result
+!> \par History
+!>       09.2006 created [Joost VandeVondele]
+! *****************************************************************************
   FUNCTION joaat_hash(key) RESULT(hash_index)
     CHARACTER(LEN=*), INTENT(IN)             :: key
     INTEGER                                  :: hash_index

@@ -3,20 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/constraint_3x3 [1.0] *
-!!
-!!   NAME
-!!     constraint_3x3
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
 MODULE constraint_3x3
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -56,20 +46,10 @@ MODULE constraint_3x3
 
 CONTAINS
 
-!!****** constraint_3x3/shake_3x3_int [1.0] *
-!!
-!!   NAME
-!!     shake_3x3_int
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE shake_3x3_int( molecule, particle_set, pos, vel, dt, ishake,&
        max_sigma, error)
 
@@ -100,20 +80,10 @@ CONTAINS
 
   END SUBROUTINE shake_3x3_int
 
-!!****** constraint_3x3/shake_roll_3x3_int [1.0] *
-!!
-!!   NAME
-!!     shake_roll_3x3_int
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE shake_roll_3x3_int( molecule, particle_set, pos, vel, r_shake,  &
        v_shake, dt, ishake, max_sigma, error )
 
@@ -147,20 +117,10 @@ CONTAINS
 
   END SUBROUTINE shake_roll_3x3_int
 
-!!****** constraint_3x3/rattle_roll_3x3_int [1.0] *
-!!
-!!   NAME
-!!     rattle_roll_3x3_int
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE rattle_roll_3x3_int( molecule, particle_set, vel, r_rattle, dt, veps, error)
 
     TYPE(molecule_type), POINTER             :: molecule
@@ -192,20 +152,10 @@ CONTAINS
 
   END SUBROUTINE rattle_roll_3x3_int
 
-!!****** constraint_3x3/rattle_3x3_int [1.0] *
-!!
-!!   NAME
-!!     rattle_3x3_int
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE rattle_3x3_int( molecule, particle_set, vel, dt, error)
     
     TYPE(molecule_type), POINTER             :: molecule
@@ -233,20 +183,10 @@ CONTAINS
 
   END SUBROUTINE rattle_3x3_int
 
-!!****** constraint_3x3/shake_3x3_ext [1.0] *
-!!
-!!   NAME
-!!     shake_3x3_ext
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE shake_3x3_ext( gci, particle_set, pos, vel, dt, ishake,&
        max_sigma, error)
 
@@ -276,20 +216,10 @@ CONTAINS
 
   END SUBROUTINE shake_3x3_ext
 
-!!****** constraint_3x3/shake_roll_3x3_ext [1.0] *
-!!
-!!   NAME
-!!     shake_roll_3x3_ext
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE shake_roll_3x3_ext(gci, particle_set, pos, vel, r_shake,  &
        v_shake, dt, ishake, max_sigma, error )
 
@@ -322,20 +252,10 @@ CONTAINS
 
   END SUBROUTINE shake_roll_3x3_ext
 
-!!****** constraint_3x3/rattle_roll_3x3_ext [1.0] *
-!!
-!!   NAME
-!!     rattle_roll_3x3_ext
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE rattle_roll_3x3_ext( gci, particle_set, vel, r_rattle, dt, veps, error)
 
     TYPE(global_constraint_type), POINTER    :: gci
@@ -366,20 +286,10 @@ CONTAINS
 
   END SUBROUTINE rattle_roll_3x3_ext
 
-!!****** constraint_3x3/rattle_3x3_ext [1.0] *
-!!
-!!   NAME
-!!     rattle_3x3_ext
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE rattle_3x3_ext( gci, particle_set, vel, dt, error)
     
     TYPE(global_constraint_type), POINTER    :: gci
@@ -406,20 +316,10 @@ CONTAINS
 
   END SUBROUTINE rattle_3x3_ext
 
-!!****** constraint_3x3/shake_3x3_low [1.0] *
-!!
-!!   NAME
-!!     shake_3x3_low
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE shake_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
        particle_set, pos, vel, dt, ishake, max_sigma, error)
 
@@ -565,20 +465,10 @@ CONTAINS
 
   END SUBROUTINE shake_3x3_low
 
-!!****** constraint_3x3/shake_roll_3x3_low [1.0] *
-!!
-!!   NAME
-!!     shake_roll_3x3_low
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE shake_roll_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
        particle_set, pos, vel, r_shake, v_shake, dt, ishake, max_sigma, error )
 
@@ -745,20 +635,10 @@ CONTAINS
     END DO
   END SUBROUTINE shake_roll_3x3_low
 
-!!****** constraint_3x3/rattle_roll_3x3_low [1.0] *
-!!
-!!   NAME
-!!     rattle_roll_3x3_low
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE rattle_roll_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
        particle_set, vel, r_rattle, dt, veps, error)
     TYPE(fixd_constraint_type), &
@@ -857,20 +737,10 @@ CONTAINS
     END DO
   END SUBROUTINE rattle_roll_3x3_low
 
-!!****** constraint_3x3/rattle_3x3_low [1.0] *
-!!
-!!   NAME
-!!     rattle_3x3_low
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE rattle_3x3_low( fixd_list, g3x3_list, lg3x3, first_atom, ng3x3, &
        particle_set, vel, dt, error)
     

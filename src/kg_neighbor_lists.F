@@ -2,19 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/kg_neighbor_lists [1.0] *
-!!
-!!   NAME
-!!     kg_neighbor_lists
-!!
-!!   FUNCTION
-!!     Generate the atomic neighbor lists.
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Generate the atomic neighbor lists.
+! *****************************************************************************
 MODULE kg_neighbor_lists
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -70,12 +61,9 @@ MODULE kg_neighbor_lists
 
   PUBLIC :: build_kg_neighbor_lists
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE build_kg_neighbor_lists(kg_env,para_env,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -110,7 +98,6 @@ CONTAINS
   END SUBROUTINE build_kg_neighbor_lists
 
 ! *****************************************************************************
-
   SUBROUTINE build_kg_neighbor_lists1(kg_env,para_env,force_env_section,error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
@@ -475,7 +462,6 @@ CONTAINS
   END SUBROUTINE build_kg_neighbor_lists1
 
 ! *****************************************************************************
-
   SUBROUTINE build_kg_neighbor_lists2(kg_env,para_env,force_env_section,error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
@@ -509,8 +495,5 @@ CONTAINS
 
   END SUBROUTINE build_kg_neighbor_lists2
 
-! *****************************************************************************
-
 END MODULE kg_neighbor_lists
 
-! *****************************************************************************

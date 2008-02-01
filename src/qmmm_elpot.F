@@ -3,25 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/qmmm_elpot *
-!!
-!!   NAME
-!!    qmmm_elpot
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     09.2004 created [tlaino]
-!!
-!!   SOURCE
-!****************************************************************************  
+! *****************************************************************************
+!> \par History
+!>      09.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
 MODULE qmmm_elpot
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -53,29 +39,16 @@ MODULE qmmm_elpot
   PUBLIC :: qmmm_potential_init
   
 CONTAINS
-!!****f* qmmm_elpot/qmmm_potential_init [1.0] *
-!!
-!!   NAME
-!!     qmmm_potential_init
-!!
-!!   FUNCTION
-!!     Initialize the QMMM potential stored on vector, 
-!!     according the qmmm_coupl_type
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     09.2004 created [tlaino]
-!!
-!!*** ********************************************************************** 
+
+! *****************************************************************************
+!> \brief Initialize the QMMM potential stored on vector, 
+!>      according the qmmm_coupl_type
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      09.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_potential_init(qmmm_coupl_type, mm_el_pot_radius, potentials,&
     pgfs, qm_cell_small, mm_cell, para_env, pw_env, compatibility, print_section,&
     error)
@@ -270,28 +243,14 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
   END SUBROUTINE qmmm_potential_init
 
-!!****f* qmmm_elpot/qmmm_pot_type_create [1.0] *
-!!
-!!   NAME
-!!     qmmm_pot_type_create
-!!
-!!   FUNCTION
-!!     Creates the qmmm_pot_type structure
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     09.2004 created [tlaino]
-!!
-!!*** ********************************************************************** 
+! *****************************************************************************
+!> \brief Creates the qmmm_pot_type structure
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      09.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_pot_type_create(Pot, pot0_2, Rmax, Rmin, dx, npts, rc,&
        mm_atom_index)
     TYPE(qmmm_Pot_Type), POINTER             :: Pot

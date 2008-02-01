@@ -1,29 +1,17 @@
-!!****h* cp2k/geo_opt [1.0] *
-!!
-!!   NAME
-!!     LBfgs-B Version 2.4 
-!!
-!!   FUNCTION
-!!     LBFGS-B routine.
-!!
-!!   NOTES
-!!     http://www.ece.nwu.edu/~ciyou/index.html#lbfgs
-!!     converted to f90 and put in a module by Fawzi Mohamed
-!!     I tryed to do minimal changes 
-!!     (so that migrating to the next version should be easy)
-!!     L-BFGS-B (version 2.4)
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     02.2005 Update to the new version.
-!!             deleting the blas part of the code 
-!!
-!!   SOURCE
-!*****************************************************************************
-
+! *****************************************************************************
+!> \brief LBFGS-B routine.
+!> \note
+!>      http://www.ece.nwu.edu/~ciyou/index.html#lbfgs
+!>      converted to f90 and put in a module by Fawzi Mohamed
+!>      I tryed to do minimal changes 
+!>      (so that migrating to the next version should be easy)
+!>      L-BFGS-B (version 2.4)
+!> \par History
+!>      02.2005 Update to the new version.
+!>              deleting the blas part of the code 
+!> \author Fawzi Mohamed
+!>      Teodoro Laino
+! *****************************************************************************
 MODULE cp_lbfgs
   USE bibliography,                    ONLY: Byrd1995,&
                                              cite_reference
@@ -38,6 +26,7 @@ MODULE cp_lbfgs
 
 CONTAINS
 
+! *****************************************************************************
   SUBROUTINE setulb(n, m, x, l, u, nbd, f, g, factr, pgtol, wa, iwa, &
        task, iprint, csave, lsave, isave, dsave)
     
@@ -250,6 +239,7 @@ CONTAINS
 
   !======================= The end of setulb =============================
 
+! *****************************************************************************
   SUBROUTINE mainlb(n, m, x, l, u, nbd, f, g, factr, pgtol, ws, wy, &
        sy, ss, wt, wn, snd, z, r, d, t, wa, &
        index, iwhere, indx2, task, iprint, &
@@ -425,7 +415,6 @@ CONTAINS
        stpmx  = 0.0e0_dp
        gdold  = 0.0e0_dp
        dtd    = 0.0e0_dp
-
 
        ! Initialize counters and scalars when task='START'.
        
@@ -920,6 +909,7 @@ CONTAINS
   
   !======================= The end of mainlb =============================
   
+! *****************************************************************************
   SUBROUTINE active(n, l, u, nbd, x, iwhere, iprint, &
        prjctd, cnstnd, boxed)
     
@@ -1018,6 +1008,7 @@ CONTAINS
   
   !======================= The end of active =============================
   
+! *****************************************************************************
   SUBROUTINE bmv(m, sy, wt, col, v, p, info)
     
     INTEGER                                  :: m
@@ -1123,6 +1114,7 @@ CONTAINS
   
   !======================== The end of bmv ===============================
   
+! *****************************************************************************
   SUBROUTINE cauchy(n, x, l, u, nbd, g, iorder, iwhere, t, d, xcp, &
        m, wy, ws, sy, wt, theta, col, head, p, c, wbp, &
        v, nint, iprint, sbgnrm, info, epsmch)
@@ -1427,7 +1419,6 @@ CONTAINS
     nleft = nbreak
     iter = 1
     
-    
     tj = zero
     
     !------------------- the beginning of the loop -------------------------
@@ -1591,6 +1582,7 @@ CONTAINS
   
   !====================== The end of cauchy ==============================
   
+! *****************************************************************************
   SUBROUTINE cmprlb(n, m, x, g, ws, wy, sy, wt, z, r, wa, index, &
        theta, col, head, nfree, cnstnd, info)
     
@@ -1654,6 +1646,7 @@ CONTAINS
   
   !======================= The end of cmprlb =============================
   
+! *****************************************************************************
   SUBROUTINE errclb(n, m, factr, l, u, nbd, task, info, k)
     
     INTEGER                                  :: n, m
@@ -1710,6 +1703,7 @@ CONTAINS
   
   !======================= The end of errclb =============================
 
+! *****************************************************************************
   SUBROUTINE formk(n, nsub, ind, nenter, ileave, indx2, iupdat, &
        updatd, wn, wn1, m, ws, wy, sy, theta, col, &
        head, info)
@@ -1995,7 +1989,6 @@ CONTAINS
     ! Form S'AA'S*theta + (L^-1(-L_a'+R_z'))'L^-1(-L_a'+R_z') in the
     ! upper triangle of (2,2) block of wn.
     
-
     DO 72 is = col+1, col2
        DO 74 js = is, col2
           wn(is,js) = wn(is,js) + ddot(col,wn(1,is),1,wn(1,js),1)
@@ -2016,6 +2009,7 @@ CONTAINS
 
   !======================= The end of formk ==============================
 
+! *****************************************************************************
   SUBROUTINE formt(m, wt, sy, ss, col, theta, info)
 
     INTEGER                                  :: m
@@ -2045,7 +2039,6 @@ CONTAINS
 ! ************
 
     PARAMETER        (zero=0.0e0_dp)
-    
     
     ! Form the upper half of  T = theta*SS + L*D^(-1)*L',
     ! store T in the upper triangle of the array wt.
@@ -2078,6 +2071,7 @@ CONTAINS
   
   !======================= The end of formt ==============================
   
+! *****************************************************************************
   SUBROUTINE freev(n, nfree, index, nenter, ileave, indx2, &
        iwhere, wrk, updatd, cnstnd, iprint, iter)
     
@@ -2165,6 +2159,7 @@ CONTAINS
   
   !======================= The end of freev ==============================
   
+! *****************************************************************************
   SUBROUTINE hpsolb(n, t, iorder, iheap)
     INTEGER                                  :: n
     REAL(KIND=dp)                            :: t(n)
@@ -2267,6 +2262,7 @@ CONTAINS
   
   !====================== The end of hpsolb ==============================
   
+! *****************************************************************************
   SUBROUTINE lnsrlb(n, l, u, nbd, x, f, fold, gd, gdold, g, d, r, t, &
        z, stp, dnorm, dtd, xstep, stpmx, iter, ifun, &
        iback, nfgv, info, task, boxed, cnstnd, csave, &
@@ -2393,6 +2389,7 @@ CONTAINS
   
   !======================= The end of lnsrlb =============================
   
+! *****************************************************************************
   SUBROUTINE matupd(n, m, ws, wy, sy, ss, d, r, itail, &
        iupdat, col, head, theta, rr, dr, stp, dtd)
     
@@ -2473,6 +2470,7 @@ CONTAINS
   
   !======================= The end of matupd =============================
   
+! *****************************************************************************
   SUBROUTINE prn1lb(n, m, l, u, x, iprint, itfile, epsmch)
     
     INTEGER                                  :: n, m
@@ -2539,6 +2537,7 @@ CONTAINS
   
   !======================= The end of prn1lb =============================
   
+! *****************************************************************************
   SUBROUTINE prn2lb(n, x, f, g, iprint, itfile, iter, nfgv, nact, &
        sbgnrm, nint, word, iword, iback, stp, xstep)
     
@@ -2605,6 +2604,7 @@ CONTAINS
   
   !======================= The end of prn2lb =============================
 
+! *****************************************************************************
   SUBROUTINE prn3lb(n, x, f, task, iprint, info, itfile, &
        iter, nfgv, nintol, nskip, nact, sbgnrm, &
        time, nint, word, iback, stp, xstep, k, &
@@ -2736,6 +2736,7 @@ CONTAINS
   
   !======================= The end of prn3lb =============================
   
+! *****************************************************************************
   SUBROUTINE projgr(n, l, u, nbd, x, g, sbgnrm)
     
     INTEGER                                  :: n
@@ -2780,6 +2781,7 @@ CONTAINS
   
   !======================= The end of projgr =============================
   
+! *****************************************************************************
   SUBROUTINE subsm(n, m, nsub, ind, l, u, nbd, x, d, ws, wy, theta, &
        col, head, iword, wv, wn, iprint, info)
     
@@ -3039,6 +3041,7 @@ CONTAINS
   
   !====================== The end of subsm ===============================
 
+! *****************************************************************************
   SUBROUTINE dcsrch(f,g,stp,ftol,gtol,xtol,stpmin,stpmax, &
        task,isave,dsave)
     REAL(KIND=dp)                            :: f, g, stp, ftol, gtol, xtol, &
@@ -3357,6 +3360,7 @@ CONTAINS
 
   !====================== The end of dcsrch ==============================
 
+! *****************************************************************************
   SUBROUTINE dcstep(stx,fx,dx,sty,fy,dy,stp,fp,dp_loc,brackt, &
        stpmin,stpmax)
     REAL(KIND=dp)                            :: stx, fx, dx, sty, fy, dy, &
@@ -3596,6 +3600,7 @@ CONTAINS
   
   !====================== The end of dcstep ==============================
   
+! *****************************************************************************
   SUBROUTINE timer(ttime)
     REAL(KIND=dp)                            :: ttime
 
@@ -3627,6 +3632,7 @@ CONTAINS
 
   !====================== The end of timer ===============================
 
+! *****************************************************************************
   SUBROUTINE dpofa(a,lda,n,info)
     INTEGER                                  :: lda
     REAL(KIND=dp)                            :: a(lda,*)
@@ -3689,6 +3695,7 @@ CONTAINS
   
   !====================== The end of dscal ===============================
 
+! *****************************************************************************
   SUBROUTINE dtrsl(t,ldt,n,b,job,info)
     INTEGER                                  :: ldt
     REAL(KIND=dp)                            :: t(ldt,*)

@@ -3,24 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/extended_system_mapping [1.0] *
-!!
-!!   NAME
-!!     extended_system_mapping
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     CJM, 20-Feb-01
-!!     JGH (10-Mar-2001)
-!!     CJM (10-Apr-2001)
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      CJM, 20-Feb-01
+!>      JGH (10-Mar-2001)
+!>      CJM (10-Apr-2001)
+!> \author CJM
+! *****************************************************************************
 MODULE extended_system_mapping
 
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -64,23 +53,14 @@ MODULE extended_system_mapping
             nhc_to_coef_mapping, nhc_to_shell_mapping
 
 CONTAINS
-!******************************************************************************
-!!****** extended_system_mapping/nhc_to_barostat_mapping [1.0] *
-!!
-!!   NAME
-!!     nhc_to_barostat_mapping
-!!
-!!   FUNCTION
-!!     Creates the thermostatting for the barostat
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     CJM, 20-Feb-01  : nhc structure allocated to zero when not in use
-!!     JGH (10-Mar-2001) : set nhc variables to zero when not in use
-!!
-!!*** *************************************************************************
+
+! *****************************************************************************
+!> \brief Creates the thermostatting for the barostat
+!> \par History
+!>      CJM, 20-Feb-01  : nhc structure allocated to zero when not in use
+!>      JGH (10-Mar-2001) : set nhc variables to zero when not in use
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE nhc_to_barostat_mapping ( simpar, nhc, para_env, error )
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
@@ -133,26 +113,16 @@ CONTAINS
 
   END SUBROUTINE nhc_to_barostat_mapping
 
-!******************************************************************************
-!!****** extended_system_mapping/nhc_to_particle_mapping [1.0] *
-!!
-!!   NAME
-!!     nhc_to_particle_mapping
-!!
-!!   FUNCTION
-!!     Creates the thermostatting maps
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     29-Nov-00 (JGH) correct counting of DOF if constraints are off
-!!     CJM, 20-Feb-01  : nhc structure allocated to zero when not in use
-!!     JGH (10-Mar-2001) : set nhc variables to zero when not in use
-!!     CJM(10-NOV-2001) : New parallelization with new molecule structures
-!!     Teodoro Laino 09.2007 [tlaino] - University of Zurich - cleaning and updating
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Creates the thermostatting maps
+!> \par History
+!>      29-Nov-00 (JGH) correct counting of DOF if constraints are off
+!>      CJM, 20-Feb-01  : nhc structure allocated to zero when not in use
+!>      JGH (10-Mar-2001) : set nhc variables to zero when not in use
+!>      CJM(10-NOV-2001) : New parallelization with new molecule structures
+!>      Teodoro Laino 09.2007 [tlaino] - University of Zurich - cleaning and updating
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE nhc_to_particle_mapping ( thermostat_info, simpar, local_molecules,&
        molecule_set, molecule_kind_set, nhc, para_env, gci, error)
 
@@ -234,23 +204,10 @@ CONTAINS
 
   END SUBROUTINE nhc_to_particle_mapping
 
-!******************************************************************************
-!!****** extended_system_mapping/setup_nhc_thermostat [1.0] *
-!!
-!!   NAME
-!!     setup_nhc_thermostat
-!!
-!!   FUNCTION
-!!     Main general setup for Nose-Hoover thermostats
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - University of Zurich - 10.2007
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Main general setup for Nose-Hoover thermostats
+!> \author Teodoro Laino [tlaino] - University of Zurich - 10.2007
+! *****************************************************************************
   SUBROUTINE setup_nhc_thermostat ( nhc, thermostat_info, deg_of_freedom,&
        massive_atom_list, molecule_kind_set, local_molecules, molecule_set,&
        para_env, natoms_local, simpar, sum_of_thermostats, gci, shell, error)
@@ -304,25 +261,14 @@ CONTAINS
     nhc%glob_num_nhc = sum_of_thermostats
   END SUBROUTINE setup_nhc_thermostat
 
-!******************************************************************************
-!!****** extended_system_mapping/nhc_to_coef_mapping [1.0] *
-!!
-!!   NAME
-!!     nhc_to_coef_mapping
-!!
-!!   FUNCTION
-!!     Creates the thermostatting for the
-!!     polarization  coefficients'  degrees of freedom
-!!
-!!   AUTHOR
-!!     CJM 10-Apr-01
-!!
-!!   MODIFICATION HISTORY
-!!     gt 04-02-04 adapted to new kind of coefficents
-!!     gt 11-02-05 adapted to new input
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Creates the thermostatting for the
+!>      polarization  coefficients'  degrees of freedom
+!> \par History
+!>      gt 04-02-04 adapted to new kind of coefficents
+!>      gt 11-02-05 adapted to new input
+!> \author CJM 10-Apr-01
+! *****************************************************************************
   SUBROUTINE nhc_to_coef_mapping ( dyn_coeff_set, nhc, kg_coeff_section, para_env, error)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
@@ -418,23 +364,7 @@ CONTAINS
 
   END SUBROUTINE nhc_to_coef_mapping
 
-!******************************************************************************
-!!****** extended_system_mapping/nhc_to_shell_mapping [1.0] *
-!!
-!!   NAME
-!!     nhc_to_shell_mapping
-!!
-!!   FUNCTION
-!!     
-!!
-!!   AUTHOR
-!!  
-!!
-!!   MODIFICATION HISTORY
-!!   
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
   SUBROUTINE nhc_to_shell_mapping( thermostat_info, simpar, local_molecules,&
        molecule_set, molecule_kind_set, nhc, para_env, gci, error)
 

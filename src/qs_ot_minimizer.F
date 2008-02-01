@@ -3,25 +3,14 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/qs_ot_minimizer [1.0] *
-!!
-!!   NAME
-!!     qs_ot_minimizer
-!!
-!!   FUNCTION
-!!     orbital transformations
-!!
-!!   AUTHOR
-!!     Joost VandeVondele (09.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     None
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief orbital transformations
+!> \par History
+!>      None
+!> \author Joost VandeVondele (09.2002)
+! *****************************************************************************
 MODULE qs_ot_minimizer
 
-! *****************************************************************************
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_trace
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
@@ -48,7 +37,6 @@ MODULE qs_ot_minimizer
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_minimizer'
 
-
 CONTAINS
 !
 ! the minimizer interface
@@ -62,6 +50,7 @@ CONTAINS
 ! all the information needed and  collected can be stored in the fist qs_ot_env only
 ! (indicating that the data type for the gradient/position and minization should be separated)
 !
+! *****************************************************************************
 SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -170,6 +159,7 @@ END SUBROUTINE ot_mini
 ! checks if the current point is a good point for finding a new direction
 ! or if we should improve the line_search, if it is used
 !
+! *****************************************************************************
 FUNCTION current_point_is_fine(qs_ot_env) RESULT(res)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     LOGICAL                                  :: res
@@ -198,6 +188,7 @@ END FUNCTION current_point_is_fine
 !
 ! performs various kinds of line searches
 !
+! *****************************************************************************
 SUBROUTINE do_line_search(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -216,26 +207,11 @@ SUBROUTINE do_line_search(qs_ot_env,error)
    END SELECT
 END SUBROUTINE do_line_search
 
-
-!!****f* qs_ot_minimizer/take_step *
-!!
-!!   NAME
-!!     take_step
-!!
-!!   FUNCTION
-!!     moves x adding the right amount (ds) of the gradient or search direction
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!    -
-!!    -
-!!
-!!   MODIFICATION HISTORY
-!!     08.2004 created [ Joost VandeVondele ] copied here from a larger number of subroutines
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief moves x adding the right amount (ds) of the gradient or search direction
+!> \par History
+!>      08.2004 created [ Joost VandeVondele ] copied here from a larger number of subroutines
+! *****************************************************************************
 SUBROUTINE take_step(ds,qs_ot_env,error)
     REAL(KIND=dp)                            :: ds
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
@@ -277,6 +253,7 @@ SUBROUTINE take_step(ds,qs_ot_env,error)
 END SUBROUTINE take_step
 
 ! implements a golden ratio search as a robust way of minimizing
+! *****************************************************************************
 SUBROUTINE do_line_search_gold(qs_ot_env,error)
 
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
@@ -374,6 +351,7 @@ SUBROUTINE do_line_search_gold(qs_ot_env,error)
 
 END SUBROUTINE do_line_search_gold
 
+! *****************************************************************************
 SUBROUTINE do_line_search_3pnt(qs_ot_env,error)
 
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
@@ -436,6 +414,7 @@ SUBROUTINE do_line_search_3pnt(qs_ot_env,error)
 
 END SUBROUTINE do_line_search_3pnt
 
+! *****************************************************************************
 SUBROUTINE do_line_search_2pnt(qs_ot_env,error)
 
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
@@ -485,6 +464,7 @@ SUBROUTINE do_line_search_2pnt(qs_ot_env,error)
 
 END SUBROUTINE do_line_search_2pnt
 
+! *****************************************************************************
 SUBROUTINE do_line_search_none(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -498,6 +478,7 @@ END SUBROUTINE do_line_search_none
 ! also updates the gradient for line search
 !
 
+! *****************************************************************************
 SUBROUTINE ot_new_sd_direction(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -595,6 +576,7 @@ END SUBROUTINE ot_new_sd_direction
 ! using the preconditioner if associated
 ! also updates the gradient for line search
 !
+! *****************************************************************************
 SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -751,6 +733,7 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
 
 END SUBROUTINE ot_new_cg_direction
 
+! *****************************************************************************
 SUBROUTINE ot_diis_step(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1037,4 +1020,3 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
 END SUBROUTINE ot_diis_step
 
 END MODULE qs_ot_minimizer
-!!*****

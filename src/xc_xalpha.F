@@ -2,30 +2,19 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/xc_xalpha [1.0] *
-!!
-!!   NAME
-!!     xc_xalpha
-!!
-!!   FUNCTION
-!!     Calculate the local exchange functional
-!!
-!!   NOTES
-!!     Order of derivatives is: LDA 0; 1; 2; 3; 
-!!                              LSD 0; a  b; aa bb; aaa bbb;
-!!
-!!   AUTHOR
-!!     JGH (17.02.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (26.02.2003) : OpenMP enabled
-!!     fawzi (04.2004)  : adapted to the new xc interface
-!!     MG (01.2007)     : added scaling
-!!
-!!*** *************************************************************************
 
-MODULE xc_xalpha
 ! *****************************************************************************
+!> \brief Calculate the local exchange functional
+!> \note
+!>      Order of derivatives is: LDA 0; 1; 2; 3; 
+!>                               LSD 0; a  b; aa bb; aaa bbb;
+!> \par History
+!>      JGH (26.02.2003) : OpenMP enabled
+!>      fawzi (04.2004)  : adapted to the new xc interface
+!>      MG (01.2007)     : added scaling
+!> \author JGH (17.02.2002)
+! *****************************************************************************
+MODULE xc_xalpha
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
@@ -61,12 +50,9 @@ MODULE xc_xalpha
   REAL(KIND=dp) :: eps_rho
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xalpha'
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE xalpha_init ( cutoff, xalpha )
 
     REAL(KIND=dp), INTENT(IN)                :: cutoff
@@ -86,7 +72,6 @@ CONTAINS
   END SUBROUTINE xalpha_init
 
 ! *****************************************************************************
-
   SUBROUTINE xalpha_info ( lsd, reference, shortform, needs, max_deriv, &
        xa_parameter,scaling,error)
     LOGICAL, INTENT(in)                      :: lsd
@@ -144,7 +129,6 @@ ELSE
   END SUBROUTINE xalpha_info
 
 ! *****************************************************************************
-
   SUBROUTINE xalpha_lda_eval(rho_set,deriv_set,order,xa_params,xa_parameter,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -222,7 +206,6 @@ ELSE
   END SUBROUTINE xalpha_lda_eval
 
 ! *****************************************************************************
-
   SUBROUTINE xalpha_lsd_eval (rho_set,deriv_set,order,xa_params,xa_parameter,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -311,7 +294,6 @@ ELSE
   END SUBROUTINE xalpha_lsd_eval
 
 ! *****************************************************************************
-
   SUBROUTINE xalpha_lda_0(n, rho, r13, pot, sx)
 
     INTEGER, INTENT(IN)                      :: n
@@ -337,7 +319,6 @@ ELSE
   END SUBROUTINE xalpha_lda_0
 
 ! *****************************************************************************
-
   SUBROUTINE xalpha_lda_1(n, rho, r13, pot, sx)
     
     INTEGER, INTENT(IN)                      :: n
@@ -362,7 +343,6 @@ ELSE
   END SUBROUTINE xalpha_lda_1
 
 ! *****************************************************************************
-
   SUBROUTINE xalpha_lda_2(n, rho, r13, pot, sx)
 
     INTEGER, INTENT(IN)                      :: n
@@ -387,7 +367,6 @@ ELSE
   END SUBROUTINE xalpha_lda_2
 
 ! *****************************************************************************
-
   SUBROUTINE xalpha_lda_3(n, rho, r13, pot, sx)
 
     INTEGER, INTENT(IN)                      :: n
@@ -412,7 +391,6 @@ ELSE
   END SUBROUTINE xalpha_lda_3
 
 ! *****************************************************************************
-
   SUBROUTINE xalpha_lsd_0 ( n, rhoa, r13a, pot, sx )
 
     INTEGER, INTENT(IN)                      :: n
@@ -441,7 +419,6 @@ ELSE
   END SUBROUTINE xalpha_lsd_0
 
 ! *****************************************************************************
-
   SUBROUTINE xalpha_lsd_1 ( n, rhoa, r13a, pota, sx )
 
     INTEGER, INTENT(IN)                      :: n
@@ -470,7 +447,6 @@ ELSE
   END SUBROUTINE xalpha_lsd_1
 
 ! *****************************************************************************
-
   SUBROUTINE xalpha_lsd_2 ( n, rhoa, r13a, potaa, sx )
 
     INTEGER, INTENT(IN)                      :: n
@@ -499,7 +475,6 @@ ELSE
   END SUBROUTINE xalpha_lsd_2
 
 ! *****************************************************************************
-
   SUBROUTINE xalpha_lsd_3 ( n, rhoa, r13a, potaaa, sx )
 
     INTEGER, INTENT(IN)                      :: n
@@ -527,8 +502,5 @@ ELSE
 
   END SUBROUTINE xalpha_lsd_3
 
-! *****************************************************************************
-
 END MODULE xc_xalpha
 
-! *****************************************************************************

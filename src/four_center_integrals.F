@@ -2,25 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!***** cp2k/four_center_integrals [1.0] *
-!!
-!!   NAME
-!!     four_center_integrals
-!!
-!!   FUNCTION
-!!     routines to calculate Hartree-Fock Exchange and the corresponding energy
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Manuel Guidon 
-!!
-!!   MODIFICATION HISTORY
-!!     11.2006 created [Manuel Guidon]
-!!
-!****************************************************************************
 
+! *****************************************************************************
+!> \brief routines to calculate Hartree-Fock Exchange and the corresponding energy
+!> \par History
+!>      11.2006 created [Manuel Guidon]
+!> \author Manuel Guidon 
+! *****************************************************************************
 MODULE four_center_integrals
   
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -98,41 +86,25 @@ MODULE four_center_integrals
   REAL(dp), PARAMETER      :: log_2_inv = 1.4426950408889634074_dp !1.0_dp/log_2
 
 !***
-!****************************************************************************
   
   CONTAINS
 
-!!***** four_center_integrals/integrate_four_center [1.0] *
-!!
-!!   NAME
-!!     integrate_four_center
-!!
-!!   FUNCTION
-!!     computes four center integrals for a full basis set and updates the
-!!     Kohn-Sham-Matrix and energy. Uses all 8 eri symmetries
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - qs_env 
-!!     - ks_matrix
-!!     - energy
-!!     - rho: density matrix
-!!     - para_env
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     06.2007 created [Manuel Guidon]
-!!     08.2007 optimized load balance [Manuel Guidon] 
-!!     09.2007 new parallelization [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief computes four center integrals for a full basis set and updates the
+!>      Kohn-Sham-Matrix and energy. Uses all 8 eri symmetries
+!> \param qs_env  
+!> \param ks_matri x
+!> \param energ y
+!> \param rho density matrix
+!> \param para_en v
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      06.2007 created [Manuel Guidon]
+!>      08.2007 optimized load balance [Manuel Guidon] 
+!>      09.2007 new parallelization [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE integrate_four_center(qs_env,ks_matrix,energy,rho,hf_section,para_env,& 
                                    geometry_did_change,irep,distribute_fock_matrix,error)
 
@@ -245,7 +217,6 @@ MODULE four_center_integrals
     mem_maxvals = 0_int_8
     compression_factor = 0.0_dp
 
-
     !! We do not need the containers if MAX_MEM = 0
     IF(.NOT. memory_parameter%do_all_on_the_fly) THEN 
       !! IF new md step -> reinitialize containers
@@ -264,7 +235,6 @@ MODULE four_center_integrals
         END DO
       END IF
     END IF
-
 
     !! Get screening parameter
     eps_schwarz = screening_parameter%eps_schwarz
@@ -347,7 +317,6 @@ MODULE four_center_integrals
       CALL mp_sum(actual_x_data%is_assoc_atomic_block,para_env%group)
       CALL mp_max(actual_x_data%number_of_p_entries, para_env%group)
     END IF
-
 
     !! Get the full density from all the processors
     NULLIFY(full_density)
@@ -466,7 +435,6 @@ MODULE four_center_integrals
       fac = 1.0_dp * hf_fraction
     END IF
     
-
     !! Call routines that distribute the load on all processes. If we want to screen on a initial density matrix, there is
     !! an optional parameter. Of course, this is only done if the geometry did change
     IF( geometry_did_change ) THEN
@@ -1120,7 +1088,6 @@ MODULE four_center_integrals
     DEALLOCATE(T1,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
    
-
     !! Calculate the exchange energies from the Kohn-Sham matrix. Before we can go on, we have to symmetrize.
     ene_x_aa = 0.0_dp
     ene_x_bb = 0.0_dp
@@ -1173,7 +1140,6 @@ MODULE four_center_integrals
       CALL timestop(handle_dist_ks)
     END IF
 
-
     CALL mp_sum(ene_x_aa, para_env%group)
     IF(nspins==2) CALL mp_sum(ene_x_bb,para_env%group)
 
@@ -1221,7 +1187,6 @@ MODULE four_center_integrals
       CALL cp_print_key_finished_output(iw,logger,hf_section,&
                                       "HF_INFO", error=error)
     END IF
-
 
     !! flush caches if the geometry changed 
     IF(geometry_did_change ) THEN
@@ -1272,39 +1237,22 @@ MODULE four_center_integrals
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE integrate_four_center
-!***************************************************************************
 
-
-!!***** four_center_integrals/coulomb4 [1.0] *
-!!
-!!   NAME
-!!     coulomb4
-!!
-!!   FUNCTION
-!!     calculates two-electron integrals of a quartet/shell using the library 
-!!     lib_int
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - r: position
-!!     - z: zeta
-!!     - l: angular momentum
-!!     - npgf: number of primitive cartesian gaussian in actual shell
-!!     - primitive_integrals: array of primitive_integrals
-!!     - potential_parameter: contains info for libint 
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     11.2006 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief calculates two-electron integrals of a quartet/shell using the library 
+!>      lib_int
+!> \param r position
+!> \param z zeta
+!> \param l angular momentum
+!> \param npgf number of primitive cartesian gaussian in actual shell
+!> \param primitive_integrals array of primitive_integrals
+!> \param potential_parameter contains info for libint 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      11.2006 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE coulomb4(ra, rb, rc, rd, zeta, zetb, zetc, zetd,&
                       la_min, la_max, lb_min, lb_max,&
                       lc_min, lc_max, ld_min, ld_max,&
@@ -1374,38 +1322,22 @@ MODULE four_center_integrals
       END DO !ld
     END DO !lpgf
   END SUBROUTINE coulomb4
-!***************************************************************************
 
-!!***** four_center_integrals/screen4 [1.0] *
-!!
-!!   NAME
-!!     screen4
-!!
-!!   FUNCTION
-!!     calculates max values of two-electron integrals in a quartet/shell
-!!     w.r.t. different zetas using the library lib_int
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - r: position
-!!     - z: zeta
-!!     - l: angular momentum
-!!     - npgf: number of primitive cartesian gaussian in actual shell
-!!     - max_val: schwarz screening value
-!!     - potential_parameter: contains info for libint
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!    03.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief calculates max values of two-electron integrals in a quartet/shell
+!>      w.r.t. different zetas using the library lib_int
+!> \param r position
+!> \param z zeta
+!> \param l angular momentum
+!> \param npgf number of primitive cartesian gaussian in actual shell
+!> \param max_val schwarz screening value
+!> \param potential_parameter contains info for libint
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>     03.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE screen4(ra, rb, zeta, zetb, &
                       la_min, la_max, lb_min, lb_max,&
                       npgfa, npgfb, &
@@ -1442,29 +1374,16 @@ MODULE four_center_integrals
 
   END SUBROUTINE screen4
 
-
-!!***** four_center_integrals/compute_screening_matrices [1.0] *
-!!
-!!   NAME
-!!     compute_screening_matrices
-!!
-!!   FUNCTION
-!!     calculates the screening matrices 
-!!
-!!   NOTES
-!!     - already computes the square root
-!!     - also takes the primitive to sgf transformation into account
-!!     - in this way all stored contracted integrals are smaller or equal to their estimate
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!    05.2007 refactored [Joost VandeVondele]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief calculates the screening matrices 
+!> \note
+!>      - already computes the square root
+!>      - also takes the primitive to sgf transformation into account
+!>      - in this way all stored contracted integrals are smaller or equal to their estimate
+!> \par History
+!>     05.2007 refactored [Joost VandeVondele]
+!> \author Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE compute_screening_matrices(screen_set,screen_atom,screen_max,particle_set,&
                                         atomic_kind_set,potential_parameter,read_from_memory,&
                                         kind_of, basis_parameter, buffer, error)
@@ -1519,7 +1438,6 @@ MODULE four_center_integrals
     screen_set=0.0_dp
     screen_atom=0.0_dp
     contraction_max=0.0_dp
-
 
     DO jatom=1,natom
       jkind = kind_of(jatom)
@@ -1595,28 +1513,15 @@ MODULE four_center_integrals
     CALL timestop(handle)
   END SUBROUTINE compute_screening_matrices
 
-!!***** four_center_integrals/compute_pmax_matrices [1.0] *
-!!
-!!   NAME
-!!     compute_pmax_matrices
-!!
-!!   FUNCTION
-!!     calculates the maximum of the density matrix in compressed form for screening purposes 
-!!
-!!   NOTES
-!!     - computes for each pair of shells the maximum absolute value of p
-!!
-!!   INPUTS
-!!     - screen_pmat_forces: if false just returns a matrix of 1.0_dp
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!    05.2007 created [Joost VandeVondele]
-!!
-!****************************************************************************
-  
+! *****************************************************************************
+!> \brief calculates the maximum of the density matrix in compressed form for screening purposes 
+!> \param screen_pmat_forces if false just returns a matrix of 1.0_dp
+!> \note
+!>      - computes for each pair of shells the maximum absolute value of p
+!> \par History
+!>     05.2007 created [Joost VandeVondele]
+!> \author Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE compute_pmax_matrices(pmax_set,pmax_atom,pmax_max, &
               full_density,full_density_beta,screen_pmat_forces,particle_set,atomic_kind_set,&
               kind_of, basis_parameter, error)
@@ -1720,38 +1625,22 @@ MODULE four_center_integrals
     CALL timestop(handle)
 
   END SUBROUTINE compute_pmax_matrices
-!***************************************************************************
 
-!!***** four_center_integrals/forces4 [1.0] *
-!!
-!!   NAME
-!!     forces4
-!!
-!!   FUNCTION
-!!     calculates two-electron derivatived of a quartet/shell using the library 
-!!     lib_deriv
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - r: position
-!!     - z: zeta
-!!     - l: angular momentum
-!!     - npgf: number of primitive cartesian gaussian in actual shell
-!!     - primitive_forces: array of primitive_forces
-!!     - work_forces: work_storage
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     03.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief calculates two-electron derivatived of a quartet/shell using the library 
+!>      lib_deriv
+!> \param r position
+!> \param z zeta
+!> \param l angular momentum
+!> \param npgf number of primitive cartesian gaussian in actual shell
+!> \param primitive_forces array of primitive_forces
+!> \param work_forces work_storage
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      03.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE forces4(ra, rb, rc, rd, zeta, zetb, zetc, zetd,&
                     la_min, la_max, lb_min, lb_max,&
                     lc_min, lc_max, ld_min, ld_max,&
@@ -1824,38 +1713,22 @@ MODULE four_center_integrals
     END DO !ipgf
   
   END SUBROUTINE forces4
-!***************************************************************************
 
-!!***** four_center_integrals/derivatives_four_center [1.0] *
-!!
-!!   NAME
-!!     derivatives_four_center
-!!
-!!   FUNCTION
-!!     computes four center derivatives for a full basis set and updates the
-!!     forces%fock_4c arrays. Uses all 8 eri symmetries
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - qs_env 
-!!     - ks_matrix
-!!     - energy
-!!     - rho: density matrix
-!!     - para_env
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     06.2007 created [Manuel Guidon]
-!!     08.2007 optimized load balance [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief computes four center derivatives for a full basis set and updates the
+!>      forces%fock_4c arrays. Uses all 8 eri symmetries
+!> \param qs_env  
+!> \param ks_matri x
+!> \param energ y
+!> \param rho density matrix
+!> \param para_en v
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      06.2007 created [Manuel Guidon]
+!>      08.2007 optimized load balance [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE derivatives_four_center(qs_env,ks_matrix,energy,rho,hf_section,para_env,& 
                                      irep, adiabatic_rescale_factor, error)
 
@@ -2047,7 +1920,6 @@ MODULE four_center_integrals
                   full_density,full_density_beta,screen_pmat_forces,particle_set,atomic_kind_set,&
                   kind_of, basis_parameter, error)
 
-     
     !! Calculatematrices for screening purpose taking into account periodicity. The farfield part is already
     !! in memory
     IF( do_periodic ) THEN
@@ -2083,7 +1955,6 @@ MODULE four_center_integrals
       CALL update_load_balance_forces(actual_x_data, para_env, screen_set,screen_atom,screen_max, &
                                       actual_x_data%is_assoc_atomic_block,load_balance_parameter, error)
     END IF
-
 
     !! precompute maximum nco and allocate scratch
     nco_max=0
@@ -2412,7 +2283,6 @@ MODULE four_center_integrals
                                      0.0_dp, T2(1),&
                                      nsgfa(iset)*nsgfb(jset)*nsgfc(kset))
   
- 
                           p_index = 0
                           DO md = 1,nsgfd(lset)
                             pd2 = md+sgfd-1
@@ -2498,41 +2368,28 @@ MODULE four_center_integrals
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE derivatives_four_center
 
-!!***** four_center_integrals/coulomb4_periodic [1.0] *
-!!
-!!   NAME
-!!     coulomb4_periodic
-!!
-!!   FUNCTION
-!!     calculates two-electron integrals of a quartet/shell using the library 
-!!     lib_int in the case of periodic boundary conditions
-!!
-!!   NOTES
-!!     The minimum image convention (mic) is applied in the following way:
-!!       1. Fix A and shift B according to mic
-!!       2. Fix C and shift D according to mic
-!!       3. Calculate interaction centers P and Q
-!!       4. Fix P (i.e. A and B) and shift Q (i.e. C and D) according to mic
-!!
-!!   INPUTS
-!!     - r: position
-!!     - z: zeta
-!!     - l: angular momentum
-!!     - npgf: number of primitive cartesian gaussian in actual shell
-!!     - primitive_integrals: array of primitive_integrals
-!!     - box_size, neighbor_cells: contains info for pbc
-!!     - potential_parameter: contains info for libint 
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     06.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief calculates two-electron integrals of a quartet/shell using the library 
+!>      lib_int in the case of periodic boundary conditions
+!> \param r position
+!> \param z zeta
+!> \param l angular momentum
+!> \param npgf number of primitive cartesian gaussian in actual shell
+!> \param primitive_integrals array of primitive_integrals
+!> \param box_size , neighbor_cells: contains info for pbc
+!> \param potential_parameter contains info for libint 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      The minimum image convention (mic) is applied in the following way:
+!>        1. Fix A and shift B according to mic
+!>        2. Fix C and shift D according to mic
+!>        3. Calculate interaction centers P and Q
+!>        4. Fix P (i.e. A and B) and shift Q (i.e. C and D) according to mic
+!> \par History
+!>      06.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE coulomb4_periodic(ra, rb, rc, rd, zeta, zetb, zetc, zetd,&
                                la_min, la_max, lb_min, lb_max,&
                                lc_min, lc_max, ld_min, ld_max,&
@@ -2656,35 +2513,22 @@ MODULE four_center_integrals
     DEALLOCATE(tmp_cart_estimate, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE coulomb4_periodic
-!***************************************************************************
 
-!!***** four_center_integrals/comp_screen_mat_per [1.0] *
-!!
-!!   NAME
-!!     comp_screen_mat_per
-!!
-!!   FUNCTION
-!!     calculates the screening matrices in the case of periodic boundary
-!!     conditions
-!!
-!!   NOTES
-!!     - already computes the square root
-!!     - also takes the primitive to sgf transformation into account
-!!     - in this way all stored contracted integrals are smaller or equal to their estimate
-!!
-!!   INPUTS
-!!     - screen_xxx: screening matrices
-!!     - read_from_memory: Flag to control reading (when true, data come from buffer)
-!!     - buffer: stores the matrices
-!!     - neighbor_cells, box_size: contain information fort pbc
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!    06.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief calculates the screening matrices in the case of periodic boundary
+!>      conditions
+!> \param screen_xxx screening matrices
+!> \param read_from_memory Flag to control reading (when true, data come from buffer)
+!> \param buffer stores the matrices
+!> \param neighbor_cells , box_size: contain information fort pbc
+!> \note
+!>      - already computes the square root
+!>      - also takes the primitive to sgf transformation into account
+!>      - in this way all stored contracted integrals are smaller or equal to their estimate
+!> \par History
+!>     06.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE comp_screen_mat_per(screen_set, screen_atom, screen_max,screen_periodic,particle_set,&
                                  atomic_kind_set,potential_parameter, read_from_memory, kind_of, basis_parameter, buffer,&
                                  neighbor_cells, box_size, box_size_inv, error)
@@ -2816,48 +2660,30 @@ MODULE four_center_integrals
       END DO
     END DO
 
-      
-
     screen_max=MAXVAL(screen_atom)
     DEALLOCATE(contraction_max,max_val, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
 
   END SUBROUTINE comp_screen_mat_per
-!***************************************************************************
 
-!!***** four_center_integrals/screen4_periodic [1.0] *
-!!
-!!   NAME
-!!     screen4_periodic
-!!
-!!   FUNCTION
-!!     calculates max values of two-electron integrals in a quartet/shell
-!!     w.r.t. different zetas using the library lib_int in the case of 
-!!     periodic boundary conditions
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - r: position
-!!     - z: zeta
-!!     - l: angular momentum
-!!     - npgf: number of primitive cartesian gaussian in actual shell
-!!     - max_val: schwarz screening value
-!!     - potential_parameter: contains info for libint
-!!     - neighbor_cells: Array containing the considered cells
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!    06.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief calculates max values of two-electron integrals in a quartet/shell
+!>      w.r.t. different zetas using the library lib_int in the case of 
+!>      periodic boundary conditions
+!> \param r position
+!> \param z zeta
+!> \param l angular momentum
+!> \param npgf number of primitive cartesian gaussian in actual shell
+!> \param max_val schwarz screening value
+!> \param potential_parameter contains info for libint
+!> \param neighbor_cells Array containing the considered cells
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>     06.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE screen4_periodic(ra, rb, zeta, zetb, &
                              la_min, la_max, lb_min, lb_max,&
                              npgfa, npgfb, &
@@ -2906,38 +2732,22 @@ MODULE four_center_integrals
       END DO !ipgf
     END DO
   END SUBROUTINE screen4_periodic
-!***************************************************************************
 
-!!***** four_center_integrals/forces4_periodic [1.0] *
-!!
-!!   NAME
-!!     forces4_periodic
-!!
-!!   FUNCTION
-!!     calculates two-electron derivatived of a quartet/shell using the library 
-!!     lib_deriv wrt pbc
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - r: position
-!!     - z: zeta
-!!     - l: angular momentum
-!!     - npgf: number of primitive cartesian gaussian in actual shell
-!!     - primitive_forces: array of primitive_forces
-!!     - work_forces: work_storage
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     07.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief calculates two-electron derivatived of a quartet/shell using the library 
+!>      lib_deriv wrt pbc
+!> \param r position
+!> \param z zeta
+!> \param l angular momentum
+!> \param npgf number of primitive cartesian gaussian in actual shell
+!> \param primitive_forces array of primitive_forces
+!> \param work_forces work_storage
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      07.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE forces4_periodic(ra, rb, rc, rd, zeta, zetb, zetc, zetd,&
                               la_min, la_max, lb_min, lb_max,&
                               lc_min, lc_max, ld_min, ld_max,&
@@ -3056,32 +2866,16 @@ MODULE four_center_integrals
     DEALLOCATE(tmp_cart_estimate, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE forces4_periodic
-!***************************************************************************
 
-!!***** four_center_integrals/screen_farfield [1.0] *
-!!
-!!   NAME
-!!     screen_farfield
-!!
-!!   FUNCTION
-!!     Estimates the contribution of an ERI taking 1/R dependence into account.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - boxes: Buffer to store screening matrices
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     08.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
- 
+! *****************************************************************************
+!> \brief Estimates the contribution of an ERI taking 1/R dependence into account.
+!> \param boxes Buffer to store screening matrices
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE screen_farfield(boxes, particle_set, atomic_kind_set, potential_parameter, &
                              kind_of, basis_parameter, error)
     TYPE(x_hf_box_scheme), DIMENSION(:, :), &
@@ -3250,33 +3044,17 @@ MODULE four_center_integrals
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
   END SUBROUTINE screen_farfield
-!***************************************************************************
 
-!!***** four_center_integrals/screen_farfield_per [1.0] *
-!!
-!!   NAME
-!!     screen_farfield_per
-!!
-!!   FUNCTION
-!!     Estimates the contribution of an ERI taking 1/R dependence into account.
-!!     Periodic case
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - boxes: Buffer to store screening matrices
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
- 
+! *****************************************************************************
+!> \brief Estimates the contribution of an ERI taking 1/R dependence into account.
+!>      Periodic case
+!> \param boxes Buffer to store screening matrices
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE screen_farfield_per(boxes, particle_set, atomic_kind_set, potential_parameter, &
                                  neighbor_cells, box_size, box_size_inv, kind_of, basis_parameter, error)
     TYPE(x_hf_box_scheme), DIMENSION(:, :), &
@@ -3442,30 +3220,16 @@ MODULE four_center_integrals
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
   END SUBROUTINE screen_farfield_per
-!***************************************************************************
 
-!!***** four_center_integrals/update_pmax_matrix [1.0] *
-!!
-!!   NAME
-!!     update_pmax_matrix
-!!
-!!   FUNCTION
-!!     updates the maximum of the density matrix in compressed form for screening purposes 
-!!
-!!   NOTES
-!!     - updates for each pair of shells the maximum absolute value of p
-!!
-!!   INPUTS
-!!    -  pmax_set: buffer to store matrix
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!    09.2007 created [Manuel Guidon]
-!!
-!****************************************************************************
-  
+! *****************************************************************************
+!> \brief updates the maximum of the density matrix in compressed form for screening purposes 
+!> \param pmax_set buffer to store matrix
+!> \note
+!>      - updates for each pair of shells the maximum absolute value of p
+!> \par History
+!>     09.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE update_pmax_matrix(pmax_set, &
               full_density,full_density_beta,particle_set,atomic_kind_set,kind_of,basis_parameter,error)
 
@@ -3556,39 +3320,21 @@ MODULE four_center_integrals
       END DO
     END DO
 
-
     DEALLOCATE(last_sgf_global,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
 
   END SUBROUTINE update_pmax_matrix
-!***************************************************************************
 
-!!***** four_center_integrals/on_the_fly [1.0] *
-!!
-!!   NAME
-!!     on_the_fly
-!!
-!!   FUNCTION
-!!     This routine does the correction to the screening on an in inital
-!!     density matrix. It is basically a copy from the out-core part in
-!!     integrate_four_center.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     -
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief This routine does the correction to the screening on an in inital
+!>      density matrix. It is basically a copy from the out-core part in
+!>      integrate_four_center.
+!> \par History
+!>      09.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE on_the_fly(do_periodic, ra, rb, rc, rd, zeta, zetb, zetc, zetd, &
                         la_min, la_max, lb_min, lb_max, lc_min, lc_max, ld_min, ld_max, &
                         npgfa, npgfb, npgfc, npgfd, ncoa, ncob, ncoc, ncod, &
@@ -3711,52 +3457,37 @@ MODULE four_center_integrals
       END DO
     END DO
   END SUBROUTINE on_the_fly
-!***************************************************************************
 
-!!***** four_center_integrals/load_balance_energy [1.0] *
-!!
-!!   NAME
-!!     load_balance_energy 
-!!
-!!   FUNCTION
-!!     Distributes the computation of eri's to all available processes.
-!!
-!!   NOTES
-!!     The optimization is done via a binning procedure followed by simple 
-!!     Monte Carlo procedure:
-!!     In a first step the total amount of integrals in the system is calculated,
-!!     taking into account the sparsity of the KS-matrix , the screening based
-!!     on near/farfield approximations and if desired the screening on an initial
-!!     density matrix. In a second step, these integrals are distributed to bins
-!!     of a given size. Finally, a Monte Carlo procedure optimizes the assignment
-!!     of the different loads to each process
-!!     At the end each process owns an unique array of inidices-ranges 
-!!     that are used to decide whether a process has to calculate a certain
-!!     bunch of integrals or not
-!!     
-!!
-!!   INPUTS
-!!     - x_data: Object that stores the indices array
-!!     - eps_schwarz: screening parameter
-!!     - particle_set, atomic_kind_set, para_env
-!!     - potential_parameter: short/longrange screening information 
-!!     - screen_set, screen_atom, screen_max: screening matrices
-!!     - is_assoc_atomic_kind: KS-matrix sparsity
-!!     - ks_matrix: used for parallel computation of total number of integrals
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     06.2007 created [Manuel Guidon]
-!!     08.2007 new parallel scheme [Manuel Guidon]
-!!     09.2007 new 'modulo' parellel scheme and Monte Carlo step [Manuel Guidon]
-!!     11.2007 parallelize load balance on box_idx1 [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief Distributes the computation of eri's to all available processes.
+!> \param x_data Object that stores the indices array
+!> \param eps_schwarz screening parameter
+!> \param particle_set , atomic_kind_set, para_env
+!> \param potential_parameter short/longrange screening information 
+!> \param screen_set , screen_atom, screen_max: screening matrices
+!> \param is_assoc_atomic_kind KS-matrix sparsity
+!> \param ks_matrix used for parallel computation of total number of integrals
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      The optimization is done via a binning procedure followed by simple 
+!>      Monte Carlo procedure:
+!>      In a first step the total amount of integrals in the system is calculated,
+!>      taking into account the sparsity of the KS-matrix , the screening based
+!>      on near/farfield approximations and if desired the screening on an initial
+!>      density matrix. In a second step, these integrals are distributed to bins
+!>      of a given size. Finally, a Monte Carlo procedure optimizes the assignment
+!>      of the different loads to each process
+!>      At the end each process owns an unique array of inidices-ranges 
+!>      that are used to decide whether a process has to calculate a certain
+!>      bunch of integrals or not
+!> \par History
+!>      06.2007 created [Manuel Guidon]
+!>      08.2007 new parallel scheme [Manuel Guidon]
+!>      09.2007 new 'modulo' parellel scheme and Monte Carlo step [Manuel Guidon]
+!>      11.2007 parallelize load balance on box_idx1 [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE load_balance_energy(x_data, eps_schwarz, eps_box, particle_set,atomic_kind_set,para_env,&
                                  potential_parameter, screen_set, screen_atom, screen_max,&
                                  is_assoc_atomic_block_global,ks_matrix,do_periodic,&
@@ -3944,7 +3675,6 @@ MODULE four_center_integrals
         ENDDO
       ENDDO
 
-      
       !! Bin the total amount of integrals on each cpu
       nbins = load_balance_parameter%nbins
       !floor value
@@ -4002,7 +3732,6 @@ MODULE four_center_integrals
                           is_assoc_atomic_block_global(katom,iatom)  >=1 .AND. &
                           is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
                           is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE
-
 
                 box_idx3 = (katom-1)*natom+latom
                 lkind = kind_of(latom)
@@ -4180,7 +3909,6 @@ MODULE four_center_integrals
       full_dist(:,:)%time_other_scf = 0.0_dp
       full_dist(:,:)%time_forces = 0.0_dp
 
-      
       DO mepos = 1,ncpu
         IF(para_env%mepos == mepos-1) THEN
           full_dist(mepos,:) = binned_dist(1,:)
@@ -4265,47 +3993,32 @@ MODULE four_center_integrals
     END IF
     CALL timestop(handle)
   END SUBROUTINE load_balance_energy
-!***************************************************************************
 
-!!***** four_center_integrals/load_balance_forces [1.0] *
-!!
-!!   NAME
-!!     load_balance_forces
-!!
-!!   FUNCTION
-!!     Distributes the computation of eri-derivatives to all available processes.
-!!
-!!   NOTES
-!!     The optimization is done via a simple binning procedure:
-!!     In a first step the total amount of integrals in the system is calculated,
-!!     taking into account the sparsity of the KS-matrix, the screening based
-!!     on the Schwarz-Inequality and the density-matrix. Then, the procedure uses 
-!!     different bin-sizes in order to optimize the load balance.
-!!     At the end each process owns an unique array of inidices-ranges 
-!!     that are used to decide whether a process has to calculate a certain
-!!     bunch of integrals.
-!!     
-!!
-!!   INPUTS
-!!     - x_data: Object that stores the indices array
-!!     - eps_schwarz: screening parameter
-!!     - particle_set, atomic_kind_set, para_env
-!!     - potential_parameter: short/longrange screening information 
-!!     - screen_set, screen_atom, screen_max, pmax_set: screening matrices
-!!     - is_assoc_atomic_kind: KS-matrix sparsity
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     06.2007 created [Manuel Guidon]
-!!     08.2007 new parallel scheme [Manuel Guidon]
-!!     11.2007 parallelize load balance on box_idx1 [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief Distributes the computation of eri-derivatives to all available processes.
+!> \param x_data Object that stores the indices array
+!> \param eps_schwarz screening parameter
+!> \param particle_set , atomic_kind_set, para_env
+!> \param potential_parameter short/longrange screening information 
+!> \param screen_set , screen_atom, screen_max, pmax_set: screening matrices
+!> \param is_assoc_atomic_kind KS-matrix sparsity
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      The optimization is done via a simple binning procedure:
+!>      In a first step the total amount of integrals in the system is calculated,
+!>      taking into account the sparsity of the KS-matrix, the screening based
+!>      on the Schwarz-Inequality and the density-matrix. Then, the procedure uses 
+!>      different bin-sizes in order to optimize the load balance.
+!>      At the end each process owns an unique array of inidices-ranges 
+!>      that are used to decide whether a process has to calculate a certain
+!>      bunch of integrals.
+!> \par History
+!>      06.2007 created [Manuel Guidon]
+!>      08.2007 new parallel scheme [Manuel Guidon]
+!>      11.2007 parallelize load balance on box_idx1 [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE load_balance_forces(x_data, eps_schwarz, eps_box, particle_set,atomic_kind_set,para_env,&
                                  potential_parameter, screen_set, screen_atom, screen_max,&
                                  pmax_set, is_assoc_atomic_block_global, ks_matrix, do_periodic, &
@@ -4541,7 +4254,6 @@ MODULE four_center_integrals
                           is_assoc_atomic_block_global(katom,jatom)  >=1 .AND. &
                           is_assoc_atomic_block_global(latom,jatom)  >=1 ) ) CYCLE
  
-                
                 lkind = kind_of(latom)
                 nsetd =  basis_parameter(lkind)%nset
                 nsgfd => basis_parameter(lkind)%nsgf
@@ -4696,7 +4408,6 @@ MODULE four_center_integrals
       !! Broadcast the best distribution_vector
       CALL mp_bcast(distribution_vector,icpu-1,para_env%group) 
 
-
       !! Collect local data to global array
       ALLOCATE(full_dist(ncpu,nbins),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -4774,7 +4485,6 @@ MODULE four_center_integrals
         END DO
       END DO
 
-      
       !! Assign the load to each process
       NULLIFY(ptr_to_tmp_dist) 
       DO icpu=1,ncpu
@@ -4793,39 +4503,25 @@ MODULE four_center_integrals
     END IF
     CALL timestop(handle)
   END SUBROUTINE load_balance_forces
-!***************************************************************************
 
-!!***** four_center_integrals/get_full_density [1.0] *
-!!
-!!   NAME
-!!     get_full_density
-!!
-!!   FUNCTION
-!!     - Collects full density matrix from all CPUs
-!!
-!!   NOTES
-!!     - Communication with left/right node only
-!!
-!!   INPUTS
-!!     - para_env
-!!     - full_density : The full Density matrix
-!!     - rho: Distributed density
-!!     - number_of_p_entries: Maximal buffer size
-!!     - is_assoc_atomic_block: tells us which node owns which atomic pairs
-!!     - particle_set
-!!     - natom
-!!     - last_sgf_global: helper array for mapping local to global indices
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     11.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief - Collects full density matrix from all CPUs
+!> \param para_en v
+!> \param full_density The full Density matrix
+!> \param rho Distributed density
+!> \param number_of_p_entries Maximal buffer size
+!> \param is_assoc_atomic_block tells us which node owns which atomic pairs
+!> \param particle_se t
+!> \param nato m
+!> \param last_sgf_global helper array for mapping local to global indices
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      - Communication with left/right node only
+!> \par History
+!>      11.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE get_full_density(para_env, full_density, rho, number_of_p_entries, is_assoc_atomic_block,&
                               particle_set, natom, last_sgf_global, kind_of, basis_parameter, error)
 
@@ -4922,39 +4618,25 @@ MODULE four_center_integrals
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE get_full_density
-!***************************************************************************
 
-!!***** four_center_integrals/distribute_ks_matrix [1.0] *
-!!
-!!   NAME
-!!     distribute_ks_matrix
-!!
-!!   FUNCTION
-!!     - Distributes the local full Kohn-Sham matrix to all CPUS
-!!
-!!   NOTES
-!!     - Communication with left/right node only
-!!
-!!   INPUTS
-!!     - para_env
-!!     - full_ks : The full Kohn-Sham matrix
-!!     - ks_matrix: Distributed Kohn-Sham matrix
-!!     - number_of_p_entries: Maximal buffer size
-!!     - is_assoc_atomic_block: tells us which node owns which atomic pairs 
-!!     - particle_set
-!!     - natom
-!!     - last_sgf_global: helper array for mapping local to global indices
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     11.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief - Distributes the local full Kohn-Sham matrix to all CPUS
+!> \param para_en v
+!> \param full_ks The full Kohn-Sham matrix
+!> \param ks_matrix Distributed Kohn-Sham matrix
+!> \param number_of_p_entries Maximal buffer size
+!> \param is_assoc_atomic_block tells us which node owns which atomic pairs 
+!> \param particle_se t
+!> \param nato m
+!> \param last_sgf_global helper array for mapping local to global indices
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      - Communication with left/right node only
+!> \par History
+!>      11.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE distribute_ks_matrix(para_env, full_ks, ks_matrix, number_of_p_entries, is_assoc_atomic_block,&
                                   particle_set, natom, last_sgf_global, kind_of, basis_parameter, error)
 
@@ -5053,31 +4735,16 @@ MODULE four_center_integrals
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
             
   END SUBROUTINE distribute_ks_matrix
-!***************************************************************************
 
-!!***** four_center_integrals/FNV64 [1.0] *
-!!
-!!   NAME
-!!     FNV64
-!!
-!!   FUNCTION
-!!     Calculates random number using hash-table 
-!!
-!!   NOTES
-!!     - FNV-1a hash from
-!!         http://www.isthe.com/chongo/tech/comp/fnv/ 
-!!
-!!   INPUTS
-!!     - 
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     11.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief Calculates random number using hash-table 
+!> \note
+!>      - FNV-1a hash from
+!>          http://www.isthe.com/chongo/tech/comp/fnv/ 
+!> \par History
+!>      11.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   FUNCTION FNV64(val) RESULT(hash)
     INTEGER(int_8), INTENT(IN)               :: val
     INTEGER(int_8)                           :: hash
@@ -5093,35 +4760,21 @@ MODULE four_center_integrals
       hash = hash + ISHFT(hash,1) + ISHFT(hash,4)+ISHFT(hash,5)+ISHFT(hash,7)+ISHFT(hash,8)+ISHFT(hash,40)      
     ENDDO
   END FUNCTION FNV64
-!***************************************************************************
 
-!!***** four_center_integrals/update_load_balance_energy [1.0] *
-!!
-!!   NAME
-!!     update_load_balance_energy 
-!!
-!!   FUNCTION
-!!     Distributes the computation of eri's to all available processes.
-!!
-!!   NOTES
-!!     The cost matrix is given by the walltime for each bin that is measured during the calculation
-!!
-!!   INPUTS
-!!     - x_data: Object that stores the indices array
-!!     - potential_parameter: short/longrange screening information 
-!!     - screen_set, screen_atom, screen_max: screening matrices
-!!     - is_assoc_atomic_kind: KS-matrix sparsity
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     12.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief Distributes the computation of eri's to all available processes.
+!> \param x_data Object that stores the indices array
+!> \param potential_parameter short/longrange screening information 
+!> \param screen_set , screen_atom, screen_max: screening matrices
+!> \param is_assoc_atomic_kind KS-matrix sparsity
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      The cost matrix is given by the walltime for each bin that is measured during the calculation
+!> \par History
+!>      12.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE update_load_balance_energy(x_data, para_env, screen_set, screen_atom, screen_max, &
                                         is_assoc_atomic_block_global, load_balance_parameter, error)
 
@@ -5189,7 +4842,6 @@ MODULE four_center_integrals
       CALL mp_max(my_bin_size, para_env%group)
       max_bin_size = my_bin_size
       my_bin_size = SIZE(x_data%distribution_energy)
-
 
       ALLOCATE(binned_dist(my_bin_size), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -5272,7 +4924,6 @@ MODULE four_center_integrals
       !! Broadcast the best distribution_vector
       CALL mp_bcast(distribution_vector,icpu-1,para_env%group) 
 
-
       !! Collect local data to global array
       ALLOCATE(full_dist(ncpu,max_bin_size),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -5288,7 +4939,6 @@ MODULE four_center_integrals
       full_dist(:,:)%time_other_scf = 0.0_dp
       full_dist(:,:)%time_forces = 0.0_dp
 
-      
       DO mepos = 1,ncpu
         IF(para_env%mepos == mepos-1) THEN
           full_dist(mepos,1:my_bin_size) = binned_dist(:)
@@ -5363,7 +5013,6 @@ MODULE four_center_integrals
         END IF
       END DO
 
-     
       CALL x_hf_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
 
       DEALLOCATE(tmp_dist, full_dist, tmp_pos, STAT=stat)
@@ -5375,35 +5024,21 @@ MODULE four_center_integrals
     END IF
     CALL timestop(handle)
   END SUBROUTINE update_load_balance_energy
-!***************************************************************************
 
-!!***** four_center_integrals/update_load_balance_forces [1.0] *
-!!
-!!   NAME
-!!     update_load_balance_forces 
-!!
-!!   FUNCTION
-!!     Distributes the computation of eri's to all available processes.
-!!
-!!   NOTES
-!!     The cost matrix is given by the walltime for each bin that is measured during the calculation
-!!
-!!   INPUTS
-!!     - x_data: Object that stores the indices array
-!!     - potential_parameter: short/longrange screening information 
-!!     - screen_set, screen_atom, screen_max: screening matrices
-!!     - is_assoc_atomic_kind: KS-matrix sparsity
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     12.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief Distributes the computation of eri's to all available processes.
+!> \param x_data Object that stores the indices array
+!> \param potential_parameter short/longrange screening information 
+!> \param screen_set , screen_atom, screen_max: screening matrices
+!> \param is_assoc_atomic_kind KS-matrix sparsity
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      The cost matrix is given by the walltime for each bin that is measured during the calculation
+!> \par History
+!>      12.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE update_load_balance_forces(x_data, para_env, screen_set, screen_atom, screen_max, &
                                         is_assoc_atomic_block_global, load_balance_parameter, error)
 
@@ -5471,7 +5106,6 @@ MODULE four_center_integrals
       CALL mp_max(my_bin_size, para_env%group)
       max_bin_size = my_bin_size
       my_bin_size = SIZE(x_data%distribution_forces)
-
 
       ALLOCATE(binned_dist(my_bin_size), STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -5553,7 +5187,6 @@ MODULE four_center_integrals
       !! Broadcast the best distribution_vector
       CALL mp_bcast(distribution_vector,icpu-1,para_env%group) 
 
-
       !! Collect local data to global array
       ALLOCATE(full_dist(ncpu,max_bin_size),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -5569,7 +5202,6 @@ MODULE four_center_integrals
       full_dist(:,:)%time_other_scf = 0.0_dp
       full_dist(:,:)%time_forces = 0.0_dp
 
-      
       DO mepos = 1,ncpu
         IF(para_env%mepos == mepos-1) THEN
           full_dist(mepos,1:my_bin_size) = binned_dist(:)
@@ -5644,7 +5276,6 @@ MODULE four_center_integrals
         END IF
       END DO
 
-     
       CALL x_hf_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
 
       DEALLOCATE(tmp_dist, full_dist, tmp_pos, STAT=stat)
@@ -5656,41 +5287,27 @@ MODULE four_center_integrals
     END IF
     CALL timestop(handle)
   END SUBROUTINE update_load_balance_forces
-!***************************************************************************
 
-!!***** four_center_integrals/scale_and_add_fock_to_ks_matrix [1.0] *
-!!
-!!   NAME
-!!     add_fock_to_ks_matrix
-!!
-!!   FUNCTION
-!!     - Distributes the local full Kohn-Sham matrix to all CPUS. Is called in
-!!       case of adiabatic rescaling. This is just a refactored version of
-!!       distribute_ks_matrix
-!!
-!!   NOTES
-!!     - Communication with left/right node only
-!!
-!!   INPUTS
-!!     - para_env
-!!     - full_ks : The full Kohn-Sham matrix
-!!     - ks_matrix: Distributed Kohn-Sham matrix
-!!     - number_of_p_entries: Maximal buffer size
-!!     - is_assoc_atomic_block: tells us which node owns which atomic pairs 
-!!     - particle_set
-!!     - natom
-!!     - last_sgf_global: helper array for mapping local to global indices
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     11.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief - Distributes the local full Kohn-Sham matrix to all CPUS. Is called in
+!>        case of adiabatic rescaling. This is just a refactored version of
+!>        distribute_ks_matrix
+!> \param para_en v
+!> \param full_ks The full Kohn-Sham matrix
+!> \param ks_matrix Distributed Kohn-Sham matrix
+!> \param number_of_p_entries Maximal buffer size
+!> \param is_assoc_atomic_block tells us which node owns which atomic pairs 
+!> \param particle_se t
+!> \param nato m
+!> \param last_sgf_global helper array for mapping local to global indices
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      - Communication with left/right node only
+!> \par History
+!>      11.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, irep ,&
                                              scaling_factor, error)
 
@@ -5782,6 +5399,5 @@ MODULE four_center_integrals
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE scale_and_add_fock_to_ks_matrix 
-!***************************************************************************
 
 END MODULE four_center_integrals

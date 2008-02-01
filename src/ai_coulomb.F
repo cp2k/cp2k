@@ -2,30 +2,17 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/ai_coulomb [1.0] *
-!!
-!!   NAME
-!!     ai_coulomb
-!!
-!!   FUNCTION
-!!     Calculation of Coulomb integrals over Cartesian Gaussian-type functions
-!!     (electron repulsion integrals, ERIs).
-!!
-!!   AUTHOR
-!!     Matthias Krack (22.08.2000)
-!!
-!!   LITERATURE
-!!     S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
-MODULE ai_coulomb
 
 ! *****************************************************************************
+!> \brief Calculation of Coulomb integrals over Cartesian Gaussian-type functions
+!>      (electron repulsion integrals, ERIs).
+!> \par Literature
+!>      S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
+!> \par History
+!>      none
+!> \author Matthias Krack (22.08.2000)
+! *****************************************************************************
+MODULE ai_coulomb
 
 ! ax,ay,az    : Angular momentum index numbers of orbital a.
 ! bx,by,bz    : Angular momentum index numbers of orbital b.
@@ -51,8 +38,6 @@ MODULE ai_coulomb
 ! zetp        : Reciprocal of the sum of the exponents of orbital a and b.
 ! zetw        : Reciprocal of the sum of the exponents of orbital a, b and c.
 
-! *****************************************************************************
-
   USE f77_blas
   USE gamma,                           ONLY: fgamma
   USE kinds,                           ONLY: dp
@@ -71,13 +56,9 @@ MODULE ai_coulomb
 
   PUBLIC :: coulomb2,coulomb3
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE coulomb2(la_max,npgfa,zeta,rpgfa,la_min,&
        lc_max,npgfc,zetc,rpgfc,lc_min,&
        rac,rac2,vac,v,f,maxder,vac_plus)
@@ -86,8 +67,6 @@ CONTAINS
     !            Cartesian Gaussian-type functions.
 
     !   History: - Creation (05.12.2000, Matthias Krack)
-
-    !   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
@@ -426,7 +405,6 @@ CONTAINS
   END SUBROUTINE coulomb2
 
 ! *****************************************************************************
-
   SUBROUTINE coulomb3(la_max,npgfa,zeta,rpgfa,la_min,&
        lb_max,npgfb,zetb,rpgfb,lb_min,&
        lc_max,zetc,rpgfc,lc_min,gccc,&
@@ -438,8 +416,6 @@ CONTAINS
     !            ERIs).
 
     !   History: - Creation (06.11.2000, Matthias Krack)
-
-    !   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
@@ -633,7 +609,6 @@ CONTAINS
                 !           *** [ap||s]{n} = [(a+1i)s||s]{n} - (Bi - Ai)*[as||s]{n} ***
 
                 la_start = MAX(0,la_min-1)
-
 
                 DO la=la_start,la_max-1
                    DO n=1,nmax-la-1
@@ -1284,7 +1259,6 @@ CONTAINS
                                   END DO
                                END DO
 
-
                                !                     *** Vertical recurrence step ***
 
                                !                     *** [ab||c]{n} = (Pi - Bi)*[a(b-1i)||c]{n} +          ***
@@ -1604,7 +1578,5 @@ CONTAINS
     END DO
 
   END SUBROUTINE coulomb3
-
-! *****************************************************************************
 
 END MODULE ai_coulomb

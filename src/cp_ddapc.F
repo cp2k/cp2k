@@ -3,26 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/cp_ddapc *
-!!
-!!   NAME
-!!    cp_ddapc
-!!
-!!   FUNCTION
-!!     Density Derived atomic point charges from a QM calculation
-!!     (see Bloechl, J. Chem. Phys. Vol. 103 pp. 7422-7428)
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!   SOURCE
-!****************************************************************************  
+! *****************************************************************************
+!> \brief Density Derived atomic point charges from a QM calculation
+!>      (see Bloechl, J. Chem. Phys. Vol. 103 pp. 7422-7428)
+!> \par History
+!>      08.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
 MODULE cp_ddapc
   USE cell_types,                      ONLY: cell_type
   USE cp_ddapc_forces,                 ONLY: ewald_ddapc_force,&
@@ -62,26 +49,12 @@ MODULE cp_ddapc
 
 CONTAINS
 
-!!****f* cp_ddapc/cp_ddapc_apply [1.0] *
-!!
-!!   NAME
-!!     cp_ddapc_apply
-!!
-!!   FUNCTION
-!!     Set of routines to use the Bloechl charges for several tasks
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Set of routines to use the Bloechl charges for several tasks
+!> \par History
+!>      08.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE cp_ddapc_apply(qs_env, rho_tot_gspace, energy, energy_res,&
        v_hartree_gspace, v_spin_ddapc_rest_g, calculate_forces, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -118,32 +91,18 @@ CONTAINS
 
   END SUBROUTINE cp_ddapc_apply
 
-!!****f* cp_ddapc/cp_ddapc_apply_CD [1.0] *
-!!
-!!   NAME
-!!     cp_ddapc_apply_CD
-!!
-!!   FUNCTION
-!!     Routine to couple/decouple periodic images with the Bloechl scheme
-!!
-!!     The coupling/decoupling is obtaines evaluating terms E2 and E3 in
-!!     J. Chem. Phys. Vol. 103 pp. 7422-7428.. The E2 terms is just a 
-!!     Ewald summation, and for performance reason I'm writing a specific 
-!!     driver instead of using and setting-up the environment of the already 
-!!     available routines
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Routine to couple/decouple periodic images with the Bloechl scheme
+!> 
+!>      The coupling/decoupling is obtaines evaluating terms E2 and E3 in
+!>      J. Chem. Phys. Vol. 103 pp. 7422-7428.. The E2 terms is just a 
+!>      Ewald summation, and for performance reason I'm writing a specific 
+!>      driver instead of using and setting-up the environment of the already 
+!>      available routines
+!> \par History
+!>      08.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE cp_ddapc_apply_CD(qs_env, rho_tot_gspace, energy, v_hartree_gspace, &
        calculate_forces, Itype_of_density, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -275,28 +234,13 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE cp_ddapc_apply_CD
 
-!!****f* cp_ddapc/cp_ddapc_apply_RS [1.0] *
-!!
-!!   NAME
-!!     cp_ddapc_apply_RS
-!!
-!!   FUNCTION
-!!     Routine to apply RESTRAINT/CONSTRAINTS to the density 
-!!     with the Bloechl scheme
-!!
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Routine to apply RESTRAINT/CONSTRAINTS to the density 
+!>      with the Bloechl scheme
+!> \par History
+!>      08.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE cp_ddapc_apply_RS(qs_env, energy, energy_res,&
        v_hartree_gspace, v_spin_ddapc_rest_g, calculate_forces, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -334,7 +278,6 @@ CONTAINS
        ! Initialize
        NULLIFY(restraint_section, force_env_section, particle_set, charges, &
             radii, dq, cell, density_fit_section, super_cell)
-
 
        CALL get_qs_env(qs_env=qs_env,&
                        input=force_env_section,&
@@ -380,8 +323,6 @@ CONTAINS
                                            qs_env%dft_control%qs_control%ddapc_restraint_control, energy_res, error)
        ENDIF
 
-
-
        IF (need_f) THEN
           CALL restraint_functional_force(qs_env,&
                                           qs_env%dft_control%qs_control%ddapc_restraint_control,&
@@ -406,27 +347,12 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE cp_ddapc_apply_RS
 
-!!****f* cp_ddapc/cp_ddapc_apply_RF [1.0] *
-!!
-!!   NAME
-!!     cp_ddapc_apply_RF
-!!
-!!   FUNCTION
-!!     Routine to apply a reaction field during SCF (SCRF) with the Bloechl scheme
-!!
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Routine to apply a reaction field during SCF (SCRF) with the Bloechl scheme
+!> \par History
+!>      08.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE cp_ddapc_apply_RF(qs_env,rho_tot_gspace,energy,&
        v_hartree_gspace,calculate_forces, Itype_of_density, error)
     TYPE(qs_environment_type), POINTER       :: qs_env

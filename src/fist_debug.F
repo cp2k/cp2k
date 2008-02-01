@@ -2,22 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/fist_debug [1.0] *
-!!
-!!   NAME
-!!     fist_debug
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!    CJM 2/01.  Passed in the variable box_ref
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>     CJM 2/01.  Passed in the variable box_ref
+!> \author CJM
+! *****************************************************************************
 MODULE fist_debug
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
@@ -65,32 +55,17 @@ MODULE fist_debug
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_debug'
   PUBLIC :: debug_control
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** fist_debug/debug_control [1.0] *
-!!
-!!   NAME
-!!     debug_control
-!!
-!!   FUNCTION
-!!     Routine to execute numerical tests for debugging
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     Changed Formats (JGH) 22-Nov-2000
-!!     Harald Forbert (Dec-2000): Changes for multiple linked lists
-!!     Torsions added (DG) 05-Dec-2000
-!!     Additional output information (DG) 05-Dec-2000
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Routine to execute numerical tests for debugging
+!> \par History
+!>      Changed Formats (JGH) 22-Nov-2000
+!>      Harald Forbert (Dec-2000): Changes for multiple linked lists
+!>      Torsions added (DG) 05-Dec-2000
+!>      Additional output information (DG) 05-Dec-2000
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE  debug_control ( force_env, error)
 
     TYPE(force_env_type), POINTER            :: force_env
@@ -1018,9 +993,5 @@ CONTAINS
     ENDIF
   END SUBROUTINE debug_control
 
-!!*****
-!******************************************************************************
-
 END MODULE fist_debug
 
-!******************************************************************************

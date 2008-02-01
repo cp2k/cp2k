@@ -3,19 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****m* cp2k/qs_tddfpt_module *
-!!
-!!   NAME
-!!     qs_tddfpt_module
-!!
-!!   FUNCTION
-!!     Performs density functional perturbation theory (tddfpt) calculations.
-!!     Uses the self consistent approach. The tddfpt calculation uses the ground
-!!     state of the unperturbed system as the initial state.
-!!
-!!****
-
+! *****************************************************************************
+!> \brief Performs density functional perturbation theory (tddfpt) calculations.
+!>      Uses the self consistent approach. The tddfpt calculation uses the ground
+!>      state of the unperturbed system as the initial state.
+! *****************************************************************************
 MODULE qs_tddfpt_module
   USE bibliography,                    ONLY: Iannuzzi2005,&
                                              cite_reference
@@ -56,7 +48,6 @@ MODULE qs_tddfpt_module
 
   IMPLICIT NONE
 
-
   PRIVATE
   PUBLIC :: tddfpt_calculation
 
@@ -65,16 +56,8 @@ MODULE qs_tddfpt_module
 CONTAINS
 
 ! *****************************************************************************
-
-!!****f* cp2k/tddfpt_module/qs_tddfpt_calculation
-!!
-!!   NAME
-!!     tddfpt_calculation
-!!
-!!   FUNCTION
-!!     Performs the perturbation calculation
-!!
-!!****
+!> \brief Performs the perturbation calculation
+! *****************************************************************************
   SUBROUTINE tddfpt_calculation(qs_env, glob_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -134,17 +117,9 @@ CONTAINS
   END SUBROUTINE tddfpt_calculation
 
 ! *****************************************************************************
-
-  !!****f* qs_scf_post/orbital_eigenvalue_correction *
-  !!
-  !!   NAME
-  !!      orbital_eigenvalue_correction
-  !!
-  !!   FUNCTION
-  !!      Apply a special potential to obtain better
-  !!      orbital eigenvalues.
-  !!
-  !!****
+!> \brief Apply a special potential to obtain better
+!>       orbital eigenvalues.
+! *****************************************************************************
   SUBROUTINE orbital_eigenvalue_correction(qs_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env

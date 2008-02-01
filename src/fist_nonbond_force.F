@@ -3,25 +3,14 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/fist_nonbond_force [1.0] *
-!!
-!!   NAME
-!!     fist_nonbond_force
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (11 May 2001) : cleaning up of support structures
-!!     CJM & HAF (27 July 2001): fixed bug with handling of cutoff larger than
-!!                               half the boxsize.
-!!     07.02.2005: getting rid of scaled_to_real calls in force loop (MK)
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      JGH (11 May 2001) : cleaning up of support structures
+!>      CJM & HAF (27 July 2001): fixed bug with handling of cutoff larger than
+!>                                half the boxsize.
+!>      07.02.2005: getting rid of scaled_to_real calls in force loop (MK)
+!> \author CJM
+! *****************************************************************************
 MODULE fist_nonbond_force
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -66,25 +55,12 @@ MODULE fist_nonbond_force
   PUBLIC :: force_nonbond,&
             bonded_correct_gaussian
 
-
 CONTAINS
-!!****** fist_nonbond_force/force_nonbond [1.0] *
-!!
-!!   NAME
-!!     force_nonbond
-!!
-!!   FUNCTION
-!!     Calculates the force and the potential of the minimum image, and
-!!     the pressure tensor
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+
+! *****************************************************************************
+!> \brief Calculates the force and the potential of the minimum image, and
+!>      the pressure tensor
+! *****************************************************************************
   SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell, pot_nonbond,&
        f_nonbond, pv_nonbond, fshell_nonbond, fcore_nonbond, ewald_env,&
        atomic_kind_set, use_virial, error )
@@ -524,23 +500,12 @@ CONTAINS
     CALL timestop ( handle )
   END SUBROUTINE force_nonbond
 
-!!****** fist_nonbond_force/bonded_correct_gaussian [1.0] *
-!!
-!!   NAME
-!!     bonded_correct_gaussian
-!!
-!!   FUNCTION
-!!     corrects electrostatics for bonded terms
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     Splitted routines to clean and to fix a bug with the tensor whose 
-!!     original definition was not correct for PBC.. [Teodoro Laino -06/2007]
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief corrects electrostatics for bonded terms
+!> \par History
+!>      Splitted routines to clean and to fix a bug with the tensor whose 
+!>      original definition was not correct for PBC.. [Teodoro Laino -06/2007]
+! *****************************************************************************
   SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
              particle_set, ewald_env, v_bonded_corr, pv_bc, shell_particle_set, &
              core_particle_set, cell, use_virial, error )
@@ -668,22 +633,12 @@ CONTAINS
 
   END SUBROUTINE bonded_correct_gaussian
 
-!!****** fist_nonbond_force/bonded_correct_gaussian_low [1.0] *
-!!
-!!   NAME
-!!     bonded_correct_gaussian_low
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     Splitted routines to clean and to fix a bug with the tensor whose 
-!!     original definition was not correct for PBC..
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      Splitted routines to clean and to fix a bug with the tensor whose 
+!>      original definition was not correct for PBC..
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE bonded_correct_gaussian_low(r1, r2, cell, v_bonded_corr,&
        particle_set1, particle_set2, i, j, shell_adiabatic, alpha, q1, q2, &
        ifourpieps0, const, pv_bc, use_virial)
@@ -750,24 +705,14 @@ CONTAINS
     END IF
   END SUBROUTINE bonded_correct_gaussian_low
 
-!!****** fist_nonbond_force/bonded_correct_gaussian_low_sh [1.0] *
-!!
-!!   NAME
-!!     bonded_correct_gaussian_low_sh
-!!
-!!   FUNCTION
-!!     specific for shell models cleans the interaction core-shell on the same
-!!     atom
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     Splitted routines to clean and to fix a bug with the tensor whose 
-!!     original definition was not correct for PBC..
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief specific for shell models cleans the interaction core-shell on the same
+!>      atom
+!> \par History
+!>      Splitted routines to clean and to fix a bug with the tensor whose 
+!>      original definition was not correct for PBC..
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE bonded_correct_gaussian_low_sh(r1, r2, cell, v_bonded_corr, &
        core_particle_set, shell_particle_set, i, shell_adiabatic, alpha, q1, q2,&
        ifourpieps0, const, pv_bc, use_virial)
@@ -849,23 +794,13 @@ CONTAINS
 
   END SUBROUTINE bonded_correct_gaussian_low_sh
 
-!!****** fist_nonbond_force/get_atom_info [1.0] *
-!!
-!!   NAME
-!!    get_atom_info 
-!!
-!!   FUNCTION
-!!    gives back information on atoms.. specific for bonded correct gaussian
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     Splitted routines to clean and to fix a bug with the tensor whose 
-!!     original definition was not correct for PBC..
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief gives back information on atoms.. specific for bonded correct gaussian
+!> \par History
+!>      Splitted routines to clean and to fix a bug with the tensor whose 
+!>      original definition was not correct for PBC..
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE get_atom_info(i, particle_set, shell_particle_set, core_particle_set,&
        shell_i_index, i_is_shell, rsi, rci, qci, qsi)
 

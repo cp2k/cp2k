@@ -2,18 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_rho0_types
-!!
-!!   NAME
-!!     qs_multipole_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
 MODULE qs_rho0_types
 
   USE cell_types,                      ONLY: cell_type,&
@@ -47,6 +36,7 @@ MODULE qs_rho0_types
 
 ! *** Define multipole type ***
 
+! *****************************************************************************
   TYPE  mpole_rho_atom
     REAL(dp), DIMENSION(:), POINTER             ::  Qlm_h, &
                                                     Qlm_s, &
@@ -56,6 +46,7 @@ MODULE qs_rho0_types
     REAL(dp)                                    ::  Qlm_z
   END TYPE mpole_rho_atom
 
+! *****************************************************************************
   TYPE mpole_gau_overlap
     REAL(dp), DIMENSION(:,:,:), POINTER         :: Qlm_gg
     REAL(dp), DIMENSION(:,:), POINTER           :: g0_h, g0_s, vg0_h
@@ -63,6 +54,7 @@ MODULE qs_rho0_types
     REAL(dp)                                    :: r_V0hmV0s
   END TYPE mpole_gau_overlap
 
+! *****************************************************************************
   TYPE rho0_mpole_type
     TYPE(mpole_rho_atom), DIMENSION(:), POINTER  :: mp_rho
     TYPE(mpole_gau_overlap), DIMENSION(:), &
@@ -81,6 +73,7 @@ MODULE qs_rho0_types
                                                    rho0_s_gs
   END TYPE rho0_mpole_type
 
+! *****************************************************************************
   TYPE rho0_atom_type
     TYPE(rho_atom_coeff), POINTER               :: rho0_rad_h, &
                                                    rho0_rad_s, &
@@ -100,11 +93,9 @@ MODULE qs_rho0_types
             calculate_g0, get_rho0_mpole, initialize_mpole_rho, &
             write_rho0_info
 
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
+! *****************************************************************************
   SUBROUTINE allocate_multipoles(mp_rho,natom,mp_gau,nkind)
 
     TYPE(mpole_rho_atom), DIMENSION(:), &
@@ -157,7 +148,7 @@ CONTAINS
 
   END SUBROUTINE allocate_multipoles
 
-! ******************************************************************************
+! *****************************************************************************
   SUBROUTINE allocate_rho0_atom(rho0_set,natom)
 
     TYPE(rho0_atom_type), DIMENSION(:), &
@@ -187,8 +178,7 @@ CONTAINS
 
   END SUBROUTINE allocate_rho0_atom
 
-! ******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE allocate_rho0_atom_rad(rho0_atom,nr,nchannels)
 
     TYPE(rho0_atom_type)                     :: rho0_atom
@@ -229,8 +219,8 @@ CONTAINS
     rho0_atom%vrho0_rad_h%r_coef = 0.0_dp
 
   END SUBROUTINE allocate_rho0_atom_rad
-! ******************************************************************************
 
+! *****************************************************************************
   SUBROUTINE allocate_rho0_mpole(rho0,error)
 
     TYPE(rho0_mpole_type), POINTER           :: rho0
@@ -263,8 +253,7 @@ CONTAINS
 
   END SUBROUTINE allocate_rho0_mpole
 
-! ******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE calculate_g0(rho0_mpole,grid_atom,ik)
 
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
@@ -317,7 +306,6 @@ CONTAINS
     rho0_mpole%mp_gau(ik)%g0_s(1:nr,0) = gs_tmp(1:nr)* &
                                          rho0_mpole%norm_g0l_s(0)
 
-
     CALL whittaker_c0a(int1,grid_atom%rad,gh_tmp,erf_z_h,z_h,0,0,nr)
     CALL whittaker_ci(int2,grid_atom%rad,gh_tmp,z_h,0,nr)
 
@@ -353,8 +341,7 @@ CONTAINS
 
   END SUBROUTINE calculate_g0
 
-! ******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE deallocate_mpole_gau(mp_gau)
 
     TYPE(mpole_gau_overlap), DIMENSION(:), &
@@ -397,8 +384,7 @@ CONTAINS
 
   END SUBROUTINE deallocate_mpole_gau
 
-! ******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE deallocate_mpole_rho(mp_rho)
 
     TYPE(mpole_rho_atom), DIMENSION(:), &
@@ -430,8 +416,7 @@ CONTAINS
 
   END SUBROUTINE deallocate_mpole_rho
 
-! ******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE deallocate_rho0_atom(rho0_atom_set)
 
     TYPE(rho0_atom_type), DIMENSION(:), &
@@ -474,7 +459,7 @@ CONTAINS
     END IF
 
   END SUBROUTINE deallocate_rho0_atom
-! ******************************************************************************
+! *****************************************************************************
   SUBROUTINE deallocate_rho0_mpole(rho0,error)
 
     TYPE(rho0_mpole_type), POINTER           :: rho0
@@ -550,7 +535,7 @@ CONTAINS
 
   END SUBROUTINE deallocate_rho0_mpole
 
-! ******************************************************************************
+! *****************************************************************************
   SUBROUTINE get_rho0_mpole(rho0_mpole, g0_h, g0_s, vg0_h, iat, ikind, lmax_0, l0_ikind,&
                             lmax0_kind, mp_gau_ikind, mp_rho, norm_g0l_h, norm_g0l_s,&
                             orb_radius_3c, set_radius_3c, Qlm_gg, Qlm_car_h, Qlm_car_s, Qlm_tot,  &
@@ -627,7 +612,7 @@ CONTAINS
 
   END SUBROUTINE get_rho0_mpole
 
-! ******************************************************************************
+! *****************************************************************************
   SUBROUTINE initialize_mpole_rho(mp_rho,nchan_s,nchan_c,zeff,tddft)
 
     TYPE(mpole_rho_atom)                     :: mp_rho
@@ -662,10 +647,9 @@ CONTAINS
       mp_rho%Qlm_z = 0.0_dp
    END IF
 
-
   END SUBROUTINE initialize_mpole_rho
-! ******************************************************************************
 
+! *****************************************************************************
   SUBROUTINE write_rho0_info(rho0_mpole,cell,output_unit,error)
 
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
@@ -738,5 +722,4 @@ CONTAINS
     END IF
 
   END SUBROUTINE write_rho0_info
-! ******************************************************************************
 END MODULE qs_rho0_types

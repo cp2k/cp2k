@@ -2,23 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/md_energies [1.0] *
-!!
-!!   NAME
-!!     md_energies
-!!
-!!   FUNCTION
-!!     prints all energy info per timestep to the screen or to
-!!     user defined output files
-!!
-!!   AUTHOR
-!!     Joost VandeVondele (copy from md_fist_energies)
-!!
-!!   MODIFICATIONS
-!!     - New MD data are appended to the old data (15.09.2003,MK)
-!!
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief prints all energy info per timestep to the screen or to
+!>      user defined output files
+!> \author Joost VandeVondele (copy from md_fist_energies)
+!> 
+!>    MODIFICATIONS
+!>      - New MD data are appended to the old data (15.09.2003,MK)
+! *****************************************************************************
 MODULE md_energies
 
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
@@ -75,6 +67,7 @@ MODULE md_energies
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_energies'
 
+! *****************************************************************************
   TYPE average_quantities_type
      REAL ( dp ) :: avetemp, avepot, avekin, avevol, aveca, avecb, avecc
      REAL ( dp ) :: avetemp_baro, avehugoniot, avecpu
@@ -82,34 +75,19 @@ MODULE md_energies
      REAL ( dp ) :: avetemp_qm, avekin_qm
   END TYPE average_quantities_type
 
-
   PUBLIC :: initialize_md_ener,&
             md_energy,&
             md_ener_reftraj,&
             md_write_output,&
             get_output_format
 
-!!***
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** md_energies/initialize_md_ener [1.0] *
-!!
-!!   NAME
-!!     initialize_md_ener
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     -10-2007 created 
-!!
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      -10-2007 created 
+!> \author MI
+! *****************************************************************************
   SUBROUTINE initialize_md_ener(md_ener,force_env,simpar,error)
 
     TYPE(md_ener_type), POINTER              :: md_ener
@@ -146,8 +124,6 @@ CONTAINS
     nkind =  SIZE(atomic_kind_set)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
                                shell_adiabatic=shell_adiabatic)
-
-
 
     md_ener%nfree       = simpar%nfree
     md_ener%nfree_qm    = -HUGE(0)
@@ -190,25 +166,13 @@ CONTAINS
          tshell=shell_adiabatic, error=error)
     md_ener%epot = 0.0_dp
  
-
   END SUBROUTINE initialize_md_ener
 
-!******************************************************************************
-!!****** md_energies/md_energy [1.0] *
-!!
-!!   NAME
-!!     md_energy
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     -10-2007 created 
-!!
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      -10-2007 created 
+!> \author MI
+! *****************************************************************************
   SUBROUTINE md_energy(md_env, md_ener, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
@@ -263,35 +227,18 @@ CONTAINS
        ENDIF
     ENDIF
 
-    
     CALL compute_conserved_quantity(md_env, md_ener, tkind=tkind,&
          tcoeff=tcoeff, tshell=tshell, natom=natom, error=error)
     
   END SUBROUTINE md_energy
 
-!!****f* md_energies/md_ener_reftraj [1.0] *
-!!
-!!   NAME
-!!     md_ener_reftraj
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created 
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created 
+!> \author MI
+! *****************************************************************************
 SUBROUTINE md_ener_reftraj(md_env,md_ener,error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), POINTER              :: md_ener
@@ -316,24 +263,13 @@ SUBROUTINE md_ener_reftraj(md_env,md_ener,error)
     
 END SUBROUTINE  md_ener_reftraj
 
-!******************************************************************************
-!!****** md_energies/md_write_output [1.0] *
-!!
-!!   NAME
-!!     md_write_output
-!!
-!!   FUNCTION
-!!     This routine computes the conserved quantity, temperature
-!!     and things like that and prints them out
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     - New MD data are appended to the old data (15.09.2003,MK)
-!!
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief This routine computes the conserved quantity, temperature
+!>      and things like that and prints them out
+!> \par History
+!>      - New MD data are appended to the old data (15.09.2003,MK)
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE md_write_output(md_env, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
@@ -1215,22 +1151,10 @@ END SUBROUTINE  md_ener_reftraj
 
   END SUBROUTINE md_write_output
 
-!******************************************************************************
-!!****** md_energies/get_output_format [1.0] *
-!!
-!!   NAME
-!!     get_output_format
-!!
-!!   FUNCTION
-!!     Info on the unit to be opened to dump MD informations
-!!
-!!   AUTHOR
-!!     Teodoro Laino - University of Zurich - 07.2007
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*****************************************************************************
+! *****************************************************************************
+!> \brief Info on the unit to be opened to dump MD informations
+!> \author Teodoro Laino - University of Zurich - 07.2007
+! *****************************************************************************
   SUBROUTINE get_output_format(section,path,my_form,my_ext,error)
     TYPE(section_vals_type), POINTER         :: section
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: path

@@ -3,26 +3,15 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/xc_tpss [1.0] *
-!!
-!!   NAME
-!!     xc_tpss
-!!
-!!   FUNCTION
-!!     Calculates the tpss functional.
-!!
-!!   NOTES
-!!     The derivation of the formulaes is lengthly, and not fully trivial,
-!!     so I have put it in doc/tpss.mw
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Calculates the tpss functional.
+!> \note
+!>      The derivation of the formulaes is lengthly, and not fully trivial,
+!>      so I have put it in doc/tpss.mw
+!> \par History
+!>      05.2004 created
+!> \author fawzi
+! *****************************************************************************
 MODULE xc_tpss
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
@@ -50,33 +39,19 @@ MODULE xc_tpss
   PUBLIC :: tpss_lda_info, tpss_lda_eval, tpss_lsd_info, tpss_lsd_eval
 
 !***
-!****************************************************************************
 CONTAINS
 
-!!****f* xc_tpss/tpss_lda_info [1.0] *
-!!
-!!   NAME
-!!     tpss_lda_info
-!!
-!!   FUNCTION
-!!     return various information on the functional
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - reference: string with the reference of the actual functional
-!!     - shortform: string with the shortform of the functional name
-!!     - needs: the components needed by this functional are set to
-!!       true (does not set the unneeded components to false)
-!!     - max_deriv: the highest derivative available
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief return various information on the functional
+!> \param reference string with the reference of the actual functional
+!> \param shortform string with the shortform of the functional name
+!> \param needs the components needed by this functional are set to
+!>        true (does not set the unneeded components to false)
+!> \param max_deriv the highest derivative available
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE tpss_lda_info(tpss_params,reference,shortform, needs, max_deriv, error)
     TYPE(section_vals_type), POINTER         :: tpss_params
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
@@ -119,32 +94,18 @@ CONTAINS
     IF (PRESENT(max_deriv)) max_deriv=1
 
   END SUBROUTINE tpss_lda_info
-  !***************************************************************************
 
-!!****f* xc_tpss/tpss_lsd_info [1.0] *
-!!
-!!   NAME
-!!     tpss_lsd_info
-!!
-!!   FUNCTION
-!!     return various information on the functional
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - reference: string with the reference of the actual functional
-!!     - shortform: string with the shortform of the functional name
-!!     - needs: the components needed by this functional are set to
-!!       true (does not set the unneeded components to false)
-!!     - max_deriv: the highest derivative available
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief return various information on the functional
+!> \param reference string with the reference of the actual functional
+!> \param shortform string with the shortform of the functional name
+!> \param needs the components needed by this functional are set to
+!>        true (does not set the unneeded components to false)
+!> \param max_deriv the highest derivative available
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE tpss_lsd_info(tpss_params,reference,shortform, needs, max_deriv, error)
     TYPE(section_vals_type), POINTER         :: tpss_params
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
@@ -188,33 +149,19 @@ CONTAINS
     IF (PRESENT(max_deriv)) max_deriv=1
 
   END SUBROUTINE tpss_lsd_info
-  !***************************************************************************
 
-!!****f* xc_tpss/tpss_lda_eval [1.0] *
-!!
-!!   NAME
-!!     tpss_lda_eval
-!!
-!!   FUNCTION
-!!     evaluates the tpss functional in the spin unpolarized (lda) case
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - rho_set: the density where you want to evaluate the functional
-!!     - deriv_set: place where to store the functional derivatives (they are
-!!       added to the derivatives)
-!!     - grad_deriv: degree of the derivative that should be evalated,
-!!       if positive all the derivatives up to the given degree are evaluated,
-!!       if negative only the given degree is calculated
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief evaluates the tpss functional in the spin unpolarized (lda) case
+!> \param rho_set the density where you want to evaluate the functional
+!> \param deriv_set place where to store the functional derivatives (they are
+!>        added to the derivatives)
+!> \param grad_deriv degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE tpss_lda_eval(rho_set,deriv_set,grad_deriv,tpss_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -301,33 +248,19 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE tpss_lda_eval
-  !***************************************************************************
 
-!!****f* xc_tpss/tpss_lsd_eval [1.0] *
-!!
-!!   NAME
-!!     tpss_lsd_eval
-!!
-!!   FUNCTION
-!!     evaluates the tpss functional in the spin polarized (lsd) case
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - rho_set: the density where you want to evaluate the functional
-!!     - deriv_set: place where to store the functional derivatives (they are
-!!       added to the derivatives)
-!!     - grad_deriv: degree of the derivative that should be evalated,
-!!       if positive all the derivatives up to the given degree are evaluated,
-!!       if negative only the given degree is calculated
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief evaluates the tpss functional in the spin polarized (lsd) case
+!> \param rho_set the density where you want to evaluate the functional
+!> \param deriv_set place where to store the functional derivatives (they are
+!>        added to the derivatives)
+!> \param grad_deriv degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE tpss_lsd_eval(rho_set,deriv_set,grad_deriv,tpss_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -434,28 +367,16 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE tpss_lsd_eval
-  !***************************************************************************
 
-!!****f* xc_tpss/tpss_lda_calc *
-!!
-!!   NAME
-!!     tpss_lda_calc
-!!
-!!   FUNCTION
-!!     low level calculation routine for the unpolarized (lda) tpss
-!!
-!!   NOTES
-!!     maple is nice, but if you want the uman readable version of the code
-!!     look in doc/tpss.mw
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief low level calculation routine for the unpolarized (lda) tpss
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      maple is nice, but if you want the uman readable version of the code
+!>      look in doc/tpss.mw
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE tpss_lda_calc(rho,norm_drho,tau,e_0,e_rho,e_ndrho,e_tau,&
        npoints,grad_deriv,epsilon_rho,epsilon_norm_drho,epsilon_tau,&
        tpss_params,error)
@@ -748,7 +669,6 @@ CONTAINS
              ex_unif = -0.3e1_dp / 0.4e1_dp * t1 * t16 * t6
              t337 = my_rho * ex_unif
 
-
              IF (grad_deriv>=0) THEN
                 e_0(ii) = e_0(ii)+&
                      scale_ec * t267 * t274 + scale_ex * t337 * Fx
@@ -975,30 +895,17 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE tpss_lda_calc
-!****************************************************************************
 
-
-!!****f* tpss/tpss_lsd_calc *
-!!
-!!   NAME
-!!     tpss_lsd_calc
-!!
-!!   FUNCTION
-!!     low level routine that calculates the tpss functional in the
-!!     polarized (lsd) case
-!!
-!!   NOTES
-!!     maple is nice, but if you want the uman readable version of the code
-!!     look in doc/tpss.mw
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief low level routine that calculates the tpss functional in the
+!>      polarized (lsd) case
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      maple is nice, but if you want the uman readable version of the code
+!>      look in doc/tpss.mw
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE tpss_lsd_calc(rhoa, rhob, norm_drhoa, norm_drhob, norm_drho,&
        tau_a,tau_b,e_0,e_rhoa,e_rhob,e_ndrhoa,e_ndrhob,e_ndrho,e_tau_a,e_tau_b,&
        npoints,grad_deriv,epsilon_rho,epsilon_norm_drho,epsilon_tau,&
@@ -1098,7 +1005,6 @@ CONTAINS
     err_taua=0._dp
     err_taub=0._dp
 
-
     failure=.FALSE.
     logger => cp_error_get_logger(error)
 
@@ -1196,7 +1102,6 @@ CONTAINS
              t9 = my_tau_a + my_tau_b
              tau = t9
              my_norm_drho=MIN(my_norm_drho,my_norm_drhoa+my_norm_drhob)
-
 
              t2 = 1._dp / my_rhoa
              t3 = t1 * t2

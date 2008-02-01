@@ -3,27 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/metadynamics *
-!!
-!!   NAME
-!!     metadynamics
-!!
-!!   FUNCTION
-!!     Performs the metadynamics calculation
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     01.2005 created [fawzi and ale]
-!!     11.2007 Teodoro Laino [tlaino] - University of Zurich
-!!
-!!   SOURCE
-!!
-!****************************************************************************
+! *****************************************************************************
+!> \brief Performs the metadynamics calculation
+!> \par History
+!>      01.2005 created [fawzi and ale]
+!>      11.2007 Teodoro Laino [tlaino] - University of Zurich
+! *****************************************************************************
 MODULE metadynamics
   USE colvar_methods,                  ONLY: colvar_eval_glob_f
   USE colvar_types,                    ONLY: colvar_p_type,&
@@ -82,35 +67,21 @@ MODULE metadynamics
 
 CONTAINS
   
-!!****f* metadynamics/metadyn_create *
-!!
-!!   NAME
-!!     metadyn_create
-!!
-!!   FUNCTION
-!!     allocates a metadynamic environment (performs only minimal 
-!!     initialization)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - meta_env: the meta env_ that will be allocated
-!!     - n_colvar: number of collectiva variables
-!!     - do_hills: if the hills should be added
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     alessandro laio and fawzi mohamed
-!!     Teodoro Laino [tlaino] - University of Zurich. 11.2007
-!!
-!!   MODIFICATION HISTORY
-!!     04.2004 created
-!!     02.2006 Reorganized the structure of the restart for Metadynamics (teo)
-!!             cleaned the metadynamic type
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief allocates a metadynamic environment (performs only minimal 
+!>      initialization)
+!> \param meta_env the meta env_ that will be allocated
+!> \param n_colvar number of collectiva variables
+!> \param do_hills if the hills should be added
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      04.2004 created
+!>      02.2006 Reorganized the structure of the restart for Metadynamics (teo)
+!>              cleaned the metadynamic type
+!> \author alessandro laio and fawzi mohamed
+!>      Teodoro Laino [tlaino] - University of Zurich. 11.2007
+! *****************************************************************************
   SUBROUTINE metadyn_create(meta_env, n_colvar, dt, para_env, metadyn_section, error)
     TYPE(meta_env_type), POINTER             :: meta_env
     INTEGER, INTENT(in)                      :: n_colvar
@@ -181,29 +152,13 @@ CONTAINS
        END DO
     END IF
   END SUBROUTINE metadyn_create
-!***************************************************************************
 
-!!****f* metadynamics/metadyn_read *
-!!
-!!   NAME
-!!     metadyn_read
-!!
-!!   FUNCTION
-!!     reads metadynamics section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!
-!!   AUTHOR
-!!    Teodoro Laino [tlaino] - University of Zurich. 11.2007 
-!!
-!!   MODIFICATION HISTORY
-!!     04.2004 created
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief reads metadynamics section
+!> \par History
+!>      04.2004 created
+!> \author Teodoro Laino [tlaino] - University of Zurich. 11.2007 
+! *****************************************************************************
   SUBROUTINE metadyn_read(meta_env,root_section,para_env,fe_section,error)
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(section_vals_type), POINTER         :: root_section
@@ -337,28 +292,13 @@ CONTAINS
 
   END SUBROUTINE metadyn_read
 
-!!****f* metadynamics/metavar_read *
-!!
-!!   NAME
-!!     metavar_read
-!!
-!!   FUNCTION
-!!     reads metavar section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!
-!!   AUTHOR
-!!     alessandro laio and fawzi mohamed
-!!     Teodoro Laino [tlaino] - University of Zurich. 11.2007
-!!
-!!   MODIFICATION HISTORY
-!!     04.2004 created
-!!
-!!*** **********************************************************************  
+! *****************************************************************************
+!> \brief reads metavar section
+!> \par History
+!>      04.2004 created
+!> \author alessandro laio and fawzi mohamed
+!>      Teodoro Laino [tlaino] - University of Zurich. 11.2007
+! *****************************************************************************
   SUBROUTINE metavar_read(metavar,extended_lagrange,icol,metavar_section,error)
     TYPE(metavar_type), INTENT(INOUT)        :: metavar
     LOGICAL                                  :: extended_lagrange
@@ -413,28 +353,12 @@ CONTAINS
 
   END SUBROUTINE metavar_read
 
-!!****f* metadynamics/metadyn_forces *
-!!
-!!   NAME
-!!     metadyn_forces
-!!
-!!   FUNCTION
-!!     add forces to the subsys due to the metadynamics run
-!!     possibly modifies the velocites (if reflective walls are applied)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!     04.2004 created
-!!
-!!*** **********************************************************************  
+! *****************************************************************************
+!> \brief add forces to the subsys due to the metadynamics run
+!>      possibly modifies the velocites (if reflective walls are applied)
+!> \par History
+!>      04.2004 created
+! *****************************************************************************
   SUBROUTINE metadyn_forces(force_env,vel,error)
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -675,27 +599,10 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE metadyn_forces
 
-!!****f* metadynamics/hills *
-!!
-!!   NAME
-!!     hills
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!     04.2004 created
-!!
-!!*** **********************************************************************  
+! *****************************************************************************
+!> \par History
+!>      04.2004 created
+! *****************************************************************************
   SUBROUTINE hills(meta_env,error)
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -902,27 +809,11 @@ CONTAINS
     CALL cp_rm_iter_level(logger%iter_info,"METADYNAMICS",error=error)    
   END SUBROUTINE hills
 
-!!****f* metadynamics/walls *
-!!
-!!   NAME
-!!     walls
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino - University of Zurich - 11.2007
-!!
-!!   MODIFICATION HISTORY
-!!     11.2007 [created] [tlaino]
-!!
-!!*** **********************************************************************  
+! *****************************************************************************
+!> \par History
+!>      11.2007 [created] [tlaino]
+!> \author Teodoro Laino - University of Zurich - 11.2007
+! *****************************************************************************
   SUBROUTINE walls(meta_env,error)
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(cp_error_type), INTENT(inout)       :: error

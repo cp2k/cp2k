@@ -3,19 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/qs_semi_empirical_hamiltonian [1.1] *
-!!
-!!   FUNCTION
-!!     Calculation of the Hamiltonian integral matrix <a|H|b> for
-!!     semi-empirical methods
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!***
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Calculation of the Hamiltonian integral matrix <a|H|b> for
+!>      semi-empirical methods
+!> \author JGH
+! *****************************************************************************
 MODULE qs_semi_empirical_hamiltonian
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -74,12 +66,9 @@ MODULE qs_semi_empirical_hamiltonian
 
   PUBLIC :: build_se_core_matrix, build_se_fock_matrix
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE build_se_core_matrix(qs_env,para_env,calculate_forces,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -396,7 +385,6 @@ CONTAINS
   END SUBROUTINE build_se_core_matrix
 
 ! *****************************************************************************
-
   SUBROUTINE build_se_fock_matrix (ks_env,qs_env,ks_matrix,rho,energy,&
                calculate_forces,just_energy,error)
 
@@ -429,8 +417,5 @@ CONTAINS
 
   END SUBROUTINE build_se_fock_matrix
 
-! *****************************************************************************
-
 END MODULE qs_semi_empirical_hamiltonian
 
-! *****************************************************************************

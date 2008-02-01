@@ -2,22 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/fist_energy_types [1.0] *
-!!
-!!   NAME
-!!     fist_energy_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     MK (13.06.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (11.08.2002) exchange and correlation energy now in exc
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      JGH (11.08.2002) exchange and correlation energy now in exc
+!> \author MK (13.06.2002)
+! *****************************************************************************
 MODULE fist_energy_types
 
   USE f77_blas
@@ -32,6 +22,7 @@ MODULE fist_energy_types
 
   PRIVATE
 
+! *****************************************************************************
   TYPE fist_energy_type
      REAL ( kind = dp ) :: kin, pot, e_gspace, e_self, e_neut, e_bonded
      REAL ( kind = dp ) :: kin_shell, harm_shell
@@ -47,20 +38,14 @@ MODULE fist_energy_types
             deallocate_fist_energy,&
             init_fist_energy
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE allocate_fist_energy(fist_energy)
 
 !   Purpose: Allocate and/or initialise a Fist energy data structure.
 
 !   History: - Creation (13.06.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(fist_energy_type), POINTER          :: fist_energy
 
@@ -81,14 +66,11 @@ CONTAINS
   END SUBROUTINE allocate_fist_energy
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_fist_energy(fist_energy)
 
 !   Purpose: Deallocate a Fist energy data structure.
 
 !   History: - Creation (13.06.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(fist_energy_type), POINTER          :: fist_energy
 
@@ -110,14 +92,11 @@ CONTAINS
   END SUBROUTINE deallocate_fist_energy
 
 ! *****************************************************************************
-
   SUBROUTINE init_fist_energy(fist_energy)
 
 !   Purpose: Initialise a Fist energy data structure.
 
 !   History: - Creation (13.06.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(fist_energy_type), POINTER          :: fist_energy
 
@@ -141,7 +120,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE init_fist_energy
-
-! *****************************************************************************
 
 END MODULE fist_energy_types

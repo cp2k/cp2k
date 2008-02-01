@@ -3,23 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/free_energy_methods [1.0] *
-!!
-!!   NAME
-!!     free_energy_methods
-!!
-!!   FUNCTION
-!!     Methods to perform free energy and free energy derivatives calculations
-!!
-!!   AUTHOR
-!!     Teodoro Laino (01.2007) [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Methods to perform free energy and free energy derivatives calculations
+!> \author Teodoro Laino (01.2007) [tlaino]
+! *****************************************************************************
 MODULE free_energy_methods
   USE colvar_methods,                  ONLY: colvar_eval_glob_f
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -60,23 +47,12 @@ MODULE free_energy_methods
 
 CONTAINS
 
-!!****f* free_energy_methods/free_energy_evaluate *
-!!
-!!   NAME
-!!     free_energy_evaluate
-!!
-!!   FUNCTION
-!!     Main driver for free energy calculations
-!!     In this routine we handle specifically biased MD.
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     Teodoro Laino (01.2007) [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Main driver for free energy calculations
+!>      In this routine we handle specifically biased MD.
+!> \par History
+!>      Teodoro Laino (01.2007) [tlaino]
+! *****************************************************************************
   SUBROUTINE free_energy_evaluate(md_env,converged,motion_section,error)
     TYPE(md_environment_type), POINTER       :: md_env
     LOGICAL, INTENT(OUT)                     :: converged
@@ -158,22 +134,11 @@ CONTAINS
 
   END SUBROUTINE free_energy_evaluate
 
-!!****f* free_energy_methods/ui_check_convergence *
-!!
-!!   NAME
-!!     ui_check_convergence
-!!
-!!   FUNCTION
-!!     Convergence criteria for umbrella integration free energy method
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     Teodoro Laino (01.2007) [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Convergence criteria for umbrella integration free energy method
+!> \par History
+!>      Teodoro Laino (01.2007) [tlaino]
+! *****************************************************************************
   SUBROUTINE ui_check_convergence(fe_env,converged,istep,output_unit,error)        
     TYPE(free_energy_type), POINTER          :: fe_env
     LOGICAL, INTENT(OUT)                     :: converged
@@ -268,25 +233,12 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE ui_check_convergence
 
-!!****f* free_energy_methods/dump_der_par *
-!!
-!!   NAME
-!!     dump_der_par
-!!
-!!   FUNCTION
-!!     Dumps information when performing an alchemical change run
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino - University of Zurich [tlaino] - 05.2007
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Dumps information when performing an alchemical change run
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Teodoro Laino - University of Zurich [tlaino] - 05.2007
+! *****************************************************************************
 SUBROUTINE dump_ac_info(my_val, my_par, dx, lerr, root_section, nforce_eval, cum_res,&
      istep, beta, error)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val
@@ -430,5 +382,4 @@ SUBROUTINE dump_ac_info(my_val, my_par, dx, lerr, root_section, nforce_eval, cum
   END SUBROUTINE dump_ac_info
 
 END MODULE free_energy_methods
-
 

@@ -2,25 +2,14 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****m* cp2k/qs_electric_field_gradient *
-!!
-!!   NAME
-!!     qs_electric_field_gradient
-!!
-!!   FUNCTION
-!!     Calculates electric field gradients
-!!     H.M. Petrili, P.E. Blochl, P. Blaha, K. Schwarz, PRB 57, 14690 (1998)
-!!
-!!   NOTE
-!!
-!!   AUTHOR
-!!     JGH (03-05-2006)
-!!
-!!   MODIFICATION HISTORY
-!!     12.2007 Added checksum for interpolation regtest [rdeclerck]
-!!
-!!****
 
+! *****************************************************************************
+!> \brief Calculates electric field gradients
+!>      H.M. Petrili, P.E. Blochl, P. Blaha, K. Schwarz, PRB 57, 14690 (1998)
+!> \par History
+!>      12.2007 Added checksum for interpolation regtest [rdeclerck]
+!> \author JGH (03-05-2006)
+! *****************************************************************************
 MODULE qs_electric_field_gradient
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -80,12 +69,9 @@ MODULE qs_electric_field_gradient
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_electric_field_gradient'
 
-!*******************************************************************************
-
 CONTAINS
 
-!*******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE qs_efg_calc(qs_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -435,7 +421,7 @@ CONTAINS
 
   END SUBROUTINE qs_efg_calc
 
-!*******************************************************************************
+! *****************************************************************************
   SUBROUTINE vlimit_atom(para_env,vlimit,rho_atom_set,atom_kind,&
                          atom_list,grid_atom,natom,nspins,error)
 
@@ -470,8 +456,6 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(harmonics_atom_type), POINTER       :: harmonics
 
-! *****************************************************************************
-
     failure = .FALSE.
     NULLIFY(orb_basis)
     NULLIFY(harmonics)
@@ -495,8 +479,6 @@ CONTAINS
 
     ALLOCATE(CPC_sphere(nsoset(maxl),nsoset(maxl)),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-!******************************************************************************
 
     m1s = 0
 
@@ -583,7 +565,7 @@ CONTAINS
 
   END SUBROUTINE vlimit_atom
 
-!*******************************************************************************
+! *****************************************************************************
   SUBROUTINE efgsort(ein,eout)
     REAL(dp), DIMENSION(3), INTENT(in)       :: ein
     REAL(dp), DIMENSION(3), INTENT(inout)    :: eout
@@ -599,8 +581,6 @@ CONTAINS
     END DO
 
   END SUBROUTINE efgsort
-!*******************************************************************************
 
 END MODULE  qs_electric_field_gradient
 
-!*******************************************************************************

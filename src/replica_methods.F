@@ -3,27 +3,14 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/replica_methods *
-!!
-!!   NAME
-!!     replica_methods
-!!
-!!   FUNCTION
-!!     methods to setup replicas of the same system differing only by atom
-!!     positions and velocities (as used in path integral or nudged elastic
-!!     band for example)
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     09.2005 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief methods to setup replicas of the same system differing only by atom
+!>      positions and velocities (as used in path integral or nudged elastic
+!>      band for example)
+!> \par History
+!>      09.2005 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 MODULE replica_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
@@ -70,29 +57,14 @@ MODULE replica_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'replica_methods'
 
   PUBLIC :: rep_env_init_low, rep_env_destroy_low, rep_env_test, rep_env_calc_e_f_low
-  !!***
-  !****************************************************************************
 CONTAINS
 
-  !!****f* replica_methods/rep_env_init_low *
-  !!
-  !!   NAME
-  !!     rep_env_init_low
-  !!
-  !!   FUNCTION
-  !!     finishes the low level initialization of the replica env
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - rep_env_id: id_nr of the replica environment that should be initialized
-  !!     - ierr: will be non zero if there is an initialization error
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief finishes the low level initialization of the replica env
+!> \param rep_env_id id_nr of the replica environment that should be initialized
+!> \param ierr will be non zero if there is an initialization error
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE rep_env_init_low(rep_env_id, ierr)
     INTEGER, INTENT(in)                      :: rep_env_id
     INTEGER, INTENT(out)                     :: ierr
@@ -186,27 +158,13 @@ CONTAINS
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE rep_env_init_low
-  !***************************************************************************
 
-  !!****f* replica_methods/rep_env_destroy_low *
-  !!
-  !!   NAME
-  !!     rep_env_destroy_low
-  !!
-  !!   FUNCTION
-  !!     initializes the destruction of the replica_env
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - rep_env_id: id_nr of the replica environment that should be initialized
-  !!     - ierr: will be non zero if there is an initialization error
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief initializes the destruction of the replica_env
+!> \param rep_env_id id_nr of the replica environment that should be initialized
+!> \param ierr will be non zero if there is an initialization error
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE rep_env_destroy_low(rep_env_id, ierr)
     INTEGER, INTENT(in)                      :: rep_env_id
     INTEGER, INTENT(out)                     :: ierr
@@ -238,25 +196,11 @@ CONTAINS
     END IF
   END SUBROUTINE rep_env_destroy_low
 
-  !!****f* pint_methods/rep_env_test *
-  !!
-  !!   NAME
-  !!     rep_env_test
-  !!
-  !!   FUNCTION
-  !!     -
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE rep_env_test(para_env,input,error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: input
@@ -396,29 +340,17 @@ CONTAINS
        CPAssert(max_err<1.e-6,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE rep_env_test
-  !****************************************************************************
 
-  !!****f* replica_methods/rep_env_calc_e_f_int *
-  !!
-  !!   NAME
-  !!     rep_env_calc_e_f_int
-  !!
-  !!   FUNCTION
-  !!     calculates energy and force, internal private method
-  !!
-  !!   NOTES
-  !!     this is the where the real work is done
-  !!
-  !!   ARGUMENTS
-  !!     - rep_env: the replica env to update
-  !!     - if the force should be calculated as well (defaults to true)
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates energy and force, internal private method
+!> \param rep_env the replica env to update
+!> \param if the force should be calculated as well (defaults to true)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      this is the where the real work is done
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE rep_env_calc_e_f_int(rep_env,calc_f,error)
     TYPE(replica_env_type), POINTER          :: rep_env
     LOGICAL, OPTIONAL                        :: calc_f
@@ -498,31 +430,19 @@ CONTAINS
     END IF
 
   END SUBROUTINE rep_env_calc_e_f_int
-  !***************************************************************************
 
-  !!****f* replica_methods/rep_env_calc_e_f_int *
-  !!
-  !!   NAME
-  !!     rep_env_calc_e_f_int
-  !!
-  !!   FUNCTION
-  !!     calculates energy and force, internal private method
-  !!
-  !!   NOTES
-  !!     low level wrapper to export this function in f77_int_low and work
-  !!     around the handling of circular dependecies in fortran
-  !!
-  !!   ARGUMENTS
-  !!     - rep_env_id: the id if the replica environment in which energy and
-  !!       forces have to be evaluated
-  !!     - calc_f: if nonzero calculates also the forces along with the
-  !!       energy
-  !!     - ierr: if an error happens this will be nonzero
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates energy and force, internal private method
+!> \param rep_env_id the id if the replica environment in which energy and
+!>        forces have to be evaluated
+!> \param calc_f if nonzero calculates also the forces along with the
+!>        energy
+!> \param ierr if an error happens this will be nonzero
+!> \note
+!>      low level wrapper to export this function in f77_int_low and work
+!>      around the handling of circular dependecies in fortran
+!> \author fawzi
+! *****************************************************************************
   RECURSIVE SUBROUTINE rep_env_calc_e_f_low(rep_env_id,calc_f,ierr)
     INTEGER, INTENT(in)                      :: rep_env_id, calc_f
     INTEGER, INTENT(out)                     :: ierr
@@ -546,6 +466,5 @@ CONTAINS
        ierr=111
     END IF
   END SUBROUTINE rep_env_calc_e_f_low
-  !***************************************************************************
 
 END MODULE replica_methods

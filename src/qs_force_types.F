@@ -2,22 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_force_types [1.0] *
-!!
-!!   NAME
-!!     qs_force_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     MK (03.06.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author MK (03.06.2002)
+! *****************************************************************************
 MODULE qs_force_types
 
   !USE cp_control_types,                ONLY: qs_control_type
@@ -33,6 +23,7 @@ MODULE qs_force_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_force_types'
   PRIVATE
 
+! *****************************************************************************
   TYPE qs_force_type
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: all_potential,&
                                          core_overlap,&
@@ -66,20 +57,14 @@ MODULE qs_force_types
             zero_qs_force, &
             duplicate_qs_force
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE allocate_qs_force(qs_force,natom_of_kind)
 
 !   Purpose: Allocate a Quickstep force data structure.
 
 !   History: - Creation (05.06.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: qs_force
@@ -186,14 +171,11 @@ CONTAINS
   END SUBROUTINE allocate_qs_force
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_qs_force(qs_force)
 
 !   Purpose: Deallocate a Quickstep force data structure.
 
 !   History: - Creation (05.06.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: qs_force
@@ -347,7 +329,6 @@ CONTAINS
         END IF
       END IF
 
-
     END DO
 
     DEALLOCATE (qs_force,STAT=istat)
@@ -356,14 +337,11 @@ CONTAINS
   END SUBROUTINE deallocate_qs_force
 
 ! *****************************************************************************
-
   SUBROUTINE zero_qs_force(qs_force)
 
 !   Purpose: Initialize a Quickstep force data structure.
 
 !   History: - Creation (15.07.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: qs_force
@@ -404,37 +382,17 @@ CONTAINS
   END SUBROUTINE zero_qs_force
 
 ! *****************************************************************************
-
-!!****f* qs_force_types/duplicate_qs_force [1.0] *
-!!
-!!   NAME
-!!     duplicate_qs_force
-!!
-!!   SYNOPSIS
-!!     SUBROUTINE duplicate_qs_force(qs_force_input, qs_force_output, natom_of_kind)
-!!       TYPE(qs_force_type), DIMENSION(:), POINTER :: qs_force_input, qs_force_output
-!!       INTEGER, DIMENSION(:), INTENT(IN) :: natom_of_kind
-!!     END SUBROUTINE duplicate_qs_force
-!!
-!!   FUNCTION
-!!     Duplicates a force type variable.
-!!
-!!   NOTES
-!!     The qs_force_variable is expected of the same size as 
-!!     qs_force_input if present.
-!!
-!!   ARGUMENTS
-!!     - qs_force_input: The force type variable to be duplicated
-!!     - qs_force_output: The force type duplicate
-!!     - natom_of_kind: 
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+!> \brief Duplicates a force type variable.
+!> \param qs_force_input The force type variable to be duplicated
+!> \param qs_force_output The force type duplicate
+!> \param natom_of_kind  
+!> \note
+!>      The qs_force_variable is expected of the same size as 
+!>      qs_force_input if present.
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE duplicate_qs_force(qs_force_input, qs_force_output, &
                                 natom_of_kind)
 
@@ -494,6 +452,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE duplicate_qs_force
-!***************************************************************************
 
 END MODULE qs_force_types

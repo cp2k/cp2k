@@ -3,26 +3,14 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****m* cp2k/qs_p_env_methods *
-!!
-!!   NAME
-!!     qs_p_env_methods
-!!
-!!   NOTES
-!!     - routines are programmed with spins in mind
-!!       but are as of now not tested with them
-!!
-!!   FUNCTION
-!!     Utility functions for the perturbation calculations.
-!!
-!!   SYNOPSIS
-!!
-!!
-!!   MODIFICATION HISTORY
-!!     22-08-2002, TCH, started development
-!!
-!!****
+! *****************************************************************************
+!> \brief Utility functions for the perturbation calculations.
+!> \note
+!>      - routines are programmed with spins in mind
+!>        but are as of now not tested with them
+!> \par History
+!>      22-08-2002, TCH, started development
+! *****************************************************************************
 MODULE qs_p_env_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
@@ -115,51 +103,20 @@ MODULE qs_p_env_methods
 CONTAINS
 
 ! *****************************************************************************
-
-!!****f* qs_p_types/p_env_create [1.0] *
-!!
-!!   NAME
-!!     p_env_create
-!!
-!!   SYNOPSIS
-!!     Subroutine p_env_create(p_env, qs_env, kpp1_env, p1_option, psi0d,&
-!!         orthogonal_orbitals, error)
-!!       Implicit None
-!!       Type(qs_p_env_type), Pointer:: p_env
-!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
-!!       Type(qs_kpp1_env_type), Intent (IN), Target, Optional:: kpp1_env
-!!       Type(real_matrix_p_type), Dimension(:), Pointer, Optional::&
-!!         p1_option
-!!       Type(cp_fm_p_type), Dimension(:), Pointer, Optional:: psi0d
-!!       Logical, Intent (IN), Optional:: orthogonal_orbitals
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine p_env_create
-!!
-!!   FUNCTION
-!!     allocates and initializes the perturbation environment (no setup)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - p_env: the environment to initialize
-!!     - qs_env: the qs_environment for the system
-!!     - kpp1_env: the environment that builds the second order
-!!       perturbation kernel.
-!!     - orthogonal_orbitals: if the orbitals are orthogonal
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+!> \brief allocates and initializes the perturbation environment (no setup)
+!> \param p_env the environment to initialize
+!> \param qs_env the qs_environment for the system
+!> \param kpp 1_env: the environment that builds the second order
+!>        perturbation kernel.
+!> \param orthogonal_orbitals if the orbitals are orthogonal
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      07.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE p_env_create(p_env, qs_env, kpp1_env, p1_option, &
        psi0d, orthogonal_orbitals,linres_control, error)
-
 
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -216,7 +173,6 @@ CONTAINS
             p_env%os_psi0,&
             p_env%preconditioner,&
             p_env%ev_h0)
-
 
        p_env%ref_count=1
        last_p_env_id=last_p_env_id+1
@@ -324,7 +280,6 @@ CONTAINS
        !------------------------!
        IF(PRESENT(linres_control)) THEN
 
-
          CALL fm_pools_create_fm_vect(ao_mo_fm_pools,elements=p_env%d_psi1,&
               name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%d_psi1",&
               error=error)
@@ -385,32 +340,19 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE p_env_create
-!***************************************************************************
 
-!!****f* qs_p_env_methods/p_env_check_i_alloc [1.0] *
-!!
-!!   NAME
-!!     p_env_check_i_alloc
-!!
-!!   FUNCTION
-!!     checks that the intenal storage is allocated, and allocs it if needed
-!!
-!!   NOTES
-!!     private routine
-!!
-!!   INPUTS
-!!     - p_env: the environment to check
-!!     - qs_env: the qs environment this p_env lives in
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief checks that the intenal storage is allocated, and allocs it if needed
+!> \param p_env the environment to check
+!> \param qs_env the qs environment this p_env lives in
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      private routine
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE p_env_check_i_alloc(p_env, qs_env, error)
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -470,34 +412,19 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE p_env_check_i_alloc
-!***************************************************************************
 
-!!****f* qs_p_build_kernel/p_env_did_change [1.0] *
-!!
-!!   NAME
-!!     p_env_did_change
-!!
-!!   FUNCTION
-!!     function to advise of changes either in the grids or in the the
-!!     matrix structure (to update p_env's internal cache)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - p_env: the p_env to inform of the changes
-!!     - grid_changed: true if the grids have changed and have to be rebuilt
-!!     - s_struct_changed: true if the structure of the s matrix has changed
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief function to advise of changes either in the grids or in the the
+!>      matrix structure (to update p_env's internal cache)
+!> \param p_env the p_env to inform of the changes
+!> \param grid_changed true if the grids have changed and have to be rebuilt
+!> \param s_struct_changed true if the structure of the s matrix has changed
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE p_env_did_change(p_env, s_struct_changed, grid_changed,error)
     TYPE(qs_p_env_type), POINTER             :: p_env
     LOGICAL, INTENT(in), OPTIONAL            :: s_struct_changed, grid_changed
@@ -540,50 +467,21 @@ SUBROUTINE p_env_did_change(p_env, s_struct_changed, grid_changed,error)
           grid_changed=grid_changed,error=error)
   END IF
 END SUBROUTINE p_env_did_change
-!***************************************************************************
 
-!!****f* qs_p_types/p_env_psi0_changed [1.0] *
-!!
-!!   NAME
-!!     p_env_psi0_changed
-!!
-!!   SYNOPSIS
-!!     Subroutine p_env_psi0_changed(p_env, qs_env, psi0, hrho_psi0d,&
-!!         error)
-!!       Implicit None
-!!       Type(qs_p_env_type), Pointer:: p_env
-!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
-!!       Type(cp_fm_p_type), Dimension(:), Intent (IN), Target, Optional::&
-!!         psi0
-!!       Type(cp_fm_p_type), Dimension(:), Intent (INOUT), Optional::&
-!!         hrho_psi0d
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine p_env_psi0_changed
-!!
-!!   FUNCTION
-!!     To be called after the value of psi0 has changed.
-!!     Recalculates the quantities S_psi0 and m_epsilon.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - p_env: the perturbation environment to set
-!!     - psi0: the value of psi0, if not given defaults to the qs_env mos
-!!     - Hrho_psi0d: is given, then the partial result Hrho_psi0d is stored in
-!!       that vector
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief To be called after the value of psi0 has changed.
+!>      Recalculates the quantities S_psi0 and m_epsilon.
+!> \param p_env the perturbation environment to set
+!> \param psi 0: the value of psi0, if not given defaults to the qs_env mos
+!> \param Hrho_psi 0d: is given, then the partial result Hrho_psi0d is stored in
+!>        that vector
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      07.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE p_env_psi0_changed(p_env, qs_env, psi0, Hrho_psi0d, error)
-
 
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -813,45 +711,19 @@ END SUBROUTINE p_env_did_change
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE p_env_psi0_changed
-!***************************************************************************
 
-!!****f* cp2k/qs_p_env_methods/p_op_l1 *
-!!
-!!   NAME
-!!     p_op_l1
-!!
-!!   SYNOPSIS
-!!     Subroutine p_op_l1(p_env, qs_env, v, res, error)
-!!       Implicit None
-!!       Type(qs_p_env_type), Pointer:: p_env
-!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
-!!       Type(cp_fm_p_type), Dimension(:), Intent (IN):: v
-!!       Type(cp_fm_p_type), Dimension(:), Intent (INOUT):: res
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine p_op_l1
-!!
-!!   FUNCTION
-!!     Evaluates Fv (S_mo)^-1 - Sv(epsilon) and stores it in res
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - p_env : perturbation calculation environment
-!!     - qs_env: the qs_env that is perturbed by this p_env
-!!     - v     : the matrix to operate on
-!!     - res   : the result
-!!     - error : error handling object (optional)
-!!
-!!   AUTHOR
-!!     Thomas Chassaing
-!!
-!!   MODIFICATION HISTORY
-!!     10.2002, TCH, extracted single spin calculation
-!!
-!!***
+! *****************************************************************************
+!> \brief Evaluates Fv (S_mo)^-1 - Sv(epsilon) and stores it in res
+!> \param p_env perturbation calculation environment
+!> \param qs_env the qs_env that is perturbed by this p_env
+!> \param v the matrix to operate on
+!> \param res the result
+!> \param error error handling object (optional)
+!> \par History
+!>      10.2002, TCH, extracted single spin calculation
+!> \author Thomas Chassaing
+! *****************************************************************************
   SUBROUTINE p_op_l1(p_env, qs_env, v, res, error)
-
 
     ! argument
     TYPE(qs_p_env_type), POINTER             :: p_env
@@ -884,47 +756,21 @@ END SUBROUTINE p_env_did_change
   END SUBROUTINE p_op_l1
 
 ! *****************************************************************************
-
-!!****f* cp2k/qs_p_env_methods/p_op_l1 *
-!!
-!!   NAME
-!!     p_op_l1_spin
-!!
-!!   SYNOPSIS
-!!     Subroutine p_op_l1_spin(p_env, qs_env, spin, v, res, error)
-!!       Implicit None
-!!       Type(qs_p_env_type), Pointer:: p_env
-!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
-!!       Integer, Intent (IN):: spin
-!!       Type(cp_fm_type), Pointer:: v
-!!       Type(cp_fm_type), Pointer:: res
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine p_op_l1_spin
-!!
-!!   FUNCTION
-!!     Evaluates Fv (S_mo)^-1 - Sv(epsilon) and stores it in res
-!!     for a given spin
-!!
-!!   NOTES
-!!     Same as p_op_l1 but takes a spin as additional argument.
-!!
-!!   ARGUMENTS
-!!     - p_env : perturbation calculation environment
-!!     - qs_env: the qs_env that is perturbed by this p_env
-!!     - spin  : the spin to calculate (1 or 2 normally)
-!!     - v     : the matrix to operate on
-!!     - res   : the result
-!      - error : error handling object (optional)
-!!
-!!   AUTHOR
-!!     Thomas Chassaing
-!!
-!!   MODIFICATION HISTORY
-!!     10.2002, TCH, created
-!!
-!!***
+!> \brief Evaluates Fv (S_mo)^-1 - Sv(epsilon) and stores it in res
+!>      for a given spin
+!> \param p_env perturbation calculation environment
+!> \param qs_env the qs_env that is perturbed by this p_env
+!> \param spin the spin to calculate (1 or 2 normally)
+!> \param v the matrix to operate on
+!> \param res the result
+!> \param error error handling object (optional)
+!> \note
+!>      Same as p_op_l1 but takes a spin as additional argument.
+!> \par History
+!>      10.2002, TCH, created
+!> \author Thomas Chassaing
+! *****************************************************************************
   SUBROUTINE p_op_l1_spin(p_env, qs_env, spin, v, res, error)
-
 
     ! argument
     TYPE(qs_p_env_type), POINTER             :: p_env
@@ -983,49 +829,25 @@ END SUBROUTINE p_env_did_change
   END SUBROUTINE p_op_l1_spin
 
 ! *****************************************************************************
-
-!!****f* qs_p_env_methods/p_op_l2 [1.0] *
-!!
-!!   NAME
-!!     p_op_l2
-!!
-!!   SYNOPSIS
-!!     Subroutine p_op_l2(p_env, qs_env, p1, res, alpha, beta, error)
-!!       Type(qs_p_env_type), Pointer:: p_env
-!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
-!!       Type(real_matrix_p_type), Dimension(:), Pointer:: p1
-!!       Type(cp_fm_p_type), Dimension(:), Intent (INOUT):: res
-!!       REAL(KIND=dp), Intent (IN), Optional:: alpha, beta
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine p_op_l2
-!!
-!!   FUNCTION
-!!     evaluates res = alpha kpp1(v)*psi0 + beta res
-!!     with kpp1 evaluated with p=qs_env%rho%rho_ao, p1=p1
-!!
-!!   NOTES
-!!     qs_env%rho must be up to date
-!!     it would be better to pass rho1, not p1
-!!
-!!   INPUTS
-!!     - p_env: the perturbation environment
-!!     - qs_env: the qs_env that is perturbed by this p_env
-!!     - p1: direction in which evaluate the second derivative
-!!     - res: place where to store the result
-!!     - v: values of the coeffs of the correcting orbitals
-!!     - alpha: scale factor of the result (defaults to 1.0)
-!!     - beta: scale factor of the old values (defaults to 0.0)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.09.2002 adapted for new qs_p_env_type (TC)
-!!     03.2003 extended for p1 not taken from v (TC)
-!!
-!!*** **********************************************************************
+!> \brief evaluates res = alpha kpp1(v)*psi0 + beta res
+!>      with kpp1 evaluated with p=qs_env%rho%rho_ao, p1=p1
+!> \param p_env the perturbation environment
+!> \param qs_env the qs_env that is perturbed by this p_env
+!> \param p 1: direction in which evaluate the second derivative
+!> \param res place where to store the result
+!> \param v values of the coeffs of the correcting orbitals
+!> \param alpha scale factor of the result (defaults to 1.0)
+!> \param beta scale factor of the old values (defaults to 0.0)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      qs_env%rho must be up to date
+!>      it would be better to pass rho1, not p1
+!> \par History
+!>      02.09.2002 adapted for new qs_p_env_type (TC)
+!>      03.2003 extended for p1 not taken from v (TC)
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE p_op_l2(p_env, qs_env, p1, res, alpha, beta, error)
 
     TYPE(qs_p_env_type), POINTER             :: p_env
@@ -1098,47 +920,21 @@ END SUBROUTINE p_env_did_change
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE p_op_l2
-!***************************************************************************
 
-!!****f* qs_p_types/p_env_preortho [1.0] *
-!!
-!!   NAME
-!!     p_preortho
-!!
-!!   SYNOPSIS
-!!     Subroutine p_preortho(p_env, qs_env, v, n_cols, error)
-!!       Implicit None
-!!       Type(qs_p_env_type), Pointer:: p_env
-!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
-!!       Type(cp_fm_p_type), Dimension(:), Intent (INOUT):: v
-!!       Integer, Dimension(:), Intent (IN), Optional:: n_cols
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine p_preortho
-!!
-!!   FUNCTION
-!!     does a preorthogonalization of the given matrix:
-!!     v = (I-PS)v
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - p_env: the perturbation environment
-!!     - qs_env: the qs_env that is perturbed by this p_env
-!!     - v: matrix to orthogonalize
-!!     - n_cols: the number of columns of C to multiply (defaults to size(v,2))
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     02.09.2002 adapted for new qs_p_env_type (TC)
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief does a preorthogonalization of the given matrix:
+!>      v = (I-PS)v
+!> \param p_env the perturbation environment
+!> \param qs_env the qs_env that is perturbed by this p_env
+!> \param v matrix to orthogonalize
+!> \param n_cols the number of columns of C to multiply (defaults to size(v,2))
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.09.2002 adapted for new qs_p_env_type (TC)
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE p_preortho(p_env, qs_env, v, n_cols, error)
-
 
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1243,48 +1039,21 @@ END SUBROUTINE p_env_did_change
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE p_preortho
-!***************************************************************************
 
-!!****f* qs_p_types/p_env_postortho [1.0] *
-!!
-!!   NAME
-!!     p_postortho
-!!
-!!   SYNOPSIS
-!!     Subroutine p_postortho(p_env, qs_env, v, n_cols, error)
-!!       Implicit None
-!!       Type(qs_p_env_type), Pointer:: p_env
-!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
-!!       Type(cp_fm_p_type), Dimension(:), Intent (INOUT):: v
-!!       Integer, Dimension(:), Intent (IN), Optional:: n_cols
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine p_postortho
-!!
-!!   FUNCTION
-!!     does a postorthogonalization on the given matrix vector:
-!!     v = (I-SP) v
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - p_env: the perturbation environment
-!!     - qs_env: the qs_env that is perturbed by this p_env
-!!     - v: matrix to orthogonalize
-!!     - n_cols: the number of columns of C to multiply (defaults to size(v,2))
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief does a postorthogonalization on the given matrix vector:
+!>      v = (I-SP) v
+!> \param p_env the perturbation environment
+!> \param qs_env the qs_env that is perturbed by this p_env
+!> \param v matrix to orthogonalize
+!> \param n_cols the number of columns of C to multiply (defaults to size(v,2))
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      07.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE p_postortho(p_env, qs_env, v, n_cols, error)
-
 
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1388,47 +1157,22 @@ END SUBROUTINE p_env_did_change
 
   END SUBROUTINE p_postortho
 
-!***************************************************************************
-
-
-!!****f* qs_p_env_methods/p_op_l2 [1.0] *
-!!
-!!   NAME
-!!     p_op_l2
-!!
-!!   SYNOPSIS
-!!     Subroutine p_op_l2(p_env, qs_env, p1, res, alpha, beta, error)
-!!       Type(qs_p_env_type), Pointer:: p_env
-!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
-!!       Type(real_matrix_p_type), Dimension(:), Pointer:: p1
-!!       Type(cp_fm_p_type), Dimension(:), Intent (INOUT):: res
-!!       REAL(KIND=dp), Intent (IN), Optional:: alpha, beta
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine p_op_l2
-!!
-!!   FUNCTION
-!!     evaluates res = alpha kpp1(v)*psi0 + beta res
-!!
-!!   NOTES
-!!     to be removed
-!!
-!!   INPUTS
-!!     - p_env: the perturbation environment
-!!     - qs_env: the qs_env that is perturbed by this p_env
-!!     - res: place where to store the result
-!!     - v: values of the coeffs of the correcting orbitals
-!!     - alpha: scale factor of the result (defaults to 1.0)
-!!     - beta: scale factor of the old values (defaults to 0.0)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     02.09.2002 adapted for new qs_p_env_type (TC)
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief evaluates res = alpha kpp1(v)*psi0 + beta res
+!> \param p_env the perturbation environment
+!> \param qs_env the qs_env that is perturbed by this p_env
+!> \param res place where to store the result
+!> \param v values of the coeffs of the correcting orbitals
+!> \param alpha scale factor of the result (defaults to 1.0)
+!> \param beta scale factor of the old values (defaults to 0.0)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      to be removed
+!> \par History
+!>      02.09.2002 adapted for new qs_p_env_type (TC)
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE p_op_l2_fawzi(p_env, qs_env, v, res, alpha, beta, error)
 
     TYPE(qs_p_env_type), POINTER             :: p_env
@@ -1518,6 +1262,5 @@ END SUBROUTINE p_env_did_change
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE p_op_l2_fawzi
-!***************************************************************************
 
 END MODULE qs_p_env_methods

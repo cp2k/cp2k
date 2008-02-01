@@ -3,18 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/nddo_methods [1.1] *
-!!
-!!   FUNCTION
-!!     Calculation of the Fock matrix for NDDO methods
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!***
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Calculation of the Fock matrix for NDDO methods
+!> \author JGH
+! *****************************************************************************
 MODULE nddo_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -106,12 +98,9 @@ MODULE nddo_methods
     MODULE PROCEDURE rdfock2e, udfock2e
   END INTERFACE
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE build_nddo_fock_matrix (ks_env,qs_env,ks_matrix,rho,energy,&
                calculate_forces,just_energy,error)
 
@@ -241,7 +230,6 @@ CONTAINS
   END SUBROUTINE build_nddo_fock_matrix
 
 ! *****************************************************************************
-
   SUBROUTINE build_nddo_fock_matrix_coulomb (ks_env,qs_env,ks_matrix,rho,energy,&
                calculate_forces,just_energy,error)
 
@@ -686,7 +674,6 @@ CONTAINS
   END SUBROUTINE build_nddo_fock_matrix_coulomb
 
 ! *****************************************************************************
-
   SUBROUTINE build_nddo_fock_matrix_exchange (ks_env,qs_env,ks_matrix,rho,energy,&
                calculate_forces,just_energy,error)
 
@@ -937,7 +924,6 @@ CONTAINS
   END SUBROUTINE build_nddo_fock_matrix_exchange
 
 ! *****************************************************************************
-
   SUBROUTINE rfock1 (gss,gsp,gpp,gp2,hsp,pmat,fmat,error)
     REAL(dp), INTENT(IN)                     :: gss, gsp, gpp, gp2, hsp
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pmat
@@ -989,6 +975,7 @@ CONTAINS
 
   END SUBROUTINE rfock1
 
+! *****************************************************************************
   SUBROUTINE ufock1 (gss,gsp,gpp,gp2,hsp,pmata,fmata,pmatb,fmatb,error)
     REAL(dp), INTENT(IN)                     :: gss, gsp, gpp, gp2, hsp
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pmata
@@ -1070,7 +1057,6 @@ CONTAINS
   END SUBROUTINE ufock1
 
 ! *****************************************************************************
-
   SUBROUTINE rfock2c(sepa,sepb,rij,pa,pb,fa,fb,anag,shortrange,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
@@ -1125,6 +1111,7 @@ CONTAINS
 
   END SUBROUTINE rfock2c
 
+! *****************************************************************************
   SUBROUTINE ufock2c(sepa,sepb,rij,pa_a,pb_a,fa_a,fb_a,&
                     pa_b,pb_b,fa_b,fb_b,anag,shortrange,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
@@ -1200,7 +1187,6 @@ CONTAINS
   END SUBROUTINE ufock2c
 
 ! *****************************************************************************
-
   SUBROUTINE rdfock2c(sepa,sepb,rij,pa,pb,force,delta,anag,shortrange,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
@@ -1256,6 +1242,7 @@ CONTAINS
 
   END SUBROUTINE rdfock2c
 
+! *****************************************************************************
   SUBROUTINE udfock2c(sepa,sepb,rij,pa_a,pb_a,pa_b,pb_b,&
              force,delta,anag,shortrange,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
@@ -1321,6 +1308,7 @@ CONTAINS
 
   END SUBROUTINE udfock2c
 
+! *****************************************************************************
   SUBROUTINE rfock2e(sepa,sepb,rij,pab,fab,anag,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
@@ -1376,6 +1364,7 @@ CONTAINS
 
   END SUBROUTINE rfock2e
 
+! *****************************************************************************
   SUBROUTINE ufock2e(sepa,sepb,rij,pab_a,fab_a,pab_b,fab_b,anag,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
@@ -1453,7 +1442,6 @@ CONTAINS
   END SUBROUTINE ufock2e
 
 ! *****************************************************************************
-
   SUBROUTINE rdfock2e(sepa,sepb,rij,pab,force,delta,anag,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
@@ -1512,6 +1500,7 @@ CONTAINS
 
   END SUBROUTINE rdfock2e
 
+! *****************************************************************************
   SUBROUTINE udfock2e(sepa,sepb,rij,pab_a,pab_b,force,delta,anag,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
@@ -1590,7 +1579,6 @@ CONTAINS
   END SUBROUTINE udfock2e
 
 ! *****************************************************************************
-
   SUBROUTINE exchange_sp ( kab, pab, w )
     REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: kab
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab
@@ -1698,9 +1686,5 @@ CONTAINS
 
   END SUBROUTINE exchange_sp
 
-! *****************************************************************************
-
 END MODULE nddo_methods
-
-! *****************************************************************************
 

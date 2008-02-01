@@ -2,21 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/kg_energy [1.0] *
-!!
-!!   NAME
-!!     kg_energy
-!!
-!!   FUNCTION
-!!     kg_energy minim routine
-!!
-!!   AUTHOR
-!!     gloria,30.12.2003
-!!
-!!   MODIFICATION HISTORY
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief kg_energy minim routine
+!> \author gloria,30.12.2003
+! *****************************************************************************
 MODULE kg_energy
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
@@ -84,11 +74,9 @@ MODULE kg_energy
   PRIVATE
   PUBLIC :: kg_energies , kg_qs_energies
 
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
+! *****************************************************************************
 SUBROUTINE kg_energies ( kg_env, root_section, globenv, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
@@ -120,24 +108,11 @@ SUBROUTINE kg_energies ( kg_env, root_section, globenv, error )
 
 END SUBROUTINE kg_energies
 
-!******************************************************************************
-
-!!****f** kg_energy/kg_only_energies [1.1] *
-!!
-!!   NAME
-!!     kg_only_energies
-!!
-!!   FUNCTION
-!!     Calculates the total potential energy
-!!     for the standard kg method
-!!
-!!   AUTHOR
-!!     gt
-!!
-!!   MODIFICATION HISTORY
-!!
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Calculates the total potential energy
+!>      for the standard kg method
+!> \author gt
+! *****************************************************************************
 SUBROUTINE kg_only_energies ( kg_env, force_env_section, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
@@ -292,23 +267,11 @@ SUBROUTINE kg_only_energies ( kg_env, force_env_section, error )
 
 END SUBROUTINE kg_only_energies
 
-!******************************************************************************
-
-!!****f** kg_energy/kg_std_energies [1.1] *
-!!
-!!   NAME
-!!     kg_std_energies
-!!
-!!   FUNCTION
-!!     Calculates the total potential energy, total force
-!!     for the standard kg method
-!!
-!!   AUTHOR
-!!     gt
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Calculates the total potential energy, total force
+!>      for the standard kg method
+!> \author gt
+! *****************************************************************************
 SUBROUTINE kg_std_energies ( kg_env, root_section, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
@@ -427,35 +390,21 @@ scf_loop: DO
 
 END SUBROUTINE kg_std_energies
 
-!******************************************************************************
-
-!!****f* kg_energy/kg_qs_energies [1.1] *
-!!
-!!   NAME
-!!     kg_qs_energies
-!!
-!!   FUNCTION
-!!     Calculates the total potential energy, total force
-!!     using the KG GPW method. This implies the calculation of the
-!!     GPW KS energy  and the KS matrix via qs_ks_build_kohn_sham_matrix
-!!     where the KE energy correction is added to be able to treat the
-!!     molecule separatedly in the construction of the density.
-!!     In the SCF iteration the optimization of the wavefunctions is
-!!     done by the standard diagonalization of the diagonal blocks
-!!     of the MO matrix. Each block is handled independently
-!!     This is possible because the wavefunctions located
-!!     on different molecules are orthogonal by construction.
-!!
-!!    INPUTS
-!!      - kg_env: Kg environment which contains the qs envirement as subenvironment
-!!      - globenv: global environment
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Calculates the total potential energy, total force
+!>      using the KG GPW method. This implies the calculation of the
+!>      GPW KS energy  and the KS matrix via qs_ks_build_kohn_sham_matrix
+!>      where the KE energy correction is added to be able to treat the
+!>      molecule separatedly in the construction of the density.
+!>      In the SCF iteration the optimization of the wavefunctions is
+!>      done by the standard diagonalization of the diagonal blocks
+!>      of the MO matrix. Each block is handled independently
+!>      This is possible because the wavefunctions located
+!>      on different molecules are orthogonal by construction.
+!> \param kg_env Kg environment which contains the qs envirement as subenvironment
+!> \param globenv global environment
+!> \author JGH
+! *****************************************************************************
 SUBROUTINE kg_qs_energies ( kg_env, globenv, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
@@ -492,6 +441,7 @@ END SUBROUTINE kg_qs_energies
 
 !------------------------------------------------------------------------------
 
+! *****************************************************************************
 SUBROUTINE init_energy_calculation ( kg_env, vxc_r, force_env_section, error)
   ! vxc_r is allocated here
 
@@ -611,6 +561,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, force_env_section, error)
 END SUBROUTINE init_energy_calculation
 !------------------------------------------------------------------------------
 
+! *****************************************************************************
 SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, force_env_section, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
@@ -803,5 +754,4 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, force_env_section, error )
 
 END SUBROUTINE calc_c_gradients
 
-!******************************************************************************
 END MODULE kg_energy

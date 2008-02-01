@@ -3,27 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/input_section_types *
-!!
-!!   NAME
-!!     input_section_types
-!!
-!!   FUNCTION
-!!     objects that represent the structure of input sections and the data
-!!     contained in an input section
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief objects that represent the structure of input sections and the data
+!>      contained in an input section
+!> \par History
+!>      06.2004 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 MODULE input_section_types
   USE cp_linked_list_val,              ONLY: &
        cp_sll_val_create, cp_sll_val_dealloc, cp_sll_val_get_el_at, &
@@ -83,66 +69,34 @@ MODULE input_section_types
             section_get_cval,&
             section_get_lval
 
-!!***
-!****************************************************************************
-
-!!****s* input_section_types/section_p_type *
-!!
-!!   NAME
-!!     section_p_type
-!!
-!!   FUNCTION
-!!     represent a pointer to a section (to make arrays of pointers)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - section: the pointer to the section
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief represent a pointer to a section (to make arrays of pointers)
+!> \param section the pointer to the section
+!> \author fawzi
+! *****************************************************************************
   TYPE section_p_type
      TYPE(section_type), POINTER :: section
   END TYPE section_p_type
-!!***
-!****************************************************************************
 
-!!****s* input_section_types/section_type *
-!!
-!!   NAME
-!!     section_type
-!!
-!!   FUNCTION
-!!     represent a section of the input file
-!!
-!!   NOTES
-!!     - frozen: if the section has been frozen (and no keyword/subsections
-!!       can be added)
-!!     - required: if the section is required
-!!     - repeats: if the section can be repeated more than once in the same
-!!       context
-!!     - id_nr: identification number (different in each instance)
-!!     - ref_count: reference count (see doc/ReferenceCounting.html)
-!!     - n_keywords: the number of keywords in this section
-!!     - name: name of the section
-!!     - description: description of the section
-!!     - citations: references to literature associated to this section
-!!     - keywords: array with the keywords of this section (might be
-!!       oversized)
-!!     - subsections: sections contained in this section
-!!
-!!   ATTRIBUTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief represent a section of the input file
+!> \note
+!>      - frozen: if the section has been frozen (and no keyword/subsections
+!>        can be added)
+!>      - required: if the section is required
+!>      - repeats: if the section can be repeated more than once in the same
+!>        context
+!>      - id_nr: identification number (different in each instance)
+!>      - ref_count: reference count (see doc/ReferenceCounting.html)
+!>      - n_keywords: the number of keywords in this section
+!>      - name: name of the section
+!>      - description: description of the section
+!>      - citations: references to literature associated to this section
+!>      - keywords: array with the keywords of this section (might be
+!>        oversized)
+!>      - subsections: sections contained in this section
+!> \author fawzi
+! *****************************************************************************
   TYPE section_type
      LOGICAL :: frozen, required, repeats, supported_feature
      INTEGER :: id_nr,ref_count, n_keywords, n_subsections
@@ -152,53 +106,20 @@ MODULE input_section_types
      TYPE(keyword_p_type), DIMENSION(:), POINTER :: keywords
      TYPE(section_p_type), POINTER, DIMENSION(:) :: subsections
   END TYPE section_type
-!!***
-!****************************************************************************
 
-!!****s* input_section_types/section_vals_p_type *
-!!
-!!   NAME
-!!     section_vals_p_type
-!!
-!!   FUNCTION
-!!     repesents a pointer to a parsed section (to make arrays of pointers)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - section_vals the pointer to the parsed section
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief repesents a pointer to a parsed section (to make arrays of pointers)
+!> \param section_vals the pointer to the parsed section
+!> \author fawzi
+! *****************************************************************************
   TYPE section_vals_p_type
      TYPE(section_vals_type), POINTER :: section_vals
   END TYPE section_vals_p_type
-!!***
-!****************************************************************************
 
-!!****s* input_section_types/section_vals_type [1.0] *
-!!
-!!   NAME
-!!     section_vals_type
-!!
-!!   FUNCTION
-!!     stores the values of a section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief stores the values of a section
+!> \author fawzi
+! *****************************************************************************
   TYPE section_vals_type
      INTEGER :: ref_count, id_nr
      INTEGER, POINTER, DIMENSION(:)                     :: ibackup
@@ -206,37 +127,22 @@ MODULE input_section_types
      TYPE(cp_sll_val_p_type), DIMENSION(:,:), POINTER   :: values
      TYPE(section_vals_p_type), DIMENSION(:,:), POINTER :: subs_vals
   END TYPE section_vals_type
-!!***
-!****************************************************************************
   
 CONTAINS
 
-!!****f* input_section_types/section_create *
-!!
-!!   NAME
-!!     section_create
-!!
-!!   FUNCTION
-!!     creates a list of keywords
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the list to be created
-!!     - n_keywords: hint about the number of keywords, defaults to 10
-!!     - n_sections: a hint about how many sections will be added to this
-!!       structure, defaults to 0
-!!     - repeats: if this section can repeat (defaults to false)
-!!     - required: if this section is required (and thus it cannot be 
-!!       totally default). Defaults to false.
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a list of keywords
+!> \param section the list to be created
+!> \param n_keywords hint about the number of keywords, defaults to 10
+!> \param n_sections a hint about how many sections will be added to this
+!>        structure, defaults to 0
+!> \param repeats if this section can repeat (defaults to false)
+!> \param required if this section is required (and thus it cannot be 
+!>        totally default). Defaults to false.
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE section_create(section,name,description,n_keywords,&
        n_subsections, repeats, required, citations, supported_feature, error)
     TYPE(section_type), POINTER              :: section
@@ -308,28 +214,14 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE section_create
-!***************************************************************************
 
-!!****f* input_section_types/section_retain *
-!!
-!!   NAME
-!!     section_retain
-!!
-!!   FUNCTION
-!!     retains the given keyword list (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the list to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given keyword list (see doc/ReferenceCounting.html)
+!> \param section the list to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE section_retain(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -347,28 +239,14 @@ CONTAINS
        section%ref_count=section%ref_count+1
     END IF
   END SUBROUTINE section_retain
-!***************************************************************************
 
-!!****f* input_section_types/section_release *
-!!
-!!   NAME
-!!     section_release
-!!
-!!   FUNCTION
-!!     releases the given keyword list (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the list to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given keyword list (see doc/ReferenceCounting.html)
+!> \param section the list to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   RECURSIVE SUBROUTINE section_release(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -410,33 +288,19 @@ CONTAINS
        NULLIFY(section)
     END IF
   END SUBROUTINE section_release
-!***************************************************************************
 
-!!****f* input_section_types/section_describe [1.0] *
-!!
-!!   NAME
-!!     section_describe
-!!
-!!   FUNCTION
-!!     prints a description of the given section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to describe
-!!     - unit_nr: the unit to write to
-!!     - level: the level of output: 0: just section name, 1:keywords,
-!!       then see keyword_describe :-)
-!!     - hide_root: if the name of the first section should be hidden
-!!       (defaults to false).
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief prints a description of the given section
+!> \param section the section to describe
+!> \param unit_nr the unit to write to
+!> \param level the level of output: 0: just section name, 1:keywords,
+!>        then see keyword_describe :-)
+!> \param hide_root if the name of the first section should be hidden
+!>        (defaults to false).
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   RECURSIVE SUBROUTINE section_describe(section, unit_nr, level, hide_root, recurse,error)
     TYPE(section_type), POINTER              :: section
     INTEGER, INTENT(in)                      :: unit_nr, level
@@ -495,8 +359,8 @@ CONTAINS
        WRITE(unit_nr,"(a)") '<section *null*>'
     END IF
   END SUBROUTINE section_describe
-!***************************************************************************
 
+! *****************************************************************************
   RECURSIVE SUBROUTINE section_describe_html(section, prefix, depth, unit_nr,  error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*), INTENT(IN)             :: prefix
@@ -607,6 +471,7 @@ CONTAINS
     END IF
   END SUBROUTINE section_describe_html
 
+! *****************************************************************************
   RECURSIVE SUBROUTINE section_describe_index_html(section,prefix, unit_nr, error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*), INTENT(IN)             :: prefix
@@ -641,28 +506,16 @@ CONTAINS
     ENDIF
   END SUBROUTINE section_describe_index_html
 
-!***************************************************************************
-!!****f* input_section_types/section_get_subsection_index *
-!!
-!!   NAME
-!!     section_get_subsection_index
-!!
-!!   FUNCTION
-!!     returns the index of requested subsection (-1 if not found)
-!!
-!!   NOTES
-!!     private utility function
-!!
-!!   INPUTS
-!!     - section: the root section
-!!     - subsection_name: the name of the subsection you want to get
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the index of requested subsection (-1 if not found)
+!> \param section the root section
+!> \param subsection_name the name of the subsection you want to get
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      private utility function
+!> \author fawzi
+! *****************************************************************************
   FUNCTION section_get_subsection_index(section,subsection_name,error) RESULT(res)
     TYPE(section_type), POINTER              :: section
     CHARACTER(len=*), INTENT(in)             :: subsection_name
@@ -693,29 +546,15 @@ CONTAINS
        END DO
     END IF
   END FUNCTION section_get_subsection_index
-!***************************************************************************
 
-!!****f* input_section_types/section_get_subsection *
-!!
-!!   NAME
-!!     section_get_subsection
-!!
-!!   FUNCTION
-!!     returns the requested subsection
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the root section
-!!     - subsection_name: the name of the subsection you want to get
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the requested subsection
+!> \param section the root section
+!> \param subsection_name the name of the subsection you want to get
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   FUNCTION section_get_subsection(section,subsection_name,error) RESULT(res)
     TYPE(section_type), POINTER              :: section
     CHARACTER(len=*), INTENT(in)             :: subsection_name
@@ -734,29 +573,17 @@ CONTAINS
        NULLIFY(res)
     END IF
   END FUNCTION section_get_subsection
-!***************************************************************************
 
-!!****f* input_section_types/section_get_keyword_index *
-!!
-!!   NAME
-!!     section_get_keyword_index
-!!
-!!   FUNCTION
-!!     returns the index of the requested keyword (or -2 if not found)
-!!
-!!   NOTES
-!!     private utility function
-!!
-!!   INPUTS
-!!     - section: the section the keyword is in
-!!     - keyword_name: the keyword you are interested in
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the index of the requested keyword (or -2 if not found)
+!> \param section the section the keyword is in
+!> \param keyword_name the keyword you are interested in
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      private utility function
+!> \author fawzi
+! *****************************************************************************
   FUNCTION section_get_keyword_index(section,keyword_name,error) RESULT(res)
     TYPE(section_type), POINTER              :: section
     CHARACTER(len=*), INTENT(in)             :: keyword_name
@@ -800,27 +627,14 @@ CONTAINS
     END IF
   END FUNCTION section_get_keyword_index
 
-!!****f* input_section_types/section_get_keyword *
-!!
-!!   NAME
-!!     section_get_keyword
-!!
-!!   FUNCTION
-!!     returns the requested keyword
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section the keyword is in
-!!     - keyword_name: the keyword you are interested in
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the requested keyword
+!> \param section the section the keyword is in
+!> \param keyword_name the keyword you are interested in
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   RECURSIVE FUNCTION section_get_keyword(section,keyword_name,error) RESULT(res)
     TYPE(section_type), POINTER              :: section
     CHARACTER(len=*), INTENT(in)             :: keyword_name
@@ -851,30 +665,18 @@ CONTAINS
        END IF
     END IF
   END FUNCTION section_get_keyword
-!***************************************************************************
 
-!!****f* input_section_types/section_get *
-!!
-!!   NAME
-!!     section_get
-!!
-!!   FUNCTION
-!!     returns various attibutes of a section object
-!!
-!!   NOTES
-!!      give direct access to keywords and subsections?
-!!
-!!   INPUTS
-!!     - section: the section you want informations about
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!     For the other attributes see the section type
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns various attibutes of a section object
+!> \param section the section you want informations about
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> 
+!>      For the other attributes see the section type
+!> \note
+!>       give direct access to keywords and subsections?
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE section_get(section,frozen, required, repeats,id_nr,ref_count, &
        name,description,citations,error)
     TYPE(section_type), POINTER              :: section
@@ -904,30 +706,15 @@ CONTAINS
        IF (PRESENT(description)) citations=>section%citations
     END IF
   END SUBROUTINE section_get
-!***************************************************************************
 
-
-!!****f* input_section_types/section_add_keyword *
-!!
-!!   NAME
-!!     section_add_keyword
-!!
-!!   FUNCTION
-!!     adds a keyword to the given section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to which the keyword should be added
-!!     - keyword: the keyword to add
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief adds a keyword to the given section
+!> \param section the section to which the keyword should be added
+!> \param keyword the keyword to add
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE section_add_keyword(section,keyword,error)
     TYPE(section_type), POINTER              :: section
     TYPE(keyword_type), POINTER              :: keyword
@@ -988,29 +775,15 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE section_add_keyword
-!***************************************************************************
 
-!!****f* input_section_types/section_add_subsection *
-!!
-!!   NAME
-!!     section_add_subsection
-!!
-!!   FUNCTION
-!!     adds a subsection to the given section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: to section to which you want to add a subsection
-!!     - subsection: the subsection to add
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief adds a subsection to the given section
+!> \param section to section to which you want to add a subsection
+!> \param subsection the subsection to add
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE section_add_subsection(section,subsection,error)
     TYPE(section_type), POINTER              :: section, subsection
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1055,29 +828,15 @@ CONTAINS
        section%subsections(section%n_subsections)%section => subsection
     END IF
   END SUBROUTINE section_add_subsection
-!***************************************************************************
 
-!!****f* input_section_types/section_vals_create *
-!!
-!!   NAME
-!!     section_vals_create
-!!
-!!   FUNCTION
-!!     creates a object where to store the values of a section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section_vals: the parsed section that will be created
-!!     - section: the structure of the section that you want to parse
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a object where to store the values of a section
+!> \param section_vals the parsed section that will be created
+!> \param section the structure of the section that you want to parse
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   RECURSIVE SUBROUTINE section_vals_create(section_vals,section,error)
     TYPE(section_vals_type), POINTER         :: section_vals
     TYPE(section_type), POINTER              :: section
@@ -1113,28 +872,14 @@ CONTAINS
        NULLIFY(section_vals%ibackup)
     END IF
   END SUBROUTINE section_vals_create
-!***************************************************************************
 
-!!****f* input_section_types/section_vals_retain [1.0] *
-!!
-!!   NAME
-!!     section_vals_retain
-!!
-!!   FUNCTION
-!!     retains the given section values (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section_vals: the object to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given section values (see doc/ReferenceCounting.html)
+!> \param section_vals the object to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE section_vals_retain(section_vals,error)
     TYPE(section_vals_type), POINTER         :: section_vals
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1151,28 +896,14 @@ CONTAINS
        section_vals%ref_count=section_vals%ref_count+1
     END IF
   END SUBROUTINE section_vals_retain
-!***************************************************************************
 
-!!****f* input_section_types/section_vals_release [1.0] *
-!!
-!!   NAME
-!!     section_vals_release
-!!
-!!   FUNCTION
-!!     releases the given object
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section_vals: the section_vals to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given object
+!> \param section_vals the section_vals to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   RECURSIVE SUBROUTINE section_vals_release(section_vals, error)
     TYPE(section_vals_type), POINTER         :: section_vals
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1220,34 +951,20 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE section_vals_release
-!***************************************************************************
 
-!!****f* input_section_types/section_vals_get *
-!!
-!!   NAME
-!!     section_vals_get
-!!
-!!   FUNCTION
-!!     returns various attributes about the section_vals
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section_vals: the section vals you want information from
-!!     - n_repetition: number of repetitions of the section
-!!     - n_sub_vals_rep: number of repetitions of the subsections values
-!!       (max(1,n_repetition))
-!!     - explicit: if the section was explicitly present in 
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!     For the other arguments see the attributes of section_vals_type
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns various attributes about the section_vals
+!> \param section_vals the section vals you want information from
+!> \param n_repetition number of repetitions of the section
+!> \param n_sub_vals_rep number of repetitions of the subsections values
+!>        (max(1,n_repetition))
+!> \param explicit if the section was explicitly present in 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> 
+!>      For the other arguments see the attributes of section_vals_type
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE section_vals_get(section_vals, ref_count, id_nr, n_repetition,&
        n_subs_vals_rep,section,explicit, error)
     TYPE(section_vals_type), POINTER         :: section_vals
@@ -1278,32 +995,18 @@ CONTAINS
        IF (PRESENT(explicit)) explicit=(SIZE(section_vals%values,2)>0)
     END IF
   END SUBROUTINE section_vals_get
-!***************************************************************************
 
-!!****f* input_section_types/section_vals_get_subs_vals *
-!!
-!!   NAME
-!!     section_vals_get_subs_vals
-!!
-!!   FUNCTION
-!!     returns the values of the requested subsection
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section_vals: the root section
-!!     - subsection_name: the name of the requested subsection
-!!     - i_rep_section: index of the repetition of section_vals from which
-!!       you want to extract the subsection (defaults to 1)
-!!     - can_return_null: if the results can be null (defaults to false)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the values of the requested subsection
+!> \param section_vals the root section
+!> \param subsection_name the name of the requested subsection
+!> \param i_rep_section index of the repetition of section_vals from which
+!>        you want to extract the subsection (defaults to 1)
+!> \param can_return_null if the results can be null (defaults to false)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   RECURSIVE FUNCTION section_vals_get_subs_vals(section_vals,subsection_name,&
        i_rep_section,can_return_null,error) RESULT(res)
     TYPE(section_vals_type), POINTER         :: section_vals
@@ -1323,7 +1026,6 @@ CONTAINS
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
     CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
-
 
     my_can_return_null=.FALSE.
     IF (PRESENT(can_return_null)) my_can_return_null=can_return_null
@@ -1346,7 +1048,6 @@ CONTAINS
        CPPrecondition(irep<=SIZE(section_vals%subs_vals,2),cp_failure_level,routineP,error,failure)
     END IF
 
-
     IF (.NOT.failure) THEN
        isection=section_get_subsection_index(section_vals%section,subsection_name(1:my_index),&
             error=error)
@@ -1364,32 +1065,18 @@ CONTAINS
     ENDIF
 
   END FUNCTION section_vals_get_subs_vals
-!***************************************************************************
 
-!!****f* input_section_types/section_vals_get_subs_vals2 *
-!!
-!!   NAME
-!!     section_vals_get_subs_vals2
-!!
-!!   FUNCTION
-!!     returns the values of the n-th non default subsection (null if no
-!!     such section exists (not so many non default section))
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section_vals: the root section
-!!     - i_section: index of the section
-!!     - i_rep_section: index of the repetition of section_vals from which
-!!       you want to extract the subsection (defaults to 1)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the values of the n-th non default subsection (null if no
+!>      such section exists (not so many non default section))
+!> \param section_vals the root section
+!> \param i_section index of the section
+!> \param i_rep_section index of the repetition of section_vals from which
+!>        you want to extract the subsection (defaults to 1)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   FUNCTION section_vals_get_subs_vals2(section_vals,i_section,i_rep_section,error) RESULT(res)
     TYPE(section_vals_type), POINTER         :: section_vals
     INTEGER, INTENT(in)                      :: i_section
@@ -1425,33 +1112,18 @@ CONTAINS
        END DO
     END IF
   END FUNCTION section_vals_get_subs_vals2
-!***************************************************************************
 
-
-!!****f* input_section_types/section_vals_get_subs_vals3 *
-!!
-!!   NAME
-!!     section_vals_get_subs_vals3
-!!
-!!   FUNCTION
-!!     returns the values of the n-th non default subsection (null if no
-!!     such section exists (not so many non default section))
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section_vals: the root section
-!!     - i_section: index of the section
-!!     - i_rep_section: index of the repetition of section_vals from which
-!!       you want to extract the subsection (defaults to 1)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the values of the n-th non default subsection (null if no
+!>      such section exists (not so many non default section))
+!> \param section_vals the root section
+!> \param i_section index of the section
+!> \param i_rep_section index of the repetition of section_vals from which
+!>        you want to extract the subsection (defaults to 1)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   FUNCTION section_vals_get_subs_vals3(section_vals,subsection_name,&
        i_rep_section,error) RESULT(res)
     TYPE(section_vals_type), POINTER         :: section_vals
@@ -1480,28 +1152,14 @@ CONTAINS
        res => section_vals%subs_vals(i_section,irep)%section_vals
     END IF
   END FUNCTION section_vals_get_subs_vals3
-!***************************************************************************
 
-!!****f* input_section_types/section_vals_add_values *
-!!
-!!   NAME
-!!     section_vals_add_values
-!!
-!!   FUNCTION
-!!     adds the place to store the values of a repetition of the section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section_vals: the section you want to extend
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief adds the place to store the values of a repetition of the section
+!> \param section_vals the section you want to extend
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE section_vals_add_values(section_vals,error)
     TYPE(section_vals_type), POINTER         :: section_vals
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1557,28 +1215,14 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE section_vals_add_values
-!***************************************************************************
 
-!!****f* input_section_types/section_vals_remove_values *
-!!
-!!   NAME
-!!     section_vals_remove_values
-!!
-!!   FUNCTION
-!!     removes the values of a repetition of the section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section_vals: the section you want to extend
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief removes the values of a repetition of the section
+!> \param section_vals the section you want to extend
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE section_vals_remove_values(section_vals,error)
     TYPE(section_vals_type), POINTER         :: section_vals
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1618,13 +1262,13 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE section_vals_remove_values
-!***************************************************************************
 
 ! These accessor functions can be used instead of passing a variable 
 ! in the parameter list of a subroutine call. This should make the
 ! code a lot simpler. See xc_rho_set_and_dset_create in xc.F as
 ! an example.
 
+! *****************************************************************************
   FUNCTION section_get_cval(section_vals,keyword_name,error) RESULT(res)
 
     TYPE(section_vals_type), POINTER         :: section_vals
@@ -1636,6 +1280,7 @@ CONTAINS
 
   END FUNCTION section_get_cval
 
+! *****************************************************************************
   FUNCTION section_get_rval(section_vals,keyword_name,error) RESULT(res)
 
     TYPE(section_vals_type), POINTER         :: section_vals
@@ -1647,6 +1292,7 @@ CONTAINS
 
   END FUNCTION section_get_rval
 
+! *****************************************************************************
   FUNCTION section_get_ival(section_vals,keyword_name,error) RESULT(res)
 
     TYPE(section_vals_type), POINTER         :: section_vals
@@ -1658,6 +1304,7 @@ CONTAINS
 
   END FUNCTION section_get_ival
 
+! *****************************************************************************
   FUNCTION section_get_lval(section_vals,keyword_name,error) RESULT(res)
 
     TYPE(section_vals_type), POINTER         :: section_vals
@@ -1669,39 +1316,23 @@ CONTAINS
 
   END FUNCTION section_get_lval
 
-
-!***************************************************************************
-
-!!****f* input_section_types/section_vals_val_get *
-!!
-!!   NAME
-!!     section_vals_val_get
-!!
-!!   FUNCTION
-!!     returns the requested value
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the root section
-!!     - keyword_name: the name of the keyword you want
-!!     - isection: which repetition of the section you are interested in
-!!       (defaults to 1)
-!!     - ival: which repetition of the keyword/val you are interested in
-!!       (defaults to 1)
-!!     - n_rep_val: returns number of val available
-!!     - l_val,i_val,r_val,c_val: returns the logical,integer,real or
-!!       character value
-!!     - l_vals,i_vals,r_vals,c_vals: returns the logical,integer,real or
-!!       character arrays. The val reamins the owner of the array
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the requested value
+!> \param section the root section
+!> \param keyword_name the name of the keyword you want
+!> \param isection which repetition of the section you are interested in
+!>        (defaults to 1)
+!> \param ival which repetition of the keyword/val you are interested in
+!>        (defaults to 1)
+!> \param n_rep_val returns number of val available
+!> \param l_val ,i_val,r_val,c_val: returns the logical,integer,real or
+!>        character value
+!> \param l_vals ,i_vals,r_vals,c_vals: returns the logical,integer,real or
+!>        character arrays. The val reamins the owner of the array
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
        i_rep_val,n_rep_val,val,l_val,i_val,r_val,c_val,l_vals,i_vals,r_vals,&
        c_vals,ignore_required,error)
@@ -1829,29 +1460,17 @@ CONTAINS
 
     END IF
   END SUBROUTINE section_vals_val_get
-!***************************************************************************
 
-!!****f* input_section_types/section_vals_list_get *
-!!
-!!   NAME
-!!     section_vals_list_get
-!!
-!!   FUNCTION
-!!     returns the requested list
-!!
-!!   NOTES
-!!     - most useful if the full list is needed anyway, so that faster iteration can be used
-!!
-!!   INPUTS
-!!     - section: the root section
-!!     - keyword_name: the name of the keyword you want
-!!     - isection: which repetition of the section you are interested in
-!!       (defaults to 1)
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the requested list
+!> \param section the root section
+!> \param keyword_name the name of the keyword you want
+!> \param isection which repetition of the section you are interested in
+!>        (defaults to 1)
+!> \note
+!>      - most useful if the full list is needed anyway, so that faster iteration can be used
+!> \author Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE section_vals_list_get(section_vals,keyword_name,i_rep_section,&
        list,error)
     TYPE(section_vals_type), POINTER         :: section_vals
@@ -1907,40 +1526,24 @@ CONTAINS
     ENDIF
 
   END SUBROUTINE section_vals_list_get
-!***************************************************************************
 
-
-
-!!****f* input_section_types/section_vals_val_set *
-!!
-!!   NAME
-!!     section_vals_val_set
-!!
-!!   FUNCTION
-!!     sets the requested value
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the root section
-!!     - keyword_name: the name of the keyword you want (can be a path
-!!       separated by '%')
-!!     - isection: which repetition of the section you are interested in
-!!       (defaults to 1)
-!!     - ival: which repetition of the keyword/val you are interested in
-!!       (defaults to 1)
-!!     - l_val,i_val,r_val,c_val: sets the logical,integer,real or
-!!       character value
-!!     - l_vals_ptr,i_vals_ptr,r_vals,c_vals: sets the logical,integer,real or
-!!       character arrays. The val becomes the owner of the array
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief sets the requested value
+!> \param section the root section
+!> \param keyword_name the name of the keyword you want (can be a path
+!>        separated by '%')
+!> \param isection which repetition of the section you are interested in
+!>        (defaults to 1)
+!> \param ival which repetition of the keyword/val you are interested in
+!>        (defaults to 1)
+!> \param l_val ,i_val,r_val,c_val: sets the logical,integer,real or
+!>        character value
+!> \param l_vals_ptr ,i_vals_ptr,r_vals,c_vals: sets the logical,integer,real or
+!>        character arrays. The val becomes the owner of the array
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE section_vals_val_set(section_vals,keyword_name,i_rep_section,&
        i_rep_val,val,&
        l_val,i_val,r_val,c_val,l_vals_ptr,i_vals_ptr,r_vals_ptr,c_vals_ptr,&
@@ -2085,36 +1688,22 @@ CONTAINS
     END IF
 
   END SUBROUTINE section_vals_val_set
-!***************************************************************************
 
-!!****f* input_section_types/section_vals_val_unset *
-!!
-!!   NAME
-!!     section_vals_val_unset
-!!
-!!   FUNCTION
-!!     unsets (removes) the requested value (if it is a keyword repetitions
-!!     removes the repetition, so be careful: the repetition indices bigger
-!!     than the actual change.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the root section
-!!     - keyword_name: the name of the keyword you want (can be a path
-!!       separated by '%')
-!!     - isection: which repetition of the section you are interested in
-!!       (defaults to 1)
-!!     - ival: which repetition of the keyword/val you are interested in
-!!       (defaults to 1)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief unsets (removes) the requested value (if it is a keyword repetitions
+!>      removes the repetition, so be careful: the repetition indices bigger
+!>      than the actual change.
+!> \param section the root section
+!> \param keyword_name the name of the keyword you want (can be a path
+!>        separated by '%')
+!> \param isection which repetition of the section you are interested in
+!>        (defaults to 1)
+!> \param ival which repetition of the keyword/val you are interested in
+!>        (defaults to 1)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE section_vals_val_unset(section_vals,keyword_name,i_rep_section,&
        i_rep_val,error)
     TYPE(section_vals_type), POINTER         :: section_vals
@@ -2187,30 +1776,18 @@ CONTAINS
     END IF
 
   END SUBROUTINE section_vals_val_unset
-!***************************************************************************
 
-!!****f* input_section_types/section_vals_check_release *
-!!
-!!   NAME
-!!     section_vals_check_release
-!!
-!!   FUNCTION
-!!     Checks if all sections or keywords defined have been supported for
-!!     release version
-!!
-!!   NOTES
-!!     skips required sections which weren't read
-!!
-!!   INPUTS
-!!     - section_vals: the section to check for released features
-!!     - unit_nr: the unit where to write to
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - University of Zurich - 01.2008
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Checks if all sections or keywords defined have been supported for
+!>      release version
+!> \param section_vals the section to check for released features
+!> \param unit_nr the unit where to write to
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      skips required sections which weren't read
+!> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
+! *****************************************************************************
   RECURSIVE SUBROUTINE section_vals_check_release(section_vals,enable_unsupported_features,error)
     TYPE(section_vals_type), POINTER         :: section_vals
     LOGICAL, INTENT(IN)                      :: enable_unsupported_features
@@ -2313,28 +1890,17 @@ CONTAINS
     
   END SUBROUTINE section_vals_check_release
 
-!!****f* input_section_types/section_vals_write *
-!!
-!!   NAME
-!!     section_vals_write
-!!
-!!   FUNCTION
-!!     writes the values in the given section in a way that is suitable to
-!!     the automatic parsing
-!!
-!!   NOTES
-!!     skips required sections which weren't read
-!!
-!!   INPUTS
-!!     - section_vals: the section to write out
-!!     - unit_nr: the unit where to write to
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes the values in the given section in a way that is suitable to
+!>      the automatic parsing
+!> \param section_vals the section to write out
+!> \param unit_nr the unit where to write to
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      skips required sections which weren't read
+!> \author fawzi
+! *****************************************************************************
   RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
     TYPE(section_vals_type), POINTER         :: section_vals
     INTEGER, INTENT(in)                      :: unit_nr
@@ -2469,7 +2035,6 @@ CONTAINS
   END SUBROUTINE section_vals_write
 
 ! *****************************************************************************
-
   RECURSIVE SUBROUTINE write_section_xml(section,level,unit_number,error)
 
     TYPE(section_type), POINTER              :: section
@@ -2531,7 +2096,6 @@ CONTAINS
   END SUBROUTINE write_section_xml
 
 ! *****************************************************************************
-
   RECURSIVE SUBROUTINE section_typo_match(section,unknown_string,location_string,matching_rank,matching_string,error)
 
     TYPE(section_type), POINTER              :: section
@@ -2584,30 +2148,17 @@ CONTAINS
 
   END SUBROUTINE section_typo_match
 
-!!****f* input_section_types/section_vals_set_subs_vals *
-!!
-!!   NAME
-!!     section_vals_set_subs_vals
-!!
-!!   FUNCTION
-!!     replaces of the requested subsection with the one given
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section_vals: the root section
-!!     - subsection_name: the name of the subsection to replace
-!!     - new_section_vals: the new section_vals to use
-!!     - i_rep_section: index of the repetition of section_vals of which
-!!       you want to replace the subsection (defaults to 1)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief replaces of the requested subsection with the one given
+!> \param section_vals the root section
+!> \param subsection_name the name of the subsection to replace
+!> \param new_section_vals the new section_vals to use
+!> \param i_rep_section index of the repetition of section_vals of which
+!>        you want to replace the subsection (defaults to 1)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE section_vals_set_subs_vals(section_vals,subsection_name,&
        new_section_vals,i_rep_section,error)
     TYPE(section_vals_type), POINTER         :: section_vals
@@ -2668,30 +2219,15 @@ CONTAINS
     END IF
 
   END SUBROUTINE section_vals_set_subs_vals
-!***************************************************************************
 
-
-!!****f* input_section_types/section_vals_duplicate *
-!!
-!!   NAME
-!!     section_vals_duplicate
-!!
-!!   FUNCTION
-!!     creates a deep copy from section_vals_in to section_vals_out
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section_vals_in: the section_vals to copy
-!!     - section_vals_out: the section_vals to create 
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a deep copy from section_vals_in to section_vals_out
+!> \param section_vals_in the section_vals to copy
+!> \param section_vals_out the section_vals to create 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE section_vals_duplicate(section_vals_in,section_vals_out,&
        i_rep_start, i_rep_end, error)
     TYPE(section_vals_type), POINTER         :: section_vals_in, &
@@ -2714,29 +2250,17 @@ CONTAINS
        CALL section_vals_copy(section_vals_in,section_vals_out,i_rep_start,i_rep_end,error=error)
     END IF
   END SUBROUTINE section_vals_duplicate
-!***************************************************************************
 
-!!****f* input_section_types/section_vals_copy *
-!!
-!!   NAME
-!!     section_vals_copy
-!!
-!!   FUNCTION
-!!     deep copy from section_vals_in to section_vals_out
-!!
-!!   NOTES
-!!     private, only works with a newly initialized section_vals_out
-!!
-!!   ARGUMENTS
-!!     - section_vals_in: the section_vals to copy
-!!     - section_vals_out: the section_vals where to copy
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deep copy from section_vals_in to section_vals_out
+!> \param section_vals_in the section_vals to copy
+!> \param section_vals_out the section_vals where to copy
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      private, only works with a newly initialized section_vals_out
+!> \author fawzi
+! *****************************************************************************
   RECURSIVE SUBROUTINE section_vals_copy(section_vals_in,section_vals_out,&
        i_rep_low,i_rep_high,error)
     TYPE(section_vals_type), POINTER         :: section_vals_in, &
@@ -2806,6 +2330,5 @@ CONTAINS
        END DO
     END IF
   END SUBROUTINE section_vals_copy
-!***************************************************************************
 
 END MODULE input_section_types

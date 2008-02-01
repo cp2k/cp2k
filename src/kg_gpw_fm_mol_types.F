@@ -3,32 +3,18 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-
-!!****** cp2k/kg_gpw_fm_mol_types [1.0] *
-!!
-!!   NAME
-!!     kg_gpw_fm_mol_types
-!!
-!!   FUNCTION
-!!     Define the full matrix blocks for the KG_GPW method 
-!!     Using this method all the operations on the full matrixes can be
-!!     splitted inoperations on the single molecular blocks, because
-!!     each molecule is treated as independent, i.e. it does not interact
-!!     directly with the other molecules 
-!!
-!!   AUTHOR
-!!     MI (20.11.2004)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Define the full matrix blocks for the KG_GPW method 
+!>      Using this method all the operations on the full matrixes can be
+!>      splitted inoperations on the single molecular blocks, because
+!>      each molecule is treated as independent, i.e. it does not interact
+!>      directly with the other molecules 
+!> \par History
+!>      none
+!> \author MI (20.11.2004)
+! *****************************************************************************
 MODULE kg_gpw_fm_mol_types
 
-   
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE qs_mo_types,                     ONLY: set_mo_occupation
@@ -45,39 +31,24 @@ MODULE kg_gpw_fm_mol_types
 
 ! *** Define the derived structure types ***
 
-!!****t* kg_gpw_fm_mol_types/mol_mo_set_type [1.0] *
-!!
-!!   NAME
-!!     mol_mo_set_type
-!!
-!!   FUNCTION
-!!     contains MO for one molecule, and relative informations
-!!     used in KG_GPW method to separate the block diagonal full matrix of MO
-!!     in molecular blocks. Here also eigenvalues and occupation numbers 
-!!     relative to one molecule are stored
-!!
-!!   NOTES
-!!      -
-!!   
-!!   ATTRIBUTES
-!!     - mo :  the actual MO coefficients as a matrix for one molecule
-!!     - nmo :  number of molecular orbitals (# cols in mo_coeff)
-!!     - nao : number of atomic orbitals (# rows in mo_coeff)
-!!     - eigenvalues : eigenvalues  of the nmo states 
-!!     - occupation_numbers : 
-!!     - maxocc : maximum allowed occupation number of an MO (1-2)
-!!     - nelectron : number of electrons (taking occupation into account)
-!!     - homo:  highest non-zero occupied orbital
-!!     - lfomo: lowest non maxocc occupied orbital (e.g. fractional or zero)
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     11.2004 created [MI]
-!!
-!!*** *********************************************************************
-
+! *****************************************************************************
+!> \brief contains MO for one molecule, and relative informations
+!>      used in KG_GPW method to separate the block diagonal full matrix of MO
+!>      in molecular blocks. Here also eigenvalues and occupation numbers 
+!>      relative to one molecule are stored
+!> \param mo the actual MO coefficients as a matrix for one molecule
+!> \param nmo number of molecular orbitals (# cols in mo_coeff)
+!> \param nao number of atomic orbitals (# rows in mo_coeff)
+!> \param eigenvalues eigenvalues  of the nmo states 
+!> \param occupation_numbers  
+!> \param maxocc maximum allowed occupation number of an MO (1-2)
+!> \param nelectron number of electrons (taking occupation into account)
+!> \param homo highest non-zero occupied orbital
+!> \param lfomo lowest non maxocc occupied orbital (e.g. fractional or zero)
+!> \par History
+!>      11.2004 created [MI]
+!> \author MI
+! *****************************************************************************
  TYPE mol_mo_set_type
     REAL(dp), DIMENSION(:,:),  POINTER        :: mo
     INTEGER                                   :: nmo
@@ -89,63 +60,33 @@ MODULE kg_gpw_fm_mol_types
     INTEGER                                   :: lfomo
   END TYPE mol_mo_set_type
 
-!!****t* kg_gpw_fm_mol_types/mol_mo_set_p_type [1.0] *
-!!
-!!   NAME
-!!     mol_mo_set_p_type
-!!
-!!   FUNCTION
-!!     contains array of mol_mo_set_type, needed if nspins =/ 1
-!!
-!!   NOTES
-!!      -
-!!   
-!!   ATTRIBUTES
-!!      mo_set
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     11.2004 created [MI]
-!!
-!!*** *********************************************************************
-
+! *****************************************************************************
+!> \brief contains array of mol_mo_set_type, needed if nspins =/ 1
+!> \param mo_set
+!> \par History
+!>      11.2004 created [MI]
+!> \author MI
+! *****************************************************************************
   TYPE mol_mo_set_p_type
     TYPE(mol_mo_set_type), POINTER :: mo_set
   END TYPE mol_mo_set_p_type
 
-!!****t* kg_gpw_fm_mol_types/fm_mol_blocks_type [1.0] *
-!!
-!!   NAME
-!!     fm_mol_blocks_type
-!!
-!!   FUNCTION
-!!     contains the info relative to one molecule, which are  
-!!     needed to create the corresponding MO,  
-!!     in a block-like form. The index and kind of the  atoms are also stored
-!!
-!!   NOTES
-!!      -
-!!   
-!!   ATTRIBUTES
-!!     - mos:  MO orbitals
-!!     - ortho : scratch space for the orthogonalization
-!!     - work  : scratch space for operation with the MO matrix
-!!     - imol_global: index of the molecule
-!!     - index_atom: index of atoms belonging to the molecule
-!!     - index_kind: index of ithe kinds of the atoms belonging to the molecule
-!!     - ifirst_ao: index of the first ao for each atom
-!!     - ilast_ao: index of the last ao for each atom
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     11.2004 created [MI]
-!!
-!!*** *********************************************************************
-
+! *****************************************************************************
+!> \brief contains the info relative to one molecule, which are  
+!>      needed to create the corresponding MO,  
+!>      in a block-like form. The index and kind of the  atoms are also stored
+!> \param mos MO orbitals
+!> \param ortho scratch space for the orthogonalization
+!> \param work scratch space for operation with the MO matrix
+!> \param imol_global index of the molecule
+!> \param index_atom index of atoms belonging to the molecule
+!> \param index_kind index of ithe kinds of the atoms belonging to the molecule
+!> \param ifirst_ao index of the first ao for each atom
+!> \param ilast_ao index of the last ao for each atom
+!> \par History
+!>      11.2004 created [MI]
+!> \author MI
+! *****************************************************************************
   TYPE fm_mol_blocks_type
     TYPE(mol_mo_set_p_type), DIMENSION(:), &
        POINTER                                :: mos
@@ -158,41 +99,26 @@ MODULE kg_gpw_fm_mol_types
     INTEGER, DIMENSION(:), POINTER            :: ilast_ao
   END TYPE fm_mol_blocks_type
 
-!!****t* kg_gpw_fm_mol_types/kg_fm_mol_set_type [1.0] *
-!!
-!!   NAME
-!!     kg_fm_mol_set_type
-!!
-!!   FUNCTION
-!!     contains the info relative to one molecule kind, which are  
-!!     needed to create the corresponding MO,  
-!!     in a block-like form. 
-!!     The set of molecules that are handled locally by one processor
-!!     and the inro related to them are also given here
-!!
-!!   NOTES
-!!      -
-!!   
-!!   ATTRIBUTES
-!!     - charge
-!!     - multiplicity
-!!     - n_ao
-!!     - n_mo
-!!     - natom
-!!     - nelectron_spin
-!!     - nmol_kind_global
-!!     - nmolecule_local
-!!     - maxocc
-!!     - fm_mol_blocks
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     11.2004 created [MI]
-!!
-!!*** *********************************************************************
-
+! *****************************************************************************
+!> \brief contains the info relative to one molecule kind, which are  
+!>      needed to create the corresponding MO,  
+!>      in a block-like form. 
+!>      The set of molecules that are handled locally by one processor
+!>      and the inro related to them are also given here
+!> \param charg e
+!> \param multiplicit y
+!> \param n_a o
+!> \param n_m o
+!> \param nato m
+!> \param nelectron_spi n
+!> \param nmol_kind_globa l
+!> \param nmolecule_loca l
+!> \param maxoc c
+!> \param fm_mol_block s
+!> \par History
+!>      11.2004 created [MI]
+!> \author MI
+! *****************************************************************************
   TYPE kg_fm_mol_set_type
     INTEGER  :: charge, multiplicity, &
                 n_ao, n_mo(2), natom, &
@@ -204,22 +130,12 @@ MODULE kg_gpw_fm_mol_types
        POINTER                                :: fm_mol_blocks
   END TYPE kg_fm_mol_set_type
 
-!!****t* kg_gpw_fm_mol_types/kg_fm_p_type [1.0] *
-!!
-!!   NAME
-!!     kg_fm_p_type
-!!
-!!   FUNCTION
-!!      global type that drives to  fm_mol_set_type for each molecule kind
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     11.2004 created [MI]
-!!
-!!*** *********************************************************************
-
+! *****************************************************************************
+!> \brief global type that drives to  fm_mol_set_type for each molecule kind
+!> \par History
+!>      11.2004 created [MI]
+!> \author MI
+! *****************************************************************************
   TYPE kg_fm_p_type
     TYPE(kg_fm_mol_set_type), DIMENSION(:),& 
        POINTER                                :: kg_fm_mol_set
@@ -244,13 +160,9 @@ MODULE kg_gpw_fm_mol_types
   PUBLIC :: fm_mol_blocks_type, kg_fm_mol_set_distroy, kg_fm_mol_set_type, &
             kg_fm_p_type, mol_mo_set_type, mol_mo_set_p_type 
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE  allocate_fm_mol_blocks(kg_fm_mol_set,nmol,error)
 
     TYPE(kg_fm_mol_set_type)                 :: kg_fm_mol_set
@@ -287,7 +199,6 @@ CONTAINS
   END SUBROUTINE allocate_fm_mol_blocks
 
 ! *****************************************************************************
-
   SUBROUTINE allocate_mol_mo_set(mo_set,n_ao,nmo,maxocc,nelectron,error)
 
     TYPE(mol_mo_set_type), POINTER           :: mo_set
@@ -321,7 +232,6 @@ CONTAINS
   END SUBROUTINE allocate_mol_mo_set
 
 ! *****************************************************************************
-
   SUBROUTINE get_mol_mo_set(mo_set,homo,lfomo,maxocc,nmo,nelectron,&
                             mo,eigenvalues,occupation_numbers)
 
@@ -348,7 +258,6 @@ CONTAINS
   END SUBROUTINE get_mol_mo_set 
 
 ! *****************************************************************************
- 
   SUBROUTINE set_mol_mo_set(mo_set,homo,lfomo,maxocc,nmo,nelectron,&
                             mo,eigenvalues,occupation_numbers)
 
@@ -439,31 +348,14 @@ CONTAINS
   END SUBROUTINE init_mol_mo_set
 
 ! *****************************************************************************
-!***************************************************************************
-!!****f* kg_gpw_fm_mol_types/kg_gpw_fm_mol_to_fm_mol
-!!
-!!   NAME
-!!    kg_gpw_fm_mol_to_fm_mol
-!!
-!!   FUNCTION
-!!     Copy the full set of molecular mos into a new set
-!!     This is needed to store the mos when some sort of extrapolation
-!!     is used as an initial guess for the next set of MD or GEO_OPT
-!!     
-!!   NOTE
-!!
-!!   INPUTS
-!!     - fm_mol_set_a : contains the actual  mos 
-!!     - fm_mol_set_b : where the mos are stored
-!!     - error
-!!
-!!   AURHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
-
+!> \brief Copy the full set of molecular mos into a new set
+!>      This is needed to store the mos when some sort of extrapolation
+!>      is used as an initial guess for the next set of MD or GEO_OPT
+!> \param fm_mol_set_a contains the actual  mos 
+!> \param fm_mol_set_b where the mos are stored
+!> \param erro r
+!> \author MI
+! *****************************************************************************
   SUBROUTINE kg_gpw_fm_mol_to_fm_mol(fm_mol_set_a,fm_mol_set_b,error)
 
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
@@ -512,7 +404,6 @@ CONTAINS
           NULLIFY(fm_mol_set_b(i)%fm_mol_blocks) 
         END IF
         natom = fm_mol_set_a(i)%natom
-
 
         DO imol = 1,nmol
           mol_block_a => fm_mol_set_a(i)%fm_mol_blocks(imol)
@@ -580,8 +471,6 @@ CONTAINS
 
 !   History: - Creation (20.11.2004,MI)
 
-!   ***************************************************************************
-
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
     INTEGER                                  :: nmolecule_kind
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -624,8 +513,7 @@ CONTAINS
 
   END SUBROUTINE kg_fm_mol_set_create
 
-!***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE kg_fm_mol_set_distroy(kg_fm_mol_set,error)
 
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
@@ -700,8 +588,7 @@ CONTAINS
 
   END SUBROUTINE kg_fm_mol_set_distroy
 
-!***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE kg_fm_mol_set_release(kg_fm,error)
 
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
@@ -738,8 +625,7 @@ CONTAINS
 
   END SUBROUTINE kg_fm_mol_set_release
 
-!***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE kg_fm_mol_set_retain(kg_fm,error)
 
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
@@ -760,8 +646,7 @@ CONTAINS
 
   END SUBROUTINE kg_fm_mol_set_retain
 
-!***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE get_kg_fm_mol_set(kg_fm_mol_set, nmol_kind_global,&
                                nmolecule_local, natom, n_ao, n_mo,&
                                nelectron_spin , maxocc, charge, multiplicity,&
@@ -790,8 +675,7 @@ CONTAINS
 
   END SUBROUTINE get_kg_fm_mol_set
 
-!***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE get_fm_mol_block(fm_mol_block,mos,ortho,work,&
                               index_atom,index_kind,&
                               ifirst_ao,ilast_ao)
@@ -814,8 +698,7 @@ CONTAINS
 
   END SUBROUTINE get_fm_mol_block
 
-!***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE set_kg_fm_mol_set(kg_fm_mol_set, nmol_kind_global,&
                                nmolecule_local, natom, n_ao, n_mo,&
                                nelectron_spin , maxocc, charge, multiplicity,& 
@@ -846,33 +729,16 @@ CONTAINS
 
   END SUBROUTINE set_kg_fm_mol_set
 
-!***************************************************************************
-
-!!****f* kg_gpw_fm_mol_types/duplicate_kg_fm_p_type [1.0] *
-!!
-!!   NAME
-!!     duplicate_kg_fm_p_type
-!!
-!!
-!!   FUNCTION
-!!     duplicates the whole kg_fm_p_type structure
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - input_kg_fm_p_type: the kg_fm_p_type to be duplicated
-!!     - output_kg_fm_p_type: the out coming duplicate
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 created [TdK]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief duplicates the whole kg_fm_p_type structure
+!> \param input_kg_fm_p_type the kg_fm_p_type to be duplicated
+!> \param output_kg_fm_p_type the out coming duplicate
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      10.2005 created [TdK]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE duplicate_kg_fm_p_type(input_kg_fm_p_type, output_kg_fm_p_type, &
                                     error)
     TYPE(kg_fm_p_type), POINTER              :: input_kg_fm_p_type, &
@@ -914,5 +780,4 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE duplicate_kg_fm_p_type
-!***************************************************************************
 END MODULE  kg_gpw_fm_mol_types

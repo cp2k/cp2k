@@ -3,16 +3,9 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****s* cp2k/cp_control_utils [1.0] *
-!!
-!!   NAME
-!!     cp_control_utils
-!!
-!!   FUNCTION
-!!     Utilities to set up the control types
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Utilities to set up the control types
+! *****************************************************************************
 MODULE cp_control_utils
   USE bibliography,                    ONLY: Elstner1998,&
                                              Lippert1997,&
@@ -73,30 +66,9 @@ MODULE cp_control_utils
             read_ddapc_section,&
             read_becke_section
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
-!!****f* cp_control_utils/read_dft_control [1.0] *
-!!
-!!   NAME
-!!     read_dft_control
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
   SUBROUTINE read_dft_control(dft_control,root_section, dft_section, error)
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(section_vals_type), POINTER         :: root_section, dft_section
@@ -206,7 +178,6 @@ CONTAINS
     CALL section_vals_val_get(tmp_section,"SIC_SCALING_B",&
          r_val=dft_control%sic_scaling_b,error=error)
 
-
     CALL section_vals_val_get(dft_section,"EXCITATIONS",&
          i_val=excitations,error=error)
     dft_control % do_tddfpt_calculation = (excitations==tddfpt_excitations)
@@ -231,25 +202,7 @@ CONTAINS
 
   END SUBROUTINE read_dft_control
 
-!!****f* cp_control_utils/read_mgrid_section [1.0] *
-!!
-!!   NAME
-!!    read_mgrid_section 
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
   SUBROUTINE read_mgrid_section(qs_control,dft_section,error)
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
@@ -342,25 +295,7 @@ CONTAINS
     END DO
   END SUBROUTINE read_mgrid_section
 
-!!****f* cp_control_utils/read_qs_section [1.0] *
-!!
-!!   NAME
-!!    read_qs_section 
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
   SUBROUTINE read_qs_section(qs_control,qs_section,error)
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
@@ -464,7 +399,6 @@ CONTAINS
     CALL section_vals_val_get(qs_section,"SCP",l_val=qs_control%scp,error=error)
     CALL section_vals_val_get(qs_section,"MAP_PAA",l_val=qs_control%map_paa,error=error)
     CALL section_vals_val_get(qs_section,"MAP_CONSISTENT",l_val=qs_control%map_consistent,error=error)
-
 
     ! Integers gapw
     CALL section_vals_val_get(qs_section,"LMAXN1",i_val=qs_control%gapw_control%lmax_sphere,error=error)
@@ -573,7 +507,6 @@ CONTAINS
        CALL  read_becke_section(qs_control,becke_constraint_section,error)
     ENDIF
 
-
     ! Semi-empirical code
     CALL section_vals_val_get(se_section,"ANALYTICAL_GRADIENTS",&
          l_val=qs_control%se_control%analytical_gradients,error=error)
@@ -632,25 +565,7 @@ CONTAINS
 
   END SUBROUTINE read_qs_section
 
-!!****f* cp_control_utils/read_tddfpt_control [1.0] *
-!!
-!!   NAME
-!!    read_tddfpt_control 
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
   SUBROUTINE read_tddfpt_control(t_control,nspins,dft_section,error)
     TYPE(tddfpt_control_type)                :: t_control
     INTEGER, INTENT(IN)                      :: nspins
@@ -690,25 +605,9 @@ CONTAINS
 
   END SUBROUTINE read_tddfpt_control
 
-!!****f* cp_control_utils/write_dft_control [1.0] *
-!!
-!!   NAME
-!!    write_dft_control 
-!!
-!!   FUNCTION
-!!    Write the DFT control parameters to the output unit. 
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Write the DFT control parameters to the output unit. 
+! *****************************************************************************
   SUBROUTINE write_dft_control(dft_control, dft_section, error)
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(section_vals_type), POINTER         :: dft_section
@@ -733,7 +632,6 @@ CONTAINS
     IF (dft_control%qs_control%dftb) RETURN
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-
 
     output_unit = cp_print_key_unit_nr(logger,dft_section,&
          "PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
@@ -888,25 +786,9 @@ CONTAINS
 
   END SUBROUTINE write_dft_control
 
-!!****f* cp_control_utils/write_qs_control [1.0] *
-!!
-!!   NAME
-!!    write_qs_control 
-!!
-!!   FUNCTION
-!!     Purpose: Write the QS control parameters to the output unit.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Purpose: Write the QS control parameters to the output unit.
+! *****************************************************************************
   SUBROUTINE write_qs_control(qs_control,dft_section,error)
     TYPE(qs_control_type), INTENT(IN)        :: qs_control
     TYPE(section_vals_type), POINTER         :: dft_section
@@ -1067,29 +949,15 @@ CONTAINS
          "PRINT%DFT_CONTROL_PARAMETERS",error=error)
   END SUBROUTINE write_qs_control
 
-!!****f* cp_control_utils/xc_get_rho_smooth_label [1.0] *
-!!
-!!   NAME
-!!     xc_get_rho_smooth_label
-!!
-!!   FUNCTION
-!!     returns a string that describes the smoothing of rho
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - xc_rho_smooth_id: the id that represent the smoothing
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     05.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns a string that describes the smoothing of rho
+!> \param xc_rho_smooth_id the id that represent the smoothing
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      05.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   FUNCTION xc_get_rho_smooth_label(xc_rho_smooth_id,error) RESULT(res)
     INTEGER, INTENT(in)                      :: xc_rho_smooth_id
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1118,30 +986,16 @@ CONTAINS
     END SELECT
   END FUNCTION xc_get_rho_smooth_label
 
-!!****f* cp_control_utils/xc_get_deriv_method_label [1.0] *
-!!
-!!   NAME
-!!     xc_get_deriv_method_label
-!!
-!!   FUNCTION
-!!     returns a string that describes the derivative used in the xc
-!!     calculation
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - xc_deriv_method_id: the id that represent the derivative method
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     06.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns a string that describes the derivative used in the xc
+!>      calculation
+!> \param xc_deriv_method_id the id that represent the derivative method
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      06.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   FUNCTION xc_get_deriv_method_label(xc_deriv_method_id,error) RESULT(res)
     INTEGER, INTENT(in)                      :: xc_deriv_method_id
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1174,28 +1028,15 @@ CONTAINS
     END SELECT
   END FUNCTION xc_get_deriv_method_label
 
-!!****f* cp_control_utils/xc_get_routine_label [1.0] *
-!!
-!!   NAME
-!!     xc_get_routine_label
-!!
-!!   FUNCTION
-!!     returns a string that describes the functional routine used in the xc
-!!     calculation
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - xc_functional_routine_id: the id that represent the functional
-!!       routine
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns a string that describes the functional routine used in the xc
+!>      calculation
+!> \param xc_functional_routine_id the id that represent the functional
+!>        routine
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Fawzi Mohamed
+! *****************************************************************************
   FUNCTION xc_get_routine_label(xc_functional_routine_id,error) RESULT(res)
     INTEGER, INTENT(in)                      :: xc_functional_routine_id
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1222,23 +1063,12 @@ CONTAINS
     END SELECT
   END FUNCTION xc_get_routine_label
 
-!!****f* cp_control_utils/read_ddapc_section [1.0] *
-!!
-!!   NAME
-!!    read_ddapc_section
-!!
-!!   FUNCTION
-!!     reads the input parameters needed for ddapc.
-!!
-!!   NOTES
-!!     either reads DFT%QS%DDAPC_RESTRAINT or PROPERTIES%ET_coupling
-!!
-!!   INPUTS
-!!     
-!!   AUTHOR
-!!     fschiff
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief reads the input parameters needed for ddapc.
+!> \note
+!>      either reads DFT%QS%DDAPC_RESTRAINT or PROPERTIES%ET_coupling
+!> \author fschiff
+! *****************************************************************************
   SUBROUTINE read_ddapc_section(qs_control,ddapc_restraint_section,error)
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
@@ -1303,23 +1133,10 @@ CONTAINS
 
   END SUBROUTINE read_ddapc_section
 
-!!****f* cp_control_utils/read_becke_section [1.0] *
-!!
-!!   NAME
-!!    read_becke_section
-!!
-!!   FUNCTION
-!!     reads the input parameters needed for evaluating a becke weight population constraint
-!!
-!!   NOTES
-!!    
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     fschiff
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief reads the input parameters needed for evaluating a becke weight population constraint
+!> \author fschiff
+! *****************************************************************************
   SUBROUTINE read_becke_section(qs_control,becke_section,error)
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control

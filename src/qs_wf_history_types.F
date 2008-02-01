@@ -3,28 +3,14 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qs_wf_history_types [1.0] *
-!!
-!!   NAME
-!!     qs_wf_history_types
-!!
-!!   FUNCTION
-!!     interpolate the wavefunctions to speed up the convergence when
-!!     doing MD
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!     02.2005 wf_mol added [MI]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief interpolate the wavefunctions to speed up the convergence when
+!>      doing MD
+!> \par History
+!>      12.2002 created [fawzi]
+!>      02.2005 wf_mol added [MI]
+!> \author fawzi
+! *****************************************************************************
 MODULE qs_wf_history_types
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
@@ -59,43 +45,28 @@ MODULE qs_wf_history_types
             qs_wf_history_type, qs_wf_history_p_type
   PUBLIC :: wfs_retain, wfs_release, wfi_retain, wfi_release, wfi_get_snapshot, &
             wfi_clear_history
-!!***
-!****************************************************************************
 
-!!****s* qs_wf_history_types/qs_wf_snapshot_type [1.0] *
-!!
-!!   NAME
-!!     qs_wf_snapshot_type
-!!
-!!   FUNCTION
-!!     represent a past snapshot of the wavefunction.
-!!     some elements might not be associated (to spare memory)
-!!     depending on how the snapshot was taken
-!!
-!!   NOTES
-!!     keep trak also of occupation numbers and energies?
-!!
-!!   ATTRIBUTES
-!!     - wf: the wavefunctions
-!!     - wf_mol: the wavefunctions in a block diagonal form
-!!     - rho_r: the density in r space
-!!     - rho_g: the density in g space
-!!     - rho_ao: the density in ao space
-!!     - overlap: the overlap matrix
-!!     - rho_frozen: the frozen density structure
-!!     - dt: the time of the snapshot (wrf to te previous snapshot!)
-!!     - id_nr: unique identification number
-!!     - ref_count: reference count (see doc/ReferenceCounting.html)
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!     02.2005 wf_mol added [MI]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief represent a past snapshot of the wavefunction.
+!>      some elements might not be associated (to spare memory)
+!>      depending on how the snapshot was taken
+!> \param wf the wavefunctions
+!> \param wf_mol the wavefunctions in a block diagonal form
+!> \param rho_r the density in r space
+!> \param rho_g the density in g space
+!> \param rho_ao the density in ao space
+!> \param overlap the overlap matrix
+!> \param rho_frozen the frozen density structure
+!> \param dt the time of the snapshot (wrf to te previous snapshot!)
+!> \param id_nr unique identification number
+!> \param ref_count reference count (see doc/ReferenceCounting.html)
+!> \note
+!>      keep trak also of occupation numbers and energies?
+!> \par History
+!>      02.2003 created [fawzi]
+!>      02.2005 wf_mol added [MI]
+!> \author fawzi
+! *****************************************************************************
   TYPE qs_wf_snapshot_type
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: wf
      TYPE(kg_fm_p_type),  POINTER              :: wf_mol
@@ -107,69 +78,37 @@ MODULE qs_wf_history_types
      REAL(KIND = dp) :: dt
      INTEGER :: id_nr, ref_count
   END TYPE qs_wf_snapshot_type
-!!***
-!****************************************************************************
 
-!!****s* qs_wf_history_types/qs_wf_snapshot_p_type [1.0] *
-!!
-!!   NAME
-!!     qs_wf_snapshot_p_type
-!!
-!!   FUNCTION
-!!     pointer to a snapshot
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - snapshot: the pointer to the snapshot
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief pointer to a snapshot
+!> \param snapshot the pointer to the snapshot
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   TYPE qs_wf_snapshot_p_type
      TYPE(qs_wf_snapshot_type), POINTER :: snapshot
   END TYPE qs_wf_snapshot_p_type
-!!***
-!****************************************************************************
 
-!!****s* qs_wf_history_types/qs_wf_history_type [1.0] *
-!!
-!!   NAME
-!!     qs_wf_history_type
-!!
-!!   FUNCTION
-!!     keeps track of the previous wavefunctions and can extrapolate them
-!!     for the next step of md
-!!
-!!   NOTES
-!!     use a linked list for the past states ?
-!!
-!!   ATTRIBUTES
-!!     - id_nr: unique identification number
-!!     - ref_cont: reference count (see doc/ReferenceCounting.html)
-!!     - memory_depth: how many snapshots should be stored
-!!     - last_state_index: index of the latest snapshot
-!!     - past_states: array with the past states (index starts at
-!!       last_state_index)
-!!     - interpolation_method_nr: the tag of the method used to
-!!       extrapolate the new start state for qs
-!!     - snapshot_count: number of snapshot taken so far (cumulative,
-!!       can be bigger than the history depth)
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief keeps track of the previous wavefunctions and can extrapolate them
+!>      for the next step of md
+!> \param id_nr unique identification number
+!> \param ref_cont reference count (see doc/ReferenceCounting.html)
+!> \param memory_depth how many snapshots should be stored
+!> \param last_state_index index of the latest snapshot
+!> \param past_states array with the past states (index starts at
+!>        last_state_index)
+!> \param interpolation_method_nr the tag of the method used to
+!>        extrapolate the new start state for qs
+!> \param snapshot_count number of snapshot taken so far (cumulative,
+!>        can be bigger than the history depth)
+!> \note
+!>      use a linked list for the past states ?
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   TYPE qs_wf_history_type
      INTEGER :: id_nr, ref_count, memory_depth, last_state_index, &
           interpolation_method_nr, snapshot_count
@@ -177,65 +116,27 @@ MODULE qs_wf_history_types
           store_overlap, store_frozen_density
      TYPE(qs_wf_snapshot_p_type), DIMENSION(:), POINTER :: past_states
   END TYPE qs_wf_history_type
-!!***
-!****************************************************************************
 
-  !!****s* qs_wf_history_types/qs_wf_history_p_type *
-  !!
-  !!   NAME
-  !!     qs_wf_history_p_type
-  !!
-  !!   FUNCTION
-  !!     to create arrays of pointers to qs_wf_history_type
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     - wf_hist: the pointer to the wf history
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief to create arrays of pointers to qs_wf_history_type
+!> \param wf_hist the pointer to the wf history
+!> \author fawzi
+! *****************************************************************************
   TYPE qs_wf_history_p_type
      TYPE(qs_wf_history_type), POINTER :: wf_history
   END TYPE qs_wf_history_p_type
-  !!***
-  !****************************************************************************
 
 CONTAINS
 
-!!****f* qs_wf_history_types/wfs_retain [1.0] *
-!!
-!!   NAME
-!!     wfs_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine wfs_retain(snapshot, error)
-!!       Type(qs_wf_snapshot_type), Pointer:: snapshot
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine wfs_retain
-!!
-!!   FUNCTION
-!!     retains a snapshot of a wavefunction(see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - snapshot: the snapshot to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains a snapshot of a wavefunction(see doc/ReferenceCounting.html)
+!> \param snapshot the snapshot to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE wfs_retain(snapshot,error)
     TYPE(qs_wf_snapshot_type), POINTER       :: snapshot
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -252,38 +153,17 @@ SUBROUTINE wfs_retain(snapshot,error)
      snapshot%ref_count=snapshot%ref_count+1
   END IF
 END SUBROUTINE wfs_retain
-!***************************************************************************
 
-!!****f* qs_wf_history_types/wfs_release [1.0] *
-!!
-!!   NAME
-!!     wfs_release
-!!
-!!   SYNOPSIS
-!!     Subroutine wfs_release(snapshot, error)
-!!       Type(qs_wf_snapshot_type), Pointer:: snapshot
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine wfs_release
-!!
-!!   FUNCTION
-!!     releases a snapshot of a wavefunction (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - snapshot: the snapshot to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!     02.2005 wf_mol added [MI]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases a snapshot of a wavefunction (see doc/ReferenceCounting.html)
+!> \param snapshot the snapshot to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!>      02.2005 wf_mol added [MI]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE wfs_release(snapshot,error)
     TYPE(qs_wf_snapshot_type), POINTER       :: snapshot
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -327,37 +207,16 @@ SUBROUTINE wfs_release(snapshot,error)
   END IF
   NULLIFY(snapshot)
 END SUBROUTINE wfs_release
-!***************************************************************************
 
-!!****f* qs_wf_history_types/wfi_retain [1.0] *
-!!
-!!   NAME
-!!     wfi_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine wfi_retain(wf_history, error)
-!!       Type(qs_wf_history_type), Pointer:: wf_history
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine wfi_retain
-!!
-!!   FUNCTION
-!!     retains a wf history (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - wf_history: the wf_history to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains a wf history (see doc/ReferenceCounting.html)
+!> \param wf_history the wf_history to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE wfi_retain(wf_history,error)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -374,38 +233,17 @@ SUBROUTINE wfi_retain(wf_history,error)
      wf_history%ref_count=wf_history%ref_count+1
   END IF
 END SUBROUTINE wfi_retain
-!***************************************************************************
 
-!!****f* qs_wf_history_types/wfi_release [1.0] *
-!!
-!!   NAME
-!!     wfi_release
-!!
-!!   SYNOPSIS
-!!     Subroutine wfi_release(wf_history, error)
-!!       Type(qs_wf_history_type), Pointer:: wf_history
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine wfi_release
-!!
-!!   FUNCTION
-!!     releases a wf_history of a wavefunction
-!!     (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - wf_history: the wf_history to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases a wf_history of a wavefunction
+!>      (see doc/ReferenceCounting.html)
+!> \param wf_history the wf_history to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE wfi_release(wf_history,error)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -436,40 +274,17 @@ SUBROUTINE wfi_release(wf_history,error)
   END IF
   NULLIFY(wf_history)
 END SUBROUTINE wfi_release
-!***************************************************************************
 
-!!****f* qs_wf_history_types/wfi_get_snapshot [1.0] *
-!!
-!!   NAME
-!!     wfi_get_snapshot
-!!
-!!   SYNOPSIS
-!!     Function wfi_get_snapshot(wf_history, index, error) Result(res)
-!!       Type(qs_wf_history_type), Pointer:: wf_history
-!!       Integer, Intent (IN):: index
-!!       Type(qs_wf_snapshot_type), Pointer:: res
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function wfi_get_snapshot
-!!
-!!   FUNCTION
-!!     returns a snapshot, the first being the latest snapshot
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - wf_history: the plage where to get the snapshot
-!!     - index: the index of the snapshot you want
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns a snapshot, the first being the latest snapshot
+!> \param wf_history the plage where to get the snapshot
+!> \param index the index of the snapshot you want
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 FUNCTION wfi_get_snapshot(wf_history, index, error) RESULT(res)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     INTEGER, INTENT(in)                      :: index
@@ -497,33 +312,18 @@ FUNCTION wfi_get_snapshot(wf_history, index, error) RESULT(res)
           wf_history%memory_depth)+1)%snapshot
   END IF
 END FUNCTION wfi_get_snapshot
-!***************************************************************************
 
-!!****f* qs_wf_history_types/wfi_clear_history [1.0] *
-!!
-!!   NAME
-!!     wfi_clear_history
-!!
-!!   FUNCTION
-!!     clears the history taken so far
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - wf_history: the history to clear
-!!     - flush_buffer: if the memory of the buffer should be released
-!!       defaults to false
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     05.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief clears the history taken so far
+!> \param wf_history the history to clear
+!> \param flush_buffer if the memory of the buffer should be released
+!>        defaults to false
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      05.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE wfi_clear_history(wf_history,flush_buffer,error)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     LOGICAL, INTENT(in), OPTIONAL            :: flush_buffer
@@ -550,6 +350,5 @@ SUBROUTINE wfi_clear_history(wf_history,flush_buffer,error)
      END IF
   END IF
 END SUBROUTINE wfi_clear_history
-!***************************************************************************
 
 END MODULE qs_wf_history_types

@@ -2,52 +2,39 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/mc_run [1.0] *
-!!
-!!   NAME
-!!     mc_run
-!!
-!!   FUNCTION
-!!     preps the system for a Monte Carlo run (sets up some environments,
-!!     calls the routines to read in the MC parameters)...converted
-!!     from qs_mc.F
-!!
-!!   AUTHOR
-!!     MJM-Oct-15-03
-!!
-!!   MODIFICATION HISTORY
-!!   SOURCE
-!!
-!!   REFERENCES
-!!   a list of papers for the theory behind various MC moves
-!!   Books:
-!!      D. Frenkel, B. Smit: Understanding Molecular Simulation (1996)
-!!      M.P. Allen, D.J. Tildesley: Computer Simulations of Liquids (1987)
-!!
-!!   Aggregation volume bias Monte Carlo (AVBMC):
-!!      Chen, B.; Siepmann, J.I.  J. Phys. Chem. B 2000, 104, 8725.
-!!
-!!   Biasing with an inexpensive potential:
-!!      Iftimie et al.  J. Chem. Phys. 2000, 113, 4852.
-!!      Gelb, L. D.  J. Chem. Phys. 2003, 118, 7747.
-!!
-!!   Configurational bias Monte Carlo (CBMC):
-!!      Siepmann, J.I.; Frenkel, D.  Mol. Phys. 1992, 75, 59.
-!!
-!!   Gibbs ensemble Monte Carlo (GEMC):
-!!      Panagiotopoulos, A.Z.  Mol. Phys. 1987, 61, 813.
-!!      Panagiotopoulos et al.  Mol. Phys. 1988, 63, 527.
-!!      Smit et al.  Mol. Phys. 1989, 68, 931.
-!!
-!!   Isobaric-isothermal ensemble:
-!!      McDonald, I.R.  Mol. Phys. 1972, 23, 41.
-!!
-!!   Original Monte Carlo paper:
-!!      Metropolis et al.  J. Chem. Phys. 1953, 21, 1087.
-!!
-!!
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief preps the system for a Monte Carlo run (sets up some environments,
+!>      calls the routines to read in the MC parameters)...converted
+!>      from qs_mc.F
+!> \par Literature
+!>    a list of papers for the theory behind various MC moves
+!>    Books:
+!>       D. Frenkel, B. Smit: Understanding Molecular Simulation (1996)
+!>       M.P. Allen, D.J. Tildesley: Computer Simulations of Liquids (1987)
+!> \par
+!>    Aggregation volume bias Monte Carlo (AVBMC):
+!>       Chen, B.; Siepmann, J.I.  J. Phys. Chem. B 2000, 104, 8725.
+!> \par
+!>    Biasing with an inexpensive potential:
+!>       Iftimie et al.  J. Chem. Phys. 2000, 113, 4852.
+!>       Gelb, L. D.  J. Chem. Phys. 2003, 118, 7747.
+!> \par
+!>    Configurational bias Monte Carlo (CBMC):
+!>       Siepmann, J.I.; Frenkel, D.  Mol. Phys. 1992, 75, 59.
+!> \par
+!>    Gibbs ensemble Monte Carlo (GEMC):
+!>       Panagiotopoulos, A.Z.  Mol. Phys. 1987, 61, 813.
+!>       Panagiotopoulos et al.  Mol. Phys. 1988, 63, 527.
+!>       Smit et al.  Mol. Phys. 1989, 68, 931.
+!> \par
+!>    Isobaric-isothermal ensemble:
+!>       McDonald, I.R.  Mol. Phys. 1972, 23, 41.
+!> \par
+!>    Original Monte Carlo paper:
+!>       Metropolis et al.  J. Chem. Phys. 1953, 21, 1087.
+!> \author MJM-Oct-15-03
+! *****************************************************************************
 MODULE mc_run
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
@@ -97,39 +84,25 @@ MODULE mc_run
 
   PUBLIC :: do_mon_car
 
-!!***
 !-----------------------------------------------------------------------------!
 
 CONTAINS
 
 ! *****************************************************************************
-!!****s* mc_run.F/do_mon_car
-!!
-!!   NAME
-!!     do_mon_car
-!!
-!!   FUNCTION
-!!     starts the Monte Carlo simulation and determines which ensemble we're
-!!     running
-!!
-!!   ARGUMENTS
-!!     - globenv: the global environment for the simulation
-!!     - force_env_1: the force environment for the simulation, or
-!!                  the force environment for box 1, depending on which
-!!                  ensemble we're running
-!!     - input_file_name: the name of the input file that force_env_1 was
-!!       created from
-!!     - error: the error type
-!!
-!!     Designed for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!**************************************************************************
-
+!> \brief starts the Monte Carlo simulation and determines which ensemble we're
+!>      running
+!> \param globenv the global environment for the simulation
+!> \param force_env_ 1: the force environment for the simulation, or
+!>                   the force environment for box 1, depending on which
+!>                   ensemble we're running
+!> \param input_file_name the name of the input file that force_env_1 was
+!>        created from
+!> \param error the error type
+!> 
+!>      Designed for parallel.
+!> \author MJM
+! *****************************************************************************
   SUBROUTINE do_mon_car ( force_env_1, globenv, input_file_name, error )
-
 
     TYPE(force_env_type), POINTER            :: force_env_1
     TYPE(global_environment_type), POINTER   :: globenv
@@ -163,8 +136,6 @@ CONTAINS
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 mc_section, root_section
-
-!************************************************************************
 
       NULLIFY(mc_env,mc_par,force_env_2,rng_stream,force_env_section,&
          root_section,mc_molecule_info)
@@ -396,33 +367,21 @@ CONTAINS
 ! delete the random numbers
       CALL delete_rng_stream(rng_stream,error=error)
 
-
     END SUBROUTINE do_mon_car
 
 ! *****************************************************************************
-!!****s* mc_run.F/equilize_mc_sim_parameters
-!!
-!!   NAME
-!!     equilize_mc_sim_parameters
-!!
-!!   FUNCTION
-!!     takes some parameters from one set of MC simulation parameters
-!!     and transfers them to a second set...used so that we're not using
-!!     different parameters between two simulation boxes, if they should
-!!     be the same (move probabilities, for instance)
-!!
-!!   ARGUMENTS
-!!     - mc_par: the pointer that contains the simulation parameters
-!!          for both boxes
-!!     - iw: the unit number that prints to screen
-!!     - ionode: equal to .TRUE. if this is the main MPI node
-!!
-!!     Designed for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!**************************************************************************
+!> \brief takes some parameters from one set of MC simulation parameters
+!>      and transfers them to a second set...used so that we're not using
+!>      different parameters between two simulation boxes, if they should
+!>      be the same (move probabilities, for instance)
+!> \param mc_par the pointer that contains the simulation parameters
+!>           for both boxes
+!> \param iw the unit number that prints to screen
+!> \param ionode equal to .TRUE. if this is the main MPI node
+!> 
+!>      Designed for parallel.
+!> \author MJM
+! *****************************************************************************
     SUBROUTINE equilize_mc_sim_parameters(mc_par,iw,ionode)
     TYPE(mc_simulation_parameters_p_type), &
       DIMENSION(:), POINTER                  :: mc_par
@@ -439,8 +398,6 @@ CONTAINS
                                                 rcut, temperature
     REAL(dp), DIMENSION(:), POINTER :: avbmc_rmax, avbmc_rmin, pbias, &
       pmavbmc_mol, pmrot_mol, pmswap_mol, pmtraion_mol, pmtrans_mol
-
-!***********************************************************************
 
       IF(ionode) THEN
          WRITE(iw,'( A,A )' ) 'Ignoring some input for box 2, and ',&
@@ -475,5 +432,4 @@ CONTAINS
 
     END SUBROUTINE equilize_mc_sim_parameters
 
-    
 END MODULE mc_run

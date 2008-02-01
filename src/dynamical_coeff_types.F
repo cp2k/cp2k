@@ -2,22 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****s* cp2k/dynamical_coeff_types [1.0] *
-!!
-!!   NAME
-!!     dynamical_coeff_type
-!!   FUNCTION
-!!     Define the data structure for the dinamical coefficents .
-!!
-!!   AUTHOR
-!!     gloria (09.12.2003)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Define the data structure for the dinamical coefficents .
+!> \par History
+!>      none
+!> \author gloria (09.12.2003)
+! *****************************************************************************
 MODULE dynamical_coeff_types
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -67,6 +58,7 @@ MODULE dynamical_coeff_types
 
   INTEGER, PARAMETER,PUBLIC :: dyn_coeff_replicated=1, dyn_coeff_distributed=2
 
+! *****************************************************************************
   TYPE dyn_coeff_set_type
    INTEGER :: ref_count, id_nr
    INTEGER :: mass_storage, distribution_method
@@ -77,6 +69,7 @@ MODULE dynamical_coeff_types
    TYPE(dyn_coeff_p_type), POINTER, DIMENSION(:) :: coeffs_of_kind
   END TYPE dyn_coeff_set_type
 
+! *****************************************************************************
   TYPE dyn_coeff_type
    INTEGER :: ref_count, id_nr
    INTEGER :: n_els
@@ -85,6 +78,7 @@ MODULE dynamical_coeff_types
      vel, forces
   END TYPE dyn_coeff_type
 
+! *****************************************************************************
   TYPE dyn_coeff_p_type
    TYPE(dyn_coeff_type), POINTER :: coeffs
   END TYPE dyn_coeff_p_type
@@ -101,13 +95,9 @@ MODULE dynamical_coeff_types
             get_dyn_coeff_set, dyn_coeff_create, setup_dyn_coeff, &
             dyn_coeff_release, get_dyn_coeff
 
-
-! *****************************************************************************
   CONTAINS
 
 ! *****************************************************************************
-
-!!*** **********************************************************************
 SUBROUTINE dyn_coeff_set_create(dyn_coeff_set,atomic_kind_set,&
                                 distribution, error)
 
@@ -166,7 +156,7 @@ SUBROUTINE dyn_coeff_set_create(dyn_coeff_set,atomic_kind_set,&
 
 END SUBROUTINE dyn_coeff_set_create
 
-!***************************************************************************
+! *****************************************************************************
 SUBROUTINE dyn_coeff_set_retain(dyn_coeff_set, error)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
@@ -187,8 +177,7 @@ SUBROUTINE dyn_coeff_set_retain(dyn_coeff_set, error)
 
 END SUBROUTINE dyn_coeff_set_retain
 
-!!*** **********************************************************************
-
+! *****************************************************************************
 SUBROUTINE dyn_coeff_set_release(dyn_coeff_set, error)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
@@ -224,8 +213,7 @@ SUBROUTINE dyn_coeff_set_release(dyn_coeff_set, error)
 
 END SUBROUTINE dyn_coeff_set_release
 
-!***************************************************************************
-
+! *****************************************************************************
 SUBROUTINE get_dyn_coeff_set(dyn_coeff_set,distribution, coeffs_of_kind,&
                              ncoefs,mass_storage,global_mass,id_nr,ref_count,error)
 
@@ -271,7 +259,7 @@ SUBROUTINE get_dyn_coeff_set(dyn_coeff_set,distribution, coeffs_of_kind,&
   END IF
 END SUBROUTINE get_dyn_coeff_set
 
-!***************************************************************************
+! *****************************************************************************
 SUBROUTINE dyn_coeff_create(coeffs, error)
 
     TYPE(dyn_coeff_type), POINTER            :: coeffs
@@ -296,7 +284,7 @@ SUBROUTINE dyn_coeff_create(coeffs, error)
 
 END SUBROUTINE dyn_coeff_create
 
-!***************************************************************************
+! *****************************************************************************
 SUBROUTINE dyn_coeff_release(coeffs, error)
 
     TYPE(dyn_coeff_type), POINTER            :: coeffs
@@ -337,7 +325,7 @@ SUBROUTINE dyn_coeff_release(coeffs, error)
 
 END SUBROUTINE dyn_coeff_release
 
-!***************************************************************************
+! *****************************************************************************
 SUBROUTINE setup_dyn_coeff(coeffs,aux_basis_set,&
                                       n_els, error)
 
@@ -373,7 +361,7 @@ SUBROUTINE setup_dyn_coeff(coeffs,aux_basis_set,&
   END IF
 
 END SUBROUTINE setup_dyn_coeff
-!***************************************************************************
+! *****************************************************************************
 SUBROUTINE get_dyn_coeff(coeffs,pos,vel,forces,masses,n_els,&
                          ncoef_atom,ncoef_of_kind,id_nr,ref_count,error)
 
@@ -405,7 +393,7 @@ SUBROUTINE get_dyn_coeff(coeffs,pos,vel,forces,masses,n_els,&
   END IF
 
 END SUBROUTINE get_dyn_coeff
-!***************************************************************************
+! *****************************************************************************
 SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,motion_section,para_env,globenv,coeff_section,skipvel,error)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
@@ -428,8 +416,6 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,motion_section,para_env,globen
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(section_vals_type), POINTER         :: storage_section, work_section2
-
-!***************************************************************************
 
   group=para_env%group
   source=para_env%source
@@ -483,7 +469,6 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,motion_section,para_env,globen
   mbuffer(:,:)=0.0_dp
   CALL dyn_coeff_set_init_masses(dyn_coeff_set,mbuffer,storage_section,para_env,error)
 
-
   work_section2 => section_vals_get_subs_vals(coeff_section,"COORD",error=error)
   CALL section_vals_get(work_section2, explicit=explicit, error=error)
   nkind=SIZE(dyn_coeff_set%coeffs_of_kind)
@@ -534,8 +519,7 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,motion_section,para_env,globen
 
 END SUBROUTINE dyn_coeff_set_initialize
 
-
-!!*************************************************************************
+! *****************************************************************************
   SUBROUTINE dyn_coeff_set_init_masses(dyn_coeff_set,mbuffer,storage_section,para_env,error)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
@@ -658,7 +642,7 @@ END SUBROUTINE dyn_coeff_set_initialize
        IF (stat /= 0) CALL stop_memory(routineP,"index")
     END IF
   END SUBROUTINE dyn_coeff_set_init_masses
-!*************************************************************************
+! *****************************************************************************
   SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set, &
        mbuffer,motion_section,para_env,globenv,error)
 
@@ -786,7 +770,6 @@ END SUBROUTINE dyn_coeff_set_initialize
     DEALLOCATE(n_els_of_kind,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"n_els_of_kind")
 
-
     logger => cp_error_get_logger(error)
     output_unit=cp_print_key_unit_nr(logger, motion_section,"MD%PRINT%PROGRAM_RUN_INFO",&
          extension=".log",error=error)
@@ -804,6 +787,5 @@ END SUBROUTINE dyn_coeff_set_initialize
          "MD%PRINT%PROGRAM_RUN_INFO", error=error)
 
   END SUBROUTINE dyn_coeff_set_init_vel
-!*****************************************************************************
 
 END MODULE dynamical_coeff_types

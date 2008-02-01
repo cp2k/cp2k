@@ -3,33 +3,18 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/xc_xbecke88_lr_adiabatic [1.0] *
-!!
-!!   NAME
-!!     xc_xbecke88_lr_adiabatic
-!!
-!!   FUNCTION
-!!     Calculates the density_scaled BECKE88 long-range functional 
-!!     when used in adiabatic hybrids.
-!!     The energy is given as
-!!
-!!       Ec = 2*lambda*Ex(rho/lambda) + lambda^2*d/dlambda(Ex(rho/lambda)),
-!!
-!!     where rho/lambda is the scaled density
-!!
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     01.2008 created [mguidon]
-!!
-!****************************************************************************
-
+! *****************************************************************************
+!> \brief Calculates the density_scaled BECKE88 long-range functional 
+!>      when used in adiabatic hybrids.
+!>      The energy is given as
+!> 
+!>        Ec = 2*lambda*Ex(rho/lambda) + lambda^2*d/dlambda(Ex(rho/lambda)),
+!> 
+!>      where rho/lambda is the scaled density
+!> \par History
+!>      01.2008 created [mguidon]
+!> \author Manuel Guidon
+! *****************************************************************************
 MODULE xc_xbecke88_lr_adiabatic
   USE bibliography,                    ONLY: Becke1988,&
                                              cite_reference
@@ -60,36 +45,20 @@ MODULE xc_xbecke88_lr_adiabatic
 
   PUBLIC :: xb88_lr_adiabatic_lda_info, xb88_lr_adiabatic_lsd_info, &
             xb88_lr_adiabatic_lda_eval, xb88_lr_adiabatic_lsd_eval
-  !!***
-  !****************************************************************************
 CONTAINS
 
-  !!****f* xc_xbecke88/xb88_lr_adiabatic_lda_info [1.0] *
-  !!
-  !!   NAME
-  !!     xb88_lr_adiabatic_lda_info 
-  !!
-  !!   FUNCTION
-  !!     return various information on the functional
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - reference: string with the reference of the actual functional
-  !!     - shortform: string with the shortform of the functional name
-  !!     - needs: the components needed by this functional are set to
-  !!       true (does not set the unneeded components to false)
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Manuel Guidon
-  !!
-  !!   MODIFICATION HISTORY
-  !!     01.2008 created [mguidon]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief return various information on the functional
+!> \param reference string with the reference of the actual functional
+!> \param shortform string with the shortform of the functional name
+!> \param needs the components needed by this functional are set to
+!>        true (does not set the unneeded components to false)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      01.2008 created [mguidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE xb88_lr_adiabatic_lda_info(reference,shortform, needs, max_deriv,error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
@@ -113,34 +82,19 @@ CONTAINS
     IF (PRESENT(max_deriv)) max_deriv=1
 
   END SUBROUTINE xb88_lr_adiabatic_lda_info
-  !***************************************************************************
 
-  !!****f* xc_xbecke88/xb88_lr_adiabatic_lsd_info [1.0] *
-  !!
-  !!   NAME
-  !!     xb88_lr_adiabatic_lsd_info
-  !!
-  !!   FUNCTION
-  !!     return various information on the functional
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - reference: string with the reference of the actual functional
-  !!     - shortform: string with the shortform of the functional name
-  !!     - needs: the components needed by this functional are set to
-  !!       true (does not set the unneeded components to false)
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Manuel Guidon
-  !!
-  !!   MODIFICATION HISTORY
-  !!     01.2008 created [mguidon]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief return various information on the functional
+!> \param reference string with the reference of the actual functional
+!> \param shortform string with the shortform of the functional name
+!> \param needs the components needed by this functional are set to
+!>        true (does not set the unneeded components to false)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      01.2008 created [mguidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE xb88_lr_adiabatic_lsd_info(reference,shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
@@ -165,37 +119,22 @@ CONTAINS
     IF (PRESENT(max_deriv)) max_deriv=3
 
   END SUBROUTINE xb88_lr_adiabatic_lsd_info
-  !***************************************************************************
 
-  !!****f* xc_xbecke88/xb88_lr_adiabatic_lda_eval [1.0] *
-  !!
-  !!   NAME
-  !!     xb88_lr_adiabatic_lda_eval
-  !!
-  !!   FUNCTION
-  !!     evaluates the becke 88 longrange exchange functional for lda
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - rho_set: the density where you want to evaluate the functional
-  !!     - deriv_set: place where to store the functional derivatives (they are
-  !!       added to the derivatives)
-  !!     - grad_deriv: degree of the derivative that should be evalated,
-  !!       if positive all the derivatives up to the given degree are evaluated,
-  !!       if negative only the given degree is calculated
-  !!     - xb88_params: input parameters (scaling)
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Manuel Guidon
-  !!
-  !!   MODIFICATION HISTORY
-  !!     01.2008 created [mguidon]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief evaluates the becke 88 longrange exchange functional for lda
+!> \param rho_set the density where you want to evaluate the functional
+!> \param deriv_set place where to store the functional derivatives (they are
+!>        added to the derivatives)
+!> \param grad_deriv degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param xb 88_params: input parameters (scaling)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      01.2008 created [mguidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE xb88_lr_adiabatic_lda_eval(rho_set,deriv_set,grad_deriv,xb88_lr_ad_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -318,37 +257,24 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE xb88_lr_adiabatic_lda_eval
-  !***************************************************************************
 
-  !!****f* xc_xbecke88/xb88_lr_adiabatic_lda_calc [1.0] *
-  !!
-  !!   NAME
-  !!     xb88_lr_adiabatic_lda_calc 
-  !!
-  !!   FUNCTION
-  !!     low level calculation of the becke 88 exchange functional for lda
-  !!
-  !!   NOTES
-  !!     - Just took the lsd code and scaled rho and ndrho by 1/2 (e_0 with 2.0)
-  !!
-  !!   ARGUMENTS
-  !!     - rho: alpha or beta spin density
-  !!     - norm_drho: || grad rho ||
-  !!     - e_0: adds to it the local value of the functional
-  !!     - e_*_: derivative of the functional wrt. to the variables
-  !!       named where the * is. Everything wrt. to the spin of the arguments.
-  !!     - sx: scaling-parameter for exchange
-  !!     - omega: parameter for erfc
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Manuel Guidon
-  !!
-  !!   MODIFICATION HISTORY
-  !!     01.2008 created [mguidon]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief low level calculation of the becke 88 exchange functional for lda
+!> \param rho alpha or beta spin density
+!> \param norm_drho || grad rho ||
+!> \param e_ 0: adds to it the local value of the functional
+!> \param e_ *_: derivative of the functional wrt. to the variables
+!>        named where the * is. Everything wrt. to the spin of the arguments.
+!> \param sx scaling-parameter for exchange
+!> \param omega parameter for erfc
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      - Just took the lsd code and scaled rho and ndrho by 1/2 (e_0 with 2.0)
+!> \par History
+!>      01.2008 created [mguidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE xb88_lr_adiabatic_lda_calc(rho, norm_drho,&
        e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
        e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
@@ -2964,31 +2890,16 @@ CONTAINS
       END DO
     END IF
   END SUBROUTINE xb88_lr_adiabatic_lda_calc
-  !***************************************************************************
 
-  !!****f* xc_xbecke88/xb88_lr_adiabatic_lsd_eval [1.0] *
-  !!
-  !!   NAME
-  !!     xb88_lr_adiabatic_lsd_eval
-  !!
-  !!   FUNCTION
-  !!     evaluates the becke 88 longrange exchange functional for lsd
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - sx: scaling-parameter for exchange
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Manuel Guidon
-  !!
-  !!   MODIFICATION HISTORY
-  !!     01.2008 created [mguidon]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief evaluates the becke 88 longrange exchange functional for lsd
+!> \param sx scaling-parameter for exchange
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      01.2008 created [mguidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE xb88_lr_adiabatic_lsd_eval(rho_set,deriv_set,grad_deriv,xb88_lr_ad_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -3132,7 +3043,6 @@ CONTAINS
                error=error, error_level=cp_failure_level)
        END IF
 
-
        DO ispin=1,2
           CALL xb88_lr_adiabatic_lsd_calc(&
                rho_spin=rho(ispin)%array,&
@@ -3163,36 +3073,21 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
     
   END SUBROUTINE xb88_lr_adiabatic_lsd_eval
-  !***************************************************************************
 
-  !!****f* xc_xbecke88/xb88_lr_adiabatic_lsd_calc [1.0] *
-  !!
-  !!   NAME
-  !!     xb88_lr_adiabatic_lsd_calc
-  !!
-  !!   FUNCTION
-  !!     low level calculation of the becke 88 exchange functional for lsd
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - rho_spin: alpha or beta spin density
-  !!     - norm_drho_spin: || grad rho_spin ||
-  !!     - e_0: adds to it the local value of the functional
-  !!     - e_*_spin: derivative of the functional wrt. to the variables
-  !!       named where the * is. Everything wrt. to the spin of the arguments.
-  !!     - sx: scaling-parameter for exchange
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Manuel Guidon
-  !!
-  !!   MODIFICATION HISTORY
-  !!     01.2008 created [mguidon]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief low level calculation of the becke 88 exchange functional for lsd
+!> \param rho_spin alpha or beta spin density
+!> \param norm_drho_spin || grad rho_spin ||
+!> \param e_ 0: adds to it the local value of the functional
+!> \param e_ *_spin: derivative of the functional wrt. to the variables
+!>        named where the * is. Everything wrt. to the spin of the arguments.
+!> \param sx scaling-parameter for exchange
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      01.2008 created [mguidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE xb88_lr_adiabatic_lsd_calc(rho_spin, norm_drho_spin,e_0,&
        e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
        e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
@@ -5806,6 +5701,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE xb88_lr_adiabatic_lsd_calc
-  !***************************************************************************
 
 END MODULE xc_xbecke88_lr_adiabatic

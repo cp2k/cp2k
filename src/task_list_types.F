@@ -2,25 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/task_list_types *
-!!
-!!   NAME
-!!     task_list_typess
-!!
-!!   FUNCTION
-!!     types for task lists
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Joost VandeVondele 
-!!
-!!   MODIFICATION HISTORY
-!!     01.2008 [Joost VandeVondele] refactered out of qs_collocate / qs_integrate
-!!
-!!   SOURCE
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief types for task lists
+!> \par History
+!>      01.2008 [Joost VandeVondele] refactered out of qs_collocate / qs_integrate
+!> \author Joost VandeVondele 
+! *****************************************************************************
 MODULE task_list_types
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -32,6 +20,7 @@ MODULE task_list_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'task_list_types'
 
+! *****************************************************************************
   TYPE task_list_type
     INTEGER(kind=int_8), DIMENSION(:, :), POINTER :: tasks
     REAL(KIND=dp), DIMENSION(:, :), POINTER       :: dist_ab
@@ -45,22 +34,12 @@ MODULE task_list_types
             deallocate_task_list
 
 CONTAINS
-!!****f* task_lists/allocate_task_list *
-!!
-!!   NAME
-!!     allocate_task_list
-!!
-!!   FUNCTION
-!!     allocates and initialised the components of the task_list_type
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     01.2008 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief allocates and initialised the components of the task_list_type
+!> \par History
+!>      01.2008 created [Joost VandeVondele]
+! *****************************************************************************
 SUBROUTINE allocate_task_list(task_list,error)
     TYPE(task_list_type), POINTER            :: task_list
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -81,22 +60,11 @@ SUBROUTINE allocate_task_list(task_list,error)
   task_list%ntasks=0
 END SUBROUTINE allocate_task_list
 
-!!****f* task_lists/deallocate_task_list*
-!!
-!!   NAME
-!!     deallocate_task_list_type
-!!
-!!   FUNCTION
-!!     deallocates the components and the object itself
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     01.2008 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates the components and the object itself
+!> \par History
+!>      01.2008 created [Joost VandeVondele]
+! *****************************************************************************
 SUBROUTINE deallocate_task_list(task_list,error)
     TYPE(task_list_type), POINTER            :: task_list
     TYPE(cp_error_type), INTENT(inout)       :: error

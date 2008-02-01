@@ -3,24 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****m* cp2k/qs_linres_methods *
-!!
-!!   NAME
-!!     qs_linres_methods
-!!
-!!   FUNCTION
-!!     localize wavefunctions
-!!     linear response scf
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     created 07-2005 [MI]
-!!
-!!   SOURCE
-!!****
-
+! *****************************************************************************
+!> \brief localize wavefunctions
+!>      linear response scf
+!> \par History
+!>      created 07-2005 [MI]
+!> \author MI
+! *****************************************************************************
 MODULE qs_linres_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -87,31 +76,15 @@ MODULE qs_linres_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_methods'
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-!!****f* cp2k/qs_linres_methods/linres_localize
-!!
-!!   NAME
-!!     linres_localize
-!!
-!!   FUNCTION
-!!     Find the centers and spreads of the wfn,
-!!     if required apply a localization algorithm
-!!
-!!   NOTES
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     07.2005 created [MI]
-!!
-!****************************************************************************
-
+!> \brief Find the centers and spreads of the wfn,
+!>      if required apply a localization algorithm
+!> \par History
+!>      07.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE linres_localize(localized_wfn_control,qs_env,nspins,globenv,&
        centers_only,error)
     TYPE(localized_wfn_control_type), &
@@ -191,26 +164,13 @@ CONTAINS
   END SUBROUTINE linres_localize
 
 ! *****************************************************************************
-!!****f* cp2k/qs_linres_methods/linres_scf
-!!
-!!   NAME
-!!     linres_scf
-!!
-!!   FUNCTION
-!!     scf loop to optimize the first order wavefunctions (psi1)
-!!     given a perturbation as an operator applied to the ground
-!!     state orbitals (h1_psi0)
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     07.2005 created [MI]
-!!
-!****************************************************************************
+!> \brief scf loop to optimize the first order wavefunctions (psi1)
+!>      given a perturbation as an operator applied to the ground
+!>      state orbitals (h1_psi0)
+!> \par History
+!>      07.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE linres_scf(p_env, qs_env, psi1, h1_psi0, error)
     !
     TYPE(qs_p_env_type), POINTER             :: p_env
@@ -425,6 +385,7 @@ CONTAINS
 
   END SUBROUTINE linres_scf
 
+! *****************************************************************************
   SUBROUTINE check_p_env_init(p_env,linres_control, nspins, error)
     !
     TYPE(qs_p_env_type), POINTER             :: p_env
@@ -498,7 +459,6 @@ CONTAINS
   END SUBROUTINE check_p_env_init
 
 ! *****************************************************************************
-
   SUBROUTINE linres_scf_mini(p_env,qs_env,linres_control,b,Ab,nspins,iter,error)
     !
     TYPE(qs_p_env_type), POINTER             :: p_env
@@ -606,7 +566,6 @@ CONTAINS
             linres_control%flag="LR LS"
          END IF
          CALL do_lr_line_search(p_env,b,linres_control,nspins,error=error)
-
 
       CASE (lr_cg)
          IF(p_env%ls_count==0) THEN
@@ -886,8 +845,5 @@ CONTAINS
 
   END SUBROUTINE do_lr_ls_3pnt
 
-
-! *****************************************************************************
 END MODULE qs_linres_methods
-
 

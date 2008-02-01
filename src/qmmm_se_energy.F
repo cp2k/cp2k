@@ -3,18 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/qmmm_se_energy [1.1] *
-!!
-!!   FUNCTION
-!!     Calculation of the QMMM Hamiltonian integral matrix <a|\sum_i q_i|b> for
-!!     semi-empirical methods
-!!
-!!   AUTHOR
-!!     Teodoro Laino 04.2007 [created]
-!!
-!!***
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Calculation of the QMMM Hamiltonian integral matrix <a|\sum_i q_i|b> for
+!>      semi-empirical methods
+!> \author Teodoro Laino 04.2007 [created]
+! *****************************************************************************
 MODULE qmmm_se_energy
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -71,20 +64,10 @@ MODULE qmmm_se_energy
 
 CONTAINS
 
-!!****f* qmmm_se_energy/build_se_qmmm_matrix [1.0] *
-!!
-!!   NAME
-!!     build_se_qmmm_matrix
-!!
-!!   FUNCTION
-!!     Constructs the 1-el semi-empirical hamiltonian
-!!
-!!   NOTES
-!!     -
-!!   AUTHOR
-!!     Teodoro Laino 04.2007 [created]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Constructs the 1-el semi-empirical hamiltonian
+!> \author Teodoro Laino 04.2007 [created]
+! *****************************************************************************
   SUBROUTINE build_se_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,para_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -228,20 +211,10 @@ CONTAINS
 
   END SUBROUTINE build_se_qmmm_matrix
 
-!!****f* qmmm_se_energy/build_se_qmmm_matrix_low [1.0] *
-!!
-!!   NAME
-!!     build_se_qmmm_matrix_low
-!!
-!!   FUNCTION
-!!     Low Level : Constructs the 1-el semi-empirical hamiltonian block
-!!
-!!   NOTES
-!!     -
-!!   AUTHOR
-!!     Teodoro Laino 04.2007 [created]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Low Level : Constructs the 1-el semi-empirical hamiltonian block
+!> \author Teodoro Laino 04.2007 [created]
+! *****************************************************************************
   SUBROUTINE build_se_qmmm_matrix_low(h_block_a, se_kind_a, se_kind_mm, potentials,&
        mm_particles, mm_charges, mm_el_pot_radius, mm_atom_index, &
        num_mm_atoms, mm_cell, IndQM, enuclear, itype, error)

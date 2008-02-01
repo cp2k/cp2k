@@ -3,26 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qmmm_types *
-!!
-!!   NAME
-!!     qmmm_types
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \par History
+!>      05.2004 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE qmmm_types
   USE f77_blas
   USE force_field_types,               ONLY: deallocate_inp_info,&
@@ -64,31 +49,14 @@ MODULE qmmm_types
   PUBLIC :: qmmm_per_pot_type, qmmm_per_pot_p_type
 
 !***
-!****************************************************************************
 
-!!****s* qmmm_types/qmmm_env_qm_type [1.0] *
-!!
-!!   NAME
-!!     qmmm_env_qm_type
-!!
-!!   FUNCTION
-!!     variables needed for QM/MM calculation in QM section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created [fawzi]
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief variables needed for QM/MM calculation in QM section
+!> \par History
+!>      05.2004 created [fawzi]
+!> \author Fawzi Mohamed
+!>      Teodoro Laino
+! *****************************************************************************
   TYPE gridlevel_info_type
      INTEGER                                                 :: auxbas_grid
      INTEGER                                                 :: coarser_grid
@@ -96,6 +64,7 @@ MODULE qmmm_types
   !
   ! Real Space Potential
   !
+! *****************************************************************************
   TYPE qmmm_pot_type
      REAL(KIND=dp), DIMENSION(:,:), POINTER :: Pot0_2
      REAL(KIND=dp)   :: Rmax, Rmin, dx, Rc
@@ -103,12 +72,14 @@ MODULE qmmm_types
      INTEGER,        DIMENSION(:), POINTER :: mm_atom_index
   END TYPE qmmm_pot_type
 
+! *****************************************************************************
   TYPE qmmm_pot_p_type
      TYPE(qmmm_pot_type), POINTER :: pot
   END TYPE qmmm_pot_p_type
   !
   ! Periodic Potential
   !
+! *****************************************************************************
   TYPE qmmm_per_pot_type
      REAL(KIND=dp), DIMENSION(:), POINTER :: lg, gx, gy, gz
      REAL(KIND=dp)  :: Gmax, Fac(3)
@@ -119,6 +90,7 @@ MODULE qmmm_types
      TYPE ( pw_type ),      POINTER :: TabLR
   END TYPE qmmm_per_pot_type
 
+! *****************************************************************************
   TYPE qmmm_per_pot_p_type
      TYPE(qmmm_per_pot_type), POINTER :: pot
   END TYPE qmmm_per_pot_p_type
@@ -126,35 +98,42 @@ MODULE qmmm_types
   ! LINKs
   !
   ! IMOMM
+! *****************************************************************************
   TYPE qmmm_imomm_link_type
      INTEGER  :: qm_index, mm_index
      REAL(KIND=dp) :: alpha
   END TYPE qmmm_imomm_link_type
 
+! *****************************************************************************
   TYPE qmmm_imomm_link_p_type
      TYPE(qmmm_imomm_link_type), POINTER :: link
   END TYPE qmmm_imomm_link_p_type
   ! PSEUDO
+! *****************************************************************************
   TYPE qmmm_pseudo_link_type
      INTEGER  :: qm_index, mm_index
   END TYPE qmmm_pseudo_link_type
 
+! *****************************************************************************
   TYPE qmmm_pseudo_link_p_type
      TYPE(qmmm_pseudo_link_type), POINTER :: link
   END TYPE qmmm_pseudo_link_p_type
   !
   ! LINKs summary...
   !
+! *****************************************************************************
   TYPE qmmm_links_type
      TYPE(qmmm_imomm_link_p_type),  DIMENSION(:), POINTER :: imomm
      TYPE(qmmm_pseudo_link_p_type), DIMENSION(:), POINTER :: pseudo
   END TYPE qmmm_links_type
 
+! *****************************************************************************
   TYPE add_env_type
      INTEGER       :: Index1, Index2
      REAL(KIND=dp) :: alpha
   END TYPE add_env_type
 
+! *****************************************************************************
   TYPE add_set_type
      INTEGER                                                 :: num_mm_atoms
      TYPE(add_env_type),  DIMENSION(:), POINTER              :: add_env
@@ -168,6 +147,7 @@ MODULE qmmm_types
      TYPE(qmmm_gaussian_p_type), DIMENSION(:),POINTER        :: pgfs
   END TYPE add_set_type
 
+! *****************************************************************************
   TYPE qmmm_env_qm_type
      INTEGER :: ref_count, id_nr
      LOGICAL                                                 :: center_qm_subsys
@@ -199,6 +179,7 @@ MODULE qmmm_types
      TYPE(add_set_type), POINTER                             :: added_charges
   END TYPE qmmm_env_qm_type
 
+! *****************************************************************************
   TYPE qmmm_env_mm_type
      INTEGER :: ref_count, id_nr
      LOGICAL                                                 :: qmmm_link
@@ -213,29 +194,13 @@ MODULE qmmm_types
      TYPE(input_info_type),POINTER                           :: inp_info
   END TYPE qmmm_env_mm_type
 
-!!***
-  !****************************************************************************
-
 CONTAINS
-!!****f* qmmm_types/qmmm_env_mm_create [1.0] *
-!!
-!!   NAME
-!!     qmmm_env_mm_create
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_env_mm_create(qmmm_env, error)
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -269,25 +234,11 @@ CONTAINS
     END IF
   END SUBROUTINE qmmm_env_mm_create
 
-!!****f* qmmm_types/qmmm_env_mm_retain [1.0] *
-!!
-!!   NAME
-!!     qmmm_env_mm_retain
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_env_mm_retain(qmmm_env,error)
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -305,27 +256,15 @@ CONTAINS
        qmmm_env%ref_count=qmmm_env%ref_count+1
     END IF
   END SUBROUTINE qmmm_env_mm_retain
-!!****f* qmmm_types/qmmm_env_qm_release [1.0] *
-!!
-!!   NAME
-!!     qmmm_env_qm_release
-!!
-!!   FUNCTION
-!!     releases the given qmmm_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - qmmm_env: the object to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!     Teodoro Laino
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief releases the given qmmm_env (see doc/ReferenceCounting.html)
+!> \param qmmm_env the object to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Fawzi Mohamed
+!>      Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_env_mm_release(qmmm_env,error)
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -374,25 +313,11 @@ CONTAINS
     NULLIFY(qmmm_env)
   END SUBROUTINE qmmm_env_mm_release
 
-!!****f* qmmm_types/qmmm_env_qm_create [1.0] *
-!!
-!!   NAME
-!!     qmmm_env_qm_create
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE qmmm_env_qm_create(qmmm_env, error)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -433,28 +358,14 @@ SUBROUTINE qmmm_env_qm_create(qmmm_env, error)
      CALL create_add_set_type(qmmm_env%added_charges, ndim=0, error=error)
   END IF
 END SUBROUTINE qmmm_env_qm_create
-!***************************************************************************
 
-!!****f* qmmm_types/qmmm_env_qm_retain *
-!!
-!!   NAME
-!!     qmmm_env_qm_retain
-!!
-!!   FUNCTION
-!!     retains the qmmm_env
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - qmmm_env: the qmmm_env to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the qmmm_env
+!> \param qmmm_env the qmmm_env to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE qmmm_env_qm_retain(qmmm_env,error)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -472,30 +383,15 @@ SUBROUTINE qmmm_env_qm_retain(qmmm_env,error)
      qmmm_env%ref_count=qmmm_env%ref_count+1
   END IF
 END SUBROUTINE qmmm_env_qm_retain
-!***************************************************************************
 
-
-!!****f* qmmm_types/qmmm_env_qm_release [1.0] *
-!!
-!!   NAME
-!!     qmmm_env_qm_release
-!!
-!!   FUNCTION
-!!     releases the given qmmm_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - qmmm_env: the object to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!     Teodoro Laino
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given qmmm_env (see doc/ReferenceCounting.html)
+!> \param qmmm_env the object to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Fawzi Mohamed
+!>      Teodoro Laino
+! *****************************************************************************
 SUBROUTINE qmmm_env_qm_release(qmmm_env,error)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -570,26 +466,12 @@ SUBROUTINE qmmm_env_qm_release(qmmm_env,error)
   NULLIFY(qmmm_env)
 END SUBROUTINE qmmm_env_qm_release
 
-
-!!****f* qmmm_types/pgfs_release [1.0] *
-!!
-!!   NAME
-!!     pgfs_release
-!!
-!!   FUNCTION
-!!     deallocates the pgfs type
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates the pgfs type
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Teodoro Laino
+! *****************************************************************************
 SUBROUTINE pgfs_release(pgfs, error)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
@@ -624,26 +506,12 @@ SUBROUTINE pgfs_release(pgfs, error)
   END IF
 END SUBROUTINE pgfs_release
 
-
-!!****f* qmmm_types/qmmm_links_dealloc [1.0] *
-!!
-!!   NAME
-!!     qmmm_links_dealloc
-!!
-!!   FUNCTION
-!!     deallocates the qmmm_links structure
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates the qmmm_links structure
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Teodoro Laino
+! *****************************************************************************
 SUBROUTINE qmmm_links_dealloc(qmmm_links, error)
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -673,28 +541,13 @@ SUBROUTINE qmmm_links_dealloc(qmmm_links, error)
   CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
 END SUBROUTINE qmmm_links_dealloc
 
-
-
-!!****f* qmmm_types/qmmm_pot_type_dealloc [1.0] *
-!!
-!!   NAME
-!!     qmmm_pot_type_dealloc
-!!
-!!   FUNCTION
-!!     deallocates the qmmm_pot_type structure
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - qmmm_env: the object to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates the qmmm_pot_type structure
+!> \param qmmm_env the object to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Teodoro Laino
+! *****************************************************************************
 SUBROUTINE qmmm_pot_type_dealloc(Potentials, error)
     TYPE(qmmm_pot_p_type), DIMENSION(:), &
       POINTER                                :: Potentials
@@ -722,28 +575,14 @@ SUBROUTINE qmmm_pot_type_dealloc(Potentials, error)
 
 END SUBROUTINE qmmm_pot_type_dealloc
 
-
-!!****f* qmmm_types/qmmm_per_pot_type_dealloc [1.0] *
-!!
-!!   NAME
-!!     qmmm_per_pot_type_dealloc
-!!
-!!   FUNCTION
-!!     deallocates the qmmm_per_pot_type structure
-!!     for QM/MM periodic boundary conditions
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - qmmm_env: the object to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates the qmmm_per_pot_type structure
+!>      for QM/MM periodic boundary conditions
+!> \param qmmm_env the object to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Teodoro Laino
+! *****************************************************************************
 SUBROUTINE qmmm_per_pot_type_dealloc(Per_Potentials, error)
     TYPE(qmmm_per_pot_p_type), &
       DIMENSION(:), POINTER                  :: Per_Potentials
@@ -794,25 +633,12 @@ SUBROUTINE qmmm_per_pot_type_dealloc(Per_Potentials, error)
 
 END SUBROUTINE qmmm_per_pot_type_dealloc
 
-!!****f* qmmm_types/add_set_release [1.0] *
-!!
-!!   NAME
-!!     add_set_release
-!!
-!!   FUNCTION
-!!     deallocates the add_set_release
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates the add_set_release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Teodoro Laino
+! *****************************************************************************
 SUBROUTINE add_set_release(added_charges, error)
     TYPE(add_set_type), POINTER              :: added_charges
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -866,26 +692,12 @@ SUBROUTINE add_set_release(added_charges, error)
   END IF
 END SUBROUTINE add_set_release
 
-
-!!****f* qmmm_types/create_add_set_type [1.0] *
-!!
-!!   NAME
-!!     create_add_set_type
-!!
-!!   FUNCTION
-!!     creates the add_set_type structure
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the add_set_type structure
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Teodoro Laino
+! *****************************************************************************
 SUBROUTINE create_add_set_type(added_charges, ndim, error)
     TYPE(add_set_type), POINTER              :: added_charges
     INTEGER, INTENT(IN)                      :: ndim

@@ -3,25 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/eip_main [1.0] *
-!!
-!!   NAME
-!!     eip_main
-!!
-!!   FUNCTION
-!!     Main program which drives the EIP calculation
-!!
-!!   NOTES
-!!     -
-!!     
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Main program which drives the EIP calculation
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
 MODULE eip_main
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE eip_environment,                 ONLY: eip_init
@@ -47,31 +34,14 @@ MODULE eip_main
   PUBLIC :: eip_create_force_env
 
 !***
-!****************************************************************************
 
 CONTAINS
 
-!!****f* eip_main/eip_create_force_env [1.0] *
-!!
-!!   NAME
-!!     eip_create_force_env
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     -
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE eip_create_force_env(force_env,root_section, para_env, globenv,&
        force_env_section, subsys_section, use_motion_section, error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -102,6 +72,5 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE eip_create_force_env
-!***************************************************************************
 
 END MODULE eip_main

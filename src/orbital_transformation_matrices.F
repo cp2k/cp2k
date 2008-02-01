@@ -2,27 +2,16 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/orbital_transformation_matrices [1.0] *
-!!
-!!   NAME
-!!     orbital_transformation_matrices
-!!
-!!   FUNCTION
-!!     Calculation of the spherical harmonics and the corresponding orbital
-!!     transformation matrices.
-!!
-!!   LITERATURE
-!!     H. B. Schlegel, M. J. Frisch, Int. J. Quantum Chem. 54, 83 (1995)
-!!
-!!   AUTHOR
-!!     Matthias Krack (08.06.2000)
-!!
-!!   MODIFICATION HISTORY
-!!     - restructured and cleaned (20.05.2004,MK)
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Calculation of the spherical harmonics and the corresponding orbital
+!>      transformation matrices.
+!> \par Literature
+!>      H. B. Schlegel, M. J. Frisch, Int. J. Quantum Chem. 54, 83 (1995)
+!> \par History
+!>      - restructured and cleaned (20.05.2004,MK)
+!> \author Matthias Krack (08.06.2000)
+! *****************************************************************************
 MODULE orbital_transformation_matrices
 
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -51,6 +40,7 @@ MODULE orbital_transformation_matrices
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'orbital_transformation_matrices'
 
+! *****************************************************************************
   TYPE orbtramat_type
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: c2s,slm,s2c
   END TYPE orbtramat_type
@@ -72,12 +62,9 @@ MODULE orbital_transformation_matrices
   PUBLIC :: deallocate_spherical_harmonics,&
             init_spherical_harmonics
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE create_spherical_harmonics(maxl)
 
 !   Purpose: Allocate and initialize the orbital transformation matrices for
@@ -85,8 +72,6 @@ CONTAINS
 !            from the Cartesian representation to the spherical representation.
 !
 !   History: - Creation (20.05.2004,MK)
-
-!   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: maxl
 
@@ -257,14 +242,11 @@ CONTAINS
   END SUBROUTINE create_spherical_harmonics
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_spherical_harmonics()
 
 !   Purpose: Deallocate the orbital transformation matrices.
 
 !   History: - Creation (20.05.2004,MK)
-
-!   ***************************************************************************
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'deallocate_spherical_harmonics', &
@@ -311,14 +293,11 @@ CONTAINS
   END SUBROUTINE deallocate_spherical_harmonics
 
 ! *****************************************************************************
-
   SUBROUTINE init_spherical_harmonics(maxl,root_section,error)
 
 !   Purpose: Initialize or update the orbital transformation matrices.
 
 !   History: - Creation (09.07.1999,MK)
-
-!   ***************************************************************************
 
 !   List of variables:
 
@@ -386,14 +365,11 @@ CONTAINS
   END SUBROUTINE init_spherical_harmonics
 
 ! *****************************************************************************
-
   SUBROUTINE write_matrix(matrix,l,lunit,headline)
 
 !   Purpose: Print a matrix to the logical unit "lunit".
 
 !   History: - Creation (07.06.2000,MK)
-
-!   ***************************************************************************
 
 !   List of variables:
 
@@ -449,7 +425,4 @@ CONTAINS
 
   END SUBROUTINE write_matrix
 
-! *****************************************************************************
-
 END MODULE orbital_transformation_matrices
-!!*****

@@ -2,24 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****s* cp2k/xas_methods   [1.0] *
-!!
-!!   NAME
-!!      xas_methods
-!!
-!!   FUNCTION
-!!      driver for the xas calculation and xas_scf for the tp method
-!!
-!!   AUTHOR
-!!     MI (05.2005)
-!!
-!!   MODIFICATION HISTORY
-!!     created 05.2005
-!!
-!!   SOURCE
-!******************************************************************************
 
-
+! *****************************************************************************
+!> \brief driver for the xas calculation and xas_scf for the tp method
+!> \par History
+!>      created 05.2005
+!> \author MI (05.2005)
+! *****************************************************************************
 MODULE xas_methods
 
   USE ai_overlap_new,                  ONLY: overlap
@@ -135,45 +124,30 @@ MODULE xas_methods
 
   PUBLIC :: xas
 
-!****************************************************************************
-
 CONTAINS
 
-!!****f* xas_methods/xas [1.0] *
-!!
-!!   NAME
-!!     xas
-!!
-!!   FUNCTION
-!!     Driver for xas calculations
-!!     The initial mos are prepared
-!!     A loop on the atoms to be excited is started
-!!     For each atom the state to be excited is identified
-!!     An scf optimization using the TP scheme or TD-DFT is used
-!!     to evaluate the spectral energies and oscillator strengths
-!!
-!!   NOTES
-!!     the iteration counter is not finilized yet
-!!     only the transition potential approach is active
-!!     the localization can be switched off, otherwise
-!!     it uses by default the berry phase approach
-!!     The number of states to be localized is xas_control%nexc_search
-!!     In general only the core states are needed
-!!
-!!   ARGUMENTS
-!!     - qs_env: the qs_env, the xas_env lives in
-!!     - globenv: global environment for i/o and error
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     05.2005 created [MI]
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief Driver for xas calculations
+!>      The initial mos are prepared
+!>      A loop on the atoms to be excited is started
+!>      For each atom the state to be excited is identified
+!>      An scf optimization using the TP scheme or TD-DFT is used
+!>      to evaluate the spectral energies and oscillator strengths
+!> \param qs_env the qs_env, the xas_env lives in
+!> \param globenv global environment for i/o and error
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      the iteration counter is not finilized yet
+!>      only the transition potential approach is active
+!>      the localization can be switched off, otherwise
+!>      it uses by default the berry phase approach
+!>      The number of states to be localized is xas_control%nexc_search
+!>      In general only the core states are needed
+!> \par History
+!>      05.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE xas(qs_env, xas_control, globenv, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -229,7 +203,6 @@ CONTAINS
     converged = .TRUE.
     should_stop = .FALSE.
 
-
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -238,7 +211,6 @@ CONTAINS
     ELSE
       output_unit = -1
     END IF
-
 
     NULLIFY(xas_env, groundstate_coeff, ostrength_sm, op_sm)
     NULLIFY(excvec_coeff, state_of_atom, qs_loc_env, cell)
@@ -577,7 +549,6 @@ CONTAINS
             uniform_occupation=my_uocc(ispin))
     END DO
 
-
     dft_control % xas_estate    = -1
 
     IF (output_unit>0) THEN
@@ -593,32 +564,17 @@ CONTAINS
 
   END SUBROUTINE  xas
 
-!!***  *********************************************************************
-!!****f* xas_methods/xas_env_init [1.0] *
-!!
-!!   NAME
-!!     xas_env_init
-!!
-!!   FUNCTION
-!!     allocate and initialize the structure needed for the xas calculation
-!!
-!!   NOTES
-!!
-!!   ARGUMENTS
-!!     - xas_env: the environment for XAS  calculations
-!!     - xas_control: parameters for the xas calculation
-!!     - qs_env: the qs_env, the xas_env lives in
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     05.2005 created [MI]
-!!
-!!***  *********************************************************************
-
+! *****************************************************************************
+!> \brief allocate and initialize the structure needed for the xas calculation
+!> \param xas_env the environment for XAS  calculations
+!> \param xas_control parameters for the xas calculation
+!> \param qs_env the qs_env, the xas_env lives in
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      05.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE xas_env_init(xas_env, xas_control, qs_env, xas_section, globenv, logger, error)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
@@ -735,7 +691,6 @@ CONTAINS
       CALL cp_fm_create (xas_env%excvec_coeff, tmp_fm_struct ,error=error)
       CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
 
-
       NULLIFY(tmp_fm_struct)
       CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=1,&
            ncol_global=nexc_search,para_env=para_env,&
@@ -823,7 +778,6 @@ CONTAINS
            para_env=para_env,context=mo_coeff%matrix_struct%context,error=error)
       CALL cp_fm_create (xas_env%fm_work,tmp_fm_struct,error=error)
       CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
-  
   
       ALLOCATE (xas_env%groundstate_coeff(nspins), STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1035,35 +989,20 @@ CONTAINS
 
   END SUBROUTINE xas_env_init
 
-!***************************************************************************
-!!****f* xas_methods/cls_calculate_spectrum [1.0] *
-!!
-!!   NAME
-!!     cls_calculate_spectrum
-!!
-!!   FUNCTION
-!!     Calculate and write the spectrum relative to the core level excitation
-!!     of a specific atom. It works for TP approach, because of the definition
-!!     of the oscillator strengths as  matrix elements of the dipole operator
-!!
-!!   NOTES
-!!     for the tddft calculation should be re-thought
-!!
-!!
-!!   ARGUMENTS
-!!     - iatom: index of the excited atom
-!!     - iter: iteration of the xas calculation
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [MI]
-!!
-!!***  *********************************************************************
-
+! *****************************************************************************
+!> \brief Calculate and write the spectrum relative to the core level excitation
+!>      of a specific atom. It works for TP approach, because of the definition
+!>      of the oscillator strengths as  matrix elements of the dipole operator
+!> \param iatom index of the excited atom
+!> \param iter iteration of the xas calculation
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      for the tddft calculation should be re-thought
+!> \par History
+!>      03.2006 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE cls_calculate_spectrum(xas_control,xas_env,qs_env,xas_section,&
              iatom,iter,error)
 
@@ -1170,36 +1109,21 @@ CONTAINS
 
   END SUBROUTINE cls_calculate_spectrum
 
-!***************************************************************************
-!!****f* xas_methods/xas_write [1.0] *
-!!
-!!   NAME
-!!     xas_write
-!!
-!!   FUNCTION
-!!     write the spectrum for each atom in a different output file
-!!
-!!   NOTES
-!!     the iteration counter is not finilized yet
-!!
-!!
-!!   ARGUMENTS
-!!     - spectrum: temporary variable contaning the spectrum for the actual atom
-!!     - xas_rootfname: root of the filename where the spectrum is written
-!!     - iatom: index of the excited atom
-!!     - iter: iteration of the xas calculation
-!!     - ionode: logical assigning the i/o node
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     05.2005 created [MI]
-!!
-!!***  *********************************************************************
-
+! *****************************************************************************
+!> \brief write the spectrum for each atom in a different output file
+!> \param spectrum temporary variable contaning the spectrum for the actual atom
+!> \param xas_rootfname root of the filename where the spectrum is written
+!> \param iatom index of the excited atom
+!> \param iter iteration of the xas calculation
+!> \param ionode logical assigning the i/o node
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      the iteration counter is not finilized yet
+!> \par History
+!>      05.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE xas_write(xas_control, spectrum, estate, xas_section, homo, iatom, iter,&
              ionode,length, error)
 
@@ -1280,31 +1204,18 @@ CONTAINS
 
   END SUBROUTINE xas_write
 
-!***************************************************************************
-!!****f*  xas_methods/xas_print_cubes [1.0] *
-!!
-!!   NAME
-!!     xas_print_cubes
-!!
-!!   FUNCTION
-!!     write the cube files for a set of selected states
-!!
-!!   ARGUMENTS
-!!    - xas_control : provide number ant indexes of the states to be printed
-!!    - qs_env
-!!    - mos     : mos from which the states to be printed are extracted
-!!    - iter    : iteration step (e.g. along an md)
-!!    - iatom   : index of the atom that has been excited
-!!    - ionode
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [MI]
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief write the cube files for a set of selected states
+!> \param xas_control provide number ant indexes of the states to be printed
+!> \param qs_en v
+!> \param mos mos from which the states to be printed are extracted
+!> \param iter iteration step (e.g. along an md)
+!> \param iatom index of the atom that has been excited
+!> \param ionod e
+!> \par History
+!>      08.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE  xas_print_cubes(xas_control,qs_env,xas_section,&
               mos,all_vectors,iter,iatom,ionode,error)
 
@@ -1358,44 +1269,29 @@ CONTAINS
 
   END SUBROUTINE xas_print_cubes
 
-!***************************************************************************
-!!****f* xas_methods/spectrum_dip_len [1.0] *
-!!
-!!   NAME
-!!    spectrum_dip_len
-!!
-!!   FUNCTION
-!!     Calculation of the spectrum when the dipole approximation
-!!     in the length form is used. The position operator is calculated
-!!     by the berry phase approach
-!!
-!!   NOTES
-!!
-!!   ARGUMENTS
-!!     - fm_set: components of the position operator in a full matrix form
-!!               already multiplied by the coefficiets
-!!               only the terms <C_i Op C_f> are calculated where
-!!               C_i are the coefficients of the excited state
-!!     - op_sm: components of the position operator for the dipole
-!!              in a sparse matrix form (cos and sin)
-!!              calculated for the basis functions
-!!     - mos: wavefunctions coefficients
-!!     - excvec: coefficients of the excited orbital
-!!     - fm_work: work space
-!!     - cell: parameters for the simulation cell
-!!     - spectrum: temporary variable contaning the spectrum for the actual atom
-!!     - estate: index of the excited state
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 created [MI]
-!!
-!!***  *********************************************************************
-
+! *****************************************************************************
+!> \brief Calculation of the spectrum when the dipole approximation
+!>      in the length form is used. The position operator is calculated
+!>      by the berry phase approach
+!> \param fm_set components of the position operator in a full matrix form
+!>                already multiplied by the coefficiets
+!>                only the terms <C_i Op C_f> are calculated where
+!>                C_i are the coefficients of the excited state
+!> \param op_sm components of the position operator for the dipole
+!>               in a sparse matrix form (cos and sin)
+!>               calculated for the basis functions
+!> \param mos wavefunctions coefficients
+!> \param excvec coefficients of the excited orbital
+!> \param fm_work work space
+!> \param cell parameters for the simulation cell
+!> \param spectrum temporary variable contaning the spectrum for the actual atom
+!> \param estate index of the excited state
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      06.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE spectrum_dip_len(fm_set,op_sm,mos,excvec,&
              all_vectors,all_evals,fm_work,cell,spectrum,estate,error)
 
@@ -1463,43 +1359,27 @@ CONTAINS
 
   END SUBROUTINE spectrum_dip_len
 
-
-!***************************************************************************
-!!****f* xas_methods/spectrum_dip_vel [1.0] *
-!!
-!!   NAME
-!!    spectrum_dip_vel
-!!
-!!   FUNCTION
-!!     Calculation of the spectrum when the dipole approximation
-!!     in the velocity form is used.
-!!
-!!   NOTES
-!!
-!!   ARGUMENTS
-!!     - fm_set: components of the position operator in a full matrix form
-!!               already multiplied by the coefficiets
-!!               only the terms <C_i Op C_f> are calculated where
-!!               C_i are the coefficients of the excited state
-!!     - op_sm: components of the position operator for the dipole
-!!              in a sparse matrix form (cos and sin)
-!!              calculated for the basis functions
-!!     - mos: wavefunctions coefficients
-!!     - excvec: coefficients of the excited orbital
-!!     - fm_work: work space
-!!     - spectrum: temporary variable contaning the spectrum for the actual atom
-!!     - estate: index of the excited state
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 created [MI]
-!!
-!!***  *********************************************************************
-
+! *****************************************************************************
+!> \brief Calculation of the spectrum when the dipole approximation
+!>      in the velocity form is used.
+!> \param fm_set components of the position operator in a full matrix form
+!>                already multiplied by the coefficiets
+!>                only the terms <C_i Op C_f> are calculated where
+!>                C_i are the coefficients of the excited state
+!> \param op_sm components of the position operator for the dipole
+!>               in a sparse matrix form (cos and sin)
+!>               calculated for the basis functions
+!> \param mos wavefunctions coefficients
+!> \param excvec coefficients of the excited orbital
+!> \param fm_work work space
+!> \param spectrum temporary variable contaning the spectrum for the actual atom
+!> \param estate index of the excited state
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      06.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE spectrum_dip_vel(fm_set,op_sm,mos,excvec, &
              all_vectors,all_evals,fm_work,spectrum,estate,error)
 
@@ -1564,8 +1444,7 @@ CONTAINS
 
   END SUBROUTINE spectrum_dip_vel
 
-!***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE calc_stogto_overlap(base_a, base_b, matrix,error)
 
     TYPE(gto_basis_set_type), POINTER        :: base_a, base_b
@@ -1648,42 +1527,26 @@ CONTAINS
        END DO  ! jset
     END DO  ! iset
 
-
     DEALLOCATE(sab,work,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE calc_stogto_overlap
 
-!***************************************************************************
-!!****f* xas_methods/cls_assign_core_states [1.0] *
-!!
-!!   NAME
-!!    cls_assign_core_states
-!!
-!!   FUNCTION
-!!     Starting from a set of mos, determine on which atom are centered
-!!     and if they are of the right type (1s,2s ...)
-!!     to be used in the specific core level spectrum calculation
-!!     The set of states need to be from the core, otherwise the
-!!     characterization of the type is not valid, since it assumes that
-!!     the orbital is localizad on a specific atom
-!!     It is probably reccomandable to run a localization cycle before
-!!     proceeding to the assignment of the type
-!!     The type is determined by computing the overalp with a
-!!     type specific, minimal, STO bais set
-!!
-!!
-!!   NOTES
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [MI]
-!!
-!!***  *********************************************************************
+! *****************************************************************************
+!> \brief Starting from a set of mos, determine on which atom are centered
+!>      and if they are of the right type (1s,2s ...)
+!>      to be used in the specific core level spectrum calculation
+!>      The set of states need to be from the core, otherwise the
+!>      characterization of the type is not valid, since it assumes that
+!>      the orbital is localizad on a specific atom
+!>      It is probably reccomandable to run a localization cycle before
+!>      proceeding to the assignment of the type
+!>      The type is determined by computing the overalp with a
+!>      type specific, minimal, STO bais set
+!> \par History
+!>      03.2006 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE cls_assign_core_states(xas_control,xas_env,localized_wfn_control,qs_env,error)
 
     TYPE(xas_control_type)                   :: xas_control
@@ -1742,7 +1605,6 @@ CONTAINS
     ! If an isolated system is used the periodicity is overimposed
     perd0(1:3) = cell%perd(1:3)
     cell%perd(1:3) = 1
-
 
     CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, maxocc=maxocc, nao=nao, homo=homo)
     nexc_search = xas_control%nexc_search

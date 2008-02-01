@@ -3,24 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qs_numerical_pressure [1.0] *
-!!
-!!   NAME
-!!     qs_numerical_pressure
-!!
-!!   FUNCTION
-!!     Calculate stress tensor and pressure numerically
-!!
-!!   AUTHOR
-!!     JCS
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 created [JCS]
-!!
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Calculate stress tensor and pressure numerically
+!> \par History
+!>      10.2005 created [JCS]
+!> \author JCS
+! *****************************************************************************
 MODULE qs_numerical_pressure
   USE cell_types,                      ONLY: cell_clone,&
                                              cell_create,&
@@ -53,12 +41,9 @@ MODULE qs_numerical_pressure
 
   PUBLIC :: qs_calc_numerical_pressure
 
-!****************************************************************************
-
   CONTAINS
 
-!****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE qs_calc_numerical_pressure(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -184,7 +169,6 @@ MODULE qs_numerical_pressure
            END IF
        END IF
 
-
        !
        ! Rebuild the appropriate environments to obtain original environment
        !
@@ -210,8 +194,5 @@ MODULE qs_numerical_pressure
 
   END SUBROUTINE qs_calc_numerical_pressure
 
-!****************************************************************************
-
 END MODULE qs_numerical_pressure
 
-!****************************************************************************

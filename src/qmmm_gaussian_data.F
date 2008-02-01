@@ -3,29 +3,15 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qmmm_gaussian_data [1.0] *
-!!
-!!   NAME
-!!     qmmm_gaussian_data
-!!
-!!   FUNCTION
-!!     GEEP coefficients for fixed radii. THIS IS THE GEEP LIB.
-!!     They can be used together with the "omotetia" rule for erf function
-!!     to obtain the expansion for whatever radius one desires 
-!!     Radius value are in Angstrom
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     7.2005 created [tlaino]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief GEEP coefficients for fixed radii. THIS IS THE GEEP LIB.
+!>      They can be used together with the "omotetia" rule for erf function
+!>      to obtain the expansion for whatever radius one desires 
+!>      Radius value are in Angstrom
+!> \par History
+!>      7.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
 MODULE qmmm_gaussian_data
 
   USE kinds,                           ONLY: dp
@@ -446,39 +432,3 @@ MODULE qmmm_gaussian_data
 
 END MODULE qmmm_gaussian_data
 
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-   
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    

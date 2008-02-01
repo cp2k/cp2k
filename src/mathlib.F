@@ -2,24 +2,14 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/mathlib [1.0] *
-!!
-!!   NAME
-!!     mathlib
-!!
-!!   FUNCTION
-!!     Collection of simple mathematical functions and subroutines
-!!
-!!   AUTHOR
-!!     MK (15.11.1998)
-!!
-!!   MODIFICATION HISTORY
-!!     FUNCTION angle updated and FUNCTION dihedral angle added; cleaned
-!!     (13.03.2004,MK)
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Collection of simple mathematical functions and subroutines
+!> \par History
+!>      FUNCTION angle updated and FUNCTION dihedral angle added; cleaned
+!>      (13.03.2004,MK)
+!> \author MK (15.11.1998)
+! *****************************************************************************
 MODULE mathlib
 
   USE f77_blas
@@ -68,8 +58,6 @@ MODULE mathlib
             transpose_3d,&
             expint
 
-  ! *****************************************************************************
-
   INTERFACE det_3x3
      MODULE PROCEDURE det_3x3_1,det_3x3_2
   END INTERFACE
@@ -78,20 +66,15 @@ MODULE mathlib
      MODULE PROCEDURE set_diag_scalar,set_diag_vector
   END INTERFACE
 
-  ! *****************************************************************************
-
 CONTAINS
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   FUNCTION angle(a,b) RESULT(angle_ab)
 
     !   Purpose: Calculation of the angle between the vectors a and b.
     !            The angle is returned in radians.
 
     !   History: - Creation (14.10.1998,MK)
-
-    !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: a, b
     REAL(KIND=dp)                            :: angle_ab
@@ -114,16 +97,13 @@ CONTAINS
 
   END FUNCTION angle
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   FUNCTION binomial(n,k) RESULT(n_over_k)
 
     !   Purpose: The binomial coefficient n over k for 0 <= k <= n is calculated,
     !            otherwise zero is returned.
 
     !   History: - Creation (08.03.1999,MK)
-
-    !   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: n, k
     REAL(KIND=dp)                            :: n_over_k
@@ -138,8 +118,7 @@ CONTAINS
 
   END FUNCTION binomial
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE build_rotmat(phi,a,rotmat)
 
     !   Purpose: The rotation matrix rotmat which rotates a vector about a
@@ -147,8 +126,6 @@ CONTAINS
     !            The rotation angle is phi (radians).
 
     !   History: - Creation (16.10.1998,MK)
-
-    !   ***************************************************************************
 
     REAL(KIND=dp), INTENT(IN)                :: phi
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: a
@@ -189,15 +166,12 @@ CONTAINS
 
   END SUBROUTINE build_rotmat
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   FUNCTION det_3x3_1(a) RESULT(det_a)
 
     !   Purpose: Returns the determinante of the 3x3 matrix a.
 
     !   History: - Creation (13.03.2004,MK)
-
-    !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: a
@@ -211,15 +185,12 @@ CONTAINS
 
   END FUNCTION det_3x3_1
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   FUNCTION det_3x3_2(a1,a2,a3) RESULT(det_a)
 
     !   Purpose: Returns the determinante of the 3x3 matrix a given by its columns.
 
     !   History: - Creation (13.03.2004,MK)
-
-    !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: a1, a2, a3
     REAL(KIND=dp)                            :: det_a
@@ -232,8 +203,7 @@ CONTAINS
 
   END FUNCTION det_3x3_2
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE diamat_all(a,eigval,dac)
 
     !   Purpose: Diagonalize the symmetric n by n matrix a using the LAPACK
@@ -241,14 +211,10 @@ CONTAINS
 
     !   History: - Creation (29.03.1999,MK)
 
-    !   ***************************************************************************
-
     !   a       : Symmetric matrix to be diagonalized (input; upper triangle) ->
     !             eigenvectors of the matrix a (output).
     !   dac     : If true, then the divide-and-conquer algorithm is applied.
     !   eigval  : Eigenvalues of the matrix a (output).
-
-    !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: a
@@ -352,8 +318,7 @@ CONTAINS
 
   END SUBROUTINE diamat_all
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   FUNCTION dihedral_angle(ab,bc,cd) RESULT(dihedral_angle_abcd)
 
     !   Purpose: Returns the dihedral angle, i.e. the angle between the planes
@@ -361,8 +326,6 @@ CONTAINS
     !            The dihedral angle is returned in radians.
 
     !   History: - Creation (13.03.2004,MK)
-
-    !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ab, bc, cd
     REAL(KIND=dp)                            :: dihedral_angle_abcd
@@ -383,8 +346,7 @@ CONTAINS
 
   END FUNCTION dihedral_angle
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   FUNCTION gauss_exponent(l,radius,threshold,prefactor) RESULT(exponent)
 
     !   Purpose: The exponent of a primitive Gaussian function for a given radius
@@ -392,16 +354,12 @@ CONTAINS
 
     !   History: - Creation (07.03.1999,MK)
 
-    !   ***************************************************************************
-
     !   exponent : Exponent of the primitive Gaussian function.
     !   l        : Angular momentum quantum number l.
     !   prefactor: Prefactor of the Gaussian function (e.g. a contraction
     !              coefficient).
     !   radius   : Calculated radius of the Gaussian function.
     !   threshold: Threshold for radius.
-
-    !   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: l
     REAL(KIND=dp), INTENT(IN)                :: radius, threshold, prefactor
@@ -418,15 +376,12 @@ CONTAINS
 
   END FUNCTION gauss_exponent
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   FUNCTION get_diag(a) RESULT(a_diag)
 
     !   Purpose: Return the diagonal elements of matrix a as a vector.
 
     !   History: - Creation (20.11.1998,MK)
-
-    !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: a
@@ -445,15 +400,12 @@ CONTAINS
 
   END FUNCTION get_diag
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   FUNCTION inv_3x3(a) RESULT(a_inv)
 
     !   Purpose: Returns the inverse of the 3 x 3 matrix a.
 
     !   History: - Creation (13.03.2004,MK)
-
-    !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: a
@@ -479,16 +431,13 @@ CONTAINS
 
   END FUNCTION inv_3x3
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE invert_matrix(a,a_inverse,error,option)
 
     !   Purpose: Compute the inverse of the n by n matrix a using the LAPACK
     !            library.
 
     !   History: - Creation (23.03.1999,MK)
-
-    !   ***************************************************************************
 
     !   a        : Matrix to be inverted (input).
     !   a_inverse: Inverse of the matrix a (output).
@@ -498,8 +447,6 @@ CONTAINS
     !   r_cond   : Reciprocal condition number of the matrix a.
     !   trans    : "N" => invert a
     !              "T" => invert transpose(a)
-
-    !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: a
@@ -686,8 +633,7 @@ CONTAINS
 
   END SUBROUTINE invert_matrix
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE power_matrix(a,a_power,exponent,threshold,n_dependent,dac)
 
     !   Purpose: Raise the real symmetric n by n matrix a to the power given by
@@ -697,8 +643,6 @@ CONTAINS
 
     !   History: - Creation (29.03.1999,MK)
 
-    !   ***************************************************************************
-
     !   a          : Symmetric matrix to be powered (input; upper triangle) ->
     !                Destroyed on exit.
     !   a_power    : Power of matrix a => a**exponent (output).
@@ -707,8 +651,6 @@ CONTAINS
     !   n_dependent: Number of the eigenvectors which are linear dependent due to
     !                the defined eigval_eps (output).
     !   threshold  : Threshold value for eigenvector quenching (input).
-
-    !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: a
@@ -810,16 +752,13 @@ CONTAINS
 
   END SUBROUTINE power_matrix
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   FUNCTION reflect_vector(a,b) RESULT(a_mirror)
 
     !   Purpose: Reflection of the vector a through a mirror plane defined by the
     !            normal vector b. The reflected vector a is stored in a_mirror.
 
     !   History: - Creation (16.10.1998,MK)
-
-    !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: a, b
     REAL(KIND=dp), DIMENSION(3)              :: a_mirror
@@ -849,8 +788,7 @@ CONTAINS
 
   END FUNCTION reflect_vector
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   FUNCTION rotate_vector(a,phi,b) RESULT(a_rot)
 
     !   Purpose: Rotation of the vector a about an rotation axis defined by the
@@ -858,8 +796,6 @@ CONTAINS
     !            a is stored in a_rot.
 
     !   History: - Creation (16.10.1998,MK)
-
-    !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: a
     REAL(KIND=dp), INTENT(IN)                :: phi
@@ -891,15 +827,12 @@ CONTAINS
 
   END FUNCTION rotate_vector
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE set_diag_scalar(a,b)
 
     !   Purpose: Set the diagonal elements of matrix a to b.
 
     !   History: - Creation (20.11.1998,MK)
-
-    !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: a
@@ -917,15 +850,12 @@ CONTAINS
 
   END SUBROUTINE set_diag_scalar
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE set_diag_vector(a,b)
 
     !   Purpose: Set the diagonal elements of matrix a to the values of vector b.
 
     !   History: - Creation (20.11.1998,MK)
-
-    !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: a
@@ -951,15 +881,12 @@ CONTAINS
 
   END SUBROUTINE set_diag_vector
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE symmetrize_matrix(a,option)
 
     !   Purpose: Symmetrize the matrix a.
 
     !   History: - Creation (16.10.1998,MK)
-
-    !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: a
@@ -999,15 +926,12 @@ CONTAINS
 
   END SUBROUTINE symmetrize_matrix
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE unit_matrix(a)
 
     !   Purpose: Set the matrix a to be a unit matrix.
 
     !   History: - Creation (16.10.1998,MK)
-
-    !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: a
@@ -1020,15 +944,12 @@ CONTAINS
 
   END SUBROUTINE unit_matrix
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   FUNCTION vector_product(a,b) RESULT(c)
 
     !   Purpose: Calculation of the vector product c = a x b.
 
     !   History: - Creation (16.10.1998,MK)
-
-    !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: a, b
     REAL(KIND=dp), DIMENSION(3)              :: c
@@ -1041,30 +962,10 @@ CONTAINS
 
   END FUNCTION vector_product
 
-  ! *****************************************************************************
-  !!****f* mathlib/gcd [1.0] *
-  !!
-  !!   NAME
-  !!     gcd
-  !!
-  !!   SYNOPSIS
-  !!     FUNCTION gcd(a,b)
-  !!        INTEGER :: a,b,gcd
-  !!     END FUNCTION
-  !!
-  !!   FUNCTION
-  !!     computes the greatest common divisor of two number
-  !!
-  !!   NOTES
-  !!
-  !!   INPUTS
-  !!
-  !!   AUTHOR
-  !!     Joost VandeVondele
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!*** *********************************************************************
+! *****************************************************************************
+!> \brief computes the greatest common divisor of two number
+!> \author Joost VandeVondele
+! *****************************************************************************
   FUNCTION gcd(a,b)
     INTEGER                                  :: a, b, gcd
 
@@ -1093,29 +994,10 @@ CONTAINS
     RETURN
   END FUNCTION gcd
 
-  !!****f* mathlib/lcm [1.0] *
-  !!
-  !!   NAME
-  !!     lcm
-  !!
-  !!   SYNOPSIS
-  !!     FUNCTION lcm(a,b)
-  !!        integer :: lcm,a,b
-  !!     END FUNCTION
-  !!
-  !!   FUNCTION
-  !!     computes the least common multiplier of two numbers
-  !!
-  !!   NOTES
-  !!
-  !!   INPUTS
-  !!
-  !!   AUTHOR
-  !!     Joost VandeVondele
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!*** *********************************************************************
+! *****************************************************************************
+!> \brief computes the least common multiplier of two numbers
+!> \author Joost VandeVondele
+! *****************************************************************************
   FUNCTION lcm(a,b)
     INTEGER                                  :: a, b, lcm
 
@@ -1132,22 +1014,13 @@ CONTAINS
     RETURN
   END FUNCTION lcm
 
-  ! *****************************************************************************
   !****f* mathlib/ei [1.0] *
-  !!
-  !!   NAME
-  !!     ei
-  !!
-  !!   FUNCTION
-  !!     computes the exponential integral
-  !!     Ei(x) = Int(exp(-x*t)/t,t=1..infinity)  x>0
-  !!
-  !!   AUTHOR
-  !!     JGH (adapted from Numerical recipies)
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!*** *********************************************************************
+
+! *****************************************************************************
+!> \brief computes the exponential integral
+!>      Ei(x) = Int(exp(-x*t)/t,t=1..infinity)  x>0
+!> \author JGH (adapted from Numerical recipies)
+! *****************************************************************************
   FUNCTION ei(x)
     REAL(dp)                                 :: x, ei
 
@@ -1195,8 +1068,7 @@ CONTAINS
 
   END FUNCTION ei
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   FUNCTION matmul_3x3 ( mat1, mat2 )
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: mat1, mat2
@@ -1213,8 +1085,7 @@ CONTAINS
     matmul_3x3(3,3)=mat1(3,1)*mat2(1,3)+mat1(3,2)*mat2(2,3)+mat1(3,3)*mat2(3,3)
   END FUNCTION matmul_3x3
 
-  !******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE matvec_3x3 (res, mat, vec )
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: res
     REAL(KIND=dp), DIMENSION(3, 3), &
@@ -1226,8 +1097,7 @@ CONTAINS
     res(3)=mat(3,1)*vec(1)+mat(3,2)*vec(2)+mat(3,3)*vec(3)
   END SUBROUTINE matvec_3x3
 
-  !******************************************************************************
-
+! *****************************************************************************
   FUNCTION dotprod_3d ( vec1, vec2 )
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: vec1, vec2
     REAL(KIND=dp)                            :: dotprod_3d
@@ -1238,8 +1108,7 @@ CONTAINS
          + vec1 ( 3 ) * vec2 ( 3 )
   END FUNCTION dotprod_3d
 
-  !******************************************************************************
-
+! *****************************************************************************
   FUNCTION transpose_3d ( mat )
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: mat
@@ -1254,25 +1123,16 @@ CONTAINS
     END DO
   END FUNCTION transpose_3d
 
-
-  ! *****************************************************************************
   !****f* mathlib/expint [1.0] *
-  !!
-  !!   NAME
-  !!     expint
-  !!
-  !!   FUNCTION
-  !!     computes the exponential integral
-  !!     En(x) = Int(exp(-x*t)/t^n,t=1..infinity)  x>0, n=0,1,..
-  !!     Note: Ei(-x) = -E1(x)
-  !!
-  !!   AUTHOR
-  !!     Manuel Guidon (adapted from Numerical recipies)
-  !!
-  !!   MODIFICATION HISTORY
-  !!     05.2007 Created
-  !!
-  !!*** *********************************************************************
+
+! *****************************************************************************
+!> \brief computes the exponential integral
+!>      En(x) = Int(exp(-x*t)/t^n,t=1..infinity)  x>0, n=0,1,..
+!>      Note: Ei(-x) = -E1(x)
+!> \par History
+!>      05.2007 Created
+!> \author Manuel Guidon (adapted from Numerical recipies)
+! *****************************************************************************
   FUNCTION expint(n,x)
     INTEGER                                  :: n
     REAL(dp)                                 :: x, expint

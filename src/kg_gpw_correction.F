@@ -3,23 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/kg_gpw_correction
-!!
-!!   NAME
-!!     kg_gpw_correction
-!!
-!!
-!!   AUTHOR
-!!     MI (20.12.2004)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
-
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author MI (20.12.2004)
+! *****************************************************************************
 MODULE kg_gpw_correction
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -72,42 +60,26 @@ MODULE kg_gpw_correction
   PUBLIC :: kg_gpw_ekin_mol
 
 !***
-!****************************************************************************
 
 CONTAINS
 
 !****f* kg_gpw_correction/kg_gpw_ekin_mol
-!!
-!!   NAME
-!!     kg_gpw_ekin_mol
-!!
-!!   FUNCTION
-!!     loop over all the molecules where :
-!!     the molecular densityis passed to the calculation of the ekin potential
-!!     the ekin potential is integrated in real space
-!!     the ks matrix is updated aggordingly (block by block)
-!!     the forces coming from this contribution are calculated if required
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - qs_env: the qs environment
-!!     - molbox_env : cell, internal positions, rho, pw_env for each molecule
-!!     - fm_mol_set : other info about the molecule, maybe not neede
-!!     - h : ks-matrix in sparse form
-!!     - ekin_mol : total energy from this term (to be added to the total energy)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
 
+! *****************************************************************************
+!> \brief loop over all the molecules where :
+!>      the molecular densityis passed to the calculation of the ekin potential
+!>      the ekin potential is integrated in real space
+!>      the ks matrix is updated aggordingly (block by block)
+!>      the forces coming from this contribution are calculated if required
+!> \param qs_env the qs environment
+!> \param molbox_env cell, internal positions, rho, pw_env for each molecule
+!> \param fm_mol_set other info about the molecule, maybe not neede
+!> \param h ks-matrix in sparse form
+!> \param ekin_mol total energy from this term (to be added to the total energy)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author MI
+! *****************************************************************************
   SUBROUTINE kg_gpw_ekin_mol(qs_env,molbox_env,fm_mol_set,ks_global,p_global,&
                              ekin_mol,calculate_forces,just_energy,error)
 
@@ -458,7 +430,6 @@ CONTAINS
        CALL mp_sum(ekin_mol,para_env%group)
     END IF ! failure
 
-
     ! Deallocate
     DEALLOCATE(rho_r,STAT=istat)
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
@@ -477,8 +448,5 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE kg_gpw_ekin_mol
-
-
-!***************************************************************************
 
 END MODULE kg_gpw_correction

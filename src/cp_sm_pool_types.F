@@ -1,30 +1,15 @@
-
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/cp_sm_pool_types [1.0] *
-!!
-!!   NAME
-!!     cp_sm_pool_types
-!!
-!!   FUNCTION
-!!     pool for sparse matrixes, quick port of cp_fm_pool_types, will be
-!!     cleaned with the new structure of sm matrixes
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     03.2003 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief pool for sparse matrixes, quick port of cp_fm_pool_types, will be
+!>      cleaned with the new structure of sm matrixes
+!> \par History
+!>      03.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE cp_sm_pool_types
   USE cp_linked_list_sm,               ONLY: cp_sll_sm_dealloc,&
                                              cp_sll_sm_get_first_el,&
@@ -66,104 +51,47 @@ MODULE cp_sm_pool_types
   PUBLIC :: sm_pools_copy, sm_pools_dealloc, sm_pools_flush_cache,&
        sm_pools_create_matrix_vect, sm_pools_give_back_matrix_vect
 !***
-!****************************************************************************
 
-!!****s* cp_sm_pool_types/cp_sm_pool_type [1.0] *
-!!
-!!   NAME
-!!     cp_sm_pool_type
-!!
-!!   FUNCTION
-!!     represent a pool of full matrixes
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - ref_count: reference count (see /cp2k/doc/ReferenceCounting.html)
-!!     - matrix_struct: matrix structure of the matrixes in this pool
-!!     - cache: linked list with the matrixes in the pool
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief represent a pool of full matrixes
+!> \param ref_count reference count (see /cp2k/doc/ReferenceCounting.html)
+!> \param matrix_struct matrix structure of the matrixes in this pool
+!> \param cache linked list with the matrixes in the pool
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE cp_sm_pool_type
      PRIVATE
      INTEGER :: ref_count, id_nr
      TYPE(cp_sm_struct_type), POINTER :: matrix_struct
      TYPE(cp_sll_sm_type), POINTER :: cache
   END TYPE cp_sm_pool_type
-!!***
-!****************************************************************************
 
-
-!!****s* cp_sm_pool_types/cp_sm_pool_p_type [1.0] *
-!!
-!!   NAME
-!!     cp_sm_pool_p_type
-!!
-!!   FUNCTION
-!!     to create arrays of pools
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - pool: the pool
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief to create arrays of pools
+!> \param pool the pool
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE cp_sm_pool_p_type
      TYPE(cp_sm_pool_type), POINTER :: pool
   END TYPE cp_sm_pool_p_type
-!!***
-!****************************************************************************
 
 CONTAINS
 
-!!****f* cp_sm_pool_types/sm_pool_create [1.0] *
-!!
-!!   NAME
-!!     sm_pool_create
-!!
-!!   SYNOPSIS
-!!     Subroutine sm_pool_create(pool, matrix_struct, error)
-!!       Type(cp_sm_pool_type), Pointer:: pool
-!!       Type(cp_sm_struct_type), Pointer:: matrix_struct
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine sm_pool_create
-!!
-!!   FUNCTION
-!!     creates a pool of full matrixes
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pool: the pool to create
-!!     - matrix_struct: the structure of the matrixes that are stored in
-!!       this pool
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a pool of full matrixes
+!> \param pool the pool to create
+!> \param matrix_struct the structure of the matrixes that are stored in
+!>        this pool
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE sm_pool_create(pool, matrix_struct, error)
     TYPE(cp_sm_pool_type), POINTER           :: pool
     TYPE(cp_sm_struct_type), POINTER         :: matrix_struct
@@ -188,31 +116,16 @@ CONTAINS
        NULLIFY(pool%cache)
     END IF
   END SUBROUTINE sm_pool_create
-!***************************************************************************
 
-!!****f* cp_sm_pool_types/cp_sm_pool_retain [1.0] *
-!!
-!!   NAME
-!!     cp_sm_pool_retain
-!!
-!!   FUNCTION
-!!     retains the pool (see cp2k/doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pool: the pool to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the pool (see cp2k/doc/ReferenceCounting.html)
+!> \param pool the pool to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE sm_pool_retain(pool,error)
     TYPE(cp_sm_pool_type), POINTER           :: pool
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -231,31 +144,16 @@ CONTAINS
        pool%ref_count=pool%ref_count+1
     END IF
   END SUBROUTINE sm_pool_retain
-!***************************************************************************
 
-!!****f* cp_sm_pool_types/sm_pool_flush_cache [1.0] *
-!!
-!!   NAME
-!!     sm_pool_flush_cache
-!!
-!!   FUNCTION
-!!     deallocates all the cached matrixes
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pool: the pool to flush
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates all the cached matrixes
+!> \param pool the pool to flush
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE sm_pool_flush_cache(pool,error)
     TYPE(cp_sm_pool_type), POINTER           :: pool
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -281,31 +179,16 @@ CONTAINS
        CALL cp_sll_sm_dealloc(pool%cache,error=error)
     END IF
   END SUBROUTINE sm_pool_flush_cache
-!***************************************************************************
 
-!!****f* cp_sm_pool_types/cp_sm_pool_release [1.0] *
-!!
-!!   NAME
-!!     cp_sm_pool_release
-!!
-!!   FUNCTION
-!!     releases the given pool (see cp2k/doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pool: the pool to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given pool (see cp2k/doc/ReferenceCounting.html)
+!> \param pool the pool to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE sm_pool_release(pool,error)
     TYPE(cp_sm_pool_type), POINTER           :: pool
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -334,41 +217,18 @@ CONTAINS
     END IF
     NULLIFY(pool)
   END SUBROUTINE sm_pool_release
-!***************************************************************************
 
-!!****f* cp_sm_pool_types/sm_pool_create_matrix [1.0] *
-!!
-!!   NAME
-!!     sm_pool_create_matrix
-!!
-!!   SYNOPSIS
-!!     Subroutine sm_pool_create_matrix(pool, matrix, name, error)
-!!       Type(cp_sm_pool_type), Pointer:: pool
-!!       Type(real_matrix_type), Pointer:: matrix
-!!       Character(Len=*), Optional, Intent (IN):: name
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine sm_pool_create_matrix
-!!
-!!   FUNCTION
-!!     returns a matrix, allocating it if none is in the pool
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pool: the pool from where you get the matrix
-!!     - matrix: will contain the new matrix
-!!     - name: the name for the new matrix (optional)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns a matrix, allocating it if none is in the pool
+!> \param pool the pool from where you get the matrix
+!> \param matrix will contain the new matrix
+!> \param name the name for the new matrix (optional)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE sm_pool_create_matrix(pool, matrix,name,error)
     TYPE(cp_sm_pool_type), POINTER           :: pool
     TYPE(real_matrix_type), POINTER          :: matrix
@@ -441,44 +301,19 @@ CONTAINS
     CPPostcondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
     !CPPostcondition(matrix%ref_count==1,cp_warning_level,routineP,error,failure)
   END SUBROUTINE sm_pool_create_matrix
-!***************************************************************************
 
-!!****f* cp_sm_pool_types/sm_pool_create_matrix_vect [1.0] *
-!!
-!!   NAME
-!!     sm_pool_create_matrix_vect
-!!
-!!   SYNOPSIS
-!!     Subroutine sm_pool_create_matrix_vect(pool, n_matrixes, matrixes,&
-!!         name, error)
-!!       Type(cp_sm_pool_type), Pointer:: pool
-!!       Integer, Intent (IN):: n_matrixes
-!!       Type(real_matrix_p_type), Dimension(:), Pointer:: matrixes
-!!       Character(Len=*), Intent (IN), Optional:: name
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine sm_pool_create_matrix_vect
-!!
-!!   FUNCTION
-!!     returns a vector of identical matrixes, allocating it if none
-!!     is in the pool
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pool: the pool from where you get the matrix
-!!     - n_matrixes: the number of matrixes in the vector
-!!     - matrixes: will contain the new matrix vector
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns a vector of identical matrixes, allocating it if none
+!>      is in the pool
+!> \param pool the pool from where you get the matrix
+!> \param n_matrixes the number of matrixes in the vector
+!> \param matrixes will contain the new matrix vector
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE sm_pool_create_matrix_vect(pool, n_matrixes, matrixes, name,&
        error)
     TYPE(cp_sm_pool_type), POINTER           :: pool
@@ -513,41 +348,21 @@ CONTAINS
        END DO
     END IF
   END SUBROUTINE sm_pool_create_matrix_vect
-!***************************************************************************
 
-!!****f* cp_sm_pool_types/sm_pool_give_back_matrix [1.0] *
-!!
-!!   NAME
-!!     sm_pool_give_back_matrix
-!!
-!!   SYNOPSIS
-!!     Subroutine sm_pool_give_back_matrix(pool, matrix, error)
-!!       Type(cp_sm_pool_type), Pointer:: pool
-!!       Type(real_matrix_type), Pointer:: matrix
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine sm_pool_give_back_matrix
-!!
-!!   FUNCTION
-!!     returns the matrix to the pool
-!!
-!!   NOTES
-!!     transfers the ownership of the matrix to the pool
-!!     (it is as if you had called cp_sm_release)
-!!     Accept give_backs of non associated matrixes?
-!!
-!!   INPUTS
-!!     - pool: the pool where to cache the matrix
-!!     - matrix: the matrix to give back
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the matrix to the pool
+!> \param pool the pool where to cache the matrix
+!> \param matrix the matrix to give back
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      transfers the ownership of the matrix to the pool
+!>      (it is as if you had called cp_sm_release)
+!>      Accept give_backs of non associated matrixes?
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE sm_pool_give_back_matrix(pool, matrix, error)
     TYPE(cp_sm_pool_type), POINTER           :: pool
     TYPE(real_matrix_type), POINTER          :: matrix
@@ -583,42 +398,22 @@ CONTAINS
     END IF
     NULLIFY(matrix)
   END SUBROUTINE sm_pool_give_back_matrix
-!***************************************************************************
 
-!!****f* cp_sm_pool_types/sm_pool_give_back_matrix_vect [1.0] *
-!!
-!!   NAME
-!!     sm_pool_give_back_matrix_vect
-!!
-!!   SYNOPSIS
-!!     Subroutine sm_pool_give_back_matrix_vect(pool, matrixes, error)
-!!       Type(cp_sm_pool_type), Pointer:: pool
-!!       Type(real_matrix_p_type), Dimension(:), Pointer:: matrixes
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine sm_pool_give_back_matrix_vect
-!!
-!!   FUNCTION
-!!     returns the matrix to the pool
-!!
-!!   NOTES
-!!     transfers the ownership of the matrixes to the pool
-!!     and deallocates the array of matrixes
-!!     (it is as if you had called cp_sm_vect_dealloc)
-!!     Accept give_backs of non associated matrixes?
-!!
-!!   INPUTS
-!!     - pool: the pool where to cache the matrix
-!!     - matrixes: the matrixes to give back
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the matrix to the pool
+!> \param pool the pool where to cache the matrix
+!> \param matrixes the matrixes to give back
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      transfers the ownership of the matrixes to the pool
+!>      and deallocates the array of matrixes
+!>      (it is as if you had called cp_sm_vect_dealloc)
+!>      Accept give_backs of non associated matrixes?
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE sm_pool_give_back_matrix_vect(pool, matrixes, error)
     TYPE(cp_sm_pool_type), POINTER           :: pool
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -649,38 +444,16 @@ CONTAINS
     END IF
     NULLIFY(matrixes)
   END SUBROUTINE sm_pool_give_back_matrix_vect
-!***************************************************************************
 
-!!****f* cp_sm_pool_types/sm_pool_get_mstruct [1.0] *
-!!
-!!   NAME
-!!     sm_pool_get_mstruct
-!!
-!!   SYNOPSIS
-!!     Function sm_pool_get_mstruct(pool, error) Result(res)
-!!       Type(cp_sm_struct_type), Pointer:: res
-!!       Type(cp_sm_pool_type), Pointer:: pool
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function sm_pool_get_mstruct
-!!
-!!   FUNCTION
-!!     returns the matrix structure of this pool
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pool: the pool you are interested in
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     05.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the matrix structure of this pool
+!> \param pool the pool you are interested in
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      05.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 FUNCTION sm_pool_get_mstruct(pool,error) RESULT(res)
     TYPE(cp_sm_pool_type), POINTER           :: pool
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -701,41 +474,19 @@ FUNCTION sm_pool_get_mstruct(pool,error) RESULT(res)
      NULLIFY(res)
   END IF
 END FUNCTION sm_pool_get_mstruct
-!***************************************************************************
 
 !================== pools ================
 
-!!****f* cp_sm_pool_types/sm_pools_copy [1.0] *
-!!
-!!   NAME
-!!     sm_pools_copy
-!!
-!!   SYNOPSIS
-!!     Subroutine sm_pools_copy(source_pools, target_pools, error)
-!!       Type(cp_sm_pool_p_type), Dimension(:), Pointer:: source_pools,&
-!!         target_pools
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine sm_pools_copy
-!!
-!!   FUNCTION
-!!     shallow copy of an array of pools (retains each pool)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - source_pools: the pools to copy
-!!     - target_pools: allocated, will contains the new pools
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief shallow copy of an array of pools (retains each pool)
+!> \param source_pools the pools to copy
+!> \param target_pools allocated, will contains the new pools
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      11.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE sm_pools_copy(source_pools, target_pools, error)
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: source_pools, target_pools
@@ -761,37 +512,16 @@ SUBROUTINE sm_pools_copy(source_pools, target_pools, error)
      END DO
   END IF
 END SUBROUTINE sm_pools_copy
-!***************************************************************************
 
-!!****f* cp_sm_pool_types/sm_pools_dealloc [1.0] *
-!!
-!!   NAME
-!!     sm_pools_dealloc
-!!
-!!   SYNOPSIS
-!!     Subroutine sm_pools_dealloc(pools, error)
-!!       Type(cp_sm_pool_p_type), Dimension(:), Pointer:: pools
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine sm_pools_dealloc
-!!
-!!   FUNCTION
-!!     deallocate an array of pools (releasing each pool)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pools: the pools to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocate an array of pools (releasing each pool)
+!> \param pools the pools to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      11.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE sm_pools_dealloc(pools, error)
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
@@ -813,37 +543,16 @@ SUBROUTINE sm_pools_dealloc(pools, error)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF
 END SUBROUTINE sm_pools_dealloc
-!***************************************************************************
 
-!!****f* cp_sm_pool_types/sm_pools_flush_cache [1.0] *
-!!
-!!   NAME
-!!     sm_pools_flush_cache
-!!
-!!   SYNOPSIS
-!!     Subroutine sm_pools_flush_cache(pools, error)
-!!       Type(cp_sm_pool_p_type), Dimension(:), Pointer:: pools
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine sm_pools_flush_cache
-!!
-!!   FUNCTION
-!!     deallocates all the cached matrixes of an array of pools
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pools: the pools to flush
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     09.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates all the cached matrixes of an array of pools
+!> \param pools the pools to flush
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE sm_pools_flush_cache(pools, error)
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
@@ -864,41 +573,18 @@ SUBROUTINE sm_pools_flush_cache(pools, error)
      END DO
   END IF
 END SUBROUTINE sm_pools_flush_cache
-!***************************************************************************
 
-!!****f* cp_sm_pool_types/sm_pools_create_matrix_vect [1.0] *
-!!
-!!   NAME
-!!     sm_pools_create_matrix_vect
-!!
-!!   SYNOPSIS
-!!     Subroutine sm_pools_create_matrix_vect(pools, matrixes, name, error)
-!!       Type(cp_sm_pool_p_type), Dimension(:), Pointer:: pools
-!!       Type(real_matrix_p_type), Dimension(:), Pointer:: matrixes
-!!       Character(Len=*), Optional, Intent (IN):: name
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine sm_pools_create_matrix_vect
-!!
-!!   FUNCTION
-!!     Returns a matrix vector with a matrix from each pool
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pools: the pools to create the matrix from
-!!     - matrixes: will contain the vector of matrixes
-!!     - name: optionally a name for the matrixes
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     09.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Returns a matrix vector with a matrix from each pool
+!> \param pools the pools to create the matrix from
+!> \param matrixes will contain the vector of matrixes
+!> \param name optionally a name for the matrixes
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE sm_pools_create_matrix_vect(pools,matrixes,name,error)
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
@@ -933,40 +619,20 @@ SUBROUTINE sm_pools_create_matrix_vect(pools,matrixes,name,error)
      END DO
   END IF
 END SUBROUTINE sm_pools_create_matrix_vect
-!***************************************************************************
 
-!!****f* cp_sm_pool_p_types/sm_pools_give_back_matrix_vect [1.0] *
-!!
-!!   NAME
-!!     sm_pools_give_back_matrix_vect
-!!
-!!   SYNOPSIS
-!!     Subroutine sm_pools_give_back_matrix_vect(pools, matrixes, error)
-!!       Type(cp_sm_pool_p_type), Dimension(:), Pointer:: pools
-!!       Type(real_matrix_p_type), Dimension(:), Pointer:: matrixes
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine sm_pools_give_back_matrix_vect
-!!
-!!   FUNCTION
-!!     returns a matrix vector to the pools. The vector is deallocated
-!!     (like cp_sm_vect_dealloc)
-!!
-!!   NOTES
-!!     accept unassociated vect?
-!!
-!!   INPUTS
-!!     - pools: the pool where to give back the matrix vector
-!!     - matrixes: the matrixes to give back
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     09.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns a matrix vector to the pools. The vector is deallocated
+!>      (like cp_sm_vect_dealloc)
+!> \param pools the pool where to give back the matrix vector
+!> \param matrixes the matrixes to give back
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      accept unassociated vect?
+!> \par History
+!>      09.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE sm_pools_give_back_matrix_vect(pools,matrixes,error)
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
@@ -996,6 +662,5 @@ SUBROUTINE sm_pools_give_back_matrix_vect(pools,matrixes,error)
   CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   NULLIFY(matrixes)
 END SUBROUTINE sm_pools_give_back_matrix_vect
-!***************************************************************************
 
 END MODULE cp_sm_pool_types

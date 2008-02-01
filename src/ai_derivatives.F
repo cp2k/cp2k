@@ -3,6 +3,7 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
+! *****************************************************************************
 MODULE ai_derivatives
 
 ! Purpose: Calculate the first derivative of an integral block.
@@ -10,8 +11,6 @@ MODULE ai_derivatives
 ! Literature: S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
 
 ! History: - Creation (05.10.2000, Matthias Krack)
-
-! *****************************************************************************
 
 ! ax,ay,az  : Angular momentum index numbers of orbital a.
 ! bx,by,bz  : Angular momentum index numbers of orbital b.
@@ -31,8 +30,6 @@ MODULE ai_derivatives
 ! zet{a,b}  : Exponents of the Gaussian-type functions a or b.
 ! zetp      : Reciprocal of the sum of the exponents of orbital a and b.
 
-! *****************************************************************************
-
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE orbital_pointers,                ONLY: coset,&
@@ -47,12 +44,9 @@ MODULE ai_derivatives
 
   PUBLIC :: adbdr, dabdr
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE dabdr(la_max,npgfa,zeta,rpgfa,la_min,&
                    lb_max,npgfb,zetb,rpgfb,lb_min,&
                    dab,ab,dabdx,dabdy,dabdz)
@@ -71,8 +65,6 @@ CONTAINS
 !       *** [da/dRi|O|b] = 2*zeta*[a+1i|O|b] - Ni(a)[a-1i|O|b] ***
 
 !   History: - Creation (05.10.2000, Matthias Krack)
-
-!   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
@@ -198,7 +190,6 @@ CONTAINS
   END SUBROUTINE dabdr
 
 ! *****************************************************************************
-
  SUBROUTINE adbdr(la_max,npgfa,zeta,rpgfa,la_min,&
                    lb_max,npgfb,zetb,rpgfb,lb_min,&
                    dab,ab,adbdx,adbdy,adbdz)
@@ -213,8 +204,6 @@ CONTAINS
 !       *** [a|O|db/dRi] = 2*zetb*[a|O|b+1i] - Ni(b)[a|O|b-1i] ***
 
 !   History: - Creation (05.10.2000, Matthias Krack)
-
-!   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
@@ -338,9 +327,5 @@ CONTAINS
 
   END SUBROUTINE adbdr
 
-! *****************************************************************************
-
-
 END MODULE ai_derivatives
-
 

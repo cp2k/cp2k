@@ -3,23 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/input_cp2k_restarts [1.0] *
-!!
-!!   NAME
-!!     input_cp2k_restarts
-!!
-!!   FUNCTION
-!!     Set of routines to dump the restart file of CP2K
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     01.2006 [created] Teodoro Laino
-!!
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Set of routines to dump the restart file of CP2K
+!> \par History
+!>      01.2006 [created] Teodoro Laino
+! *****************************************************************************
 MODULE input_cp2k_restarts
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -111,36 +99,17 @@ MODULE input_cp2k_restarts
             section_velocity_val_set,&
             write_restart_header
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
-!!****f* input_cp2k_restarts/write_restart [1.0] *
-!!
-!!   NAME
-!!     write_restart
-!!
-!!   FUNCTION
-!!     checks if a restart needs to be written and does so, updating all necessary fields
-!!     in the input file. This is a relatively simple wrapper routine.
-!!
-!!   NOTES
-!!
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+!> \brief checks if a restart needs to be written and does so, updating all necessary fields
+!>      in the input file. This is a relatively simple wrapper routine.
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+!> \author Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE write_restart(md_env,force_env,kg_env,meta_env,root_section,force_env_section,&
        coords, vels,  error)
     TYPE(md_environment_type), OPTIONAL, &
@@ -216,28 +185,14 @@ CONTAINS
 
   END SUBROUTINE write_restart
 
-!!****f* input_cp2k_restarts/write_restart_header [1.0] *
-!!
-!!   NAME
-!!     write_restart_header
-!!
-!!   FUNCTION
-!!     Writes the header for the restart file
-!!
-!!   NOTES
-!!
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino - University of Zurich - 01.2008
-!!
-!!   MODIFICATION HISTORY
-!!     01.2008 [created] - Splitted from write_restart
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Writes the header for the restart file
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      01.2008 [created] - Splitted from write_restart
+!> \author Teodoro Laino - University of Zurich - 01.2008
+! *****************************************************************************
   SUBROUTINE write_restart_header(ires, error)
     INTEGER, INTENT(IN)                      :: ires
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -272,29 +227,14 @@ CONTAINS
 
   END SUBROUTINE write_restart_header
 
-!!****f* input_cp2k_restarts/update_subsys_release [1.0] *
-!!
-!!   NAME
-!!    update_subsys_release 
-!!
-!!   FUNCTION
-!!     deallocate some sub_sections of the section subsys to save some memory 
-!!
-!!   NOTES
-!!
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     06.2007 created [MI]
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief deallocate some sub_sections of the section subsys to save some memory 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      06.2007 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE update_subsys_release(md_env,force_env,root_section,error)
 
     TYPE(md_environment_type), OPTIONAL, &
@@ -388,29 +328,14 @@ CONTAINS
 
   END SUBROUTINE update_subsys_release
 
-!!****f* input_cp2k_restarts/update_motion_release [1.0] *
-!!
-!!   NAME
-!!    update_motion_release 
-!!
-!!   FUNCTION
-!!     deallocate the nose subsections (coord, vel, force, mass) in the md section
-!!
-!!   NOTES
-!!
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     08.2007 created [MI]
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief deallocate the nose subsections (coord, vel, force, mass) in the md section
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2007 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE update_motion_release(motion_section,error)
 
     TYPE(section_vals_type), POINTER         :: motion_section
@@ -464,28 +389,14 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE   update_motion_release
 
-!!****f* input_cp2k_restarts/update_input [1.0] *
-!!
-!!   NAME
-!!     update_input
-!!
-!!   FUNCTION
-!!     Updates the whole input file for the restart
-!!
-!!   NOTES
-!!     
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     01.2006 created [teo]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Updates the whole input file for the restart
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      01.2006 created [teo]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE update_input(md_env,force_env,kg_env,meta_env,root_section,coords,vels,save_mem,error)
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
@@ -562,28 +473,14 @@ CONTAINS
        
   END SUBROUTINE update_input
 
-!!****f* input_cp2k_restarts/update_motion [1.0] *
-!!
-!!   NAME
-!!     update_motion
-!!
-!!   FUNCTION
-!!     Updates the motion section of the input file
-!!
-!!   NOTES
-!!     
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     01.2006 created [teo]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Updates the motion section of the input file
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      01.2006 created [teo]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE update_motion(motion_section,md_env,force_env,kg_env,meta_env,logger,&
        coords,vels,save_mem,error)
     TYPE(section_vals_type), POINTER         :: motion_section
@@ -928,28 +825,14 @@ CONTAINS
 
   END SUBROUTINE update_motion
 
-!!****f* input_cp2k_restarts/dump_csvr_energy_info [1.0] *
-!!
-!!   NAME
-!!     dump_csvr_energy_info
-!!
-!!   FUNCTION
-!!     routine to dump thermostat CSVR energies 
-!!
-!!   NOTES
-!!
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [teo]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief routine to dump thermostat CSVR energies 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created [teo]
+!> \author Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE dump_csvr_energy_info(thermostat_energy, nsize, work_section, error)
 
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: thermostat_energy
@@ -1021,29 +904,15 @@ CONTAINS
 
   END SUBROUTINE dump_csvr_energy_info
 
-!!****f* input_cp2k_restarts/collect_nose_restart_info [1.0] *
-!!
-!!   NAME
-!!     collect_nose_restart_info
-!!
-!!   FUNCTION
-!!     Collect all information needed to dump the restart for CSVR
-!!     thermostat
-!!
-!!   NOTES
-!!     
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [tlaino] - University of Zurich
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Collect all information needed to dump the restart for CSVR
+!>      thermostat
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      10.2007 created [tlaino] - University of Zurich
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE dump_csvr_restart_info(csvr, para_env, csvr_section, error)
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1101,29 +970,15 @@ CONTAINS
 
   END SUBROUTINE dump_csvr_restart_info
 
-!!****f* input_cp2k_restarts/collect_nose_restart_info [1.0] *
-!!
-!!   NAME
-!!     collect_nose_restart_info
-!!
-!!   FUNCTION
-!!     Collect all information needed to dump the restart for Nose-Hoover
-!!     thermostat
-!!
-!!   NOTES
-!!     
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [tlaino] - University of Zurich
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Collect all information needed to dump the restart for Nose-Hoover
+!>      thermostat
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      10.2007 created [tlaino] - University of Zurich
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE collect_nose_restart_info(nhc, para_env, eta, veta, fnhc, mnhc, error)
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1291,28 +1146,14 @@ CONTAINS
 
   END SUBROUTINE collect_nose_restart_info
 
-!!****f* input_cp2k_restarts/section_neb_coord_val_set [1.0] *
-!!
-!!   NAME
-!!     section_neb_coord_val_set
-!!
-!!   FUNCTION
-!!     routine to dump NEB coordinates and velocities section.. fast implementation
-!!
-!!   NOTES
-!!     
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     12.2006 created [teo]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief routine to dump NEB coordinates and velocities section.. fast implementation
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      12.2006 created [teo]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE section_neb_coord_val_set(coord_section, coords, nsize, error)
 
     TYPE(section_vals_type), POINTER         :: coord_section
@@ -1381,29 +1222,14 @@ CONTAINS
     coord_section%values(ik,1)%list => vals
   END SUBROUTINE section_neb_coord_val_set
 
-
-!!****f* input_cp2k_restarts/set_template_restart [1.0] *
-!!
-!!   NAME
-!!     set_template_restart
-!!
-!!   FUNCTION
-!!     Set the nose structure like restart
-!!
-!!   NOTES
-!!     
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     01.2006 created [teo]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Set the nose structure like restart
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      01.2006 created [teo]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE set_template_restart(work_section, eta, veta, fnhc, mnhc, error)
     TYPE(section_vals_type), POINTER         :: work_section
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
@@ -1457,28 +1283,14 @@ CONTAINS
     END IF
   END SUBROUTINE set_template_restart
 
-!!****f* input_cp2k_restarts/update_force_eval [1.0] *
-!!
-!!   NAME
-!!     update_force_eval
-!!
-!!   FUNCTION
-!!     Updates the force_eval section of the input file
-!!
-!!   NOTES
-!!     
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     01.2006 created [teo]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Updates the force_eval section of the input file
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      01.2006 created [teo]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE update_force_eval(force_env,logger,root_section,error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1541,28 +1353,14 @@ CONTAINS
     
   END SUBROUTINE update_force_eval
 
-!!****f* input_cp2k_restarts/update_qmmm [1.0] *
-!!
-!!   NAME
-!!     update_qmmm
-!!
-!!   FUNCTION
-!!     Updates the qmmm section if needed
-!!
-!!   NOTES
-!!     
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2007 created [teo]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Updates the qmmm section if needed
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2007 created [teo]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE update_qmmm(qmmm_section,force_env,error)
     TYPE(section_vals_type), POINTER         :: qmmm_section
     TYPE(force_env_type), POINTER            :: force_env
@@ -1589,30 +1387,15 @@ CONTAINS
 
   END SUBROUTINE update_qmmm
 
-!!****f* input_cp2k_restarts/update_rng_particle [1.0] *
-!!
-!!   NAME
-!!     update_rng_particle
-!!
-!!   FUNCTION
-!!     Updates the rng section of the input file
-!!     Write current status of the parallel random number generator (RNG)
-!!
-!!   NOTES
-!!     
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     01.2006 created [teo]
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief Updates the rng section of the input file
+!>      Write current status of the parallel random number generator (RNG)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      01.2006 created [teo]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE update_rng_particle(rng_section,force_env,error)
 
     TYPE(section_vals_type), POINTER         :: rng_section
@@ -1670,28 +1453,14 @@ CONTAINS
 
   END SUBROUTINE update_rng_particle
 
-!!****f* input_cp2k_restarts/update_subsys [1.0] *
-!!
-!!   NAME
-!!     update_subsys
-!!
-!!   FUNCTION
-!!     Updates the subsys section of the input file
-!!
-!!   NOTES
-!!     
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     01.2006 created [teo]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Updates the subsys section of the input file
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      01.2006 created [teo]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE update_subsys(subsys_section,force_env,skip_vel_section,error)
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(force_env_type), POINTER            :: force_env
@@ -1786,28 +1555,14 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE update_subsys
 
-!!****f* input_cp2k_restarts/update_cell_section [1.0] *
-!!
-!!   NAME
-!!     update_cell_section
-!!
-!!   FUNCTION
-!!     routine to update cell section.. splitted from the main update subsys_section
-!!
-!!   NOTES
-!!     
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     07.2007 created [teo] Zurich University
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief routine to update cell section.. splitted from the main update subsys_section
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      07.2007 created [teo] Zurich University
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE update_cell_section(force_env, subsys_section, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: subsys_section
@@ -1890,28 +1645,14 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE update_cell_section
 
-!!****f* input_cp2k_restarts/section_coord_val_set [1.0] *
-!!
-!!   NAME
-!!     section_coord_val_set
-!!
-!!   FUNCTION
-!!     routine to dump coordinates.. fast implementation
-!!
-!!   NOTES
-!!     
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     02.2006 created [teo]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief routine to dump coordinates.. fast implementation
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      02.2006 created [teo]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE section_coord_val_set(coord_section, particles, molecules, conv_factor,&
        scale, cell, shell, error)
     TYPE(section_vals_type), POINTER         :: coord_section
@@ -1951,7 +1692,6 @@ CONTAINS
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
          "_DEFAULT_KEYWORD_",error,failure)
-
 
     DO
        IF (SIZE(coord_section%values,2)==1) EXIT
@@ -2057,28 +1797,14 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE section_coord_val_set
 
-!!****f* input_cp2k_restarts/section_velocity_val_set [1.0] *
-!!
-!!   NAME
-!!     section_velocity_val_set
-!!
-!!   FUNCTION
-!!     routine to dump velocities.. fast implementation
-!!
-!!   NOTES
-!!
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     02.2006 created [teo]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief routine to dump velocities.. fast implementation
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2006 created [teo]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE section_velocity_val_set(velocity_section, particles, velocity, conv_factor, error)
 
     TYPE(section_vals_type), POINTER         :: velocity_section
@@ -2163,28 +1889,14 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE section_velocity_val_set
 
-!!****f* input_cp2k_restarts/update_dipoles_section [1.0] *
-!!
-!!   NAME
-!!     update_dipoles_section
-!!
-!!   FUNCTION
-!!     routine to dump dipoles.. fast implementation
-!!
-!!   NOTES
-!!
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     12.2007 created [teo]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief routine to dump dipoles.. fast implementation
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2007 created [teo]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE update_dipoles_section(dipoles, dipoles_section, error)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dipoles
@@ -2259,28 +1971,14 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE update_dipoles_section
 
-!!****f* input_cp2k_restarts/update_quadrupoles_section [1.0] *
-!!
-!!   NAME
-!!     update_quadrupoles_section
-!!
-!!   FUNCTION
-!!     routine to dump quadrupoles.. fast implementation
-!!
-!!   NOTES
-!!
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     12.2007 created [teo]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief routine to dump quadrupoles.. fast implementation
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2007 created [teo]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE update_quadrupoles_section(quadrupoles, quadrupoles_section, error)
 
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -2362,30 +2060,15 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE update_quadrupoles_section
 
-!!****f* input_cp2k_restarts/section_rng_val_set [1.0] *
-!!
-!!   NAME
-!!     section_rng_val_set
-!!
-!!   FUNCTION
-!!     routine to dump rngs.. fast implementation
-!!
-!!   NOTES
-!!
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     02.2006 created [teo]
-!!     - string dump (again) instead of integer ASCII code (07.03.06,MK)
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief routine to dump rngs.. fast implementation
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2006 created [teo]
+!>      - string dump (again) instead of integer ASCII code (07.03.06,MK)
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE section_rng_val_set(rng_section, nsize, ascii, error)
 
     TYPE(section_vals_type), POINTER         :: rng_section
@@ -2464,28 +2147,14 @@ CONTAINS
 
   END SUBROUTINE section_rng_val_set
 
-!!****f* input_cp2k_restarts/meta_hills_val_set_ss [1.0] *
-!!
-!!   NAME
-!!     meta_hills_val_set_ss
-!!
-!!   FUNCTION
-!!     routine to dump hills information during metadynamics run
-!!
-!!   NOTES
-!!
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     02.2006 created [teo]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief routine to dump hills information during metadynamics run
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2006 created [teo]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE meta_hills_val_set_ss(ss_section, meta_env, error)
 
     TYPE(section_vals_type), POINTER         :: ss_section
@@ -2553,28 +2222,14 @@ CONTAINS
     ss_section%values(ik,1)%list => vals
   END SUBROUTINE meta_hills_val_set_ss
 
-!!****f* input_cp2k_restarts/meta_hills_val_set_ds [1.0] *
-!!
-!!   NAME
-!!     meta_hills_val_set_ds
-!!
-!!   FUNCTION
-!!     routine to dump hills information during metadynamics run
-!!
-!!   NOTES
-!!
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     02.2006 created [teo]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief routine to dump hills information during metadynamics run
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2006 created [teo]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE meta_hills_val_set_ds(ds_section, meta_env, error)
 
     TYPE(section_vals_type), POINTER         :: ds_section
@@ -2642,28 +2297,14 @@ CONTAINS
     ds_section%values(ik,1)%list => vals
   END SUBROUTINE meta_hills_val_set_ds
 
-!!****f* input_cp2k_restarts/meta_hills_val_set_ww [1.0] *
-!!
-!!   NAME
-!!     meta_hills_val_set_ww
-!!
-!!   FUNCTION
-!!     routine to dump hills information during metadynamics run
-!!
-!!   NOTES
-!!
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     02.2006 created [teo]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief routine to dump hills information during metadynamics run
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2006 created [teo]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE meta_hills_val_set_ww(ww_section, meta_env, error)
 
     TYPE(section_vals_type), POINTER         :: ww_section
@@ -2727,6 +2368,4 @@ CONTAINS
   END SUBROUTINE meta_hills_val_set_ww
 
 END MODULE input_cp2k_restarts
-
-
 

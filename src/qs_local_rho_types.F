@@ -2,18 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_rho0_types
-!!
-!!   NAME
-!!     qs_rho0_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
 MODULE qs_local_rho_types
 
   USE erf_fn,                          ONLY: erf
@@ -44,6 +33,7 @@ MODULE qs_local_rho_types
 
 ! *** Define rhoz and local_rho types ***
 
+! *****************************************************************************
   TYPE  rhoz_type
     REAL(dp)                             ::  one_atom
     REAL(dp), DIMENSION(:), POINTER      ::  r_coef
@@ -51,6 +41,7 @@ MODULE qs_local_rho_types
     REAL(dp), DIMENSION(:), POINTER      ::  vr_coef
   END TYPE rhoz_type
 
+! *****************************************************************************
   TYPE local_rho_type
     TYPE(rho_atom_type), DIMENSION(:), POINTER            :: rho_atom_set
     TYPE(rho0_mpole_type), POINTER                        :: rho0_mpole
@@ -70,12 +61,9 @@ MODULE qs_local_rho_types
             get_local_rho, local_rho_set_create, &
             local_rho_set_release, set_local_rho
 
-!******************************************************************************
-
   CONTAINS
 
-!******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE allocate_rhoz(rhoz_set,nkind)
 
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
@@ -104,8 +92,7 @@ MODULE qs_local_rho_types
 
   END SUBROUTINE allocate_rhoz
 
-! ******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE calculate_rhoz(rhoz,grid_atom,alpha,zeff,natom,rhoz_tot,harmonics)
 
     TYPE(rhoz_type)                          :: rhoz
@@ -162,8 +149,7 @@ MODULE qs_local_rho_types
 ! STOP 'erf'
   END SUBROUTINE calculate_rhoz
 
-! ******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE deallocate_rhoz(rhoz_set)
 
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
@@ -195,7 +181,7 @@ MODULE qs_local_rho_types
 
   END SUBROUTINE  deallocate_rhoz
 
-! ******************************************************************************
+! *****************************************************************************
   SUBROUTINE  get_local_rho(local_rho_set,rho_atom_set,rho0_atom_set,&
                             rho0_mpole,nddo_mpole,rhoz_set)
 
@@ -221,8 +207,7 @@ MODULE qs_local_rho_types
 
   END SUBROUTINE get_local_rho
 
-! ******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE local_rho_set_create(local_rho_set, error)
 
     TYPE(local_rho_type), POINTER            :: local_rho_set
@@ -249,7 +234,7 @@ MODULE qs_local_rho_types
 
   END SUBROUTINE local_rho_set_create
 
-! ******************************************************************************
+! *****************************************************************************
   SUBROUTINE local_rho_set_release(local_rho_set,error)
 
     TYPE(local_rho_type), POINTER            :: local_rho_set
@@ -289,8 +274,7 @@ MODULE qs_local_rho_types
 
   END SUBROUTINE local_rho_set_release
 
-! ******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE set_local_rho(local_rho_set,rho_atom_set,rho0_atom_set,&
                             rho0_mpole,nddo_mpole,rhoz_set, error)
 
@@ -346,8 +330,5 @@ MODULE qs_local_rho_types
 
   END SUBROUTINE set_local_rho
 
-! ******************************************************************************
-
 END MODULE qs_local_rho_types
 
-!******************************************************************************

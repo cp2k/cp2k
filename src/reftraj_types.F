@@ -3,25 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!***** cp2k/reftraj_types [1.0] *
-!!
-!!   NAME
-!!     reftraj_types
-!!
-!!   FUNCTION
-!!    initialization of the reftraj structure used to analyse 
-!!    previously generated trajectories 
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     Created 10-07 [MI]
-!!
-!!   SOURCE
-!******************************************************************************
-
-
+! *****************************************************************************
+!> \brief initialization of the reftraj structure used to analyse 
+!>     previously generated trajectories 
+!> \par History
+!>      Created 10-07 [MI]
+!> \author MI
+! *****************************************************************************
 MODULE reftraj_types
 
   USE cp_files,                        ONLY: close_file,&
@@ -35,26 +23,16 @@ MODULE reftraj_types
 
   IMPLICIT NONE
 
-
     PRIVATE
     PUBLIC :: reftraj_type, reftraj_info_type, reftraj_msd_type,&
               create_reftraj,&
               release_reftraj,&
               retain_reftraj
 
-
-!!****f* reftraj_types/reftraj_type [1.0] *
-!!
-!!   NAME
-!!     reftraj_type, reftraj_msd_type, reftraj_info_type
-!!
-!!   FUNCTION
-!!      parameters related to the analysis of previously generated trajecorties
-!! 
-!!   AUTHOR
-!!     MI
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief parameters related to the analysis of previously generated trajecorties
+!> \author MI
+! *****************************************************************************
   TYPE reftraj_info_type
      INTEGER :: trjfile_unit
      INTEGER :: cellfile_unit
@@ -65,6 +43,7 @@ MODULE reftraj_types
      LOGICAL :: msd
   END TYPE reftraj_info_type
 
+! *****************************************************************************
   TYPE reftraj_msd_type
      INTEGER :: ref0_unit
      LOGICAL :: msd_kind, msd_molecule, msd_region
@@ -76,7 +55,7 @@ MODULE reftraj_types
      REAL(KIND=dp), POINTER, DIMENSION(:,:) :: val_msd_region
   END TYPE reftraj_msd_type
 
- 
+! *****************************************************************************
   TYPE reftraj_type
      INTEGER :: ref_count
      INTEGER :: itimes
@@ -91,12 +70,9 @@ MODULE reftraj_types
   
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'reftraj_types'
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
-
+! *****************************************************************************
   SUBROUTINE create_reftraj(reftraj,reftraj_section,error)
   
     TYPE(reftraj_type), POINTER              :: reftraj
@@ -120,7 +96,6 @@ CONTAINS
     NULLIFY(reftraj%info)
     NULLIFY(reftraj%msd)
     
-
     ALLOCATE(reftraj%info, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     
@@ -131,7 +106,6 @@ CONTAINS
     !MI: It would be good to check the topology to be sure that it is the same of
     ! the input
 
-    
     CALL section_vals_val_get(reftraj_section,"VARIABLE_VOLUME",l_val=reftraj%info%variable_volume,error=error)
 
     reftraj%info%cellfile_unit = -1
@@ -150,28 +124,13 @@ CONTAINS
 
   END SUBROUTINE create_reftraj
 
-!!****f* reftraj_types/retain_reftraj [1.0] *
-!!
-!!   NAME
-!!    retain_reftraj 
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created 
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created 
+!> \author MI
+! *****************************************************************************
   SUBROUTINE retain_reftraj(reftraj, error)
 
     TYPE(reftraj_type), POINTER              :: reftraj
@@ -191,29 +150,13 @@ CONTAINS
 
   END SUBROUTINE retain_reftraj
 
-
-!!****f* reftraj_types/release_reftraj [1.0] *
-!!
-!!   NAME
-!!    release_reftraj 
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created 
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created 
+!> \author MI
+! *****************************************************************************
   SUBROUTINE release_reftraj(reftraj, error)
 
     TYPE(reftraj_type), POINTER              :: reftraj

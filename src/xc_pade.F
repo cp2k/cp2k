@@ -3,31 +3,18 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/xc_pade [1.0] *
-!!
-!!   NAME
-!!     xc_pade
-!!
-!!   FUNCTION
-!!     Calculate the LDA functional in the Pade approximation
-!!     Literature: S. Goedecker, M. Teter and J. Hutter,
-!!                 Phys. Rev. B 54, 1703 (1996)
-!!
-!!   NOTES
-!!     Order of derivatives is: LDA 0; 1; 2; 3;
-!!                              LSD 0; a  b; aa ab bb; aaa aab abb bbb;
-!!
-!!   AUTHOR
-!!     JGH (15.02.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (26.02.2003) : OpenMP enabled
-!!
-!******************************************************************************
-
-MODULE xc_pade
 ! *****************************************************************************
+!> \brief Calculate the LDA functional in the Pade approximation
+!>      Literature: S. Goedecker, M. Teter and J. Hutter,
+!>                  Phys. Rev. B 54, 1703 (1996)
+!> \note
+!>      Order of derivatives is: LDA 0; 1; 2; 3;
+!>                               LSD 0; a  b; aa ab bb; aaa aab abb bbb;
+!> \par History
+!>      JGH (26.02.2003) : OpenMP enabled
+!> \author JGH (15.02.2002)
+! *****************************************************************************
+MODULE xc_pade
   USE bibliography,                    ONLY: Goedecker1996,&
                                              cite_reference
   USE f77_blas
@@ -82,19 +69,13 @@ MODULE xc_pade
   REAL(KIND=dp) :: eps_rho
   LOGICAL :: debug_flag
 
-! *****************************************************************************
-
   INTERFACE pade
     MODULE PROCEDURE pade_lda, pade_lsd, pade_init, pade_info
   END INTERFACE
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE pade_init ( cutoff, debug )
 
     REAL(KIND=dp), INTENT(IN)                :: cutoff
@@ -114,7 +95,6 @@ CONTAINS
   END SUBROUTINE pade_init
 
 ! *****************************************************************************
-
   SUBROUTINE pade_info ( reference, shortform, lsd, needs, max_deriv, error )
 
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
@@ -150,7 +130,6 @@ CONTAINS
   END SUBROUTINE pade_info
 
 ! *****************************************************************************
-
   SUBROUTINE pade_lda(derivative_set, rho, pot, order)
 
 !   ---------------------------------------------------------------------------
@@ -205,7 +184,6 @@ CONTAINS
   END SUBROUTINE pade_lda
 
 ! *****************************************************************************
-
   SUBROUTINE pade_lda_pw_eval(deriv_set, rho_set, order, error)
 
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -269,7 +247,6 @@ CONTAINS
   END SUBROUTINE pade_lda_pw_eval
 
 ! *****************************************************************************
-
   SUBROUTINE pade_lsd ( derivative_set, rhoa, rhob, pot, order )
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
@@ -335,7 +312,6 @@ CONTAINS
   END SUBROUTINE pade_lsd
 
 ! *****************************************************************************
-
   SUBROUTINE pade_lsd_pw_eval ( deriv_set, rho_set, order, error )
 
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -434,7 +410,6 @@ CONTAINS
   END SUBROUTINE pade_lsd_pw_eval
 
 ! *****************************************************************************
-
   SUBROUTINE pade_lda_0(n, rho, rs, pot)
 
     INTEGER, INTENT(IN)                      :: n
@@ -461,7 +436,6 @@ CONTAINS
   END SUBROUTINE pade_lda_0
 
 ! *****************************************************************************
-
   SUBROUTINE pade_lda_1(n, rho, rs, pot)
 
     INTEGER, INTENT(IN)                      :: n
@@ -495,7 +469,6 @@ CONTAINS
   END SUBROUTINE pade_lda_1
 
 ! *****************************************************************************
-
   SUBROUTINE pade_lda_01(n, rho, rs, pot0, pot1)
 
     INTEGER, INTENT(IN)                      :: n
@@ -530,7 +503,6 @@ CONTAINS
   END SUBROUTINE pade_lda_01
 
 ! *****************************************************************************
-
   SUBROUTINE pade_lda_2(n, rho, rs, pot)
 
     INTEGER, INTENT(IN)                      :: n
@@ -571,7 +543,6 @@ CONTAINS
   END SUBROUTINE pade_lda_2
 
 ! *****************************************************************************
-
   SUBROUTINE pade_lda_3(n, rho, rs, pot)
 
     INTEGER, INTENT(IN)                      :: n
@@ -619,7 +590,6 @@ CONTAINS
   END SUBROUTINE pade_lda_3
 
 ! *****************************************************************************
-
   SUBROUTINE pade_lsd_0(rhoa, rhob, rs, fx, pot0 )
 
     REAL(KIND=dp), INTENT(IN)                :: rhoa, rhob, rs
@@ -654,7 +624,6 @@ CONTAINS
   END SUBROUTINE pade_lsd_0
 
 ! *****************************************************************************
-
   SUBROUTINE pade_lsd_1 ( rhoa, rhob, rs, fx, pota, potb )
 
     REAL(KIND=dp), INTENT(IN)                :: rhoa, rhob, rs
@@ -700,7 +669,6 @@ CONTAINS
   END SUBROUTINE pade_lsd_1
 
 ! *****************************************************************************
-
   SUBROUTINE pade_lsd_01 ( rhoa, rhob, rs, fx, pot0, pota, potb )
 
     REAL(KIND=dp), INTENT(IN)                :: rhoa, rhob, rs
@@ -747,7 +715,6 @@ CONTAINS
   END SUBROUTINE pade_lsd_01
 
 ! *****************************************************************************
-
   SUBROUTINE pade_lsd_2 (rhoa, rhob, rs, fx, potaa, potab, potbb )
 
     REAL(KIND=dp), INTENT(IN)                :: rhoa, rhob, rs
@@ -820,7 +787,6 @@ CONTAINS
   END SUBROUTINE pade_lsd_2
 
 ! *****************************************************************************
-
   SUBROUTINE pade_lsd_3 ( rhoa, rhob, rs, fx, potaaa, potaab, potabb, potbbb )
 
     REAL(KIND=dp), INTENT(IN)                :: rhoa, rhob, rs
@@ -901,8 +867,5 @@ CONTAINS
 
   END SUBROUTINE pade_lsd_3
 
-! *****************************************************************************
-
 END MODULE xc_pade
 
-! *****************************************************************************

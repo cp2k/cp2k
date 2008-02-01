@@ -2,22 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/ewald_pw_methods [1.0] *
-!!
-!!   NAME
-!!     ewald_pw_methods
-!!
-!!   FUNCTION
-!!     pw_methods
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief pw_methods
+!> \author CJM
+! *****************************************************************************
 MODULE ewald_pw_methods
   USE cell_types,                      ONLY: cell_type
   USE dg_rho0_types,                   ONLY: dg_rho0_get,&
@@ -66,24 +55,12 @@ CONTAINS
 
 !-----------------------------------------------------------------------------!
 
-!******************************************************************************
-!!****** ewald_pw_methods/ewald_pw_grid_change [1.0] *
-!!
-!!   NAME
-!!     ewald_pw_grid_change
-!!
-!!   FUNCTION
-!!     Rescales pw_grids after a box change
-!!
-!!   AUTHOR
-!!     JGH (15-Mar-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Rescales pw_grids after a box change
+!> \par History
+!>      none
+!> \author JGH (15-Mar-2001)
+! *****************************************************************************
 SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, cell,  error )
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -159,24 +136,13 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, cell,  error )
   END IF
 
 END SUBROUTINE ewald_pw_grid_change
-!******************************************************************************
-!!****** ewald_pw_methods/ewald_pw_rho0_setup [1.0] *
-!!
-!!   NAME
-!!     ewald_pw_rho0_setup
-!!
-!!   FUNCTION
-!!     Calculates the Fourier transform of the "Ewald function"
-!!
-!!   AUTHOR
-!!     JGH (15-Mar-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Calculates the Fourier transform of the "Ewald function"
+!> \par History
+!>      none
+!> \author JGH (15-Mar-2001)
+! *****************************************************************************
 SUBROUTINE ewald_pw_rho0_setup ( ewald_env, pw_grid, dg, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -212,8 +178,5 @@ SUBROUTINE ewald_pw_rho0_setup ( ewald_env, pw_grid, dg, error )
 
 END SUBROUTINE ewald_pw_rho0_setup
 
-!******************************************************************************
-
 END MODULE ewald_pw_methods
 
-!******************************************************************************

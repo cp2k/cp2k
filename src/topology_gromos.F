@@ -3,20 +3,7 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/topology_gromos [1.0] *
-!!
-!!   NAME
-!!     topology_gromos
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
 MODULE topology_gromos
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -50,22 +37,9 @@ MODULE topology_gromos
   PRIVATE
   PUBLIC :: pre_read_topology_gromos, read_topology_gromos, read_coordinate_g96
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!!*****
-!******************************************************************************
-!!****** topology_gromos/pre_read_topology_gromos [1.0] *
-!!
-!!   NAME
-!!     pre_read_topology_gromos
-!!
-!!   FUNCTION
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
   SUBROUTINE pre_read_topology_gromos (topology,subsys_section, error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
@@ -123,19 +97,9 @@ CONTAINS
 
   END SUBROUTINE pre_read_topology_gromos
 
-!!*****
-!******************************************************************************
-!!****** topology_gromos/read_topology_gromos [1.0] *
-!!
-!!   NAME
-!!     read_topology_gromos
-!!
-!!   FUNCTION
-!!     Read GROMOS topology file
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Read GROMOS topology file
+! *****************************************************************************
   SUBROUTINE read_topology_gromos (file_name,topology,para_env,subsys_section, error)
     CHARACTER(LEN=*), INTENT(IN)             :: file_name
     TYPE(topology_parameters_type), &
@@ -691,19 +655,7 @@ CONTAINS
 
   END SUBROUTINE read_topology_gromos
 
-!******************************************************************************
-!!****** topology_gromos_gromos/read_coordinate_g96 [1.0] *
-!!
-!!   NAME
-!!     read_coordinate_g96
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *************************************************************************
+! *****************************************************************************
   SUBROUTINE read_coordinate_g96 (topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type)           :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -864,4 +816,3 @@ CONTAINS
 
 END MODULE topology_gromos
 
-!******************************************************************************

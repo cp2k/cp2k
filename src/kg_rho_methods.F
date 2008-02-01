@@ -2,25 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/kg_rho_methods [1.0] *
-!!
-!!   NAME
-!!     kg_rho_methods
-!!
-!!   FUNCTION
-!!     rho_methods
-!!
-!!   AUTHOR
-!!     gloria,30.09.2002, previously in kg_force
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (22-Feb-03) PW grid options added
-!!     gt 16-nov-03 moved initialization in this new module
-!!     13-10-04 only density: pw stuff moved in kg_rspw_methods
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief rho_methods
+!> \par History
+!>      JGH (22-Feb-03) PW grid options added
+!>      gt 16-nov-03 moved initialization in this new module
+!>      13-10-04 only density: pw stuff moved in kg_rspw_methods
+!> \author gloria,30.09.2002, previously in kg_force
+! *****************************************************************************
 MODULE kg_rho_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE f77_blas
@@ -54,7 +44,7 @@ MODULE kg_rho_methods
 
 CONTAINS
 
-!!*************************************************************************
+! *****************************************************************************
 SUBROUTINE kg_rho_create(kg_rho,kg_env,error)
     TYPE(kg_rho_type), POINTER               :: kg_rho
     TYPE(kg_environment_type), POINTER       :: kg_env
@@ -172,8 +162,6 @@ SUBROUTINE kg_rho_create(kg_rho,kg_env,error)
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE kg_rho_create
-!!*** **********************************************************************
 
 END MODULE kg_rho_methods
 
-!******************************************************************************

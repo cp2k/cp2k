@@ -2,23 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2007 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/ps_wavelet_util *
-!!
-!!   NAME
-!!     ps_wavelet_util
-!!
-!!   FUNCTION
-!!     Performs a wavelet based solution of the Poisson equation.
-!!
-!!   AUTHOR
-!!     Florian Schiffmann (09.2007,fschiff)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-MODULE ps_wavelet_util
 
+! *****************************************************************************
+!> \brief Performs a wavelet based solution of the Poisson equation.
+!> \author Florian Schiffmann (09.2007,fschiff)
+! *****************************************************************************
+MODULE ps_wavelet_util
 
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -45,66 +34,52 @@ MODULE ps_wavelet_util
 
 CONTAINS
 
-
-
-  !!****h* BigDFT/PSolver
-  !! NAME
-  !!    PSolver
-  !!
-  !! FUNCTION
-  !!    Calculate the Poisson equation $\nabla^2 V(x,y,z)=-4 \pi \rho(x,y,z)$
-  !!    from a given $\rho$, for different boundary conditions an for different data distributions.
-  !!    Following the boundary conditions, it applies the Poisson Kernel previously calculated.
-  !!
-  !! ARGUMENTS
-  !!    -geocode:  Indicates the boundary conditions (BC) of the problem:
-  !!            'F' free BC, isolated systems.
-  !!                The program calculates the solution as if the given density is
-  !!                "alone" in R^3 space.
-  !!            'S' surface BC, isolated in y direction, periodic in xz plane                
-  !!                The given density is supposed to be periodic in the xz plane,
-  !!                so the dimensions in these direction mus be compatible with the FFT
-  !!                Beware of the fact that the isolated direction is y!
-  !!            'P' periodic BC.
-  !!                The density is supposed to be periodic in all the three directions,
-  !!                then all the dimensions must be compatible with the FFT.
-  !!                No need for setting up the kernel.
-  !!    -datacode: Indicates the distribution of the data of the input/output array:
-  !!            'G' global data. Each process has the whole array of the density 
-  !!                which will be overwritten with the whole array of the potential
-  !!            'D' distributed data. Each process has only the needed part of the density
-  !!                and of the potential. The data distribution is such that each processor
-  !!                has the xy planes needed for the calculation AND for the evaluation of the 
-  !!                gradient, needed for XC part, and for the White-Bird correction, which
-  !!                may lead up to 8 planes more on each side. Due to this fact, the information
-  !!                between the processors may overlap.
-  !!    -nproc:       number of processors
-  !!    -iproc:       label of the process,from 0 to nproc-1
-  !!    -n01,n02,n03: global dimension in the three directions. They are the same no matter if the 
-  !!                datacode is in 'G' or in 'D' position.
-  !!    -hx,hy,hz:    grid spacings. For the isolated BC case for the moment they are supposed to 
-  !!                be equal in the three directions
-  !!    -rhopot:      main input/output array.
-  !!                On input, it represents the density values on the grid points
-  !!                On output, it is the Hartree potential, namely the solution of the Poisson 
-  !!                equation PLUS (when ixc/=0) the XC potential PLUS (again for ixc/=0) the 
-  !!                pot_ion array. The output is non overlapping, in the sense that it does not
-  !!                consider the points that are related to gradient and WB calculation
-  !!    -karray:      kernel of the poisson equation. It is provided in distributed case, with
-  !!                dimensions that are related to the output of the PS_dim4allocation routine
-  !!                it MUST be created by following the same geocode as the Poisson Solver.
-  !! WARNING
-  !!    The dimensions of the arrays must be compatible with geocode, datacode, nproc, 
-  !!    ixc and iproc. Since the arguments of these routines are indicated with the *, it
-  !!    is IMPERATIVE to use the PS_dim4allocation routine for calculation arrays sizes.
-  !!
-  !! AUTHOR
-  !!    Luigi Genovese
-  !! CREATION DATE
-  !!    February 2007
-  !!
-  !! SOURCE
-  !!
+! *****************************************************************************
+!> \brief Calculate the Poisson equation $\nabla^2 V(x,y,z)=-4 \pi \rho(x,y,z)$
+!>     from a given $\rho$, for different boundary conditions an for different data distributions.
+!>     Following the boundary conditions, it applies the Poisson Kernel previously calculated.
+!> \param geocode Indicates the boundary conditions (BC) of the problem:
+!>             'F' free BC, isolated systems.
+!>                 The program calculates the solution as if the given density is
+!>                 "alone" in R^3 space.
+!>             'S' surface BC, isolated in y direction, periodic in xz plane                
+!>                 The given density is supposed to be periodic in the xz plane,
+!>                 so the dimensions in these direction mus be compatible with the FFT
+!>                 Beware of the fact that the isolated direction is y!
+!>             'P' periodic BC.
+!>                 The density is supposed to be periodic in all the three directions,
+!>                 then all the dimensions must be compatible with the FFT.
+!>                 No need for setting up the kernel.
+!> \param datacode Indicates the distribution of the data of the input/output array:
+!>             'G' global data. Each process has the whole array of the density 
+!>                 which will be overwritten with the whole array of the potential
+!>             'D' distributed data. Each process has only the needed part of the density
+!>                 and of the potential. The data distribution is such that each processor
+!>                 has the xy planes needed for the calculation AND for the evaluation of the 
+!>                 gradient, needed for XC part, and for the White-Bird correction, which
+!>                 may lead up to 8 planes more on each side. Due to this fact, the information
+!>                 between the processors may overlap.
+!> \param nproc number of processors
+!> \param iproc label of the process,from 0 to nproc-1
+!> \param n 01,n02,n03: global dimension in the three directions. They are the same no matter if the 
+!>                 datacode is in 'G' or in 'D' position.
+!> \param hx ,hy,hz:    grid spacings. For the isolated BC case for the moment they are supposed to 
+!>                 be equal in the three directions
+!> \param rhopot main input/output array.
+!>                 On input, it represents the density values on the grid points
+!>                 On output, it is the Hartree potential, namely the solution of the Poisson 
+!>                 equation PLUS (when ixc/=0) the XC potential PLUS (again for ixc/=0) the 
+!>                 pot_ion array. The output is non overlapping, in the sense that it does not
+!>                 consider the points that are related to gradient and WB calculation
+!> \param karray kernel of the poisson equation. It is provided in distributed case, with
+!>                 dimensions that are related to the output of the PS_dim4allocation routine
+!>                 it MUST be created by following the same geocode as the Poisson Solver.
+!> \warning The dimensions of the arrays must be compatible with geocode, datacode, nproc, 
+!>     ixc and iproc. Since the arguments of these routines are indicated with the *, it
+!>     is IMPERATIVE to use the PS_dim4allocation routine for calculation arrays sizes.
+!> \author Luigi Genovese
+!> \date February 2007
+! *****************************************************************************
   SUBROUTINE PSolver(geocode,datacode,iproc,nproc,n01,n02,n03,hx,hy,hz,&
        rhopot,karray,pw_grid,error)
     !  INCLUDE 'mpif.h'
@@ -232,7 +207,6 @@ CONTAINS
     CALL scale_and_distribute(geocode,m1,m2,m3,md1,md2,md3,nxc,nwb,nxt,nwbl,nwbr,nxcl,nxcr,&
          hx,hy,hz,zf,rhopot,iproc,nproc,red_fact)
 
-
     DEALLOCATE(zf,stat=i_all)
     IF (i_all+i_stat /= 0) THEN
        WRITE(*,*)' psolver: problem of memory deallocation'
@@ -241,46 +215,29 @@ CONTAINS
 
   END SUBROUTINE PSolver
 
-
-
-
-  !!***
-  !!****h* BigDFT/P_FFT_dimensions
-  !! NAME
-  !!   P_FFT_dimensions
-  !!
-  !! FUNCTION
-  !!    Calculate four sets of dimension needed for the calculation of the
-  !!    convolution for the periodic system
-  !!
-  !! ARGUMENTS
-  !!    -n01,n02,n03: original real dimensions (input)
-  !!
-  !!    -m1,m2,m3: original real dimension, with m2 and m3 exchanged
-  !!
-  !!    -n1,n2,n3: the first FFT dimensions, for the moment supposed to be even
-  !!
-  !!    -md1,md2,md3: the n1,n2,n3 dimensions. They contain the real unpadded space,
-  !!                properly enlarged to be compatible with the FFT dimensions n_i.
-  !!                md2 is further enlarged to be a multiple of nproc
-  !!
-  !!    -nd1,nd2,nd3: fourier dimensions for which the kernel is injective,
-  !!                formally 1/8 of the fourier grid. Here the dimension nd3 is
-  !!                enlarged to be a multiple of nproc
-  !!
-  !! WARNING
-  !!    This four sets of dimensions are actually redundant (mi=n0i), 
-  !!    due to the backward-compatibility
-  !!    with the other geometries of the Poisson Solver.
-  !!    The dimensions 2 and 3 are exchanged.
-  !!
-  !! AUTHOR
-  !!    Luigi Genovese
-  !! CREATION DATE
-  !!    October 2006
-  !!
-  !! SOURCE
-  !!
+! *****************************************************************************
+!> \brief Calculate four sets of dimension needed for the calculation of the
+!>     convolution for the periodic system
+!> \param n 01,n02,n03: original real dimensions (input)
+!> 
+!> \param m 1,m2,m3: original real dimension, with m2 and m3 exchanged
+!> 
+!> \param n 1,n2,n3: the first FFT dimensions, for the moment supposed to be even
+!> 
+!> \param md 1,md2,md3: the n1,n2,n3 dimensions. They contain the real unpadded space,
+!>                 properly enlarged to be compatible with the FFT dimensions n_i.
+!>                 md2 is further enlarged to be a multiple of nproc
+!> 
+!> \param nd 1,nd2,nd3: fourier dimensions for which the kernel is injective,
+!>                 formally 1/8 of the fourier grid. Here the dimension nd3 is
+!>                 enlarged to be a multiple of nproc
+!> \warning This four sets of dimensions are actually redundant (mi=n0i), 
+!>     due to the backward-compatibility
+!>     with the other geometries of the Poisson Solver.
+!>     The dimensions 2 and 3 are exchanged.
+!> \author Luigi Genovese
+!> \date October 2006
+! *****************************************************************************
   SUBROUTINE P_FFT_dimensions(n01,n02,n03,m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3,nproc)
     INTEGER, INTENT(in)                      :: n01, n02, n03
     INTEGER, INTENT(out)                     :: m1, m2, m3, n1, n2, n3, md1, &
@@ -332,7 +289,6 @@ CONTAINS
        GOTO 151
     ENDIF
 
-
     !dimensions of the kernel, 1/8 of the total volume,
     !compatible with nproc
     nd1=n1/2+1 
@@ -345,46 +301,32 @@ CONTAINS
 
   END SUBROUTINE P_FFT_dimensions
 
-
-  !!****h* BigDFT/S_FFT_dimensions
-  !! NAME
-  !!   S_FFT_dimensions
-  !!
-  !! FUNCTION
-  !!    Calculate four sets of dimension needed for the calculation of the
-  !!    convolution for the surface system
-  !!
-  !! ARGUMENTS
-  !!    -n01,n02,n03: original real dimensions (input)
-  !!
-  !!    -m1,m2,m3: original real dimension, with 2 and 3 exchanged
-  !!
-  !!    -n1,n2: the first FFT dimensions, for the moment supposed to be even
-  !!    -n3:    the double of the first FFT even dimension greater than m3
-  !!          (improved for the HalFFT procedure)
-  !!
-  !!    -md1,md2:     the n1,n2 dimensions. 
-  !!    -md3:         half of n3 dimension. They contain the real unpadded space,
-  !!                properly enlarged to be compatible with the FFT dimensions n_i.
-  !!                md2 is further enlarged to be a multiple of nproc
-  !!
-  !!    -nd1,nd2,nd3: fourier dimensions for which the kernel FFT is injective,
-  !!                formally 1/8 of the fourier grid. Here the dimension nd3 is
-  !!                enlarged to be a multiple of nproc
-  !!
-  !! WARNING
-  !!    This four sets of dimensions are actually redundant (mi=n0i), 
-  !!    due to the backward-compatibility
-  !!    with the Poisson Solver with other geometries.
-  !!    Dimensions n02 and n03 were exchanged
-  !!
-  !! AUTHOR
-  !!    Luigi Genovese
-  !! CREATION DATE
-  !!    October 2006
-  !!
-  !! SOURCE
-  !!
+! *****************************************************************************
+!> \brief Calculate four sets of dimension needed for the calculation of the
+!>     convolution for the surface system
+!> \param n 01,n02,n03: original real dimensions (input)
+!> 
+!> \param m 1,m2,m3: original real dimension, with 2 and 3 exchanged
+!> 
+!> \param n 1,n2: the first FFT dimensions, for the moment supposed to be even
+!> \param n 3:    the double of the first FFT even dimension greater than m3
+!>           (improved for the HalFFT procedure)
+!> 
+!> \param md 1,md2:     the n1,n2 dimensions. 
+!> \param md 3:         half of n3 dimension. They contain the real unpadded space,
+!>                 properly enlarged to be compatible with the FFT dimensions n_i.
+!>                 md2 is further enlarged to be a multiple of nproc
+!> 
+!> \param nd 1,nd2,nd3: fourier dimensions for which the kernel FFT is injective,
+!>                 formally 1/8 of the fourier grid. Here the dimension nd3 is
+!>                 enlarged to be a multiple of nproc
+!> \warning This four sets of dimensions are actually redundant (mi=n0i), 
+!>     due to the backward-compatibility
+!>     with the Poisson Solver with other geometries.
+!>     Dimensions n02 and n03 were exchanged
+!> \author Luigi Genovese
+!> \date October 2006
+! *****************************************************************************
   SUBROUTINE S_FFT_dimensions(n01,n02,n03,m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3,nproc)
     INTEGER, INTENT(in)                      :: n01, n02, n03
     INTEGER, INTENT(out)                     :: m1, m2, m3, n1, n2, n3, md1, &
@@ -441,7 +383,6 @@ CONTAINS
        GOTO 151
     ENDIF
 
-
     !dimensions of the kernel, 1/8 of the total volume,
     !compatible with nproc
 
@@ -457,45 +398,31 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE S_FFT_dimensions
-  !!***
 
-  !!****h* BigDFT/F_FFT_dimensions
-  !! NAME
-  !!   F_FFT_pardimensions
-  !!
-  !! FUNCTION
-  !!    Calculate four sets of dimension needed for the calculation of the
-  !!    zero-padded convolution
-  !!
-  !! ARGUMENTS
-  !!    -n01,n02,n03: original real dimensions (input)
-  !!
-  !!    -m1,m2,m3: original real dimension with the dimension 2 and 3 exchanged
-  !!
-  !!    -n1,n2: the first FFT even dimensions greater that 2*m1, 2*m2
-  !!    -n3:    the double of the first FFT even dimension greater than m3
-  !!          (improved for the HalFFT procedure)
-  !!
-  !!    -md1,md2,md3: half of n1,n2,n3 dimension. They contain the real unpadded space,
-  !!                properly enlarged to be compatible with the FFT dimensions n_i.
-  !!                md2 is further enlarged to be a multiple of nproc
-  !!
-  !!    -nd1,nd2,nd3: fourier dimensions for which the kernel FFT is injective,
-  !!                formally 1/8 of the fourier grid. Here the dimension nd3 is
-  !!                enlarged to be a multiple of nproc
-  !!
-  !! WARNING
-  !!    The dimension m2 and m3 correspond to n03 and n02 respectively
-  !!    this is needed since the convolution routine manage arrays of dimension
-  !!    (md1,md3,md2/nproc)
-  !!
-  !! AUTHOR
-  !!    Luigi Genovese
-  !! CREATION DATE
-  !!    February 2006
-  !!
-  !! SOURCE
-  !!
+! *****************************************************************************
+!> \brief Calculate four sets of dimension needed for the calculation of the
+!>     zero-padded convolution
+!> \param n 01,n02,n03: original real dimensions (input)
+!> 
+!> \param m 1,m2,m3: original real dimension with the dimension 2 and 3 exchanged
+!> 
+!> \param n 1,n2: the first FFT even dimensions greater that 2*m1, 2*m2
+!> \param n 3:    the double of the first FFT even dimension greater than m3
+!>           (improved for the HalFFT procedure)
+!> 
+!> \param md 1,md2,md3: half of n1,n2,n3 dimension. They contain the real unpadded space,
+!>                 properly enlarged to be compatible with the FFT dimensions n_i.
+!>                 md2 is further enlarged to be a multiple of nproc
+!> 
+!> \param nd 1,nd2,nd3: fourier dimensions for which the kernel FFT is injective,
+!>                 formally 1/8 of the fourier grid. Here the dimension nd3 is
+!>                 enlarged to be a multiple of nproc
+!> \warning The dimension m2 and m3 correspond to n03 and n02 respectively
+!>     this is needed since the convolution routine manage arrays of dimension
+!>     (md1,md3,md2/nproc)
+!> \author Luigi Genovese
+!> \date February 2006
+! *****************************************************************************
   SUBROUTINE F_FFT_dimensions(n01,n02,n03,m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3,nproc)
     INTEGER, INTENT(in)                      :: n01, n02, n03
     INTEGER, INTENT(out)                     :: m1, m2, m3, n1, n2, n3, md1, &
@@ -559,12 +486,9 @@ CONTAINS
 
   END SUBROUTINE F_FFT_dimensions
 
-
-
-
+! *****************************************************************************
   SUBROUTINE  scale_and_distribute(geocode,m1,m2,m3,md1,md2,md3,nxc,nwb,nxt,nwbl,nwbr,&
        nxcl,nxcr,hx,hy,hz,rhopot,zf,iproc,nproc,factor)
-
 
     !Arguments----------------------
     CHARACTER(len=1), INTENT(in)             :: geocode

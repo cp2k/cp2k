@@ -3,31 +3,18 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/neb_md_utils [1.0] *
-!!
-!!   NAME
-!!     neb_md_utils
-!!
-!!   FUNCTION
-!!     Module with utility to perform MD Nudged Elastic Band Calculation
-!!
-!!   NOTES
-!!     Numerical accuracy for parallel runs:
-!!      Each replica starts the SCF run from the one optimized
-!!      in a previous run. It may happen then energies and derivatives
-!!      of a serial run and a parallel run could be slightly different
-!!      'cause of a different starting density matrix.
-!!      Exact results are obtained using:
-!!         EXTRAPOLATION USE_GUESS in QS section (Teo 09.2006)
-!!
-!!   AUTHOR
-!!     Teodoro Laino 10.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Module with utility to perform MD Nudged Elastic Band Calculation
+!> \note
+!>      Numerical accuracy for parallel runs:
+!>       Each replica starts the SCF run from the one optimized
+!>       in a previous run. It may happen then energies and derivatives
+!>       of a serial run and a parallel run could be slightly different
+!>       'cause of a different starting density matrix.
+!>       Exact results are obtained using:
+!>          EXTRAPOLATION USE_GUESS in QS section (Teo 09.2006)
+!> \author Teodoro Laino 10.2006
+! *****************************************************************************
 MODULE neb_md_utils
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
@@ -56,25 +43,10 @@ MODULE neb_md_utils
 
 CONTAINS
 
-!!****f* neb_md_utils/neb_initialize_velocity [1.0] *
-!!
-!!   NAME
-!!     neb_initialize_velocity
-!!
-!!   FUNCTION
-!!     Initialize velocities of replica in an MD optimized algorithm within NEB
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Initialize velocities of replica in an MD optimized algorithm within NEB
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE neb_initialize_velocity(vels, neb_section, particle_set, i, iw, globenv,&
        para_env, error)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vels
@@ -162,25 +134,10 @@ CONTAINS
     END IF
   END SUBROUTINE neb_initialize_velocity
 
-!!****f* neb_md_utils/control_vels_a [1.0] *
-!!
-!!   NAME
-!!     control_vels_a
-!!
-!!   FUNCTION
-!!     Control on  velocities - I part
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Control on  velocities - I part
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE control_vels_a(vels, particle_set, tc_section, vc_section, &
        output_unit, istep, error)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vels
@@ -242,25 +199,10 @@ CONTAINS
     END IF
   END SUBROUTINE control_vels_a
 
-!!****f* neb_md_utils/control_vels_b [1.0] *
-!!
-!!   NAME
-!!     control_vels_b
-!!
-!!   FUNCTION
-!!     Control on velocities - II part
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Control on velocities - II part
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE control_vels_b(vels, forces, vc_section, error)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vels, forces
     TYPE(section_vals_type), POINTER         :: vc_section
@@ -298,25 +240,10 @@ CONTAINS
     END IF
   END SUBROUTINE control_vels_b
 
-!!****f* neb_md_utils/get_temperatures [1.0] *
-!!
-!!   NAME
-!!     get_temperatures
-!!
-!!   FUNCTION
-!!     Computes temperatures
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Computes temperatures
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE get_temperatures(vels, particle_set, temperatures, ekin, factor, error)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vels
     TYPE(particle_type), DIMENSION(:), &

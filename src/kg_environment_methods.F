@@ -2,19 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/kg_environment_methods [1.0] *
-!!
-!!   NAME
-!!     kg_environment_methods
-!!
-!!   FUNCTION
-!!    to complete the setup of the kg_env
-!!   AUTHOR
-!!     gt 15-10-2004
-!!   HISTORY
-!!*****
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief to complete the setup of the kg_env
+!> \author gt 15-10-2004
+! *****************************************************************************
 MODULE kg_environment_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
@@ -71,8 +63,7 @@ MODULE kg_environment_methods
 
 CONTAINS
 
-!***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE kg_env_setup(kg_env,kg_gpw,error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
@@ -102,7 +93,6 @@ CONTAINS
   NULLIFY(rho,rspw)
   NULLIFY(atomic_kind_set, distribution_2d,&
           molecule_kind_set, molecule_set, particle_set)
-
 
   CALL get_kg_env(kg_env=kg_env,&
                   atomic_kind_set=atomic_kind_set,&
@@ -147,8 +137,7 @@ CONTAINS
 
   END SUBROUTINE kg_env_setup
 
-!******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE kg_qs_env_update(kg_env, qs_env, error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
@@ -261,5 +250,4 @@ CONTAINS
 
   END SUBROUTINE kg_qs_env_update
 
-!******************************************************************************
 END MODULE kg_environment_methods

@@ -2,29 +2,19 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/cp_parser [1.0] *
-!!
-!!   NAME
-!!     cp_parser
-!!
-!!   FUNCTION
-!!     Utility routines to read data from files.
-!!     Kept as close as possible to the old parser because
-!!       1. string handling is a weak point of fortran compilers, and it is
-!!          easy to write correct things that do not work
-!!       2. conversion of old code
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     22.11.1999 first version of the old parser (called qs_parser)
-!!                Matthias Krack
-!!     06.2004 removed module variables, cp_parser_type, new module [fawzi]
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Utility routines to read data from files.
+!>      Kept as close as possible to the old parser because
+!>        1. string handling is a weak point of fortran compilers, and it is
+!>           easy to write correct things that do not work
+!>        2. conversion of old code
+!> \par History
+!>      22.11.1999 first version of the old parser (called qs_parser)
+!>                 Matthias Krack
+!>      06.2004 removed module variables, cp_parser_type, new module [fawzi]
+!> \author fawzi
+! *****************************************************************************
 MODULE cp_parser
   USE cp_files,                        ONLY: close_file,&
                                              open_file
@@ -73,31 +63,16 @@ MODULE cp_parser
 
   INTEGER, SAVE, PRIVATE :: last_parser_id=0
 
-!!****s* cp_parser/cp_parser_type [1.0] *
-!!
-!!   NAME
-!!     cp_parser_type
-!!
-!!   FUNCTION
-!!     represent a parser
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     -
-! icol             : Number of the current column in the current input line,
-! -1 if at the end of the file
-! icol1            : First column of the current input string
-! icol2            : Last column of the current input string
-! input_line_number: Number of the current input line read from the input file
-! input_unit       : Logical unit number of the input file
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief represent a parser
+!> \param icol Number of the current column in the current input line,
+!>  -1 if at the end of the file
+!>  icol1            : First column of the current input string
+!>  icol2            : Last column of the current input string
+!> \param input_line_number Number of the current input line read from the input file
+!> \param input_unit Logical unit number of the input file
+!> \author fawzi
+! *****************************************************************************
   TYPE cp_parser_type
      INTEGER :: id_nr,ref_count,input_unit
      CHARACTER(LEN=default_string_length) :: end_section,&
@@ -112,30 +87,23 @@ MODULE cp_parser
      LOGICAL :: first_separator
      TYPE(cp_para_env_type), POINTER :: para_env
   END TYPE cp_parser_type
-!!***
-  !****************************************************************************
 
-! *****************************************************************************
   INTERFACE parser_get_object
     MODULE PROCEDURE parser_get_integer,&
                      parser_get_logical,&
                      parser_get_real,&
                      parser_get_string
   END INTERFACE
-!!***
-! *****************************************************************************
 
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE broadcast_input_information(parser,error)
 
 !   Purpose: Broadcast the input information.
 
 !   History: - Creation (02.03.2001,MK)
 
-!   ***************************************************************************
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -163,27 +131,12 @@ CONTAINS
   END SUBROUTINE broadcast_input_information
 
 ! *****************************************************************************
-
-!!****f* cp_parser/parser_retain *
-!!
-!!   NAME
-!!     parser_retain
-!!
-!!   FUNCTION
-!!     retains the given parser
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - parser: the parser to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+!> \brief retains the given parser
+!> \param parser the parser to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE parser_retain(parser,error)
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -200,16 +153,14 @@ SUBROUTINE parser_retain(parser,error)
      parser%ref_count=parser%ref_count+1
   END IF
 END SUBROUTINE parser_retain
-!***************************************************************************
 
-
+! *****************************************************************************
   SUBROUTINE parser_release(parser, error)
 
 !   Purpose: releases the parser
 
 !   History: - Creation (14.02.2001,MK)
 
-!   ***************************************************************************
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -236,15 +187,12 @@ END SUBROUTINE parser_retain
   END SUBROUTINE parser_release
 
 ! *****************************************************************************
-
   SUBROUTINE parser_get_next_line(parser,nline,at_end,error)
 
 !   Purpose: Read the next input line and broadcast the input information.
 !            Skip (nline-1) lines and skip also all comment lines.
 
 !   History: - Creation (22.11.1999,MK)
-
-!   ***************************************************************************
 
     TYPE(cp_parser_type), POINTER            :: parser
     INTEGER, INTENT(IN)                      :: nline
@@ -279,27 +227,12 @@ END SUBROUTINE parser_retain
   END SUBROUTINE parser_get_next_line
 
 ! *****************************************************************************
-
-!!****f* cp_parser/parser_location *
-!!
-!!   NAME
-!!     parser_location
-!!
-!!   FUNCTION
-!!     return a description of the part of the file acually parsed
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - parser: the parser
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+!> \brief return a description of the part of the file acually parsed
+!> \param parser the parser
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 FUNCTION parser_location(parser,error) RESULT(res)
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -329,13 +262,12 @@ FUNCTION parser_location(parser,error) RESULT(res)
      END IF
   END IF
 END FUNCTION parser_location
-!***************************************************************************
 
+! *****************************************************************************
 SUBROUTINE parser_skip_space(parser,multiline,error)
 
   !   Purpose: skips the whitespaces
 
-  !   ***************************************************************************
     TYPE(cp_parser_type), POINTER            :: parser
     LOGICAL, INTENT(in), OPTIONAL            :: multiline
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -422,13 +354,13 @@ SUBROUTINE parser_skip_space(parser,multiline,error)
   END IF
 END SUBROUTINE parser_skip_space
 
+! *****************************************************************************
 SUBROUTINE parser_next_token(parser,string_length,error)
 
   !   Purpose: Get the next input string from the input line.
 
   !   History: - Creation (19.02.2001,MK)
 
-  !   ***************************************************************************
     TYPE(cp_parser_type), POINTER            :: parser
     INTEGER, INTENT(IN), OPTIONAL            :: string_length
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -594,15 +526,11 @@ SUBROUTINE parser_next_token(parser,string_length,error)
 END SUBROUTINE parser_next_token
 
 ! *****************************************************************************
-
-
   FUNCTION integer_object(string,error) RESULT(contains_integer_object)
 
 !   Purpose: Check, if the string object contains an object of type integer.
 
 !   History: - Creation (22.11.1999,MK)
-
-!   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(IN)             :: string
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -641,15 +569,12 @@ END SUBROUTINE parser_next_token
   END FUNCTION integer_object
 
 ! *****************************************************************************
-
   SUBROUTINE parser_get_integer(parser,object,lower_to_upper,newline,skip_lines,&
        string_length, at_end,error)
 
     !   Purpose: Read an integer number.
 
     !   History: - Creation (22.11.1999,MK)
-
-    !   ***************************************************************************
 
     TYPE(cp_parser_type), POINTER            :: parser
     INTEGER, INTENT(OUT)                     :: object
@@ -720,7 +645,6 @@ END SUBROUTINE parser_next_token
   END SUBROUTINE parser_get_integer
 
 ! *****************************************************************************
-
   SUBROUTINE parser_get_logical(parser,object,newline,skip_lines,string_length,&
        at_end,error)
 
@@ -728,8 +652,6 @@ END SUBROUTINE parser_next_token
 
     !   History: - Creation (01.04.2003,FM)
     !            - New version (08.07.2003,MK)
-
-    !   ***************************************************************************
 
     TYPE(cp_parser_type), POINTER            :: parser
     LOGICAL, INTENT(OUT)                     :: object
@@ -812,15 +734,12 @@ END SUBROUTINE parser_next_token
   END SUBROUTINE parser_get_logical
 
 ! *****************************************************************************
-
   SUBROUTINE parser_read_line(parser,nline,at_end,error)
 
     !   Purpose: Read the next line from a logical unit "unit" (I/O node only).
     !            Skip (nline-1) lines and skip also all comment lines.
 
     !   History: - Creation (22.11.1999,MK)
-
-    !   ***************************************************************************
 
     TYPE(cp_parser_type), POINTER            :: parser
     INTEGER, INTENT(IN)                      :: nline
@@ -911,15 +830,12 @@ END SUBROUTINE parser_next_token
   END SUBROUTINE parser_read_line
 
 ! *****************************************************************************
-
   SUBROUTINE parser_get_real(parser,object,lower_to_upper,newline,skip_lines,&
        string_length,multiline,at_end,error)
 
     !   Purpose: Read a floating point number.
 
     !   History: - Creation (22.11.1999,MK)
-
-    !   ***************************************************************************
 
     TYPE(cp_parser_type), POINTER            :: parser
     REAL(KIND=dp), INTENT(OUT)               :: object
@@ -1032,15 +948,12 @@ END SUBROUTINE parser_next_token
   END SUBROUTINE parser_get_real
 
 ! *****************************************************************************
-
   SUBROUTINE parser_get_string(parser,object,lower_to_upper,newline,skip_lines,&
                                 string_length,at_end,error)
 
 !   Purpose: Read a string.
 
 !   History: - Creation (22.11.1999,MK)
-
-!   ***************************************************************************
 
     TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=*), INTENT(OUT)            :: object
@@ -1113,7 +1026,6 @@ END SUBROUTINE parser_next_token
   END SUBROUTINE parser_get_string
 
 ! *****************************************************************************
-
   SUBROUTINE parser_search_string(parser,string,ignore_case,found,line,begin_line,error)
 
     !   Purpose: Search a string pattern in a file defined by its logical unit
@@ -1123,8 +1035,6 @@ END SUBROUTINE parser_next_token
     !            matching the search
 
     !   History: - Creation (05.10.1999,MK)
-
-    !   ***************************************************************************
 
     TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=*), INTENT(IN)             :: string
@@ -1217,7 +1127,6 @@ END SUBROUTINE parser_next_token
   END SUBROUTINE parser_search_string
 
 ! *****************************************************************************
-
   SUBROUTINE parser_create(parser,file_name,unit_nr,para_env, &
        end_section_label,separator_chars,comment_char,continuation_char, section_char, &
           error)
@@ -1225,8 +1134,6 @@ END SUBROUTINE parser_next_token
     !   Purpose: Start a parser run.
 
     !   History: - Creation (14.02.2001,MK)
-
-    !   ***************************************************************************
 
     TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: file_name
@@ -1317,7 +1224,6 @@ CPSourceFileRef,&
   END SUBROUTINE parser_create
 
 ! *****************************************************************************
-
   FUNCTION parser_test_next_token(parser,newline,skip_lines,string_length,error)&
        RESULT(test_result)
 
@@ -1331,8 +1237,6 @@ CPSourceFileRef,&
     !            test_result = "STR": String
 
     !   History: - Creation (23.11.1999,MK)
-
-    !   ***************************************************************************
 
     TYPE(cp_parser_type), POINTER            :: parser
     LOGICAL, INTENT(IN), OPTIONAL            :: newline
@@ -1463,7 +1367,6 @@ CPSourceFileRef,&
           END IF
        END IF
 
-
        parser%input_line = old_input_line
        parser%input_line_number = old_input_line_number
        parser%icol = old_icol
@@ -1472,7 +1375,5 @@ CPSourceFileRef,&
     END IF
     CALL cp_error_dealloc_ref(suberror)
   END FUNCTION parser_test_next_token
-
-! *****************************************************************************
 
 END MODULE cp_parser

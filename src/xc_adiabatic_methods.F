@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!***** cp2k/xc_adiabatic_methods[1.0] *
-!!
-!!   NAME
-!!     xc_adiabatic_methods 
-!!
-!!   FUNCTION
-!!     Contains some functions used in the context of adiabatic hybrid functionals
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     01.2008 created [Manuel Guidon]
-!!
-!****************************************************************************
-
+! *****************************************************************************
+!> \brief Contains some functions used in the context of adiabatic hybrid functionals
+!> \par History
+!>      01.2008 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
 MODULE xc_adiabatic_methods 
 
   USE kinds,                           ONLY: dp
@@ -41,42 +27,28 @@ MODULE xc_adiabatic_methods
 
   CONTAINS
 
-
-!!***** xc_adiabatic_methods/rescale_MCY3_pade [1.0] *
-!!
-!!   NAME
-!!     rescale_MCY3_pade
-!!
-!!   FUNCTION
-!!     - Calculates rescaling factors for XC potentials and energy expression
-!!
-!!   NOTES
-!!     - Model for adiabatic connection:
-!!       
-!!        W_lambda = a + b*lambda/(1+c*lambda)
-!!        Exc = a + b*(c-log(1+c)/c^2)
-!!        a = Ex^{HF}
-!!        b = -c1*2*omega/sqrt(PI)*nelectron
-!!        c = -1/lambda - b/(Ex^{HF}-W_lambda^{BLYP} + c2*W_lambda^{B88,LR}-c3*W_lambda^{HF,LR}
-!!
-!!   INPUTS
-!!     - qs_env
-!!     - hf_energy: Array of size 2 containing the two HF energies (Ex^{HF} and Ex^{HF,LR}
-!!     - energy: QS energy type 
-!!     - adiabatic_lambda, adiabatic_omega: Parameters for adiabatic connection
-!!     - scale_* : scaling coefficients for xc-potentials to be calculated
-!!     - total_energy: will contain the full xc energy
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief - Calculates rescaling factors for XC potentials and energy expression
+!> \param qs_en v
+!> \param hf_energy Array of size 2 containing the two HF energies (Ex^{HF} and Ex^{HF,LR}
+!> \param energy QS energy type 
+!> \param adiabatic_lambda , adiabatic_omega: Parameters for adiabatic connection
+!> \param scale_ * : scaling coefficients for xc-potentials to be calculated
+!> \param total_energy will contain the full xc energy
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      - Model for adiabatic connection:
+!> 
+!>         W_lambda = a + b*lambda/(1+c*lambda)
+!>         Exc = a + b*(c-log(1+c)/c^2)
+!>         a = Ex^{HF}
+!>         b = -c1*2*omega/sqrt(PI)*nelectron
+!>         c = -1/lambda - b/(Ex^{HF}-W_lambda^{BLYP} + c2*W_lambda^{B88,LR}-c3*W_lambda^{HF,LR}
+!> \par History
+!>      09.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE rescale_MCY3_pade(qs_env, hf_energy, energy, adiabatic_lambda, &
                                adiabatic_omega, scale_dEx1, scale_ddW0, scale_dDFA,&
                                scale_dEx2, total_energy_xc, error)
@@ -142,5 +114,4 @@ MODULE xc_adiabatic_methods
     total_energy_xc = a + b/(c*c)*(c-LOG(ABS(1.0_dp+c)))
   END SUBROUTINE rescale_MCY3_pade   
   
-
 END MODULE xc_adiabatic_methods

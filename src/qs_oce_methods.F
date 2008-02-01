@@ -2,24 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/qs_oce_methods
-!!
-!!   NAME
-!!     qs_oce_methods
-!!
-!!   FUNCTION
-!!     Routines for the construction of the coefficients
-!!     for the expansion  of the atomic
-!!     densities rho1_hard and rho1_soft in terms of primitive spherical gaussians.
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     05-2004 created
-!!
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Routines for the construction of the coefficients
+!>      for the expansion  of the atomic
+!>      densities rho1_hard and rho1_soft in terms of primitive spherical gaussians.
+!> \par History
+!>      05-2004 created
+!> \author MI
+! *****************************************************************************
 MODULE qs_oce_methods
 
   USE ai_overlap_new,                  ONLY: overlap
@@ -60,13 +51,9 @@ MODULE qs_oce_methods
 
   PUBLIC :: set_up_oce
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE build_oce_block(oceh,oces,atom_ka,atom_kb,rab,dab,nder,error)
 
     TYPE(block_p_type), DIMENSION(:), &
@@ -166,8 +153,6 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ovs = 0.0_dp
 
-
-
     ithread = 0
 !$  ithread = omp_get_thread_num()
     spa_sb => spa_sbt(:,:,ithread)
@@ -253,8 +238,6 @@ CONTAINS
 
             ENDDO
 
-
-
           END IF
         ENDDO
 
@@ -287,7 +270,6 @@ CONTAINS
             ENDDO ! lshell
           ENDDO ! ipgf
         ENDDO ! ider
-
 
         IF(paw_atom_b) THEN
           CALL get_paw_proj_set(paw_proj_set=paw_proj_b,zisomin=zisominb)
@@ -368,44 +350,30 @@ CONTAINS
   END SUBROUTINE build_oce_block
 
 ! *****************************************************************************
-!!****f*  qs_oce_methods/set_up_oce  [1.0] *
-!!
-!!   NAME
-!!     set_up_oce
-!!
-!!   FUNCTION
-!!     Set up the sparse matrix for the coefficients  of one center expansions
-!!     To this end, it uses the same pair lists employed for the construction
-!!     of the density matriax. Here for each pair iatom jatom, all the katom
-!!     which are close to them both are taken into account.
-!!
-!!   NOTES
-!!     - The OCE blocks are dimensioned:
-!!       number of primitives on katom times of contractions on iatom/jatom
-!!
-!!   INPUTS
-!!     - atomic_kind_set: all the information of the atomic kinds
-!!     - reduced_3c_oce: special 3 center lists that give the neighbors to iatom and jatom
-!!     - oce: sparse matrix of the one center coefficients
-!!     - ikind, iatom, jkind, jatom : indexes and kinds of the atoms of the pair
-!!     - oceh,oces : blocks of the oce matrix for the hard and soft densities
-!!     - nder: it is =/ 0 if the forces are required
-!!     - dist_list: tool used to know which triplets have been already taken into account
-!!                  (to avoid double counting in presence of PBC)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     02.2004 created
-!!
-!!*** **********************************************************************
+!> \brief Set up the sparse matrix for the coefficients  of one center expansions
+!>      To this end, it uses the same pair lists employed for the construction
+!>      of the density matriax. Here for each pair iatom jatom, all the katom
+!>      which are close to them both are taken into account.
+!> \param atomic_kind_set all the information of the atomic kinds
+!> \param reduced_ 3c_oce: special 3 center lists that give the neighbors to iatom and jatom
+!> \param oce sparse matrix of the one center coefficients
+!> \param ikind , iatom, jkind, jatom : indexes and kinds of the atoms of the pair
+!> \param oceh ,oces : blocks of the oce matrix for the hard and soft densities
+!> \param nder it is =/ 0 if the forces are required
+!> \param dist_list tool used to know which triplets have been already taken into account
+!>                   (to avoid double counting in presence of PBC)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      - The OCE blocks are dimensioned:
+!>        number of primitives on katom times of contractions on iatom/jatom
+!> \par History
+!>      02.2004 created
+!> \author MI
+! *****************************************************************************
   SUBROUTINE set_up_oce(atomic_kind_set,reduced_3c_oce,oce,&
                         ikind,iatom,jkind,jatom,rab,&
                         oceh,oces,nder,dist_list,error)
-
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -575,7 +543,6 @@ CONTAINS
            at_a => atomic_kind_set(kkind)
            at_b => atomic_kind_set(jkind)
 
-
            CALL build_oce_block(oceh,oces, &
                               at_a,&
                               at_b,&
@@ -597,5 +564,4 @@ CONTAINS
 
   END SUBROUTINE set_up_oce
 
-! *****************************************************************************
 END MODULE qs_oce_methods

@@ -3,25 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_cp2k_thermostats *
-!!
-!!   NAME
-!!     input_cp2k_thermostats
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     teo & fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 split input_cp2k into smaller modules [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \par History
+!>      10.2005 split input_cp2k into smaller modules [fawzi]
+!> \author teo & fawzi
+! *****************************************************************************
 MODULE input_cp2k_thermostats
   USE bibliography,                    ONLY: Bussi2007,&
                                              Nose1984a,&
@@ -61,30 +47,15 @@ PUBLIC :: create_thermostat_section,&
           create_mass_section
 
 !***
-!****************************************************************************
 CONTAINS
 
-!***************************************************************************
-!!****f* input_cp2k_thermostats/create_thermostat_section *
-!!
-!!   NAME
-!!     create_thermostat_section
-!!
-!!   FUNCTION
-!!     Specifies parameter for thermostat for constant temperature ensembles
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: will contain the coeff section 
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo [tlaino] - University of Zurich - 09.2007
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Specifies parameter for thermostat for constant temperature ensembles
+!> \param section will contain the coeff section 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo [tlaino] - University of Zurich - 09.2007
+! *****************************************************************************
   SUBROUTINE create_thermostat_section(section, coupled_thermostat, error)
     TYPE(section_type), POINTER              :: section
     LOGICAL, INTENT(IN), OPTIONAL            :: coupled_thermostat
@@ -172,27 +143,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_thermostat_section
 
-!***************************************************************************
-!!****f* input_cp2k_thermostats/create_region_section *
-!!
-!!   NAME
-!!     create_region_section
-!!
-!!   FUNCTION
-!!     Creates a section to arbitrary define a region to thermostat
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: will contain the coeff section 
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates a section to arbitrary define a region to thermostat
+!> \param section will contain the coeff section 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_region_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -265,27 +222,12 @@ CONTAINS
     END IF
   END SUBROUTINE create_region_section
 
-!***************************************************************************
-!!****f* input_cp2k_thermostats/create_nose_section *
-!!
-!!   NAME
-!!     create_nose_section
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: will contain the ewald section 
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     gloria
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param section will contain the ewald section 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author gloria
+! *****************************************************************************
   SUBROUTINE create_nose_section(section, coupled_thermostat, error)
     TYPE(section_type), POINTER              :: section
     LOGICAL, INTENT(IN)                      :: coupled_thermostat
@@ -359,28 +301,12 @@ CONTAINS
 
   END SUBROUTINE create_nose_section
 
-!***************************************************************************
-!!****f* input_cp2k_thermostats/create_csvr_section *
-!!
-!!   NAME
-!!     create_csvr_section
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: will contain the ewald section 
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo [tlaino] - University of Zurich - 09.2007
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \param section will contain the ewald section 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo [tlaino] - University of Zurich - 09.2007
+! *****************************************************************************
   SUBROUTINE create_csvr_section(section, coupled_thermostat, error)
     TYPE(section_type), POINTER              :: section
     LOGICAL, INTENT(IN)                      :: coupled_thermostat
@@ -422,29 +348,14 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_csvr_section
-!***************************************************************************
 
-!***************************************************************************
-!!****f* input_cp2k_thermostats/create_thermo_energy_section [1.0] *
-!!
-!!   NAME
-!!     create_thermo_energy_section
-!!
-!!   FUNCTION
-!!     Creates the thermostat energy restarting section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the thermostat energy restarting section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_thermo_energy_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -473,29 +384,14 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_thermo_energy_section
-!***************************************************************************
 
-!***************************************************************************
-!!****f* input_cp2k_thermostats/create_force_section [1.0] *
-!!
-!!   NAME
-!!     create_force_section
-!!
-!!   FUNCTION
-!!     Creates the mass section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the mass section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_force_section(section,name,error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*), INTENT(IN)             :: name
@@ -526,27 +422,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_force_section
 
-!***************************************************************************
-!!****f* input_cp2k_thermostats/create_mass_section [1.0] *
-!!
-!!   NAME
-!!     create_mass_section
-!!
-!!   FUNCTION
-!!     Creates the mass section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the mass section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_mass_section(section,name,error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*), INTENT(IN)             :: name
@@ -577,27 +459,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_mass_section
 
-!***************************************************************************
-!!****f* input_cp2k_thermostats/create_velocity_section [1.0] *
-!!
-!!   NAME
-!!     create_velocity_section
-!!
-!!   FUNCTION
-!!     Creates the velocity section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the velocity section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_velocity_section(section,name,error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*), INTENT(IN)             :: name
@@ -628,27 +496,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_velocity_section
 
-!***************************************************************************
-!!****f* input_cp2k_thermostats/create_coord_section [1.0] *
-!!
-!!   NAME
-!!     create_coord_section
-!!
-!!   FUNCTION
-!!     Creates the coord section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the coord section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_coord_section(section,name,error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*), INTENT(IN)             :: name

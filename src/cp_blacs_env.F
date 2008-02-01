@@ -3,27 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/cp_blacs_env [1.0] *
-!!
-!!   NAME
-!!     cp_blacs_env
-!!
-!!   FUNCTION
-!!     methods related to the blacs parallel environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!     02.2004 modified to associate a blacs_env with a given para_env
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief methods related to the blacs parallel environment
+!> \par History
+!>      08.2002 created [fawzi]
+!>      02.2004 modified to associate a blacs_env with a given para_env
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE cp_blacs_env
   USE cp_array_i_utils,                ONLY: cp_2d_i_write
   USE cp_blacs_calls,                  ONLY: cp_blacs_gridexit,&
@@ -55,11 +41,9 @@ MODULE cp_blacs_env
   PUBLIC :: cp_blacs_env_create, cp_blacs_env_retain, cp_blacs_env_release
   PUBLIC :: cp_blacs_env_write, get_blacs_info
 !***
-!****************************************************************************
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE get_blacs_info(blacs_env,my_process_row,my_process_column,&
                             my_process_number,number_of_process_rows,&
                             number_of_process_columns,number_of_processes,&
@@ -69,8 +53,6 @@ CONTAINS
 
 !   History: - Creation (19.06.2001, Matthias Krack)
 !   moved here from qs_blacs (Joost VandeVondele)
-
-!   ***************************************************************************
 
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     INTEGER, INTENT(OUT), OPTIONAL :: my_process_row, my_process_column, &
@@ -95,38 +77,16 @@ CONTAINS
 
   END SUBROUTINE get_blacs_info
 
-!!****f* cp_blacs_env/cp_blacs_env_create [1.0] *
-!!
-!!   NAME
-!!     cp_blacs_env_create
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_blacs_env_create(blacs_env, group, para_env,&
-!!         owns_group, source, error)
-!!       Type(cp_blacs_env_type), Pointer:: blacs_env
-!!       Type(cp_para_env_type), Pointer:: para_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_blacs_env_create
-!!
-!!   FUNCTION
-!!     allocates and initializes a type that represent a blacs context
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - blacs_env: the type to initialize
-!!     - para_env : the para_env for which a blacs env should be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief allocates and initializes a type that represent a blacs context
+!> \param blacs_env the type to initialize
+!> \param para_env the para_env for which a blacs env should be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE cp_blacs_env_create(blacs_env,para_env,error)
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -223,37 +183,16 @@ CPSourceFileRef,&
      END DO
   END IF
 END SUBROUTINE cp_blacs_env_create
-!***************************************************************************
 
-!!****f* cp_blacs_env/cp_blacs_env_retain [1.0] *
-!!
-!!   NAME
-!!     cp_blacs_env_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_blacs_env_retain(blacs_env, error)
-!!       Type(cp_blacs_env_type), Pointer:: blacs_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_blacs_env_retain
-!!
-!!   FUNCTION
-!!     retains the given blacs env
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - blacs_env: the blacs env to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given blacs env
+!> \param blacs_env the blacs env to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE cp_blacs_env_retain(blacs_env,error)
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -270,37 +209,16 @@ SUBROUTINE cp_blacs_env_retain(blacs_env,error)
      blacs_env%ref_count=blacs_env%ref_count+1
   END IF
 END SUBROUTINE cp_blacs_env_retain
-!***************************************************************************
 
-!!****f* cp_blacs_env/cp_blacs_env_release [1.0] *
-!!
-!!   NAME
-!!     cp_blacs_env_release
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_blacs_env_release(blacs_env, error)
-!!       Type(cp_blacs_env_type), Pointer:: blacs_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_blacs_env_release
-!!
-!!   FUNCTION
-!!     releases the given blacs_env
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - blacs_env: the blacs env to relase
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given blacs_env
+!> \param blacs_env the blacs env to relase
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE cp_blacs_env_release(blacs_env,error)
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -329,40 +247,18 @@ SUBROUTINE cp_blacs_env_release(blacs_env,error)
   END IF
   NULLIFY(blacs_env)
 END SUBROUTINE cp_blacs_env_release
-!***************************************************************************
 
-!!****f* cp_blacs_env/cp_blacs_env_write [1.0] *
-!!
-!!   NAME
-!!     cp_blacs_env_write
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_blacs_env_write(blacs_env, unit_nr, error)
-!!       Type(cp_blacs_env_type), Pointer:: blacs_env
-!!       Integer, Intent (IN):: unit_nr
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_blacs_env_write
-!!
-!!   FUNCTION
-!!     writes the description of the given blacs env
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - blacs_env: the blacs environment to write
-!!     - unit_nr: the unit number where to write the description of the
-!!       blacs environment
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes the description of the given blacs env
+!> \param blacs_env the blacs environment to write
+!> \param unit_nr the unit number where to write the description of the
+!>        blacs environment
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE cp_blacs_env_write(blacs_env, unit_nr, error)
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     INTEGER, INTENT(in)                      :: unit_nr
@@ -410,6 +306,5 @@ SUBROUTINE cp_blacs_env_write(blacs_env, unit_nr, error)
   END IF
   CALL m_flush(unit_nr)
 END SUBROUTINE cp_blacs_env_write
-!***************************************************************************
 
 END MODULE cp_blacs_env

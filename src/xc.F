@@ -3,27 +3,15 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****s* cp2k/xc [1.0] *
-!!
-!!   NAME
-!!     xc
-!!
-!!   FUNCTION
-!!     Exchange and Correlation functional calculations
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     (13-Feb-2001) JGH, based on earlier version of apsi
-!!     02.2003 Many many changes [fawzi]
-!!     03.2004 new xc interface [fawzi]
-!!     04.2004 kinetic functionals [fawzi]
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Exchange and Correlation functional calculations
+!> \par History
+!>      (13-Feb-2001) JGH, based on earlier version of apsi
+!>      02.2003 Many many changes [fawzi]
+!>      03.2004 new xc interface [fawzi]
+!>      04.2004 kinetic functionals [fawzi]
+!> \author fawzi
+! *****************************************************************************
 MODULE xc
   USE cell_types,                      ONLY: cell_type
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
@@ -90,50 +78,34 @@ MODULE xc
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc'
 
-!!***
-!******************************************************************************
-
 CONTAINS
 
-!!****f* xc/xc_vxc_pw_create1 [1.0] *
-!!
-!!   NAME
-!!     xc_vxc_create1
-!!
-!!   FUNCTION
-!!     Exchange and Correlation functional calculations.
-!!     depending on the selected functional_routine calls
-!!     the correct routine
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - vxc_rho: will contain the v_xc part that depend on rho
-!!       (if one of the choosen xc functionals has it it is allocated and you
-!!       are responsible for it)
-!!     - vxc_tau: will contain the kinetic (tau) part of v_xcthe functional
-!!       (if one of the choosen xc functionals has it it is allocated and you
-!!       are responsible for it)
-!!     - rho_r: the value of the density in the real space
-!!     - rho_g: value of the density in the g space (needs to be associated
-!!       only for gradient corrections)
-!!     - tau: value of the kinetic density tau on the grid (can be null,
-!!       used only with meta functionals)
-!!     - vxc: will contain the resulting xc potential, has to be
-!!       already allocated
-!!     - exc: the xc energy
-!!     - xc_section: parameters selecting the xc and the method used to
-!!       calculate it
-!!     - pw_pool: the pool for the grids
-!!     - virial: virial for calculating the GGA part of the stress
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Exchange and Correlation functional calculations.
+!>      depending on the selected functional_routine calls
+!>      the correct routine
+!> \param vxc_rho will contain the v_xc part that depend on rho
+!>        (if one of the choosen xc functionals has it it is allocated and you
+!>        are responsible for it)
+!> \param vxc_tau will contain the kinetic (tau) part of v_xcthe functional
+!>        (if one of the choosen xc functionals has it it is allocated and you
+!>        are responsible for it)
+!> \param rho_r the value of the density in the real space
+!> \param rho_g value of the density in the g space (needs to be associated
+!>        only for gradient corrections)
+!> \param tau value of the kinetic density tau on the grid (can be null,
+!>        used only with meta functionals)
+!> \param vxc will contain the resulting xc potential, has to be
+!>        already allocated
+!> \param exc the xc energy
+!> \param xc_section parameters selecting the xc and the method used to
+!>        calculate it
+!> \param pw_pool the pool for the grids
+!> \param virial virial for calculating the GGA part of the stress
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE xc_vxc_pw_create1(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,xc_section,&
        cell,pw_pool,error,virial)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau, rho_r, &
@@ -180,42 +152,30 @@ CONTAINS
     END IF
 
   END SUBROUTINE xc_vxc_pw_create1
-  !***************************************************************************
 
-!!****f* xc/xc_vxc_pw_create_test_lsd [1.0] *
-!!
-!!   NAME
-!!     xc_vxc_pw_create_test_lsd
-!!
-!!   FUNCTION
-!!     calculates vxc using lsd with rhoa=rhob=0.5*rho and compares
-!!     with the lda result
-!!
-!!   NOTES
-!!     for debugging only: leaks, and non parallel
-!!
-!!   INPUTS
-!!     - vxc_rho: will contain the v_xc part that depend on rho
-!!       (if one of the choosen xc functionals has it it is allocated and you
-!!       are responsible for it)
-!!     - vxc_tau: will contain the kinetic (tau) part of v_xc
-!!       (if one of the choosen xc functionals has it it is allocated and you
-!!       are responsible for it)
-!!     - rho_r: the value of the density in the real space
-!!     - rho_g: value of the density in the g space (needs to be associated
-!!       only for gradient corrections)
-!!     - tau: value of the kinetic density tau on the grid (can be null,
-!!       used only with meta functionals)
-!!     - exc: the xc energy
-!!     - xc_section: which functional to calculate, and how
-!!     - pw_pool: the pool for the grids
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates vxc using lsd with rhoa=rhob=0.5*rho and compares
+!>      with the lda result
+!> \param vxc_rho will contain the v_xc part that depend on rho
+!>        (if one of the choosen xc functionals has it it is allocated and you
+!>        are responsible for it)
+!> \param vxc_tau will contain the kinetic (tau) part of v_xc
+!>        (if one of the choosen xc functionals has it it is allocated and you
+!>        are responsible for it)
+!> \param rho_r the value of the density in the real space
+!> \param rho_g value of the density in the g space (needs to be associated
+!>        only for gradient corrections)
+!> \param tau value of the kinetic density tau on the grid (can be null,
+!>        used only with meta functionals)
+!> \param exc the xc energy
+!> \param xc_section which functional to calculate, and how
+!> \param pw_pool the pool for the grids
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      for debugging only: leaks, and non parallel
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
      exc,xc_section, cell,pw_pool,  error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau, rho_r, &
@@ -554,42 +514,30 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
 
   END IF
 END SUBROUTINE xc_vxc_pw_create_test_lsd
-!***************************************************************************
 
-!!****f* xc/xc_vxc_pw_create_debug [1.0] *
-!!
-!!   NAME
-!!     xc_vxc_pw_create_debug
-!!
-!!   FUNCTION
-!!     calculates vxc outputting the yz plane of rho, and of the various components
-!!     of the the derivatives and of vxc
-!!
-!!   NOTES
-!!     for debugging only.
-!!
-!!   INPUTS
-!!     - vxc_rho: will contain the v_xc part that depend on rho
-!!       (if one of the choosen xc functionals has it it is allocated and you
-!!       are responsible for it)
-!!     - vxc_tau: will contain the kinetic (tau) part of v_xc
-!!       (if one of the choosen xc functionals has it it is allocated and you
-!!       are responsible for it)
-!!     - rho_r: the value of the density in the real space
-!!     - rho_g: value of the density in the g space (needs to be associated
-!!       only for gradient corrections)
-!!     - tau: value of the kinetic density tau on the grid (can be null,
-!!       used only with meta functionals)
-!!     - exc: the xc energy
-!!     - xc_section: which functional should be used, and how to do it
-!!     - pw_pool: the pool for the grids
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates vxc outputting the yz plane of rho, and of the various components
+!>      of the the derivatives and of vxc
+!> \param vxc_rho will contain the v_xc part that depend on rho
+!>        (if one of the choosen xc functionals has it it is allocated and you
+!>        are responsible for it)
+!> \param vxc_tau will contain the kinetic (tau) part of v_xc
+!>        (if one of the choosen xc functionals has it it is allocated and you
+!>        are responsible for it)
+!> \param rho_r the value of the density in the real space
+!> \param rho_g value of the density in the g space (needs to be associated
+!>        only for gradient corrections)
+!> \param tau value of the kinetic density tau on the grid (can be null,
+!>        used only with meta functionals)
+!> \param exc the xc energy
+!> \param xc_section which functional should be used, and how to do it
+!> \param pw_pool the pool for the grids
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      for debugging only.
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
      xc_section, cell,pw_pool,error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau, rho_r, &
@@ -865,48 +813,36 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
      CALL xc_rho_set_release(rho_set1,error=error)
   END IF
 END SUBROUTINE xc_vxc_pw_create_debug
-!***************************************************************************
 
-!!****f* xc/xc_rho_set_and_dset_create [1.0] *
-!!
-!!   NAME
-!!     xc_rho_set_and_dset_create
-!!
-!!   FUNCTION
-!!     creates a xc_rho_set and a derivative set containing the derivatives
-!!     of the functionals with the given deriv_order.
-!!
-!!   NOTES
-!!     if any of the functionals is gradient corrected the full gradient is
-!!     added to the rho set
-!!
-!!   ARGUMENTS
-!!     - rho_set: will contain the rho set
-!!     - deriv_set will contain the derivatives
-!!     - deriv_order: the order of the requested derivatives. If positive
-!!       0:deriv_order are calculated, if negative only -deriv_order is
-!!       guaranteed to be valid. Orders not requested might be present,
-!!       but might contain garbage.
-!!     - rho_r: the value of the density in the real space
-!!     - rho_g: value of the density in the g space (can be null, used only
-!!       without smoothing of rho or deriv)
-!!     - tau: value of the kinetic density tau on the grid (can be null,
-!!       used only with meta functionals)
-!!     - cell: the simulation cell (to scale the derivatives)
-!!     - xc_section: the section describing the functional to use
-!!     - pw_pool: the pool for the grids
-!!     - gradient_f: returns true if any of the functionals is gradient
-!!       corrected
-!!     - needs_basic_components: if the basic components of the arguments
-!!       should be kept in rho set (a basic component is for example drho
-!!       when with lda a functional needs norm_drho)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a xc_rho_set and a derivative set containing the derivatives
+!>      of the functionals with the given deriv_order.
+!> \param rho_set will contain the rho set
+!> \param deriv_set will contain the derivatives
+!> \param deriv_order the order of the requested derivatives. If positive
+!>        0:deriv_order are calculated, if negative only -deriv_order is
+!>        guaranteed to be valid. Orders not requested might be present,
+!>        but might contain garbage.
+!> \param rho_r the value of the density in the real space
+!> \param rho_g value of the density in the g space (can be null, used only
+!>        without smoothing of rho or deriv)
+!> \param tau value of the kinetic density tau on the grid (can be null,
+!>        used only with meta functionals)
+!> \param cell the simulation cell (to scale the derivatives)
+!> \param xc_section the section describing the functional to use
+!> \param pw_pool the pool for the grids
+!> \param gradient_f returns true if any of the functionals is gradient
+!>        corrected
+!> \param needs_basic_components if the basic components of the arguments
+!>        should be kept in rho set (a basic component is for example drho
+!>        when with lda a functional needs norm_drho)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      if any of the functionals is gradient corrected the full gradient is
+!>      added to the rho set
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE xc_rho_set_and_dset_create(rho_set,deriv_set,deriv_order,&
      rho_r,rho_g,tau,xc_section,cell,pw_pool,&
      needs_basic_components,error)
@@ -972,36 +908,22 @@ SUBROUTINE xc_rho_set_and_dset_create(rho_set,deriv_set,deriv_order,&
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE xc_rho_set_and_dset_create
-  !***************************************************************************
 
-!!****f* xc/smooth_cutoff [1.0] *
-!!
-!!   NAME
-!!     smooth_cutoff
-!!
-!!   FUNCTION
-!!     smooths the cutoff on rho with a function smooth(rho) that is 0
-!!     for rho<rho_cutoff and 1 for rho>rho_cutoff*rho_smooth_cutoff_range:
-!!     E= integral e_0*smooth(rho) => dE/d...= de/d... * smooth,
-!!     dE/drho = de/drho * smooth + e_0 * dsmooth/drho
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pot: the potential to smooth
-!!     - rho, rhoa,rhob: the value of the density (used to apply the cutoff)
-!!     - rho_cutoff: the vaule at whch the cutoff function must go to 0
-!!     - rho_smooth_cutoff_range: range of the smoothing
-!!     - e_0: value of e_0, if given it is assumed that pot is the derivative
-!!       wrt. to rho, and needs the dsmooth*e_0 contribution
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief smooths the cutoff on rho with a function smooth(rho) that is 0
+!>      for rho<rho_cutoff and 1 for rho>rho_cutoff*rho_smooth_cutoff_range:
+!>      E= integral e_0*smooth(rho) => dE/d...= de/d... * smooth,
+!>      dE/drho = de/drho * smooth + e_0 * dsmooth/drho
+!> \param pot the potential to smooth
+!> \param rho , rhoa,rhob: the value of the density (used to apply the cutoff)
+!> \param rho_cutoff the vaule at whch the cutoff function must go to 0
+!> \param rho_smooth_cutoff_range range of the smoothing
+!> \param e_ 0: value of e_0, if given it is assumed that pot is the derivative
+!>        wrt. to rho, and needs the dsmooth*e_0 contribution
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE smooth_cutoff(pot,rho,rhoa,rhob,rho_cutoff,&
        rho_smooth_cutoff_range, e_0, e_0_scale_factor,error)
     REAL(kind=dp), DIMENSION(:, :, :), &
@@ -1165,50 +1087,37 @@ END SUBROUTINE xc_rho_set_and_dset_create
        END IF
     END IF
 END SUBROUTINE smooth_cutoff
-!***************************************************************************
 
-!!****f* xc/xc_vxc_create [1.0] *
-!!
-!!   NAME
-!!     xc_vxc_create
-!!
-!!   FUNCTION
-!!     Exchange and Correlation functional calculations
-!!
-!!   NOTES
-!!     Beware: some really dirty pointer handling!
-!!     energy should be kept consistent with xc_exc_calc
-!!
-!!   ARGUMENTS
-!!     - vxc_rho: will contain the v_xc part that depend on rho
-!!       (if one of the choosen xc functionals has it it is allocated and you
-!!       are responsible for it)
-!!     - vxc_tau: will contain the kinetic (tau) part of v_xc
-!!       (if one of the choosen xc functionals has it it is allocated and you
-!!       are responsible for it)
-!!     - rho_r: the value of the density in the real space
-!!     - rho_g: value of the density in the g space (needs to be associated
-!!       only for gradient corrections)
-!!     - tau: value of the kinetic density tau on the grid (can be null,
-!!       used only with meta functionals)
-!!     - exc: the xc energy
-!!     - xc_section: which functional to calculate, and how to do it
-!!     - pw_pool: the pool for the grids
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi; based LDA version of JGH, based on earlier version of apsi
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (13-Jun-2002): adaptation to new functionals
-!!     Fawzi (11.2002): drho_g(1:3)->drho_g
-!!     Fawzi (1.2003). lsd version
-!!     Fawzi (11.2003): version using the new xc interface
-!!     Fawzi (03.2004): fft free for smoothed density and derivs, gga lsd
-!!     Fawzi (04.2004): metafunctionals
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Exchange and Correlation functional calculations
+!> \param vxc_rho will contain the v_xc part that depend on rho
+!>        (if one of the choosen xc functionals has it it is allocated and you
+!>        are responsible for it)
+!> \param vxc_tau will contain the kinetic (tau) part of v_xc
+!>        (if one of the choosen xc functionals has it it is allocated and you
+!>        are responsible for it)
+!> \param rho_r the value of the density in the real space
+!> \param rho_g value of the density in the g space (needs to be associated
+!>        only for gradient corrections)
+!> \param tau value of the kinetic density tau on the grid (can be null,
+!>        used only with meta functionals)
+!> \param exc the xc energy
+!> \param xc_section which functional to calculate, and how to do it
+!> \param pw_pool the pool for the grids
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      Beware: some really dirty pointer handling!
+!>      energy should be kept consistent with xc_exc_calc
+!> \par History
+!>      JGH (13-Jun-2002): adaptation to new functionals
+!>      Fawzi (11.2002): drho_g(1:3)->drho_g
+!>      Fawzi (1.2003). lsd version
+!>      Fawzi (11.2003): version using the new xc interface
+!>      Fawzi (03.2004): fft free for smoothed density and derivs, gga lsd
+!>      Fawzi (04.2004): metafunctionals
+!> \author fawzi; based LDA version of JGH, based on earlier version of apsi
+! *****************************************************************************
 SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
      cell,pw_pool,error,virial)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
@@ -1902,31 +1811,18 @@ CPSourceFileRef,&
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE xc_vxc_pw_create
-  !***************************************************************************
 
-!!****f* xc/xc_exc_calc [1.0] *
-!!
-!!   NAME
-!!     xc_exc_calc
-!!
-!!   FUNCTION
-!!     calculates just the exchange and correlation energy
-!!     (no vxc)
-!!
-!!   NOTES
-!!     has to be kept consistent with xc_vxc_create
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates just the exchange and correlation energy
+!>      (no vxc)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      has to be kept consistent with xc_vxc_create
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 FUNCTION xc_exc_calc(rho_r,rho_g,tau,xc_section, cell,pw_pool,&
      error) RESULT(exc)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, rho_g, tau
@@ -1984,51 +1880,41 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,xc_section, cell,pw_pool,&
   END IF
   CALL timestop(0.0_dp,handle)
 END FUNCTION xc_exc_calc
-!***************************************************************************
 
-!!****f* qs_kpp1_env_methods/xc_calc_2nd_deriv [1.0] *
-!!
-!!   NAME
-!!     xc_calc_2nd_deriv
-!!
-!!   FUNCTION
-!!     Calculates the second derivative of E_xc at rho in the direction
-!!     rho1  (if you see the second derivative as bilinear form)
-!!     partial_rho|_(rho=rho) partial_rho|_(rho=rho) E_xc drho(rho1)drho
-!!     The other direction is still indetermined, thus it returns
-!!     a potential (partial integration is performed to reduce it to
-!!     function of rho, removing the dependence from its partial derivs)
-!!     Has to be called after the setup by xc_prep_2nd_deriv.
-!!
-!!   NOTES
-!!     The old version of this routine was smarter: it handled split_desc(1)
-!!     and split_desc(2) separatly, thus the code automatically handled all
-!!     possible cross terms (you only had to check if it was diagonal to avoid
-!!     double counting). I think that is the way to go if you want to add more
-!!     terms (tau,rho in LSD,...). The problem with the old code was that it
-!!     because of the old functional structure it sometime guessed wrongly
-!!     which derivative was where. There were probably still bugs with gradient
-!!     corrected functionals (never tested), and it didn't contain first
-!!     derivatives with respect to drho (that contibute also to the second
-!!     derivative wrt. rho).
-!!     The code was a little complex because it really tried to handle any
-!!     functional derivative in the most efficent way with the given contents of
-!!     rho_set.
-!!     Anyway I strongly encourage whoever wants to modify this code to give a
-!!     look to the old version. [fawzi]
-!!
-!!   INPUTS
-!!     - deriv_set: object containing the potentials
-!!     - rho_set: object containing the density at which the derivatives were calculated
-!!     - rho1_set : object containing the density with which to fold
-!!     - v_rspace_new: will contain the new potential.
-!!     - pw_pool: the pool for the grids
-!!     - tddfpt_fac: factor that multiplies the crossterms (tddfpt triplets
-!!       on a closed shell sistem it should be -1, defaults to 1)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Calculates the second derivative of E_xc at rho in the direction
+!>      rho1  (if you see the second derivative as bilinear form)
+!>      partial_rho|_(rho=rho) partial_rho|_(rho=rho) E_xc drho(rho1)drho
+!>      The other direction is still indetermined, thus it returns
+!>      a potential (partial integration is performed to reduce it to
+!>      function of rho, removing the dependence from its partial derivs)
+!>      Has to be called after the setup by xc_prep_2nd_deriv.
+!> \param deriv_set object containing the potentials
+!> \param rho_set object containing the density at which the derivatives were calculated
+!> \param rho 1_set : object containing the density with which to fold
+!> \param v_rspace_new will contain the new potential.
+!> \param pw_pool the pool for the grids
+!> \param tddfpt_fac factor that multiplies the crossterms (tddfpt triplets
+!>        on a closed shell sistem it should be -1, defaults to 1)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      The old version of this routine was smarter: it handled split_desc(1)
+!>      and split_desc(2) separatly, thus the code automatically handled all
+!>      possible cross terms (you only had to check if it was diagonal to avoid
+!>      double counting). I think that is the way to go if you want to add more
+!>      terms (tau,rho in LSD,...). The problem with the old code was that it
+!>      because of the old functional structure it sometime guessed wrongly
+!>      which derivative was where. There were probably still bugs with gradient
+!>      corrected functionals (never tested), and it didn't contain first
+!>      derivatives with respect to drho (that contibute also to the second
+!>      derivative wrt. rho).
+!>      The code was a little complex because it really tried to handle any
+!>      functional derivative in the most efficent way with the given contents of
+!>      rho_set.
+!>      Anyway I strongly encourage whoever wants to modify this code to give a
+!>      look to the old version. [fawzi]
+! *****************************************************************************
 SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
      pw_pool, xc_section, gapw, vxg, tddfpt_fac, error)
 
@@ -2722,7 +2608,6 @@ CPSourceFileRef,&
              error=error)
      END IF
 
-
      IF (gradient_f) THEN
 
         IF (my_gapw) THEN
@@ -2758,7 +2643,6 @@ CPSourceFileRef,&
               END DO
            END DO
         ELSE
-
 
            ! partial integration
            DO idir=1, 3
@@ -2858,7 +2742,6 @@ CPSourceFileRef,&
 
      END IF ! gradient_f
 
-
   ELSE
 
      !-----------------!
@@ -2922,7 +2805,6 @@ CPSourceFileRef,&
         END DO
      END IF
 
-
      deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drho)(norm_drho)", &
           error=error)
      IF (ASSOCIATED(deriv_att)) THEN
@@ -2941,7 +2823,6 @@ CPSourceFileRef,&
            END DO
         END DO
      END IF
-
 
      deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drho)", &
           error=error)
@@ -3061,35 +2942,26 @@ CPSourceFileRef,&
 
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE xc_calc_2nd_deriv
-  !***************************************************************************
 
-!!****f* qs_kpp1_env_methods/xc_calc_2nd_deriv [1.0] *
-!!
-!!   NAME
-!!     xc_calc_2nd_deriv
-!!
-!!   FUNCTION
-!!     Does the first prepartions for the calculation of the 2nd deriv
-!!     The calculation must then be performed with xc_calc_2nd_deriv
-!!     Calculates the second derivative of E_xc at rho in the direction
-!!     rho1  (if you see the second derivative as bilinear form)
-!!     partial_rho|_(rho=rho) partial_rho|_(rho=rho) E_xc drho(rho1)drho
-!!     The other direction is still indetermined, thus it returns
-!!     a potential (partial integration is performed to reduce it to
-!!     function of rho, removing the dependence from its partial derivs)
-!!
-!!   INPUTS
-!!     - deriv_set: object containing the potentials
-!!     - rho_set: object that will contain the density at which the
-!!       derivatives were calculated
-!!     - rho_r: the place where you evaluate the derivative
-!!     - pw_pool: the pool for the grids
-!!     - xc_section: which functional should be used and how to calculate it
-!!     - cell: the simulation cell (needed to scale the derivatives)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Does the first prepartions for the calculation of the 2nd deriv
+!>      The calculation must then be performed with xc_calc_2nd_deriv
+!>      Calculates the second derivative of E_xc at rho in the direction
+!>      rho1  (if you see the second derivative as bilinear form)
+!>      partial_rho|_(rho=rho) partial_rho|_(rho=rho) E_xc drho(rho1)drho
+!>      The other direction is still indetermined, thus it returns
+!>      a potential (partial integration is performed to reduce it to
+!>      function of rho, removing the dependence from its partial derivs)
+!> \param deriv_set object containing the potentials
+!> \param rho_set object that will contain the density at which the
+!>        derivatives were calculated
+!> \param rho_r the place where you evaluate the derivative
+!> \param pw_pool the pool for the grids
+!> \param xc_section which functional should be used and how to calculate it
+!> \param cell the simulation cell (needed to scale the derivatives)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE xc_prep_2nd_deriv(deriv_set, &
        rho_set, rho_r, pw_pool, xc_section, cell, error)
 
@@ -3142,8 +3014,8 @@ END SUBROUTINE xc_calc_2nd_deriv
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE xc_prep_2nd_deriv
-  !***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE divide_by_norm_drho(deriv_set, rho_set, lsd, error)
 
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -3231,8 +3103,7 @@ CPSourceFileRef,&
 
   END SUBROUTINE divide_by_norm_drho
 
-  !***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE pw_smooth(pw_in,pw_out)
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
 
@@ -3325,4 +3196,3 @@ CPSourceFileRef,&
 
 END MODULE xc
 
-!******************************************************************************

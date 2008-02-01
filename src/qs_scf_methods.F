@@ -2,25 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_scf_methods [1.0] *
-!!
-!!   NAME
-!!     qs_scf_methods
-!!
-!!   FUNCTION
-!!     groups fairly general SCF methods, so that modules other than qs_scf can use them too
-!!     split off from qs_scf to reduce dependencies
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     - Joost VandeVondele (03.2006)
-!!     - combine_ks_matrices added (05.04.06,MK)
-!!     - second ROKS scheme added (15.04.06,MK)
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief groups fairly general SCF methods, so that modules other than qs_scf can use them too
+!>      split off from qs_scf to reduce dependencies
+!> \par History
+!>      - Joost VandeVondele (03.2006)
+!>      - combine_ks_matrices added (05.04.06,MK)
+!>      - second ROKS scheme added (15.04.06,MK)
+! *****************************************************************************
 MODULE qs_scf_methods
 
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
@@ -84,34 +74,16 @@ MODULE qs_scf_methods
                      combine_ks_matrices_2
   END INTERFACE combine_ks_matrices
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
-!!****f* qs_scf/scf_env_density_mixing [1.0] *
-!!
-!!   NAME
-!!     scf_env_density_mixing
-!!
-!!   FUNCTION
-!!     perform (if requested) a density mixing
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+!> \brief perform (if requested) a density mixing
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE scf_env_density_mixing(p_mix_new,mixing_method,p_mix,iter_delta,&
                                     qs_env,invert,error)
 
@@ -178,7 +150,6 @@ CONTAINS
   END SUBROUTINE scf_env_density_mixing
 
 ! *****************************************************************************
-
   SUBROUTINE eigensolver(matrix_ks,mo_set,ortho,work,do_level_shift,&
                          level_shift,use_cholesky,work_syevx,use_jacobi,&
                          jacobi_threshold,smear,error)
@@ -188,8 +159,6 @@ CONTAINS
 !   ks will be modified
 
 !   History: - Creation (01.05.2001, Matthias Krack)
-
-!   ***************************************************************************
 
     TYPE(cp_fm_type), POINTER                :: matrix_ks
     TYPE(mo_set_type), POINTER               :: mo_set
@@ -306,7 +275,6 @@ CONTAINS
   END SUBROUTINE eigensolver
 
 ! *****************************************************************************
-
   SUBROUTINE simple_eigensolver(matrix_ks,mo_set,work,&
              do_level_shift,level_shift,work_syevx,smear,error)
 
@@ -386,36 +354,22 @@ CONTAINS
   END SUBROUTINE simple_eigensolver
 
 ! *****************************************************************************
-
-!!****f* qs_scf/cp_sm_mix [1.0] *
-!!
-!!   NAME
-!!     cp_sm_mix
-!!
-!!   FUNCTION
-!!     Perform a mixing of the given matrixes into the first matrix
-!!     m1 = m2 + p_mix (m1-m2)
-!!
-!!   NOTES
-!!     if you what to store the result in m2 swap m1 and m2 an use
-!!     (1-pmix) as pmix
-!!     para_env should be removed (embedded in matrix)
-!!
-!!   ARGUMENTS
-!!     - m1: first (new) matrix, is modified
-!!     - m2: the second (old) matrix
-!!     - p_mix:how much m1 is conserved (0: none, 1: all)
-!!     - delta: maximum norm of m1-m2
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 rewamped [fawzi]
-!!
-!!*** *********************************************************************
+!> \brief Perform a mixing of the given matrixes into the first matrix
+!>      m1 = m2 + p_mix (m1-m2)
+!> \param m 1: first (new) matrix, is modified
+!> \param m 2: the second (old) matrix
+!> \param p_mix how much m1 is conserved (0: none, 1: all)
+!> \param delta maximum norm of m1-m2
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      if you what to store the result in m2 swap m1 and m2 an use
+!>      (1-pmix) as pmix
+!>      para_env should be removed (embedded in matrix)
+!> \par History
+!>      02.2003 rewamped [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE cp_sm_mix(m1,m2,p_mix,delta,para_env,error)
 
     TYPE(real_matrix_type), POINTER          :: m1, m2
@@ -484,8 +438,7 @@ CONTAINS
 
   END SUBROUTINE cp_sm_mix
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE combine_ks_matrices_1(ksa,ksb,occa,occb,roks_parameter,error)
 
     ! Combine the alpha and beta Kohn-Sham matrices during a restricted open
@@ -559,8 +512,7 @@ CONTAINS
 
   END SUBROUTINE combine_ks_matrices_1
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE combine_ks_matrices_2(ksa,ksb,occa,occb,f,nalpha,nbeta,error)
 
     ! Combine the alpha and beta Kohn-Sham matrices during a restricted open
@@ -689,7 +641,5 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE combine_ks_matrices_2
-
-  ! ***************************************************************************
 
 END MODULE qs_scf_methods

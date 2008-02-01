@@ -1,28 +1,15 @@
-
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!***** cp2k/reftraj_util [1.0] *
-!!
-!!   NAME
-!!     reftraj_util
-!!
-!!   FUNCTION
-!!     Initialize the analysis of trajectories to be done 
-!!     by activating the REFTRAJ ensemble
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     Created 10-07 [MI]
-!!
-!!   SOURCE
-!******************************************************************************
-
-
+! *****************************************************************************
+!> \brief Initialize the analysis of trajectories to be done 
+!>      by activating the REFTRAJ ensemble
+!> \par History
+!>      Created 10-07 [MI]
+!> \author MI
+! *****************************************************************************
 MODULE reftraj_util
 
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
@@ -69,44 +56,21 @@ MODULE reftraj_util
 
   IMPLICIT NONE
 
-
       PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'reftraj_util'
 
-      
       PUBLIC ::   initialize_reftraj, compute_msd_reftraj, write_output_reftraj
       
-
-!!***
-! *****************************************************************************
-
 CONTAINS
 
-
-!!****f* reftraj_util/initialize_reftraj [1.0] *
-!!
-!!   NAME
-!!    initialize_reftraj 
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created 
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created 
+!> \author MI
+! *****************************************************************************
   SUBROUTINE initialize_reftraj(reftraj,reftraj_section,md_env,error)
 
     TYPE(reftraj_type), POINTER              :: reftraj
@@ -213,31 +177,13 @@ CONTAINS
 
   END SUBROUTINE initialize_reftraj
 
-  
-
-!!****f* reftraj_util/initialize_msd_reftraj [1.0] *
-!!
-!!   NAME
-!!    initialize_msd_reftraj 
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created 
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created 
+!> \author MI
+! *****************************************************************************
   SUBROUTINE initialize_msd_reftraj(msd,msd_section,reftraj,md_env,error)
     TYPE(reftraj_msd_type), POINTER          :: msd
     TYPE(section_vals_type), POINTER         :: msd_section
@@ -381,9 +327,7 @@ CONTAINS
 
     IF(msd%msd_region) THEN
  
-
     END IF 
-
 
     RETURN
 998 CONTINUE ! end of file
@@ -395,29 +339,13 @@ CONTAINS
     
   END SUBROUTINE initialize_msd_reftraj
 
-!!****f* reftraj_util/compute_msd_reftraj [1.0] *
-!!
-!!   NAME
-!!    compute_msd_reftraj 
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created 
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created 
+!> \author MI
+! *****************************************************************************
   SUBROUTINE compute_msd_reftraj(reftraj,md_env,particle_set,error)
 
     TYPE(reftraj_type), POINTER              :: reftraj
@@ -463,7 +391,6 @@ CONTAINS
          error=error)
     CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds,error=error)
     
-
     IF(reftraj%msd%msd_kind)THEN
       reftraj%msd%val_msd_kind = 0.0_dp
       DO ikind=1,atomic_kinds%n_els
@@ -544,29 +471,13 @@ CONTAINS
 
   END SUBROUTINE compute_msd_reftraj 
 
-!!****f* reftraj_util/write_output_reftraj [1.0] *
-!!
-!!   NAME
-!!    write_output_reftraj 
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created 
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created 
+!> \author MI
+! *****************************************************************************
   SUBROUTINE write_output_reftraj(md_env,error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error

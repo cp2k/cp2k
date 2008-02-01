@@ -12,6 +12,7 @@
 !> \author  Matthias Krack (MK)
 !> \date    14.01.2008
 !> \version 1.0
+! *****************************************************************************
 MODULE dft_plus_u
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -60,6 +61,7 @@ CONTAINS
   !> \author        Matthias Krack (MK)
   !> \date          14.01.2008
   !> \version       1.0
+! *****************************************************************************
   SUBROUTINE plus_u(qs_env,matrix_h,matrix_w,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -120,6 +122,7 @@ CONTAINS
   !> \version       1.0
   !> \note          The use of any full matrices was avoided. Thus no ScaLAPACK
   !>                calls are performed
+! *****************************************************************************
   SUBROUTINE plus_u_mulliken(qs_env,matrix_h,matrix_w,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env

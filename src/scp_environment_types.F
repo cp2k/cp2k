@@ -3,22 +3,9 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/scp_environment_types [1.0] *
-!!
-!!   NAME
-!!     scp_environment_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \author CJM
+! *****************************************************************************
 MODULE scp_environment_types
 
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
@@ -58,6 +45,7 @@ MODULE scp_environment_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_environment_types'
   INTEGER, PRIVATE, SAVE :: last_scp_env_id_nr=0
 
+! *****************************************************************************
   TYPE scp_environment_type
     INTEGER :: id_nr, ref_count
     LOGICAL :: use_ref_cell
@@ -87,20 +75,15 @@ MODULE scp_environment_types
             scp_env_create, &
             scp_env_retain, &
             scp_env_release
-!!***
-! *****************************************************************************
 
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE get_scp_env( scp_env, aux_coeff_set, energy, force, input,&
                           rho_scp, rspw, para_env, blacs_env, ks_scp_env, & 
                           distribution_2d, eps_gvg_rspace, eps_rho_rspace, error)
 
 !   Purpose: Get the KG environment.
-
-!   ***************************************************************************
 
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(aux_coeff_set_type), OPTIONAL, &
@@ -148,12 +131,9 @@ CONTAINS
   END SUBROUTINE get_scp_env
 
 ! *****************************************************************************
-
   SUBROUTINE init_scp_env ( scp_env, error )
 
 !   Purpose: Initialise the SCP environment
-
-!   ***************************************************************************
 
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -179,15 +159,12 @@ CONTAINS
   END SUBROUTINE init_scp_env
 
 ! *****************************************************************************
-
   SUBROUTINE set_scp_env( scp_env, aux_coeff_set, energy, force, ks_scp_env,&
                           input, rho_scp, rspw, para_env, blacs_env, &
                           distribution_2d, eps_gvg_rspace, eps_rho_rspace, &
                           error)
 
 !   Purpose: set the SCP environment.
-
-!   ***************************************************************************
 
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(aux_coeff_set_type), OPTIONAL, &
@@ -269,28 +246,12 @@ CONTAINS
   END SUBROUTINE set_scp_env
 
 ! *****************************************************************************
-
-!!****f* scp_environment_types/scp_env_create [1.0] *
-!!
-!!   NAME
-!!     scp_env_create
-!!
-!!   SYNOPSIS
-!!     Subroutine scp_env_create(scp_env, error)
-!!       Type(scp_environment_type), Pointer:: scp_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine scp_env_create
-!!
-!!   FUNCTION
-!!     allocates and intitializes a scp_env
-!!
-!!   ARGUMENTS
-!!     - scp_env: the object to create
-!!     - para_env: the parallel environement for the scp_env
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!*** **********************************************************************
+!> \brief allocates and intitializes a scp_env
+!> \param scp_env the object to create
+!> \param para_env the parallel environement for the scp_env
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
 SUBROUTINE scp_env_create(scp_env,error)
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -309,29 +270,13 @@ SUBROUTINE scp_env_create(scp_env,error)
      CALL init_scp_env(scp_env,error=error)
   END IF
 END SUBROUTINE scp_env_create
-!***************************************************************************
-!!****f* scp_environment_types/scp_env_retain [1.0] *
-!!
-!!   NAME
-!!     scp_env_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine scp_env_retain(scp_env, error)
-!!       Type(scp_environment_type), Pointer:: scp_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine scp_env_retain
-!!
-!!   FUNCTION
-!!     retains the given scp_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - scp_env: the object to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!***************************************************************************
+
+! *****************************************************************************
+!> \brief retains the given scp_env (see doc/ReferenceCounting.html)
+!> \param scp_env the object to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
 SUBROUTINE scp_env_retain(scp_env,error)
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -349,30 +294,13 @@ SUBROUTINE scp_env_retain(scp_env,error)
      scp_env%ref_count=scp_env%ref_count+1
   END IF
 END SUBROUTINE scp_env_retain
-!***************************************************************************
-!!****f* scp_environment_types/scp_env_release [1.0] *
-!!
-!!   NAME
-!!     scp_env_release
-!!
-!!   SYNOPSIS
-!!     Subroutine scp_env_release(scp_env, error)
-!!       Type(scp_environment_type), Pointer:: scp_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine scp_env_release
-!!
-!!   FUNCTION
-!!     releases the given scp_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - scp_env: the object to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief releases the given scp_env (see doc/ReferenceCounting.html)
+!> \param scp_env the object to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
 SUBROUTINE scp_env_release(scp_env,error)
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -408,7 +336,5 @@ SUBROUTINE scp_env_release(scp_env,error)
   END IF
   NULLIFY(scp_env)
 END SUBROUTINE scp_env_release
-
-!***************************************************************************
 
 END MODULE scp_environment_types

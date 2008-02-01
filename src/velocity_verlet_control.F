@@ -2,24 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/velocity_verlet_control.F [1.0] *
-!!
-!!   NAME
-!!     velocity_verlet_control.F
-!!
-!!   FUNCTION
-!!     Provides an interface to the velocity-verlet based integrator
-!!     routines for all ensembles
-!!
-!!   AUTHOR
-!!     CJM (11-SEPT-2002)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Provides an interface to the velocity-verlet based integrator
+!>      routines for all ensembles
+!> \author CJM (11-SEPT-2002)
+! *****************************************************************************
 MODULE velocity_verlet_control
 
   USE f77_blas
@@ -48,29 +36,14 @@ MODULE velocity_verlet_control
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'velocity_verlet_control'
   PUBLIC :: velocity_verlet
 
-!!***
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** velocity_verlet_control/velocity_verlet [1.0] *
-!!
-!!   NAME
-!!     velocity_verlet
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
 SUBROUTINE velocity_verlet ( md_env, error )
-
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -158,5 +131,4 @@ SUBROUTINE velocity_verlet ( md_env, error )
 
 END SUBROUTINE velocity_verlet
 
-!******************************************************************************
 END MODULE velocity_verlet_control

@@ -3,27 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/bsse [1.0] *
-!!
-!!   NAME
-!!     bsse
-!!
-!!   FUNCTION
-!!     Module to perform a counterpoise correction (BSSE)
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     6.2005 created [tlaino]
-!!
-!!   SOURCE
-!****************************************************************************
-
+! *****************************************************************************
+!> \brief Module to perform a counterpoise correction (BSSE)
+!> \par History
+!>      6.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
 MODULE bsse
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cell_types,                      ONLY: cell_type
@@ -70,35 +55,20 @@ MODULE bsse
 
 CONTAINS
 
-!!****f* bsse/do_bsse_calculation [1.0] *
-!!
-!!   NAME
-!!     do_bsse_calculation
-!!
-!!   FUNCTION
-!!     Perform an COUNTERPOISE CORRECTION (BSSE)
-!!     For a 2-body system the correction scheme can be represented as:       
-!!
-!!     E_{AB}^{2}        = E_{AB}(AB) - E_A(AB) - E_B(AB)  [BSSE-corrected interaction energy]
-!!     E_{AB}^{2,uncorr} = E_{AB}(AB) - E_A(A)  - E_B(B)
-!!     E_{AB}^{CP}       = E_{AB}(AB) + [ E_A(A) - E_A(AB) ] + [ E_B(B) - E_B(AB) ]  
-!!                                                         [CP-corrected total energy of AB]
-!!      
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 created [tlaino]
-!!
-!!*** ********************************************************************** 
+! *****************************************************************************
+!> \brief Perform an COUNTERPOISE CORRECTION (BSSE)
+!>      For a 2-body system the correction scheme can be represented as:       
+!> 
+!>      E_{AB}^{2}        = E_{AB}(AB) - E_A(AB) - E_B(AB)  [BSSE-corrected interaction energy]
+!>      E_{AB}^{2,uncorr} = E_{AB}(AB) - E_A(A)  - E_B(B)
+!>      E_{AB}^{CP}       = E_{AB}(AB) + [ E_A(A) - E_A(AB) ] + [ E_B(B) - E_B(AB) ]  
+!>                                                          [CP-corrected total energy of AB]
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      06.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE do_bsse_calculation(force_env, globenv, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -179,29 +149,14 @@ CONTAINS
     END IF
   END SUBROUTINE do_bsse_calculation
      
-!!****f* bsse/eval_bsse_energy [1.0] *
-!!
-!!   NAME
-!!     eval_bsse_energy
-!!
-!!   FUNCTION
-!!     Evaluate the N-body energy contribution to the BSSE evaluation
-!!      
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     07.2005 created [tlaino]
-!!
-!!*** ********************************************************************** 
+! *****************************************************************************
+!> \brief Evaluate the N-body energy contribution to the BSSE evaluation
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      07.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE eval_bsse_energy(conf, Em, force_env, force_env_loc, n_frags, root_section,&
        globenv, should_stop, error)
     INTEGER, DIMENSION(:), INTENT(IN)        :: conf
@@ -265,29 +220,14 @@ CONTAINS
     END IF
   END SUBROUTINE eval_bsse_energy
 
-!!****f* bsse/eval_bsse_energy_low [1.0] *
-!!
-!!   NAME
-!!     eval_bsse_energy_low
-!!
-!!   FUNCTION
-!!     Evaluate the N-body energy contribution to the BSSE evaluation
-!!      
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     07.2005 created [tlaino]
-!!
-!!*** ********************************************************************** 
+! *****************************************************************************
+!> \brief Evaluate the N-body energy contribution to the BSSE evaluation
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      07.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE eval_bsse_energy_low(force_env, force_env_loc, conf, conf_loc, n_frags, &
        root_section, globenv, energy, error)
     TYPE(force_env_type), POINTER            :: force_env, force_env_loc
@@ -422,29 +362,14 @@ CONTAINS
     END IF
   END SUBROUTINE eval_bsse_energy_low
 
-!!****f* bsse/dump_bsse_info [1.0] *
-!!
-!!   NAME
-!!     dump_bsse_info
-!!
-!!   FUNCTION
-!!     Dumps bsse information (configuration fragment)
-!!      
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     07.2005 created [tlaino]
-!!
-!!*** ********************************************************************** 
+! *****************************************************************************
+!> \brief Dumps bsse information (configuration fragment)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      07.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE  dump_bsse_info(atom_index, atom_type, conf, conf_loc, bsse_section, &
                              present_charge, present_multpl, error)
     INTEGER, DIMENSION(:), POINTER           :: atom_index
@@ -494,28 +419,14 @@ CONTAINS
     END IF
   END SUBROUTINE dump_bsse_info
 
-!!****f* bsse/conf_info_setup [1.0] *
-!!
-!!   NAME
-!!     conf_info_setup
-!!
-!!   FUNCTION
-!!     Read modified parameters for configurations
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [tlaino]
-!!
-!!*** ********************************************************************** 
+! *****************************************************************************
+!> \brief Read modified parameters for configurations
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      09.2007 created [tlaino]
+!> \author Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE  conf_info_setup(present_charge, present_multpl, conf, conf_loc,&
        bsse_section, dft_section, error)
     INTEGER, INTENT(OUT)                     :: present_charge, present_multpl
@@ -573,29 +484,14 @@ CPSourceFileRef,&
     END IF
   END SUBROUTINE conf_info_setup
 
-
-!!****f* bsse/dump_bsse_results [1.0] *
-!!
-!!   NAME
-!!     dump_bsse_results
-!!
-!!   FUNCTION
-!!     Dumps results
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [tlaino]
-!!
-!!*** ********************************************************************** 
+! *****************************************************************************
+!> \brief Dumps results
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      09.2007 created [tlaino]
+!> \author Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE  dump_bsse_results(conf, Em,  num_of_frag, bsse_section, error)
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: conf
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Em
@@ -643,29 +539,14 @@ CPSourceFileRef,&
     END IF
   END SUBROUTINE dump_bsse_results
 
-!!****f* bsse/gen_Nbody_conf [1.0] *
-!!
-!!   NAME
-!!     gen_Nbody_conf
-!!
-!!   FUNCTION
-!!     generate the N-body configuration for the N-body BSSE evaluation
-!!      
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     07.2005 created [tlaino]
-!!
-!!*** ********************************************************************** 
+! *****************************************************************************
+!> \brief generate the N-body configuration for the N-body BSSE evaluation
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      07.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE gen_Nbody_conf(Num_of_frag, num_of_conf, conf)
     INTEGER, INTENT(IN)                      :: Num_of_frag, num_of_conf
     INTEGER, DIMENSION(:, :), POINTER        :: conf
@@ -682,6 +563,7 @@ CPSourceFileRef,&
     END DO
   END SUBROUTINE gen_Nbody_conf
 
+! *****************************************************************************
   RECURSIVE SUBROUTINE build_Nbody_conf(ldown, lup, conf, k, my_ind) 
     INTEGER, INTENT(IN)                      :: ldown, lup
     INTEGER, DIMENSION(:, :), POINTER        :: conf
@@ -706,6 +588,7 @@ CPSourceFileRef,&
     END IF
   END SUBROUTINE build_Nbody_conf
 
+! *****************************************************************************
   RECURSIVE FUNCTION FACT(num) RESULT(my_fact)
     INTEGER, INTENT(IN)                      :: num
     INTEGER                                  :: my_fact
@@ -717,6 +600,7 @@ CPSourceFileRef,&
     END IF
   END FUNCTION FACT
 
+! *****************************************************************************
   SUBROUTINE make_plan_conf (main_conf, conf)
     INTEGER, DIMENSION(:), INTENT(IN)        :: main_conf
     INTEGER, DIMENSION(:, :), POINTER        :: conf
@@ -740,29 +624,14 @@ CPSourceFileRef,&
 
   END SUBROUTINE make_plan_conf
 
-!!****f* bsse/write_bsse_restart [1.0] *
-!!
-!!   NAME
-!!     write_bsse_restart
-!!
-!!   FUNCTION
-!!     Writes restart for BSSE calculations
-!!      
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     01.2008 created [tlaino]
-!!
-!!*** ********************************************************************** 
+! *****************************************************************************
+!> \brief Writes restart for BSSE calculations
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      01.2008 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE write_bsse_restart(bsse_section, root_section, error)
     
     TYPE(section_vals_type), POINTER         :: bsse_section, root_section

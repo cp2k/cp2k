@@ -2,22 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/scp_force_types [1.0] *
-!!
-!!   NAME
-!!     scp_force_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
 MODULE scp_force_types
 
   USE kinds,                           ONLY: dp
@@ -29,6 +19,7 @@ MODULE scp_force_types
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_force_types'
 
+! *****************************************************************************
   TYPE scp_force_type
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: f_scp, f_total
   END TYPE scp_force_type
@@ -43,19 +34,12 @@ MODULE scp_force_types
             deallocate_scp_force,&
             init_scp_force
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE allocate_scp_force(scp_forces,natom_of_kind)
 
 !   Purpose: Allocate a scp force data structure.
-
-!   ***************************************************************************
-    
 
     TYPE(scp_force_type), DIMENSION(:), &
       POINTER                                :: scp_forces
@@ -96,13 +80,9 @@ CONTAINS
   END SUBROUTINE allocate_scp_force 
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_scp_force(scp_forces)
 
 !   Purpose: Deallocate a scp force data structure.
-
-
-!   ***************************************************************************
 
     TYPE(scp_force_type), DIMENSION(:), &
       POINTER                                :: scp_forces
@@ -145,14 +125,9 @@ CONTAINS
   END SUBROUTINE deallocate_scp_force
 
 ! *****************************************************************************
-
   SUBROUTINE init_scp_force(scp_forces)
 
 !   Purpose: Initialize a scp force data structure.
-
-
-!   ***************************************************************************
-
 
     TYPE(scp_force_type), DIMENSION(:), &
       POINTER                                :: scp_forces
@@ -176,8 +151,5 @@ CONTAINS
 
   END SUBROUTINE init_scp_force
 
-! *****************************************************************************
-
 END MODULE scp_force_types
 
-! *****************************************************************************

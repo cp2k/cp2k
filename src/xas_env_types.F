@@ -2,24 +2,14 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****s* cp2k/xas_env_types [1.0] *
-!!
-!!   NAME
-!!     xas_env_types
-!!
-!!   FUNCTION
-!!     define create destroy get and put information
-!!     in xas_env to calculate the x-ray absorption spectra
-!!
-!!   AUTHOR
-!!     MI (05.2005)
-!!
-!!   MODIFICATION HISTORY
-!!     created 05.2005
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief define create destroy get and put information
+!>      in xas_env to calculate the x-ray absorption spectra
+!> \par History
+!>      created 05.2005
+!> \author MI (05.2005)
+! *****************************************************************************
 MODULE xas_env_types
 
   USE basis_set_types,                 ONLY: deallocate_gto_basis_set,&
@@ -52,44 +42,28 @@ MODULE xas_env_types
 
   PUBLIC :: get_xas_env, set_xas_env, xas_env_create, xas_env_release, xas_env_retain
 
-
-!!***
-!****************************************************************************
-
-!!****t* xas_env_types/xas_environment_type
-!!
-!!   NAME
-!!     xas_environment_type
-!!
-!!   FUNCTION
-!!
-!!   ATTRIBUTES
-!!     ref_count : counter for pointers to xas_env
-!!     iter_count : counter for the step at which xas is calculated
-!!     nao : number of atomic orbitals in the basis
-!!     exc_state : state that is now excited (this change atom by atom)
-!!     nvirtual : number of empy states to take into account for the spectrum
-!!     state_of_atom : for each atom the state that have to be excited (global index)
-!!                     dimension is the number of atoms to be excited
-!!     atom_of_state : atom to which each state is assigned,
-!!                    dimension is the number of states occupied that might be excited
-!!     type_of_state : character of the state (1s,2s,2p...)
-!!     spectrum : for each excitation the energy and the oscillator strength
-!!     centers_wfn : for each wfn the center of charge (optimized by localization)
-!!     groundstate_coeff : temporary storage for the original mos coefficients
-!!     ostrength_sm : sin and cos integrals computed for the contracted GTO functions
-!!     dip_fm_set : fm for the sin and cos integrals to define the pos operator
-!!     fm_work : temporary fm
-!!     qs_loc_env : environment for the localization procedure
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!      created 05-2005
-!!
- !***************************************************************************
-
+! *****************************************************************************
+!> \param ref_count counter for pointers to xas_env
+!> \param iter_count counter for the step at which xas is calculated
+!> \param nao number of atomic orbitals in the basis
+!> \param exc_state state that is now excited (this change atom by atom)
+!> \param nvirtual number of empy states to take into account for the spectrum
+!> \param state_of_atom for each atom the state that have to be excited (global index)
+!>                      dimension is the number of atoms to be excited
+!> \param atom_of_state atom to which each state is assigned,
+!>                     dimension is the number of states occupied that might be excited
+!> \param type_of_state character of the state (1s,2s,2p...)
+!> \param spectrum for each excitation the energy and the oscillator strength
+!> \param centers_wfn for each wfn the center of charge (optimized by localization)
+!> \param groundstate_coeff temporary storage for the original mos coefficients
+!> \param ostrength_sm sin and cos integrals computed for the contracted GTO functions
+!> \param dip_fm_set fm for the sin and cos integrals to define the pos operator
+!> \param fm_work temporary fm
+!> \param qs_loc_env environment for the localization procedure
+!> \par History
+!>       created 05-2005
+!> \author MI
+! *****************************************************************************
   TYPE xas_environment_type
     INTEGER :: ref_count
     INTEGER :: iter_count
@@ -123,24 +97,8 @@ MODULE xas_env_types
 
   END TYPE xas_environment_type
 
- !****************************************************************************
-
 CONTAINS
-!!****f*  xas_env_types/get_xas_env, set_xas_env
-!!
-!!  NAME
-!!    get_xas_env
-!!
-!!    FUNCTION
-!!     -
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
   SUBROUTINE get_xas_env(xas_env,iter_count,exc_state,nao,nvirtual,nvirtual1,nvirtual2,&
              centers_wfn,atom_of_state,type_of_state,mykind_of_atom,mykind_of_kind,&
              state_of_atom,spectrum,groundstate_coeff,ostrength_sm,&
@@ -227,6 +185,7 @@ CONTAINS
      END IF
   END SUBROUTINE get_xas_env
 
+! *****************************************************************************
   SUBROUTINE set_xas_env(xas_env,iter_count,nvirtual,nvirtual1,nvirtual2, qs_loc_env,error)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
@@ -262,23 +221,7 @@ CONTAINS
 
   END SUBROUTINE set_xas_env
 
-!!
-!!****f* xas_env_types/xas_env_create,xas_env_release,xas_env_retain
-!!
-!!  NAME
-!!    xas_env_create
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
   SUBROUTINE xas_env_create(xas_env, error)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
@@ -318,7 +261,7 @@ CONTAINS
 
    END SUBROUTINE xas_env_create
 
-
+! *****************************************************************************
   SUBROUTINE xas_env_release(xas_env, error)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
@@ -423,6 +366,7 @@ CONTAINS
 
   END SUBROUTINE xas_env_release
 
+! *****************************************************************************
   SUBROUTINE xas_env_retain(xas_env, error)
 
     TYPE(xas_environment_type), POINTER      :: xas_env

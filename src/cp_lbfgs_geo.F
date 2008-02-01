@@ -3,26 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/cp_lbfgs_geo [1.0] *
-!!
-!!   NAME
-!!     cp_lbfgs_geo
-!!
-!!   FUNCTION
-!!     Main driver for L-BFGS optimizer
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     -
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!*****************************************************************************
+! *****************************************************************************
+!> \brief Main driver for L-BFGS optimizer
+!> \par History
+!>      none
+! *****************************************************************************
 MODULE cp_lbfgs_geo
   USE cp_lbfgs_optimizer_gopt,         ONLY: cp_lbfgs_opt_gopt_type,&
                                              cp_opt_gopt_create,&
@@ -59,28 +44,13 @@ MODULE cp_lbfgs_geo
 
 CONTAINS
 
-!!****f* cp_lbfgs_geo/geoopt_lbfgs [1.0] *
-!!
-!!   NAME
-!!     geoopt_lbfgs
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE geoopt_lbfgs(force_env, gopt_param, globenv, force_env_section,&
        geo_section, gopt_env, x0, error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -160,6 +130,5 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE geoopt_lbfgs
-!***************************************************************************
 
  END MODULE cp_lbfgs_geo

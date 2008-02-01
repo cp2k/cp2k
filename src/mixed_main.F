@@ -2,21 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/mixed_main [1.0] *
-!!
-!!   NAME
-!!     mixed_main
-!!
-!!   FUNCTION
-!!     perform biased molecular dynamics (H= k H1 + (1-k) H2)
-!!   AUTHOR
-!!     fschiff 11.06 
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief perform biased molecular dynamics (H= k H1 + (1-k) H2)
+!> \author fschiff 11.06 
+! *****************************************************************************
 MODULE mixed_main
   USE cp_files,                        ONLY: open_file
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
@@ -56,34 +46,16 @@ MODULE mixed_main
 
   PUBLIC :: mixed_create_force_env
 
-!!***
 !!-----------------------------------------------------------------------------!
 
 CONTAINS
 
 !-----------------------------------------------------------------------------!
-!!****** mixed_main/mixed [1.0] *
-!!
-!!   NAME
-!!     mixed
-!!
-!!   SYNOPSIS
-!!     Subroutine mixed(globenv)
-!!       Implicit None
-!!       Type(global_environment_type), pointer:: globenv
-!!     End Subroutine mixed
-!!
-!!   FUNCTION
-!!     Controls program flow for mixed calculations
-!!
-!!   AUTHOR
-!!     fschiff
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** *************************************************************************
 
+! *****************************************************************************
+!> \brief Controls program flow for mixed calculations
+!> \author fschiff
+! *****************************************************************************
   SUBROUTINE mixed_create_force_env ( force_env, root_section, para_env,globenv,&
        force_env_section, n_subforce_eval, use_motion_section, error )
 
@@ -243,7 +215,5 @@ CONTAINS
     CALL timestop ( 0.0_dp, handle )
 
   END SUBROUTINE mixed_create_force_env
-
-! *****************************************************************************
 
 END MODULE mixed_main

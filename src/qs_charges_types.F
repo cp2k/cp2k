@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qs_charges_types [1.0] *
-!!
-!!   NAME
-!!     qs_charges_types
-!!
-!!   FUNCTION
-!!     container for information about total charges on the grids
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     10.2002 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief container for information about total charges on the grids
+!> \par History
+!>      10.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE qs_charges_types
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -39,33 +25,19 @@ MODULE qs_charges_types
   PUBLIC :: qs_charges_type
   PUBLIC :: qs_charges_create, qs_charges_retain, qs_charges_release
 !***
-!****************************************************************************
   
-!!****s* qs_charges_types/qs_charges_type [1.0] *
-!!
-!!   NAME
-!!     qs_charges_type
-!!
-!!   FUNCTION
-!!     Container for information about total charges on the grids
-!!
-!!   NOTES
-!!     this type is loosing the reason to exist...
-!!
-!!   ATTRIBUTES
-!!     total_rho_core_rspace: total charge on the rho_core grid
-!!     total_rho_rspace: total charge in the real space
-!!     total_rho_gspace: total charge in the g space
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     10.2002 created [fawzi]
-!!     11.2002 moved total_rho_elec_rspace to qs_rho_type
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief Container for information about total charges on the grids
+!> \param total_rho_core_rspace total charge on the rho_core grid
+!> \param total_rho_rspace total charge in the real space
+!> \param total_rho_gspace total charge in the g space
+!> \note
+!>      this type is loosing the reason to exist...
+!> \par History
+!>      10.2002 created [fawzi]
+!>      11.2002 moved total_rho_elec_rspace to qs_rho_type
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE qs_charges_type
      INTEGER :: ref_count
      REAL(KIND = dp) :: total_rho_core_rspace, total_rho_gspace
@@ -75,44 +47,18 @@ MODULE qs_charges_types
                                                 total_rho1_soft
      REAL(KIND = dp) :: background
   END TYPE qs_charges_type
-!!***
-  !****************************************************************************
 
 CONTAINS
 
-!!****f* qs_charges_types/qs_charges_create [1.0] *
-!!
-!!   NAME
-!!     qs_charges_create
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_charges_create(qs_charges, nspins,&
-!!         total_rho_core_rspace, total_rho_gspace, error)
-!!       Type(qs_charges_type), Pointer:: qs_charges
-!!       Integer, Intent (IN):: nspins
-!!       Real(KIND = dp), Intent (IN), Optional:: total_rho_core_rspace,&
-!!         total_rho_gspace
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_charges_create
-!!
-!!   FUNCTION
-!!     creates a charges object
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - qs_charges: the charges object to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     10.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a charges object
+!> \param qs_charges the charges object to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      10.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE qs_charges_create(qs_charges,nspins,total_rho_core_rspace, &
      total_rho_gspace, error)
     TYPE(qs_charges_type), POINTER           :: qs_charges
@@ -151,37 +97,16 @@ SUBROUTINE qs_charges_create(qs_charges,nspins,total_rho_core_rspace, &
      qs_charges%ref_count=1
   END IF
 END SUBROUTINE qs_charges_create
-!***************************************************************************
 
-!!****f* qs_charges_types/qs_charges_retain [1.0] *
-!!
-!!   NAME
-!!     qs_charges_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_charges_retain(qs_charges, error)
-!!       Type(qs_charges_type), Pointer:: qs_charges
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_charges_retain
-!!
-!!   FUNCTION
-!!     retains the given qs_charges (see cp2k/doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - qs_charges: the object to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     10.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given qs_charges (see cp2k/doc/ReferenceCounting.html)
+!> \param qs_charges the object to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      10.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE qs_charges_retain(qs_charges, error)
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -199,37 +124,16 @@ SUBROUTINE qs_charges_retain(qs_charges, error)
      qs_charges%ref_count=qs_charges%ref_count+1
   END IF
 END SUBROUTINE qs_charges_retain
-!***************************************************************************
 
-!!****f* qs_charges_types/qs_charges_release [1.0] *
-!!
-!!   NAME
-!!     qs_charges_release
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_charges_release(qs_charges, error)
-!!       Type(qs_charges_type), Pointer:: qs_charges
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_charges_release
-!!
-!!   FUNCTION
-!!     releases the charges object (see cp2k/doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - qs_charges: the object to be released
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     10.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the charges object (see cp2k/doc/ReferenceCounting.html)
+!> \param qs_charges the object to be released
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      10.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE qs_charges_release(qs_charges, error)
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -254,6 +158,5 @@ SUBROUTINE qs_charges_release(qs_charges, error)
   END IF
   NULLIFY(qs_charges)
 END SUBROUTINE qs_charges_release
-!***************************************************************************
 
 END MODULE qs_charges_types

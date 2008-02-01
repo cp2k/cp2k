@@ -3,40 +3,28 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/cp_units *
-!!
-!!   NAME
-!!     cp_units
-!!
-!!   FUNCTION
-!!     unit conversion facility
-!!
-!!     Units are complex, this module does not try to be very smart, for 
-!!     example SI prefixes are not supported automatically, and
-!!     which kinds are really basic can change depending on the system of
-!!     units choosen, and equivalences are not always catched.
-!!
-!!     This is thought as a simple conversion facility for the input and output.
-!!     If you need something more you are probably better off using the
-!!     physcon module directly.
-!!
-!!   NOTES
-!!     One design choice was not to use dynamically allocated elements to
-!!     reduce the possibility of leaks.
-!!     Needs to be extended (for example charge, dipole,...)
-!!     I just added the units and kinds that I needed.
-!!     Used by the parser
-!!     Should keep an unsorted/uncompressed version for nicer labels?
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     01.2005 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief unit conversion facility
+!> 
+!>      Units are complex, this module does not try to be very smart, for 
+!>      example SI prefixes are not supported automatically, and
+!>      which kinds are really basic can change depending on the system of
+!>      units choosen, and equivalences are not always catched.
+!> 
+!>      This is thought as a simple conversion facility for the input and output.
+!>      If you need something more you are probably better off using the
+!>      physcon module directly.
+!> \note
+!>      One design choice was not to use dynamically allocated elements to
+!>      reduce the possibility of leaks.
+!>      Needs to be extended (for example charge, dipole,...)
+!>      I just added the units and kinds that I needed.
+!>      Used by the parser
+!>      Should keep an unsorted/uncompressed version for nicer labels?
+!> \par History
+!>      01.2005 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 MODULE cp_units
   USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
@@ -111,112 +99,47 @@ MODULE cp_units
        cp_unit_set_create, cp_unit_set_retain, cp_unit_set_release,&
        cp_unit_to_cp2k1, cp_unit_from_cp2k1, cp_unit_compatible
   
-!!***
-!****************************************************************************
-
-!!****s* cp_units/cp_unit_type *
-!!
-!!   NAME
-!!     cp_unit_type
-!!
-!!   FUNCTION
-!!     stores a unit
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - ref_count: the reference count (see doc/ReferenceCounting.html)
-!!     - id_nr: identification number (unique for each instance)
-!!     - kind: the kind of unit (energy, length,...)
-!!     - unit: the actual unit (Joule, eV,...)
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief stores a unit
+!> \param ref_count the reference count (see doc/ReferenceCounting.html)
+!> \param id_nr identification number (unique for each instance)
+!> \param kind the kind of unit (energy, length,...)
+!> \param unit the actual unit (Joule, eV,...)
+!> \author fawzi
+! *****************************************************************************
   TYPE cp_unit_type
      INTEGER :: id_nr,ref_count,n_kinds
      INTEGER, DIMENSION(cp_unit_max_kinds):: kind_id, unit_id, power
   END TYPE cp_unit_type
-!!***
-!****************************************************************************
 
-!!****s* cp_units/cp_unit_p_type *
-!!
-!!   NAME
-!!     cp_unit_p_type
-!!
-!!   FUNCTION
-!!     represent a pointer to a unit (to build arrays of pointers)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - unit: the pointer to the unit
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief represent a pointer to a unit (to build arrays of pointers)
+!> \param unit the pointer to the unit
+!> \author fawzi
+! *****************************************************************************
   TYPE cp_unit_p_type
      TYPE(cp_unit_type), POINTER :: unit
   END TYPE cp_unit_p_type
-!!***
-!****************************************************************************
 
-!!****s* cp_units/cp_unit_set_type *
-!!
-!!   NAME
-!!     cp_unit_set_type
-!!
-!!   FUNCTION
-!!     stores the default units to be used
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief stores the default units to be used
+!> \author fawzi
+! *****************************************************************************
   TYPE cp_unit_set_type
      INTEGER :: id_nr, ref_count
      TYPE(cp_unit_p_type), DIMENSION(cp_ukind_max) :: units
   END TYPE cp_unit_set_type
-!!***
-!****************************************************************************
 
 CONTAINS
 
-!!****f* cp_units/cp_unit_create *
-!!
-!!   NAME
-!!     cp_unit_create
-!!
-!!   FUNCTION
-!!     creates a unit parsing a string
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - unit: the unit to initialize
-!!     - string: the string containing the description of the unit
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a unit parsing a string
+!> \param unit the unit to initialize
+!> \param string the string containing the description of the unit
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE cp_unit_create(unit, string, error)
     TYPE(cp_unit_type), POINTER              :: unit
     CHARACTER(len=*), INTENT(in)             :: string
@@ -460,32 +383,18 @@ CONTAINS
          power=power, error=error)
     desc=cp_unit_desc(unit,error=error)
   END SUBROUTINE cp_unit_create
-!***************************************************************************
 
-!!****f* cp_units/cp_unit_create2 *
-!!
-!!   NAME
-!!     cp_unit_create2
-!!
-!!   FUNCTION
-!!     creates and initializes the given unit of mesure (performs some error
-!!     check)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - unit: the unit descriptor to be initialized
-!!     - kind_id: the kind of unit (length,energy,...), use the constants 
-!!       cp_ukind_*
-!!     - unit_id: the actual unit (use constants cp_units_*)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates and initializes the given unit of mesure (performs some error
+!>      check)
+!> \param unit the unit descriptor to be initialized
+!> \param kind_id the kind of unit (length,energy,...), use the constants 
+!>        cp_ukind_*
+!> \param unit_id the actual unit (use constants cp_units_*)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE cp_unit_create2(unit, kind_id, unit_id, power, error)
     TYPE(cp_unit_type), POINTER              :: unit
     INTEGER, DIMENSION(:), INTENT(in)        :: kind_id, unit_id
@@ -583,28 +492,16 @@ CONTAINS
             basic_unit=unit%unit_id(i),error=error)
     END DO
   END SUBROUTINE cp_unit_create2
-!***************************************************************************
 
-!!****f* cp_units/cp_unit_retain *
-!!
-!!   NAME
-!!     cp_unit_retain
-!!
-!!   FUNCTION
-!!     retains the given unit
-!!
-!!   NOTES
-!!     at the moment not needed, there for completeness
-!!
-!!   INPUTS
-!!     - unit: the unit to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given unit
+!> \param unit the unit to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      at the moment not needed, there for completeness
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE cp_unit_retain(unit,error)
     TYPE(cp_unit_type), POINTER              :: unit
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -622,28 +519,16 @@ CONTAINS
        unit%ref_count=unit%ref_count+1
     END IF
   END SUBROUTINE cp_unit_retain
-!***************************************************************************
 
-!!****f* cp_units/cp_unit_release *
-!!
-!!   NAME
-!!     cp_unit_release
-!!
-!!   FUNCTION
-!!     releases the given unit
-!!
-!!   NOTES
-!!     at the moment not needed, there for completeness
-!!
-!!   INPUTS
-!!     - unit: the unit to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given unit
+!> \param unit the unit to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      at the moment not needed, there for completeness
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE cp_unit_release(unit,error)
     TYPE(cp_unit_type), POINTER              :: unit
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -665,31 +550,17 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE cp_unit_release
-!***************************************************************************
 
-!!****f* cp_units/cp_basic_unit_check *
-!!
-!!   NAME
-!!     cp_basic_unit_check
-!!
-!!   FUNCTION
-!!     controls that the kind and contains meaningful information
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - basic_kind: the kind of the unit
-!!     - basic_unit: the unit to check
-!!     - error_level: error level of the errors due to invalid values.
-!!       Defaults to cp_failure_level
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief controls that the kind and contains meaningful information
+!> \param basic_kind the kind of the unit
+!> \param basic_unit the unit to check
+!> \param error_level error level of the errors due to invalid values.
+!>        Defaults to cp_failure_level
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   FUNCTION cp_basic_unit_check(basic_kind,basic_unit,error_level,error)&
        RESULT(res)
     INTEGER, INTENT(in)                      :: basic_kind, basic_unit
@@ -789,31 +660,17 @@ CONTAINS
     END IF
     res=.not.failure
   END FUNCTION cp_basic_unit_check
-!***************************************************************************
 
-!!****f* cp_units/cp_basic_unit_to_cp2k *
-!!
-!!   NAME
-!!     cp_basic_unit_to_cp2k
-!!
-!!   FUNCTION
-!!     converts a value to the internal cp2k units
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - value: the value to convert
-!!     - basic_kind: the kind of the unit of the value
-!!     - basic_unit: the unit of the value
-!!     - power: the power of the unit (defaults to 1)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief converts a value to the internal cp2k units
+!> \param value the value to convert
+!> \param basic_kind the kind of the unit of the value
+!> \param basic_unit the unit of the value
+!> \param power the power of the unit (defaults to 1)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   FUNCTION cp_basic_unit_to_cp2k(value,basic_kind,basic_unit,power,error)&
        RESULT(res)
     REAL(kind=dp), INTENT(in)                :: value
@@ -961,30 +818,16 @@ CONTAINS
        END SELECT
     END IF
   END FUNCTION cp_basic_unit_to_cp2k
-!***************************************************************************
 
-!!****f* cp_units/cp_basic_unit_desc *
-!!
-!!   NAME
-!!     cp_basic_unit_desc
-!!
-!!   FUNCTION
-!!     returns the label of the current basic unit
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - basic_kind: the kind of the unit of the value
-!!     - basic_unit: the unit of the value
-!!     - power: the power of the unit (defaults to 1)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the label of the current basic unit
+!> \param basic_kind the kind of the unit of the value
+!> \param basic_unit the unit of the value
+!> \param power the power of the unit (defaults to 1)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   FUNCTION cp_basic_unit_desc(basic_kind,basic_unit,power,&
        accept_undefined,error)&
        RESULT(res)
@@ -1180,31 +1023,17 @@ CONTAINS
        END IF
     END IF
   END FUNCTION cp_basic_unit_desc
-!***************************************************************************
 
-!!****f* cp_units/cp_unit_desc *
-!!
-!!   NAME
-!!     cp_unit_desc
-!!
-!!   FUNCTION
-!!     returns the "name" of the given unit
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - unit: the unit to describe
-!!     - defaults: defaults for the undefined units, optional
-!!     - accept_undefined: if defaults is not present or is not associated
-!!       whether undefined units should be accepted (defaults to false)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the "name" of the given unit
+!> \param unit the unit to describe
+!> \param defaults defaults for the undefined units, optional
+!> \param accept_undefined if defaults is not present or is not associated
+!>        whether undefined units should be accepted (defaults to false)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   FUNCTION cp_unit_desc(unit,defaults,accept_undefined,error)&
        RESULT(res)
     TYPE(cp_unit_type), POINTER              :: unit
@@ -1251,32 +1080,18 @@ CONTAINS
        END DO
     END IF
   END FUNCTION cp_unit_desc
-!***************************************************************************
 
-!!****f* cp_units/cp_unit_to_cp2k *
-!!
-!!   NAME
-!!     cp_unit_to_cp2k
-!!
-!!   FUNCTION
-!!     tranform a value to the internal cp2k units
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - value: the value to convert
-!!     - unit: the unit of the result
-!!     - defaults: the defaults unit for those that are left free
-!!       (cp_units_none)
-!!     - power: the power of the unit (defaults to 1)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief tranform a value to the internal cp2k units
+!> \param value the value to convert
+!> \param unit the unit of the result
+!> \param defaults the defaults unit for those that are left free
+!>        (cp_units_none)
+!> \param power the power of the unit (defaults to 1)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   FUNCTION cp_unit_to_cp2k1(value,unit,defaults,power,error) RESULT(res)
     REAL(kind=dp), INTENT(in)                :: value
     TYPE(cp_unit_type), POINTER              :: unit
@@ -1320,32 +1135,18 @@ CONTAINS
        END DO
     END IF
   END FUNCTION cp_unit_to_cp2k1
-!***************************************************************************
 
-!!****f* cp_units/cp_unit_from_cp2k *
-!!
-!!   NAME
-!!     cp_unit_from_cp2k
-!!
-!!   FUNCTION
-!!     converts from the internal cp2k units to the given unit
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - value: the value to convert
-!!     - unit: the unit of the result
-!!     - defaults: the defaults unit for those that are left free
-!!       (cp_units_none)
-!!     - power: the power of the unit (defaults to 1)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief converts from the internal cp2k units to the given unit
+!> \param value the value to convert
+!> \param unit the unit of the result
+!> \param defaults the defaults unit for those that are left free
+!>        (cp_units_none)
+!> \param power the power of the unit (defaults to 1)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   FUNCTION cp_unit_from_cp2k1(value,unit,defaults,power,error) RESULT(res)
     REAL(kind=dp), INTENT(in)                :: value
     TYPE(cp_unit_type), POINTER              :: unit
@@ -1371,32 +1172,18 @@ CONTAINS
        res=cp_unit_to_cp2k1(value=value,unit=unit,power=-my_power,error=error)
     END IF
   END FUNCTION cp_unit_from_cp2k1
-!***************************************************************************
 
-!!****f* cp_units/cp_unit_to_cp2k *
-!!
-!!   NAME
-!!     cp_unit_to_cp2k
-!!
-!!   FUNCTION
-!!     converts to the internal cp2k units to the given unit
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - value: the value to convert
-!!     - unit_str: the unit of the result as string
-!!     - defaults: the defaults unit for those that are left free
-!!       (cp_units_none)
-!!     - power: the power of the unit (defaults to 1)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief converts to the internal cp2k units to the given unit
+!> \param value the value to convert
+!> \param unit_str the unit of the result as string
+!> \param defaults the defaults unit for those that are left free
+!>        (cp_units_none)
+!> \param power the power of the unit (defaults to 1)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   FUNCTION cp_unit_to_cp2k(value,unit_str,defaults,power,error) RESULT(res)
     REAL(kind=dp), INTENT(in)                :: value
     CHARACTER(len=*), INTENT(in)             :: unit_str
@@ -1421,32 +1208,18 @@ CONTAINS
     END IF
     CALL cp_unit_release(my_unit,error=error)
   END FUNCTION cp_unit_to_cp2k
-!***************************************************************************
 
-!!****f* cp_units/cp_unit_from_cp2k *
-!!
-!!   NAME
-!!     cp_unit_from_cp2k
-!!
-!!   FUNCTION
-!!     converts from the internal cp2k units to the given unit
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - value: the value to convert
-!!     - unit_str: the unit of the result as string
-!!     - defaults: the defaults unit for those that are left free
-!!       (cp_units_none)
-!!     - power: the power of the unit (defaults to 1)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief converts from the internal cp2k units to the given unit
+!> \param value the value to convert
+!> \param unit_str the unit of the result as string
+!> \param defaults the defaults unit for those that are left free
+!>        (cp_units_none)
+!> \param power the power of the unit (defaults to 1)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   FUNCTION cp_unit_from_cp2k(value,unit_str,defaults,power,error) RESULT(res)
     REAL(kind=dp), INTENT(in)                :: value
     CHARACTER(len=*), INTENT(in)             :: unit_str
@@ -1471,27 +1244,13 @@ CONTAINS
     END IF
     CALL cp_unit_release(my_unit,error=error)
   END FUNCTION cp_unit_from_cp2k
-!***************************************************************************
 
-!!****f* cp_units/cp_unit_compatible *
-!!
-!!   NAME
-!!     cp_unit_compatible
-!!
-!!   FUNCTION
-!!     returs true if the two units are compatible
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - 11.2007 - University of Zurich
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returs true if the two units are compatible
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino [tlaino] - 11.2007 - University of Zurich
+! *****************************************************************************
   FUNCTION cp_unit_compatible(ref_unit,unit,error) RESULT(res)
     TYPE(cp_unit_type), POINTER              :: ref_unit, unit
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1511,30 +1270,16 @@ CONTAINS
     END DO
 
   END FUNCTION cp_unit_compatible
-!***************************************************************************
 
-!!****f* cp_units/cp_unit_set_create *
-!!
-!!   NAME
-!!     cp_unit_set_init
-!!
-!!   FUNCTION
-!!     initializes the given unit set
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - unit_set: the set to initialize
-!!     - name: the name of the set, used for the dafault initialization of
-!!       the various units
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief initializes the given unit set
+!> \param unit_set the set to initialize
+!> \param name the name of the set, used for the dafault initialization of
+!>        the various units
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE cp_unit_set_create(unit_set,name,error)
     TYPE(cp_unit_set_type), POINTER          :: unit_set
     CHARACTER(len=*), INTENT(in)             :: name
@@ -1610,28 +1355,14 @@ CONTAINS
        END DO
     END IF
   END SUBROUTINE cp_unit_set_create
-!***************************************************************************
 
-!!****f* cp_units/cp_unit_set_retain *
-!!
-!!   NAME
-!!     cp_unit_set_retain
-!!
-!!   FUNCTION
-!!     retains the given unit set
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - unit_set: the unit set to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given unit set
+!> \param unit_set the unit set to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE cp_unit_set_retain(unit_set,error)
     TYPE(cp_unit_set_type), POINTER          :: unit_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1649,28 +1380,14 @@ CONTAINS
        unit_set%ref_count=unit_set%ref_count+1
     END IF
   END SUBROUTINE cp_unit_set_retain
-!***************************************************************************
 
-!!****f* cp_units/cp_unit_set_release *
-!!
-!!   NAME
-!!     cp_unit_set_release
-!!
-!!   FUNCTION
-!!     releases the given unit set
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - unit_set: the unit set to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given unit set
+!> \param unit_set the unit set to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE cp_unit_set_release(unit_set,error)
     TYPE(cp_unit_set_type), POINTER          :: unit_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1695,6 +1412,5 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE cp_unit_set_release
-!***************************************************************************
 
 END MODULE cp_units

@@ -2,38 +2,33 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/topology_pdb [1.0] *
-!!
-!!   NAME
-!!     topology_pdb
-!!
-!!   FUNCTION
-!!    Handles pdb files
-!!
-!PDB Format Description Version 2.2 from http://www.rcsb.org
-!COLUMNS       DATA TYPE       FIELD         DEFINITION
-!-------------------------------------------------------------------------------
-! 1 -  6       Record name     "ATOM  "
-! 7 - 11       Integer         serial        Atom serial number.
-!13 - 16       Atom            name          Atom name.
-!17            Character       altLoc        Alternate location indicator.
-!18 - 20       Residue name    resName       Residue name.
-!22            Character       chainID       Chain identifier.
-!23 - 26       Integer         resSeq        Residue sequence number.
-!27            AChar           iCode         Code for insertion of residues.
-!31 - 38       Real(8.3)       x             Orthogonal coordinates for X in
-!                                            Angstroms.
-!39 - 46       Real(8.3)       y             Orthogonal coordinates for Y in
-!                                            Angstroms.
-!47 - 54       Real(8.3)       z             Orthogonal coordinates for Z in
-!                                            Angstroms.
-!55 - 60       Real(6.2)       occupancy     Occupancy.
-!61 - 66       Real(6.2)       tempFactor    Temperature factor.
-!73 - 76       LString(4)      segID         Segment identifier, left-justified.
-!77 - 78       LString(2)      element       Element symbol, right-justified.
-!79 - 80       LString(2)      charge        Charge on the atom.
-!-------------------------------------------------------------------------------
-!-------------------------------------------------------------------------------
+
+! *****************************************************************************
+!> \brief Handles pdb files
+!> 
+!> PDB Format Description Version 2.2 from http://www.rcsb.org
+!> COLUMNS       DATA TYPE       FIELD         DEFINITION
+!> 
+!>  1 -  6       Record name     "ATOM  "
+!>  7 - 11       Integer         serial        Atom serial number.
+!> 13 - 16       Atom            name          Atom name.
+!> 17            Character       altLoc        Alternate location indicator.
+!> 18 - 20       Residue name    resName       Residue name.
+!> 22            Character       chainID       Chain identifier.
+!> 23 - 26       Integer         resSeq        Residue sequence number.
+!> 27            AChar           iCode         Code for insertion of residues.
+!> 31 - 38       Real(8.3)       x             Orthogonal coordinates for X in
+!>                                             Angstroms.
+!> 39 - 46       Real(8.3)       y             Orthogonal coordinates for Y in
+!>                                             Angstroms.
+!> 47 - 54       Real(8.3)       z             Orthogonal coordinates for Z in
+!>                                             Angstroms.
+!> 55 - 60       Real(6.2)       occupancy     Occupancy.
+!> 61 - 66       Real(6.2)       tempFactor    Temperature factor.
+!> 73 - 76       LString(4)      segID         Segment identifier, left-justified.
+!> 77 - 78       LString(2)      element       Element symbol, right-justified.
+!> 79 - 80       LString(2)      charge        Charge on the atom.
+! *****************************************************************************
 MODULE topology_pdb
 
   USE convert_units,                   ONLY: convert_to_cp2k_units
@@ -67,30 +62,12 @@ MODULE topology_pdb
   PRIVATE
   PUBLIC :: read_coordinate_pdb,write_coordinate_pdb
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** topology_pdb/read_coordinate_pdb [1.0] *
-!!
-!!   NAME
-!!     read_coordinate_pdb
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     TLAINO 05.2004 - Added the TER option to use different non-bonded molecules
-!!                         
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!------------------------------------------------------------------------------
-
+! *****************************************************************************
+!> \par History
+!>      TLAINO 05.2004 - Added the TER option to use different non-bonded molecules
+! *****************************************************************************
   SUBROUTINE read_coordinate_pdb (topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type)           :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -234,19 +211,7 @@ CONTAINS
 
   END SUBROUTINE read_coordinate_pdb
 
-
-!******************************************************************************
-!!****** topology_pdb/write_coordinate_pdb [1.0] *
-!!
-!!   NAME
-!!     write_coordinate_pdb
-!!
-!!   FUNCTION
-!!
-!!*** *************************************************************************
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-
+! *****************************************************************************
   SUBROUTINE write_coordinate_pdb (file_unit,topology,para_env,subsys_section,error)
   
     INTEGER, INTENT(IN)                      :: file_unit

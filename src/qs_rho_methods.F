@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qs_rho_methods [1.0] *
-!!
-!!   NAME
-!!     qs_rho_methods
-!!
-!!   FUNCTION
-!!     methods of the rho structure (defined in qs_rho_types)
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief methods of the rho structure (defined in qs_rho_types)
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE qs_rho_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE f77_blas
@@ -64,50 +50,27 @@ MODULE qs_rho_methods
             diff_rho_type, copy_rho_type
 
 !***
-!****************************************************************************
 CONTAINS
 
-!!****f* qs_rho_methods/qs_rho_rebuild [1.0] *
-!!
-!!   NAME
-!!     qs_rho_rebuild
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_rho_rebuild(rho, qs_env, &
-!!         rebuild_ao, rebuild_grids, error)
-!!       Type(qs_rho_type), Pointer:: rho
-!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
-!!       Logical, Intent (IN), Optional::  rebuild_ao,&
-!!         rebuild_grids
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_rho_rebuild
-!!
-!!   FUNCTION
-!!     rebuilds rho (if necessary allocating and initializing it)
-!!
-!!   NOTES
-!!     needs updated  pw pools, s, s_mstruct and h in qs_env.
-!!     The use of p to keep the structure of h (needed for the forces)
-!!     is ugly and should be removed.
-!!     Change so that it does not allocate a subcomponent if it is not
-!!     associated and not requested?
-!!
-!!   INPUTS
-!!     - rho: the rho type to rebuild (defaults to qs_env%rho)
-!!     - qs_env: the environment to which rho belongs
-!!     - rebuild_ao: if it is necessary to rebuild rho_ao. Defaults to true.
-!!     - rebuild_grids: if it in necessary to rebuild rho_r and rho_g.
-!!       Defaults to false.
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2002 created replacing qs_rho_create and qs_env_rebuild_rho[fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief rebuilds rho (if necessary allocating and initializing it)
+!> \param rho the rho type to rebuild (defaults to qs_env%rho)
+!> \param qs_env the environment to which rho belongs
+!> \param rebuild_ao if it is necessary to rebuild rho_ao. Defaults to true.
+!> \param rebuild_grids if it in necessary to rebuild rho_r and rho_g.
+!>        Defaults to false.
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      needs updated  pw pools, s, s_mstruct and h in qs_env.
+!>      The use of p to keep the structure of h (needed for the forces)
+!>      is ugly and should be removed.
+!>      Change so that it does not allocate a subcomponent if it is not
+!>      associated and not requested?
+!> \par History
+!>      11.2002 created replacing qs_rho_create and qs_env_rebuild_rho[fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE qs_rho_rebuild(rho, qs_env, rebuild_ao, rebuild_grids, gapw_xc, error)
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -272,42 +235,19 @@ CONTAINS
 
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE qs_rho_rebuild
-!***************************************************************************
 
-!!****f* qs_rho_methods/qs_rho_update_rho [1.0] *
-!!
-!!   NAME
-!!     qs_rho_update_rho
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_rho_update_rho(rho_struct,  qs_env, &
-!!          error)
-!!       Type(qs_rho_type), Pointer:: rho_struct
-!!       Type(qs_environment_type), Intent (IN):: qs_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_rho_update_rho
-!!
-!!   FUNCTION
-!!     updates rho_r and rho_g to the rho%rho_ao.
-!!     if use_kinetic_energy_density also computes tau_r and tau_g
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - rho_struct: the rho structure that should be updated
-!!     - qs_env: the qs_env rho_struct refers to
-!!       the integrated charge in r space
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief updates rho_r and rho_g to the rho%rho_ao.
+!>      if use_kinetic_energy_density also computes tau_r and tau_g
+!> \param rho_struct the rho structure that should be updated
+!> \param qs_env the qs_env rho_struct refers to
+!>        the integrated charge in r space
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -405,34 +345,20 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
 
 END SUBROUTINE qs_rho_update_rho
 
-!***************************************************************************
-
-!!****f* qs_rho_types/duplicate_rho_type [1.0] *
-!!
-!!   NAME
-!!     duplicate_rho_type
-!!
-!!   FUNCTION
-!!     Duplicates a pointer physically
-!!
-!!   NOTES
-!!     Associated pointers are deallocated, nullified pointers are NOT accepted!
-!!
-!!   INPUTS
-!!     - rho_input: The rho structure to be duplicated
-!!     - rho_output: The duplicate rho structure
-!!     - qs_env: The QS environment from which the auxilliary PW basis-set
-!!               pool is taken
-!!     - error: variable to control error logging, stopping,...
-!!              see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     07.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Duplicates a pointer physically
+!> \param rho_input The rho structure to be duplicated
+!> \param rho_output The duplicate rho structure
+!> \param qs_env The QS environment from which the auxilliary PW basis-set
+!>                pool is taken
+!> \param error variable to control error logging, stopping,...
+!>               see module cp_error_handling
+!> \note
+!>      Associated pointers are deallocated, nullified pointers are NOT accepted!
+!> \par History
+!>      07.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE duplicate_rho_type(rho_input, rho_output, qs_env, error)
 
     TYPE(qs_rho_type), POINTER               :: rho_input, rho_output
@@ -525,7 +451,6 @@ END SUBROUTINE qs_rho_update_rho
       END IF
     END IF
 
-
     ! tau_r and tau_g are only needed in the case of Meta-GGA XC-functionals
     ! are used. Therefore they are only allocated if
     ! dft_control%use_kinetic_energy_density is true
@@ -597,37 +522,24 @@ END SUBROUTINE qs_rho_update_rho
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE duplicate_rho_type
-!***************************************************************************
 
-!!****f* qs_rho_types/diff_rho_type [1.0] *
-!!
-!!   NAME
-!!     diff_rho_type
-!!
-!!   FUNCTION
-!!     Creates a qs_rho_type, which is equivalent to
-!!     alpha*rho_input1 - beta*rho_input2
-!!
-!!   NOTES
-!!     Associated pointers are deallocated, nullified pointers are NOT accepted!
-!!     Inputs and output must not be the same!
-!!
-!!   INPUTS
-!!     - alpha & beta: Multiplier for the rho input structures
-!!     - rho_input1 & rho_input2: The rho input structure
-!!     - rho_output: The difference rho structure
-!!     - qs_env: The QS environment from which the auxilliary PW basis-set
-!!               pool is taken
-!!     - error: variable to control error logging, stopping,...
-!!              see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     09.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates a qs_rho_type, which is equivalent to
+!>      alpha*rho_input1 - beta*rho_input2
+!> \param alpha & beta: Multiplier for the rho input structures
+!> \param rho_input 1 & rho_input2: The rho input structure
+!> \param rho_output The difference rho structure
+!> \param qs_env The QS environment from which the auxilliary PW basis-set
+!>                pool is taken
+!> \param error variable to control error logging, stopping,...
+!>               see module cp_error_handling
+!> \note
+!>      Associated pointers are deallocated, nullified pointers are NOT accepted!
+!>      Inputs and output must not be the same!
+!> \par History
+!>      09.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE diff_rho_type(alpha, rho_input1, beta, rho_input2, rho_output, &
                            qs_env, error)
 
@@ -744,7 +656,6 @@ END SUBROUTINE qs_rho_update_rho
       END IF
     END IF
 
-
     ! tau_r and tau_g are only needed in the case of Meta-GGA XC-functionals
     ! are used. Therefore they are only allocated if
     ! dft_control%use_kinetic_energy_density is true
@@ -821,34 +732,19 @@ END SUBROUTINE qs_rho_update_rho
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE diff_rho_type
-!***************************************************************************
 
-!!****f* qs_rho_types/copy_rho_type [1.0] *
-!!
-!!   NAME
-!!     copy_rho_type
-!!
-!!   FUNCTION
-!!     Copies the whole rho structure
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - rho_input: The rho structure to be copied
-!!     - rho_output: The copy rho structure
-!!     - qs_env: The QS environment from which the auxilliary PW basis-set
-!!               pool is taken
-!!     - error: variable to control error logging, stopping,...
-!!              see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     09.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Copies the whole rho structure
+!> \param rho_input The rho structure to be copied
+!> \param rho_output The copy rho structure
+!> \param qs_env The QS environment from which the auxilliary PW basis-set
+!>                pool is taken
+!> \param error variable to control error logging, stopping,...
+!>               see module cp_error_handling
+!> \par History
+!>      09.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE copy_rho_type(rho_input, rho_output, qs_env, error)
 
     TYPE(qs_rho_type), POINTER               :: rho_input, rho_output
@@ -957,7 +853,6 @@ END SUBROUTINE qs_rho_update_rho
       END IF
     END IF
 
-
     ! tau_r and tau_g are only needed in the case of Meta-GGA XC-functionals
     ! are used. Therefore they are only allocated if
     ! dft_control%use_kinetic_energy_density is true
@@ -1053,8 +948,6 @@ END SUBROUTINE qs_rho_update_rho
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE copy_rho_type
-!***************************************************************************
 
 END MODULE qs_rho_methods
 
-!***************************************************************************

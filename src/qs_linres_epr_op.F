@@ -2,28 +2,17 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****m* cp2k/qs_linres_epr_op
-!!
-!!   NAME
-!!     qs_linres_epr_op
-!!
-!!   FUNCTION
-!!     Calculate the operators p rxp and D needed in the optimization
-!!     of the different contribution of the firs order response orbitals
-!!     in a epr calculation
-!!
-!!   NOTE
-!!     The interactions are considered only within the minimum image convention
-!!
-!!   AUTHOR
-!!      MI
-!!
-!!   MODIFICATION HISTORY
-!!      created 07-2005 [MI]
-!!
-!!   SOURCE
-!!****
 
+! *****************************************************************************
+!> \brief Calculate the operators p rxp and D needed in the optimization
+!>      of the different contribution of the firs order response orbitals
+!>      in a epr calculation
+!> \note
+!>      The interactions are considered only within the minimum image convention
+!> \par History
+!>       created 07-2005 [MI]
+!> \author MI
+! *****************************************************************************
 MODULE qs_linres_epr_op
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
@@ -76,38 +65,24 @@ MODULE qs_linres_epr_op
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_epr_op'
 
-!!***
-! *****************************************************************************
 CONTAINS
 
 ! *****************************************************************************
-!!****f* qs_linres_epr_op/epr_operators
-!!
-!!   NAME
-!!     epr_operators
-!!
-!!   FUNCTION
-!!     Calculate the first order hamiltonian applied to the ao
-!!     and then apply them to the ground state orbitals,
-!!     the h1_psi1 full matrices are then ready to solve the
-!!     non-homogeneous linear equations that give the psi1
-!!     linear response orbitals.
-!!
-!!   NOTES
-!!     For the operators rxp and D the h1 depends on the psi0 to which
-!!     is applied, or better the center of charge of the psi0 is
-!!     used to define the position operator
-!!     The centers of the orbitals result form the orbital localization procedure
-!!     that typicaly uses the berry phase operator to define the Wannier centers.
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     07.2005 created [MI]
-!!
-!****************************************************************************
-
+!> \brief Calculate the first order hamiltonian applied to the ao
+!>      and then apply them to the ground state orbitals,
+!>      the h1_psi1 full matrices are then ready to solve the
+!>      non-homogeneous linear equations that give the psi1
+!>      linear response orbitals.
+!> \note
+!>      For the operators rxp and D the h1 depends on the psi0 to which
+!>      is applied, or better the center of charge of the psi0 is
+!>      used to define the position operator
+!>      The centers of the orbitals result form the orbital localization procedure
+!>      that typicaly uses the berry phase operator to define the Wannier centers.
+!> \par History
+!>      07.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE epr_operators(epr_env,qs_env,error)
 
     TYPE(epr_env_type)                       :: epr_env
@@ -239,7 +214,6 @@ CONTAINS
        WRITE(output_unit,'(A,E23.16)') 'epr_operators: CheckSum L_y =',chk(2)
        WRITE(output_unit,'(A,E23.16)') 'epr_operators: CheckSum L_z =',chk(3)
     ENDIF
-!************************************************************
     !
     ! Calculate the px py pz operators
     CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.FALSE.,error=error)
@@ -262,7 +236,6 @@ CONTAINS
                 p_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
       END DO
     END DO
-    !************************************************************
     !
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
          "PRINT%PROGRAM_RUN_INFO",error=error)
@@ -299,7 +272,6 @@ CONTAINS
       END DO
     END DO
 
-
     !Calculate the second term of the operator state by state
     DO ispin = 1, -1!dft_control%nspins
        CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo,homo=homo)
@@ -331,7 +303,6 @@ CONTAINS
            END DO ! iao
            CALL cp_fm_set_submatrix(fm_Rmd_mos(idir)%matrix,vecbuf_Rmdc0(idir)%array,&
                 1,istate,nao,1,transpose=.TRUE.,error=error)
-!!
          END DO  ! idir
        END DO  ! istate
 
@@ -374,7 +345,7 @@ CONTAINS
 
   END SUBROUTINE epr_operators
 
-!****************************************************************************
+! *****************************************************************************
   FUNCTION fac_vecp(a,b,c) RESULT(factor)
 
     INTEGER                                  :: a, b, c
@@ -390,7 +361,7 @@ CONTAINS
 
   END FUNCTION fac_vecp
 
-!****************************************************************************
+! *****************************************************************************
   FUNCTION ind_m2(ii,iii) RESULT(i)
 
     INTEGER                                  :: ii, iii, i
@@ -413,7 +384,7 @@ CONTAINS
      i = coset(l(1),l(2),l(3)) - 1
   END FUNCTION ind_m2
 
-!****************************************************************************
+! *****************************************************************************
   SUBROUTINE set_vecp(i1,i2,i3)
 
     INTEGER, INTENT(IN)                      :: i1
@@ -432,7 +403,7 @@ CONTAINS
     END IF
 
   END SUBROUTINE set_vecp
-!****************************************************************************
+! *****************************************************************************
   SUBROUTINE set_vecp_rev(i1,i2,i3)
 
     INTEGER, INTENT(IN)                      :: i1, i2
@@ -449,5 +420,4 @@ CONTAINS
 
   END SUBROUTINE set_vecp_rev
 
-!****************************************************************************
 END MODULE qs_linres_epr_op

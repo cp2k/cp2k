@@ -3,20 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/constraint_fxd [1.0] *
-!!
-!!   NAME
-!!     constraint_fxd
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
 MODULE constraint_fxd
   USE colvar_types,                    ONLY: colvar_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
@@ -58,22 +48,12 @@ MODULE constraint_fxd
 
 CONTAINS
 
-!!****** constraint_fxd/fix_atom_control [1.0] *
-!!
-!!   NAME
-!!     fix_atom_control
-!!
-!!   FUNCTION
-!!     allows for fix atom constraints
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     - optionally apply fix atom constraint to random forces (Langevin)
-!!       (04.10.206,MK)
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief allows for fix atom constraints
+!> \par History
+!>      - optionally apply fix atom constraint to random forces (Langevin)
+!>        (04.10.206,MK)
+! *****************************************************************************
   SUBROUTINE fix_atom_control( force_env, error, w)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -204,20 +184,10 @@ CONTAINS
     
   END SUBROUTINE fix_atom_control
 
-!!****** constraint_fxd/check_fixed_atom_cns_g3x3 [1.0] *
-!!
-!!   NAME
-!!     check_fixed_atom_cns_g3x3
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE check_fixed_atom_cns_g3x3(imass1, imass2, imass3,&
        index_a, index_b, index_c, fixd_list, lg3x3)
     REAL(KIND=dp), INTENT(INOUT)             :: imass1, imass2, imass3
@@ -265,20 +235,10 @@ CONTAINS
     END IF
   END SUBROUTINE check_fixed_atom_cns_g3x3
 
-!!****** constraint_fxd/check_fixed_atom_cns_g4x6 [1.0] *
-!!
-!!   NAME
-!!     check_fixed_atom_cns_g4x6
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE check_fixed_atom_cns_g4x6(imass1, imass2, imass3, imass4,&
        index_a, index_b, index_c, index_d, fixd_list, lg4x6)
     REAL(KIND=dp), INTENT(INOUT)             :: imass1, imass2, imass3, imass4
@@ -336,20 +296,10 @@ CONTAINS
     END IF
   END SUBROUTINE check_fixed_atom_cns_g4x6
 
-!!****** constraint_fxd/check_fixed_atom_cns_colv [1.0] *
-!!
-!!   NAME
-!!     check_fixed_atom_cns_colv
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE check_fixed_atom_cns_colv(fixd_list, colvar)
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list

@@ -1,19 +1,9 @@
-
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/xc_atom
-!!
-!!   NAME
-!!     xc_atom
-!!
-!!
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
 MODULE xc_atom
 
   USE cp_linked_list_xc_deriv,         ONLY: cp_sll_xc_deriv_next,&
@@ -47,12 +37,9 @@ MODULE xc_atom
 
   PUBLIC :: vxc_of_r_new, xc_rho_set_atom_update, xc_2nd_deriv_of_r, fill_rho_set
 
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE vxc_of_r_new(xc_fun_section,rho_set,deriv_set,deriv_order,needs,w,&
                           lsd,na,nr,exc,vxc,vxg,energy_only,epr_xc,adiabatic_rescale_factor,error)
 
@@ -93,8 +80,6 @@ CONTAINS
     REAL(KIND=dp)                            :: drho_cutoff
     TYPE(xc_derivative_type), POINTER        :: deriv_att
 
-!   ***************************************************************************
-
     CALL timeset(routineN,"I"," ",handle)
     failure = .FALSE.
     my_only_energy = .FALSE.
@@ -105,7 +90,6 @@ CONTAINS
     ELSE
       my_adiabatic_rescale_factor = 1.0_dp
     END IF
-
 
     ! needed for the epr routines
     my_epr_xc = .FALSE.
@@ -216,7 +200,6 @@ CONTAINS
      END IF
    END IF  ! lsd
 
-
 !  Derivatives with respect to the gradient
    IF (lsd) THEN
       deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drhoa)",error=error)
@@ -299,8 +282,7 @@ CONTAINS
 
   END SUBROUTINE vxc_of_r_new
 
-!   ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE xc_2nd_deriv_of_r(rho_set, rho1_set,xc_section,&
        deriv_set, needs, w, exc, vxc, vxg, error)
 
@@ -333,8 +315,6 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(section_vals_type), POINTER         :: xc_fun_section
     TYPE(xc_derivative_type), POINTER        :: deriv_att
-
-!   ***************************************************************************
 
     CALL timeset(routineN,"I"," ",handle)
     failure = .FALSE.
@@ -393,8 +373,7 @@ CONTAINS
 
   END SUBROUTINE xc_2nd_deriv_of_r
 
-!   ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE xc_rho_set_atom_update(rho_set,needs,nspins,bo)
 
 !   This routine allocates the storage arrays for rho and drho
@@ -542,11 +521,9 @@ CONTAINS
       rho_set%has%tau_spin=.FALSE.
     END IF
 
-
   END SUBROUTINE xc_rho_set_atom_update
 
-!   ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE fill_rho_set(rho_set,lsd,nspins,needs,rho,drho,na,ir,error)
 
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -823,7 +800,6 @@ CONTAINS
        rho_set%owns%tau_spin=.TRUE.
        rho_set%has%tau_spin=.TRUE.
     END IF
-
 
   END SUBROUTINE fill_rho_set
 

@@ -3,23 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/splines_methods [1.0] *
-!!
-!!   NAME
-!!     splines_methods
-!!
-!!   FUNCTION
-!!     routines for handling splines
-!!
-!!   AUTHOR
-!!     various
-!!
-!!   MODIFICATION HISTORY
-!!     2001-09-21-HAF added this doc entry and changed formatting
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief routines for handling splines
+!> \par History
+!>      2001-09-21-HAF added this doc entry and changed formatting
+!> \author various
+! *****************************************************************************
 MODULE splines_methods
 
   USE f77_blas
@@ -43,30 +32,16 @@ MODULE splines_methods
                              ! without checks (fast routine for pair_potential)
 CONTAINS
 
-  !******************************************************************************
-  !!****m* splines_methods/init_splinexy [1.0] *
-  !!
-  !!   NAME
-  !!     init_splinexy
-  !!
-  !!   FUNCTION
-  !!     allocates storage for function table to be interpolated
-  !!     both x and y are allocated
-  !!
-  !!   AUTHOR
-  !!     unknown
-  !!
-  !!   INPUTS
-  !!     spl : spline_data structure to be initialized
-  !!     nn  : integer number of datapoints, that the function table will hold
-  !!
-  !!   MODIFICATION HISTORY
-  !!     2001-09-21-HAF added this doc entry and changed formatting
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief allocates storage for function table to be interpolated
+!>      both x and y are allocated
+!> \param spl spline_data structure to be initialized
+!> \param nn integer number of datapoints, that the function table will hold
+!> \par History
+!>      2001-09-21-HAF added this doc entry and changed formatting
+!> \author unknown
+! *****************************************************************************
   SUBROUTINE init_splinexy ( spl, nn )
-
 
     TYPE(spline_data_type), POINTER          :: spl
     INTEGER, INTENT(IN)                      :: nn
@@ -94,51 +69,34 @@ CONTAINS
 
   END SUBROUTINE init_splinexy
 
-  !******************************************************************************
-  !!****
-  !!****m* splines_methods/init_spline [1.0] *
-  !!
-  !!   NAME
-  !!     init_spline
-  !!
-  !!   FUNCTION
-  !!     allocates storage for y2 table
-  !!     calculates y2 table and other spline parameters
-  !!
-  !!   AUTHOR
-  !!     unknown
-  !!
-  !!   INPUTS
-  !!     spl : spline_data structure to be initialized
-  !!                      spl%y() must hold the function values
-  !!                      spl%x() must hold the absissa values in increasing
-  !!                      order OR if dx (below) is given, spl%x(1) must hold
-  !!                      the starting (left-most) point.
-  !!     dx  :            x(i) are assumed to be x(1)+dx*(i-1)
-  !!                      (spline evaluations will also be faster)
-  !!     y1a : (OPTIONAL) if present, the 1-deriv of the left endpoint
-  !!                      if not present, natural spline condition at this end
-  !!                      (2-deriv == 0)
-  !!     y1b : (OPTIONAL) if present, the 1-deriv of the right endpoint
-  !!                      if not present, natural spline condition at this end
-  !!                      (2-deriv == 0)
-  !!
-  !!   EXAMPLES
-  !!     CALL init_spline(spline,dx=0.1_dp)
-  !!     CALL init_spline(spline,y1b=0.0_dp)
-  !!     CALL init_spline(spline,0.1_dp,0.0_dp,0.0_dp)
-  !!
-  !!   NOTES
-  !!     if dx is given, the x array will be used as y2 array instead of
-  !!     allocating a new array. (y2 will become x, and x will be nullified)
-  !!
-  !!   MODIFICATION HISTORY
-  !!     2001-09-21-HAF added this doc entry and changed formatting
-  !!     2001-09-24-HAF changed interface and re-written
-  !!
-  !!   SOURCE
-  !******************************************************************************
-
+! *****************************************************************************
+!> \brief allocates storage for y2 table
+!>      calculates y2 table and other spline parameters
+!> \par Examples
+!>      CALL init_spline(spline,dx=0.1_dp)
+!>      CALL init_spline(spline,y1b=0.0_dp)
+!>      CALL init_spline(spline,0.1_dp,0.0_dp,0.0_dp)
+!> \param spl spline_data structure to be initialized
+!>                       spl%y() must hold the function values
+!>                       spl%x() must hold the absissa values in increasing
+!>                       order OR if dx (below) is given, spl%x(1) must hold
+!>                       the starting (left-most) point.
+!> \param dx x(i) are assumed to be x(1)+dx*(i-1)
+!>                       (spline evaluations will also be faster)
+!>      y1a : (OPTIONAL) if present, the 1-deriv of the left endpoint
+!>                       if not present, natural spline condition at this end
+!>                       (2-deriv == 0)
+!>      y1b : (OPTIONAL) if present, the 1-deriv of the right endpoint
+!>                       if not present, natural spline condition at this end
+!>                       (2-deriv == 0)
+!> \note
+!>      if dx is given, the x array will be used as y2 array instead of
+!>      allocating a new array. (y2 will become x, and x will be nullified)
+!> \par History
+!>      2001-09-21-HAF added this doc entry and changed formatting
+!>      2001-09-24-HAF changed interface and re-written
+!> \author unknown
+! *****************************************************************************
   SUBROUTINE init_spline ( spl, dx, y1a, y1b, ei_scale14, ei_cutoff14, dual)
 
     TYPE(spline_data_type), POINTER          :: spl
@@ -201,39 +159,22 @@ CONTAINS
 
   END SUBROUTINE init_spline
 
-  !******************************************************************************
-  !!****
-  !!****f* splines_methods/potential_s [1.0] *
-  !!
-  !!   NAME
-  !!     potential_s
-  !!
-  !!   FUNCTION
-  !!     calculates the potential interpolated with splines value at a given point
-  !!     and the first derivative. Checks included to avoid just segfaulting!!
-  !!
-  !!   AUTHOR
-  !!     unknown
-  !!
-  !!   INPUTS
-  !!     spl : spline_data structure
-  !!     xx  : absissa value
-  !!
-  !!   OUTPUT
-  !!     spline interpolated value at xx
-  !!     y1 : 1. derivative at xx
-  !!
-  !!   NOTES
-  !!     the spline MUST have uniform x values and xx MUST be
-  !!     in the interpolation interval. No checks are done to ensure
-  !!     either condition.
-  !!
-  !!   MODIFICATION HISTORY
-  !!     2001-09-25-HAF added this doc entry and changed formatting
-  !!
-  !!   SOURCE
-  !******************************************************************************
-
+! *****************************************************************************
+!> \brief calculates the potential interpolated with splines value at a given point
+!>      and the first derivative. Checks included to avoid just segfaulting!!
+!> \par Output
+!>      spline interpolated value at xx
+!>      y1 : 1. derivative at xx
+!> \param spl spline_data structure
+!> \param xx absissa value
+!> \note
+!>      the spline MUST have uniform x values and xx MUST be
+!>      in the interpolation interval. No checks are done to ensure
+!>      either condition.
+!> \par History
+!>      2001-09-25-HAF added this doc entry and changed formatting
+!> \author unknown
+! *****************************************************************************
   FUNCTION potential_s (spl_p, xxi, y1, spl_f, logger )
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p

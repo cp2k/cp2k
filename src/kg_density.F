@@ -2,25 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/kg_density [1.0] *
-!!
-!!   NAME
-!!     kg_density
-!!
-!!   FUNCTION
-!!     Calculate the plane wave density by collocating the primitive Gaussian
-!!     functions (pgf).
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
-MODULE kg_density
 
 ! *****************************************************************************
+!> \brief Calculate the plane wave density by collocating the primitive Gaussian
+!>      functions (pgf).
+! *****************************************************************************
+MODULE kg_density
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -85,13 +73,9 @@ MODULE kg_density
             calculate_epc_rspace_forces, calculate_p_density, &
             calculate_v_rspace_forces, calculate_vp_rspace_forces
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE calculate_density(rho,rho_gspace,&
                                total_rho, kg_env,error)
 
@@ -235,7 +219,6 @@ CONTAINS
                na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
                na2 = ipgf*ncoset(la_max(iset))
 
-
                scale = -1.0_dp
                zetp = zeta(ipgf,iset)
                igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
@@ -295,7 +278,6 @@ CONTAINS
   END SUBROUTINE calculate_density
 
 ! *****************************************************************************
-
   SUBROUTINE calculate_epc_density (rho_core, total_rho, kg_env, error)
 
 !   *** Arguments ***
@@ -403,7 +385,6 @@ CONTAINS
   END SUBROUTINE calculate_epc_density
 
 ! *****************************************************************************
-
   SUBROUTINE calculate_p_density(rho,rho_gspace,&
                                     total_rho, kg_env,error)
 
@@ -557,10 +538,8 @@ CONTAINS
 
             DO ipgf=1,npgfa(iset)
 
-
                na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
                na2 = ipgf*ncoset(la_max(iset))
-
 
                scale = 1.0_dp
                zetp = zeta(ipgf,iset)
@@ -621,9 +600,7 @@ CONTAINS
    END SUBROUTINE calculate_p_density
 
 ! *****************************************************************************
-
   SUBROUTINE calculate_epc_rspace_forces(v_rspace,kg_env,error)
-
 
 !   *** Arguments ***
 
@@ -737,7 +714,6 @@ CONTAINS
   END SUBROUTINE calculate_epc_rspace_forces
 
 ! *****************************************************************************
-
   SUBROUTINE calculate_v_rspace_forces(v_rspace,&
                                 kg_env,force_type,error)
 
@@ -851,7 +827,6 @@ CONTAINS
 
     CALL kg_rspw_get(rspw, rs_pools=rs_pools,error=error)
     CALL rs_pools_create_rs_vect(rs_pools, rs_v, error=error)
-
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_pw_transfer(rs_v(igrid_level)%rs_grid,mgrid_rspace(igrid_level)%pw,&
@@ -998,7 +973,6 @@ CONTAINS
   END SUBROUTINE calculate_v_rspace_forces
 
 ! *****************************************************************************
-
   SUBROUTINE calculate_vp_rspace_forces(v_rspace,kg_env,&
                                 calculate_forces,force_type,error)
 
@@ -1142,7 +1116,6 @@ CONTAINS
     ALLOCATE (atom_of_kind(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
 
-
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              atom_of_kind=atom_of_kind,&
                              maxco=maxco,&
@@ -1215,7 +1188,6 @@ CONTAINS
 
            DO ipgf=1,npgfa(iset)
 
-
              na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
              na2 = ipgf*ncoset(la_max(iset))
 
@@ -1285,7 +1257,4 @@ CONTAINS
 
   END SUBROUTINE calculate_vp_rspace_forces
 
-! *****************************************************************************
-
 END MODULE kg_density
-! *****************************************************************************

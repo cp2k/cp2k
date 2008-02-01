@@ -3,34 +3,20 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/pw_poisson_types *
-!!
-!!   NAME
-!!     pw_poisson_types
-!!
-!!   FUNCTION
-!!     functions related to the poisson solver on regular grids
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     greens_fn: JGH (9-Mar-2001) : include influence_fn into
-!!                        greens_fn_type add cell volume
-!!                        as indicator for updates
-!!     greens_fn: JGH (30-Mar-2001) : Added B-spline routines
-!!     pws      : JGH (13-Mar-2001) : new pw_poisson_solver, delete
-!!                        pw_greens_fn
-!!     12.2004 condensed from pws, greens_fn and green_fns, by apsi and JGH,
-!!             made thread safe, new input [fawzi]
-!!     14-Mar-2006 : added short range screening function for SE codes
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief functions related to the poisson solver on regular grids
+!> \par History
+!>      greens_fn: JGH (9-Mar-2001) : include influence_fn into
+!>                         greens_fn_type add cell volume
+!>                         as indicator for updates
+!>      greens_fn: JGH (30-Mar-2001) : Added B-spline routines
+!>      pws      : JGH (13-Mar-2001) : new pw_poisson_solver, delete
+!>                         pw_greens_fn
+!>      12.2004 condensed from pws, greens_fn and green_fns, by apsi and JGH,
+!>              made thread safe, new input [fawzi]
+!>      14-Mar-2006 : added short range screening function for SE codes
+!> \author fawzi
+! *****************************************************************************
 MODULE pw_poisson_types
   USE bessel_lib,                      ONLY: bessj0,&
                                              bessj1,&
@@ -86,28 +72,11 @@ MODULE pw_poisson_types
 
   INTEGER, SAVE, PRIVATE :: last_greens_fn_id_nr=0
   INTEGER, SAVE, PRIVATE :: last_poisson_id=0
-  !!***
-  !****************************************************************************
 
-  !!****s* pw_poisson_types/pw_poisson_type *
-  !!
-  !!   NAME
-  !!     pw_poisson_type
-  !!
-  !!   FUNCTION
-  !!     environment for the poisson solver
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     -
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief environment for the poisson solver
+!> \author fawzi
+! *****************************************************************************
   TYPE pw_poisson_type
      INTEGER :: ref_count, id_nr
      INTEGER :: pw_level
@@ -121,28 +90,11 @@ MODULE pw_poisson_types
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
      TYPE ( pw_grid_type), POINTER :: mt_super_ref_pw_grid
   END TYPE pw_poisson_type
-  !!***
-  !****************************************************************************
 
-  !!****s* pw_poisson_types/greens_fn_type *
-  !!
-  !!   NAME
-  !!     greens_fn_type
-  !!
-  !!   FUNCTION
-  !!     contains all the informations needed by the fft based poisson solvers
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     -
-  !!
-  !!   AUTHOR
-  !!     JGH,Teo,fawzi
-  !!
-  !!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief contains all the informations needed by the fft based poisson solvers
+!> \author JGH,Teo,fawzi
+! *****************************************************************************
   TYPE greens_fn_type
      INTEGER :: method
      INTEGER :: special_dimension
@@ -165,29 +117,14 @@ MODULE pw_poisson_types
      TYPE ( pw_type ), POINTER :: screen_fn
      TYPE ( pw_type ), POINTER :: p3m_charge
   END TYPE greens_fn_type
-  !!***
-  !****************************************************************************
 
 CONTAINS
 
-  !******************************************************************************
-
-  !!****** pw_poisson_types/pw_green_create [1.0] *
-  !!
-  !!   NAME
-  !!     pw_green_create
-  !!
-  !!   FUNCTION
-  !!     Allocates and sets up the green functions for the fft based poisson
-  !!     solvers
-  !!
-  !!   ARGUMENTS
-  !!
-  !!   AUTHOR
-  !!     Fawzi, based on previous functions by JGH and Teo
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Allocates and sets up the green functions for the fft based poisson
+!>      solvers
+!> \author Fawzi, based on previous functions by JGH and Teo
+! *****************************************************************************
   SUBROUTINE pw_green_create ( green, poisson_section, cell, pw_pool, &
        mt_super_ref_pw_grid, error )
     TYPE(greens_fn_type), POINTER            :: green
@@ -456,20 +393,11 @@ CONTAINS
 
     END IF
   END SUBROUTINE pw_green_create
-  !******************************************************************************
 
-  !!****** pw_poisson_types/pw_green_retain [1.0] *
-  !!
-  !!   NAME
-  !!     pw_green_retain
-  !!
-  !!   FUNCTION
-  !!     retains the type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !******************************************************************************
+! *****************************************************************************
+!> \brief retains the type
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE pw_green_retain(gftype,error)
     TYPE(greens_fn_type), POINTER            :: gftype
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -487,25 +415,14 @@ CONTAINS
        gftype%ref_count=gftype%ref_count+1
     END IF
   END SUBROUTINE pw_green_retain
-  !******************************************************************************
 
-  !!****** pw_poisson_types/pw_green_release [1.0] *
-  !!
-  !!   NAME
-  !!     pw_green_release
-  !!
-  !!   FUNCTION
-  !!     destroys the type (deallocates data)
-  !!
-  !!   AUTHOR
-  !!     Joost VandeVondele
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief destroys the type (deallocates data)
+!> \par History
+!>      none
+!> \author Joost VandeVondele
+!>      Teodoro Laino
+! *****************************************************************************
   SUBROUTINE pw_green_release ( gftype, pw_pool, error )
     TYPE(greens_fn_type), POINTER            :: gftype
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_pool
@@ -548,25 +465,14 @@ CONTAINS
     END IF
     NULLIFY(gftype)
   END SUBROUTINE pw_green_release
-  !******************************************************************************
 
-  !!****** pw_poisson_types/influence_factor [1.0] *
-  !!
-  !!   NAME
-  !!     influence_factor
-  !!
-  !!   FUNCTION
-  !!     Calculates the influence_factor for the
-  !!     SPME Green's function in reciprocal space'''
-  !!
-  !!   AUTHOR
-  !!     DH (29-Mar-2001)
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Calculates the influence_factor for the
+!>      SPME Green's function in reciprocal space'''
+!> \par History
+!>      none
+!> \author DH (29-Mar-2001)
+! *****************************************************************************
   SUBROUTINE influence_factor ( gftype, error )
     TYPE(greens_fn_type), POINTER            :: gftype
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -634,10 +540,9 @@ CONTAINS
     DEALLOCATE ( m_assign, STAT = ierr )
     CPPostconditionNoFail(ierr==0,cp_warning_level,routineP,error)
   END SUBROUTINE influence_factor
-  !******************************************************************************
 
+! *****************************************************************************
 SUBROUTINE calc_p3m_charge ( gf )
-
 
     TYPE(greens_fn_type), POINTER            :: gf
 
@@ -667,24 +572,15 @@ SUBROUTINE calc_p3m_charge ( gf )
 
 END SUBROUTINE calc_p3m_charge
 
-  !!****** pw_poisson_types/pw_poisson_create [1.0] *
-  !!
-  !!   NAME
-  !!     pw_poisson_create
-  !!
-  !!   FUNCTION
-  !!     Initialize the poisson solver
-  !!     You should call this just before calling the work routine
-  !!     pw_poisson_solver
-  !!     Call pw_poisson_release when you have finished
-  !!
-  !!   AUTHOR
-  !!     JGH (12-Mar-2001)
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** *************************************************************************
+! *****************************************************************************
+!> \brief Initialize the poisson solver
+!>      You should call this just before calling the work routine
+!>      pw_poisson_solver
+!>      Call pw_poisson_release when you have finished
+!> \par History
+!>      none
+!> \author JGH (12-Mar-2001)
+! *****************************************************************************
   SUBROUTINE pw_poisson_create ( poisson_env, error )
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
@@ -719,27 +615,13 @@ END SUBROUTINE calc_p3m_charge
     END IF
 
   END SUBROUTINE pw_poisson_create
-  !******************************************************************************
 
-  !!****f* pw_poisson_types/pw_poisson_retain *
-  !!
-  !!   NAME
-  !!     pw_poisson_retain
-  !!
-  !!   FUNCTION
-  !!     retains the pw_poisson_env
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the pw_poisson_env
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE pw_poisson_retain(poisson_env,error)
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -757,23 +639,13 @@ END SUBROUTINE calc_p3m_charge
        poisson_env%ref_count=poisson_env%ref_count+1
     END IF
   END SUBROUTINE pw_poisson_retain
-  !***************************************************************************
 
-  !!****** pw_poisson_types/pw_poisson_release [1.0] *
-  !!
-  !!   NAME
-  !!     pw_poisson_release
-  !!
-  !!   FUNCTION
-  !!     releases the poisson solver
-  !!
-  !!   AUTHOR
-  !!     fawzi (11.2002)
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** *************************************************************************
+! *****************************************************************************
+!> \brief releases the poisson solver
+!> \par History
+!>      none
+!> \author fawzi (11.2002)
+! *****************************************************************************
   SUBROUTINE pw_poisson_release ( poisson_env, error)
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
@@ -807,26 +679,14 @@ END SUBROUTINE calc_p3m_charge
     NULLIFY(poisson_env)
 
   END SUBROUTINE pw_poisson_release
-  !******************************************************************************
 
-!!****** ewald_pw_types/spme_coeff_calculate [1.0] *
-!!
-!!   NAME
-!!     spme_coeff_calculate
-!!
-!!   FUNCTION
-!!     Calculates the coefficients for the charge assignment function
-!!
-!!   AUTHOR
-!!     DG (29-Mar-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Calculates the coefficients for the charge assignment function
+!> \par History
+!>      none
+!> \author DG (29-Mar-2001)
+! *****************************************************************************
 SUBROUTINE spme_coeff_calculate ( n, coeff )
-
 
     INTEGER, INTENT(IN)                      :: n
     REAL(KIND=dp), &
@@ -866,7 +726,5 @@ SUBROUTINE spme_coeff_calculate ( n, coeff )
   END DO
 
 END SUBROUTINE spme_coeff_calculate
-
-!******************************************************************************
 
 END MODULE pw_poisson_types

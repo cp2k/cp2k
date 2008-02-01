@@ -3,26 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/cp_ddapc_util *
-!!
-!!   NAME
-!!    cp_ddapc_util
-!!
-!!   FUNCTION
-!!     Density Derived atomic point charges from a QM calculation
-!!     (see Bloechl, J. Chem. Phys. Vol. 103 pp. 7422-7428)
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!   SOURCE
-!****************************************************************************  
+! *****************************************************************************
+!> \brief Density Derived atomic point charges from a QM calculation
+!>      (see Bloechl, J. Chem. Phys. Vol. 103 pp. 7422-7428)
+!> \par History
+!>      08.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
 MODULE cp_ddapc_util
   USE atomic_charges,                  ONLY: print_atomic_charges
   USE cell_types,                      ONLY: cell_type
@@ -80,26 +67,12 @@ MODULE cp_ddapc_util
   
 CONTAINS
 
-!!****f* cp_ddapc_types/cp_ddapc_init [1.0] *
-!!
-!!   NAME
-!!     cp_ddapc_init
-!!
-!!   FUNCTION
-!!     Initialize the cp_ddapc_environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Initialize the cp_ddapc_environment
+!> \par History
+!>      08.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE cp_ddapc_init(qs_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -217,26 +190,12 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE cp_ddapc_init
 
-!!****f* cp_ddapc_util/get_ddapc [1.0] *
-!!
-!!   NAME
-!!     get_ddapc
-!!
-!!   FUNCTION
-!!     Computes the Density Derived Atomic Point Charges 
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Computes the Density Derived Atomic Point Charges 
+!> \par History
+!>      08.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   RECURSIVE SUBROUTINE get_ddapc(qs_env, calc_force, density_fit_section,&
        qout1, qout2, out_radii, dq_out, ext_rho_tot_g, Itype_of_density, &
        iwc, error)
@@ -516,25 +475,11 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE get_ddapc
 
-!!****f* cp_ddapc_util/restraint_functional_potential *
-!!
-!!   NAME
-!!      restraint_functional_potential
-!!
-!!   FUNCTION
-!!      modify hartree potential to handle restraints in DDAPC scheme
-!!
-!!   NOTES
-!!      
-!!
-!!   INPUTS
-!!        
-!!
-!!   MODIFICATION HISTORY
-!!     02.2006  modified [Teo]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief modify hartree potential to handle restraints in DDAPC scheme
+!> \par History
+!>      02.2006  modified [Teo]
+! *****************************************************************************
 SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
      density_fit_section, particle_set, AmI, radii, charges,&
      ddapc_restraint_control,energy_res, error)
@@ -613,26 +558,12 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE restraint_functional_potential
 
-!!****f* cp_ddapc_util/modify_hartree_pot [1.0] *
-!!
-!!   NAME
-!!     modify_hartree_pot
-!!
-!!   FUNCTION
-!!     Modify the Hartree potential
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Modify the Hartree potential
+!> \par History
+!>      08.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE modify_hartree_pot(v_hartree_gspace, density_fit_section,&
        particle_set, M, AmI, radii, charges, error)
     TYPE(pw_p_type)                          :: v_hartree_gspace
@@ -702,27 +633,13 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE modify_hartree_pot
 
-!!****f* cp_ddapc_util/debug_der_b_vector [1.0] *
-!!
-!!   NAME
-!!     debug_der_b_vector
-!!
-!!   FUNCTION
-!!     To Debug the derivative of the B vector for the solution of the 
-!!     linear system
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief To Debug the derivative of the B vector for the solution of the 
+!>      linear system
+!> \par History
+!>      08.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE debug_der_b_vector(dbv,  particle_set, radii,&
        rho_tot_g, gcut, iparticle, Vol, qs_env, error)
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -795,27 +712,13 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE debug_der_b_vector
 
-!!****f* cp_ddapc_util/debug_der_A_matrix [1.0] *
-!!
-!!   NAME
-!!     debug_der_A_matrix
-!!
-!!   FUNCTION
-!!     To Debug the derivative of the A matrix for the solution of the 
-!!     linear system
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief To Debug the derivative of the A matrix for the solution of the 
+!>      linear system
+!> \par History
+!>      08.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE debug_der_A_matrix(dAm, particle_set, radii,&
        rho_tot_g, gcut, iparticle, Vol, qs_env, error)
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -891,26 +794,12 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE debug_der_A_matrix
   
-!!****f* cp_ddapc_util/debug_charge [1.0] *
-!!
-!!   NAME
-!!     debug_charge
-!!
-!!   FUNCTION
-!!     To Debug the fitted charges
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief To Debug the fitted charges
+!> \par History
+!>      08.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE debug_charge(dqv, qs_env, density_fit_section,&
        particle_set, radii, rho_tot_g, type_of_density, error)
     REAL(KIND=dp), DIMENSION(:, :, :), &

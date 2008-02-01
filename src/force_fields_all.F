@@ -3,24 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/force_fields_all [1.0] *
-!!
-!!   NAME
-!!     force_fields_all
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     Splitting and cleaning the original force_field_pack - May 2007
-!!     Teodoro Laino - Zurich University
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      Splitting and cleaning the original force_field_pack - May 2007
+!>      Teodoro Laino - Zurich University
+!> \author CJM
+! *****************************************************************************
 MODULE force_fields_all
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -113,31 +101,11 @@ MODULE force_fields_all
             force_field_pack_ppse,&
             force_field_pack_pp
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** force_fields_all/force_field_unique_bond [1.0] *
-!!
-!!   NAME
-!!     force_field_unique_bond
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Determine the number of unique bond kind and allocate bond_kind_set
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief Determine the number of unique bond kind and allocate bond_kind_set
+! *****************************************************************************
   SUBROUTINE force_field_unique_bond (particle_set, &
        molecule_kind_set, molecule_set, ff_type, error)
 
@@ -237,26 +205,9 @@ CONTAINS
 
   END SUBROUTINE force_field_unique_bond
 
-!******************************************************************************
-!!****** force_fields_all/force_field_unique_bend [1.0] *
-!!
-!!   NAME
-!!    force_field_unique_bend 
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!      Determine the number of unique bend kind and allocate bend_kind_set
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief Determine the number of unique bend kind and allocate bend_kind_set
+! *****************************************************************************
   SUBROUTINE force_field_unique_bend (particle_set, &
        molecule_kind_set, molecule_set, ff_type, error)
 
@@ -368,26 +319,9 @@ CONTAINS
 
   END SUBROUTINE force_field_unique_bend
 
-!******************************************************************************
-!!****** force_fields_all/force_field_unique_ub [1.0] *
-!!
-!!   NAME
-!!     force_field_unique_ub
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Determine the number of unique Urey-Bradley kind and allocate ub_kind_set
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief Determine the number of unique Urey-Bradley kind and allocate ub_kind_set
+! *****************************************************************************
   SUBROUTINE force_field_unique_ub(particle_set, &
        molecule_kind_set, molecule_set,  error)
 
@@ -490,26 +424,9 @@ CONTAINS
 
   END SUBROUTINE force_field_unique_ub
 
-!******************************************************************************
-!!****** force_fields_all/force_field_unique_tors [1.0] *
-!!
-!!   NAME
-!!     force_field_unique_tors
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!      Determine the number of unique torsion kind and allocate torsion_kind_set
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief Determine the number of unique torsion kind and allocate torsion_kind_set
+! *****************************************************************************
   SUBROUTINE force_field_unique_tors(particle_set, &
        molecule_kind_set, molecule_set, ff_type, error)
 
@@ -632,26 +549,9 @@ CONTAINS
 
   END SUBROUTINE force_field_unique_tors
 
-!******************************************************************************
-!!****** force_fields_all/force_field_unique_impr [1.0] *
-!!
-!!   NAME
-!!     force_field_unique_impr
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Determine the number of unique impr kind and allocate impr_kind_set
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief Determine the number of unique impr kind and allocate impr_kind_set
+! *****************************************************************************
   SUBROUTINE force_field_unique_impr (particle_set, &
        molecule_kind_set, molecule_set, ff_type, error)
 
@@ -773,26 +673,9 @@ CONTAINS
 
   END SUBROUTINE force_field_unique_impr
 
-!******************************************************************************
-!!****** force_fields_all/force_field_unique_onfo [1.0] *
-!!
-!!   NAME
-!!     force_field_unique_onfo
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Determine the number of unique onfo kind and allocate onfo_kind_set
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief Determine the number of unique onfo kind and allocate onfo_kind_set
+! *****************************************************************************
   SUBROUTINE force_field_unique_onfo  (particle_set, &
        molecule_kind_set, molecule_set, error)
 
@@ -887,26 +770,9 @@ CONTAINS
 
   END SUBROUTINE force_field_unique_onfo
 
-!******************************************************************************
-!!****** force_fields_all/force_field_pack_bond [1.0] *
-!!
-!!   NAME
-!!     force_field_pack_bond
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Pack in bonds information needed for the force_field
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief Pack in bonds information needed for the force_field
+! *****************************************************************************
   SUBROUTINE force_field_pack_bond (particle_set, molecule_kind_set, molecule_set, &
       fatal, Ainfo, chm_info, inp_info, gro_info, error)
 
@@ -1040,26 +906,9 @@ CPSourceFileRef,&
 
   END SUBROUTINE force_field_pack_bond
 
-!******************************************************************************
-!!****** force_fields_all/force_field_pack_bend [1.0] *
-!!
-!!   NAME
-!!     force_field_pack_bend
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Pack in bends information needed for the force_field
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief Pack in bends information needed for the force_field
+! *****************************************************************************
   SUBROUTINE force_field_pack_bend (particle_set, molecule_kind_set, molecule_set, &
        fatal, Ainfo, chm_info, inp_info, gro_info, error)
 
@@ -1203,26 +1052,9 @@ CPSourceFileRef,&
 
   END SUBROUTINE force_field_pack_bend
 
-!******************************************************************************
-!!****** force_fields_all/force_field_pack_ub [1.0] *
-!!
-!!   NAME
-!!     force_field_pack_ub
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Pack in Urey-Bradley information needed for the force_field
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief Pack in Urey-Bradley information needed for the force_field
+! *****************************************************************************
   SUBROUTINE force_field_pack_ub (particle_set, molecule_kind_set, molecule_set, &
        Ainfo, chm_info, inp_info, iw, error)
 
@@ -1361,26 +1193,9 @@ CPSourceFileRef,&
 
   END SUBROUTINE force_field_pack_ub
 
-!******************************************************************************
-!!****** force_fields_all/force_field_pack_tors [1.0] *
-!!
-!!   NAME
-!!     force_field_pack_tors
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Pack in torsion information needed for the force_field
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief Pack in torsion information needed for the force_field
+! *****************************************************************************
   SUBROUTINE force_field_pack_tors (particle_set, molecule_kind_set, molecule_set, &
        Ainfo, chm_info, inp_info, gro_info, iw, error)
 
@@ -1593,26 +1408,9 @@ CPSourceFileRef,&
 
   END SUBROUTINE force_field_pack_tors
 
-!******************************************************************************
-!!****** force_fields_all/force_field_pack_impr [1.0] *
-!!
-!!   NAME
-!!     force_field_pack_impr
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Pack in impropers information needed for the force_field
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief Pack in impropers information needed for the force_field
+! *****************************************************************************
   SUBROUTINE force_field_pack_impr (particle_set, molecule_kind_set, molecule_set, &
        Ainfo, chm_info, inp_info, gro_info, error)
 
@@ -1798,27 +1596,10 @@ CPSourceFileRef,&
 
   END SUBROUTINE force_field_pack_impr
 
-!******************************************************************************
-!!****** force_fields_all/force_field_pack_ch [1.0] *
-!!
-!!   NAME
-!!     force_field_pack_ch
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Set up atomic_kind_set()%elp_potentail%qeff (PART 2) and shell potential
-!!     parameters
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief Set up atomic_kind_set()%elp_potentail%qeff (PART 2) and shell potential
+!>      parameters
+! *****************************************************************************
   SUBROUTINE force_field_pack_ch  ( atomic_kind_set, qmmm_env, fatal, iw,&
        Ainfo, my_qmmm, chm_info, inp_info, error)
 
@@ -1957,26 +1738,9 @@ CPSourceFileRef,&
 
   END SUBROUTINE force_field_pack_ch
 
-!******************************************************************************
-!!****** force_fields_all/force_field_pack_shell [1.0] *
-!!
-!!   NAME
-!!     force_field_pack_shell
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Set up shell potential parameters
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief Set up shell potential parameters
+! *****************************************************************************
   SUBROUTINE force_field_pack_shell  (particle_set, atomic_kind_set,&
        molecule_kind_set, molecule_set, root_section, subsys_section,&
        shell_particle_set, core_particle_set, cell, iw, inp_info, error)
@@ -2174,26 +1938,9 @@ CPSourceFileRef,&
 
   END SUBROUTINE force_field_pack_shell
 
-!******************************************************************************
-!!****** force_fields_all/force_field_pack_sbe [1.0] *
-!!
-!!   NAME
-!!     force_field_pack_sbe
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!      Set spline_bond_env, use for ONFO interaction
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief Set spline_bond_env, use for ONFO interaction
+! *****************************************************************************
   SUBROUTINE force_field_pack_sbe  (atomic_kind_set, ff_type, qmmm_env,&
        iw, Ainfo,  chm_info, inp_info, gro_info, potparm_bond, ewald_env, &
        spline_bond_env, iw2, iw3, iw4, error)
@@ -2473,26 +2220,9 @@ CPSourceFileRef,&
 
   END SUBROUTINE force_field_pack_sbe
 
-!******************************************************************************
-!!****** force_fields_all/force_field_pack_onfo [1.0] *
-!!
-!!   NAME
-!!     force_field_pack_onfo 
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Pack in ONFO information needed for the force_field
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief Pack in ONFO information needed for the force_field
+! *****************************************************************************
   SUBROUTINE force_field_pack_onfo  (particle_set, molecule_kind_set, molecule_set,&
        iw, potparm_bond, error)
 
@@ -2563,26 +2293,9 @@ CPSourceFileRef,&
 
   END SUBROUTINE force_field_pack_onfo
 
-!******************************************************************************
-!!****** force_fields_all/force_field_pack_sne [1.0] *
-!!
-!!   NAME
-!!     force_field_pack_sne
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Pack in spline nonbond env the information needed for the force_field
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief Pack in spline nonbond env the information needed for the force_field
+! *****************************************************************************
   SUBROUTINE force_field_pack_sne (atomic_kind_set, ff_type, qmmm_env,&
        fatal, iw, Ainfo, chm_info, inp_info, gro_info, potparm_nonbond, error)
 
@@ -2807,26 +2520,9 @@ CPSourceFileRef,&
     CALL timestop(0.0_dp,handle2)
   END SUBROUTINE force_field_pack_sne
 
-!******************************************************************************
-!!****** force_fields_all/force_field_pack_ppse [1.0] *
-!!
-!!   NAME
-!!     force_field_pack_ppse
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     create the pair potential spline environment
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief create the pair potential spline environment
+! *****************************************************************************
   SUBROUTINE force_field_pack_ppse (atomic_kind_set, ewald_env, ff_type, &
        iw2, iw3, iw4, spline_nonbond_env, spline_c_coul_env, spline_cs_coul_env,&
        spline_sc_coul_env, potparm_nonbond, error)
@@ -2877,26 +2573,9 @@ CPSourceFileRef,&
 
   END SUBROUTINE force_field_pack_ppse
 
-!******************************************************************************
-!!****** force_fields_all/force_field_pack_pp [1.0] *
-!!
-!!   NAME
-!!     force_field_pack_pp
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Setup the pair potential spline environment
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief Setup the pair potential spline environment
+! *****************************************************************************
   SUBROUTINE  force_field_pack_pp (atomic_kind_set, spline_nonbond_env, spline_c_coul_env,&
        spline_cs_coul_env, spline_sc_coul_env, potparm_nonbond, shell_present, error)
 
@@ -2985,25 +2664,9 @@ CPSourceFileRef,&
 
   END SUBROUTINE force_field_pack_pp
 
-!******************************************************************************
-!!****** force_fields_all/store_FF_missing_par [1.0] *
-!!
-!!   NAME
-!!     store_FF_missing_par
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Store informations on possible missing ForceFields parameters
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
+! *****************************************************************************
+!> \brief Store informations on possible missing ForceFields parameters
+! *****************************************************************************
   SUBROUTINE store_FF_missing_par(atm1,atm2,atm3,atm4,type_name,fatal,array,error)
     CHARACTER(LEN=*), INTENT(IN)             :: atm1
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: atm2, atm3, atm4

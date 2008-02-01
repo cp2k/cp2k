@@ -15,6 +15,7 @@
 !> - 02.2004 flexible normalization of basis sets [jgh]
 !> - 03.2004 attach/detach routines [jgh]
 !> - 10.2004 removed pao [fawzi]
+! *****************************************************************************
 MODULE atomic_kind_types
 
   USE basis_set_types,                 ONLY: &
@@ -89,12 +90,14 @@ MODULE atomic_kind_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atomic_kind_types'
 
   !> Input parameters for the DFT+U method
+! *****************************************************************************
   TYPE dft_plus_u_type
      INTEGER                                :: l
      REAL(KIND=dp)                          :: u_minus_j
   END TYPE dft_plus_u_type
 
   !> Provides all information about an atomic kind
+! *****************************************************************************
   TYPE atomic_kind_type
      TYPE(all_potential_type), POINTER      :: all_potential
      TYPE(elp_potential_type), POINTER      :: elp_potential
@@ -134,6 +137,7 @@ MODULE atomic_kind_types
   END TYPE atomic_kind_type
 
   !> Provides a vector of pointers of type atomic_kind_type
+! *****************************************************************************
   TYPE atomic_kind_p_type
      TYPE(atomic_kind_type),DIMENSION(:),&
           POINTER                             :: atomic_kind_set
@@ -165,6 +169,7 @@ CONTAINS
   !> \author  Matthias Krack (MK)
   !> \date    02.01.2002
   !> \version 2.0
+! *****************************************************************************
   SUBROUTINE allocate_atomic_kind_set(atomic_kind_set,nkind,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -229,6 +234,7 @@ CONTAINS
   !> \author  Matthias Krack (MK)
   !> \date    02.01.2002
   !> \version 2.0
+! *****************************************************************************
   SUBROUTINE deallocate_atomic_kind_set(atomic_kind_set,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -310,21 +316,10 @@ CONTAINS
 
   END SUBROUTINE deallocate_atomic_kind_set
 
-  !!****** atomic_kind_types/get_atomic_kind [1.0] *
-  !!
-  !!   NAME
-  !!    get_atomic_kind 
-  !!
-  !!   FUNCTION
-  !!    Get informations about an atomic kind.
-  !!
-  !!   AUTHOR
-  !!     MK (02.01.2002)
-  !!
-  !!   MODIFICATION HISTORY
-  !!     
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Get informations about an atomic kind.
+!> \author MK (02.01.2002)
+! *****************************************************************************
   SUBROUTINE get_atomic_kind(atomic_kind,all_potential,elp_potential,&
        gth_potential,se_parameter,dftb_parameter,aux_basis_set,orb_basis_set,&
        element_symbol,name,mass,kind_number,natom,atom_list,alpha_core_charge,&
@@ -572,21 +567,10 @@ CONTAINS
 
   END SUBROUTINE get_atomic_kind
 
-  !!****** atomic_kind_types/get_atomic_kind_set [1.0] *
-  !!
-  !!   NAME
-  !!    get_atomic_kind_set 
-  !!
-  !!   FUNCTION
-  !!    Get informations about an atomic kind set.
-  !!
-  !!   AUTHOR
-  !!     MK (14.01.2002)
-  !!
-  !!   MODIFICATION HISTORY
-  !!     
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Get informations about an atomic kind set.
+!> \author MK (14.01.2002)
+! *****************************************************************************
   SUBROUTINE get_atomic_kind_set(atomic_kind_set,maxatom,maxcgf,&
        maxco,maxco_proj,maxgtop,maxgtops,maxlgto,&
        maxlppl,maxlppnl,maxnset,maxpgf,&
@@ -989,22 +973,11 @@ CONTAINS
 
   END SUBROUTINE get_atomic_kind_set
 
-  !!****** atomic_kind_types/init_atomic_kind [1.0] *
-  !!
-  !!   NAME
-  !!    init_atomic_kind
-  !!
-  !!   FUNCTION
-  !!    Initialise an atomic kind data set.
-  !!
-  !!   AUTHOR
-  !!     Creation (11.01.2002,MK)
-  !!               20.09.2002 adapted for pol/kg use, gtb
-  !!
-  !!   MODIFICATION HISTORY
-  !!     
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Initialise an atomic kind data set.
+!> \author Creation (11.01.2002,MK)
+!>                20.09.2002 adapted for pol/kg use, gtb
+! *****************************************************************************
   SUBROUTINE init_atomic_kind(atomic_kind,para_env,force_env_section,method,error)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1071,22 +1044,11 @@ CONTAINS
 
   END SUBROUTINE init_atomic_kind
 
-  !!****** atomic_kind_types/get_atomic_kind_set [1.0] *
-  !!
-  !!   NAME
-  !!    get_atomic_kind_set 
-  !!
-  !!   FUNCTION
-  !!    Initialise an atomic kind set data set.
-  !!
-  !!   AUTHOR
-  !!     - Creation (17.01.2002,MK)
-  !!     - 20.09.2002 para_env passed (gt)
-  !!
-  !!   MODIFICATION HISTORY
-  !!     
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Initialise an atomic kind set data set.
+!> \author - Creation (17.01.2002,MK)
+!>      - 20.09.2002 para_env passed (gt)
+! *****************************************************************************
   SUBROUTINE init_atomic_kind_set(atomic_kind_set,para_env,force_env_section,method,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1118,21 +1080,7 @@ CONTAINS
 
   END SUBROUTINE init_atomic_kind_set
 
-  !!****** atomic_kind_types/init_gapw_basis_set [1.0] *
-  !!
-  !!   NAME
-  !!     init_gapw_basis_set
-  !!
-  !!   FUNCTION
-  !!    
-  !!
-  !!   AUTHOR
-  !!     
-  !!
-  !!   MODIFICATION HISTORY
-  !!     
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
   SUBROUTINE init_gapw_basis_set(atomic_kind_set,qs_control,force_env_section,&
        error)
 
@@ -1194,23 +1142,12 @@ CONTAINS
 
   END SUBROUTINE init_gapw_basis_set
 
-  !!****** atomic_kind_types/read_atomic_kind [1.0] *
-  !!
-  !!   NAME
-  !!    read_atomic_kind 
-  !!
-  !!   FUNCTION
-  !!    Read an atomic kind data set from the input file.
-  !!
-  !!   AUTHOR
-  !!     
-  !!
-  !!   MODIFICATION HISTORY
-  !!     - Creation (09.02.2002,MK)
-  !!     - 20.09.2002,gt: adapted for POL/KG use (elp_potential)
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Read an atomic kind data set from the input file.
+!> \par History
+!>      - Creation (09.02.2002,MK)
+!>      - 20.09.2002,gt: adapted for POL/KG use (elp_potential)
+! *****************************************************************************
   SUBROUTINE read_atomic_kind(atomic_kind,kind_section,para_env,force_env_section,&
        no_fail, method_id, error)
 
@@ -1641,23 +1578,12 @@ CONTAINS
 
   END SUBROUTINE read_atomic_kind
 
-  !!****** atomic_kind_types/read_atomic_kind_set [1.0] *
-  !!
-  !!   NAME
-  !!     read_atomic_kind_set
-  !!
-  !!   FUNCTION
-  !!    Read an atomic kind set data set from the input file.
-  !!
-  !!   AUTHOR
-  !!     
-  !!
-  !!   MODIFICATION HISTORY
-  !!     - Creation (09.02.2002,MK)
-  !!     - 20.09.2002,gt: adapted for POL/KG use (elp_potential)
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Read an atomic kind set data set from the input file.
+!> \par History
+!>      - Creation (09.02.2002,MK)
+!>      - 20.09.2002,gt: adapted for POL/KG use (elp_potential)
+! *****************************************************************************
   SUBROUTINE read_atomic_kind_set(atomic_kind_set,kind_section,para_env,force_env_section,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1709,23 +1635,10 @@ CONTAINS
 
   END SUBROUTINE read_atomic_kind_set
 
-  !!****** atomic_kind_types/check_atomic_kind [1.0] *
-  !!
-  !!   NAME
-  !!    check_atomic_kind 
-  !!
-  !!   FUNCTION
-  !!    This routines should perform only checks. no settings are allowed at
-  !!    this level anymore..
-  !!
-  !!   AUTHOR
-  !!     
-  !!
-  !!   MODIFICATION HISTORY
-  !!     
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief This routines should perform only checks. no settings are allowed at
+!>     this level anymore..
+! *****************************************************************************
   SUBROUTINE check_atomic_kind(atomic_kind,dft_control,subsys_section,error)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -1756,22 +1669,7 @@ CONTAINS
 
   END SUBROUTINE check_atomic_kind
 
-  !!****** atomic_kind_types/check_atomic_kind_set [1.0] *
-  !!
-  !!   NAME
-  !!    check_atomic_kind_set 
-  !!
-  !!   FUNCTION
-  !!    
-  !!
-  !!   AUTHOR
-  !!     
-  !!
-  !!   MODIFICATION HISTORY
-  !!     
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
   SUBROUTINE check_atomic_kind_set(atomic_kind_set,dft_control,para_env,subsys_section,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1800,22 +1698,11 @@ CONTAINS
     END IF
   END SUBROUTINE check_atomic_kind_set
 
-  !!****** atomic_kind_types/set_atomic_kind [1.0] *
-  !!
-  !!   NAME
-  !!    set_atomic_kind 
-  !!
-  !!   FUNCTION
-  !!    Set the components of an atomic kind data set.
-  !!
-  !!   AUTHOR
-  !!     
-  !!
-  !!   MODIFICATION HISTORY
-  !!     Creation (11.01.2002,MK)
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Set the components of an atomic kind data set.
+!> \par History
+!>      Creation (11.01.2002,MK)
+! *****************************************************************************
   SUBROUTINE set_atomic_kind(atomic_kind,element_symbol,name,mass,kind_number,&
        natom,atom_list,elec_conf,paw_atom,qm_atom,hard_radius,hard0_radius,&
        elp_potential,soft_basis_set,hard_basis_set,lmax_rho0,zeff,ghost,shell,&
@@ -1907,22 +1794,11 @@ CONTAINS
 
   END SUBROUTINE set_atomic_kind
 
-  !!****** atomic_kind_types/write_atomic_kind [1.0] *
-  !!
-  !!   NAME
-  !!    write_atomic_kind 
-  !!
-  !!   FUNCTION
-  !!    Write an atomic kind data set to the output unit.
-  !!
-  !!   AUTHOR
-  !!     
-  !!
-  !!   MODIFICATION HISTORY
-  !!     Creation (09.02.2002,MK)
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Write an atomic kind data set to the output unit.
+!> \par History
+!>      Creation (09.02.2002,MK)
+! *****************************************************************************
   SUBROUTINE write_atomic_kind(atomic_kind,output_unit,error)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -1979,22 +1855,11 @@ CONTAINS
 
   END SUBROUTINE write_atomic_kind
 
-  !!****** atomic_kind_types/write_atomic_kind_set [1.0] *
-  !!
-  !!   NAME
-  !!     write_atomic_kind_set
-  !!
-  !!   FUNCTION
-  !!    Write an atomic kind set data set to the output unit.
-  !!
-  !!   AUTHOR
-  !!     
-  !!
-  !!   MODIFICATION HISTORY
-  !!     Creation (09.02.2002,MK)
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Write an atomic kind set data set to the output unit.
+!> \par History
+!>      Creation (09.02.2002,MK)
+! *****************************************************************************
   SUBROUTINE write_atomic_kind_set(atomic_kind_set,subsys_section,error)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -2033,24 +1898,13 @@ CONTAINS
 
   END SUBROUTINE write_atomic_kind_set
 
-  !!****** atomic_kind_types/write_gto_basis_sets [1.0] *
-  !!
-  !!   NAME
-  !!    write_gto_basis_sets 
-  !!
-  !!   FUNCTION
-  !!    Write all the GTO basis sets of an atomic kind set to the output
-  !!    unit (for the printing of the unnormalized basis sets as read from
-  !!          database).
-  !!
-  !!   AUTHOR
-  !!     
-  !!
-  !!   MODIFICATION HISTORY
-  !!     Creation (17.01.2002,MK)
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Write all the GTO basis sets of an atomic kind set to the output
+!>     unit (for the printing of the unnormalized basis sets as read from
+!>           database).
+!> \par History
+!>      Creation (17.01.2002,MK)
+! *****************************************************************************
   SUBROUTINE write_gto_basis_sets(atomic_kind_set,subsys_section,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &

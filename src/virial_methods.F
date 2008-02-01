@@ -2,22 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/virial_methods [1.0] *
-!!
-!!   NAME
-!!     virial_methods
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     JGH [04042007] code refactoring
-!!
-!!
-!!*****
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      JGH [04042007] code refactoring
+! *****************************************************************************
 MODULE virial_methods
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -39,42 +28,17 @@ MODULE virial_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'virial_methods'
 
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** virial_methods/virial_evaluate [1.0] *
-!!
-!!   NAME
-!!     virial_evaluate
-!!
-!!   SYNOPSIS
-!!     Subroutine virial_evaluate( atomic_kind_set, particle_set,
-!!                                 local_particle, virial )
-!!       Implicit None
-!!       Type(atomic_kind_type), Dimension(:), Intent (IN):: atomic_kind_set
-!!       Type(particle_type), Dimension(:), Intent (IN):: particle_set
-!!       Type(distribution_1d_type), Intent (IN):: local_particles
-!!       Type(virial_type), Intent (INOUT):: virial
-!!     End Subroutine virial_evaluate
-!!
-!!   FUNCTION
-!!     Computes the kinetic part of the pressure tensor and updates
-!!     the full VIRIAL (PV)
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*****
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Computes the kinetic part of the pressure tensor and updates
+!>      the full VIRIAL (PV)
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
 SUBROUTINE virial_evaluate ( atomic_kind_set, particle_set, &
                              local_particles, virial, igroup, error)
-
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -134,25 +98,15 @@ SUBROUTINE virial_evaluate ( atomic_kind_set, particle_set, &
 
 END SUBROUTINE virial_evaluate
 
-!******************************************************************************
 !****** virial_methods/virial_pair_force [1.0] *
-!!
-!!   NAME
-!!     virial_pair_force
-!!
-!!   FUNCTION
-!!     Computes the contribution to the stress tensor from two-body
-!!     pair-wise forces    
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*****
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Computes the contribution to the stress tensor from two-body
+!>      pair-wise forces    
+!> \par History
+!>      none
+!> \author JGH
+! *****************************************************************************
 SUBROUTINE virial_pair_force ( pv_virial, f0, force, rab, error)
 
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_virial
@@ -175,8 +129,5 @@ SUBROUTINE virial_pair_force ( pv_virial, f0, force, rab, error)
 
 END SUBROUTINE virial_pair_force 
 
-!******************************************************************************
-
 END MODULE virial_methods
 
-!******************************************************************************

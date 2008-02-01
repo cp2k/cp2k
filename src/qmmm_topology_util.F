@@ -3,23 +3,9 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/qmmm_topology_util [1.0] *
-!!
-!!   NAME
-!!     qmmm_topology_util
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
-
+! *****************************************************************************
+!> \author teo
+! *****************************************************************************
 MODULE qmmm_topology_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -46,22 +32,13 @@ MODULE qmmm_topology_util
             qmmm_connectivity_control
 
 CONTAINS
-  !!*************************************************************************
-  !!****** qmmm_topology_util/qmmm_coordinate_control [1.0] *
-  !!
-  !!   NAME
-  !!     qmmm_coordinate_control
-  !!
-  !!   FUNCTION
-  !!     Modifies the atom_info%label_atmname
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     11.2004 created [tlaino]
-  !!
-  !***************************************************************************
+
+! *****************************************************************************
+!> \brief Modifies the atom_info%label_atmname
+!> \par History
+!>      11.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_coordinate_control(topology, qmmm_env, subsys_section, error)
     
     TYPE(topology_parameters_type), &
@@ -119,23 +96,12 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_coordinate_control
   
-
-  !!*************************************************************************
-  !!****** qmmm_topology_util/qmmm_connectivity_control [1.0] *
-  !!
-  !!   NAME
-  !!     qmmm_connectivity_control
-  !!
-  !!   FUNCTION
-  !!     Set up the connectivity for QM/MM calculations
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     12.2004 created [tlaino]
-  !!
-  !***************************************************************************
+! *****************************************************************************
+!> \brief Set up the connectivity for QM/MM calculations
+!> \par History
+!>      12.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_connectivity_control(topology, para_env, molecule_set,&
        qmmm_env, subsys_section, error)
     

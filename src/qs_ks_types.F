@@ -3,26 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qs_ks_types [1.0] *
-!!
-!!   NAME
-!!     qs_ks_types
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2002 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \par History
+!>      11.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE qs_ks_types
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -42,40 +27,23 @@ MODULE qs_ks_types
 
   PUBLIC :: qs_ks_env_type, qs_ks_env_p_type
   PUBLIC :: qs_ks_release, qs_ks_retain
-!!***
-!****************************************************************************
 
-!!****s* qs_ks_methods/qs_ks_env_type [1.0] *
-!!
-!!   NAME
-!!     qs_ks_env_type
-!!
-!!   FUNCTION
-!!     calculation environement to calculate the ks matrix,
-!!     holds all the needed vars.
-!!     assumes that the core hamiltonian and energy are up to date.
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - s_mstruct_changed: if the sparsity structure of s in qs_env where this
-!!       ks_env lives has changed
-!!     - rho_changed: if the rho stored in the qs_env has changed
-!!     - forces_up_to_date: if the forces are up to date
-!!     - potential_changed: if some external potentian changed (such as due to the constraint)
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     04.2002 created [fawzi]
-!!     10.2002 introduced pools, uses updated rho as input,
-!!             removed most temporary variables, renamed may vars,
-!!             began conversion to LSD [fawzi]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief calculation environement to calculate the ks matrix,
+!>      holds all the needed vars.
+!>      assumes that the core hamiltonian and energy are up to date.
+!> \param s_mstruct_changed if the sparsity structure of s in qs_env where this
+!>        ks_env lives has changed
+!> \param rho_changed if the rho stored in the qs_env has changed
+!> \param forces_up_to_date if the forces are up to date
+!> \param potential_changed if some external potentian changed (such as due to the constraint)
+!> \par History
+!>      04.2002 created [fawzi]
+!>      10.2002 introduced pools, uses updated rho as input,
+!>              removed most temporary variables, renamed may vars,
+!>              began conversion to LSD [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE qs_ks_env_type
      LOGICAL :: s_mstruct_changed, &
                 rho_changed, potential_changed,&
@@ -89,66 +57,28 @@ MODULE qs_ks_types
      TYPE(pw_p_type)  :: v_hartree_rspace
 
   END TYPE qs_ks_env_type
-!!***
-!****************************************************************************
 
-!!****s* qs_ks_methods/qs_ks_env_p_type [1.0] *
-!!
-!!   NAME
-!!     qs_ks_env_p_type
-!!
-!!   FUNCTION
-!!     type to build arrays of pointers
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     ks_env: the ks_env pointer
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2002 created [fawzi]
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief type to build arrays of pointers
+!> \param ks_env the ks_env pointer
+!> \par History
+!>      11.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE qs_ks_env_p_type
      TYPE(qs_ks_env_type), POINTER :: ks_env
   END TYPE qs_ks_env_p_type
-!!***
-  !****************************************************************************
 CONTAINS
-!!****f* qs_ks_methods/qs_ks_release [1.0] *
-!!
-!!   NAME
-!!     qs_ks_release
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_ks_release(ks_env, error)
-!!       Type(qs_ks_env_type), Pointer:: ks_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_ks_release
-!!
-!!   FUNCTION
-!!     releases the ks_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - ks_env: the ks_env to be released
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     05.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief releases the ks_env (see doc/ReferenceCounting.html)
+!> \param ks_env the ks_env to be released
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      05.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE qs_ks_release(ks_env,error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -175,37 +105,16 @@ CONTAINS
     END IF
     NULLIFY(ks_env)
   END SUBROUTINE qs_ks_release
-!***************************************************************************
 
-!!****f* qs_ks_methods/qs_ks_retain [1.0] *
-!!
-!!   NAME
-!!     qs_ks_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_ks_retain(ks_env, error)
-!!       Type(qs_ks_env_type), Pointer:: ks_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_ks_retain
-!!
-!!   FUNCTION
-!!     retains the given ks_environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - ks_env: the KohnSham environment to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given ks_environment
+!> \param ks_env the KohnSham environment to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      11.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE qs_ks_retain(ks_env, error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -223,6 +132,5 @@ SUBROUTINE qs_ks_retain(ks_env, error)
      ks_env%ref_count=ks_env%ref_count+1
   END IF
 END SUBROUTINE qs_ks_retain
-!***************************************************************************
 
 END MODULE qs_ks_types

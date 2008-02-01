@@ -2,22 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/header [1.0] *
-!!
-!!   NAME
-!!     header
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     APSI & CJM & JGH
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author APSI & CJM & JGH
+! *****************************************************************************
 MODULE header
 
   IMPLICIT NONE
@@ -26,12 +16,9 @@ MODULE header
   PUBLIC :: fist_header, se_header, dftb_header, qs_header, tddfpt_header
   PUBLIC :: kg_header, qmmm_header
 
-  !!*****
-  !******************************************************************************
-
 CONTAINS
 
-  !******************************************************************************
+! *****************************************************************************
   SUBROUTINE qmmm_header (iw, ionode)
     INTEGER, INTENT(in)                      :: iw
     LOGICAL, INTENT(in)                      :: ionode
@@ -53,9 +40,9 @@ CONTAINS
          "|                                                     CALCULATION STARTED..|",&
          "----------------------------------------------------------------------------"
          
-
   END SUBROUTINE qmmm_header
   
+! *****************************************************************************
   SUBROUTINE tddfpt_header(iw, ionode)
     INTEGER, INTENT(in)                      :: iw
     LOGICAL, INTENT(in)                      :: ionode
@@ -78,6 +65,7 @@ CONTAINS
 
   END SUBROUTINE tddfpt_header
 
+! *****************************************************************************
   SUBROUTINE fist_header ( iw, ionode )
     INTEGER, INTENT(in)                      :: iw
     LOGICAL, INTENT(in)                      :: ionode
@@ -103,6 +91,7 @@ CONTAINS
 
   END SUBROUTINE fist_header
 
+! *****************************************************************************
   SUBROUTINE dftb_header ( iw, ionode )
     INTEGER, INTENT(in)                      :: iw
     LOGICAL, INTENT(in)                      :: ionode
@@ -124,6 +113,7 @@ CONTAINS
          '                                                       '
   END SUBROUTINE dftb_header
 
+! *****************************************************************************
   SUBROUTINE se_header ( iw, ionode )
     INTEGER, INTENT(in)                      :: iw
     LOGICAL, INTENT(in)                      :: ionode
@@ -148,6 +138,7 @@ CONTAINS
 
   END SUBROUTINE se_header
 
+! *****************************************************************************
   SUBROUTINE qs_header(output_unit, ionode)
     INTEGER                                  :: output_unit
     LOGICAL                                  :: ionode
@@ -174,7 +165,7 @@ CONTAINS
          "*******************************************************************************"
   END SUBROUTINE qs_header
 
-
+! *****************************************************************************
   SUBROUTINE kg_header ( iw, ionode )
     INTEGER                                  :: iw
     LOGICAL, INTENT(in)                      :: ionode
@@ -196,7 +187,6 @@ CONTAINS
          '                                                       '
 
   END SUBROUTINE kg_header
-
 
 END MODULE header
 

@@ -3,34 +3,23 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/cp_output_handling [1.0] *
-!!
-!!   NAME
-!!     cp_output_handling
-!!
-!!   FUNCTION
-!!     routines to handle the output, The idea is to remove the
-!!     decision of wheter to output and what to output from the code
-!!     that does the output, and centralize it here.
-!!
-!!   NOTES
-!!     These were originally together with the log handling routines,
-!!     but have been spawned off. Some dependencies are still there,
-!!     and some of the comments about log handling also applies to output
-!!     handling: @see cp_log_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2001 created [fawzi]
-!!     08.2002 updated to new logger [fawzi]
-!!     10.2004 big rewrite of the output methods, connected to the new
-!!             input, and iteration_info [fawzi]
-!!     08.2005 property flags [fawzi]
-!!
-!!   SOURCE
-!*****************************************************************************
+! *****************************************************************************
+!> \brief routines to handle the output, The idea is to remove the
+!>      decision of wheter to output and what to output from the code
+!>      that does the output, and centralize it here.
+!> \note
+!>      These were originally together with the log handling routines,
+!>      but have been spawned off. Some dependencies are still there,
+!>      and some of the comments about log handling also applies to output
+!>      handling: @see cp_log_handling
+!> \par History
+!>      12.2001 created [fawzi]
+!>      08.2002 updated to new logger [fawzi]
+!>      10.2004 big rewrite of the output methods, connected to the new
+!>              input, and iteration_info [fawzi]
+!>      08.2005 property flags [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE cp_output_handling
   USE cp_files,                        ONLY: close_file,&
                                              open_file
@@ -114,46 +103,30 @@ MODULE cp_output_handling
 
   INTEGER, SAVE, PRIVATE :: last_flags_id=0
 
-
-!!***
-!****************************************************************************
-
-!!****s* cp_output_handling/cp_out_flags_type *
-!!
-!!   NAME
-!!     cp_out_flags_type
-!!
-!!   FUNCTION
-!!     stores the flags_env controlling the output of properties
-!!
-!!   NOTES
-!!     Two features of this object should be:
-!!       1) easy state storage, one should be able to store the state of the
-!!          flags, to some changes to them just for one (or few) force evaluations
-!!          and then reset the original state. The actual implementation is good
-!!          in this respect
-!!       2) work well with subsections. This is a problem at the moment, as
-!!          if you pass just a subsection of the input the control flags get lost.
-!!       A better implementation should be done storing the flags also in the
-!!       input itself to be transparent
-!!
-!!   ATTRIBUTES
-!!     - ref_count: reference count (see doc/ReferenceCounting.html)
-!!     - id_nr: identification number (unique to each istance)
-!!     - n_flags: number of flags stored in this type
-!!     - names: names of the stored flags
-!!     - control_val: value of the flag
-!!     - input: the input (with all the printkeys)
-!!     - logger: logger and iteration information (to know if output is needed)
-!!     - strict: if flags that were not stored can be read
-!!     - default_val: default value of the flags that are not explicitly
-!!       stored
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief stores the flags_env controlling the output of properties
+!> \param ref_count reference count (see doc/ReferenceCounting.html)
+!> \param id_nr identification number (unique to each istance)
+!> \param n_flags number of flags stored in this type
+!> \param names names of the stored flags
+!> \param control_val value of the flag
+!> \param input the input (with all the printkeys)
+!> \param logger logger and iteration information (to know if output is needed)
+!> \param strict if flags that were not stored can be read
+!> \param default_val default value of the flags that are not explicitly
+!>        stored
+!> \note
+!>      Two features of this object should be:
+!>        1) easy state storage, one should be able to store the state of the
+!>           flags, to some changes to them just for one (or few) force evaluations
+!>           and then reset the original state. The actual implementation is good
+!>           in this respect
+!>        2) work well with subsections. This is a problem at the moment, as
+!>           if you pass just a subsection of the input the control flags get lost.
+!>        A better implementation should be done storing the flags also in the
+!>        input itself to be transparent
+!> \author fawzi
+! *****************************************************************************
   TYPE cp_out_flags_type
      INTEGER :: ref_count, id_nr, n_flags
      CHARACTER(default_string_length), DIMENSION(:), POINTER :: names
@@ -166,30 +139,17 @@ MODULE cp_output_handling
 
 CONTAINS
 
-!!****f* cp_output_handling/cp_print_key_section_create [1.0] *
-!!
-!!   NAME
-!!     cp_print_key_section_create
-!!
-!!   FUNCTION
-!!     creates a print_key section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - print_key_section: the print key to create
-!!     - name: the name of the print key
-!!     - description: the description of the print key
-!!     - print_level: print level starting at which the printing takes place
-!!       (defaults to debug_print_level)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a print_key section
+!> \param print_key_section the print key to create
+!> \param name the name of the print key
+!> \param description the description of the print key
+!> \param print_level print level starting at which the printing takes place
+!>        (defaults to debug_print_level)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE cp_print_key_section_create(print_key_section, name, description, &
        print_level,each_iter_names,each_iter_values,add_last,filename,&
        common_iter_levels,store,citations,supported_feature,error)
@@ -373,37 +333,25 @@ CONTAINS
 
     END IF
   END SUBROUTINE cp_print_key_section_create
-!***************************************************************************
 
-!!****f* cp_output_handling/cp_print_key_should_output [1.0] *
-!!
-!!   NAME
-!!     cp_print_key_should_output
-!!
-!!   FUNCTION
-!!     returns what should be done with the given proprety
-!!     if btest(res,cp_p_store) then the property should be stored in memory
-!!     if btest(res,cp_p_file) then the property should be print ed to a file
-!!     if res==0 then nothing should be done
-!!
-!!   NOTES
-!!     not all the propreties support can be stored
-!!
-!!   ARGUMENTS
-!!     - iteration_info: information about the actual iteration level
-!!     - basis_section: section that contains the printkey
-!!     - print_key_path: path to the printkey- "%" between sections, and
-!!       optionally a "/" and a logical flag to check). Might be empty.
-!!     - first_time: if it ist the first time that an output is written
-!!       (not fully correct, but most of the time)
-!!     - used_print_key: here the print_key that was used is returned
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns what should be done with the given proprety
+!>      if btest(res,cp_p_store) then the property should be stored in memory
+!>      if btest(res,cp_p_file) then the property should be print ed to a file
+!>      if res==0 then nothing should be done
+!> \param iteration_info information about the actual iteration level
+!> \param basis_section section that contains the printkey
+!> \param print_key_path path to the printkey- "%" between sections, and
+!>        optionally a "/" and a logical flag to check). Might be empty.
+!> \param first_time if it ist the first time that an output is written
+!>        (not fully correct, but most of the time)
+!> \param used_print_key here the print_key that was used is returned
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      not all the propreties support can be stored
+!> \author fawzi
+! *****************************************************************************
   FUNCTION cp_print_key_should_output(iteration_info,basis_section,&
        print_key_path,used_print_key,first_time,error)&
        RESULT(res)
@@ -489,30 +437,16 @@ CONTAINS
        res=IBSET(res,cp_p_calc)
     END IF
   END FUNCTION cp_print_key_should_output
-!***************************************************************************
 
-!!****f* cp_output_handling/cp_printkey_is_on *
-!!
-!!   NAME
-!!     cp_printkey_is_on
-!!
-!!   FUNCTION
-!!     returns true if the printlevel activates this printkey
-!!     does not look if this iteration it should be printed
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - iteration_info: information about the actual iteration level
-!!     - print_key: the section values of the key to be printed
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns true if the printlevel activates this printkey
+!>      does not look if this iteration it should be printed
+!> \param iteration_info information about the actual iteration level
+!> \param print_key the section values of the key to be printed
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   FUNCTION cp_printkey_is_on(iteration_info,print_key,error) RESULT(res)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     TYPE(section_vals_type), POINTER         :: print_key
@@ -538,33 +472,19 @@ CONTAINS
        END IF
     END IF
   END FUNCTION cp_printkey_is_on
-!***************************************************************************
 
-!!****f* cp_output_handling/cp_printkey_is_iter [1.0] *
-!!
-!!   NAME
-!!     cp_printkey_is_iter
-!!
-!!   FUNCTION
-!!     returns if the actual iteration matches those selected by the
-!!     given printkey. Does not check it the prinkey is active (at the
-!!     actual print_level)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - iteration_info: information about the actual iteration level
-!!     - print_key: the section values of the key to be printed
-!!     - first_time: returns if it is the first time that output is written
-!!       (not fully correct, but most of the time)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns if the actual iteration matches those selected by the
+!>      given printkey. Does not check it the prinkey is active (at the
+!>      actual print_level)
+!> \param iteration_info information about the actual iteration level
+!> \param print_key the section values of the key to be printed
+!> \param first_time returns if it is the first time that output is written
+!>        (not fully correct, but most of the time)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   FUNCTION cp_printkey_is_iter(iteration_info,print_key,first_time,error)&
        RESULT(res)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
@@ -617,36 +537,24 @@ CONTAINS
     first=first.AND.res
     IF (PRESENT(first_time)) first_time=first
   END FUNCTION cp_printkey_is_iter
-!***************************************************************************
 
-!!****f* cp_output_handling/cp_iter_string [1.0] *
-!!
-!!   NAME
-!!     cp_iter_string
-!!
-!!   FUNCTION
-!!     returns the iteration string, a string that is useful to create
-!!     unique filenames (once you trim it)
-!!
-!!   NOTES
-!!     If the root level is 1 removes it
-!!
-!!   INPUTS
-!!     - iter_info: the iteration info from where to take the iteration
-!!       number
-!!     - print_key: the print key to optionally show the last iteration
-!!       symbolically
-!!     - for_file: if the string is to be used for file generation
-!!       (and should consequently ignore some iteration levels depending
-!!       on COMMON_ITERATION_LEVELS).
-!!       Defaults to false.
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the iteration string, a string that is useful to create
+!>      unique filenames (once you trim it)
+!> \param iter_info the iteration info from where to take the iteration
+!>        number
+!> \param print_key the print key to optionally show the last iteration
+!>        symbolically
+!> \param for_file if the string is to be used for file generation
+!>        (and should consequently ignore some iteration levels depending
+!>        on COMMON_ITERATION_LEVELS).
+!>        Defaults to false.
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      If the root level is 1 removes it
+!> \author fawzi
+! *****************************************************************************
   FUNCTION cp_iter_string(iter_info,print_key,for_file,error) RESULT(res)
     TYPE(cp_iteration_info_type), POINTER    :: iter_info
     TYPE(section_vals_type), OPTIONAL, &
@@ -701,29 +609,17 @@ CONTAINS
        END IF
     END IF
   END FUNCTION cp_iter_string
-!***************************************************************************
 
-!!****f* cp_output_handling/cp_iterate *
-!!
-!!   NAME
-!!     cp_iterate
-!!
-!!   FUNCTION
-!!     adds one to the actual iteration
-!!
-!!   NOTES
-!!     this is supposed to be called at the beginning of each iteration
-!!
-!!   INPUTS
-!!     - iteration_info: the iteration info to update
-!!     - last: if this iteration is the last one (defaults to false)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief adds one to the actual iteration
+!> \param iteration_info the iteration info to update
+!> \param last if this iteration is the last one (defaults to false)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      this is supposed to be called at the beginning of each iteration
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE cp_iterate(iteration_info,last,iter_nr,error)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     LOGICAL, INTENT(IN), OPTIONAL            :: last
@@ -751,31 +647,17 @@ CONTAINS
        iteration_info%last_iter(iteration_info%n_rlevel)=my_last
     END IF
   END SUBROUTINE cp_iterate
-!***************************************************************************
 
-!!****f* cp_output_handling/cp_add_iter_level *
-!!
-!!   NAME
-!!     cp_add_iter_level
-!!
-!!   FUNCTION
-!!     Adds an iteration level
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - iteration_info: the iteration info to which an iteration level has
-!!       to be added
-!!     - level_name : the name of this level, for pretty printing only, right now
-!!     - n_level_new: number of iteration levels after this call
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Adds an iteration level
+!> \param iteration_info the iteration info to which an iteration level has
+!>        to be added
+!> \param level_name the name of this level, for pretty printing only, right now
+!> \param n_level_new number of iteration levels after this call
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE cp_add_iter_level(iteration_info,level_name,n_rlevel_new,error)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     CHARACTER(LEN=*), INTENT(IN)             :: level_name
@@ -819,31 +701,17 @@ CONTAINS
     END IF
 
   END SUBROUTINE cp_add_iter_level
-!***************************************************************************
 
-!!****f* cp_output_handling/cp_rm_iter_level *
-!!
-!!   NAME
-!!     cp_rm_iter_level
-!!
-!!   FUNCTION
-!!     Removes an iteration level
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - iteration_info: the iteration info to which an iteration level has
-!!       to be removed
-!!     - n_rlevel_att: iteration level before the call (to do some checks)
-!!     - level_name: level_name to be destroyed (if does not match gives an error)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Removes an iteration level
+!> \param iteration_info the iteration info to which an iteration level has
+!>        to be removed
+!> \param n_rlevel_att iteration level before the call (to do some checks)
+!> \param level_name level_name to be destroyed (if does not match gives an error)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE cp_rm_iter_level(iteration_info,level_name,n_rlevel_att,error)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     CHARACTER(LEN=*), INTENT(IN)             :: level_name
@@ -874,54 +742,39 @@ CONTAINS
        CALL reallocate(iteration_info%last_iter,  1, iteration_info%n_rlevel)
     END IF
   END SUBROUTINE cp_rm_iter_level
-!***************************************************************************
 
-!!****f* cp_output_handling/cp_print_key_unit_nr [1.0] *
-!!
-!!   NAME
-!!     cp_print_key_unit_nr
-!!
-!!   FUNCTION
-!!    Utility function that retuns a unit number to write the print key.
-!!    Might open a file with a unique filename, generated from
-!!    the print_key name and iteration info.
-!!
-!!    Normally a valid unit (>0) is returned only if cp_print_key_should_output
-!!    says that the print_key should be printed, and if the unit is global
-!!    only the io node has a valid unit.
-!!    So in many cases you can decide if you should print just checking if
-!!    the returned units is bigger than 0.
-!!
-!!    IMPORTANT you should call cp_finished_output when an iteration output is
-!!    finished (to immediately close the file that might have been opened)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - logger: the logger for the parallel environment, iteration info
-!!       and filename generation
-!!     - basis_section: section that contains the printkey
-!!     - print_key_path: path to the printkey- "%" between sections, and
-!!       optionally a "/" and a logical flag to check). Might be empty.
-!!     - local: if the unit should be local to this task, or global to the
-!!       program (defaults to false).
-!!     - log_filename: if a small log with the filename should be written
-!!       to the main log (defaults to false)
-!!     - extension: extension to be applied to the filename (including the ".")
-!!     - middle_name: name to be added to the generated filename, useful when
-!!       print_key activates different distinct outputs, to be able to
-!!       distinguish them
-!!     - ignore_should_output: if true always returns a valid unit (ignoring
-!!       cp_print_key_should_output)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief Utility function that retuns a unit number to write the print key.
+!>     Might open a file with a unique filename, generated from
+!>     the print_key name and iteration info.
+!> 
+!>     Normally a valid unit (>0) is returned only if cp_print_key_should_output
+!>     says that the print_key should be printed, and if the unit is global
+!>     only the io node has a valid unit.
+!>     So in many cases you can decide if you should print just checking if
+!>     the returned units is bigger than 0.
+!> 
+!>     IMPORTANT you should call cp_finished_output when an iteration output is
+!>     finished (to immediately close the file that might have been opened)
+!> \param logger the logger for the parallel environment, iteration info
+!>        and filename generation
+!> \param basis_section section that contains the printkey
+!> \param print_key_path path to the printkey- "%" between sections, and
+!>        optionally a "/" and a logical flag to check). Might be empty.
+!> \param local if the unit should be local to this task, or global to the
+!>        program (defaults to false).
+!> \param log_filename if a small log with the filename should be written
+!>        to the main log (defaults to false)
+!> \param extension extension to be applied to the filename (including the ".")
+!> \param middle_name name to be added to the generated filename, useful when
+!>        print_key activates different distinct outputs, to be able to
+!>        distinguish them
+!> \param ignore_should_output if true always returns a valid unit (ignoring
+!>        cp_print_key_should_output)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Fawzi Mohamed
+! *****************************************************************************
   FUNCTION cp_print_key_generate_filename(logger,print_key,middle_name,extension,&
        my_local, error) RESULT(filename)
     TYPE(cp_logger_type), POINTER            :: logger
@@ -993,6 +846,7 @@ CONTAINS
 
   END FUNCTION cp_print_key_generate_filename
 
+! *****************************************************************************
   FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
        middle_name, local, log_filename,ignore_should_output, file_form, file_position,&
        file_action, file_status, do_backup, on_file, is_new_file,error) RESULT(res)
@@ -1151,32 +1005,21 @@ CONTAINS
        END IF
     END IF
   END FUNCTION cp_print_key_unit_nr
-!****************************************************************************
 
-!!****f* cp_output_handling/cp_print_key_finished_output [1.0] *
-!!
-!!   NAME
-!!     cp_print_key_finished_output
-!!
-!!   FUNCTION
-!!     should be called after you finish working with a unit obtained with
-!!     cp_print_key_unit_nr, so that the file that might have been opened
-!!     can be closed.
-!!
-!!     the inputs should be exactly the same of the corresponding
-!!     cp_print_key_unit_nr
-!!
-!!   NOTES
-!!     closes if the corresponding filename of the printkey is
-!!     not __STD_OUT__
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief should be called after you finish working with a unit obtained with
+!>      cp_print_key_unit_nr, so that the file that might have been opened
+!>      can be closed.
+!> 
+!>      the inputs should be exactly the same of the corresponding
+!>      cp_print_key_unit_nr
+!> \note
+!>      closes if the corresponding filename of the printkey is
+!>      not __STD_OUT__
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_print_key_finished_output(unit_nr, logger, basis_section,&
        print_key_path,local,ignore_should_output,on_file,error)
     INTEGER, INTENT(INOUT)                   :: unit_nr
@@ -1222,43 +1065,29 @@ CONTAINS
     CPPostcondition(unit_nr==-1,cp_failure_level,routineP,error,failure)
     unit_nr=-1
   END SUBROUTINE cp_print_key_finished_output
-!***************************************************************************
 
-!!****f* cp_output_handling/cp_print_key_log [1.0] *
-!!
-!!   NAME
-!!     cp_print_key_log
-!!
-!!   FUNCTION
-!!     utility method to print out a string
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - logger: the logger for the parallel environment, iteration info
-!!       and filename generation
-!!     - basis_section: section that contains the printkey
-!!     - print_key_path: path to the printkey- "%" between sections, and
-!!       optionally a "/" and a logical flag to check). Might be empty.
-!!     - extension: extension to be applied to the filename (including the ".")
-!!     - message: the message to write
-!!     - local: if the unit should be local to this task, or global to the
-!!       program (defaults to false).
-!!     - log_filename: if a small log with the filename should be written
-!!       to the main log (defaults to false)
-!!     - middle_name: name to be added to the generated filename, useful when
-!!       print_key activates different distinct outputs, to be able to
-!!       distinguish them
-!!     - ignore_should_output: if true always returns a valid unit (ignoring
-!!       cp_print_key_should_output)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief utility method to print out a string
+!> \param logger the logger for the parallel environment, iteration info
+!>        and filename generation
+!> \param basis_section section that contains the printkey
+!> \param print_key_path path to the printkey- "%" between sections, and
+!>        optionally a "/" and a logical flag to check). Might be empty.
+!> \param extension extension to be applied to the filename (including the ".")
+!> \param message the message to write
+!> \param local if the unit should be local to this task, or global to the
+!>        program (defaults to false).
+!> \param log_filename if a small log with the filename should be written
+!>        to the main log (defaults to false)
+!> \param middle_name name to be added to the generated filename, useful when
+!>        print_key activates different distinct outputs, to be able to
+!>        distinguish them
+!> \param ignore_should_output if true always returns a valid unit (ignoring
+!>        cp_print_key_should_output)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE cp_print_key_log(logger, basis_section, print_key_path, extension,&
        message,middle_name, local, log_filename,ignore_should_output, &
        on_file, error)
@@ -1298,7 +1127,6 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE cp_print_key_log
-!***************************************************************************
 
 END MODULE cp_output_handling
 

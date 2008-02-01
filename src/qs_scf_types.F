@@ -2,25 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/qs_scf_types [1.0] *
-!!
-!!   NAME
-!!     qs_scf_types
-!!
-!!   FUNCTION
-!!     module that contains the definitions of the scf types
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief module that contains the definitions of the scf types
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 MODULE qs_scf_types
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release,&
@@ -58,29 +46,12 @@ MODULE qs_scf_types
   PUBLIC :: qs_scf_env_type,qs_outer_scf_type
   PUBLIC :: scf_env_retain, scf_env_release, scf_env_create, scf_env_did_change
 
-!!***
-!****************************************************************************
-
-!!****s* qs_scf_types/qs_scf_env_type [1.0] *
-!!
-!!   NAME
-!!     qs_scf_env_type
-!!
-!!   FUNCTION
-!!     wrapper for temporary and cached objects used in the scf iteration
-!!
-!!   NOTES
-!!
-!!   ATTRIBUTES
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief wrapper for temporary and cached objects used in the scf iteration
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 TYPE qs_outer_scf_type
    INTEGER :: iter_count
 
@@ -96,6 +67,7 @@ TYPE qs_outer_scf_type
 
 END TYPE qs_outer_scf_type
 
+! *****************************************************************************
 TYPE qs_scf_env_type
    TYPE(qs_outer_scf_type) :: outer_scf
    INTEGER :: ref_count, id_nr, print_count, iter_count
@@ -114,35 +86,15 @@ END TYPE qs_scf_env_type
 
 CONTAINS
 
-!!****f* qs_scf_types/scf_env_create [1.0] *
-!!
-!!   NAME
-!!     scf_env_create
-!!
-!!   SYNOPSIS
-!!     Subroutine scf_env_create(scf_env, qs_env, error)
-!!       Type(qs_scf_env_type), Pointer:: scf_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine scf_env_create
-!!
-!!   FUNCTION
-!!     allocates and initialize an scf_env
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - scf_env: the scf env to initialize
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief allocates and initialize an scf_env
+!> \param scf_env the scf env to initialize
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE scf_env_create(scf_env,  error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -191,35 +143,15 @@ CONTAINS
 
   END SUBROUTINE scf_env_create
 
-!!****f* qs_scf_types/scf_env_retain [1.0] *
-!!
-!!   NAME
-!!     scf_env_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine scf_env_retain(scf_env, error)
-!!       Type(qs_scf_env_type), Pointer:: scf_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine scf_env_retain
-!!
-!!   FUNCTION
-!!     retains an scf_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - scf_env: the environment to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains an scf_env (see doc/ReferenceCounting.html)
+!> \param scf_env the environment to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE scf_env_retain(scf_env,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -237,37 +169,16 @@ SUBROUTINE scf_env_retain(scf_env,error)
      scf_env%ref_count=scf_env%ref_count+1
   END IF
 END SUBROUTINE scf_env_retain
-!***************************************************************************
 
-!!****f* qs_scf_types/scf_env_did_change [1.0] *
-!!
-!!   NAME
-!!     scf_env_did_change
-!!
-!!   SYNOPSIS
-!!     Subroutine scf_env_did_change(scf_env, error)
-!!       Type(qs_scf_env_type), Pointer:: scf_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine scf_env_did_change
-!!
-!!   FUNCTION
-!!     function to be called to inform the scf_env about changes
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - scf_env: the scf env to inform
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     03.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief function to be called to inform the scf_env about changes
+!> \param scf_env the scf env to inform
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      03.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE scf_env_did_change(scf_env,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -292,38 +203,17 @@ SUBROUTINE scf_env_did_change(scf_env,error)
 
   CALL timestop(0.0_dp,handle)
 
-  
 END SUBROUTINE scf_env_did_change
 
-!!****f* qs_scf_types/scf_env_release [1.0] *
-!!
-!!   NAME
-!!     scf_env_release
-!!
-!!   SYNOPSIS
-!!     Subroutine scf_env_release(scf_env, error)
-!!       Type(qs_scf_env_type), Pointer:: scf_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine scf_env_release
-!!
-!!   FUNCTION
-!!     releases an scf_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - scf_env: the environment to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases an scf_env (see doc/ReferenceCounting.html)
+!> \param scf_env the environment to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE scf_env_release(scf_env,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -388,6 +278,5 @@ SUBROUTINE scf_env_release(scf_env,error)
   NULLIFY(scf_env)
 
 END SUBROUTINE scf_env_release
-!***************************************************************************
 
 END MODULE qs_scf_types

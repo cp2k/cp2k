@@ -3,26 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/cpot_types [1.0] *
-!!
-!!   NAME
-!!     cpot_types
-!!
-!!   FUNCTION
-!!     makes a run that valuates the chemical potential difference between two
-!!     different two box situations
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     06.2006 created
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief makes a run that valuates the chemical potential difference between two
+!>      different two box situations
+!> \par History
+!>      06.2006 created
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE cpot_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
@@ -44,28 +31,11 @@ MODULE cpot_types
   INTEGER, PRIVATE, SAVE :: last_cpot_id=0
 
   PUBLIC :: cpot_type, cpot_release, cpot_retain, cpot_calc
-!!***
-!****************************************************************************
 
-
-!!****s* cpot_types/cpot_type *
-!!
-!!   NAME
-!!     cpot_type
-!!
-!!   FUNCTION
-!!     type for the chemical potential difference 
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief type for the chemical potential difference 
+!> \author fawzi
+! *****************************************************************************
 TYPE cpot_type
    INTEGER :: id_nr, ref_count, s_1_2_id, s_2_1_id, s_2_2_id
    LOGICAL :: active
@@ -74,32 +44,17 @@ TYPE cpot_type
         e_s_1_1,e_s_1_2,e_s_2_1,e_s_2_2, beta
    INTEGER :: npot
 END TYPE cpot_type
-!***************************************************************************
 
 CONTAINS
 
-  
-!!****f* cpot_types/cpot_create *
-!!
-!!   NAME
-!!     cpot_create
-!!
-!!   FUNCTION
-!!     create a cpot_env
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - cpot_env: the cpot_env to create
-!!     - cpot_section: the cpot_input_section
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief create a cpot_env
+!> \param cpot_env the cpot_env to create
+!> \param cpot_section the cpot_input_section
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE cpot_create(cpot_env,cpot_section,para_env,error)
     TYPE(cpot_type), POINTER                 :: cpot_env
     TYPE(section_vals_type), POINTER         :: cpot_section
@@ -152,28 +107,14 @@ CONTAINS
     END IF
     CALL timestop(handle)
   END SUBROUTINE cpot_create
-!***************************************************************************
 
-!!****f* cpot_types/cpot_retain *
-!!
-!!   NAME
-!!     cpot_retain
-!!
-!!   FUNCTION
-!!     retains the cpot
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - cpot_env: the object to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the cpot
+!> \param cpot_env the object to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE cpot_retain(cpot_env,error)
     TYPE(cpot_type), POINTER                 :: cpot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -190,28 +131,14 @@ SUBROUTINE cpot_retain(cpot_env,error)
      cpot_env%ref_count=cpot_env%ref_count+1
   END IF
 END SUBROUTINE cpot_retain
-!***************************************************************************
 
-!!****f* cpot_types/cpot_release *
-!!
-!!   NAME
-!!     cpot_release
-!!
-!!   FUNCTION
-!!     releases the cpot
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - cpot_env: the object to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the cpot
+!> \param cpot_env the object to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE cpot_release(cpot_env,error)
     TYPE(cpot_type), POINTER                 :: cpot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -234,32 +161,18 @@ SUBROUTINE cpot_release(cpot_env,error)
   END IF
   NULLIFY(cpot_env)
 END SUBROUTINE cpot_release
-!***************************************************************************
 
-!!****f* cpot_types/cpot_calc *
-!!
-!!   NAME
-!!     cpot_calc
-!!
-!!   FUNCTION
-!!     calculates the chemical potential 
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - cpot_env: the environment in which to calculate the chemical
-!!       potential
-!!     - e_s_1_1: potential energy of the first box of the first system
-!!       (the driving system)
-!!     - pos_s_1_1: positions of the first box
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates the chemical potential 
+!> \param cpot_env the environment in which to calculate the chemical
+!>        potential
+!> \param e_s_ 1_1: potential energy of the first box of the first system
+!>        (the driving system)
+!> \param pos_s_ 1_1: positions of the first box
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE cpot_calc(cpot_env, e_s_1_1,pos_s_1_1,error)
     TYPE(cpot_type), POINTER                 :: cpot_env
     REAL(kind=dp), INTENT(in)                :: e_s_1_1
@@ -288,7 +201,6 @@ SUBROUTINE cpot_calc(cpot_env, e_s_1_1,pos_s_1_1,error)
      CPAssert(ierr/=0,cp_failure_level,routineP,error,failure)
      CALL cp_get_energy(cpot_env%s_1_2_id,cpot_env%e_s_1_2,ierr)
      CPAssert(ierr/=0,cp_failure_level,routineP,error,failure)
-
 
      CALL cp_get_natom(cpot_env%s_2_1_id,natom,ierr)
      CPAssert(ierr/=0,cp_failure_level,routineP,error,failure)
@@ -324,6 +236,5 @@ SUBROUTINE cpot_calc(cpot_env, e_s_1_1,pos_s_1_1,error)
   END IF
   CALL timestop(handle)
 END SUBROUTINE cpot_calc
-!***************************************************************************
 
 END MODULE cpot_types

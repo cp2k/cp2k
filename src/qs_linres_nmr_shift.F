@@ -1,29 +1,15 @@
-
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****m* cp2k/qs_linres_nmr_shift *
-!!
-!!   NAME
-!!     qs_linres_nmr_current
-!!
-!!   FUNCTION
-!!     from the response current density calculates the shift tensor
-!!     and the susceptibility
-!!
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     created 02-2006 [MI]
-!!
-!!   SOURCE
-!!****
-
+! *****************************************************************************
+!> \brief from the response current density calculates the shift tensor
+!>      and the susceptibility
+!> \par History
+!>      created 02-2006 [MI]
+!> \author MI
+! *****************************************************************************
 MODULE qs_linres_nmr_shift
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -109,11 +95,11 @@ MODULE qs_linres_nmr_shift
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_shift'
 
-!!***
 ! **************
 
 CONTAINS
 
+! *****************************************************************************
   SUBROUTINE chi_analytic(nmr_env,qs_env,ispin,iB,error)
     !
     TYPE(nmr_env_type)                       :: nmr_env
@@ -184,7 +170,6 @@ CONTAINS
        WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
     END IF
     !gapw=.FALSE.
-
 
     CALL get_nmr_env(nmr_env=nmr_env,&
          &           nao=nao,&
@@ -482,33 +467,17 @@ CONTAINS
 
   END SUBROUTINE chi_analytic
 
-
-!  *****************************************************************************************
-
-!!****f* qs_linres_nmr_shift%interpolate_shift_pwgrid
-!!
-!!  NAME
-!!      nmr_interpolate_shift_pwgrid
-!!
-!!  FUNCTION
-!!      interpolate the shift calculated on the PW grid in order to ger
-!!      the value on arbitrary points in real space
-!!
-!!  ARGUMENTS
-!!      nme_env : to get the shift tensor and the list of additional points
-!!      particle_set : for the atomic position
-!!      cell : to take into account the pbs, and to have the volume
-!!      shift_pw_rspace : specific component of the shift tensor on the pw grid
-!!      i_B : component of the magnetic field for which the shift is calculated (row)
-!!      idir : component of the vector \int_{r}[ ((r-r') x j(r))/|r-r'|^3 ] = Bind(r')
-!!
-!!  NOTES
-!!
-!!  AUTHOR
-!!    MI
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief interpolate the shift calculated on the PW grid in order to ger
+!>       the value on arbitrary points in real space
+!> \param nme_env to get the shift tensor and the list of additional points
+!> \param particle_set for the atomic position
+!> \param cell to take into account the pbs, and to have the volume
+!> \param shift_pw_rspace specific component of the shift tensor on the pw grid
+!> \param i_B component of the magnetic field for which the shift is calculated (row)
+!> \param idir component of the vector \int_{r}[ ((r-r') x j(r))/|r-r'|^3 ] = Bind(r')
+!> \author MI
+! *****************************************************************************
   SUBROUTINE interpolate_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_rspace,&
        &                              i_B,idir,nmr_section,error)
 
@@ -577,7 +546,6 @@ CONTAINS
       CPPostconditionNoFail(success,cp_warning_level,routineP,error)
       CALL pw_spline_precond_release(precond,error=error)
 
-
       CALL get_nmr_env(nmr_env=nmr_env, cs_atom_list=cs_atom_list,&
            chemical_shift=chemical_shift,&
            chemical_shift_nics=chemical_shift_nics,&
@@ -613,6 +581,7 @@ CONTAINS
 
   END SUBROUTINE interpolate_shift_pwgrid
 
+! *****************************************************************************
   SUBROUTINE gsum_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_gspace,&
        &                       i_B,idir,nmr_section,error)
     TYPE(nmr_env_type)                       :: nmr_env
@@ -673,6 +642,7 @@ CONTAINS
     ENDIF
   END SUBROUTINE gsum_shift_pwgrid
 
+! *****************************************************************************
   FUNCTION gsumr(r,pw)
     REAL(dp), INTENT(IN)                     :: r(3)
     TYPE(pw_type), POINTER                   :: pw
@@ -692,35 +662,21 @@ CONTAINS
     CALL mp_sum(gsumr,grid%para%group)
   END FUNCTION gsumr
 
-!!****f* qs_linres_nmr_shift%mult_G_ov_G2_grid
-!!
-!!  NAME
-!!      mult_G_ov_G2_grid
-!!
-!!  FUNCTION
-!!      Given the current density on the PW grid in reciprcal space
-!!      (obtained by FFT), calculate the integral
-!!        \int_{r}[ ((r-r') x j(r))/|r-r'|^3 ] = Bind(r')
-!!      which in reciprcal space reads  (for G/=0)
-!!         i G/|G|^2 x J(G)
-!!
-!!  ARGUMENTS
-!!
-!!  NOTES
-!!     The G=0 component is not comnputed here, but can be evaluated
-!!     through the susceptibility and added to the shift in a second time
-!!
-!!     This method would not work for a non periodic system
-!!     It should be generalized like the calculation of Hartree
-!!
-!!  AUTHOR
-!!    MI
-!!
-!!*** **********************************************************************
-
-
+! *****************************************************************************
+!> \brief Given the current density on the PW grid in reciprcal space
+!>       (obtained by FFT), calculate the integral
+!>         \int_{r}[ ((r-r') x j(r))/|r-r'|^3 ] = Bind(r')
+!>       which in reciprcal space reads  (for G/=0)
+!>          i G/|G|^2 x J(G)
+!> \note
+!>      The G=0 component is not comnputed here, but can be evaluated
+!>      through the susceptibility and added to the shift in a second time
+!> 
+!>      This method would not work for a non periodic system
+!>      It should be generalized like the calculation of Hartree
+!> \author MI
+! *****************************************************************************
   SUBROUTINE  mult_G_ov_G2_grid(cell,pw_pool,rho_gspace,funcG_times_rho,idir,my_chi,error)
-
 
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
@@ -766,28 +722,12 @@ CONTAINS
   END SUBROUTINE  mult_G_ov_G2_grid
 
 ! *****************************************************************************
-!!****f* qs_linres_nmr_shift%nmr_print_shift
-!!
-!!  NAME
-!!      nmr_print_shift
-!!
-!!  FUNCTION
-!!      Shielding tensor and Chi are printed into a file
-!!      if required from input
-!!      It is possible to print only for a subset of atoms or
-!!      or points in non-ionic positions
-!!
-!!  ARGUMENTS
-!!
-!!  NOTES
-!!
-!!
-!!  AUTHOR
-!!    MI
-!!
-!!*** **********************************************************************
-
-
+!> \brief Shielding tensor and Chi are printed into a file
+!>       if required from input
+!>       It is possible to print only for a subset of atoms or
+!>       or points in non-ionic positions
+!> \author MI
+! *****************************************************************************
   SUBROUTINE nmr_print_shift(nmr_env,qs_env,nmr_section,error)
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1112,6 +1052,4 @@ CONTAINS
   END SUBROUTINE nmr_print_shift
 
 END MODULE qs_linres_nmr_shift
-
-
 

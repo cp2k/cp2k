@@ -3,25 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_cp2k_motion *
-!!
-!!   NAME
-!!     input_cp2k_motion
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     teo & fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 split input_cp2k into smaller modules [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \par History
+!>      10.2005 split input_cp2k into smaller modules [fawzi]
+!> \author teo & fawzi
+! *****************************************************************************
 MODULE input_cp2k_motion
   USE bibliography,                    ONLY: Byrd1995,&
                                              Evans1983,&
@@ -65,29 +51,15 @@ PUBLIC :: create_motion_section,&
           create_band_section
 
 !***
-!****************************************************************************
 CONTAINS
 
-!!****f* input_cp2k/create_motion_section *
-!!
-!!   NAME
-!!     create_motion_section
-!!
-!!   FUNCTION
-!!     creates the motion section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the motion section
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_motion_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -362,26 +334,13 @@ CONTAINS
 
   END SUBROUTINE create_motion_section
 
-!!****f* input_cp2k/create_mc_section *
-!!
-!!   NAME
-!!     create_mc_section
-!!
-!!   FUNCTION
-!!     creates the Monte Carlo section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the Monte Carlo section
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_mc_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -731,26 +690,13 @@ CONTAINS
 
   END SUBROUTINE create_mc_section
 
-!!****f* input_cp2k/create_geoopt_section *
-!!
-!!   NAME
-!!     create_geoopt_section
-!!
-!!   FUNCTION
-!!     creates the geometry optimization section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the geometry optimization section
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   RECURSIVE SUBROUTINE create_geoopt_section(section,label,description,just_optimizers,error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*), INTENT(IN)             :: label, description
@@ -876,26 +822,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_geoopt_section
 
-!!****f* input_cp2k_motion/create_ts_section *
-!!
-!!   NAME
-!!     create_ts_section
-!!
-!!   FUNCTION
-!!     creates the section for tuning transition states search
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - University of Zurich - 01.2008
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the section for tuning transition states search
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
+! *****************************************************************************
   SUBROUTINE create_ts_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -982,26 +915,13 @@ CONTAINS
 
   END SUBROUTINE create_ts_section
 
-!!****f* input_cp2k_motion/create_bfgs_section *
-!!
-!!   NAME
-!!     create_bfgs_section
-!!
-!!   FUNCTION
-!!     creates the BFGS section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - University of Zurich - 01.2008
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the BFGS section
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
+! *****************************************************************************
   SUBROUTINE create_bfgs_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1046,26 +966,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_bfgs_section
 
-!!****f* input_cp2k_motion/create_cg_section *
-!!
-!!   NAME
-!!     create_cg_section
-!!
-!!   FUNCTION
-!!     creates the CG section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - University of Zurich - 01.2008
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the CG section
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
+! *****************************************************************************
   SUBROUTINE create_cg_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1170,26 +1077,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_cg_section
 
-!!****f* input_cp2k_motion/create_lbfgs_section *
-!!
-!!   NAME
-!!     create_lbfgs_section
-!!
-!!   FUNCTION
-!!     creates the LBFGS section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - University of Zurich - 01.2008
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the LBFGS section
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
+! *****************************************************************************
   SUBROUTINE create_lbfgs_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1248,26 +1142,13 @@ CONTAINS
 
   END SUBROUTINE create_lbfgs_section
 
-!!****f* input_cp2k/create_fp_section *
-!!
-!!   NAME
-!!     create_fp_section
-!!
-!!   FUNCTION
-!!     creates the flexible_partitioning section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Joost VandeVondele [04.2006]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the flexible_partitioning section
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Joost VandeVondele [04.2006]
+! *****************************************************************************
   SUBROUTINE create_fp_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1368,26 +1249,12 @@ CONTAINS
 
   END SUBROUTINE create_fp_section
 
-!!****f* input_cp2k/create_md_section *
-!!
-!!   NAME
-!!     create_md_section
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: will contain the md section 
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param section will contain the md section 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE create_md_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1621,34 +1488,19 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)        
 
-
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection, error=error)
 
     END IF
   END SUBROUTINE create_md_section
 
-!***************************************************************************
-!!****f* input_cp2k/create_respa_section *
-!!
-!!   NAME
-!!     create_respa_section
-!!
-!!   FUNCTION
-!!     Defines parameters for RESPA integration scheme
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: will contain the coeff section 
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Defines parameters for RESPA integration scheme
+!> \param section will contain the coeff section 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_respa_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1685,29 +1537,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_respa_section
 
-
-
-!***************************************************************************
-!!****f* input_cp2k/create_reftraj_section *
-!!
-!!   NAME
-!!     create_reftraj_section
-!!
-!!   FUNCTION
-!!     Defines parameters for REFTRAJ analysis
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: will contain the coeff section 
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Defines parameters for REFTRAJ analysis
+!> \param section will contain the coeff section 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_reftraj_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1804,27 +1640,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_reftraj_section
 
-!***************************************************************************
-!!****f* input_cp2k/create_MSD_section *
-!!
-!!   NAME
-!!     create_msd_section
-!!
-!!   FUNCTION
-!!     Defines parameters for MSD calculation along a REFTRAJ analysis
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: will contain the coeff section 
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Defines parameters for MSD calculation along a REFTRAJ analysis
+!> \param section will contain the coeff section 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author MI
+! *****************************************************************************
   SUBROUTINE create_msd_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1857,7 +1679,6 @@ CONTAINS
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
 
        CALL keyword_create(keyword, name="REF0_FILENAME",&
             description="Specify the filename where the initial reference configuration is stored.",&
@@ -1896,27 +1717,12 @@ CONTAINS
 
   END SUBROUTINE create_msd_section
 
-!***************************************************************************
-!!****f* input_cp2k/create_msst_section *
-!!
-!!   NAME
-!!     create_msst_section
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: will contain the coeff section 
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param section will contain the coeff section 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_msst_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1986,27 +1792,12 @@ CONTAINS
     END IF
   END SUBROUTINE create_msst_section
 
-!***************************************************************************
-!!****f* input_cp2k/create_coeff_section *
-!!
-!!   NAME
-!!     create_coeff_section
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: will contain the coeff section 
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param section will contain the coeff section 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_coeff_section(coeff_section, error)
     TYPE(section_type), POINTER              :: coeff_section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2067,7 +1858,6 @@ CONTAINS
        CALL section_add_subsection(coeff_section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-
        CALL keyword_create(keyword=keyword,name="temperature",&
              description="Target temperature for the KG-POL coeffs",&
              default_r_val=cp_unit_to_cp2k(value=1.0_dp,unit_str="K",error=error),&
@@ -2109,26 +1899,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_coeff_section
 
-!!****f* input_cp2k_motion/create_pint_section *
-!!
-!!   NAME
-!!     create_pint_section
-!!
-!!   FUNCTION
-!!     creates the section for a path integral run
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: will contain the pint section
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the section for a path integral run
+!> \param section will contain the pint section
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE create_pint_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2343,28 +2120,14 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_pint_section
-!***************************************************************************
 
-!!****f* input_cp2k_motion/create_band_section *
-!!
-!!   NAME
-!!     create_band_section
-!!
-!!   FUNCTION
-!!     creates the section for a BAND run
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: will contain the pint section
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006 [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the section for a BAND run
+!> \param section will contain the pint section
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino 09.2006 [tlaino]
+! *****************************************************************************
   SUBROUTINE create_band_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2551,27 +2314,14 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_band_section
-!***************************************************************************
-!!****f* input_cp2k_motion/create_opt_band_section *
-!!
-!!   NAME
-!!     create_opt_band_section
-!!
-!!   FUNCTION
-!!     creates the optimization section for a BAND run
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: will contain the pint section
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino 02.2007 [tlaino]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief creates the optimization section for a BAND run
+!> \param section will contain the pint section
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino 02.2007 [tlaino]
+! *****************************************************************************
   SUBROUTINE create_opt_band_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2767,27 +2517,12 @@ CONTAINS
     END IF
   END SUBROUTINE create_opt_band_section
   
-!***************************************************************************
-!!****f* input_cp2k/create_shell_section *
-!!
-!!   NAME
-!!     create_shell_section
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: will contain some parameters for the shells dynamics
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param section will contain some parameters for the shells dynamics
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_shell_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error

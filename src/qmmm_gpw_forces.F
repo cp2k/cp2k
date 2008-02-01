@@ -3,28 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qmmm_gpw_forces [1.0] *
-!!
-!!   NAME
-!!     qmmm_gpw_forces
-!!
-!!   FUNCTION
-!!     Routines to compute energy and forces in a QM/MM calculation
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created [tlaino]
-!!
-!!
-!!   SOURCE
-!****************************************************************************
-
+! *****************************************************************************
+!> \brief Routines to compute energy and forces in a QM/MM calculation
+!> \par History
+!>      05.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
 MODULE qmmm_gpw_forces
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
@@ -100,27 +84,13 @@ MODULE qmmm_gpw_forces
 
 CONTAINS
 
-!!****f* qmmm_gpw_forces/qmmm_forces [1.0] *
-!!
-!!   NAME
-!!     qmmm_forces
-!!
-!!   FUNCTION
-!!     General driver to Compute the contribution
-!!     to the forces due to the QM/MM potential
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 created [tlaino]
-!!
-!!*************************************************************************
+! *****************************************************************************
+!> \brief General driver to Compute the contribution
+!>      to the forces due to the QM/MM potential
+!> \par History
+!>      06.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_forces(qs_env,qmmm_env,mm_particles,calc_force,mm_cell,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
@@ -350,28 +320,14 @@ CONTAINS
 
   END SUBROUTINE qmmm_forces
 
-!!****f* qmmm_gpw_forces/qmmm_forces_with_gaussian [1.0] *
-!!
-!!   NAME
-!!     qmmm_forces_with_gaussian
-!!
-!!   FUNCTION
-!!     Evaluates the contribution to the forces due to the
-!!     QM/MM potential computed collocating the Electrostatic
-!!     Gaussian Potential.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 created [tlaino]
-!!
-!!*************************************************************************
+! *****************************************************************************
+!> \brief Evaluates the contribution to the forces due to the
+!>      QM/MM potential computed collocating the Electrostatic
+!>      Gaussian Potential.
+!> \par History
+!>      06.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_forces_with_gaussian(rho, qmmm_env, mm_particles,  &
        aug_pools, auxbas_grid, coarser_grid, cube_info, para_env,    &
        eps_mm_rspace, pw_pools, Forces, Forces_added_charges,        &
@@ -533,28 +489,14 @@ CONTAINS
 
   END SUBROUTINE qmmm_forces_with_gaussian
 
-!!****f* qmmm_gpw_forces/qmmm_force_with_gaussian_low [1.0] *
-!!
-!!   NAME
-!!     qmmm_force_with_gaussian_low
-!!
-!!   FUNCTION
-!!     Evaluates the contribution to the forces due to the
-!!     QM/MM potential computed collocating the Electrostatic
-!!     Gaussian Potential. Low Level
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 created [tlaino]
-!!
-!!*************************************************************************
+! *****************************************************************************
+!> \brief Evaluates the contribution to the forces due to the
+!>      QM/MM potential computed collocating the Electrostatic
+!>      Gaussian Potential. Low Level
+!> \par History
+!>      06.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_force_with_gaussian_low(grids, mm_particles,&
        mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
        cube_info, para_env, eps_mm_rspace, auxbas_grid, &
@@ -728,29 +670,14 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_force_with_gaussian_low
 
-
-!!****f* qmmm_gpw_forces/qmmm_forces_with_gaussian_LG [1.0] *
-!!
-!!   NAME
-!!     qmmm_forces_with_gaussian_LG
-!!
-!!   FUNCTION
-!!     Evaluates the contribution to the forces due to the Long Range
-!!     part of the QM/MM potential computed collocating the Electrostatic
-!!     Gaussian Potential.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2004 created [tlaino]
-!!
-!!*************************************************************************
+! *****************************************************************************
+!> \brief Evaluates the contribution to the forces due to the Long Range
+!>      part of the QM/MM potential computed collocating the Electrostatic
+!>      Gaussian Potential.
+!> \par History
+!>      08.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_forces_with_gaussian_LG  (pgfs,cgrid,num_mm_atoms,mm_charges,mm_atom_index,&
                                             mm_particles,mm_el_pot_radius,para_env,&
                                             coarser_grid_level,Forces, per_potentials,&
@@ -1136,28 +1063,14 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_forces_with_gaussian_LG
 
-!!****f* qmmm_gpw_forces/qmmm_forces_with_gaussian_LR [1.0] *
-!!
-!!   NAME
-!!     qmmm_forces_with_gaussian_LR
-!!
-!!   FUNCTION
-!!     Evaluates the contribution to the forces due to the Long Range
-!!     part of the QM/MM potential computed collocating the Electrostatic
-!!     Gaussian Potential.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2004 created [tlaino]
-!!
-!!*************************************************************************
+! *****************************************************************************
+!> \brief Evaluates the contribution to the forces due to the Long Range
+!>      part of the QM/MM potential computed collocating the Electrostatic
+!>      Gaussian Potential.
+!> \par History
+!>      08.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_forces_with_gaussian_LR  (pgfs,cgrid,num_mm_atoms,mm_charges,mm_atom_index,&
                                             mm_particles,mm_el_pot_radius,para_env,&
                                             coarser_grid_level,Forces, potentials,&
@@ -1316,28 +1229,14 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_forces_with_gaussian_LR
 
-!!****f* qmmm_gpw_forces/qmmm_debug_forces [1.0] *
-!!
-!!   NAME
-!!     qmmm_debug_forces
-!!
-!!   FUNCTION
-!!     Evaluates numerically QM/MM forces and compares them with
-!!     the analytically computed ones.
-!!     It is evaluated only when debug_this_module is set to .TRUE.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2004 created [tlaino]
-!!
-!!*************************************************************************
+! *****************************************************************************
+!> \brief Evaluates numerically QM/MM forces and compares them with
+!>      the analytically computed ones.
+!>      It is evaluated only when debug_this_module is set to .TRUE.
+!> \par History
+!>      08.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_debug_forces(rho,qs_env,qmmm_env,Analytical_Forces,&
                                mm_particles,mm_atom_index,num_mm_atoms,&
                                Potentials,interp_section,mm_cell,error)
@@ -1474,27 +1373,12 @@ CONTAINS
 100 FORMAT(I5,2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ")
   END SUBROUTINE qmmm_debug_forces
 
-
-!!****f* qmmm_gpw_forces/debug_integrate_gf_rspace_NoPBC [1.0] *
-!!
-!!   NAME
-!!     debug_integrate_gf_rspace_NoPBC
-!!
-!!   FUNCTION
-!!     Debugs the integrate_gf_rspace_NoPBC.. It may helps ;-P
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2004 created [tlaino]
-!!
-!!*************************************************************************
+! *****************************************************************************
+!> \brief Debugs the integrate_gf_rspace_NoPBC.. It may helps ;-P
+!> \par History
+!>      08.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE debug_integrate_gf_rspace_NoPBC(ilevel, zetp, rp, scale, W, pwgrid, cube_info,&
                                              eps_mm_rspace, aug_pools, debug_force,&
                                              mm_cell,auxbas_grid, n_rep_real, iw, error)
@@ -1603,26 +1487,12 @@ CONTAINS
 100 FORMAT("Collocation   : ",I5,2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ")
   END SUBROUTINE debug_integrate_gf_rspace_NoPBC
 
-!!****f* qmmm_gpw_forces/debug_qmmm_forces_with_gauss_LG [1.0] *
-!!
-!!   NAME
-!!     debug_qmmm_forces_with_gauss_LG
-!!
-!!   FUNCTION
-!!     Debugs qmmm_forces_with_gaussian_LG.. It may helps too ... ;-]
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2004 created [tlaino]
-!!
-!!*************************************************************************
+! *****************************************************************************
+!> \brief Debugs qmmm_forces_with_gaussian_LG.. It may helps too ... ;-]
+!> \par History
+!>      08.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE debug_qmmm_forces_with_gauss_LG(pgfs,aug_pools, rho, mm_charges, mm_atom_index,&
                                              mm_particles, mm_el_pot_radius, num_mm_atoms,&
                                              coarser_grid_level, per_potentials,&
@@ -1728,26 +1598,12 @@ CONTAINS
 100 FORMAT("MM Atom LR    : ",I5,2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ")
   END SUBROUTINE debug_qmmm_forces_with_gauss_LG
 
-!!****f* qmmm_gpw_forces/debug_qmmm_forces_with_gauss_LR [1.0] *
-!!
-!!   NAME
-!!     debug_qmmm_forces_with_gauss_LR
-!!
-!!   FUNCTION
-!!     Debugs qmmm_forces_with_gaussian_LR.. It may helps too ... ;-]
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2004 created [tlaino]
-!!
-!!*************************************************************************
+! *****************************************************************************
+!> \brief Debugs qmmm_forces_with_gaussian_LR.. It may helps too ... ;-]
+!> \par History
+!>      08.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE debug_qmmm_forces_with_gauss_LR(pgfs,aug_pools, rho, mm_charges, mm_atom_index,&
                                              mm_particles, mm_el_pot_radius, num_mm_atoms,&
                                              coarser_grid_level, potentials,&
@@ -1852,6 +1708,5 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 100 FORMAT("MM Atom LR    : ",I5,2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ")
   END SUBROUTINE debug_qmmm_forces_with_gauss_LR
-
 
 END MODULE qmmm_gpw_forces

@@ -3,28 +3,15 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****m* cp2k/qs_linres_nmr_current *
-!!
-!!   NAME
-!!     qs_linres_nmr_current
-!!
-!!   FUNCTION
-!!     given the response wavefunctions obtained by the application
-!!     of the (rxp), p, and ((dk-dl)xp) operators,
-!!     here the current density vector (jx, jy, jz)
-!!     is computed for the 3 directions of the magnetic field (Bx, By, Bz)
-!!
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     created 02-2006 [MI]
-!!
-!!   SOURCE
-!!****
-
+! *****************************************************************************
+!> \brief given the response wavefunctions obtained by the application
+!>      of the (rxp), p, and ((dk-dl)xp) operators,
+!>      here the current density vector (jx, jy, jz)
+!>      is computed for the 3 directions of the magnetic field (Bx, By, Bz)
+!> \par History
+!>      created 02-2006 [MI]
+!> \author MI
+! *****************************************************************************
 MODULE qs_linres_nmr_atom_current
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -93,31 +80,15 @@ MODULE qs_linres_nmr_atom_current
   ! *** Global parameters (only in this module)
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_atom_current'
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
-!!****f* cp2k/qs_linres_nmr_atom_current/calculate_jrho_atom_coeff!!
-!!   NAME
-!!     calculate_jrho_atom_coeff
-!!
-!!   FUNCTION
-!!     Calculate the expansion coefficients for the atomic terms
-!!     of the current densitiy in GAPW
-!!
-!!   NOTES
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     07.2006 created [MI]
-!!
-!****************************************************************************
-
+!> \brief Calculate the expansion coefficients for the atomic terms
+!>      of the current densitiy in GAPW
+!> \par History
+!>      07.2006 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE calculate_jrho_atom_coeff(qs_env,nmr_env,mat_jp0,mat_jp,mat_jp_pii,&
        &                               mat_jp_piii,iB,idir,error)
     !
@@ -637,7 +608,6 @@ CONTAINS
   END SUBROUTINE calculate_jrho_atom_coeff
 
 ! *****************************************************************************
-
   SUBROUTINE calculate_jrho_atom_rad(qs_env,nmr_env,IB,idir,error)
     !
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1112,7 +1082,6 @@ CONTAINS
   END SUBROUTINE calculate_jrho_atom_rad
 
 ! *****************************************************************************
-
   SUBROUTINE shift_atom(qs_env,nmr_env,iB,idir,error)
     !
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1381,7 +1350,6 @@ CONTAINS
   END SUBROUTINE shift_atom
 
 ! *****************************************************************************
-
   SUBROUTINE calculate_jrho_atom_ang(jrho1_atom,jrho_h,jrho_s,grid_atom,&
        &                             harmonics,iB,idir,ispin,error)
     !
@@ -1513,27 +1481,14 @@ CONTAINS
   END SUBROUTINE calculate_jrho_atom_ang
 
 ! *****************************************************************************
-!!****f* cp2k/qs_linres_nmr_atom_current/list_3c_jrho_atom
-!!   NAME
-!!    list_3c_jrho_atom
-!!
-!!   FUNCTION
-!!     Prepare the 3 center lists used to cpmpute the atomic terms of the current density
-!!     New lists need to be constructed because the density matrices
-!!     are not symmetric, hence, the ij and the ji pairs  are not equivalent and both
-!!     need to be considered
-!!
-!!
-!!   NOTES
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     07.2006 created [MI]
-!!
-!****************************************************************************
-
+!> \brief Prepare the 3 center lists used to cpmpute the atomic terms of the current density
+!>      New lists need to be constructed because the density matrices
+!>      are not symmetric, hence, the ij and the ji pairs  are not equivalent and both
+!>      need to be considered
+!> \par History
+!>      07.2006 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE list_3c_jrho_atom(qs_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1728,5 +1683,4 @@ CONTAINS
     !
   END SUBROUTINE list_3c_jrho_atom
 
-! *****************************************************************************
 END MODULE qs_linres_nmr_atom_current

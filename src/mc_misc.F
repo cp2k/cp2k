@@ -2,20 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/mc_misc [1.0] *
-!!
-!!   NAME
-!!     mc_misc
-!!
-!!   FUNCTION
-!!     contains miscellaneous subroutines used in the Monte Carlo runs,
-!!     mostly I/O stuff
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief contains miscellaneous subroutines used in the Monte Carlo runs,
+!>      mostly I/O stuff
+!> \author MJM
+! *****************************************************************************
 MODULE mc_misc
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -90,31 +82,16 @@ MODULE mc_misc
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_misc'
 
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** mc_misc.F/mc_averages_create*
-!!
-!!   NAME
-!!     mc_averages_create
-!!
-!!   FUNCTION
-!!     initializes the structure that holds running averages of MC variables
-!!
-!!   ARGUMENTS
-!!     - averages: the mc_averages strucutre you want to initialize
-!!
-!!   Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief initializes the structure that holds running averages of MC variables
+!> \param averages the mc_averages strucutre you want to initialize
+!> 
+!>    Suitable for parallel.
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE mc_averages_create ( averages  )
-
 
     TYPE(mc_averages_type), POINTER          :: averages
 
@@ -141,30 +118,16 @@ SUBROUTINE mc_averages_create ( averages  )
 ! end the timing
        CALL timestop(0.0E0_dp,handle)
 
-
 END SUBROUTINE mc_averages_create
 
-!******************************************************************************
-!!****** mc_misc.F/mc_averages_release
-!!
-!!   NAME
-!!     mc_averages_release
-!!
-!!   FUNCTION
-!!     deallocates the structure that holds running averages of MC variables
-!!
-!!   ARGUMENTS
-!!     - averages: the mc_averages strucutre you want to release
-!!
-!!   Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief deallocates the structure that holds running averages of MC variables
+!> \param averages the mc_averages strucutre you want to release
+!> 
+!>    Suitable for parallel.
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE mc_averages_release ( averages  )
-
 
     TYPE(mc_averages_type), POINTER          :: averages
 
@@ -188,39 +151,25 @@ SUBROUTINE mc_averages_release ( averages  )
 ! end the timing
        CALL timestop(0.0E0_dp,handle)
 
-
 END SUBROUTINE mc_averages_release
 
-!******************************************************************************
-!!****s* mc_misc.F/final_mc_write
-!!
-!!   NAME
-!!     final_mc_write
-!!
-!!   FUNCTION
-!!     writes a bunch of simulation data to the specified unit
-!!
-!!   ARGUMENTS
-!!     - mc_par: the mc parameters for the simulation
-!!     - moves: the structure that holds data on how many moves are
-!!              accepted/rejected
-!!     - iw: the unit to write to
-!!     - energy_check: the sum of the energy changes of each move
-!!     - initial_energy: the initial unbiased energy of the system
-!!     - final_energy: the final unbiased energy of the system
-!!     - averages: the structure that holds computed average properites for
-!!              the simulation
-!!
-!!   Only use in serial.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief writes a bunch of simulation data to the specified unit
+!> \param mc_par the mc parameters for the simulation
+!> \param moves the structure that holds data on how many moves are
+!>               accepted/rejected
+!> \param iw the unit to write to
+!> \param energy_check the sum of the energy changes of each move
+!> \param initial_energy the initial unbiased energy of the system
+!> \param final_energy the final unbiased energy of the system
+!> \param averages the structure that holds computed average properites for
+!>               the simulation
+!> 
+!>    Only use in serial.
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE final_mc_write (mc_par,all_moves,iw,energy_check,initial_energy,&
                            final_energy,averages)
-
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
@@ -443,8 +392,6 @@ SUBROUTINE final_mc_write (mc_par,all_moves,iw,energy_check,initial_energy,&
 
        ENDDO
 
-
-
 ! see if the energies add up properly
     IF(ABS(initial_energy+energy_check-final_energy) .GT. 0.0000001E0_dp) &
          THEN
@@ -460,9 +407,9 @@ SUBROUTINE final_mc_write (mc_par,all_moves,iw,energy_check,initial_energy,&
 ! end the timing
     CALL timestop(0.0E0_dp,handle)
 
-
 END SUBROUTINE final_mc_write
 
+! *****************************************************************************
 SUBROUTINE final_move_write(move_data,string1,string2,iw,string3,&
      format_string,lbias,displacement)
 
@@ -509,32 +456,20 @@ SUBROUTINE final_move_write(move_data,string1,string2,iw,string3,&
 
 END SUBROUTINE final_move_write
 
-
-!******************************************************************************
-!!****s* mc_misc.F/mc_make_dat_file
-!!
-!!   NAME
-!!     mc_make_dat_file
-!!
-!!   FUNCTION
-!!     writes a new input file that CP2K can read in for when we want
-!!     to change a force env (change molecules or cell length)
-!!
-!!   ARGUMENTS
-!!     - coordinates: the coordiantes of the atoms in the force_env (a.u.)
-!!     - natoms_tot: the total number of atoms
-!!     - box_length: the length of all sides of the simulation box (angstrom)
-!!     - filename: the name of the file to write to
-!!     - force_env: the force environment that holds the parameters needed
-!!                  to write on the file
-!!     - fft_lib: the FFT library we're using (FFTW,FFTSG)
-!!
-!!   Only use in serial.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
+! *****************************************************************************
+!> \brief writes a new input file that CP2K can read in for when we want
+!>      to change a force env (change molecules or cell length)
+!> \param coordinates the coordiantes of the atoms in the force_env (a.u.)
+!> \param natoms_tot the total number of atoms
+!> \param box_length the length of all sides of the simulation box (angstrom)
+!> \param filename the name of the file to write to
+!> \param force_env the force environment that holds the parameters needed
+!>                   to write on the file
+!> \param fft_lib the FFT library we're using (FFTW,FFTSG)
+!> 
+!>    Only use in serial.
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       force_env,fft_lib,print_level,error)
 
@@ -698,7 +633,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          WRITE(unit,10000) "      &END EWALD"
          WRITE(unit,10000) "    &END POISSON"
 
-
 ! rcut
          CALL fist_nonbond_env_get (fist_nonbond_env, potparm=potparm,error=error)
 
@@ -845,7 +779,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          DEALLOCATE(atom_c_done)
          DEALLOCATE(atom_d_done)
 
-
 ! nonbonded...only works for LJ at the moment
          WRITE(unit,10000) "      &NONBONDED"
          DO itype=1,SIZE(potparm%pot,1)
@@ -869,7 +802,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          WRITE(unit,10000) "      &END NONBONDED"
          WRITE(unit,10000) "    &END FORCEFIELD"
          WRITE(unit,10000) "  &END MM"
-
 
       CASE ( use_qs_force )
          WRITE(unit,10000) "  &DFT"
@@ -985,7 +917,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          ENDIF
       ENDIF
       WRITE(unit,10000) '    &END CELL'
-
 
 ! write out the coordinate information...currently only works for
 ! single component systems
@@ -1117,38 +1048,27 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 
 END SUBROUTINE mc_make_dat_file
 
-!******************************************************************************
-!!****s* mc_misc.F/mc_make_dat_file
-!!
-!!   NAME
-!!     mc_make_dat_file
-!!
-!!   FUNCTION
-!!     writes a new input file that CP2K can read in for when we want
-!!     to change a force env (change molecule number)...this is much simpler
-!!     than the version I had used to have, and also more flexible (in a way).
-!!     It assumes that &CELL comes before &COORDS, and &COORDS comes before
-!!     &TOPOLOGY, and &TOPOLOGY comes before &GLOBAL (which comes before MC).
-!!     It also assumes that you use &MOL_SET in &TOPOLOGY.  Still, many fewer
-!!     assumptions than before.
-!!
-!!     box_length and coordinates should be passed in a.u.
-!!
-!!   ARGUMENTS
-!!     - coordinates: the coordiantes of the atoms in the force_env (a.u.)
-!!     - natoms_tot: the total number of atoms
-!!     - box_length: the length of all sides of the simulation box (angstrom)
-!!     - filename: the name of the file to write to
-!!     - force_env: the force environment that holds the parameters needed
-!!                  to write on the file
-!!     - fft_lib: the FFT library we're using (FFTW,FFTSG)
-!!
-!!   Only use in serial.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
+! *****************************************************************************
+!> \brief writes a new input file that CP2K can read in for when we want
+!>      to change a force env (change molecule number)...this is much simpler
+!>      than the version I had used to have, and also more flexible (in a way).
+!>      It assumes that &CELL comes before &COORDS, and &COORDS comes before
+!>      &TOPOLOGY, and &TOPOLOGY comes before &GLOBAL (which comes before MC).
+!>      It also assumes that you use &MOL_SET in &TOPOLOGY.  Still, many fewer
+!>      assumptions than before.
+!> 
+!>      box_length and coordinates should be passed in a.u.
+!> \param coordinates the coordiantes of the atoms in the force_env (a.u.)
+!> \param natoms_tot the total number of atoms
+!> \param box_length the length of all sides of the simulation box (angstrom)
+!> \param filename the name of the file to write to
+!> \param force_env the force environment that holds the parameters needed
+!>                   to write on the file
+!> \param fft_lib the FFT library we're using (FFTW,FFTSG)
+!> 
+!>    Only use in serial.
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE mc_make_dat_file_new(coordinates,atom_names,nunits_tot,&
      box_length,filename,nchains,mc_input_file)
 
@@ -1177,7 +1097,6 @@ SUBROUTINE mc_make_dat_file_new(coordinates,atom_names,nunits_tot,&
                                                 mol_set_nmol_row
     REAL(dp), DIMENSION(:, :), POINTER       :: coordinates_empty
 
-!*************************************************************************
 ! open the file
 
       CALL open_file(file_name=filename,unit_number=unit,&
@@ -1209,7 +1128,6 @@ SUBROUTINE mc_make_dat_file_new(coordinates,atom_names,nunits_tot,&
          WRITE(unit,'(A)') TRIM(text(iline))
       ENDDO      
     
-      
 ! we may pass nunits_tot=0, but we should still have coordinates
       IF(nunits_tot == 0) THEN
          DO iunit=1,nunits_empty
@@ -1266,9 +1184,6 @@ SUBROUTINE mc_make_dat_file_new(coordinates,atom_names,nunits_tot,&
 ! close the file
       CALL close_file(unit_number=unit)
 
-
     END SUBROUTINE MC_MAKE_DAT_FILE_NEW
 END MODULE mc_misc
-
-!******************************************************************************
 

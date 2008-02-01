@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/kg_diis_types [1.0] *
-!!
-!!   NAME
-!!     kg_diis_types
-!!
-!!   FUNCTION
-!!     buffer for the diis of the scf for the KG_GPW method
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     12.2004 
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief buffer for the diis of the scf for the KG_GPW method
+!> \par History
+!>      12.2004 
+!> \author MI
+! *****************************************************************************
 MODULE kg_diis_types
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE f77_blas
@@ -45,8 +31,7 @@ MODULE kg_diis_types
   PUBLIC :: allocate_diis_block, get_mol_diis_set, init_mol_diis_set,&
             kg_diis_b_retain, kg_diis_b_release, set_mol_diis_set
 
-!****************************************************************************
-
+! *****************************************************************************
   TYPE mol_diis_block_type
      TYPE(cp_2d_r_p_type), DIMENSION(:,:), POINTER :: ks_buffer    
      TYPE(cp_2d_r_p_type), DIMENSION(:,:), POINTER :: er_buffer    
@@ -54,11 +39,13 @@ MODULE kg_diis_types
      REAL(dp), DIMENSION(:,:), POINTER             :: b_buffer    
   END TYPE mol_diis_block_type
 
+! *****************************************************************************
   TYPE mol_diis_buffer_set_type
     INTEGER :: nmol_global, nmol_local
     TYPE(mol_diis_block_type) , DIMENSION(:), POINTER :: mol_diis_block
   END TYPE mol_diis_buffer_set_type
 
+! *****************************************************************************
   TYPE kg_diis_buffer_type
     INTEGER                                          :: id_nr,nbuffer,&
                                                         ncall,nspins,ref_count
@@ -66,38 +53,22 @@ MODULE kg_diis_types
        POINTER                                       :: mol_diis_buffer_set
   END TYPE kg_diis_buffer_type
 
-
+! *****************************************************************************
   TYPE kg_diis_buffer_p_type
     TYPE(kg_diis_buffer_type), DIMENSION(:), POINTER :: kg_diis_buffer
   END TYPE kg_diis_buffer_p_type
 
-!****************************************************************************
-
 CONTAINS
 
-!!****f* kg_diis_types/kg_diis_b_retain [1.0] *
-!!
-!!   NAME
-!!     kg_diis_b_retain
-!!
-!!   FUNCTION
-!!     retains a diis buffer (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - diis_buffer: the buffer to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     12.2003 created 
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains a diis buffer (see doc/ReferenceCounting.html)
+!> \param diis_buffer the buffer to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2003 created 
+!> \author MI
+! *****************************************************************************
   SUBROUTINE kg_diis_b_retain(diis_buffer,error)
 
     TYPE(kg_diis_buffer_type), POINTER       :: diis_buffer
@@ -118,31 +89,15 @@ CONTAINS
  
   END SUBROUTINE kg_diis_b_retain
 
-!***************************************************************************
-
-!!****f* kg_diis_types/kg_diis_b_release [1.0] *
-!!
-!!   NAME
-!!     kg_diis_b_release
-!!
-!!   FUNCTION
-!!     releases a diis buffer (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - diis_buffer: the buffer to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     12.2003 created 
-!!
-!!*************************************************************************
+! *****************************************************************************
+!> \brief releases a diis buffer (see doc/ReferenceCounting.html)
+!> \param diis_buffer the buffer to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2003 created 
+!> \author MI
+! *****************************************************************************
   SUBROUTINE kg_diis_b_release(diis_buffer,error)
 
     TYPE(kg_diis_buffer_type), POINTER       :: diis_buffer
@@ -192,7 +147,7 @@ CONTAINS
 
   END SUBROUTINE kg_diis_b_release
 
-!***************************************************************************
+! *****************************************************************************
   SUBROUTINE get_mol_diis_set(mol_diis_buffer_set,mol_diis_block,imol,&
                               mol_diis_iblock,error)
 
@@ -220,7 +175,7 @@ CONTAINS
 
   END SUBROUTINE get_mol_diis_set
 
-!***************************************************************************
+! *****************************************************************************
   SUBROUTINE allocate_diis_block(mol_diis_buffer_set,nmol_global,nmol_local,error)
 
     TYPE(mol_diis_buffer_set_type), POINTER  :: mol_diis_buffer_set
@@ -249,8 +204,7 @@ CONTAINS
 
   END SUBROUTINE allocate_diis_block
 
-!***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE init_mol_diis_set(mol_diis_buffer_set,nmol_kind,error)
 
     TYPE(mol_diis_buffer_set_type), &
@@ -274,8 +228,7 @@ CONTAINS
 
   END SUBROUTINE init_mol_diis_set
 
-!***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE set_mol_diis_set(mol_diis_buffer_set,nmol_global,nmol_local,&
                               mol_diis_block)
 
@@ -297,8 +250,7 @@ CONTAINS
 
   END SUBROUTINE set_mol_diis_set
 
-!***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE distroy_mol_diis_block(mol_diis_block)
 
     TYPE(mol_diis_block_type), &
@@ -355,8 +307,7 @@ CONTAINS
 
   END SUBROUTINE distroy_mol_diis_block
 
-!***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE init_mol_diis_block(mol_diis_buffer_set,nmol_local,error)
 
     TYPE(mol_diis_buffer_set_type), POINTER  :: mol_diis_buffer_set
@@ -386,8 +337,4 @@ CONTAINS
 
   END SUBROUTINE init_mol_diis_block
 
-!***************************************************************************
-
-!***************************************************************************
 END MODULE kg_diis_types
-!***************************************************************************

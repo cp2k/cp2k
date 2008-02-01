@@ -2,39 +2,26 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/ai_overlap_ppl [1.0] *
-!!
-!!   NAME
-!!     ai_overlap_ppl
-!!
-!!   FUNCTION
-!!     Calculation of three-center overlap integrals over Cartesian
-!!     Gaussian-type functions for the second term V(ppl) of the local
-!!     part of the Goedecker pseudopotential (GTH):
-!!
-!!     <a|V(local)|b> = <a|V(erf) + V(ppl)|b>
-!!                    = <a|V(erf)|b> + <a|V(ppl)|b>
-!!                    = <a|-Z(eff)*erf(SQRT(2)*alpha*r)/r +
-!!                      (C1 + C2*(alpha*r)**2 + C3*(alpha*r)**4 +
-!!                       C4*(alpha*r)**6)*exp(-(alpha*r)**2/2))|b>
-!!
-!!   AUTHOR
-!!     Matthias Krack (04.10.2000)
-!!
-!!   LITERATURE
-!!     S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
-!!     S. Goedecker, M. Teter and J. Hutter, Phys. Rev. B 54, 1703 (1996)
-!!     C. Hartwigsen, S. Goedecker and J. Hutter, Phys. Rev. B 58, 3641 (1998)
-!!
-!!   MODIFICATION HISTORY
-!!     - Derivatives added (17.05.2002,MK)
-!!
-!!   SOURCE
-!******************************************************************************
-
-MODULE ai_overlap_ppl
 
 ! *****************************************************************************
+!> \brief Calculation of three-center overlap integrals over Cartesian
+!>      Gaussian-type functions for the second term V(ppl) of the local
+!>      part of the Goedecker pseudopotential (GTH):
+!> 
+!>      <a|V(local)|b> = <a|V(erf) + V(ppl)|b>
+!>                     = <a|V(erf)|b> + <a|V(ppl)|b>
+!>                     = <a|-Z(eff)*erf(SQRT(2)*alpha*r)/r +
+!>                       (C1 + C2*(alpha*r)**2 + C3*(alpha*r)**4 +
+!>                        C4*(alpha*r)**6)*exp(-(alpha*r)**2/2))|b>
+!> \par Literature
+!>      S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
+!>      S. Goedecker, M. Teter and J. Hutter, Phys. Rev. B 54, 1703 (1996)
+!>      C. Hartwigsen, S. Goedecker and J. Hutter, Phys. Rev. B 58, 3641 (1998)
+!> \par History
+!>      - Derivatives added (17.05.2002,MK)
+!> \author Matthias Krack (04.10.2000)
+! *****************************************************************************
+MODULE ai_overlap_ppl
 
 ! ax,ay,az   : Angular momentum index numbers of orbital a.
 ! bx,by,bz   : Angular momentum index numbers of orbital b.
@@ -53,8 +40,6 @@ MODULE ai_overlap_ppl
 ! zetg       : Reciprocal of the sum of the exponents of orbital a, b and c.
 ! zetp       : Reciprocal of the sum of the exponents of orbital a and b.
 
-! *****************************************************************************
-
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
@@ -72,13 +57,9 @@ MODULE ai_overlap_ppl
 
   PUBLIC :: overlap_ppl
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE overlap_ppl(la_max_set,la_min_set,npgfa,rpgfa,zeta,&
                          lb_max_set,lb_min_set,npgfb,rpgfb,zetb,&
                          cexp_ppl,zetc,rpgfc,&
@@ -95,8 +76,6 @@ CONTAINS
 !                                C4*(alpha*r)**6)*exp(-(alpha*r)**2/2))|b>
 
 !   History: - Creation (04.10.2000, Matthias Krack)
-
-!   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: la_max_set, la_min_set, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa, zeta
@@ -1308,7 +1287,5 @@ CONTAINS
     END DO
 
   END SUBROUTINE overlap_ppl
-
-! *****************************************************************************
 
 END MODULE ai_overlap_ppl

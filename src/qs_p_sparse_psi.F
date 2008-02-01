@@ -3,27 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qs_p_sparse_psi [1.0] *
-!!
-!!   NAME
-!!     qs_p_sparse_psi
-!!
-!!   FUNCTION
-!!     utilities to represent orbitals that are localized on few atoms
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!     11.2002 updated and checked [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief utilities to represent orbitals that are localized on few atoms
+!> \par History
+!>      07.2002 created [fawzi]
+!>      11.2002 updated and checked [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE qs_p_sparse_psi
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
@@ -47,111 +33,51 @@ MODULE qs_p_sparse_psi
   PUBLIC :: p_proj_create, p_proj_retain, p_proj_release, &
        p_proj_transfer_blacs_to_f, p_proj_restrain_f
 !***
-!****************************************************************************
 
-!!****s* qs_p_sparse_psi/qs_p_projection_type [1.0] *
-!!
-!!   NAME
-!!     qs_p_projection_type
-!!
-!!   FUNCTION
-!!     represent a simple projection that involves orbitals from a small
-!!     group of atoms
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - atoms: array with the indexes of the atoms that form this group
-!!     - proj_indexes: the mapping between the indexes of the reduced
-!!       vectors and the full vectors
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief represent a simple projection that involves orbitals from a small
+!>      group of atoms
+!> \param atoms array with the indexes of the atoms that form this group
+!> \param proj_indexes the mapping between the indexes of the reduced
+!>        vectors and the full vectors
+!> \par History
+!>      07.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE qs_p_projection_type
      INTEGER, DIMENSION(:), POINTER :: atoms
      INTEGER, DIMENSION(:), POINTER :: proj_indexes
      INTEGER :: ref_count, id_nr
   END TYPE qs_p_projection_type
-!!***
-  !****************************************************************************
 
-!!****s* qs_p_sparse_psi/qs_p_projection_p_type [1.0] *
-!!
-!!   NAME
-!!     qs_p_projection_p_type
-!!
-!!   FUNCTION
-!!     to be able to build array of pointers to projections
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - projection: the projection in this object
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2002 created [fawzi]
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief to be able to build array of pointers to projections
+!> \param projection the projection in this object
+!> \par History
+!>      11.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE qs_p_projection_p_type
      TYPE(qs_p_projection_type), POINTER :: projection
   END TYPE qs_p_projection_p_type
-!!***
-  !****************************************************************************
 
 CONTAINS
 
-!!****f* qs_p_sparse_psi/p_proj_create [1.0] *
-!!
-!!   NAME
-!!     p_proj_create
-!!
-!!   SYNOPSIS
-!!     Subroutine p_proj_create(p_proj, atoms, proj_indexes, particle_set,&
-!!         error)
-!!       Type(qs_p_projection_type), Pointer:: p_proj
-!!       Integer, Dimension(:), Intent (IN):: atoms
-!!       Integer, Dimension(:), Intent (IN), Optional:: proj_indexes
-!!       Type(particle_type), Dimension(:), Intent (IN), Optional::&
-!!         particle_set
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine p_proj_create
-!!
-!!   FUNCTION
-!!     allocates and initializes a qs_p_projection_type
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - p_proj: the projection to initialize
-!!     - atoms: the atoms that are part of the projection group.
-!!     - proj_indexes: the (global) indexes of the ao that are part of the
-!!       projection. If not given then particle_set must be given and it
-!!       defaults to all the ones of the atoms.
-!!     - particle_set: the particle set from where to extract the indexes
-!!       of the ao
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief allocates and initializes a qs_p_projection_type
+!> \param p_proj the projection to initialize
+!> \param atoms the atoms that are part of the projection group.
+!> \param proj_indexes the (global) indexes of the ao that are part of the
+!>        projection. If not given then particle_set must be given and it
+!>        defaults to all the ones of the atoms.
+!> \param particle_set the particle set from where to extract the indexes
+!>        of the ao
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      07.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE p_proj_create(p_proj, atoms, proj_indexes, particle_set, error)
     TYPE(qs_p_projection_type), POINTER      :: p_proj
     INTEGER, DIMENSION(:), INTENT(in)        :: atoms
@@ -224,38 +150,17 @@ SUBROUTINE p_proj_create(p_proj, atoms, proj_indexes, particle_set, error)
      p_proj%ref_count=1
   END IF
 END SUBROUTINE p_proj_create
-!***************************************************************************
 
-!!****f* qs_p_sparse_psi/p_proj_retain [1.0] *
-!!
-!!   NAME
-!!     p_proj_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine p_proj_retain(p_proj, error)
-!!       Type(qs_p_projection_type), Pointer:: p_proj
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine p_proj_retain
-!!
-!!   FUNCTION
-!!     augments the retain count by one, to be called to hold a shared copy
-!!     of this object
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - p_proj: the projection to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief augments the retain count by one, to be called to hold a shared copy
+!>      of this object
+!> \param p_proj the projection to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      07.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE p_proj_retain(p_proj, error)
     TYPE(qs_p_projection_type), POINTER      :: p_proj
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -275,38 +180,17 @@ SUBROUTINE p_proj_retain(p_proj, error)
      p_proj%ref_count=p_proj%ref_count+1
   END IF
 END SUBROUTINE p_proj_retain
-!***************************************************************************
 
-!!****f* qs_p_sparse_psi/p_proj_release [1.0] *
-!!
-!!   NAME
-!!     p_proj_release
-!!
-!!   SYNOPSIS
-!!     Subroutine p_proj_release(p_proj, error)
-!!       Type(qs_p_projection_type), Pointer:: p_proj
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine p_proj_release
-!!
-!!   FUNCTION
-!!     decreases the retain count by one, deleting the objecs when it hits 0.
-!!     To be called when you no longer need a shared copy you retained
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - p_proj: the projection to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief decreases the retain count by one, deleting the objecs when it hits 0.
+!>      To be called when you no longer need a shared copy you retained
+!> \param p_proj the projection to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      07.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE p_proj_release(p_proj, error)
     TYPE(qs_p_projection_type), POINTER      :: p_proj
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -333,50 +217,25 @@ SUBROUTINE p_proj_release(p_proj, error)
      END IF
   END IF
 END SUBROUTINE p_proj_release
-!***************************************************************************
 
-!!****f* qs_p_sparse_psi/p_proj_transfer_blacs_to_f [1.0] *
-!!
-!!   NAME
-!!     p_proj_transfer_blacs_to_f
-!!
-!!   SYNOPSIS
-!!     Subroutine p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
-!!         start_col_full, start_col_min, ncol, error)
-!!       Type(qs_p_projection_type), Pointer:: p_proj
-!!       Type(cp_fm_type), Pointer:: min_m, full_m
-!!       Integer, Intent (IN), Optional:: start_col_min, start_col_full,&
-!!         ncol
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine p_proj_transfer_blacs_to_f
-!!
-!!   FUNCTION
-!!     injects the columns of a blacs matrix of the minimal system
-!!     into the full basis:
-!!     full_m= i min_m
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - p_proj: the projection that defines the injection
-!!     - min_m: the full matrix in the reduced basis
-!!     - full_m: the full matrix in the full basis that gets the new
-!!       values
-!!     - start_col: the column of full_m at which the first column of
-!!       (i min_m) will be written (defaults to 1)
-!!     - ncol: number of columns to set (defaults to all the columns of
-!!       min_m
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief injects the columns of a blacs matrix of the minimal system
+!>      into the full basis:
+!>      full_m= i min_m
+!> \param p_proj the projection that defines the injection
+!> \param min_m the full matrix in the reduced basis
+!> \param full_m the full matrix in the full basis that gets the new
+!>        values
+!> \param start_col the column of full_m at which the first column of
+!>        (i min_m) will be written (defaults to 1)
+!> \param ncol number of columns to set (defaults to all the columns of
+!>        min_m
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      07.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
      start_col_full, start_col_min, ncol, error)
     TYPE(qs_p_projection_type), POINTER      :: p_proj
@@ -451,43 +310,22 @@ SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
   
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE p_proj_transfer_blacs_to_f
-!***************************************************************************
 
-!!****f* qs_p_sparse_psi/p_proj_restrain_f [1.0] *
-!!
-!!   NAME
-!!     p_proj_restrain_f
-!!
-!!   SYNOPSIS
-!!     Subroutine p_proj_restrain_f(p_proj, full_m, start_col, ncol, error)
-!!       Type(qs_p_projection_type), Pointer:: p_proj
-!!       Type(cp_fm_type), Pointer:: full_m
-!!       Integer, Intent (IN), Optional:: start_col, ncol
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine p_proj_restrain_f
-!!
-!!   FUNCTION
-!!     restrains the requested columns of the full matrix to the space
-!!     of the minimal basis, i.e. computes:
-!!     full_m(:,start_col:star_col+ncol) = i pi full_m(:,start_col:star_col+ncol)
-!!
-!!   NOTES
-!!     keep_row could easily reduced to (min(proj_indexes):max(proj_indexes))
-!!
-!!   ARGUMENTS
-!!     - full_m: the matrix in the full basis to be restrained
-!!     - start_col: the first column to restrain (defaults to 1)
-!!     - ncol: number of columns to restrain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     03.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief restrains the requested columns of the full matrix to the space
+!>      of the minimal basis, i.e. computes:
+!>      full_m(:,start_col:star_col+ncol) = i pi full_m(:,start_col:star_col+ncol)
+!> \param full_m the matrix in the full basis to be restrained
+!> \param start_col the first column to restrain (defaults to 1)
+!> \param ncol number of columns to restrain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      keep_row could easily reduced to (min(proj_indexes):max(proj_indexes))
+!> \par History
+!>      03.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol, error)
     TYPE(qs_p_projection_type), POINTER      :: p_proj
     TYPE(cp_fm_type), POINTER                :: full_m
@@ -551,6 +389,5 @@ SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol, error)
   
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE p_proj_restrain_f
-!***************************************************************************
 
 END MODULE qs_p_sparse_psi

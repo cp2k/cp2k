@@ -3,36 +3,26 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/xc_derivative_desc [1.0] *
-!!
-!!   NAME
-!!     xc_derivative_desc
-!!
-!!   FUNCTION
-!!     Module with functions to handle derivative descriptors.
-!!     derivative description are strings have the following form
-!!     "(rho)(rho)(rhoa)" which means that it is a forth order
-!!     derivative, twice with respect to rho, once with respect to rhoa
-!!     and once with respect to drhoa.
-!!     Possible derivatives are:
-!!     - rho: total density
-!!     - norm_drho: norm of the gradient of the total density
-!!     - rhoa, rhob: alpha and beta spin density (with LSD)
-!!     - norm_drhoa, norm_drhob: norm of the gradient of the alpha and beta
-!!       spin density
-!!     - drhoa_drhob: scalar product between the gradient of rhoa and the
-!!       grandient of rhob
-!!     - tau: the local kinetic part
-!!     - taua, taub: the kinetic part of the different spins
-!!
-!!   AUTHOR
-!!     thomas & fawzi
-!!
-!!   NOTES
-!!      add drhox, drhoy, drhoz, drhoax,...?
-!!
-!!****
+! *****************************************************************************
+!> \brief Module with functions to handle derivative descriptors.
+!>      derivative description are strings have the following form
+!>      "(rho)(rho)(rhoa)" which means that it is a forth order
+!>      derivative, twice with respect to rho, once with respect to rhoa
+!>      and once with respect to drhoa.
+!>      Possible derivatives are:
+!>      - rho: total density
+!>      - norm_drho: norm of the gradient of the total density
+!>      - rhoa, rhob: alpha and beta spin density (with LSD)
+!>      - norm_drhoa, norm_drhob: norm of the gradient of the alpha and beta
+!>        spin density
+!>      - drhoa_drhob: scalar product between the gradient of rhoa and the
+!>        grandient of rhob
+!>      - tau: the local kinetic part
+!>      - taua, taub: the kinetic part of the different spins
+!> \note
+!>       add drhox, drhoy, drhoz, drhoax,...?
+!> \author thomas & fawzi
+! *****************************************************************************
 MODULE xc_derivative_desc
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -57,25 +47,15 @@ MODULE xc_derivative_desc
             standardize_derivative_desc, &
             create_split_derivative_desc
 
-!****************************************************************************
-
 CONTAINS
 
-!!****f* xc_derivative_types/standardize_derivative_desc *
-!!
-!!   NAME
-!!     standardize_derivative_desc
-!!
-!!   FUNCTION
-!!     returns a unique string for a given derivative string
-!!
-!!   ARGUMENTS
-!!     - deriv_desc: input string which describes the derivative and
-!!                   should be standardized
-!!     - error     : variable to control error logging, stopping,... 
-!!                   see module cp_error_handling 
-!!
-!!****
+! *****************************************************************************
+!> \brief returns a unique string for a given derivative string
+!> \param deriv_desc input string which describes the derivative and
+!>                    should be standardized
+!> \param error variable to control error logging, stopping,... 
+!>                    see module cp_error_handling 
+! *****************************************************************************
  SUBROUTINE standardize_derivative_desc(deriv_desc,res,error)
     CHARACTER(len=*), INTENT(in)             :: deriv_desc
     CHARACTER&
@@ -120,20 +100,12 @@ CONTAINS
 
   END SUBROUTINE standardize_derivative_desc
 
-!!****f* xc_derivative_types/create_split_derivative_desc [1.0] *
-!!
-!!   NAME
-!!     create_split_derivative_desc
-!!
-!!   FUNCTION
-!!     returns an array of 1st order derivative descriptions
-!!
-!!   ARGUMENTS
-!!     - deriv_desc: input string which describes the derivative
-!!     - error     : variable to control error logging, stopping,... 
-!!                   see module cp_error_handling 
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief returns an array of 1st order derivative descriptions
+!> \param deriv_desc input string which describes the derivative
+!> \param error variable to control error logging, stopping,... 
+!>                    see module cp_error_handling 
+! *****************************************************************************
   SUBROUTINE create_split_derivative_desc(deriv_desc,res,error)
     CHARACTER(len=*), INTENT(in)             :: deriv_desc
     CHARACTER(len=MAX_LABEL_LENGTH), &
@@ -169,7 +141,5 @@ CONTAINS
     END DO
     
   END SUBROUTINE create_split_derivative_desc
-
-! *****************************************************************************
 
 END MODULE xc_derivative_desc

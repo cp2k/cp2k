@@ -2,22 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/csvr_system_dynamics [1.0] *
-!!
-!!   NAME
-!!     csvr_system_dynamics
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     10.2007 [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
+! *****************************************************************************
 MODULE csvr_system_dynamics
  
   USE atomic_kind_types,               ONLY: atomic_kind_type
@@ -57,27 +45,11 @@ MODULE csvr_system_dynamics
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'csvr_system_dynamics'
 
-!!*****
-!******************************************************************************
 CONTAINS
 
-!******************************************************************************
-!!****** csvr_system_dynamics/csvr_coeffs [1.0] *
-!!
-!!   NAME
-!!     csvr_coeffs
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!    10.2007 [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!   CREATION DATE
-!!    
-!!   MODIFICATION HISTORY
-!!    
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE csvr_coeffs ( csvr, dyn_coeff_set, group, error )
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
@@ -116,23 +88,9 @@ CONTAINS
 
   END SUBROUTINE csvr_coeffs
 
-!******************************************************************************
-!!****** csvr_system_dynamics/csvr_barostat [1.0] *
-!!
-!!   NAME
-!!     csvr_barostat
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     10.2007 [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!   CREATION DATE
-!!    
-!!   MODIFICATION HISTORY
-!!     
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE csvr_barostat ( csvr, npt, group, error )
 
     TYPE(csvr_system_type), POINTER          :: csvr
@@ -171,23 +129,9 @@ CONTAINS
     CALL timestop(flops,handle)
   END SUBROUTINE csvr_barostat
 
-!******************************************************************************
-!!****** csvr_system_dynamics/csvr_particles [1.0] *
-!!
-!!   NAME
-!!     csvr_particles
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     10.2007 [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!   CREATION DATE
-!!     
-!!   MODIFICATION HISTORY
-!!     
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE csvr_particles( csvr, molecule_kind_set, molecule_set,  &
        particle_set, local_molecules, group, shell_adiabatic,&
        shell_particle_set, core_particle_set, vel, shell_vel, core_vel,&
@@ -243,23 +187,9 @@ CONTAINS
     CALL timestop(flops,handle)
   END SUBROUTINE csvr_particles
 
-!******************************************************************************
-!!****** csvr_system_dynamics/csvr_shell_set [1.0] *
-!!
-!!   NAME
-!!    csvr_shell_set 
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!    10.2007 [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!   CREATION DATE
-!!     
-!!   MODIFICATION HISTORY
-!!     
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE csvr_shells(csvr, atomic_kind_set, particle_set, local_particles, &
        group, shell_particle_set, core_particle_set, vel, shell_vel, core_vel,&
        error)
@@ -308,23 +238,9 @@ CONTAINS
     CALL timestop(flops,handle)
   END SUBROUTINE csvr_shells
 
-!******************************************************************************
-!!****** csvr_system_dynamics/do_csvr [1.0] *
-!!
-!!   NAME
-!!    do_csvr
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!    10.2007 [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!   CREATION DATE
-!!     
-!!   MODIFICATION HISTORY
-!!     
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE do_csvr(csvr, map_info, error)
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(map_info_type), POINTER             :: map_info
@@ -354,23 +270,9 @@ CONTAINS
 
   END SUBROUTINE do_csvr
 
-!******************************************************************************
-!!****** csvr_system_dynamics/do_csvr_eval_energy [1.0] *
-!!
-!!   NAME
-!!    do_csvr_eval_energy
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!    10.2007 [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!   CREATION DATE
-!!     
-!!   MODIFICATION HISTORY
-!!     
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE do_csvr_eval_energy(csvr, map_info, error)
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(map_info_type), POINTER             :: map_info

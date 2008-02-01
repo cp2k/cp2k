@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/spme [1.0] *
-!!
-!!   NAME
-!!     spme
-!!
-!!   FUNCTION
-!!     Calculate the electrostatic energy by the Smooth Particle Ewald method
-!!
-!!   AUTHOR
-!!     JGH (21-Mar-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (03-May-2001) : first correctly working version
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Calculate the electrostatic energy by the Smooth Particle Ewald method
+!> \par History
+!>      JGH (03-May-2001) : first correctly working version
+!> \author JGH (21-Mar-2001)
+! *****************************************************************************
 MODULE spme
 
   USE atomic_kind_types,               ONLY: get_atomic_kind
@@ -79,26 +69,13 @@ MODULE spme
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'spme'
 
-!!***
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** spme/spme_evaluate [1.0] *
-!!
-!!   NAME
-!!     spme_evaluate
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     JGH (21-Mar-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (03-May-2001) : SPME with charge definition
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \par History
+!>      JGH (03-May-2001) : SPME with charge definition
+!> \author JGH (21-Mar-2001)
+! *****************************************************************************
   SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
        fg_coulomb, vg_coulomb, pv_g, force_env_section,shell_particle_set,&
        core_particle_set, fgshell_coulomb, fgcore_coulomb, use_virial, error )
@@ -389,21 +366,12 @@ CONTAINS
 
   END SUBROUTINE spme_evaluate
 
-!!****** spme/get_patch [1.0] *
-!!
-!!   NAME
-!!     get_patch
-!!
-!!   FUNCTION
-!!     Calculates local density in a small box
-!!
-!!   AUTHOR
-!!     JGH (21-Mar-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Calculates local density in a small box
+!> \par History
+!>      none
+!> \author JGH (21-Mar-2001)
+! *****************************************************************************
   SUBROUTINE get_patch ( part, box, green, npts, p, rhos, is_core, is_shell, unit_charge )
 
     TYPE(particle_type), DIMENSION(:), &
@@ -448,22 +416,12 @@ CONTAINS
 
   END SUBROUTINE get_patch
 
-!******************************************************************************
-!!****** spme/spme_get_patch [1.0] *
-!!
-!!   NAME
-!!     spme_get_patch
-!!
-!!   FUNCTION
-!!     Calculates SPME charge assignment
-!!
-!!   AUTHOR
-!!     JGH (22-Mar-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     DG (29-Mar-2001) : code implemented
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Calculates SPME charge assignment
+!> \par History
+!>      DG (29-Mar-2001) : code implemented
+!> \author JGH (22-Mar-2001)
+! *****************************************************************************
   SUBROUTINE spme_get_patch ( rhos, n, delta, q, coeff )
 
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -527,22 +485,7 @@ CONTAINS
 
   END SUBROUTINE spme_get_patch
 
-!******************************************************************************
-!!****** spme/get_delta [1.0] *
-!!
-!!   NAME
-!!     get_delta
-!!
-!!   FUNCTION
-!!     
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!    
-!!
-!!*** *************************************************************************
+! *****************************************************************************
   SUBROUTINE get_delta ( box, r, npts, delta, n )
 
     TYPE(cell_type), POINTER                 :: box
@@ -585,4 +528,3 @@ CONTAINS
 
 END MODULE spme
 
-!******************************************************************************

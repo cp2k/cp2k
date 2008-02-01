@@ -2,22 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****s* cp2k/qs_operators_ao   [1.0] *
-!!
-!!   NAME
-!!      qs_operators_ao
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     MI (07.2005)
-!!
-!!   MODIFICATION HISTORY
-!!     created 07.2005
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      created 07.2005
+!> \author MI (07.2005)
+! *****************************************************************************
 MODULE qs_operators_ao
 
   USE ai_angmom,                       ONLY: angmom
@@ -62,39 +52,22 @@ MODULE qs_operators_ao
 
   PUBLIC :: p_xyz_ao, rmc_x_p_xyz_ao, rRc_xyz_ao, rRc_xyz_der_ao, set_up_op_sm
 
-!****************************************************************************
-
 CONTAINS
 
-!***************************************************************************
-!!****f* qs_operators_ao/p_xyz_ao [1.0] *
-!!
-!!   NAME
-!!     p_xyz_op
-!!
-!!   FUNCTION
-!!     Calculation of the components of the dipole operator in the velocity form
-!!     The elements of the  sparse matrices are the integrals in the
-!!     basis functions
-!!
-!!   NOTES
-!!
-!!   ARGUMENTS
-!!     - op_sm: matrix representation of the p operator
-!!              calculated in terms of the contracted basis functions
-!!     - qs_env: enviroment for the lists and the basis sets
-!!     - minimum_image : take into account only the first neighbors in the lists
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 created [MI]
-!!
-!!***  *********************************************************************
-
+! *****************************************************************************
+!> \brief Calculation of the components of the dipole operator in the velocity form
+!>      The elements of the  sparse matrices are the integrals in the
+!>      basis functions
+!> \param op_sm matrix representation of the p operator
+!>               calculated in terms of the contracted basis functions
+!> \param qs_env enviroment for the lists and the basis sets
+!> \param minimum_image take into account only the first neighbors in the lists
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      06.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE p_xyz_ao(op_sm,qs_env,minimum_image,error)
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -215,7 +188,6 @@ CONTAINS
       ldsa = SIZE(sphi_a,1)
       DO jkind=1,nkind
 
-
         atomic_kind => atomic_kind_set(jkind)
 
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -234,7 +206,6 @@ CONTAINS
                                set_radius=set_radius_b,&
                                sphi=sphi_b,&
                                zet=zetb)
-
 
         iab = ikind + nkind*(jkind - 1)
         ldsb = SIZE(sphi_b,1)
@@ -370,7 +341,6 @@ CONTAINS
                           SIZE(op_dip(1)%block,1))
                    END IF
 
-
 !            *** Contraction ***
                    CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
                         alpha,difab(1,1,2),ldab,sphi_b(1,sgfb),ldsb,&
@@ -410,7 +380,6 @@ CONTAINS
 
               END DO ! jset
 
-
             END DO ! iset
 
             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
@@ -440,42 +409,26 @@ CONTAINS
 
   END SUBROUTINE p_xyz_ao
 
-
-!***************************************************************************
-!!****f* qs_operators_ao/rmc_x_p_xyz_ao [1.0] *
-!!
-!!   NAME
-!!     rmc_x_p_xyz_op
-!!
-!!   FUNCTION
-!!     Calculation of the components of the (r-c)xp operator
-!!     where p is the gradient and c is the center of the primitive
-!!     function multiplied from the .
-!!     The resulting sparse matrix is not symmetric, therefore all_pair
-!!     lists are used, which contain the either ab and ba
-!!     The center c will be the position of
-!!     iatom and the position of jatom respectively.
-!!     The elements of the  sparse matrices are the integrals in the
-!!     basis functions
-!!
-!!   NOTES
-!!
-!!   ARGUMENTS
-!!     - op_sm: matrix representation of the (r-c)xp operator
-!!              in terms of the contracted basis functions
-!!     - qs_env: enviroment for the lists and the basis sets
-!!     - minimum_image : take into account only the first neighbors in the lists
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 created [MI]
-!!
-!!***  *********************************************************************
-
+! *****************************************************************************
+!> \brief Calculation of the components of the (r-c)xp operator
+!>      where p is the gradient and c is the center of the primitive
+!>      function multiplied from the .
+!>      The resulting sparse matrix is not symmetric, therefore all_pair
+!>      lists are used, which contain the either ab and ba
+!>      The center c will be the position of
+!>      iatom and the position of jatom respectively.
+!>      The elements of the  sparse matrices are the integrals in the
+!>      basis functions
+!> \param op_sm matrix representation of the (r-c)xp operator
+!>               in terms of the contracted basis functions
+!> \param qs_env enviroment for the lists and the basis sets
+!> \param minimum_image take into account only the first neighbors in the lists
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      06.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE rmc_x_p_xyz_ao(op_sm,qs_env,minimum_image,wancen,error)
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -596,7 +549,6 @@ CONTAINS
       ldsa = SIZE(sphi_a,1)
       DO jkind=1,nkind
 
-
         atomic_kind => atomic_kind_set(jkind)
 
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -615,7 +567,6 @@ CONTAINS
                                set_radius=set_radius_b,&
                                sphi=sphi_b,&
                                zet=zetb)
-
 
         iab = ikind + nkind*(jkind - 1)
         ldsb = SIZE(sphi_b,1)
@@ -647,7 +598,6 @@ CONTAINS
 !$OMP shared(wancen)
         ithread = 0
 !$      ithread = omp_get_thread_num()
-
 
         angab => angabt(:,:,:,ithread)
         work  => workt(:,:,ithread)
@@ -712,7 +662,6 @@ CONTAINS
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
             dab = SQRT(rab2)
 
-
             DO iset=1,nseta
 
               ncoa = npgfa(iset)*ncoset(la_max(iset))
@@ -757,17 +706,9 @@ CONTAINS
                           SIZE(op_angij(i)%block,1))
                   END DO
 
-
-
-
-
-
-
-
                 END IF  !  >= dab
 
               END DO ! jset
-
 
             END DO ! iset
 
@@ -797,40 +738,25 @@ CONTAINS
 
   END SUBROUTINE rmc_x_p_xyz_ao
 
-!***************************************************************************
-!!****f* qs_operators_ao/rRc_xyz_ao [1.0] *
-!!
-!!   NAME
-!!     rRc_xyz_op
-!!
-!!   FUNCTION
-!!     Calculation of the components of the dipole operator in the length form
-!!     by taking the relative position operator r-Rc, with respect a reference point Rc
-!!     Probably it does not work for PBC, or maybe yes if the wfn are
-!!     sufficiently localized
-!!     The elements of the  sparse matrices are the integrals in the
-!!     basis functions
-!!
-!!   NOTES
-!!
-!!   ARGUMENTS
-!!     - op_sm: matrix representation of the p operator
-!!              calculated in terms of the contracted basis functions
-!!     - qs_env: enviroment for the lists and the basis sets
-!!     - rc: reference vector position
-!!     - order: maximum order of the momentum, for the doipole order = 1
-!!     - minimum_image : take into account only the first neighbors in the lists
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [MI]
-!!
-!!***  *********************************************************************
-
+! *****************************************************************************
+!> \brief Calculation of the components of the dipole operator in the length form
+!>      by taking the relative position operator r-Rc, with respect a reference point Rc
+!>      Probably it does not work for PBC, or maybe yes if the wfn are
+!>      sufficiently localized
+!>      The elements of the  sparse matrices are the integrals in the
+!>      basis functions
+!> \param op_sm matrix representation of the p operator
+!>               calculated in terms of the contracted basis functions
+!> \param qs_env enviroment for the lists and the basis sets
+!> \param rc reference vector position
+!> \param order maximum order of the momentum, for the doipole order = 1
+!> \param minimum_image take into account only the first neighbors in the lists
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      03.2006 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE rRc_xyz_ao(op_sm,qs_env,rc,order,minimum_image,soft,error)
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -978,7 +904,6 @@ CONTAINS
                                set_radius=set_radius_b,&
                                sphi=sphi_b,&
                                zet=zetb)
-
 
         iab = ikind + nkind*(jkind - 1)
         ldsb = SIZE(sphi_b,1)
@@ -1154,61 +1079,46 @@ CONTAINS
 
   END SUBROUTINE   rRc_xyz_ao
 
-!***************************************************************************
-!!****f* qs_operators_ao/rRc_xyz_der_ao [1.0] *
-!!
-!!   NAME
-!!     rRc_xyz_der_op
-!!
-!!   FUNCTION
-!!     Calculation of the  multipole operators integrals
-!!     and of its derivatives of the type
-!!     [\mu | op | d(\nu)/dR(\nu)]-[d(\mu)/dR(\mu)| op | \nu]
-!!     by taking the relative position operator r-Rc, with respect a reference point Rc
-!!     The derivative are with respect to the primitive position,
-!!     The multipole operator is symmetric and if it does not depend on R(\mu) or R(\nu)
-!!     therefore  [\mu | op | d(\nu)/dR(\nu)] = -[d(\mu)/dR(\mu)| op | \nu]
-!!       [\mu|op|d(\nu)/dR]-[d(\mu)/dR|op|\nu]=2[\mu|op|d(\nu)/dR]
-!!     When it is not the case a correction term is needed
-!!
-!!    The momentum operator [\mu|M|\nu] is symmetric, the number of components is
-!!    detrermined by the order: 3 for order 1 (x,y,x), 9 for order 2(xx,xy,xz,yy,yz,zz)
-!!    The derivative of the type [\mu | op | d(\nu)/dR_i(\nu)], where
-!!    i indicates the cartesian direction, is antisymmetric only when
-!!    the no component M =(r_i) or (r_i r_j) is in the same cartesian
-!!    direction of the derivative,  indeed
-!!  d([\mu|M|\nu])/dr_i = [d(\mu)/dr_i|M|\nu] + [\mu|M|d(\nu)/dr_i] + [\mu |d(M)/dr_i|\nu]
-!!  d([\mu|M|\nu])/dr_i = -[d(\mu)/dR_i(\mu)|M|\nu] -[\mu|M|d(\nu)/dR_i(\nu)] + [\mu |d(M)/dr_i|\nu]
-!!    Therefore we cannot use an antisymmetric matrix
-!!
-!!
-!!    The same holds for the derivative with respect to the electronic position r
-!!    taking into account that [\mu|op|d(\nu)/dR] = -[\mu|op|d(\nu)/dr]
-!!
-!!   NOTES
-!!     Probably it does not work for PBC, or maybe yes if the wfn are
-!!     sufficiently localized
-!!     The elements of the  sparse matrices are the integrals in the
-!!     basis functions
-!!
-!!   ARGUMENTS
-!!     - op_sm: matrix representation of the p operator
-!!              calculated in terms of the contracted basis functions
-!!     - qs_env: enviroment for the lists and the basis sets
-!!     - rc: reference vector position
-!!     - order: maximum order of the momentum, for the dipole order = 1
-!!     - minimum_image : take into account only the first neighbors in the lists
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [MI]
-!!
-!!***  *********************************************************************
-
+! *****************************************************************************
+!> \brief Calculation of the  multipole operators integrals
+!>      and of its derivatives of the type
+!>      [\mu | op | d(\nu)/dR(\nu)]-[d(\mu)/dR(\mu)| op | \nu]
+!>      by taking the relative position operator r-Rc, with respect a reference point Rc
+!>      The derivative are with respect to the primitive position,
+!>      The multipole operator is symmetric and if it does not depend on R(\mu) or R(\nu)
+!>      therefore  [\mu | op | d(\nu)/dR(\nu)] = -[d(\mu)/dR(\mu)| op | \nu]
+!>        [\mu|op|d(\nu)/dR]-[d(\mu)/dR|op|\nu]=2[\mu|op|d(\nu)/dR]
+!>      When it is not the case a correction term is needed
+!> 
+!>     The momentum operator [\mu|M|\nu] is symmetric, the number of components is
+!>     detrermined by the order: 3 for order 1 (x,y,x), 9 for order 2(xx,xy,xz,yy,yz,zz)
+!>     The derivative of the type [\mu | op | d(\nu)/dR_i(\nu)], where
+!>     i indicates the cartesian direction, is antisymmetric only when
+!>     the no component M =(r_i) or (r_i r_j) is in the same cartesian
+!>     direction of the derivative,  indeed
+!>   d([\mu|M|\nu])/dr_i = [d(\mu)/dr_i|M|\nu] + [\mu|M|d(\nu)/dr_i] + [\mu |d(M)/dr_i|\nu]
+!>   d([\mu|M|\nu])/dr_i = -[d(\mu)/dR_i(\mu)|M|\nu] -[\mu|M|d(\nu)/dR_i(\nu)] + [\mu |d(M)/dr_i|\nu]
+!>     Therefore we cannot use an antisymmetric matrix
+!> 
+!>     The same holds for the derivative with respect to the electronic position r
+!>     taking into account that [\mu|op|d(\nu)/dR] = -[\mu|op|d(\nu)/dr]
+!> \param op_sm matrix representation of the p operator
+!>               calculated in terms of the contracted basis functions
+!> \param qs_env enviroment for the lists and the basis sets
+!> \param rc reference vector position
+!> \param order maximum order of the momentum, for the dipole order = 1
+!> \param minimum_image take into account only the first neighbors in the lists
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      Probably it does not work for PBC, or maybe yes if the wfn are
+!>      sufficiently localized
+!>      The elements of the  sparse matrices are the integrals in the
+!>      basis functions
+!> \par History
+!>      03.2006 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE rRc_xyz_der_ao(op_sm,op_sm_der,qs_env,rc,order,minimum_image,soft,error)
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -1547,7 +1457,6 @@ CONTAINS
                       nda = nda + ncoset(la_max(iset)+1)
                     END DO  ! ipgf
 
-
 !                 *** Contraction ***
                     CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
                         1.0_dp,mab(1,1,imom),ldab,sphi_b(1,sgfb),ldsb,&
@@ -1594,7 +1503,6 @@ CONTAINS
 
               END DO ! jset
 
-
             END DO ! iset
 
             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
@@ -1623,28 +1531,16 @@ CONTAINS
 
   END SUBROUTINE   rRc_xyz_der_ao
 
-!******************************************************************************
-!!****f* qs_operators_ao/set_up_op_sm
-!!
-!!   NAME
-!!     set_up_op_sm
-!!
-!!   FUNCTION
-!!     allocate a not symetric sparse matrix
-!!
-!!   NOTE
-!!     I am not sure this can really work
-!!     How is treated a non symmetric sparse matrix? How is it distributed
-!!     This routine can work only if the element ij and ji are on the same processor
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     07.2005 created [MI]
-!!
-!****************************************************************************
-
+! *****************************************************************************
+!> \brief allocate a not symetric sparse matrix
+!> \note
+!>      I am not sure this can really work
+!>      How is treated a non symmetric sparse matrix? How is it distributed
+!>      This routine can work only if the element ij and ji are on the same processor
+!> \par History
+!>      07.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE set_up_op_sm(matrix,qs_env,symmetry,name,error)
 
     TYPE(real_matrix_type), POINTER          :: matrix
@@ -1670,8 +1566,6 @@ CONTAINS
     TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-
-!******************************************************************************
 
     failure = .FALSE.
 
@@ -1700,7 +1594,6 @@ CONTAINS
     ALLOCATE (last_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-
     CALL get_particle_set(particle_set=particle_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf)
@@ -1723,7 +1616,6 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (last_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
 
     DO ikind=1,nkind
 

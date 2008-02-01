@@ -3,31 +3,19 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qs_wf_history_methods [1.0] *
-!!
-!!   NAME
-!!     qs_wf_history_methods
-!!
-!!   FUNCTION
-!!     Storage of past states of the qs_env.
-!!     Methods to interpolate (or actually normally extrapolate) the
-!!     new guess for density and wavefunctions.
-!!
-!!   NOTES
-!!     Most of the last snapshot should actually be in qs_env, but taking
-!!     advantage of it would make the programming much convoluted
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!     11.2003 Joost VandeVondele : Implemented Nth order PS extrapolation
-!!     02.2005 modified for KG_GPW [MI]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Storage of past states of the qs_env.
+!>      Methods to interpolate (or actually normally extrapolate) the
+!>      new guess for density and wavefunctions.
+!> \note
+!>      Most of the last snapshot should actually be in qs_env, but taking
+!>      advantage of it would make the programming much convoluted
+!> \par History
+!>      02.2003 created [fawzi]
+!>      11.2003 Joost VandeVondele : Implemented Nth order PS extrapolation
+!>      02.2005 modified for KG_GPW [MI]
+!> \author fawzi
+! *****************************************************************************
 MODULE qs_wf_history_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
@@ -117,40 +105,18 @@ MODULE qs_wf_history_methods
             wfs_duplicate_snapshot, wfs_copy_snapshot,&
             wfi_change_memory_depth
 
-!!***
-!****************************************************************************
 CONTAINS
 
-!!****f* qs_wf_history_methods/wfs_create [1.0] *
-!!
-!!   NAME
-!!     wfs_create
-!!
-!!   SYNOPSIS
-!!     Subroutine wfs_create(snapshot, error)
-!!       Type(qs_wf_snapshot_type), Pointer:: snapshot
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine wfs_create
-!!
-!!   FUNCTION
-!!     allocates and initialize a wavefunction snapshot
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - snapshot: the snapshot to create
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!     02.2005 added wf_mol [MI]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief allocates and initialize a wavefunction snapshot
+!> \param snapshot the snapshot to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!>      02.2005 added wf_mol [MI]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE wfs_create(snapshot, error)
     TYPE(qs_wf_snapshot_type), POINTER       :: snapshot
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -175,33 +141,17 @@ SUBROUTINE wfs_create(snapshot, error)
      snapshot%ref_count=1
   END IF
 END SUBROUTINE wfs_create
-!***************************************************************************
 
-!!****f* qs_wf_history_methods/wfs_duplicate_snapshot [1.0] *
-!!
-!!   NAME
-!!     wfs_duplicate_snapshot
-!!
-!!
-!!   FUNCTION
-!!     duplicates a single qs_wf_snapshot_type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - input_snapshot: the snapshot to be duplicated
-!!     - output_snapshot: the out coming duplicate
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 created [TdK]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief duplicates a single qs_wf_snapshot_type
+!> \param input_snapshot the snapshot to be duplicated
+!> \param output_snapshot the out coming duplicate
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2005 created [TdK]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE wfs_duplicate_snapshot(input_snapshot, output_snapshot, qs_env, error)
     TYPE(qs_wf_snapshot_type), POINTER       :: input_snapshot, &
                                                 output_snapshot
@@ -322,33 +272,17 @@ END SUBROUTINE wfs_create
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE wfs_duplicate_snapshot
-!***************************************************************************
 
-!!****f* qs_wf_history_methods/wfs_copy_snapshot [1.0] *
-!!
-!!   NAME
-!!     wfs_copy_snapshot
-!!
-!!
-!!   FUNCTION
-!!     copies a single qs_wf_snapshot_type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - input_snapshot: the snapshot to be copied
-!!     - output_snapshot: the out coming copy
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 created [TdK]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief copies a single qs_wf_snapshot_type
+!> \param input_snapshot the snapshot to be copied
+!> \param output_snapshot the out coming copy
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2005 created [TdK]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE wfs_copy_snapshot(input_snapshot, output_snapshot, qs_env, error)
     TYPE(qs_wf_snapshot_type), POINTER       :: input_snapshot, &
                                                 output_snapshot
@@ -458,35 +392,20 @@ END SUBROUTINE wfs_create
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE wfs_copy_snapshot
-!***************************************************************************
 
-!!****f* qs_wf_history_methods/wfs_update [1.0] *
-!!
-!!   NAME
-!!     wfs_update
-!!
-!!   FUNCTION
-!!     updates the given snapshot
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - snapshot: the snapshot to be updated
-!!     - wf_history: the history
-!!     - qs_env: the qs_env that should be snapshotted
-!!     - dt:the time of the snapshot (wrt. to the previous snapshot)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!     02.2005 added kg_fm_mol_set for KG_GPW [MI]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief updates the given snapshot
+!> \param snapshot the snapshot to be updated
+!> \param wf_history the history
+!> \param qs_env the qs_env that should be snapshotted
+!> \param dt the time of the snapshot (wrt. to the previous snapshot)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!>      02.2005 added kg_fm_mol_set for KG_GPW [MI]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
     TYPE(qs_wf_snapshot_type), POINTER       :: snapshot
     TYPE(qs_wf_history_type), POINTER        :: wf_history
@@ -660,40 +579,17 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE wfs_update
-!***************************************************************************
 
-!!****f* qs_wf_history_methods/wfi_create [1.0] *
-!!
-!!   NAME
-!!     wfi_create
-!!
-!!   SYNOPSIS
-!!     Subroutine wfi_create(wf_history, interpolation_method_nr, extrapolation_order, error)
-!!       Type(qs_wf_history_type), Pointer:: wf_history
-!!       Integer, Intent (IN):: interpolation_method_nr
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine wfi_create
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - interpolation_method_nr: the tag of the method used for
-!!       the extrapolation of the intial density for the next md step
-!!       (see qs_wf_history_types:wfi_*_method_nr)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param interpolation_method_nr the tag of the method used for
+!>        the extrapolation of the intial density for the next md step
+!>        (see qs_wf_history_types:wfi_*_method_nr)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, error)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     INTEGER, INTENT(in)                      :: interpolation_method_nr
@@ -780,38 +676,16 @@ CPSourceFileRef,&
      END IF
   END IF
 END SUBROUTINE wfi_create
-!***************************************************************************
 
-!!****f* qs_wf_history_methods/wfi_get_method_label [1.0] *
-!!
-!!   NAME
-!!     wfi_get_method_label
-!!
-!!   SYNOPSIS
-!!     Function wfi_get_method_label(method_nr, error) Result(res)
-!!       Integer, Intent (IN):: method_nr
-!!       Character(Len=30):: res
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function wfi_get_method_label
-!!
-!!   FUNCTION
-!!     returns a string describing the interpolation method
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - wf_history: the wf history object you want information about
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns a string describing the interpolation method
+!> \param wf_history the wf history object you want information about
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 FUNCTION wfi_get_method_label(method_nr,error) RESULT(res)
     INTEGER, INTENT(in)                      :: method_nr
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -857,48 +731,22 @@ CPSourceFileRef,&
      END SELECT
   END IF
 END FUNCTION wfi_get_method_label
-!***************************************************************************
 
-!!****f* qs_wf_history_methods/wfi_extrapolate [1.0] *
-!!
-!!   NAME
-!!     wfi_extrapolate
-!!
-!!   SYNOPSIS
-!!     Subroutine wfi_extrapolate(wf_history, qs_env, dt,&
-!!         extrapolation_method_nr, orthogonal_wf, error)
-!!       Type(qs_wf_history_type), Pointer:: wf_history
-!!       Type(qs_environment_type), Pointer:: qs_env
-!!       Real(KIND = dp), Intent (IN):: dt
-!!       Integer, Intent (OUT), Optional:: extrapolation_method_nr
-!!       Logical, Intent (OUT), Optional:: orthogonal_wf
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine wfi_extrapolate
-!!
-!!   FUNCTION
-!!     calculates the new starting state for the scf for the next
-!!     wf optimization
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - wf_history: the previous history needed to extrapolate
-!!     - qs_env: the qs env with the latest result, and that will contain
-!!       the new starting state
-!!     - dt: the time at which to extrapolate (wrt. to the last snapshot)
-!!     - extrapolation_method_nr: returns the extrapolation method used
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!     11.2003 Joost VandeVondele : Implemented Nth order PS extrapolation
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates the new starting state for the scf for the next
+!>      wf optimization
+!> \param wf_history the previous history needed to extrapolate
+!> \param qs_env the qs env with the latest result, and that will contain
+!>        the new starting state
+!> \param dt the time at which to extrapolate (wrt. to the last snapshot)
+!> \param extrapolation_method_nr returns the extrapolation method used
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!>      11.2003 Joost VandeVondele : Implemented Nth order PS extrapolation
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
      orthogonal_wf, kg_gpw, kg_fm_mol_set, error)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
@@ -1419,34 +1267,17 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
   END IF
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE wfi_extrapolate
-!***************************************************************************
 
-!!****f* qs_wf_history_methods/wfi_set_history_variable [1.0] *
-!!
-!!   NAME
-!!     wfi_set_history_variables
-!!
-!!
-!!   FUNCTION
-!!     Decides if scf control variables has to changed due
-!!     to using a WF extrapolation.
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - qs_env: The QS environment
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     11.2006 created [TdK]
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief Decides if scf control variables has to changed due
+!>      to using a WF extrapolation.
+!> \param qs_env The QS environment
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      11.2006 created [TdK]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE wfi_set_history_variables(qs_env, nvec, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: nvec
@@ -1486,40 +1317,16 @@ END SUBROUTINE wfi_extrapolate
 
   END SUBROUTINE wfi_set_history_variables
 
-!***************************************************************************
-
-!!****f* qs_wf_history_methods/wfi_update [1.0] *
-!!
-!!   NAME
-!!     wfi_update
-!!
-!!   SYNOPSIS
-!!     Subroutine wfi_update(wf_history, qs_env, dt, error)
-!!       Type(qs_wf_history_type), Pointer:: wf_history
-!!       Type(qs_environment_type), Pointer:: qs_env
-!!       Real(KIND = dp), Intent (IN):: dt
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine wfi_update
-!!
-!!   FUNCTION
-!!     updates the snapshot buffer, taking a new snapshot
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - wf_history: the history buffer to update
-!!     - qs_env: the qs_env we get the info from
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief updates the snapshot buffer, taking a new snapshot
+!> \param wf_history the history buffer to update
+!> \param qs_env the qs_env we get the info from
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE wfi_update(wf_history, qs_env, dt, kg_fm_mol_set, error)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1551,33 +1358,17 @@ SUBROUTINE wfi_update(wf_history, qs_env, dt, kg_fm_mol_set, error)
      END IF
   END IF
 END SUBROUTINE wfi_update
-!***************************************************************************
 
-!!****f* qs_wf_history_methods/wfi_duplicate_history [1.0] *
-!!
-!!   NAME
-!!     wfi_duplicate_history
-!!
-!!
-!!   FUNCTION
-!!     duplicates the whole qs_wf_history_type structure
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - input_wf_history: the history buffer to be duplicated
-!!     - output_wf_history: the out coming duplicate
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 created [TdK]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief duplicates the whole qs_wf_history_type structure
+!> \param input_wf_history the history buffer to be duplicated
+!> \param output_wf_history the out coming duplicate
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2005 created [TdK]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE wfi_duplicate_history(input_wf_history, output_wf_history, qs_env, &
                                    error)
     TYPE(qs_wf_history_type), POINTER        :: input_wf_history, &
@@ -1646,33 +1437,17 @@ END SUBROUTINE wfi_update
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE wfi_duplicate_history
-!***************************************************************************
 
-!!****f* qs_wf_history_methods/wfi_copy_history [1.0] *
-!!
-!!   NAME
-!!     wfi_copy_history
-!!
-!!
-!!   FUNCTION
-!!     copies the whole qs_wf_history_type structure
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - input_wf_history: the history buffer to be copied
-!!     - output_wf_history: the out coming copy
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 created [TdK]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief copies the whole qs_wf_history_type structure
+!> \param input_wf_history the history buffer to be copied
+!> \param output_wf_history the out coming copy
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2005 created [TdK]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE wfi_copy_history(input_wf_history, output_wf_history, qs_env, &
                               error)
     TYPE(qs_wf_history_type), POINTER        :: input_wf_history, &
@@ -1726,30 +1501,15 @@ END SUBROUTINE wfi_update
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE wfi_copy_history
-!***************************************************************************
 
-
-!!****f* qs_wf_history_types/wfi_change_memory_depth *
-!!
-!!   NAME
-!!     wfi_change_memory_depth
-!!
-!!   FUNCTION
-!!     chenge the memory depth stored in the history
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - wf_history: the wf_history to modify
-!!     - memory_depth: the new memory_depth
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief chenge the memory depth stored in the history
+!> \param wf_history the wf_history to modify
+!> \param memory_depth the new memory_depth
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE wfi_change_memory_depth(wf_history,memory_depth,error)
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     INTEGER, INTENT(in)                      :: memory_depth
@@ -1794,6 +1554,5 @@ SUBROUTINE wfi_change_memory_depth(wf_history,memory_depth,error)
   END IF
   CALL timestop(handle)
 END SUBROUTINE wfi_change_memory_depth
-!***************************************************************************
 
 END MODULE qs_wf_history_methods

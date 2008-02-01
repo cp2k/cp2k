@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_energy_types [1.0] *
-!!
-!!   NAME
-!!     qs_energy_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     MK (13.06.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (11.08.2002) exchange and correlation energy now in exc
-!!     TL  (25.05.2004) qmmm energy
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      JGH (11.08.2002) exchange and correlation energy now in exc
+!>      TL  (25.05.2004) qmmm energy
+!> \author MK (13.06.2002)
+! *****************************************************************************
 MODULE qs_energy_types
 
   USE f77_blas
@@ -34,6 +24,7 @@ MODULE qs_energy_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_energy_types'
 
+! *****************************************************************************
   TYPE qs_energy_type
     REAL(KIND = dp) :: core,&
                 core_overlap,&
@@ -72,20 +63,14 @@ MODULE qs_energy_types
             duplicate_qs_energy,&
             copy_qs_energy
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE allocate_qs_energy(qs_energy)
 
 !   Purpose: Allocate and/or initialise a Quickstep energy data structure.
 
 !   History: - Creation (13.06.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(qs_energy_type), POINTER            :: qs_energy
 
@@ -106,14 +91,11 @@ CONTAINS
   END SUBROUTINE allocate_qs_energy
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_qs_energy(qs_energy)
 
 !   Purpose: Deallocate a Quickstep energy data structure.
 
 !   History: - Creation (13.06.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(qs_energy_type), POINTER            :: qs_energy
 
@@ -135,14 +117,11 @@ CONTAINS
   END SUBROUTINE deallocate_qs_energy
 
 ! *****************************************************************************
-
   SUBROUTINE init_qs_energy(qs_energy)
 
 !   Purpose: Initialise a Quickstep energy data structure.
 
 !   History: - Creation (13.06.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(qs_energy_type), POINTER            :: qs_energy
 
@@ -182,29 +161,13 @@ CONTAINS
   END SUBROUTINE init_qs_energy
 
 ! *****************************************************************************
-
-!!****f* qs_energy_types/duplicate_qs_energy [1.0] *
-!!
-!!   NAME
-!!     duplicate_qs_energy
-!!
-!!   FUNCTION
-!!     Creates a physical duplicate of an qs_energy_type instance.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - qs_energy_in: The qs_energy_type variable to be duplicated.
-!!     - qs_energy_out: The allocated and copied output variable.
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+!> \brief Creates a physical duplicate of an qs_energy_type instance.
+!> \param qs_energy_in The qs_energy_type variable to be duplicated.
+!> \param qs_energy_out The allocated and copied output variable.
+!> \par History
+!>      08.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE duplicate_qs_energy(qs_energy_in, qs_energy_out)
 
     TYPE(qs_energy_type), POINTER            :: qs_energy_in, qs_energy_out
@@ -224,30 +187,14 @@ CONTAINS
   END SUBROUTINE duplicate_qs_energy
 
 ! *****************************************************************************
-
-!!****f* qs_energy_types/copy_qs_energy [1.0] *
-!!
-!!   NAME
-!!     copy_qs_energy
-!!
-!!   FUNCTION
-!!     Copies the whole content of a qs_energy_type variable.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - qs_energy_in: The qs_energy_type varibale to be copied.
-!!     - qs_energy_out: The output variable which contains the 
-!!                      same data as the original.
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+!> \brief Copies the whole content of a qs_energy_type variable.
+!> \param qs_energy_in The qs_energy_type varibale to be copied.
+!> \param qs_energy_out The output variable which contains the 
+!>                       same data as the original.
+!> \par History
+!>      08.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE copy_qs_energy(qs_energy_in, qs_energy_out)
 
     TYPE(qs_energy_type), POINTER            :: qs_energy_in, qs_energy_out
@@ -284,7 +231,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE copy_qs_energy
-
-! *****************************************************************************
 
 END MODULE qs_energy_types

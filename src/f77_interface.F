@@ -2,29 +2,19 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/f77_interface [1.0] *
-!!
-!!   NAME
-!!     f77_interface
-!!
-!!   FUNCTION
-!!     interface to use cp2k as library
-!!
-!!   NOTES
-!!     useful additions for the future would be:
-!!     - string(path) based set/get of simple values (to change the new
-!!       input during the run and extract more data (energy types for example).
-!!     - set/get of a subset of atoms
-!!
-!!   AUTHOR
-!!     fawzi & Johanna
-!!
-!!   MODIFICATION HISTORY
-!!     07.2004 created [fawzi]
-!!     11.2004 parallel version [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief interface to use cp2k as library
+!> \note
+!>      useful additions for the future would be:
+!>      - string(path) based set/get of simple values (to change the new
+!>        input during the run and extract more data (energy types for example).
+!>      - set/get of a subset of atoms
+!> \par History
+!>      07.2004 created [fawzi]
+!>      11.2004 parallel version [fawzi]
+!> \author fawzi & Johanna
+! *****************************************************************************
 MODULE f77_interface
   USE bibliography,                    ONLY: add_all_references
   USE cp2k_units,                      ONLY: init_cp2k_units,&
@@ -115,10 +105,12 @@ MODULE f77_interface
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'f77_interface'
   INTEGER, PARAMETER :: PATH_LENGTH=200
 
+! *****************************************************************************
   TYPE f_env_p_type
      TYPE(f_env_type), POINTER :: f_env
   END TYPE f_env_p_type
 
+! *****************************************************************************
   TYPE f_env_type
      INTEGER :: id_nr
      TYPE(force_env_type), POINTER :: force_env
@@ -139,28 +131,15 @@ MODULE f77_interface
             calc_energy, calc_force, check_input, get_natom,&
             f_env_add_defaults, f_env_rm_defaults, f_env_type, f_env_p_type,&
             set_vel, get_vel, do_shake
-  !!***
-  !****************************************************************************
 CONTAINS
 
-  !!****f* f77_interface/get_pos_of_env [1.0] *
-  !!
-  !!   NAME
-  !!     get_pos_of_env
-  !!
-  !!   FUNCTION
-  !!     returns the position of the force env corresponding to the given id
-  !!
-  !!   NOTES
-  !!     private utility function
-  !!
-  !!   INPUTS
-  !!     - env_id: the id of the requested environment
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** *********************************************************************
+! *****************************************************************************
+!> \brief returns the position of the force env corresponding to the given id
+!> \param env_id the id of the requested environment
+!> \note
+!>      private utility function
+!> \author fawzi
+! *****************************************************************************
   FUNCTION get_pos_of_env(env_id) RESULT(res)
     INTEGER, INTENT(in)                      :: env_id
     INTEGER                                  :: res
@@ -175,28 +154,14 @@ CONTAINS
     END DO
     res=env_pos
   END FUNCTION get_pos_of_env
-  !****************************************************************************
 
-  !!****f* f77_interface/init_cp2k *
-  !!
-  !!   NAME
-  !!     init_cp2k
-  !!
-  !!   FUNCTION
-  !!     initializes cp2k, needs to be called once before using any of the
-  !!     other functions when using cp2k as library
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - init_mpi: if the mpi environment should be initialized
-  !!     - ierr: returns a number different from 0 if there was an error
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** *********************************************************************
+! *****************************************************************************
+!> \brief initializes cp2k, needs to be called once before using any of the
+!>      other functions when using cp2k as library
+!> \param init_mpi if the mpi environment should be initialized
+!> \param ierr returns a number different from 0 if there was an error
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE init_cp2k(init_mpi,ierr)
     LOGICAL, INTENT(in)                      :: init_mpi
     INTEGER, INTENT(out)                     :: ierr
@@ -255,27 +220,13 @@ CONTAINS
     END IF
 
   END SUBROUTINE init_cp2k
-  !****************************************************************************
 
-  !!****f* f77_interface/finalize_cp2k *
-  !!
-  !!   NAME
-  !!     finalize_cp2k
-  !!
-  !!   FUNCTION
-  !!     cleanup after you have finished using this interface
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - finalize_mpi: if the mpi environment should be finalized
-  !!     - ierr: returns a number different from 0 if there was an error
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** *********************************************************************
+! *****************************************************************************
+!> \brief cleanup after you have finished using this interface
+!> \param finalize_mpi if the mpi environment should be finalized
+!> \param ierr returns a number different from 0 if there was an error
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE finalize_cp2k(finalize_mpi,ierr)
     LOGICAL, INTENT(in)                      :: finalize_mpi
     INTEGER, INTENT(out)                     :: ierr
@@ -314,28 +265,14 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE finalize_cp2k
-  !****************************************************************************
 
-!!****f* f77_interface/f_env_dealloc *
-!!
-!!   NAME
-!!     f_env_dealloc
-!!
-!!   FUNCTION
-!!     deallocates a f_env
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - f_env: the f_env to deallocate
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates a f_env
+!> \param f_env the f_env to deallocate
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 RECURSIVE SUBROUTINE f_env_dealloc(f_env,error)
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -355,30 +292,16 @@ RECURSIVE SUBROUTINE f_env_dealloc(f_env,error)
      CALL mp_perf_env_release(f_env%mp_perf_env)
   END IF
 END SUBROUTINE f_env_dealloc
-!***************************************************************************
 
-!!****f* f77_interface/f_env_create *
-!!
-!!   NAME
-!!     f_env_create
-!!
-!!   FUNCTION
-!!     createates a f_env
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - f_env: the f_env to createate
-!!     - template_error: the error to be used as template for the one stored
-!!     - force_env: the force_environment to be stored
-!!     - timer_env: the timer env to be stored
-!!     - mp_perf_env: the mp performance environement to be stored
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief createates a f_env
+!> \param f_env the f_env to createate
+!> \param template_error the error to be used as template for the one stored
+!> \param force_env the force_environment to be stored
+!> \param timer_env the timer env to be stored
+!> \param mp_perf_env the mp performance environement to be stored
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE f_env_create(f_env,template_error,force_env, timer_env,mp_perf_env,&
      id_nr,error)
     TYPE(f_env_type), POINTER                :: f_env
@@ -411,35 +334,23 @@ SUBROUTINE f_env_create(f_env,template_error,force_env, timer_env,mp_perf_env,&
      f_env%id_nr=id_nr
   END IF
 END SUBROUTINE f_env_create
-!***************************************************************************
 
-!!****f* f77_interface/f_env_add_defaults *
-!!
-!!   NAME
-!!     f_env_add_defaults
-!!
-!!   FUNCTION
-!!     adds the default environments of the f_env to the stack of the
-!!     defaults, and returns a new error and sets failure to true if
-!!     something went wrong
-!!
-!!   NOTES
-!!     The following routines need to be synchronized wrt. adding/removing
-!!     of the default environments (logging, perormance,error):
-!!     environment:cp2k_init, environment:cp2k_finalize,
-!!     f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
-!!     f77_interface:create_force_env, f77_interface:destroy_force_env
-!!
-!!   ARGUMENTS
-!!     - f_env_id: the f_env from where to take the defaults
-!!     - f_env: will contain the f_env corresponding to f_env_id
-!!     - new_error: an error that can be used for the given f_env
-!!     - failure: will be set to true if something went wrong
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief adds the default environments of the f_env to the stack of the
+!>      defaults, and returns a new error and sets failure to true if
+!>      something went wrong
+!> \param f_env_id the f_env from where to take the defaults
+!> \param f_env will contain the f_env corresponding to f_env_id
+!> \param new_error an error that can be used for the given f_env
+!> \param failure will be set to true if something went wrong
+!> \note
+!>      The following routines need to be synchronized wrt. adding/removing
+!>      of the default environments (logging, perormance,error):
+!>      environment:cp2k_init, environment:cp2k_finalize,
+!>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
+!>      f77_interface:create_force_env, f77_interface:destroy_force_env
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE f_env_add_defaults(f_env_id,f_env,new_error, failure, handle)
     INTEGER, INTENT(in)                      :: f_env_id
     TYPE(f_env_type), POINTER                :: f_env
@@ -477,35 +388,23 @@ SUBROUTINE f_env_add_defaults(f_env_id,f_env,new_error, failure, handle)
      CALL cp_error_check(new_error,failure)
   END IF
 END SUBROUTINE f_env_add_defaults
-!***************************************************************************
 
-!!****f* f77_interface/f_env_rm_defaults *
-!!
-!!   NAME
-!!     f_env_rm_defaults
-!!
-!!   FUNCTION
-!!     removes the default environments of the f_env to the stack of the
-!!     defaults, and sets ierr accordingly to the failuers stored in error
-!!     It also releases the error
-!!
-!!   NOTES
-!!     The following routines need to be synchronized wrt. adding/removing
-!!     of the default environments (logging, perormance,error):
-!!     environment:cp2k_init, environment:cp2k_finalize,
-!!     f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
-!!     f77_interface:create_force_env, f77_interface:destroy_force_env
-!!
-!!   ARGUMENTS
-!!     - f_env: the f_env from where to take the defaults
-!!     - error: the error to be checked (will be released)
-!!     - ierr: variable that will be set to a number different from 0 if
-!!       error contains an error (otherwise it will be set to 0)
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief removes the default environments of the f_env to the stack of the
+!>      defaults, and sets ierr accordingly to the failuers stored in error
+!>      It also releases the error
+!> \param f_env the f_env from where to take the defaults
+!> \param error the error to be checked (will be released)
+!> \param ierr variable that will be set to a number different from 0 if
+!>        error contains an error (otherwise it will be set to 0)
+!> \note
+!>      The following routines need to be synchronized wrt. adding/removing
+!>      of the default environments (logging, perormance,error):
+!>      environment:cp2k_init, environment:cp2k_finalize,
+!>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
+!>      f77_interface:create_force_env, f77_interface:destroy_force_env
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE f_env_rm_defaults(f_env,error,ierr,handle)
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -564,44 +463,31 @@ SUBROUTINE f_env_rm_defaults(f_env,error,ierr,handle)
      CALL cp_error_dealloc_ref(error)
   END IF
 END SUBROUTINE f_env_rm_defaults
-!***************************************************************************
 
-  !!****f* f77_interface/create_force_env [1.0] *
-  !!
-  !!   NAME
-  !!     create_force_env
-  !!
-  !!   FUNCTION
-  !!     creates a new force environment using the given input, and writing
-  !!     the output to the given output unit
-  !!
-  !!   NOTES
-  !!     The following routines need to be synchronized wrt. adding/removing
-  !!     of the default environments (logging, perormance,error):
-  !!     environment:cp2k_init, environment:cp2k_finalize,
-  !!     f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
-  !!     f77_interface:create_force_env, f77_interface:destroy_force_env
-  !!
-  !!
-  !!   INPUTS
-  !!     - new_env_id: will contain the id of the newly created environment
-  !!     - input_path: where to read the input (if the input is given it can
-  !!       a virtual path)
-  !!     - output_path: filename (or name of the unit) for the output
-  !!     - mpi_comm: the mpi communicator to be used for this environment
-  !!       it will not be freed when you get rid of the force_env
-  !!     - output_unit: if given it should be the unit for the output
-  !!       and no file is open(should be valid on the processor with rank 0)
-  !!     - owns_out_unit: if the output unit should be closed upon destroing
-  !!       of the force_env (defaults to true if not 6)
-  !!     - input: the parsed input, if given and valid it is used
-  !!       instead of parsing from file
-  !!     - ierr: will return a number different from 0 if there was an error
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** *********************************************************************
+! *****************************************************************************
+!> \brief creates a new force environment using the given input, and writing
+!>      the output to the given output unit
+!> \param new_env_id will contain the id of the newly created environment
+!> \param input_path where to read the input (if the input is given it can
+!>        a virtual path)
+!> \param output_path filename (or name of the unit) for the output
+!> \param mpi_comm the mpi communicator to be used for this environment
+!>        it will not be freed when you get rid of the force_env
+!> \param output_unit if given it should be the unit for the output
+!>        and no file is open(should be valid on the processor with rank 0)
+!> \param owns_out_unit if the output unit should be closed upon destroing
+!>        of the force_env (defaults to true if not 6)
+!> \param input the parsed input, if given and valid it is used
+!>        instead of parsing from file
+!> \param ierr will return a number different from 0 if there was an error
+!> \note
+!>      The following routines need to be synchronized wrt. adding/removing
+!>      of the default environments (logging, perormance,error):
+!>      environment:cp2k_init, environment:cp2k_finalize,
+!>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
+!>      f77_interface:create_force_env, f77_interface:destroy_force_env
+!> \author fawzi
+! *****************************************************************************
   RECURSIVE SUBROUTINE create_force_env(new_env_id,input_path,&
        output_path,mpi_comm,output_unit,owns_out_unit,input,ierr)
     INTEGER, INTENT(out)                     :: new_env_id
@@ -882,31 +768,19 @@ CPSourceFileRef,&
     CALL timestop ( 0.0_dp, handle )
 
   END SUBROUTINE create_force_env
-  !****************************************************************************
 
-  !!****f* f77_interface/destroy_force_env *
-  !!
-  !!   NAME
-  !!     destroy_force_env
-  !!
-  !!   FUNCTION
-  !!     deallocates the force_env with the given id
-  !!
-  !!   NOTES
-  !!     The following routines need to be synchronized wrt. adding/removing
-  !!     of the default environments (logging, perormance,error):
-  !!     environment:cp2k_init, environment:cp2k_finalize,
-  !!     f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
-  !!     f77_interface:create_force_env, f77_interface:destroy_force_env
-  !!
-  !!   INPUTS
-  !!     - env_id: the id of the force_env to remove
-  !!     - ierr: will contain a number different from 0 if
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates the force_env with the given id
+!> \param env_id the id of the force_env to remove
+!> \param ierr will contain a number different from 0 if
+!> \note
+!>      The following routines need to be synchronized wrt. adding/removing
+!>      of the default environments (logging, perormance,error):
+!>      environment:cp2k_init, environment:cp2k_finalize,
+!>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
+!>      f77_interface:create_force_env, f77_interface:destroy_force_env
+!> \author fawzi
+! *****************************************************************************
   RECURSIVE SUBROUTINE destroy_force_env(env_id,ierr)
     INTEGER, INTENT(in)                      :: env_id
     INTEGER, INTENT(out)                     :: ierr
@@ -961,29 +835,15 @@ CPSourceFileRef,&
        ierr=cp_failure_level
     END IF
   END SUBROUTINE destroy_force_env
-  !***************************************************************************
 
-  !!****f* f77_interface/get_natom [1.0] *
-  !!
-  !!   NAME
-  !!     get_natom
-  !!
-  !!   FUNCTION
-  !!     returns the number of atoms in the given force env
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - new_pos: the array with the new positions
-  !!     - n_el: number of positions (3*natom) just to check
-  !!     - env_id: id of the force_env
-  !!     - ierr: will return a number different from 0 if there was an error
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** *********************************************************************
+! *****************************************************************************
+!> \brief returns the number of atoms in the given force env
+!> \param new_pos the array with the new positions
+!> \param n_el number of positions (3*natom) just to check
+!> \param env_id id of the force_env
+!> \param ierr will return a number different from 0 if there was an error
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE get_natom(env_id, n_atom, ierr)
     INTEGER, INTENT(in)                      :: env_id
     INTEGER, INTENT(out)                     :: n_atom, ierr
@@ -1005,29 +865,15 @@ CPSourceFileRef,&
     END IF
     CALL f_env_rm_defaults(f_env,error,ierr)
   END SUBROUTINE get_natom
-  !****************************************************************************
 
-  !!****f* f77_interface/set_pos [1.0] *
-  !!
-  !!   NAME
-  !!     set_pos
-  !!
-  !!   FUNCTION
-  !!     sets the positions of the atoms
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - new_pos: the array with the new positions
-  !!     - n_el: number of positions (3*natom) just to check
-  !!     - env_id: id of the force_env
-  !!     - ierr: will return a number different from 0 if there was an error
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** *********************************************************************
+! *****************************************************************************
+!> \brief sets the positions of the atoms
+!> \param new_pos the array with the new positions
+!> \param n_el number of positions (3*natom) just to check
+!> \param env_id id of the force_env
+!> \param ierr will return a number different from 0 if there was an error
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE set_pos(env_id, new_pos, n_el, ierr)
     INTEGER, INTENT(in)                      :: env_id, n_el
     REAL(kind=dp), DIMENSION(1:n_el)         :: new_pos
@@ -1076,29 +922,15 @@ CPSourceFileRef,&
     END IF
     CALL f_env_rm_defaults(f_env,error,ierr)
   END SUBROUTINE set_pos
-  !****************************************************************************
 
-  !!****f* f77_interface/get_pos [1.0] *
-  !!
-  !!   NAME
-  !!     get_pos
-  !!
-  !!   FUNCTION
-  !!     gets the positions of the atoms
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - pos: the array where to write the positions
-  !!     - n_el: number of positions (3*natom) just to check
-  !!     - env_id: id of the force_env
-  !!     - ierr: will return a number different from 0 if there was an error
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** *********************************************************************
+! *****************************************************************************
+!> \brief gets the positions of the atoms
+!> \param pos the array where to write the positions
+!> \param n_el number of positions (3*natom) just to check
+!> \param env_id id of the force_env
+!> \param ierr will return a number different from 0 if there was an error
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE get_pos(env_id, pos, n_el, ierr)
     INTEGER, INTENT(in)                      :: env_id, n_el
     REAL(kind=dp), DIMENSION(1:n_el)         :: pos
@@ -1120,29 +952,15 @@ CPSourceFileRef,&
     END IF
     CALL f_env_rm_defaults(f_env,error,ierr)
   END SUBROUTINE get_pos
-  !****************************************************************************
 
-  !!****f* f77_interface/set_vel [1.0] *
-  !!
-  !!   NAME
-  !!     set_vel
-  !!
-  !!   FUNCTION
-  !!     sets the velocities of the atoms
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - new_vel: the array with the new velocities
-  !!     - n_el: number of velocities (3*natom) just to check
-  !!     - env_id: id of the force_env
-  !!     - ierr: will return a number different from 0 if there was an error
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** *********************************************************************
+! *****************************************************************************
+!> \brief sets the velocities of the atoms
+!> \param new_vel the array with the new velocities
+!> \param n_el number of velocities (3*natom) just to check
+!> \param env_id id of the force_env
+!> \param ierr will return a number different from 0 if there was an error
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE set_vel(env_id, new_vel, n_el, ierr)
     INTEGER, INTENT(in)                      :: env_id, n_el
     REAL(kind=dp), DIMENSION(1:n_el)         :: new_vel
@@ -1191,29 +1009,15 @@ CPSourceFileRef,&
     END IF
     CALL f_env_rm_defaults(f_env,error,ierr)
   END SUBROUTINE set_vel
-  !****************************************************************************
 
-  !!****f* f77_interface/get_vel [1.0] *
-  !!
-  !!   NAME
-  !!     get_vel
-  !!
-  !!   FUNCTION
-  !!     gets the velocities of the atoms
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - vel: the array where to write the velocities
-  !!     - n_el: number of velocities (3*natom) just to check
-  !!     - env_id: id of the force_env
-  !!     - ierr: will return a number different from 0 if there was an error
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** *********************************************************************
+! *****************************************************************************
+!> \brief gets the velocities of the atoms
+!> \param vel the array where to write the velocities
+!> \param n_el number of velocities (3*natom) just to check
+!> \param env_id id of the force_env
+!> \param ierr will return a number different from 0 if there was an error
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE get_vel(env_id, vel, n_el, ierr)
     INTEGER, INTENT(in)                      :: env_id, n_el
     REAL(kind=dp), DIMENSION(1:n_el)         :: vel
@@ -1263,29 +1067,15 @@ CPSourceFileRef,&
     END IF
     CALL f_env_rm_defaults(f_env,error,ierr)
   END SUBROUTINE get_vel
-  !****************************************************************************
 
-  !!****f* f77_interface/get_force [1.0] *
-  !!
-  !!   NAME
-  !!     get_force
-  !!
-  !!   FUNCTION
-  !!     gets the forces of the atoms
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - force: the array where to write the forces
-  !!     - n_el: number of positions (3*natom) just to check
-  !!     - env_id: id of the force_env
-  !!     - ierr: will return a number different from 0 if there was an error
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** *********************************************************************
+! *****************************************************************************
+!> \brief gets the forces of the atoms
+!> \param force the array where to write the forces
+!> \param n_el number of positions (3*natom) just to check
+!> \param env_id id of the force_env
+!> \param ierr will return a number different from 0 if there was an error
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE get_force(env_id, force, n_el, ierr)
     INTEGER, INTENT(in)                      :: env_id, n_el
     REAL(kind=dp), DIMENSION(1:n_el)         :: force
@@ -1336,29 +1126,15 @@ CPSourceFileRef,&
     END IF
     CALL f_env_rm_defaults(f_env,error,ierr)
   END SUBROUTINE get_force
-  !****************************************************************************
 
-  !!****f* f77_interface/calc_energy_force [1.0] *
-  !!
-  !!   NAME
-  !!     calc_energy_force
-  !!
-  !!   FUNCTION
-  !!     updates the energy and the forces of given force_env
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - env_id: id of the force_env that you want to update
-  !!     - calc_force: if the forces should be updated, if false the forces
-  !!       might be wrong.
-  !!     - ierr: will return a number different from 0 if there was an error
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** *********************************************************************
+! *****************************************************************************
+!> \brief updates the energy and the forces of given force_env
+!> \param env_id id of the force_env that you want to update
+!> \param calc_force if the forces should be updated, if false the forces
+!>        might be wrong.
+!> \param ierr will return a number different from 0 if there was an error
+!> \author fawzi
+! *****************************************************************************
   RECURSIVE SUBROUTINE calc_energy_force(env_id,calc_force,ierr)
     INTEGER, INTENT(in)                      :: env_id
     LOGICAL, INTENT(in)                      :: calc_force
@@ -1384,28 +1160,14 @@ CPSourceFileRef,&
     END IF
     CALL f_env_rm_defaults(f_env,error,ierr)
   END SUBROUTINE calc_energy_force
-  !****************************************************************************
 
-  !!****f* f77_interface/get_energy *
-  !!
-  !!   NAME
-  !!     get_energy
-  !!
-  !!   FUNCTION
-  !!     returns the energy of the last configuration calculated
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - env_id: id of the force_env that you want to update
-  !!     - e_pot: the potential energy of the system
-  !!     - ierr: will return a number different from 0 if there was an error
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** *********************************************************************
+! *****************************************************************************
+!> \brief returns the energy of the last configuration calculated
+!> \param env_id id of the force_env that you want to update
+!> \param e_pot the potential energy of the system
+!> \param ierr will return a number different from 0 if there was an error
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE get_energy(env_id,e_pot,ierr)
     INTEGER, INTENT(in)                      :: env_id
     REAL(kind=dp), INTENT(out)               :: e_pot
@@ -1428,31 +1190,19 @@ CPSourceFileRef,&
     END IF
     CALL f_env_rm_defaults(f_env,error,ierr)
   END SUBROUTINE get_energy
-  !****************************************************************************
 
-  !!****f* f77_interface/calc_energy *
-  !!
-  !!   NAME
-  !!     calc_energy
-  !!
-  !!   FUNCTION
-  !!     returns the energy of the configuration given by the positions
-  !!     passed as argument
-  !!
-  !!   NOTES
-  !!     utility call
-  !!
-  !!   INPUTS
-  !!     - env_id: id of the force_env that you want to update
-  !!     - pos: array with the positions
-  !!     - n_el: number of elements in pos (3*natom)
-  !!     - e_pot: the potential energy of the system
-  !!     - ierr: will return a number different from 0 if there was an error
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** *********************************************************************
+! *****************************************************************************
+!> \brief returns the energy of the configuration given by the positions
+!>      passed as argument
+!> \param env_id id of the force_env that you want to update
+!> \param pos array with the positions
+!> \param n_el number of elements in pos (3*natom)
+!> \param e_pot the potential energy of the system
+!> \param ierr will return a number different from 0 if there was an error
+!> \note
+!>      utility call
+!> \author fawzi
+! *****************************************************************************
   RECURSIVE SUBROUTINE calc_energy(env_id,pos,n_el,e_pot,ierr)
     INTEGER, INTENT(in)                      :: env_id, n_el
     REAL(kind=dp), DIMENSION(1:n_el), &
@@ -1464,36 +1214,24 @@ CPSourceFileRef,&
 
     CALL calc_force(env_id,pos,n_el,e_pot,dummy_f,0,ierr)
   END SUBROUTINE calc_energy
-  !****************************************************************************
 
-  !!****f* f77_interface/calc_force *
-  !!
-  !!   NAME
-  !!     calc_force
-  !!
-  !!   FUNCTION
-  !!     returns the energy of the configuration given by the positions
-  !!     passed as argument
-  !!
-  !!   NOTES
-  !!     utility call, but actually it could be a better and more efficient
-  !!     interface to connect to other codes if cp2k would be deeply
-  !!     refactored
-  !!
-  !!   INPUTS
-  !!     - env_id: id of the force_env that you want to update
-  !!     - pos: array with the positions
-  !!     - n_el_pos: number of elements in pos (3*natom)
-  !!     - e_pot: the potential energy of the system
-  !!     - force: array that will contain the forces
-  !!     - n_el_force: number of elements in force (3*natom). If 0 the
-  !!       forces are not calculated
-  !!     - ierr: will return a number different from 0 if there was an error
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** *********************************************************************
+! *****************************************************************************
+!> \brief returns the energy of the configuration given by the positions
+!>      passed as argument
+!> \param env_id id of the force_env that you want to update
+!> \param pos array with the positions
+!> \param n_el_pos number of elements in pos (3*natom)
+!> \param e_pot the potential energy of the system
+!> \param force array that will contain the forces
+!> \param n_el_force number of elements in force (3*natom). If 0 the
+!>        forces are not calculated
+!> \param ierr will return a number different from 0 if there was an error
+!> \note
+!>      utility call, but actually it could be a better and more efficient
+!>      interface to connect to other codes if cp2k would be deeply
+!>      refactored
+!> \author fawzi
+! *****************************************************************************
   RECURSIVE SUBROUTINE calc_force(env_id,pos,n_el_pos,e_pot,force,n_el_force,ierr)
     INTEGER, INTENT(in)                      :: env_id, n_el_pos
     REAL(kind=dp), DIMENSION(1:n_el_pos), &
@@ -1512,33 +1250,19 @@ CPSourceFileRef,&
     IF (ierr==0) CALL get_energy(env_id,e_pot,ierr)
     IF (calc_f.AND.ierr==0) CALL get_force(env_id,force,n_el_force,ierr)
   END SUBROUTINE calc_force
-  !****************************************************************************
 
-  !!****f* f77_interface/check_input *
-  !!
-  !!   NAME
-  !!     check_input
-  !!
-  !!   FUNCTION
-  !!     performs a check of the input
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - input_file_path: the path of the input file to check
-  !!     - output_file_path: path of the output file (to which it is appended)
-  !!       if it is "__STD_OUT__" the unit 6 is used
-  !!     - echo_input: if the parsed input should be written out with all the
-  !!       defaults made explicit
-  !!     - mpi_comm: the mpi communicator (if not given it uses the default
-  !!       one)
-  !!     - ierr: error control, if different from 0 there was an error
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief performs a check of the input
+!> \param input_file_path the path of the input file to check
+!> \param output_file_path path of the output file (to which it is appended)
+!>        if it is "__STD_OUT__" the unit 6 is used
+!> \param echo_input if the parsed input should be written out with all the
+!>        defaults made explicit
+!> \param mpi_comm the mpi communicator (if not given it uses the default
+!>        one)
+!> \param ierr error control, if different from 0 there was an error
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE check_input(input_file_path,output_file_path,&
        echo_input,mpi_comm,permissive,ierr)
     CHARACTER(len=*), INTENT(in)             :: input_file_path, &
@@ -1612,31 +1336,16 @@ CPSourceFileRef,&
     CALL cp_error_dealloc_ref(error)
     CALL cp_rm_default_logger()
   END SUBROUTINE check_input
-  !***************************************************************************
 
-
-!!****f* f77_interface/do_shake *
-!!
-!!   NAME
-!!     do_shake
-!!
-!!   FUNCTION
-!!     perform the shake procedure (enforce constraints)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - f_env_id: the force env on which to apply the shake
-!!     - dt: timestep
-!!     - shake_tol: tolerance for shake
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief perform the shake procedure (enforce constraints)
+!> \param f_env_id the force env on which to apply the shake
+!> \param dt timestep
+!> \param shake_tol tolerance for shake
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE do_shake(f_env_id,dt,shake_tol,ierr)
     INTEGER, INTENT(in)                      :: f_env_id
     REAL(kind=dp), INTENT(in)                :: dt, shake_tol
@@ -1659,6 +1368,5 @@ SUBROUTINE do_shake(f_env_id,dt,shake_tol,ierr)
   END IF
   CALL f_env_rm_defaults(f_env,error,ierr)
 END SUBROUTINE do_shake
-!***************************************************************************
 
 END MODULE f77_interface

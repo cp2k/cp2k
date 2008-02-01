@@ -2,19 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/mc_coordinates [1.0] *
-!!
-!!   NAME
-!!     mc_coordinates
-!!
-!!   FUNCTION
-!!     contains miscellaneous subroutines used in the Monte Carlo runs,mostly
-!!     geared towards changes in coordinates
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!******************************************************************************
+
+! *****************************************************************************
+!> \brief contains miscellaneous subroutines used in the Monte Carlo runs,mostly
+!>      geared towards changes in coordinates
+!> \author MJM
+! *****************************************************************************
 MODULE mc_coordinates
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell
@@ -54,36 +47,23 @@ MODULE mc_coordinates
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_coordinates'
 
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****s* mc_coordinates.F/check_for_overlap
-!!
-!!   NAME
-!!     check_for_overlap
-!!
-!!   FUNCTION
-!!     looks for overlaps (intermolecular distances less than rmin)
-!!
-!!   ARGUMENTS
-!!     - force_env: the force environment containing the coordinates
-!!     - nchains: the number of molecules of each type in the box
-!!     - nunits: the number of interaction sites for each molecule
-!!     - loverlap: returns .TRUE. if atoms overlap
-!!     - mol_type: an array that indicates the type of each molecule
-!!     - cell_length: the length of the box...if none is specified,
-!!                    it uses the cell found in the force_env
-!!     - molecule_number: if present, just look for overlaps with this
-!!           molecule
-!!
-!!     Suitable for parallel use.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
+! *****************************************************************************
+!> \brief looks for overlaps (intermolecular distances less than rmin)
+!> \param force_env the force environment containing the coordinates
+!> \param nchains the number of molecules of each type in the box
+!> \param nunits the number of interaction sites for each molecule
+!> \param loverlap returns .TRUE. if atoms overlap
+!> \param mol_type an array that indicates the type of each molecule
+!> \param cell_length the length of the box...if none is specified,
+!>                     it uses the cell found in the force_env
+!> \param molecule_number if present, just look for overlaps with this
+!>            molecule
+!> 
+!>      Suitable for parallel use.
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE check_for_overlap ( force_env, nchains, nunits,loverlap,mol_type,&
                                  cell_length,molecule_number)
 
@@ -204,30 +184,18 @@ SUBROUTINE check_for_overlap ( force_env, nchains, nunits,loverlap,mol_type,&
 ! end the timing
       CALL timestop(0.0E0_dp,handle)
 
-
 END SUBROUTINE check_for_overlap
 
-!******************************************************************************
-!!****s* mc_coordinates.F/get_center_of_mass
-!!
-!!   NAME
-!!     get_center_of_mass
-!!
-!!   FUNCTION
-!!     calculates the center of mass of a given molecule
-!!
-!!   ARGUMENTS
-!!     - coordinates: the coordiantes of the atoms in the molecule
-!!     - natom: the number of atoms in the molecule
-!!     - center_of_mass: the coordinates of the center of mass
-!!     - mass: the mass of the atoms in the molecule
-!!
-!!   Designed for parallel use.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
+! *****************************************************************************
+!> \brief calculates the center of mass of a given molecule
+!> \param coordinates the coordiantes of the atoms in the molecule
+!> \param natom the number of atoms in the molecule
+!> \param center_of_mass the coordinates of the center of mass
+!> \param mass the mass of the atoms in the molecule
+!> 
+!>    Designed for parallel use.
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE get_center_of_mass ( coordinates,natom,center_of_mass,&
             mass)
 
@@ -264,33 +232,21 @@ SUBROUTINE get_center_of_mass ( coordinates,natom,center_of_mass,&
 ! end the timing
       CALL timestop(0.0E0_dp,handle)
 
-
 END SUBROUTINE get_center_of_mass
 
-!******************************************************************************
-!!****s* mc_coordinates.F/mc_coordinate_fold
-!!
-!!   NAME
-!!     mc_coordinate_fold
-!!
-!!   FUNCTION
-!!     folds all the coordinates into the center simulation box using
-!!     a center of mass cutoff
-!!
-!!   ARGUMENTS
-!!     - coordinates: the coordiantes of the atoms in the system
-!!     - nchains_tot: the total number of molecules in the box
-!!     - mol_type: an array that indicates the type of every molecule in the box
-!!     - mass: the mass of every atom for all molecule types
-!!     - nunits: the number of interaction sites for each molecule type
-!!     - box_length: an array for the lengths of the simulation box sides
-!!
-!!     Designed for parallel use.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
+! *****************************************************************************
+!> \brief folds all the coordinates into the center simulation box using
+!>      a center of mass cutoff
+!> \param coordinates the coordiantes of the atoms in the system
+!> \param nchains_tot the total number of molecules in the box
+!> \param mol_type an array that indicates the type of every molecule in the box
+!> \param mass the mass of every atom for all molecule types
+!> \param nunits the number of interaction sites for each molecule type
+!> \param box_length an array for the lengths of the simulation box sides
+!> 
+!>      Designed for parallel use.
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE mc_coordinate_fold(coordinates,nchains_tot,mol_type,mass,nunits,box_length)
 
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -341,59 +297,45 @@ SUBROUTINE mc_coordinate_fold(coordinates,nchains_tot,mol_type,mass,nunits,box_l
 ! end the timing
       CALL timestop(0.0E0_dp,handle)
 
-
 END SUBROUTINE mc_coordinate_fold
 
-
-!******************************************************************************
-!!****s* mc_coordinates.F/generate_cbmc_swap_config
-!!
-!!   NAME
-!!     generate_cbmc_swap_config
-!!
-!!   FUNCTION
-!!     takes the last molecule in a force environment and moves it around
-!!     to different center of mass positions and orientations, selecting one
-!!     based on the rosenbluth weight
-!!
-!!   ARGUMENTS
-!!     - force_env: the force environment containing the coordinates
-!!     - BETA: the value of 1/kT for this simulations, in a.u.
-!!     - nswapmoves: the number of desired trial configurations
-!!     - rosenbluth_weight: the Rosenbluth weight for this set of configs
-!!     - start_atom: the atom number that the molecule to be swapped starts on
-!!     - natoms_tot: the total number of interaction sites in the box
-!!     - nunits: the number of interaction sites for every molecule_type
-!!     - nunits_tot: the number of interaction sites in the choosen molecule
-!!     - mass: the mass for every interaction site of every molecule type
-!!     - loverlap: the flag that indicates if all of the configs have an
-!!                 atomic overlap
-!!     - choosen_energy: the energy of the choosen config
-!!     - old_energy: the energy that we subtract from all of the trial
-!!       energies to prevent numerical overflows
-!!     - ionode: indicates if we're on the main CPU
-!!     - lremove: is this the Rosenbluth weight for a removal box?
-!!     - mol_type: an array that contains the molecule type for every atom in the box
-!!     - nchains: the number of molecules of each type in this box
-!!     - source: the MPI source value, for broadcasts
-!!     - group: the MPI group value, for broadcasts
-!!     - rng_stream: the random number stream that we draw from
-!!     - error: the the cp_error type
-!!     OPTIONAL AVBMC FLAGS
-!!     - avbmc_atom: the atom number that serves for the target atom in each
-!!       molecule (1 is the first atom in the molecule, etc.)
-!!     - rmin: the minimum AVBMC radius for the shell around the target
-!!     - rmax: the maximum AVBMC radius for the shell around the target
-!!     - move_type: generate configs in the "in" or "out" volume
-!!     - target_atom: the number of the avbmc atom in the target molecule
-!!
-!!
-!!     Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
+! *****************************************************************************
+!> \brief takes the last molecule in a force environment and moves it around
+!>      to different center of mass positions and orientations, selecting one
+!>      based on the rosenbluth weight
+!> \par Optional Avbmc Flags
+!>      - avbmc_atom: the atom number that serves for the target atom in each
+!>        molecule (1 is the first atom in the molecule, etc.)
+!>      - rmin: the minimum AVBMC radius for the shell around the target
+!>      - rmax: the maximum AVBMC radius for the shell around the target
+!>      - move_type: generate configs in the "in" or "out" volume
+!>      - target_atom: the number of the avbmc atom in the target molecule
+!> \par
+!>      Suitable for parallel.
+!> \param force_env the force environment containing the coordinates
+!> \param BETA the value of 1/kT for this simulations, in a.u.
+!> \param nswapmoves the number of desired trial configurations
+!> \param rosenbluth_weight the Rosenbluth weight for this set of configs
+!> \param start_atom the atom number that the molecule to be swapped starts on
+!> \param natoms_tot the total number of interaction sites in the box
+!> \param nunits the number of interaction sites for every molecule_type
+!> \param nunits_tot the number of interaction sites in the choosen molecule
+!> \param mass the mass for every interaction site of every molecule type
+!> \param loverlap the flag that indicates if all of the configs have an
+!>                  atomic overlap
+!> \param choosen_energy the energy of the choosen config
+!> \param old_energy the energy that we subtract from all of the trial
+!>        energies to prevent numerical overflows
+!> \param ionode indicates if we're on the main CPU
+!> \param lremove is this the Rosenbluth weight for a removal box?
+!> \param mol_type an array that contains the molecule type for every atom in the box
+!> \param nchains the number of molecules of each type in this box
+!> \param source the MPI source value, for broadcasts
+!> \param group the MPI group value, for broadcasts
+!> \param rng_stream the random number stream that we draw from
+!> \param error the the cp_error type
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE generate_cbmc_swap_config( force_env, BETA, max_val, min_val, exp_max_val,&
      exp_min_val, nswapmoves, rosenbluth_weight, start_atom,natoms_tot,nunits,nunits_mol,&
      mass,loverlap, choosen_energy,old_energy,ionode,lremove,mol_type,nchains,source,&
@@ -454,8 +396,6 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, max_val, min_val, exp_max
       CALL force_env_get(force_env,cell=cell,subsys=oldsys,error=error)
       CALL get_cell(cell,abc=abc)
       CALL cp_subsys_get(oldsys,particles=particles, error=error)
-
-
 
 ! do some checking to make sure we have all the data we need
       IF(PRESENT(avbmc_atom)) THEN
@@ -603,7 +543,6 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, max_val, min_val, exp_max
          CALL force_env_get(force_env,&
             potential_energy=bias_energy,error=error)
 
-
          trial_energy(imove)=(bias_energy-old_energy)
          exponent=-BETA*trial_energy(imove)
 
@@ -653,7 +592,6 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, max_val, min_val, exp_max
             EXIT
          ENDIF
       ENDDO
-
 
       IF(all_overlaps) THEN
          loverlap = .TRUE.
@@ -726,31 +664,19 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, max_val, min_val, exp_max
 ! end the timing
       CALL timestop(0.0E0_dp,handle)
 
-
 END SUBROUTINE generate_cbmc_swap_config
 
-!******************************************************************************
-!!****s* mc_coordinates.F/rotate_molecule
-!!
-!!   NAME
-!!     rotate_molecule
-!!
-!!   FUNCTION
-!!     rotates a molecule randomly around the center of mass,
-!!     sequentially in x, y, and z directions
-!!
-!!   ARGUMENTS
-!!     - r: the coordinates of the molecule to rotate
-!!     - mass: the mass of all the atoms in the molecule
-!!     - natoms: the number of atoms in the molecule
-!!     - rng_stream: the stream we pull random numbers from
-!!
-!!   Use only in serial.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
+! *****************************************************************************
+!> \brief rotates a molecule randomly around the center of mass,
+!>      sequentially in x, y, and z directions
+!> \param r the coordinates of the molecule to rotate
+!> \param mass the mass of all the atoms in the molecule
+!> \param natoms the number of atoms in the molecule
+!> \param rng_stream the stream we pull random numbers from
+!> 
+!>    Use only in serial.
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE rotate_molecule(r,mass,natoms,rng_stream,error)
 
     INTEGER, INTENT(IN)                      :: natoms
@@ -832,33 +758,22 @@ SUBROUTINE rotate_molecule(r,mass,natoms,rng_stream,error)
 
 END SUBROUTINE rotate_molecule
 
-!******************************************************************************
-!!****s* mc_coordinates.F/find_mc_test_molecule
-!!
-!!   NAME
-!!     find_mc_test_molecule
-!!
-!!   FUNCTION
-!!     selects a molecule at random to perform a MC move on...you can specify
-!!     the box the molecule should be in, its type, both, or neither
-!!
-!!   ARGUMENTS
-!!     - mc_molecule_info: the structure that contains some global molecule data
-!!     - start_atom: the number of the first atom in the choosen molecule in relation
-!!       to the force_env it's in
-!!     - box_number: the box the choosen molecule is in
-!!     - molecule_type: the type of molecule the choosen molecule is
-!!     - rng_stream: the stream we pull random numbers from
-!!     - box: if present, tells the routine which box to grab a molecule from
-!!     - molecule_type_old: if present, tells the routine which molecule type to select from
-!!     - error: the optional cp_error_type
-!!
-!!   Designed only for serial use.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
+! *****************************************************************************
+!> \brief selects a molecule at random to perform a MC move on...you can specify
+!>      the box the molecule should be in, its type, both, or neither
+!> \param mc_molecule_info the structure that contains some global molecule data
+!> \param start_atom the number of the first atom in the choosen molecule in relation
+!>        to the force_env it's in
+!> \param box_number the box the choosen molecule is in
+!> \param molecule_type the type of molecule the choosen molecule is
+!> \param rng_stream the stream we pull random numbers from
+!> \param box if present, tells the routine which box to grab a molecule from
+!> \param molecule_type_old if present, tells the routine which molecule type to select from
+!> \param error the optional cp_error_type
+!> 
+!>    Designed only for serial use.
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE find_mc_test_molecule(mc_molecule_info,start_atom,&
      box_number,molecule_type,rng_stream,box,molecule_type_old,error)
 
@@ -1005,30 +920,18 @@ SUBROUTINE find_mc_test_molecule(mc_molecule_info,start_atom,&
 ! end the timing
       CALL timestop(0.0E0_dp,handle)
 
-
 END SUBROUTINE find_mc_test_molecule
 
-!******************************************************************************
-!!****s* mc_coordinates.F/create_discrete_array
-!!
-!!   NAME
-!!     create_discrete_array
-!!
-!!   FUNCTION
-!!     generates an array that tells us which sides of the simulation
-!!     cell we can increase or decrease using a discrete volume move
-!!
-!!   ARGUMENTS
-!!     - cell: the lengths of the sides of the cell
-!!     - discrete_array: the array that indicates which sides we can move
-!!     - step_size: the size of the discrete volume move
-!!
-!!   Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
+! *****************************************************************************
+!> \brief generates an array that tells us which sides of the simulation
+!>      cell we can increase or decrease using a discrete volume move
+!> \param cell the lengths of the sides of the cell
+!> \param discrete_array the array that indicates which sides we can move
+!> \param step_size the size of the discrete volume move
+!> 
+!>    Suitable for parallel.
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE create_discrete_array(cell,discrete_array,step_size)
 
 ! 1 is for increase, 2 is for decrease
@@ -1082,32 +985,21 @@ SUBROUTINE create_discrete_array(cell,discrete_array,step_size)
 
 END SUBROUTINE create_discrete_array
 
-!******************************************************************************
-!!****s* mc_coordinates.F/generate_avbmc_insertion
-!!
-!!   NAME
-!!     generate_avbmc_insertion
-!!
-!!   FUNCTION
-!!     generates an insertion point in either the "in" or the "out" volume
-!!     of a target atom, where the "in" volume is a shell with inner radius
-!      rmin and outer radius rmax
-!!
-!!   ARGUMENTS
-!!     - rmin: the minimum AVBMC radius for the shell around the target
-!!     - rmax: the maximum AVBMC radius for the shell around the target
-!!     - r_target: the coordinates of the target atom
-!!     - move_type: generate configs in the "in" or "out" volume
-!!     - r_insert: the output insertion site
-!!     - abc: the lengths of the sides of the simulation box
-!!     - rng_stream: the random number stream that we draw from
-!!
-!!     Use only in serial.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
+! *****************************************************************************
+!> \brief generates an insertion point in either the "in" or the "out" volume
+!>      of a target atom, where the "in" volume is a shell with inner radius
+!>       rmin and outer radius rmax
+!> \param rmin the minimum AVBMC radius for the shell around the target
+!> \param rmax the maximum AVBMC radius for the shell around the target
+!> \param r_target the coordinates of the target atom
+!> \param move_type generate configs in the "in" or "out" volume
+!> \param r_insert the output insertion site
+!> \param abc the lengths of the sides of the simulation box
+!> \param rng_stream the random number stream that we draw from
+!> 
+!>      Use only in serial.
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE generate_avbmc_insertion( rmin,rmax,r_target,&
       move_type,r_insert,abc,rng_stream,error)
 
@@ -1178,6 +1070,4 @@ SUBROUTINE generate_avbmc_insertion( rmin,rmax,r_target,&
 END SUBROUTINE generate_avbmc_insertion
 
 END MODULE mc_coordinates
-
-!******************************************************************************
 

@@ -3,23 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/qs_outer_scf [1.0] *
-!!
-!!   NAME
-!!     qs_outer_scf
-!!
-!!   FUNCTION
-!!     Routines for performing an outer scf loop
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!     Created [2006.03]
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Routines for performing an outer scf loop
+!> \par History
+!>      Created [2006.03]
+!> \author Joost VandeVondele
+! *****************************************************************************
 MODULE qs_outer_scf
   USE cp_control_types,                ONLY: becke_constraint_type,&
                                              ddapc_restraint_type,&
@@ -58,22 +47,12 @@ MODULE qs_outer_scf
             outer_loop_variables_count,outer_loop_extrapolate
 
 CONTAINS
-!!****f* qs_outer_scf/outer_loop_variables_count ***
-!!
-!!   NAME
-!!      outer_loop_variables_count
-!!
-!!   FUNCTION
-!!      returns the number of variables that is employed in the outer loop
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief returns the number of variables that is employed in the outer loop
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
 FUNCTION outer_loop_variables_count(scf_control,error) RESULT(res)
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -94,23 +73,11 @@ FUNCTION outer_loop_variables_count(scf_control,error) RESULT(res)
 
 END FUNCTION outer_loop_variables_count
 
-
-!!****f* qs_outer_scf/outer_loop_gradient ***
-!!
-!!   NAME
-!!      outer_loop_gradient
-!!
-!!   FUNCTION
-!!      computes the gradient wrt to the outer loop variables
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief computes the gradient wrt to the outer loop variables
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
 SUBROUTINE outer_loop_gradient(qs_env, scf_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -177,23 +144,13 @@ SUBROUTINE outer_loop_gradient(qs_env, scf_env, error)
 
 END SUBROUTINE
 
-!!****f* qs_outer_scf/outer_loop_optimize ***
-!!
-!!   NAME
-!!      outer_loop_optimize
-!!
-!!   FUNCTION
-!!      optimizes the parameters of the outer_scf
-!!
-!!   NOTES
-!!      ought to be general, and independent of the actual kind of variables
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief optimizes the parameters of the outer_scf
+!> \note
+!>       ought to be general, and independent of the actual kind of variables
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
 SUBROUTINE outer_loop_optimize(scf_env, scf_control, error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
@@ -310,23 +267,12 @@ SUBROUTINE outer_loop_optimize(scf_env, scf_control, error)
 
 END SUBROUTINE outer_loop_optimize
 
-!!****f* qs_outer_scf/outer_loop_update_qs_env ***
-!!
-!!   NAME
-!!      outer_loop_set
-!!
-!!   FUNCTION
-!!      propagates the updated variables to wherever they need to be set in
-!!      qs_env
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief propagates the updated variables to wherever they need to be set in
+!>       qs_env
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
 SUBROUTINE outer_loop_update_qs_env(qs_env, scf_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -369,25 +315,16 @@ SUBROUTINE outer_loop_update_qs_env(qs_env, scf_env, error)
     CALL timestop(handle)
 
 END SUBROUTINE outer_loop_update_qs_env
-!!****f* qs_outer_scf/outer_loop_extrapolate ***
-!!
-!!   NAME
-!!      outer_loop_extrapolate
-!!
-!!   FUNCTION
-!!      uses the outer_scf_history to extrapolate new values for the variables
-!!      and updates their value in qs_env accordingly
-!!
-!!   NOTES
-!!      it assumes that the current value of qs_env still needs to be added to the history
-!!      simple multilinear extrapolation is employed
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief uses the outer_scf_history to extrapolate new values for the variables
+!>       and updates their value in qs_env accordingly
+!> \note
+!>       it assumes that the current value of qs_env still needs to be added to the history
+!>       simple multilinear extrapolation is employed
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
 SUBROUTINE outer_loop_extrapolate(qs_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error

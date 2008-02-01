@@ -1,3 +1,4 @@
+! *****************************************************************************
 MODULE f77_blas_extra
 !
 ! Provides extra generic interfaces for BLAS-like routines not distributed
@@ -28,6 +29,7 @@ CONTAINS
 !
 ! Level 1 BLAS, based on netlib blas
 !
+! *****************************************************************************
    SUBROUTINE SDCOPY(N,X,INCX,Y,INCY)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -83,6 +85,7 @@ CONTAINS
  
    END SUBROUTINE SDCOPY
 
+! *****************************************************************************
    SUBROUTINE DSCOPY(N,X,INCX,Y,INCY)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -136,9 +139,9 @@ CONTAINS
    50 CONTINUE
       RETURN
 
-
    END SUBROUTINE DSCOPY
 
+! *****************************************************************************
    SUBROUTINE CZCOPY(N,X,INCX,Y,INCY)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &
@@ -194,6 +197,7 @@ CONTAINS
 
    END SUBROUTINE CZCOPY
 
+! *****************************************************************************
    SUBROUTINE ZCCOPY(N,X,INCX,Y,INCY)
     INTEGER, INTENT(IN)                      :: N
     INTEGER, PARAMETER                       :: DP = KIND(0.0D0), &

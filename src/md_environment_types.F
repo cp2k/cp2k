@@ -2,24 +2,14 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****s* cp2k/md_environment_types [1.0] *
-!!
-!!   NAME
-!!     md_environment_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM SEPT-12-02
-!!
-!!   MODIFICATION HISTORY
-!!     give the md_env its own para_env Joost VandeVondele 07.2003
-!!     Teodoro Laino - 09.2007 - University of Zurich - generalizing thermostats
-!!                               and barostats
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      give the md_env its own para_env Joost VandeVondele 07.2003
+!>      Teodoro Laino - 09.2007 - University of Zurich - generalizing thermostats
+!>                                and barostats
+!> \author CJM SEPT-12-02
+! *****************************************************************************
 MODULE md_environment_types
   USE barostat_types,                  ONLY: barostat_type,&
                                              release_barostat_type,&
@@ -50,6 +40,7 @@ MODULE md_environment_types
 
   PRIVATE
 
+! *****************************************************************************
   TYPE md_ener_type
      INTEGER       :: ref_count
      INTEGER       :: nfree, nfree_qm, nfree_shell
@@ -76,7 +67,7 @@ MODULE md_environment_types
      INTEGER, DIMENSION(:), POINTER :: nfree_shell_kind
   END TYPE md_ener_type
 
-  
+! *****************************************************************************
   TYPE md_environment_type
      ! para_env is the parallel enviroment of the MD,  i.e. the systems 
      ! that are dealt with by the integrator e.g in the PIMD this could 
@@ -98,7 +89,6 @@ MODULE md_environment_types
      TYPE (simulation_parameters_type), POINTER :: simpar
   END TYPE md_environment_type
 
-
 ! *** Public subroutines and data types ***
   PUBLIC :: create_md_ener,&
             md_ener_type,&
@@ -117,38 +107,17 @@ MODULE md_environment_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_environment_types'
   INTEGER, SAVE, PRIVATE :: last_md_env_id=0
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-!!****f* md_environment_types/md_env_create [1.0] *
-!!
-!!   NAME
-!!     md_env_create
-!!
-!!   FUNCTION
-!!     Creates MD environment
-!!     Purpose: Initialise the integrator environment.
-!!     retain the para_env for this environment (should be used for parallel
-!!     communications)
-!!
-!!   NOTES
-!!     
-!!
-!!   ARGUMENTS
-!!     - md_env: the force environment to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+!> \brief Creates MD environment
+!>      Purpose: Initialise the integrator environment.
+!>      retain the para_env for this environment (should be used for parallel
+!>      communications)
+!> \param md_env the force environment to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE md_env_create ( md_env, para_env, error )
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -202,31 +171,18 @@ CONTAINS
     md_env%first_time = .TRUE.
 
   END SUBROUTINE md_env_create
-!***************************************************************************
 
-!!****f* md_environment_types/md_env_retain [1.0] *
-!!
-!!   NAME
-!!     md_env_retain
-!!
-!!   FUNCTION
-!!     retains the given md env
-!!
-!!   NOTES
-!!     see doc/ReferenceCounting.html
-!!
-!!   ARGUMENTS
-!!     - md_env: the force environment to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given md env
+!> \param md_env the force environment to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      see doc/ReferenceCounting.html
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE md_env_retain(md_env, error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -244,30 +200,18 @@ SUBROUTINE md_env_retain(md_env, error)
      md_env%ref_count=md_env%ref_count+1
   END IF
 END SUBROUTINE md_env_retain
-!***************************************************************************
-!!****f* md_environment_types/md_env_release [1.0] *
-!!
-!!   NAME
-!!     md_env_release
-!!
-!!   FUNCTION
-!!     releases the given md env
-!!
-!!   NOTES
-!!     see doc/ReferenceCounting.html
-!!
-!!   ARGUMENTS
-!!     - md_env: the md environment to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief releases the given md env
+!> \param md_env the md environment to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      see doc/ReferenceCounting.html
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE md_env_release(md_env, error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -315,29 +259,11 @@ SUBROUTINE md_env_release(md_env, error)
 END SUBROUTINE md_env_release
 
 ! *****************************************************************************
-!!****f* md_environment_types/get_md_env [1.0] *
-!!
-!!   NAME
-!!     get_md_env
-!!
-!!   FUNCTION
-!!     get components of MD environment type
-!!
-!!   NOTES
-!!     
-!!
-!!   ARGUMENTS
-!!     - md_env: the force environment to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+!> \brief get components of MD environment type
+!> \param md_env the force environment to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE get_md_env ( md_env, itimes, constant, used_time, cell,  &
                           simpar, npt, force_env, para_env, reftraj, t,&
                           md_approach_nr, accepted_md, init, first_time,&
@@ -422,29 +348,11 @@ END SUBROUTINE md_env_release
   END SUBROUTINE get_md_env
 
 ! *****************************************************************************
-!!****f* md_environment_types/set_md_env [1.0] *
-!!
-!!   NAME
-!!     set_md_env
-!!
-!!   FUNCTION
-!!     Set the integrator environment to the correct program.
-!!
-!!   NOTES
-!!     
-!!
-!!   ARGUMENTS
-!!     - md_env: the force environment to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+!> \brief Set the integrator environment to the correct program.
+!> \param md_env the force environment to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE set_md_env ( md_env, itimes, constant, cell, simpar, fe_env, force_env,&
                           para_env, accepted_md, md_approach_nr , init, first_time,&
                           thermostats, barostat, reftraj, md_ener, error)
@@ -518,28 +426,15 @@ END SUBROUTINE md_env_release
 
   END SUBROUTINE set_md_env
 
-!!****f* md_environment_types/create_md_ener [1.0] *
-!!
-!!   NAME
-!!     create_md_ener
-!!
-!!   FUNCTION
-!!     retains the given md_ener structure
-!!
-!!   NOTES
-!!
-!!   ARGUMENTS
-!!     - md_ener:
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [MI]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given md_ener structure
+!> \param md_ener :
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created [MI]
+!> \author MI
+! *****************************************************************************
 SUBROUTINE create_md_ener(md_ener, error)
     TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -568,28 +463,15 @@ SUBROUTINE create_md_ener(md_ener, error)
   END IF
 END SUBROUTINE create_md_ener
   
-!!****f* md_environment_types/retain_md_ener [1.0] *
-!!
-!!   NAME
-!!     retain_md_ener
-!!
-!!   FUNCTION
-!!     retains the given md_ener structure
-!!
-!!   NOTES
-!!
-!!   ARGUMENTS
-!!     - md_ener:
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [MI]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given md_ener structure
+!> \param md_ener :
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created [MI]
+!> \author MI
+! *****************************************************************************
 SUBROUTINE retain_md_ener(md_ener, error)
     TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -608,28 +490,15 @@ SUBROUTINE retain_md_ener(md_ener, error)
   END IF
 END SUBROUTINE retain_md_ener
 
-!!****f* md_environment_types/release_md_ener [1.0] *
-!!
-!!   NAME
-!!     release_md_ener
-!!
-!!   FUNCTION
-!!     releases the given md_ener structure
-!!
-!!   NOTES
-!!
-!!   ARGUMENTS
-!!     - md_ener:
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [MI]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given md_ener structure
+!> \param md_ener :
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created [MI]
+!> \author MI
+! *****************************************************************************
 SUBROUTINE release_md_ener(md_ener, error)
     TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -677,28 +546,15 @@ SUBROUTINE release_md_ener(md_ener, error)
   END IF
 END SUBROUTINE release_md_ener
 
-!!****f* md_environment_types/zero_md_ener [1.0] *
-!!
-!!   NAME
-!!     zero_md_ener
-!!
-!!   FUNCTION
-!!    initialize to zero energies and temperatures  
-!!
-!!   NOTES
-!!
-!!   ARGUMENTS
-!!     - md_ener:
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [MI]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief initialize to zero energies and temperatures  
+!> \param md_ener :
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created [MI]
+!> \author MI
+! *****************************************************************************
 SUBROUTINE zero_md_ener(md_ener, tkind, tshell, error)
     TYPE(md_ener_type), POINTER              :: md_ener
     LOGICAL, INTENT(IN)                      :: tkind, tshell
@@ -738,11 +594,6 @@ SUBROUTINE zero_md_ener(md_ener, tkind, tshell, error)
     md_ener%vcom(:) = 0.0_dp
     md_ener%total_mass = 0.0_dp
     
-
-
 END SUBROUTINE zero_md_ener
 
-! *****************************************************************************
-
 END MODULE md_environment_types
-!******************************************************************************

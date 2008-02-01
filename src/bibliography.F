@@ -2,40 +2,29 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2007 - 2008 CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/bibliography *
-!!
-!!   NAME
-!!     bibliography
-!!
-!!   FUNCTION
-!!     collects all references to literature in CP2K
-!!     as new algorithms / method are included from literature sources
-!!     we add a citation, to give credit to the authors
-!!     (often ourselves, but this need not to be the case), and as a form
-!!     of documentation.
-!!
-!!     reference_manager.F provides an easy way to cite these references from the code
-!!     (e.g. whenever the relevant part of the code is executed)
-!!     and to add citations to the input
-!!     at the end of the run a bibliography is printed that can be used e.g. in papers
-!!
-!!   NOTES
-!!     references need to be input using the ISI citation format, because it is
-!!     uniform, easy to parse, and can be exported for example from web of science.
-!!     (mark the reference, and click 'export to reference software', open the resulting file)
-!!     Furthermore, it can be easily converted to and from using the bibutils tools
-!!     a collection of easy to use conversion programs that can be found at
-!!     http://www.scripps.edu/~cdputnam/software/bibutils/ by Chris Putnam
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     08.2007 [Joost VandeVondele] Created
-!!
-!!   SOURCE
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief collects all references to literature in CP2K
+!>      as new algorithms / method are included from literature sources
+!>      we add a citation, to give credit to the authors
+!>      (often ourselves, but this need not to be the case), and as a form
+!>      of documentation.
+!> 
+!>      reference_manager.F provides an easy way to cite these references from the code
+!>      (e.g. whenever the relevant part of the code is executed)
+!>      and to add citations to the input
+!>      at the end of the run a bibliography is printed that can be used e.g. in papers
+!> \note
+!>      references need to be input using the ISI citation format, because it is
+!>      uniform, easy to parse, and can be exported for example from web of science.
+!>      (mark the reference, and click 'export to reference software', open the resulting file)
+!>      Furthermore, it can be easily converted to and from using the bibutils tools
+!>      a collection of easy to use conversion programs that can be found at
+!>      http://www.scripps.edu/~cdputnam/software/bibutils/ by Chris Putnam
+!> \par History
+!>      08.2007 [Joost VandeVondele] Created
+!> \author Joost VandeVondele
+! *****************************************************************************
 MODULE bibliography
   USE reference_manager,               ONLY: add_reference,&
                                              cite_reference
@@ -62,26 +51,17 @@ MODULE bibliography
              Yamada2000,Dudarev1997,Dudarev1998
 
 CONTAINS
-!!****f* bibliography/add_all_references *
-!!
-!!   NAME
-!!    add_all_references
-!!
-!!   FUNCTION
-!!    adds references that can later be cited / printed using the key
-!!
-!!   NOTES
-!!    - note that the ISI record is fixed format (line length limited and the
-!!      first 3 characters can indicate record type)
-!!    - please add DOI whenever available, this will result in a clickable
-!!      link in the input reference manual.
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     08.2007 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief adds references that can later be cited / printed using the key
+!> \note
+!>     - note that the ISI record is fixed format (line length limited and the
+!>       first 3 characters can indicate record type)
+!>     - please add DOI whenever available, this will result in a clickable
+!>       link in the input reference manual.
+!> \par History
+!>      08.2007 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE add_all_references()
 
     CALL add_reference(key=Henkelman1999, ISI_record=s2a(&
@@ -444,7 +424,6 @@ CONTAINS
          "UT ISI:000179042300036",&
          "ER"),&
          DOI="10.1063/1.1517040")
-
 
     CALL add_reference(key=Krack2000,ISI_record=s2a(&
          "PT J",&

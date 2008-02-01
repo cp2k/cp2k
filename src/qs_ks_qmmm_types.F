@@ -3,26 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qs_ks_qmmm_types [1.0] *
-!!
-!!   NAME
-!!     qs_ks_qmmm_types
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 [tlaino]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \par History
+!>      05.2004 [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
 MODULE qs_ks_qmmm_types
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info
@@ -49,32 +34,16 @@ MODULE qs_ks_qmmm_types
 
   PUBLIC :: qs_ks_qmmm_env_type, qs_ks_qmmm_env_p_type
   PUBLIC :: qs_ks_qmmm_release, qs_ks_qmmm_retain
-!!***
-!****************************************************************************
 
-!!****s* qs_ks_qmmm_methods/qs_ks_qmmm_env_type [1.0] *
-!!
-!!   NAME
-!!     qs_ks_qmmm_env_type
-!!
-!!   FUNCTION
-!!     calculation environement to calculate the ks_qmmm matrix,
-!!     holds the QM/MM potential and all the needed variables to
-!!     compute the QM/MM electrostatic 1-electron ks matrix
-!!     assumes that the core hamiltonian and energy are up to date.
-!!
-!!   NOTES
-!!     -
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created [tlaino]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief calculation environement to calculate the ks_qmmm matrix,
+!>      holds the QM/MM potential and all the needed variables to
+!>      compute the QM/MM electrostatic 1-electron ks matrix
+!>      assumes that the core hamiltonian and energy are up to date.
+!> \par History
+!>      05.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   TYPE qs_ks_qmmm_env_type
      INTEGER :: n_evals, &
                 id_nr, ref_count
@@ -85,66 +54,28 @@ MODULE qs_ks_qmmm_types
      TYPE(real_matrix_p_type), DIMENSION(:), &
           POINTER                                :: matrix_h
   END TYPE qs_ks_qmmm_env_type
-!!***
-!****************************************************************************
 
-!!****s* qs_ks_qmmm_methods/qs_ks_qmmm_env_p_type [1.0] *
-!!
-!!   NAME
-!!     qs_ks_qmmm_env_p_type
-!!
-!!   FUNCTION
-!!     type to build arrays of pointers
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     ks_env: the ks_env pointer
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 [tlaino]
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief type to build arrays of pointers
+!> \param ks_env the ks_env pointer
+!> \par History
+!>      05.2004 [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   TYPE qs_ks_qmmm_env_p_type
      TYPE(qs_ks_qmmm_env_type), POINTER :: ks_env
   END TYPE qs_ks_qmmm_env_p_type
-!!***
-  !****************************************************************************
 CONTAINS
-!!****f* qs_ks_methods/qs_ks_qmmm_release [1.0] *
-!!
-!!   NAME
-!!     qs_ks_qmmm_release
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_ks_release(ks_qmmm_env, error)
-!!       Type(qs_ks_qmmm_env_type), Pointer:: ks_env_qmmm
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_ks_qmmm_release
-!!
-!!   FUNCTION
-!!     releases the ks_qmmm_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - ks_qmmm_env: the ks_qmmm_env to be released
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created [tlaino]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief releases the ks_qmmm_env (see doc/ReferenceCounting.html)
+!> \param ks_qmmm_env the ks_qmmm_env to be released
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      05.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qs_ks_qmmm_release(ks_qmmm_env,force_env_section,error)
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
     TYPE(section_vals_type), POINTER         :: force_env_section
@@ -183,37 +114,16 @@ CONTAINS
     END IF
     NULLIFY(ks_qmmm_env)
   END SUBROUTINE qs_ks_qmmm_release
-!***************************************************************************
 
-!!****f* qs_ks_qmmm_methods/qs_ks_qmmm_retain [1.0] *
-!!
-!!   NAME
-!!     qs_ks_qmmm_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_ks_qmmm_retain(ks_qmmm_env, error)
-!!       Type(qs_ks_qmmm_env_type), Pointer:: ks_qmmm_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_ks_qmmm_retain
-!!
-!!   FUNCTION
-!!     retains the given ks_environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - ks_qmmm_env: the KohnSham QM/MM environment to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given ks_environment
+!> \param ks_qmmm_env the KohnSham QM/MM environment to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      05.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
 SUBROUTINE qs_ks_qmmm_retain(ks_qmmm_env, error)
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -231,6 +141,5 @@ SUBROUTINE qs_ks_qmmm_retain(ks_qmmm_env, error)
      ks_qmmm_env%ref_count=ks_qmmm_env%ref_count+1
   END IF
 END SUBROUTINE qs_ks_qmmm_retain
-!***************************************************************************
 
 END MODULE qs_ks_qmmm_types

@@ -3,23 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/qs_resp [1.0] *
-!!
-!!   NAME
-!!     qs_resp
-!!
-!!   FUNCTION
-!!     provides a resp fit for gas phase systems
-!!
-!!   AUTHOR
-!!     Joost VandeVondele (02.2007)
-!!
-!!   MODIFICATION HISTORY
-!!     created
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief provides a resp fit for gas phase systems
+!> \par History
+!>      created
+!> \author Joost VandeVondele (02.2007)
+! *****************************************************************************
 MODULE qs_resp
   USE atomic_charges,                  ONLY: print_atomic_charges
   USE atomic_kind_types,               ONLY: get_atomic_kind
@@ -54,10 +43,9 @@ MODULE qs_resp
 
   PUBLIC :: resp_fit
 
-! *****************************************************************************
-
 CONTAINS
 
+! *****************************************************************************
   SUBROUTINE resp_fit(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -105,8 +93,6 @@ CONTAINS
        output_unit=cp_print_key_unit_nr(logger,resp_section,"PROGRAM_RUN_INFO",&
                                         extension=".resp",error=error)
 
-
-
        cons_section=>section_vals_get_subs_vals(resp_section,"CONSTRAINT",error=error)
        rest_section=>section_vals_get_subs_vals(resp_section,"RESTRAINT",error=error)
 
@@ -127,7 +113,6 @@ CONTAINS
 
        CALL section_vals_val_get(resp_section,"INTEGER_TOTAL_CHARGE",l_val=itc,error=error)
        IF (itc) ncons=ncons+1
-
 
        CALL section_vals_val_get(resp_section,"RESTRAIN_HEAVIES_TO_ZERO",l_val=rheavies,error=error)
        IF (rheavies) THEN

@@ -3,22 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/manybody_eam [1.0] *
-!!
-!!   NAME
-!!     manybody_eam
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM, I-Feng W. Kuo, Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     EAM potential
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      EAM potential
+!> \author CJM, I-Feng W. Kuo, Teodoro Laino
+! *****************************************************************************
 MODULE manybody_eam
 
   USE cell_types,                      ONLY: cell_type
@@ -50,28 +39,11 @@ MODULE manybody_eam
 
 CONTAINS
 
-!!****f* manybody_eam/density_nonbond [1.0] *
-!!
-!!   NAME
-!!     density_nonbond
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell, para_env, error )
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(particle_type), DIMENSION(:), &
@@ -157,28 +129,11 @@ CONTAINS
 
   END SUBROUTINE density_nonbond
 
-!!****f* manybody_eam/get_rho_eam [1.0] *
-!!
-!!   NAME
-!!     get_rho_eam
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE get_rho_eam ( eam, rab2, atom_a, atom_b, rho )
     TYPE(eam_pot_type), POINTER              :: eam
     REAL(dp), INTENT(IN)                     :: rab2
@@ -209,28 +164,11 @@ CONTAINS
     rho ( atom_b ) = rho ( atom_b ) + rhoj
   END SUBROUTINE get_rho_eam
 
-!!****f* manybody_eam/get_force_eam [1.0] *
-!!
-!!   NAME
-!!     get_force_eam
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE get_force_eam ( rab2, eam, particle_set, atom_a, atom_b, f_eam )
     REAL(dp), INTENT(IN)                     :: rab2
     TYPE(eam_pot_type), POINTER              :: eam

@@ -2,24 +2,14 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/molecule_kind_types [1.0] *
-!!
-!!   NAME
-!!     molecule_kind_types
-!!
-!!   FUNCTION
-!!     Define the molecule kind structure types and the corresponding
-!!     functionality
-!!
-!!   AUTHOR
-!!     MK (22.08.2003)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Define the molecule kind structure types and the corresponding
+!>      functionality
+!> \par History
+!>      none
+!> \author MK (22.08.2003)
+! *****************************************************************************
 MODULE molecule_kind_types
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -61,58 +51,68 @@ MODULE molecule_kind_types
 
 ! *** Define the derived structure types ***
 
+! *****************************************************************************
   TYPE atom_type
     TYPE(atomic_kind_type), POINTER :: atomic_kind
     CHARACTER(LEN=default_string_length)  :: name
   END TYPE atom_type
 
+! *****************************************************************************
   TYPE shell_type
     INTEGER :: a
     CHARACTER(LEN=default_string_length)  :: name
     TYPE(shell_kind_type), POINTER :: shell_kind
   END TYPE shell_type
 
+! *****************************************************************************
   TYPE bond_type
     INTEGER :: a,b
     INTEGER :: id_type, itype
     TYPE(bond_kind_type), POINTER :: bond_kind
   END TYPE bond_type
 
+! *****************************************************************************
   TYPE bend_type
     INTEGER :: a,b,c
     INTEGER :: id_type, itype
     TYPE(bend_kind_type), POINTER :: bend_kind
   END TYPE bend_type
 
+! *****************************************************************************
   TYPE ub_type
     INTEGER :: a,b,c
     INTEGER :: id_type, itype
     TYPE(ub_kind_type), POINTER :: ub_kind
   END TYPE ub_type
 
+! *****************************************************************************
   TYPE torsion_type
     INTEGER :: a,b,c,d
     INTEGER :: id_type, itype
     TYPE(torsion_kind_type), POINTER :: torsion_kind
   END TYPE torsion_type
 
+! *****************************************************************************
   TYPE impr_type
     INTEGER :: a,b,c,d
     INTEGER :: id_type, itype
     TYPE(impr_kind_type), POINTER :: impr_kind
   END TYPE impr_type
 
+! *****************************************************************************
   TYPE onfo_type
     INTEGER :: a,b
     INTEGER :: id_type
     TYPE(onfo_kind_type), POINTER :: onfo_kind
   END TYPE onfo_type
 
+! *****************************************************************************
   TYPE restraint_type
      LOGICAL       :: active
      REAL(KIND=dp) :: k0
   END TYPE restraint_type
 
+! *****************************************************************************
   TYPE colvar_constraint_type
      INTEGER                        :: type_id
      INTEGER                        :: inp_seq_num
@@ -122,24 +122,28 @@ MODULE molecule_kind_types
      TYPE(restraint_type)           :: restraint
   END TYPE colvar_constraint_type
 
+! *****************************************************************************
   TYPE g3x3_constraint_type
      INTEGER                        :: a,b,c
      REAL(KIND = dp)                :: dab,dac,dbc
      TYPE(restraint_type)           :: restraint
   END TYPE g3x3_constraint_type
 
+! *****************************************************************************
   TYPE g4x6_constraint_type
      INTEGER                        :: a,b,c,d
      REAL(KIND = dp)                :: dab,dac,dbc,dad,dbd,dcd
      TYPE(restraint_type)           :: restraint
   END TYPE g4x6_constraint_type
 
+! *****************************************************************************
   TYPE fixd_constraint_type
      TYPE(restraint_type)           :: restraint
      INTEGER                        :: fixd, itype
      REAL(KIND=dp), DIMENSION(3)    :: coord
   END TYPE fixd_constraint_type
 
+! *****************************************************************************
   TYPE molecule_kind_type
     TYPE(atom_type), DIMENSION(:), POINTER            :: atom_list
     TYPE(bond_kind_type), DIMENSION(:), POINTER       :: bond_kind_set
@@ -209,14 +213,9 @@ MODULE molecule_kind_types
             molecule_kind_type,&
             shell_type
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
-
   SUBROUTINE setup_colvar_counters(colv_list, ncolv)
     TYPE(colvar_constraint_type), &
       DIMENSION(:), POINTER                  :: colv_list
@@ -274,15 +273,12 @@ CONTAINS
 
   END SUBROUTINE setup_colvar_counters
 
-
-
+! *****************************************************************************
   SUBROUTINE allocate_molecule_kind_set(molecule_kind_set,nmolecule_kind,error)
 
 !   Purpose: Allocate and initialize a molecule kind set.
 
 !   History: - Creation (22.08.2003,MK)
-
-!   ***************************************************************************
 
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
@@ -350,14 +346,11 @@ CONTAINS
   END SUBROUTINE allocate_molecule_kind_set
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_molecule_kind_set(molecule_kind_set,error)
 
 !   Purpose: Deallocate a molecule kind set.
 
 !   History: - Creation (22.08.2003,MK)
-
-!   ***************************************************************************
 
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
@@ -473,7 +466,6 @@ CONTAINS
   END SUBROUTINE deallocate_molecule_kind_set
 
 ! *****************************************************************************
-
   SUBROUTINE get_molecule_kind(molecule_kind,atom_list,bond_list,bend_list,&
                                ub_list,impr_list,onfo_list,colv_list,fixd_list,&
                                g3x3_list,g4x6_list,torsion_list,shell_list,&
@@ -488,8 +480,6 @@ CONTAINS
 !   Purpose: Get informations about a molecule kind.
 
 !   History: - Creation (27.08.2003,MK)
-
-!   ***************************************************************************
 
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(atom_type), DIMENSION(:), &
@@ -628,7 +618,6 @@ CONTAINS
   END SUBROUTINE get_molecule_kind
 
 ! *****************************************************************************
-
   SUBROUTINE get_molecule_kind_set(molecule_kind_set,maxatom,natom,&
                                    nbond,nbend,nub,ntorsion,nimpr,nonfo,&
                                    nconstraint,nmolecule,nrestraints)
@@ -636,8 +625,6 @@ CONTAINS
 !   Purpose: Get informations about a molecule kind set.
 
 !   History: - Creation (27.08.2003,MK)
-
-!   ***************************************************************************
 
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
@@ -715,14 +702,11 @@ CONTAINS
   END SUBROUTINE get_molecule_kind_set
 
 ! *****************************************************************************
-
   SUBROUTINE num_ao_el_per_molecule(molecule_kind_set,charge_x_mol)
 
 !   Purpose: Read a molecule kind data set from the input file.
 
 !   History: - Creation (22.11.2004,MI)
-
-!   ***************************************************************************
 
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
@@ -793,7 +777,6 @@ CONTAINS
   END SUBROUTINE num_ao_el_per_molecule
 
 ! *****************************************************************************
-
   SUBROUTINE set_molecule_kind(molecule_kind,name,mass,charge,kind_number,&
                                molecule_list,atom_list,nbond,bond_list,&
                                nbend,bend_list,nub,ub_list,nimpr,impr_list,&
@@ -808,8 +791,6 @@ CONTAINS
 !   Purpose: Set the components of a molecule kind.
 
 !   History: - Creation (27.08.2003,MK)
-
-!   ***************************************************************************
 
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: name
@@ -936,14 +917,11 @@ CONTAINS
   END SUBROUTINE set_molecule_kind
 
 ! *****************************************************************************
-
   SUBROUTINE write_molecule_kind(molecule_kind,output_unit,error)
 
 !   Purpose: Write a molecule kind data set to the output unit.
 
 !   History: - Creation (24.09.2003,MK)
-
-!   ***************************************************************************
 
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     INTEGER, INTENT(in)                      :: output_unit
@@ -1021,14 +999,11 @@ CONTAINS
   END SUBROUTINE write_molecule_kind
 
 ! *****************************************************************************
-
   SUBROUTINE write_molecule_kind_set(molecule_kind_set,subsys_section,error)
 
 !   Purpose: Write a moleculeatomic kind set data set to the output unit.
 
 !   History: - Creation (24.09.2003,MK)
-
-!   ***************************************************************************
 
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
@@ -1093,8 +1068,5 @@ CONTAINS
     CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
          "PRINT%MOLECULES",error=error)
   END SUBROUTINE write_molecule_kind_set
-
-! *****************************************************************************
-
 
 END MODULE molecule_kind_types

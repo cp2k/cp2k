@@ -2,24 +2,14 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****s* cp2k/distribution_methods [1.0] *
-!!
-!!   NAME
-!!     distribution_methods
-!!
-!!   FUNCTION
-!!     Distribution methods for atoms, particles, or molecules
-!!
-!!   AUTHOR
-!!     MK (22.08.2003)
-!!
-!!   MODIFICATION HISTORY
-!!     - 1d-distribution of molecules and particles (Sep. 2003,MK)
-!!     - 2d-distribution for Quickstep updated with molecules (Oct. 2003,MK)
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Distribution methods for atoms, particles, or molecules
+!> \par History
+!>      - 1d-distribution of molecules and particles (Sep. 2003,MK)
+!>      - 2d-distribution for Quickstep updated with molecules (Oct. 2003,MK)
+!> \author MK (22.08.2003)
+! *****************************************************************************
 MODULE distribution_methods
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -75,39 +65,22 @@ MODULE distribution_methods
   PUBLIC :: distribute_molecules_1d,&
             distribute_molecules_2d
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-!!****f* distribution_methods/distribute_molecules_1d [1.0] *
-!!
-!!   NAME
-!!     distribute_molecules_1d
-!!
-!!   FUNCTION
-!!     Distribute molecules and particles
-!!
-!!   NOTES
-!!
-!!   ARGUMENTS
-!!     - particle_kind_set: particle (atomic) kind information
-!!     - particle_set: particle information
-!!     - local_particles: distribution of particles created by this routine
-!!     - molecule_kind_set: molecule kind information
-!!     - molecule_set: molecule information
-!!     - local_molecules: distribution of molecules created by this routine
-!!     - error: variable to control error logging, stopping, ...
-!!              see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MK (Jun. 2003)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
-
+!> \brief Distribute molecules and particles
+!> \param particle_kind_set particle (atomic) kind information
+!> \param particle_set particle information
+!> \param local_particles distribution of particles created by this routine
+!> \param molecule_kind_set molecule kind information
+!> \param molecule_set molecule information
+!> \param local_molecules distribution of molecules created by this routine
+!> \param error variable to control error logging, stopping, ...
+!>               see module cp_error_handling
+!> \par History
+!>      none
+!> \author MK (Jun. 2003)
+! *****************************************************************************
   SUBROUTINE distribute_molecules_1d(particle_kind_set,particle_set,&
                                      local_particles,&
                                      molecule_kind_set,molecule_set,&
@@ -258,7 +231,6 @@ CONTAINS
       END DO
 
     END DO
-
 
 !   *** Create the local molecule structure ***
 
@@ -438,40 +410,26 @@ CONTAINS
   END SUBROUTINE distribute_molecules_1d
 
 ! *****************************************************************************
-!!****f* distribution_methods/distribute_molecules_2d [1.0] *
-!!
-!!   NAME
-!!     distribute_molecules_2d
-!!
-!!   FUNCTION
-!!     Distributes the particle pairs creating a 2d distribution optimally
-!!     suited for quickstep
-!!
-!!   NOTES
-!!     Intermediate generation of a 2d distribution of the molecules, but
-!!     only the corresponding particle (atomic) distribution is currently
-!!     used. The 2d distribution of the molecules is deleted, but may easily
-!!     be recovered (MK).
-!!
-!!   ARGUMENTS
-!!     - distribution_2d: the distribution that will be created by this
-!!                        method
-!!     - atomic_kind_set: the atomic kind set to distribute
-!!     - blacs_env: the parallel environement at the basis of the
-!!                  distribution
-!!     - error: variable to control error logging, stopping,...
-!!              see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi (Feb. 2003)
-!!
-!!   MODIFICATION HISTORY
-!!     - local_rows & cols blocksize optimizations (Aug. 2003,MK)
-!!     - cleanup of distribution_2d (Sep. 2003,fawzi)
-!!     - update for molecules (Oct. 2003,MK)
-!!
-!!*** **********************************************************************
-
+!> \brief Distributes the particle pairs creating a 2d distribution optimally
+!>      suited for quickstep
+!> \param distribution_ 2d: the distribution that will be created by this
+!>                         method
+!> \param atomic_kind_set the atomic kind set to distribute
+!> \param blacs_env the parallel environement at the basis of the
+!>                   distribution
+!> \param error variable to control error logging, stopping,...
+!>               see module cp_error_handling
+!> \note
+!>      Intermediate generation of a 2d distribution of the molecules, but
+!>      only the corresponding particle (atomic) distribution is currently
+!>      used. The 2d distribution of the molecules is deleted, but may easily
+!>      be recovered (MK).
+!> \par History
+!>      - local_rows & cols blocksize optimizations (Aug. 2003,MK)
+!>      - cleanup of distribution_2d (Sep. 2003,fawzi)
+!>      - update for molecules (Oct. 2003,MK)
+!> \author fawzi (Feb. 2003)
+! *****************************************************************************
   SUBROUTINE distribute_molecules_2d(particle_kind_set,particle_set,&
                                      molecule_kind_set,molecule_set,&
                                      distribution_2d,blacs_env,force_env_section,&
@@ -532,7 +490,6 @@ CONTAINS
     mypcol = blacs_env%mepos(2) + 1
     nprow = blacs_env%num_pe(1)
     npcol = blacs_env%num_pe(2)
-
 
     nmolecule_kind = SIZE(molecule_kind_set)
     CALL get_molecule_kind_set(molecule_kind_set,nmolecule=nmolecule)
@@ -623,7 +580,6 @@ CONTAINS
        CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
                                              "PRINT%DISTRIBUTION",error=error)
 
-
        !
        ! optimize the distribution
        ! 
@@ -694,7 +650,6 @@ CONTAINS
        ENDIF
     ENDDO
         
-
 !   *** Generate the 2d distribution structure  but take care of the zero offsets required 
     row_distribution = row_distribution - 1
     col_distribution = col_distribution - 1
@@ -771,7 +726,6 @@ CONTAINS
          CALL m_flush(output_unit)
       END IF
 
-
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routineN,moduleN,__LINE__,"work")
@@ -807,21 +761,12 @@ CONTAINS
 
   END SUBROUTINE distribute_molecules_2d
 
-!!****f* distribution_methods/distribute_2d_cost_model *
-!!
-!!   NAME
-!!     distribute_2d_cost_model
-!!
-!!   FUNCTION
-!!     this is the crucial part in order to get a good distribution. The cost
-!!     model must model properly the cost of each cost_ele_pair
-!!
-!!   NOTES
-!!
-!!   MODIFICATION HISTORY
-!!     04.2007 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief this is the crucial part in order to get a good distribution. The cost
+!>      model must model properly the cost of each cost_ele_pair
+!> \par History
+!>      04.2007 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE distribute_2d_cost_model(cost_ele_pair,distribution_section,particle_kind_set,particle_set,&
                                       molecule_kind_set,molecule_set,output_unit,para_env,&
                                       error)

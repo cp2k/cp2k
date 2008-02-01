@@ -3,7 +3,7 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
+! *****************************************************************************
 MODULE qs_tddfpt_types
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_create_fm,&
@@ -25,7 +25,6 @@ MODULE qs_tddfpt_types
   IMPLICIT NONE
 
 ! *****************************************************************************
-
   TYPE tddfpt_env_type
      REAL(KIND=dp), DIMENSION(:), POINTER               :: evals  ! eigenvalues
      TYPE(cp_fm_p_type), DIMENSION(:,:), &
@@ -34,8 +33,6 @@ MODULE qs_tddfpt_types
      TYPE(cp_fm_pool_p_type), DIMENSION(:), &
           POINTER                                       :: ao_mo_fm_pools
   END TYPE tddfpt_env_type
-
-! *****************************************************************************
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tddfpt_types'
 
@@ -49,9 +46,7 @@ MODULE qs_tddfpt_types
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE tddfpt_env_allocate(t_env, p_env, qs_env, error)
-
 
     TYPE(tddfpt_env_type), INTENT(inout)     :: t_env
     TYPE(qs_p_env_type), POINTER             :: p_env
@@ -96,9 +91,7 @@ CONTAINS
   END SUBROUTINE tddfpt_env_allocate
 
 ! *****************************************************************************
-
   SUBROUTINE tddfpt_env_deallocate(t_env,error)
-
 
     TYPE(tddfpt_env_type), INTENT(inout)     :: t_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -125,7 +118,5 @@ CONTAINS
     NULLIFY(t_env%invS)
 
   END SUBROUTINE tddfpt_env_deallocate
-
-! *****************************************************************************
 
 END MODULE qs_tddfpt_types

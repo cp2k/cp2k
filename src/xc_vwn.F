@@ -2,32 +2,21 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/xc_vwn [1.0] *
-!!
-!!   NAME
-!!     xc_vwn
-!!
-!!   FUNCTION
-!!     Calculate the LDA functional according to Vosk, Wilk and Nusair
-!!     Literature: S. H. Vosko, L. Wilk and M. Nusair,
-!!                 Can. J. Phys. 58, 1200 (1980)
-!!
-!!   NOTES
-!!     Order of derivatives is: LDA 0; 1; 2; 3;
-!!
-!!   AUTHOR
-!!     JGH (26.02.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (26.02.2003) : OpenMP enabled
-!!     fawzi (04.2004)  : adapted to the new xc interface
-!!     MG 01.2007       : added scaling
-!!     MG 01.2007       : bug fix in vwn_lda_xx
-!!
-!!*** *************************************************************************
 
-MODULE xc_vwn
 ! *****************************************************************************
+!> \brief Calculate the LDA functional according to Vosk, Wilk and Nusair
+!>      Literature: S. H. Vosko, L. Wilk and M. Nusair,
+!>                  Can. J. Phys. 58, 1200 (1980)
+!> \note
+!>      Order of derivatives is: LDA 0; 1; 2; 3;
+!> \par History
+!>      JGH (26.02.2003) : OpenMP enabled
+!>      fawzi (04.2004)  : adapted to the new xc interface
+!>      MG 01.2007       : added scaling
+!>      MG 01.2007       : bug fix in vwn_lda_xx
+!> \author JGH (26.02.2002)
+! *****************************************************************************
+MODULE xc_vwn
   USE bibliography,                    ONLY: Vosko1980,&
                                              cite_reference
   USE f77_blas
@@ -65,12 +54,9 @@ MODULE xc_vwn
 
   REAL(KIND=dp) :: eps_rho, b, c, x0, bf, cf, x0f, ba, ca, x0a 
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE vwn_init ( cutoff, vwn_params, error )
 
     REAL(KIND=dp), INTENT(IN)                :: cutoff
@@ -120,7 +106,6 @@ CONTAINS
   END SUBROUTINE vwn_init
 
 ! *****************************************************************************
-
   SUBROUTINE vwn_lda_info ( reference, shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
@@ -143,7 +128,6 @@ CONTAINS
   END SUBROUTINE vwn_lda_info
 
 ! *****************************************************************************
-
   SUBROUTINE vwn_lda_eval(rho_set,deriv_set,order,vwn_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -169,7 +153,6 @@ CONTAINS
     NULLIFY(bo)
 
     CALL section_vals_val_get(vwn_params,"scale_c",r_val=sc,error=error)
-
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -237,7 +220,6 @@ CONTAINS
   END SUBROUTINE vwn_lda_eval
 
 ! *****************************************************************************
-
   SUBROUTINE vwn_lda_0 ( rho, x, e_0, npoints, sc, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, x
@@ -274,7 +256,6 @@ CONTAINS
   END SUBROUTINE vwn_lda_0
 
 ! *****************************************************************************
-
   SUBROUTINE vwn_lda_1 ( rho, x, e_rho, npoints, sc, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, x
@@ -317,7 +298,6 @@ CONTAINS
   END SUBROUTINE vwn_lda_1
 
 ! *****************************************************************************
-
   SUBROUTINE vwn_lda_01 ( rho, x, e_0, e_rho, npoints, sc, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, x
@@ -359,11 +339,9 @@ CONTAINS
 
     END DO
 
-
   END SUBROUTINE vwn_lda_01
 
 ! *****************************************************************************
-
   SUBROUTINE vwn_lda_2 ( rho, x, e_rho_rho, npoints, sc, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, x
@@ -416,7 +394,6 @@ CONTAINS
   END SUBROUTINE vwn_lda_2
 
 ! *****************************************************************************
-
   SUBROUTINE vwn_lda_3 ( rho, x, e_rho_rho_rho, npoints, sc, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, x
@@ -480,7 +457,6 @@ CONTAINS
   END SUBROUTINE vwn_lda_3
 
 ! *****************************************************************************
-
   SUBROUTINE vwn_lsd_eval(rho_set,deriv_set,order,vwn_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -506,7 +482,6 @@ CONTAINS
     NULLIFY(bo)
 
     CALL section_vals_val_get(vwn_params,"scale_c",r_val=sc,error=error)
-
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -624,9 +599,7 @@ CONTAINS
 
   END SUBROUTINE vwn_lsd_eval
 
-
 ! *****************************************************************************
-
   SUBROUTINE vwn3_lsd_calc ( rhoa, rhob, e_0, e_a, e_b, e_aa, e_bb, e_ab,&
                             e_aaa, e_bbb, e_aab, e_abb, order, npoints, sc, error )
 
@@ -1171,7 +1144,6 @@ CONTAINS
   END SUBROUTINE vwn3_lsd_calc
 
 ! *****************************************************************************
-
   SUBROUTINE vwn5_lsd_calc ( rhoa, rhob, e_0, e_a, e_b, e_aa, e_bb, e_ab,&
                             e_aaa, e_bbb, e_aab, e_abb, order, npoints, sc, error )
 
@@ -2225,10 +2197,7 @@ CONTAINS
       END IF
     END DO
 
-
   END SUBROUTINE vwn5_lsd_calc
-
 
 END MODULE xc_vwn
 
-! *****************************************************************************

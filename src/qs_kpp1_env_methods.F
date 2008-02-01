@@ -3,27 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qs_kpp1_env_methods [1.0] *
-!!
-!!   NAME
-!!     qs_kpp1_env_methods
-!!
-!!   FUNCTION
-!!     module that builds the second order perturbation kernel
-!!     kpp1 = delta_rho|_P delta_rho|_P E drho(P1) drho
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief module that builds the second order perturbation kernel
+!>      kpp1 = delta_rho|_P delta_rho|_P E drho(P1) drho
+!> \par History
+!>      07.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE qs_kpp1_env_methods
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -105,42 +91,18 @@ MODULE qs_kpp1_env_methods
             kpp1_calc_k_p_p1_fdiff, &
             kpp1_did_change
 
-!!***
-!****************************************************************************
-
 CONTAINS
 
-!!****f* qs_kpp1_env_methods/kpp1_create [1.0] *
-!!
-!!   NAME
-!!     kpp1_create
-!!
-!!   SYNOPSIS
-!!     Subroutine kpp1_create(kpp1_env, qs_env,  error)
-!!       Type(qs_kpp1_env_type), Pointer:: kpp1_env
-!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine kpp1_create
-!!
-!!   FUNCTION
-!!     allocates and initializes a kpp1_env
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - kpp1_env: the environement to initialize
-!!     - qs_env: the qs environment in which this environment lives
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief allocates and initializes a kpp1_env
+!> \param kpp 1_env: the environement to initialize
+!> \param qs_env the qs environment in which this environment lives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      07.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE kpp1_create(kpp1_env,qs_env, error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -168,33 +130,20 @@ CONTAINS
        kpp1_env%print_count=0
     END IF
   END SUBROUTINE kpp1_create
-!***************************************************************************
 
-!!****f* qs_p_utils/p_calc_k_p_p1 [1.0] *
-!!
-!!   NAME
-!!     p_calc_k_p_p1
-!!
-!!   FUNCTION
-!!     calcualtes the k_p_p1 kernel of the pertubation theory
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - kpp1_env: the kpp1 environement in which perform the calculation
-!!     - qs_env: kpp1's qs_env
-!!     - k_p_p1: the sparse matrix that will contain the kernel k_p_p1
-!!     - rho: the density where to evaluate the derivatives (i.e. p along
-!!       with with its grid representations, that must be valid)
-!!     - rho1: the density that represent the first direction along which
-!!       you should evaluate the derivatives
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calcualtes the k_p_p1 kernel of the pertubation theory
+!> \param kpp 1_env: the kpp1 environement in which perform the calculation
+!> \param qs_env kpp1's qs_env
+!> \param k_p_p 1: the sparse matrix that will contain the kernel k_p_p1
+!> \param rho the density where to evaluate the derivatives (i.e. p along
+!>        with with its grid representations, that must be valid)
+!> \param rho 1: the density that represent the first direction along which
+!>        you should evaluate the derivatives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE kpp1_calc_k_p_p1(kpp1_env, p_env, qs_env, k_p_p1, rho, rho1, rho1_xc, error)
-
 
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(qs_p_env_type), POINTER             :: p_env
@@ -310,7 +259,6 @@ CONTAINS
 
     IF (gapw .OR. gapw_xc) &
        CALL prepare_gapw_den(qs_env,p_env%local_rho_set, do_rho0=(.NOT.gapw_xc), error=error)
-
 
 ! *** calculate the hartree potential on the total density ***
     IF (.NOT. failure) THEN
@@ -570,41 +518,27 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE kpp1_calc_k_p_p1
-!***************************************************************************
 
-
-!!****f* qs_p_utils/p_calc_k_p_p1_fdiff [1.0] *
-!!
-!!   NAME
-!!     p_calc_k_p_p1_fdiff
-!!
-!!   FUNCTION
-!!     calcualtes the k_p_p1 kernel of the pertubation theory with finite
-!!     differences
-!!
-!!   NOTES
-!!     useful for testing purposes.
-!!     rescale my_diff depending on the norm of rho1?
-!!
-!!   INPUTS
-!!     - kpp1_env: the kpp1 environement in which perform the calculation
-!!     - qs_env: kpp1's qs_env
-!!     - k_p_p1: the sparse matrix that will contain the kernel k_p_p1
-!!     - rho: the density where to evaluate the derivatives (i.e. p along
-!!       with with its grid representations, that must be valid)
-!!     - rho1: the density that represent the first direction along which
-!!       you should evaluate the derivatives
-!!     - diff: the amount of the finite difference step
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     01.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calcualtes the k_p_p1 kernel of the pertubation theory with finite
+!>      differences
+!> \param kpp 1_env: the kpp1 environement in which perform the calculation
+!> \param qs_env kpp1's qs_env
+!> \param k_p_p 1: the sparse matrix that will contain the kernel k_p_p1
+!> \param rho the density where to evaluate the derivatives (i.e. p along
+!>        with with its grid representations, that must be valid)
+!> \param rho 1: the density that represent the first direction along which
+!>        you should evaluate the derivatives
+!> \param diff the amount of the finite difference step
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      useful for testing purposes.
+!>      rescale my_diff depending on the norm of rho1?
+!> \par History
+!>      01.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE kpp1_calc_k_p_p1_fdiff(kpp1_env,qs_env,k_p_p1,rho,rho1,&
        diff, error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
@@ -699,29 +633,17 @@ CONTAINS
     CALL deallocate_qs_energy(qs_energy)
   END SUBROUTINE kpp1_calc_k_p_p1_fdiff
 
-!!****f* qs_kpp1_env_methods/kpp1_check_i_alloc [1.0] *
-!!
-!!   NAME
-!!     kpp1_check_i_alloc
-!!
-!!   FUNCTION
-!!     checks that the intenal storage is allocated, and allocs it if needed
-!!
-!!   NOTES
-!!     private routine
-!!
-!!   INPUTS
-!!     - kpp1_env: the environment to check
-!!     - qs_env: the qs environment this kpp1_env lives in
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief checks that the intenal storage is allocated, and allocs it if needed
+!> \param kpp 1_env: the environment to check
+!> \param qs_env the qs environment this kpp1_env lives in
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      private routine
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE kpp1_check_i_alloc(kpp1_env, qs_env, error)
-
 
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -752,7 +674,6 @@ CONTAINS
     CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF (.NOT. failure) THEN
-
 
        CALL get_qs_env(qs_env, pw_env=pw_env,&
                        matrix_s=matrix_s, cell=cell, input=input, error=error, rho=rho)
@@ -839,43 +760,20 @@ CONTAINS
     END IF
 
   END SUBROUTINE kpp1_check_i_alloc
-!***************************************************************************
 
-!!****f* qs_kpp1_env_methods/kpp1_did_change [1.0] *
-!!
-!!   NAME
-!!     kpp1_did_change
-!!
-!!   SYNOPSIS
-!!     Subroutine kpp1_did_change(kpp1_env, s_struct_changed, grid_changed,&
-!!         error)
-!!       Type(qs_kpp1_env_type), Pointer:: kpp1_env
-!!       Logical, Intent (IN), Optional:: s_struct_changed, grid_changed
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine kpp1_did_change
-!!
-!!   FUNCTION
-!!     function to advise of changes either in the grids or in the the
-!!     matrix structure (to update kpp1_env internal cache)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - kpp1_env: the kpp1_env
-!!     - grid_changed: true if the grids have changed and have to be rebuilt
-!!     - s_struct_changed: true if the structure of the s matrix has changed
-!!     - psi0_changed: true if the value of psi0 (qs_env%rho) has changed
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief function to advise of changes either in the grids or in the the
+!>      matrix structure (to update kpp1_env internal cache)
+!> \param kpp 1_env: the kpp1_env
+!> \param grid_changed true if the grids have changed and have to be rebuilt
+!> \param s_struct_changed true if the structure of the s matrix has changed
+!> \param psi 0_changed: true if the value of psi0 (qs_env%rho) has changed
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      11.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE kpp1_did_change(kpp1_env, s_struct_changed, grid_changed,&
        psi0_changed, error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
@@ -941,8 +839,8 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE kpp1_did_change
-! ***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE print_densities(kpp1_env, rho1, rho1_tot_gspace, output_unit, error)
 
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env

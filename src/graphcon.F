@@ -2,33 +2,22 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/graphcon *
-!!
-!!   NAME
-!!     graphcon
-!!
-!!   FUNCTION
-!!     uses a combination of graphs and hashing to determine if two molecules
-!!     are topologically equivalent, and if so, finds the one by one mapping
-!!
-!!   NOTES
-!!     the graph isomorphism being solved is a computationally hard one
-!!     and can not be solved in polynomial time in the general case
-!!     http://mathworld.wolfram.com/IsomorphicGraphs.html
-!!     the problem arises if many atoms are topologically equivalent
-!!     the current algorithm is able to solve the problem for benzene (C6H6)
-!!     but not for a fullerene (C60). Large systems are not really a problem (JAC).
-!!     as almost all atoms are topologically unique.
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     09.2006 [Joost VandeVondele]
-!!
-!!   SOURCE
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief uses a combination of graphs and hashing to determine if two molecules
+!>      are topologically equivalent, and if so, finds the one by one mapping
+!> \note
+!>      the graph isomorphism being solved is a computationally hard one
+!>      and can not be solved in polynomial time in the general case
+!>      http://mathworld.wolfram.com/IsomorphicGraphs.html
+!>      the problem arises if many atoms are topologically equivalent
+!>      the current algorithm is able to solve the problem for benzene (C6H6)
+!>      but not for a fullerene (C60). Large systems are not really a problem (JAC).
+!>      as almost all atoms are topologically unique.
+!> \par History
+!>      09.2006 [Joost VandeVondele]
+!> \author Joost VandeVondele
+! *****************************************************************************
 MODULE graphcon
   USE f77_blas
   USE util,                            ONLY: sort
@@ -42,15 +31,18 @@ MODULE graphcon
     ! a molecule is an array of vertices, each vertex has a kind
     ! and a list of edges (bonds). 
     ! (the number is the index of the other vertex in the array that builds the molecule)
+! *****************************************************************************
     TYPE graph_type
        TYPE(vertex), POINTER, DIMENSION(:) :: graph
     END TYPE graph_type
 
+! *****************************************************************************
     TYPE vertex
        INTEGER :: kind
        INTEGER, POINTER, DIMENSION(:) :: bonds
     END TYPE vertex
 
+! *****************************************************************************
     TYPE class
        INTEGER, DIMENSION(:), POINTER :: reference
        INTEGER, DIMENSION(:), POINTER :: unordered
@@ -61,35 +53,27 @@ MODULE graphcon
        INTEGER, DIMENSION(:), POINTER :: q
     END TYPE class
 
+! *****************************************************************************
     TYPE superclass
        INTEGER :: Nele
        INTEGER, DIMENSION(:), POINTER :: classes
     END TYPE
 
 CONTAINS
-!!****f* graphcon/hash_molecule *
-!!
-!!   NAME
-!!     hash_molecule
-!!
-!!   FUNCTION
-!!     hashes a molecule to a number. Molecules that are the (topologically) the same
-!!     have the same hash. However, there is a small chance that molecules with the same hash
-!!     are different
-!!
-!!   NOTES
-!!     Although relatively fast in general, might be quadratic with molecule size for
-!!     some systems (e.g. linear alkanes)
-!!
-!!   INPUTS
-!!     reference : IN  : molecule with atomic kinds and bonds
-!!     kind_ref  : OUT : an atomic hash which is the same for topologically equivalent atoms
-!!     hash      : OUT : a hash which is the same for topologically equivalent molecules
-!!
-!!   MODIFICATION HISTORY
-!!     09.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief hashes a molecule to a number. Molecules that are the (topologically) the same
+!>      have the same hash. However, there is a small chance that molecules with the same hash
+!>      are different
+!> \param reference IN  : molecule with atomic kinds and bonds
+!> \param kind_ref OUT : an atomic hash which is the same for topologically equivalent atoms
+!> \param hash OUT : a hash which is the same for topologically equivalent molecules
+!> \note
+!>      Although relatively fast in general, might be quadratic with molecule size for
+!>      some systems (e.g. linear alkanes)
+!> \par History
+!>      09.2006 created [Joost VandeVondele]
+! *****************************************************************************
     SUBROUTINE hash_molecule(reference,kind_ref,hash)
     TYPE(vertex), DIMENSION(:), INTENT(IN)   :: reference
     INTEGER, DIMENSION(:), INTENT(OUT)       :: kind_ref
@@ -129,31 +113,20 @@ CONTAINS
         DEALLOCATE(kind_new,index)
     END SUBROUTINE hash_molecule
 
-!!****f* graphcon/reorder_graph *
-!!
-!!   NAME
-!!     reorder_graph
-!!
-!!   FUNCTION
-!!     If two molecules are topologically the same, finds the ordering that maps 
-!!     the unordered one on the ordered one.
-!!
-!!   NOTES
-!!     See not at the top of the file about why this algorithm might consider
-!!     molecules with a large number of equivalent atoms as different
-!!     despite the fact that an ordering could exist for which they are the same
-!!     
-!!
-!!   INPUTS
-!!     reference, unordered : molecular description (see type definition) 
-!!     order                : the mapping reference=order(unordred) if matches=.TRUE.
-!!                            undefined if matches=.FALSE.
-!!     matches              : .TRUE. = the ordering was found
-!!
-!!   MODIFICATION HISTORY
-!!     09.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief If two molecules are topologically the same, finds the ordering that maps 
+!>      the unordered one on the ordered one.
+!> \param reference, unordered : molecular description (see type definition) 
+!> \param order the mapping reference=order(unordred) if matches=.TRUE.
+!>                             undefined if matches=.FALSE.
+!> \param matches .TRUE. = the ordering was found
+!> \note
+!>      See not at the top of the file about why this algorithm might consider
+!>      molecules with a large number of equivalent atoms as different
+!>      despite the fact that an ordering could exist for which they are the same
+!> \par History
+!>      09.2006 created [Joost VandeVondele]
+! *****************************************************************************
     SUBROUTINE reorder_graph(reference, unordered, order, matches)
     TYPE(vertex), DIMENSION(:), INTENT(IN)   :: reference, unordered
     INTEGER, DIMENSION(:), INTENT(OUT)       :: order
@@ -344,23 +317,13 @@ CONTAINS
         ENDDO
         DEALLOCATE(superclasses)
     END SUBROUTINE reorder_graph
-!!****f* graphcon/spread_superclass *
-!!
-!!   NAME
-!!     spread_superclass
-!!
-!!   FUNCTION
-!!     spreads the superclass over all atoms of this class and all their bonded atoms
-!!     provided that the latter belong to a class which contains more than one element
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     09.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief spreads the superclass over all atoms of this class and all their bonded atoms
+!>      provided that the latter belong to a class which contains more than one element
+!> \par History
+!>      09.2006 created [Joost VandeVondele]
+! *****************************************************************************
     RECURSIVE SUBROUTINE spread_superclass(I,isuperclass,superclass_of_atom,class_of_atom, &
                                              classes, reference)
     INTEGER, INTENT(IN)                      :: i, isuperclass
@@ -383,22 +346,12 @@ CONTAINS
            ENDDO
         ENDIF
     END SUBROUTINE spread_superclass
-!!****f* graphcon/matrix_superclass_equal *
-!!
-!!   NAME
-!!     matrix_superclass_equal
-!!
-!!   FUNCTION
-!!     determines of the vertices of this superclass have the same edges
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     09.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief determines of the vertices of this superclass have the same edges
+!> \par History
+!>      09.2006 created [Joost VandeVondele]
+! *****************************************************************************
     FUNCTION matrix_superclass_equal(reference,unordered,order,super,classes) RESULT(res)
     TYPE(vertex), DIMENSION(:), INTENT(IN)   :: reference, unordered
     INTEGER, DIMENSION(:), INTENT(IN)        :: order
@@ -428,23 +381,13 @@ loop:   DO iclass=1,super%Nele
          ENDDO 
         ENDDO loop
     END FUNCTION matrix_superclass_equal
-!!****f* graphcon/matrix_equal *
-!!
-!!   NAME
-!!     matrix_equal
-!!
-!!   FUNCTION
-!!     determines of the vertices of the full set is equal, i.e.
-!!     we have the same connectivity graph
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     09.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief determines of the vertices of the full set is equal, i.e.
+!>      we have the same connectivity graph
+!> \par History
+!>      09.2006 created [Joost VandeVondele]
+! *****************************************************************************
     FUNCTION matrix_equal(reference,unordered,order) RESULT(res)
     TYPE(vertex), DIMENSION(:), INTENT(IN)   :: reference, unordered
     INTEGER, DIMENSION(:), INTENT(IN)        :: order
@@ -467,25 +410,16 @@ loop:   DO I=1,SIZE(reference)
            ENDIF
         ENDDO loop
     END FUNCTION matrix_equal
-!!****f* graphcon/hash_kind *
-!!
-!!   NAME
-!!      hash_kind
-!!
-!!   FUNCTION
-!!      creates a hash for an atom based on its own kind and on the kinds
-!!      of its bonded neighbors
-!!
-!!   NOTES
-!!      bonds are sorted so that the order of neighbors appearing in the bonded list
-!!      is not important
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     09.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief creates a hash for an atom based on its own kind and on the kinds
+!>       of its bonded neighbors
+!> \note
+!>       bonds are sorted so that the order of neighbors appearing in the bonded list
+!>       is not important
+!> \par History
+!>      09.2006 created [Joost VandeVondele]
+! *****************************************************************************
     FUNCTION hash_kind(me,bonds) RESULT(res)
     INTEGER, INTENT(IN)                      :: me
     INTEGER, DIMENSION(:), INTENT(IN)        :: bonds
@@ -505,28 +439,18 @@ loop:   DO I=1,SIZE(reference)
        res=joaat_hash_i(ordered_bonds)
     END FUNCTION hash_kind
 
-!!****f* string_table/joaat_hash_i *
-!!
-!!   NAME
-!!     joaat_hash_i
-!!
-!!   FUNCTION
-!!     generates the hash of an array of integers and the index in the table
-!!
-!!   NOTES
-!!      http://en.wikipedia.org/wiki/Hash_table
-!!      http://www.burtleburtle.net/bob/hash/doobs.html
-!!      However, since fortran doesn't have an unsigned 4 byte int
-!!      we compute it using an integer with the appropriate range
-!!      we return already the index in the table as a final result
-!!
-!!   INPUTS
-!!      key : an integer array of any length
-!!
-!!   MODIFICATION HISTORY
-!!      09.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief generates the hash of an array of integers and the index in the table
+!> \param key an integer array of any length
+!> \note
+!>       http://en.wikipedia.org/wiki/Hash_table
+!>       http://www.burtleburtle.net/bob/hash/doobs.html
+!>       However, since fortran doesn't have an unsigned 4 byte int
+!>       we compute it using an integer with the appropriate range
+!>       we return already the index in the table as a final result
+!> \par History
+!>       09.2006 created [Joost VandeVondele]
+! *****************************************************************************
   FUNCTION joaat_hash_i(key) RESULT(hash_index)
     INTEGER, DIMENSION(:), INTENT(IN)        :: key
     INTEGER                                  :: hash_index
@@ -569,6 +493,7 @@ loop:   DO I=1,SIZE(reference)
 !   x = initial values (/1...n/), first=.TRUE.
 !   q = scratch
 !   first = .TRUE. if you're back at the original order
+! *****************************************************************************
         SUBROUTINE all_permutations(x,n,q,first)
     INTEGER                                  :: n, x(n), q(n)
     LOGICAL                                  :: first

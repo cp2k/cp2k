@@ -2,22 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****s* cp2k/structure_factor_types [1.0] *
-!!
-!!   NAME
-!!     structure_factor_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!!
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
 MODULE structure_factor_types
 
   USE f77_blas
@@ -29,6 +18,7 @@ MODULE structure_factor_types
   PRIVATE
   PUBLIC :: structure_factor_type
 
+! *****************************************************************************
   TYPE structure_factor_type
      COMPLEX (KIND=dp), DIMENSION ( :, : ), POINTER :: ex, ey, ez
      COMPLEX (KIND=dp), DIMENSION ( :, : ), POINTER :: shell_ex, shell_ey, shell_ez
@@ -39,5 +29,3 @@ MODULE structure_factor_types
 
 END MODULE structure_factor_types
 
-!!*****
-!******************************************************************************

@@ -2,29 +2,18 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/termination [1.0] *
-!!
-!!   NAME
-!!     termination
-!!
-!!   FUNCTION
-!!     Perform an abnormal program termination.
-!!
-!!   AUTHOR
-!!     Matthias Krack (12.02.2001)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   INDEX
-!!     SUBROUTINE set_error_unit(lunit)
-!!     SUBROUTINE stop_allocate(routine,array,memory)
-!!     SUBROUTINE stop_deallocate(routine,array)
-!!     SUBROUTINE stop_program(routine,message)
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Perform an abnormal program termination.
+!> \par Index
+!>      SUBROUTINE set_error_unit(lunit)
+!>      SUBROUTINE stop_allocate(routine,array,memory)
+!>      SUBROUTINE stop_deallocate(routine,array)
+!>      SUBROUTINE stop_program(routine,message)
+!> \par History
+!>      none
+!> \author Matthias Krack (12.02.2001)
+! *****************************************************************************
 MODULE termination
 
   USE cp_files,                        ONLY: close_file,&
@@ -57,8 +46,6 @@ MODULE termination
             stop_memory,&
             stop_program
 
-! *****************************************************************************
-
   INTERFACE stop_memory
     MODULE PROCEDURE stop_allocate,stop_allocate_new,&
                      stop_deallocate,stop_deallocate_new
@@ -68,29 +55,14 @@ MODULE termination
     MODULE PROCEDURE stop_program_new,stop_program_old
   END INTERFACE
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** termination/set_error_unit [1.0] *
-!!
-!!   NAME
-!!     set_error_unit
-!!
-!!   FUNCTION
-!!     Initialise the output unit number for error messages.
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Initialise the output unit number for error messages.
+!> \par History
+!>      none
+!> \author JGH
+! *****************************************************************************
   SUBROUTINE set_error_unit(lunit)
 
     INTEGER, INTENT(IN)                      :: lunit
@@ -101,31 +73,17 @@ CONTAINS
 
   END SUBROUTINE set_error_unit
 
-!!*****
-!******************************************************************************
-!!****** termination/stop_allocate [1.0] *
-!!
-!!   NAME
-!!     stop_allocate
-!!
-!!   FUNCTION
-!!     The memory allocation for an array failed. Print an error message and
-!!     stop the program execution.
-!!
-!!   AUTHOR
-!!     Matthias Krack (12.10.1999)
-!!
-!!   MODIFICATION HISTORY
-!!     CP2K by JGH 21.08.2000
-!!
-!!   NOTES
-!!     array  : Name of the array.
-!!     memory : Size of array in bytes.
-!!     routine: Name of the calling routine.
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief The memory allocation for an array failed. Print an error message and
+!>      stop the program execution.
+!> \note
+!>      array  : Name of the array.
+!>      memory : Size of array in bytes.
+!>      routine: Name of the calling routine.
+!> \par History
+!>      CP2K by JGH 21.08.2000
+!> \author Matthias Krack (12.10.1999)
+! *****************************************************************************
   SUBROUTINE stop_allocate(routine,array,memory)
 
     CHARACTER(LEN=*), INTENT(IN)             :: routine, array
@@ -155,7 +113,6 @@ CONTAINS
   END SUBROUTINE stop_allocate
 
 ! *****************************************************************************
-
   SUBROUTINE stop_allocate_new(routineN,moduleN,line_number,object,&
                                memory)
 
@@ -182,30 +139,16 @@ CONTAINS
 
   END SUBROUTINE stop_allocate_new
 
-!!*****
-!******************************************************************************
-!!****** termination/stop_deallocate [1.0] *
-!!
-!!   NAME
-!!     stop_deallocate
-!!
-!!   FUNCTION
-!!     The memory deallocation for an array failed. Print an error message and
-!!     stop the program execution.
-!!
-!!   AUTHOR
-!!     Matthias Krack (20.10.1999)
-!!
-!!   MODIFICATION HISTORY
-!!     CP2K by JGH 21.08.2000
-!!
-!!   NOTES
-!!     array  : Name of the array.
-!!     routine: Name of the calling routine.
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief The memory deallocation for an array failed. Print an error message and
+!>      stop the program execution.
+!> \note
+!>      array  : Name of the array.
+!>      routine: Name of the calling routine.
+!> \par History
+!>      CP2K by JGH 21.08.2000
+!> \author Matthias Krack (20.10.1999)
+! *****************************************************************************
   SUBROUTINE stop_deallocate(routine,array)
 
     CHARACTER(LEN=*), INTENT(IN)             :: routine, array
@@ -222,7 +165,6 @@ CONTAINS
   END SUBROUTINE stop_deallocate
 
 ! *****************************************************************************
-
   SUBROUTINE stop_deallocate_new(routineN,moduleN,line_number,object)
 
     CHARACTER(LEN=*), INTENT(IN)             :: routineN, moduleN
@@ -240,28 +182,14 @@ CONTAINS
 
   END SUBROUTINE stop_deallocate_new
 
-!!*****
-!******************************************************************************
-!!****** termination/stop_program [1.0] *
-!!
-!!   NAME
-!!     stop_program
-!!
-!!   FUNCTION
-!!     Stop the program run and write an error message.
-!!
-!!   AUTHOR
-!!     Matthias Krack (28.08.1996)
-!!
-!!   MODIFICATION HISTORY
-!!     Translated to Fortran 90 (07.10.99, MK)
-!!
-!!   NOTES
-!!     routine: Name of the calling routine
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Stop the program run and write an error message.
+!> \note
+!>      routine: Name of the calling routine
+!> \par History
+!>      Translated to Fortran 90 (07.10.99, MK)
+!> \author Matthias Krack (28.08.1996)
+! *****************************************************************************
   SUBROUTINE stop_program_old(routine,error_message,para_env)
 
     CHARACTER(LEN=*), INTENT(IN)             :: routine, error_message
@@ -288,11 +216,9 @@ CONTAINS
       CALL mp_abort()
     END IF
 
-
   END SUBROUTINE stop_program_old
 
 ! *****************************************************************************
-
   SUBROUTINE stop_program_new(routineN,moduleN,line_number,&
                               error_message,para_env)
 
@@ -333,28 +259,15 @@ CONTAINS
   END SUBROUTINE stop_program_new
 
 !*****
-!******************************************************************************
-!!****** termination/external_control [1.0] *
-!!
-!!   NAME
-!!     external_control
-!!
-!!   FUNCTION
-!!     External manipulations during a run : when the EXIT_$runtype
-!!     command is sent the program stops at the level of $runtype
-!!     when a general EXIT command is sent the program is stopped
-!!     at all levels (at least those that call this function)
-!!     if the file WAIT exists, the program waits here till it disappears
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     MI (10.03.2005)
-!!
-!!   MODIFICATION HISTORY
-!!
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief External manipulations during a run : when the EXIT_$runtype
+!>      command is sent the program stops at the level of $runtype
+!>      when a general EXIT command is sent the program is stopped
+!>      at all levels (at least those that call this function)
+!>      if the file WAIT exists, the program waits here till it disappears
+!> \author MI (10.03.2005)
+! *****************************************************************************
   SUBROUTINE external_control(should_stop,flag,globenv,error)
 
     LOGICAL, INTENT(OUT)                     :: should_stop
@@ -435,8 +348,5 @@ CONTAINS
 
   END SUBROUTINE external_control
 
-!!*****
-!******************************************************************************
 END MODULE termination
 
-!******************************************************************************

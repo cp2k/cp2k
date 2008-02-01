@@ -3,23 +3,9 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/qmmm_ff_fist [1.0] *
-!!
-!!   NAME
-!!     qmmm_ff_fist
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
-
+! *****************************************************************************
+!> \author teo
+! *****************************************************************************
 MODULE qmmm_ff_fist
   USE f77_blas
   USE kinds,                           ONLY: default_string_length,&
@@ -34,31 +20,16 @@ MODULE qmmm_ff_fist
 
 CONTAINS
   
-  !!****f* qmmm_ff_fist/qmmm_ff_precond_only_qm [1.0] *
-  !!
-  !!   NAME
-  !!     qmmm_ff_precond_only_qm
-  !!
-  !!   FUNCTION
-  !!
-  !!     This function handles the atom names and modifies
-  !!     the "_QM_" prefix, in order to find the parameters
-  !!     and return .TRUE. if all input labels belong to QM atoms
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     11.2004 created [tlaino]
-  !!
-  !!*************************************************************************
+! *****************************************************************************
+!> \brief This function handles the atom names and modifies
+!>      the "_QM_" prefix, in order to find the parameters
+!>      and return .TRUE. if all input labels belong to QM atoms
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      11.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   FUNCTION qmmm_ff_precond_only_qm(id1, id2, id3, id4, is_link) RESULT(only_qm)
     CHARACTER(LEN=default_string_length), &
       INTENT(INOUT)                          :: id1
@@ -127,7 +98,7 @@ CONTAINS
 
    END FUNCTION qmmm_ff_precond_only_qm
 
-   
+! *****************************************************************************
    FUNCTION qmmm_ff_precond_only_link(id1) RESULT(is_link)
     CHARACTER(LEN=default_string_length), &
       INTENT(INOUT)                          :: id1
@@ -149,6 +120,5 @@ CONTAINS
     END DO
 
    END FUNCTION qmmm_ff_precond_only_link
-
 
 END MODULE qmmm_ff_fist

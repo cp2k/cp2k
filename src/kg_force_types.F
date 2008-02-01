@@ -2,22 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/kg_force_types [1.0] *
-!!
-!!   NAME
-!!     kg_force_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     gloria (01.10.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author gloria (01.10.2002)
+! *****************************************************************************
 MODULE kg_force_types
 
   USE f77_blas
@@ -30,6 +20,7 @@ MODULE kg_force_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_force_types'
   PRIVATE
 
+! *****************************************************************************
   TYPE kg_force_type
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: f_rspace_core,&
                                          f_hartree_core,&
@@ -51,19 +42,12 @@ MODULE kg_force_types
             deallocate_kg_force,&
             init_kg_force
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE allocate_kg_force(kg_forces,natom_of_kind)
 
 !   Purpose: Allocate a kg force data structure.
-
-!   ***************************************************************************
-    
 
     TYPE(kg_force_type), DIMENSION(:), &
       POINTER                                :: kg_forces
@@ -134,14 +118,11 @@ CONTAINS
   END SUBROUTINE allocate_kg_force 
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_kg_force(kg_forces)
 
 !   Purpose: Deallocate a kg force data structure.
 
 !   History: - Creation (30.09.2002,gt)
-
-!   ***************************************************************************
 
     TYPE(kg_force_type), DIMENSION(:), &
       POINTER                                :: kg_forces
@@ -226,15 +207,11 @@ CONTAINS
   END SUBROUTINE deallocate_kg_force
 
 ! *****************************************************************************
-
   SUBROUTINE init_kg_force(kg_forces)
 
 !   Purpose: Initialize a kg force data structure.
 
 !   History: - Creation (01.10.2002,gt)
-
-!   ***************************************************************************
-
 
     TYPE(kg_force_type), DIMENSION(:), &
       POINTER                                :: kg_forces
@@ -264,8 +241,5 @@ CONTAINS
 
   END SUBROUTINE init_kg_force
 
-! *****************************************************************************
-
 END MODULE kg_force_types
 
-! *****************************************************************************

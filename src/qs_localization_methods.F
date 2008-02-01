@@ -3,29 +3,17 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/qs_localization_methods [1.0] *
-!!
-!!   NAME
-!!     qs_localization_methods
-!!
-!!   FUNCTION
-!!     Localization methods such as 2x2 Jacobi rotations
-!!                                  Steepest Decents
-!!                                  Conjugate Gradient
-!!
-!!
-!!   AUTHORS
-!!     CJM (04.2003)
-!!
-!!   MODIFICATION HISTORY
-!!     Initial parallellization of jacobi (JVDV 07.2003)
-!!     direct minimization using exponential parametrization (JVDV 09.2003)
-!!     crazy rotations go fast (JVDV 10.2003)
-!!
-!!   SOURCE
-!******************************************************************************
-MODULE qs_localization_methods
 ! *****************************************************************************
+!> \brief Localization methods such as 2x2 Jacobi rotations
+!>                                   Steepest Decents
+!>                                   Conjugate Gradient
+!> \par History
+!>      Initial parallellization of jacobi (JVDV 07.2003)
+!>      direct minimization using exponential parametrization (JVDV 09.2003)
+!>      crazy rotations go fast (JVDV 10.2003)
+!> \author CJM (04.2003)
+! *****************************************************************************
+MODULE qs_localization_methods
   USE cell_types,                      ONLY: cell_type
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
                                              cp_cfm_gemm,&
@@ -67,12 +55,10 @@ MODULE qs_localization_methods
   PUBLIC :: jacobi_rotations, initialize_weights, crazy_rotations,&
             direct_mini, rotate_orbitals, approx_l1_norm_sd
 
-
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_localization_methods'
 
   PRIVATE
 
-! *****************************************************************************
 CONTAINS
 ! *****************************************************************************
   SUBROUTINE approx_l1_norm_sd( C, iterations, eps, converged, sweeps, error)
@@ -559,7 +545,6 @@ CONTAINS
     DEALLOCATE(diag)
   END SUBROUTINE grad_at_0
 
-! *****************************************************************************
 ! return energy and maximum gradient in the current point
 ! *****************************************************************************
   SUBROUTINE check_tolerance_new( weights, zij, tolerance, value, error)
@@ -612,7 +597,6 @@ CONTAINS
     DEALLOCATE(diag)
 
   END SUBROUTINE check_tolerance_new
-! *****************************************************************************
 ! yet another crazy try, computes the angles needed to rotate the orbitals first
 ! and rotates them all at the same time (hoping for the best of course)
 ! *****************************************************************************
@@ -760,7 +744,6 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE crazy_rotations
-! *****************************************************************************
 !
 ! use the exponential parametrization as described in to perform a direct mini
 !
@@ -815,7 +798,6 @@ CONTAINS
     n = zij(1,1)%matrix%matrix_struct%nrow_global
     ALLOCATE(evals(n),evals_exp(n),diag_z(n,3),fval(n),fvald(n))
     ALLOCATE(c_zij(SIZE(zij,2)))
-
 
     ! create the three complex matrices Z
     DO idim=1,SIZE(c_zij)
@@ -951,7 +933,6 @@ CONTAINS
          CALL cp_fm_transpose(matrix_G,matrix_T,error=error)
          CALL cp_fm_scale_and_add(  -1.0_dp,matrix_G, 1.0_dp,matrix_T,error=error)
          CALL cp_fm_maxabsval(matrix_G,tol,error=error)
-
 
          ! from here on, minimizing technology
          IF ( new_direction ) THEN

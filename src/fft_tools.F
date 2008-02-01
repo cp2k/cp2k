@@ -2,25 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/fft_tools [1.0] *
-!!
-!!   NAME
-!!     fft_tools
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (30-Nov-2000): ESSL FFT Library added
-!!     JGH (05-Jan-2001): Added SGI library FFT
-!!     JGH (14-Jan-2001): Added parallel 3d FFT
-!!     JGH (10-Feb-2006): New interface type
-!!
-!!*****
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      JGH (30-Nov-2000): ESSL FFT Library added
+!>      JGH (05-Jan-2001): Added SGI library FFT
+!>      JGH (14-Jan-2001): Added parallel 3d FFT
+!>      JGH (10-Feb-2006): New interface type
+!> \author JGH
+! *****************************************************************************
 MODULE fft_tools
 
   USE cp_files,                        ONLY: get_unit_number
@@ -66,24 +56,11 @@ MODULE fft_tools
   INTEGER, PARAMETER :: lp = dp
 #endif
 
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** fft_tools/init_fft [1.0] *
-!!
-!!   NAME
-!!     init_fft
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!*****
-!******************************************************************************
-
+! *****************************************************************************
+!> \author JGH
+! *****************************************************************************
 SUBROUTINE init_fft ( fftlib, alltoall, fftsg_sizes, wisdom_file, para_env )
 
     CHARACTER(LEN=*), INTENT(IN)             :: fftlib
@@ -119,22 +96,11 @@ SUBROUTINE init_fft ( fftlib, alltoall, fftsg_sizes, wisdom_file, para_env )
 
 END SUBROUTINE init_fft
 
-!!****f* fft_tools/finalize_fft *
-!!
-!!   NAME
-!!     finalize_fft
-!!
-!!   FUNCTION
-!!     does whatever is needed to finalize the current fft setup
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief does whatever is needed to finalize the current fft setup
+!> \par History
+!>      10.2007 created [Joost VandeVondele]
+! *****************************************************************************
 SUBROUTINE finalize_fft( para_env )
     TYPE(cp_para_env_type), POINTER          :: para_env
 
@@ -156,24 +122,13 @@ SUBROUTINE finalize_fft( para_env )
     ENDIF
 
 END SUBROUTINE finalize_fft
-!******************************************************************************
-!!****** fft_tools/fft_radix_operations [1.0] *
-!!
-!!   NAME
-!!     fft_radix_operations
-!!
-!!   FUNCTION
-!!     Determine the allowed lengths of FFT's   '''
-!!
-!!   AUTHOR
-!!     Ari Seitsonen
-!!
-!!   MODIFICATION HISTORY
-!!     new library structure (JGH)
-!!
-!!*****
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Determine the allowed lengths of FFT's   '''
+!> \par History
+!>      new library structure (JGH)
+!> \author Ari Seitsonen
+! *****************************************************************************
 SUBROUTINE fft_radix_operations ( radix_in, radix_out, operation )
 
     INTEGER, INTENT(IN)                      :: radix_in
@@ -260,24 +215,12 @@ SUBROUTINE fft_radix_operations ( radix_in, radix_out, operation )
   
 END SUBROUTINE fft_radix_operations
 
-!******************************************************************************
-!!****** fft_tools/fft3d [1.0] *
-!!
-!!   NAME
-!!     fft3d
-!!
-!!   FUNCTION
-!!     Calls the 3D-FFT function from the initialized library
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*****
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Calls the 3D-FFT function from the initialized library
+!> \par History
+!>      none
+!> \author JGH
+! *****************************************************************************
 SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
 
     INTEGER, INTENT(IN)                      :: fsign
@@ -401,8 +344,7 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
 
 END SUBROUTINE fft3d_s
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
                       bo, scale, status, debug )
 
@@ -914,7 +856,6 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
     END IF
   END IF
 
-
   nf = 5.e-6_dp * REAL ( n(1)*n(2)*n(3),KIND=dp)
   flops = nf * LOG ( REAL ( n(1)*n(2)*n(3),KIND=dp) ) / LOG ( 2.0_dp) ! FFTW definition
   flops = 1.0e-3_dp*flops/numtask_r  ! per cpu
@@ -922,10 +863,8 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
 
 END SUBROUTINE fft3d_ps
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
-
 
     INTEGER, INTENT(IN)                      :: fsign
     INTEGER, DIMENSION(3), INTENT(IN)        :: n
@@ -1461,23 +1400,11 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
 
 END SUBROUTINE fft3d_pb
 
-!******************************************************************************
-!!****** fft_tools/x_to_yz [1.0] *
-!!
-!!   NAME
-!!     x_to_yz
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     JGH (14-Jan-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     15. Feb. 2006 : single precision all_to_all
-!!
-!!*****
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      15. Feb. 2006 : single precision all_to_all
+!> \author JGH (14-Jan-2001)
+! *****************************************************************************
 SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
 
     COMPLEX(KIND=lp), DIMENSION(:, :), &
@@ -1588,23 +1515,11 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
 
 END SUBROUTINE x_to_yz
 
-!******************************************************************************
-!!****** fft_tools/yz_to_x [1.0] *
-!!
-!!   NAME
-!!     yz_to_x
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     JGH (14-Jan-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     15. Feb. 2006 : single precision all_to_all
-!!
-!!*****
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      15. Feb. 2006 : single precision all_to_all
+!> \author JGH (14-Jan-2001)
+! *****************************************************************************
 SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb )
 
     COMPLEX(KIND=lp), DIMENSION(:, :, :), &
@@ -1714,23 +1629,11 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb )
 
 END SUBROUTINE yz_to_x
 
-!******************************************************************************
-!!****** fft_tools/yz_to_xz [1.0] *
-!!
-!!   NAME
-!!     yz_to_xz
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     JGH (18-Jan-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     15. Feb. 2006 : single precision all_to_all
-!!
-!!*****
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      15. Feb. 2006 : single precision all_to_all
+!> \author JGH (18-Jan-2001)
+! *****************************************************************************
 SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
 
     COMPLEX(KIND=lp), DIMENSION(:, :), &
@@ -1793,7 +1696,6 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
   ALLOCATE ( scount ( 0 : np - 1 ), sdispl ( 0 : np - 1 ), &
              rcount ( 0 : np - 1 ), rdispl ( 0 : np - 1 ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "scount", 4*np )
-
 
   DO ix = 0, npx - 1
     DO iz = 0, npz - 1
@@ -1901,23 +1803,11 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
 
 END SUBROUTINE yz_to_xz
 
-!******************************************************************************
-!!****** fft_tools/xz_to_yz [1.0] *
-!!
-!!   NAME
-!!     xz_to_yz
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     JGH (19-Jan-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     15. Feb. 2006 : single precision all_to_all
-!!
-!!*****
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      15. Feb. 2006 : single precision all_to_all
+!> \author JGH (19-Jan-2001)
+! *****************************************************************************
 SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
 
     COMPLEX(KIND=lp), DIMENSION(:, :), &
@@ -2100,23 +1990,11 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
 
 END SUBROUTINE xz_to_yz
 
-!******************************************************************************
-!!****** fft_tools/cube_transpose [1.0] *
-!!
-!!   NAME
-!!     cube_transpose
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     JGH (20-Jan-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*****
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author JGH (20-Jan-2001)
+! *****************************************************************************
 SUBROUTINE cube_transpose_1 ( cin, group, boin, boout, sout )
 
     COMPLEX(KIND=lp), DIMENSION(:, :), &
@@ -2145,7 +2023,6 @@ SUBROUTINE cube_transpose_1 ( cin, group, boin, boout, sout )
   CALL mp_environ ( n, dim, pos, group )
   CALL mp_cart_rank ( group, pos, mip )
   CALL mp_cart_sub ( group, rdim, sub_group )
-
 
   np = DIM ( 2 )
   ALLOCATE ( scount ( 0 : np - 1 ), sdispl ( 0 : np - 1 ), &
@@ -2208,8 +2085,7 @@ SUBROUTINE cube_transpose_1 ( cin, group, boin, boout, sout )
 
 END SUBROUTINE cube_transpose_1
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE cube_transpose_2 ( cin, group, boin, boout, sout )
 
     COMPLEX(KIND=lp), DIMENSION(:, :), &
@@ -2301,8 +2177,7 @@ SUBROUTINE cube_transpose_2 ( cin, group, boin, boout, sout )
 
 END SUBROUTINE cube_transpose_2
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE cube_transpose_3 ( cin, group, boin, boout, sout )
 
     COMPLEX(KIND=lp), DIMENSION(:, :), &
@@ -2393,8 +2268,7 @@ SUBROUTINE cube_transpose_3 ( cin, group, boin, boout, sout )
 
 END SUBROUTINE cube_transpose_3
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE cube_transpose_4 ( cin, group, boin, boout, sout )
 
     COMPLEX(KIND=lp), DIMENSION(:, :), &
@@ -2485,8 +2359,7 @@ SUBROUTINE cube_transpose_4 ( cin, group, boin, boout, sout )
 
 END SUBROUTINE cube_transpose_4
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE cube_transpose_5 ( cin, group, boin, boout, sout )
 
     COMPLEX(KIND=lp), DIMENSION(:, :), &
@@ -2556,8 +2429,7 @@ SUBROUTINE cube_transpose_5 ( cin, group, boin, boout, sout )
 
 END SUBROUTINE cube_transpose_5
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE cube_transpose_6 ( cin, group, boin, boout, sout )
 
     COMPLEX(KIND=lp), DIMENSION(:, :), &
@@ -2626,8 +2498,5 @@ SUBROUTINE cube_transpose_6 ( cin, group, boin, boout, sout )
 
 END SUBROUTINE cube_transpose_6
 
-!******************************************************************************
-
 END MODULE fft_tools
 
-!*******************************************************************************

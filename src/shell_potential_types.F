@@ -3,21 +3,9 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/shell_potential_types [1.0] *
-!!
-!!   NAME
-!!     shell_potential_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     MI (12.01.2007)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \author MI (12.01.2007)
+! *****************************************************************************
 MODULE shell_potential_types
 
   USE f77_blas
@@ -34,6 +22,7 @@ MODULE shell_potential_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'shell_potential_types'
 
 ! *** Define the shell types ***
+! *****************************************************************************
   TYPE shell_kind_type
     INTEGER                                :: ref_count
     REAL(dp)                               :: charge_core, &
@@ -46,7 +35,7 @@ MODULE shell_potential_types
     REAL(dp)                               :: shell_cutoff
   END TYPE shell_kind_type
 
-
+! *****************************************************************************
   TYPE shell_p_type
     CHARACTER (LEN=default_string_length)   :: atm_name
 !    INTEGER                                 :: ref_count
@@ -61,10 +50,6 @@ MODULE shell_potential_types
 ! *** Public data types ***
 
   PUBLIC :: shell_p_type, shell_kind_type
-
-
-!!***
-! *****************************************************************************
 
 CONTAINS
 
@@ -117,7 +102,6 @@ CONTAINS
   END SUBROUTINE shell_create
 
 ! *****************************************************************************
-
   SUBROUTINE shell_p_create(shell_list,ndim,error)
 
     TYPE(shell_p_type), DIMENSION(:), &
@@ -142,11 +126,9 @@ CONTAINS
       shell_list(i)%atm_name=''
     END DO 
 
-
   END SUBROUTINE shell_p_create
 
 ! *****************************************************************************
-  
   SUBROUTINE shell_retain(shell,error)
 
     TYPE(shell_kind_type), POINTER           :: shell
@@ -166,8 +148,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE shell_retain
-
-! *****************************************************************************
 
 !  SUBROUTINE shell_p_retain(shell_list,error)
 !
@@ -191,7 +171,6 @@ CONTAINS
 !  END SUBROUTINE shell_p_retain
 
 ! *****************************************************************************
-  
   SUBROUTINE shell_release(shell,error)
 
     TYPE(shell_kind_type), POINTER           :: shell
@@ -217,7 +196,6 @@ CONTAINS
   END SUBROUTINE shell_release
 
 ! *****************************************************************************
-
   SUBROUTINE shell_p_release(shell_list, error)
     TYPE(shell_p_type), DIMENSION(:), &
       POINTER                                :: shell_list

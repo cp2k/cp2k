@@ -3,31 +3,18 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/vibrational_analysis [1.0] *
-!!
-!!   NAME
-!!     vibrational_analysis
-!!
-!!   FUNCTION
-!!     Module performing a vibrational analysis
-!!
-!!   NOTES
-!!     Numerical accuracy for parallel runs:
-!!      Each replica starts the SCF run from the one optimized
-!!      in a previous run. It may happen then energies and derivatives
-!!      of a serial run and a parallel run could be slightly different
-!!      'cause of a different starting density matrix.
-!!      Exact results are obtained using:
-!!         EXTRAPOLATION USE_GUESS in QS section (Teo 08.2006)
-!!
-!!   AUTHOR
-!!     Teodoro Laino 08.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Module performing a vibrational analysis
+!> \note
+!>      Numerical accuracy for parallel runs:
+!>       Each replica starts the SCF run from the one optimized
+!>       in a previous run. It may happen then energies and derivatives
+!>       of a serial run and a parallel run could be slightly different
+!>       'cause of a different starting density matrix.
+!>       Exact results are obtained using:
+!>          EXTRAPOLATION USE_GUESS in QS section (Teo 08.2006)
+!> \author Teodoro Laino 08.2006
+! *****************************************************************************
 MODULE vibrational_analysis
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cp_files,                        ONLY: close_file,&
@@ -86,25 +73,10 @@ MODULE vibrational_analysis
 
 CONTAINS
 
-  !!****f* cp2k/vibrational_analysis [1.0] *
-  !!
-  !!   NAME
-  !!     vibrational_analysis
-  !!
-  !!   FUNCTION
-  !!     Module performing a vibrational analysis
-  !!
-  !!   NOTES
-  !!     
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino 08.2006
-  !!
-  !!   MODIFICATION HISTORY
-  !!             
-  !!
-  !!   SOURCE
-  !****************************************************************************
+! *****************************************************************************
+!> \brief Module performing a vibrational analysis
+!> \author Teodoro Laino 08.2006
+! *****************************************************************************
   SUBROUTINE vb_anal(input, para_env, globenv, error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -447,8 +419,6 @@ CONTAINS
                 END DO
                 CALL rep_env_calc_e_f(rep_env,calc_f=.TRUE.,error=error)
 
-
-
                 DO j = 1, nrep
                    IF(calc_intens)THEN
                       k=(icoord+j+2)/3
@@ -633,25 +603,10 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE vb_anal
 
-  !!****f* cp2k/get_moving_atoms [1.0] *
-  !!
-  !!   NAME
-  !!     get_moving_atoms
-  !!
-  !!   FUNCTION
-  !!     give back a list of moving atoms
-  !!
-  !!   NOTES
-  !!     
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino 08.2006
-  !!
-  !!   MODIFICATION HISTORY
-  !!             
-  !!
-  !!   SOURCE
-  !****************************************************************************
+! *****************************************************************************
+!> \brief give back a list of moving atoms
+!> \author Teodoro Laino 08.2006
+! *****************************************************************************
   SUBROUTINE get_moving_atoms(force_env, Ilist, error)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, DIMENSION(:), POINTER           :: Ilist
@@ -731,25 +686,10 @@ CONTAINS
 
   END SUBROUTINE get_moving_atoms
 
-  !!****f* cp2k/vib_out [1.0] *
-  !!
-  !!   NAME
-  !!     vib_out
-  !!
-  !!   FUNCTION
-  !!     Dumps results of the vibrational analysis
-  !!
-  !!   NOTES
-  !!     
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino 08.2006
-  !!
-  !!   MODIFICATION HISTORY
-  !!             
-  !!
-  !!   SOURCE
-  !****************************************************************************
+! *****************************************************************************
+!> \brief Dumps results of the vibrational analysis
+!> \author Teodoro Laino 08.2006
+! *****************************************************************************
   SUBROUTINE vib_out(iw,nvib,D,k,m,freq,particles,Mlist,intensities)
     INTEGER, INTENT(IN)                      :: iw, nvib
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: D
@@ -796,27 +736,12 @@ CONTAINS
 
   END SUBROUTINE vib_out
 
-  !!****f* vibrational_analysis/rot_ana [1.0] *
-  !!
-  !!   NAME
-  !!     rot_ana
-  !!
-  !!   FUNCTION
-  !!     Performs an analysis of the principal inertia axis
-  !!     Getting back the generators of the translating and
-  !!     rotating frame
-  !!
-  !!   NOTES
-  !!     
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino 08.2006
-  !!
-  !!   MODIFICATION HISTORY
-  !!             
-  !!
-  !!   SOURCE
-  !****************************************************************************
+! *****************************************************************************
+!> \brief Performs an analysis of the principal inertia axis
+!>      Getting back the generators of the translating and
+!>      rotating frame
+!> \author Teodoro Laino 08.2006
+! *****************************************************************************
   SUBROUTINE rot_ana(particles, mat, dof, iw, keep_rotations, natoms,&
        error)
     TYPE(particle_type), DIMENSION(:), &
@@ -975,26 +900,11 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE rot_ana
 
-  !!****f* vibrational_analysis/build_D_matrix [1.0] *
-  !!
-  !!   NAME
-  !!     build_D_matrix
-  !!
-  !!   FUNCTION
-  !!     Generates the transformation matrix from hessian in cartesian into
-  !!     internal coordinates (based on Gram-Schmidt orthogonalization)
-  !!
-  !!   NOTES
-  !!     
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino 08.2006
-  !!
-  !!   MODIFICATION HISTORY
-  !!             
-  !!
-  !!   SOURCE
-  !****************************************************************************
+! *****************************************************************************
+!> \brief Generates the transformation matrix from hessian in cartesian into
+!>      internal coordinates (based on Gram-Schmidt orthogonalization)
+!> \author Teodoro Laino 08.2006
+! *****************************************************************************
   SUBROUTINE build_D_matrix(particles,mat,dof,Dout,full,natoms,error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
@@ -1076,26 +986,11 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE build_D_matrix
 
-  !!****f* vibrational_analysis/MS_initial_moves [1.0] *
-  !!
-  !!   NAME
-  !!     MS_initial_moves
-  !!
-  !!   FUNCTION
-  !!     Generates the first displacement vector for a mode selctive vibrational
-  !!     analysis. At the moment this is a random number for selected atoms 
-  !!
-  !!   NOTES
-  !!     
-  !!
-  !!   AUTHOR
-  !!     Florian Schiffmann 11.2007
-  !!
-  !!   MODIFICATION HISTORY
-  !!             
-  !!
-  !!   SOURCE
-  !****************************************************************************
+! *****************************************************************************
+!> \brief Generates the first displacement vector for a mode selctive vibrational
+!>      analysis. At the moment this is a random number for selected atoms 
+!> \author Florian Schiffmann 11.2007
+! *****************************************************************************
   SUBROUTINE MS_initial_moves(para_env, nrep , input, globenv ,particles ,&
                               delta_vec , b_vec, step_r,step_b, sel_freq,f_range,&
                               mass,hes_bfgs,eig_bfgs,precondit, dx,output_unit_ms,&
@@ -1345,29 +1240,11 @@ CONTAINS
 
   END SUBROUTINE MS_initial_moves
 
-
-  !!****f* vibrational_analysis/evaluate_H_update_b [1.0] *
-  !!
-  !!   NAME
-  !!     evaluate_H_update_b
-  !!
-  !!   FUNCTION
-  !!     Davidson algorithm for to generate a approximate Hessian for mode
-  !!     selective vibrational analysis
-  !!
-  !!   NOTES
-  !!     
-  !!
-  !!   AUTHOR
-  !!     Florian Schiffmann 11.2007
-  !!
-  !!   MODIFICATION HISTORY
-  !!             
-  !!
-  !!   SOURCE
-  !****************************************************************************
-
-
+! *****************************************************************************
+!> \brief Davidson algorithm for to generate a approximate Hessian for mode
+!>      selective vibrational analysis
+!> \author Florian Schiffmann 11.2007
+! *****************************************************************************
   SUBROUTINE  evaluate_H_update_b(mat_size,ms_force,rep_env,b_vec,nrep,&
                                   particles,b_mat,s_mat,step_b,&
                                   step_r,delta_vec, mass,sel_freq,f_range, &
@@ -1469,7 +1346,6 @@ CONTAINS
     ALLOCATE(eigenval(mat_size),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
-
     !!!!!!!!!!!!  calculate the new derivativand the approximate hessian
 
     DO i=1,nrep
@@ -1511,7 +1387,6 @@ CONTAINS
     ELSE    
        CALL get_vibs_in_range(b_mat,s_mat,approx_H,eigenval,residuum,f_range,nrep,ind)
     END IF
-
 
     DO j=1,nrep
        DO i=1,mat_size
@@ -1668,25 +1543,10 @@ CONTAINS
 
   END SUBROUTINE evaluate_H_update_b
 
-  !!****f* vibrational_analysis/ms_out [1.0] *
-  !!
-  !!   NAME
-  !!     ms_out
-  !!
-  !!   FUNCTION
-  !!     writes the output for a mode tracking calculation
-  !!
-  !!   NOTES
-  !!     
-  !!
-  !!   AUTHOR
-  !!     Florian Schiffmann 11.2007
-  !!
-  !!   MODIFICATION HISTORY
-  !!             
-  !!
-  !!   SOURCE
-  !****************************************************************************
+! *****************************************************************************
+!> \brief writes the output for a mode tracking calculation
+!> \author Florian Schiffmann 11.2007
+! *****************************************************************************
   SUBROUTINE ms_out(iw,converged,freq,criter ,b_mat,s_mat,b_vec,delta_vec,&
                     mat_size,nrep,approx_H,eigenval,dip_deriv,calc_intens,eps,intensities,error)
     INTEGER                                  :: iw
@@ -1784,25 +1644,10 @@ CONTAINS
 
   END SUBROUTINE ms_out
 
-  !!****f* vibrational_analysis/ms_out [1.0] *
-  !!
-  !!   NAME
-  !!     ms_out
-  !!
-  !!   FUNCTION
-  !!     writes the output for a mode tracking calculation
-  !!
-  !!   NOTES
-  !!     
-  !!
-  !!   AUTHOR
-  !!     Florian Schiffmann 11.2007
-  !!
-  !!   MODIFICATION HISTORY
-  !!             
-  !!
-  !!   SOURCE
-  !****************************************************************************
+! *****************************************************************************
+!> \brief writes the output for a mode tracking calculation
+!> \author Florian Schiffmann 11.2007
+! *****************************************************************************
   SUBROUTINE molden_out(iw,particles,freq,eigen_vec,intensities,calc_intens,error)
     INTEGER                                  :: iw
     TYPE(particle_type), DIMENSION(:), &
@@ -1857,26 +1702,9 @@ CONTAINS
     END IF
   END SUBROUTINE molden_out
 
-
-  !!****f* vibrational_analysis/get_vibs_in_range [1.0] *
-  !!
-  !!   NAME
-  !!     get_vibs_in _range
-  !!
-  !!   FUNCTION
-  !!     
-  !!
-  !!   NOTES
-  !!     
-  !!
-  !!   AUTHOR
-  !!     Florian Schiffmann 11.2007
-  !!
-  !!   MODIFICATION HISTORY
-  !!             
-  !!
-  !!   SOURCE
-  !****************************************************************************
+! *****************************************************************************
+!> \author Florian Schiffmann 11.2007
+! *****************************************************************************
   SUBROUTINE get_vibs_in_range(b_mat,s_mat,approx_H,eigenval,residuum,f_range,nrep,ind)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: b_mat, s_mat
@@ -1971,7 +1799,6 @@ CONTAINS
        
     DEALLOCATE(map1)
     DEALLOCATE(tmp)
-    
     
   END SUBROUTINE get_vibs_in_range
 END MODULE vibrational_analysis

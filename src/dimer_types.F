@@ -3,25 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/dimer_types [1.0] *
-!!
-!!   NAME
-!!     dimer_types
-!!
-!!   FUNCTION
-!!     Contains types used for a Dimer Method calculations
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!*****************************************************************************
+! *****************************************************************************
+!> \brief Contains types used for a Dimer Method calculations
+!> \par History
+!>      none
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+! *****************************************************************************
 MODULE dimer_types
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
@@ -52,6 +39,7 @@ MODULE dimer_types
             dimer_env_release
 
 ! Type containing all informations abour the rotation of the Dimer
+! *****************************************************************************
   TYPE dimer_rotational_type
      ! Rotational parameters
      INTEGER                                    :: rotation_step
@@ -61,38 +49,25 @@ MODULE dimer_types
   END TYPE dimer_rotational_type
   
   ! Type containing all informations abour the translation of the Dimer
+! *****************************************************************************
   TYPE dimer_translational_type
      ! Translational parameters
      REAL(KIND=dp), POINTER, DIMENSION(:)       :: tls_vec
   END TYPE dimer_translational_type
 
   ! Conjugate Directions type
+! *****************************************************************************
   TYPE dimer_cg_rot_type
      REAL(KIND=dp)                              :: norm_theta, norm_theta_old, norm_h
      REAL(KIND=dp), POINTER, DIMENSION(:)       :: nvec_old
   END TYPE dimer_cg_rot_type
 
-  !!****s* dimer_types/dimer_env_type [1.0] *
-  !!
-  !!   NAME
-  !!     dimer_env_type
-  !!
-  !!   FUNCTION
-  !!     Defines the environment for a Dimer Method calculation
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     -
-  !!
-  !!   AUTHOR
-  !!     Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !***************************************************************************
+! *****************************************************************************
+!> \brief Defines the environment for a Dimer Method calculation
+!> \par History
+!>      none
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+! *****************************************************************************
   TYPE dimer_env_type
      INTEGER                                    :: ref_count, id_nr
      REAL(KIND=dp)                              :: dr
@@ -104,27 +79,11 @@ MODULE dimer_types
 
 CONTAINS
   
-!!****f* dimer_types/dimer_env_create [1.0] *
-!!
-!!   NAME
-!!     dimer_env_create
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     -
-!!
-!!   AUTHOR
-!!     Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+! *****************************************************************************
   SUBROUTINE dimer_env_create(dimer_env, natom, globenv, dimer_section, error)
     TYPE(dimer_env_type), POINTER            :: dimer_env
     INTEGER, INTENT(IN)                      :: natom
@@ -199,29 +158,12 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE dimer_env_create
-!***************************************************************************
 
-!!****f* dimer_types/dimer_env_retain [1.0] *
-!!
-!!   NAME
-!!     dimer_env_retain
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     -
-!!
-!!   AUTHOR
-!!     Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+! *****************************************************************************
   SUBROUTINE dimer_env_retain(dimer_env, error)
     TYPE(dimer_env_type), POINTER            :: dimer_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -239,30 +181,12 @@ CONTAINS
        dimer_env%ref_count=dimer_env%ref_count+1
     END IF
   END SUBROUTINE dimer_env_retain
-!***************************************************************************
 
-
-!!****f* dimer_types/dimer_env_release [1.0] *
-!!
-!!   NAME
-!!     dimer_env_release
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     -
-!!
-!!   AUTHOR
-!!     Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+! *****************************************************************************
   SUBROUTINE dimer_env_release(dimer_env, error)
     TYPE(dimer_env_type), POINTER            :: dimer_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -306,6 +230,5 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE dimer_env_release
-!***************************************************************************
 
 END MODULE dimer_types

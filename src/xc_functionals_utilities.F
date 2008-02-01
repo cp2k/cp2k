@@ -2,27 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/xc_functionals_utilities [1.0] *
-!!
-!!   NAME
-!!     xc_functionals_utilities
-!!
-!!   FUNCTION
-!!     Utility routines for the functional calculations
-!!
-!!   AUTHOR
-!!     JGH (15.02.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (20.02.2001) : Added setup routine
-!!     JGH (26.02.2003) : OpenMP enabled
-!!
-!!   SOURCE
-!******************************************************************************
-
-MODULE xc_functionals_utilities
 
 ! *****************************************************************************
+!> \brief Utility routines for the functional calculations
+!> \par History
+!>      JGH (20.02.2001) : Added setup routine
+!>      JGH (26.02.2003) : OpenMP enabled
+!> \author JGH (15.02.2002)
+! *****************************************************************************
+MODULE xc_functionals_utilities
 
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -58,13 +46,9 @@ MODULE xc_functionals_utilities
 
   REAL(KIND=dp) :: eps_rho
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
     SUBROUTINE set_util(cutoff)
 
     REAL(KIND=dp)                            :: cutoff
@@ -74,7 +58,6 @@ CONTAINS
     END SUBROUTINE set_util
 
 ! *****************************************************************************
-
     SUBROUTINE setup_calculation(order,m,calc,tag)
 
     INTEGER, INTENT(IN)                      :: order
@@ -156,7 +139,6 @@ CONTAINS
     END SUBROUTINE setup_calculation
 
 ! *****************************************************************************
-
     SUBROUTINE calc_rs_single ( rho, rs )
 
 !   ---------------------------------------------------------------------------
@@ -177,7 +159,6 @@ CONTAINS
   END SUBROUTINE calc_rs_single
 
 ! *****************************************************************************
-
   SUBROUTINE calc_rs_array ( rho, rs )
     
 !   ---------------------------------------------------------------------------
@@ -207,7 +188,6 @@ CONTAINS
   END SUBROUTINE calc_rs_array
 
 ! *****************************************************************************
-
   SUBROUTINE calc_rs_pw ( rho, rs, n )
     
 !   ---------------------------------------------------------------------------
@@ -235,7 +215,6 @@ CONTAINS
   END SUBROUTINE calc_rs_pw
 
 ! *****************************************************************************
-
     SUBROUTINE calc_srs_pw ( rho, x, n )
 
 !   ---------------------------------------------------------------------------
@@ -261,7 +240,6 @@ CONTAINS
   END SUBROUTINE calc_srs_pw
 
 ! *****************************************************************************
-
     SUBROUTINE calc_srs ( rho, x )
 
 !   ---------------------------------------------------------------------------
@@ -287,7 +265,6 @@ CONTAINS
   END SUBROUTINE calc_srs
 
 ! *****************************************************************************
-
     SUBROUTINE calc_rho13 ( rho, r13 )
 
 !   ---------------------------------------------------------------------------
@@ -315,7 +292,6 @@ CONTAINS
   END SUBROUTINE calc_rho13
 
 ! *****************************************************************************
-
   SUBROUTINE calc_wave_vector ( tag, rho, grho, s )
 
 !   ---------------------------------------------------------------------------
@@ -355,7 +331,6 @@ CONTAINS
   END SUBROUTINE calc_wave_vector
 
 ! *****************************************************************************
-
   SUBROUTINE calc_fx_array(n, rhoa, rhob, fx, m )
 
 !   ---------------------------------------------------------------------------
@@ -429,7 +404,6 @@ CONTAINS
   END SUBROUTINE calc_fx_array
 
 ! *****************************************************************************
-
   SUBROUTINE calc_fx_single ( rhoa, rhob, fx, m )
 
 !   ---------------------------------------------------------------------------
@@ -482,9 +456,7 @@ CONTAINS
   END SUBROUTINE calc_fx_single
 
 ! *****************************************************************************
-
   SUBROUTINE calc_z ( a, b, z, order )
-
 
     REAL(KIND=dp), INTENT(IN)                :: a, b
     REAL(KIND=dp), DIMENSION(0:, 0:), &
@@ -517,8 +489,5 @@ CONTAINS
 
   END SUBROUTINE calc_z
     
-! *****************************************************************************
-
 END MODULE xc_functionals_utilities
 
-! *****************************************************************************

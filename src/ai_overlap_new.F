@@ -2,30 +2,17 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/ai_overlap [1.0] *
-!!
-!!   NAME
-!!     ai_overlap
-!!
-!!   FUNCTION
-!!     Calculation of the overlap integrals over Cartesian Gaussian-type
-!!     functions.
-!!
-!!   AUTHOR
-!!     Matthias Krack (08.10.1999)
-!!
-!!   LITERATURE
-!!     S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
-!!
-!!   MODIFICATION HISTORY
-!!     - Derivatives added (02.05.2002,MK)
-!!
-!!   SOURCE
-!******************************************************************************
-
-MODULE ai_overlap_new
 
 ! *****************************************************************************
+!> \brief Calculation of the overlap integrals over Cartesian Gaussian-type
+!>      functions.
+!> \par Literature
+!>      S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
+!> \par History
+!>      - Derivatives added (02.05.2002,MK)
+!> \author Matthias Krack (08.10.1999)
+! *****************************************************************************
+MODULE ai_overlap_new
 
 ! ax,ay,az  : Angular momentum index numbers of orbital a.
 ! bx,by,bz  : Angular momentum index numbers of orbital b.
@@ -39,8 +26,6 @@ MODULE ai_overlap_new
 ! sab       : Shell set of overlap integrals.
 ! zet{a,b}  : Exponents of the Gaussian-type functions a or b.
 ! zetp      : Reciprocal of the sum of the exponents of orbital a and b.
-
-! *****************************************************************************
 
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -59,13 +44,9 @@ MODULE ai_overlap_new
 
   PUBLIC :: overlap
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE overlap(la_max_set,la_min_set,npgfa,rpgfa,zeta,&
                      lb_max_set,lb_min_set,npgfb,rpgfb,zetb,&
                      rab,dab,sab,da_max_set,return_derivatives,s,lds,&
@@ -75,8 +56,6 @@ CONTAINS
 !            Cartesian Gaussian-type functions.
 
 !   History: - Creation (19.09.2000,MK)
-
-!   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: la_max_set, la_min_set, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa, zeta
@@ -669,7 +648,5 @@ CONTAINS
     END DO
 
   END SUBROUTINE overlap
-
-! *****************************************************************************
 
 END MODULE ai_overlap_new

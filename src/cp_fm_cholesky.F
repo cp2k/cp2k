@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/cp_fm_cholesky [1.0] *
-!!
-!!   NAME
-!!     cp_fm_cholesky
-!!
-!!   FUNCTION
-!!     various cholesky decomposition related routines
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     09.2002 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief various cholesky decomposition related routines
+!> \par History
+!>      09.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE cp_fm_cholesky
   USE cp_fm_types,                     ONLY: cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type
@@ -41,43 +27,21 @@ MODULE cp_fm_cholesky
        cp_fm_cholesky_reduce, cp_fm_cholesky_restore
 
 !***
-!****************************************************************************
 CONTAINS
 
-!!****f* cp_log_handling/cp_fm_cholesky_decompose [1.0] *
-!!
-!!   NAME
-!!     cp_fm_cholesky_decompose
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_fm_cholesky_decompose(matrix, n, error)
-!!       Type(cp_fm_type), Pointer:: matrix
-!!       Integer, Intent (IN), Optional:: n
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine cp_fm_cholesky_decompose
-!!
-!!   FUNCTION
-!!     used to replace a symmetric positive def. matrix M with its cholesky
-!!     decomposition U: M = U^T * U, with U upper triangular
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - matrix: the matrix to replace with its cholesky decomposition
-!!     - n: the number of row (and columns) of the matrix &
-!!       (defaults to the min(size(matrix)))
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Joost
-!!
-!!   MODIFICATION HISTORY
-!!     05.2002 created [JVdV]
-!!     12.2002 updated, added n optional parm [fawzi]
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief used to replace a symmetric positive def. matrix M with its cholesky
+!>      decomposition U: M = U^T * U, with U upper triangular
+!> \param matrix the matrix to replace with its cholesky decomposition
+!> \param n the number of row (and columns) of the matrix &
+!>        (defaults to the min(size(matrix)))
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      05.2002 created [JVdV]
+!>      12.2002 updated, added n optional parm [fawzi]
+!> \author Joost
+! *****************************************************************************
   SUBROUTINE cp_fm_cholesky_decompose(matrix,n,error)
     TYPE(cp_fm_type), POINTER                :: matrix
     INTEGER, INTENT(in), OPTIONAL            :: n
@@ -118,39 +82,17 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END  SUBROUTINE cp_fm_cholesky_decompose
-!***************************************************************************
   
-!!****f* cp_fm_cholesky/cp_fm_cholesky_invert [1.0] *
-!!
-!!   NAME
-!!     cp_fm_cholesky_invert
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_fm_cholesky_invert(matrix, n, error)
-!!       Type(cp_fm_type), Pointer:: matrix
-!!       Integer, Intent (IN), Optional:: n
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine cp_fm_cholesky_invert
-!!
-!!   FUNCTION
-!!     used to replace the cholesky decomposition by the inverse
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - matrix: the matrix to invert (must be an upper triangular matrix)
-!!     - n: size of the matrix to invert (defaults to the min(size(matrix)))
-!!     - error : variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!     05.2002 created [JVdV]
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief used to replace the cholesky decomposition by the inverse
+!> \param matrix the matrix to invert (must be an upper triangular matrix)
+!> \param n size of the matrix to invert (defaults to the min(size(matrix)))
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      05.2002 created [JVdV]
+!> \author Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE cp_fm_cholesky_invert(matrix,n, error)
     TYPE(cp_fm_type), POINTER           :: matrix
     INTEGER, INTENT(in), OPTIONAL                :: n
@@ -192,42 +134,21 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END  SUBROUTINE cp_fm_cholesky_invert
-!***************************************************************************
 
-!!****f* cp_fm_cholesky/cp_fm_cholesky_reduce [1.0] *
-!!
-!!   NAME
-!!     cp_fm_cholesky_reduce
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_fm_cholesky_reduce(matrix, matrixb, error)
-!!       Type(cp_fm_type), Pointer:: matrix, matrixb
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine cp_fm_cholesky_reduce
-!!
-!!   FUNCTION
-!!     reduce a matrix pencil A,B to normal form
-!!     B has to be cholesky decomposed with  cp_fm_cholesky_decompose
-!!     before calling this routine
-!!     A,B -> inv(U^T)*A*inv(U),1
-!!     (AX=BX -> inv(U^T)*A*inv(U)*U*X=U*X hence evecs U*X)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     matrix: the symmetric matrix A
-!!     matrixb: the cholesky decomposition of matrix B
-!!     error : variable to control error logging, stopping,... 
-!!             see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!     05.2002 created [JVdV]
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief reduce a matrix pencil A,B to normal form
+!>      B has to be cholesky decomposed with  cp_fm_cholesky_decompose
+!>      before calling this routine
+!>      A,B -> inv(U^T)*A*inv(U),1
+!>      (AX=BX -> inv(U^T)*A*inv(U)*U*X=U*X hence evecs U*X)
+!> \param matrix the symmetric matrix A
+!> \param matrixb the cholesky decomposition of matrix B
+!> \param error variable to control error logging, stopping,... 
+!>              see module cp_error_handling 
+!> \par History
+!>      05.2002 created [JVdV]
+!> \author Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE cp_fm_cholesky_reduce(matrix,matrixb, error)
    TYPE(cp_fm_type), POINTER           :: matrix,matrixb
    TYPE(cp_error_type), INTENT(inout)  :: error
@@ -277,14 +198,13 @@ CPSourceFileRef,&
 
   END  SUBROUTINE cp_fm_cholesky_reduce
 
-!******************************************************************
 !
 ! op can be "SOLVE" (out = U^-1 * in ) or "MULTIPLY"   (out = U * in )
 ! pos can be "LEFT" or "RIGHT" (U at the left or at the right)
 !
 ! DEPRECATED, see cp_fm_basic_linalg:cp_fm_triangular_multiply
 !
-!******************************************************************
+! *****************************************************************************
   SUBROUTINE cp_fm_cholesky_restore(matrix,neig,matrixb,matrixout,op,pos,transa,&
        error)
     TYPE(cp_fm_type), POINTER          :: matrix,matrixb,matrixout

@@ -3,27 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qs_rho_types [1.0] *
-!!
-!!   NAME
-!!     qs_rho_types
-!!
-!!   FUNCTION
-!!     superstucture that hold various representations of the density and
-!!     keeps track of which ones are valid
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief superstucture that hold various representations of the density and
+!>      keeps track of which ones are valid
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE qs_rho_types
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -45,45 +31,29 @@ MODULE qs_rho_types
   PUBLIC :: qs_rho_retain, qs_rho_release, qs_rho_did_change,&
        qs_rho_get
 
-!!***
-!****************************************************************************
-
-!!****s* qs_rho_types/qs_rho_type [1.0] *
-!!
-!!   NAME
-!!     qs_rho_type
-!!
-!!   FUNCTION
-!!     keeps the density in various representations, keeping track of
-!!     which ones are valid.
-!!
-!!   NOTES
-!!     If pw_p_type would implement retain/release it would be nice to
-!!     store also the core charge and the qs_charges in this structure...
-!!
-!!   ATTRIBUTES
-!!     most attributes are array with either lda or lsd_alpha,lsd_beta.
-!!     - rho_ao: the filterd rho in the localized atom basis (to have rho(r)
-!!       the filtred matrix is enough, but rho(r,r') is lost).
-!!     - rho_r: grids with rho in the real space
-!!     - tau_r: grids with the kinetic energy density in real space
-!!     - rho_g: grids with rho in the g space
-!!     - tau_g: grids with the kinetic energy density in g space
-!!     - rho_g_valid, rho_r_valid, tau_r_valid, tau_g_valid: if the
-!!       corresponding component is valid
-!!     - ref_count: the reference count, when it becomes 0 the type
-!!       is deallocated.
-!!     - rebuild_each: how often a rebuild should be done by default
-!!     - tot_rho_r: the total charge in r space (valid only if rho_r is)
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief keeps the density in various representations, keeping track of
+!>      which ones are valid.
+!> \param most attributes are array with either lda or lsd_alpha,lsd_beta.
+!> \param rho_ao the filterd rho in the localized atom basis (to have rho(r)
+!>        the filtred matrix is enough, but rho(r,r') is lost).
+!> \param rho_r grids with rho in the real space
+!> \param tau_r grids with the kinetic energy density in real space
+!> \param rho_g grids with rho in the g space
+!> \param tau_g grids with the kinetic energy density in g space
+!> \param rho_g_valid , rho_r_valid, tau_r_valid, tau_g_valid: if the
+!>        corresponding component is valid
+!> \param ref_count the reference count, when it becomes 0 the type
+!>        is deallocated.
+!> \param rebuild_each how often a rebuild should be done by default
+!> \param tot_rho_r the total charge in r space (valid only if rho_r is)
+!> \note
+!>      If pw_p_type would implement retain/release it would be nice to
+!>      store also the core charge and the qs_charges in this structure...
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE qs_rho_type
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g, rho_r
@@ -99,44 +69,23 @@ MODULE qs_rho_types
      REAL(KIND = dp), DIMENSION(:), POINTER :: tot_rho_r, tot_rho_g
   END TYPE qs_rho_type
 
+! *****************************************************************************
   TYPE qs_rho_p_type
     TYPE(qs_rho_type), POINTER         :: rho
   END TYPE qs_rho_p_type
-!!***
-!****************************************************************************
 
 CONTAINS
 
-!!****f* qs_rho_methods/qs_rho_retain [1.0] *
-!!
-!!   NAME
-!!     qs_rho_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_rho_retain(rho_struct, error)
-!!       Type(qs_rho_type), Pointer:: rho_struct
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_rho_retain
-!!
-!!   FUNCTION
-!!     retains a rho_struct by increasing the reference count by one
-!!     (to be called when you what to keep a shared copy)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - rho_struct: the structure to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains a rho_struct by increasing the reference count by one
+!>      (to be called when you what to keep a shared copy)
+!> \param rho_struct the structure to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE qs_rho_retain(rho_struct,error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -154,39 +103,18 @@ CONTAINS
        rho_struct%ref_count=rho_struct%ref_count+1
     END IF
   END SUBROUTINE qs_rho_retain
-!***************************************************************************
 
-!!****f* qs_rho_methods/qs_rho_release [1.0] *
-!!
-!!   NAME
-!!     qs_rho_release
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_rho_release(rho_struct, error)
-!!       Type(qs_rho_type), Pointer:: rho_struct
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_rho_release
-!!
-!!   FUNCTION
-!!     releases a rho_struct by decreasing the reference count by one
-!!     and deallocating if it reaces 0 (to be called when you don't whant
-!!     anymore a shared copy)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - rho_struct: the structure to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases a rho_struct by decreasing the reference count by one
+!>      and deallocating if it reaces 0 (to be called when you don't whant
+!>      anymore a shared copy)
+!> \param rho_struct the structure to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE qs_rho_release(rho_struct,error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -252,43 +180,19 @@ CONTAINS
     END IF
     NULLIFY(rho_struct)
   END SUBROUTINE qs_rho_release
-!***************************************************************************
 
-!!****f* qs_rho_methods/qs_rho_did_change [1.0] *
-!!
-!!   NAME
-!!     qs_rho_did_change
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_rho_did_change(rho_struct, rho_r_valid,&
-!!         rho_g_valid, tau_r_valid, tau_g_valid, error)
-!!       Type(qs_rho_type), Pointer:: rho_struct
-!!       Logical, Intent (IN), Optional:: rho_r_valid,&
-!!         rho_g_valid
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_rho_did_change
-!!
-!!   FUNCTION
-!!     this function should be called wehn something changes to update the
-!!     internal status
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - rho_struct: the density structure that changed
-!!     - rho_r_valid, rho_g_valid, tau_r_valid, tau_g_valid: actual valid
-!!       representations
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief this function should be called wehn something changes to update the
+!>      internal status
+!> \param rho_struct the density structure that changed
+!> \param rho_r_valid , rho_g_valid, tau_r_valid, tau_g_valid: actual valid
+!>        representations
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE qs_rho_did_change(rho_struct,rho_r_valid, &
        rho_g_valid, tau_r_valid, tau_g_valid, error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
@@ -312,45 +216,17 @@ CONTAINS
        IF (PRESENT(tau_g_valid)) rho_struct%tau_g_valid=tau_g_valid
     END IF
   END SUBROUTINE qs_rho_did_change
-!***************************************************************************
 
-!!****f* qs_rho_methods/qs_rho_get [1.0] *
-!!
-!!   NAME
-!!     qs_rho_get
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_rho_get(rho_struct, rho_ao, rho_r, rho_g, tau_r, tau_g, &
-!!         rho_r_valid, rho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r, error)
-!!       Type(qs_rho_type), Pointer:: rho_struct
-!!       Type(real_matrix_p_type), Dimension(:), Pointer, Optional:: rho_ao
-!!       Type(pw_p_type), Dimension(:), Pointer, Optional:: rho_g, rho_r
-!!       Logical, Intent (OUT), Optional:: rho_g_valid,&
-!!         rho_r_valid
-!!       Integer, Intent (OUT), Optional:: rebuild_each
-!!       Real(KIND = dp), Dimension(:), Pointer, Optional:: tot_rho_r
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_rho_get
-!!
-!!   FUNCTION
-!!     returns info about the density described by this object.
-!!     If some representation is not available an error is issued
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!     For the other inputs the qs_rho_type attributes
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns info about the density described by this object.
+!>      If some representation is not available an error is issued
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!>      For the other inputs the qs_rho_type attributes
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE qs_rho_get(rho_struct, rho_ao, rho_r, rho_g, tau_r, tau_g, &
        rho_r_valid, rho_g_valid, tau_r_valid, tau_g_valid, rebuild_each, tot_rho_r,&
        soft_valid, error)
@@ -422,7 +298,6 @@ CONTAINS
        IF (PRESENT(tot_rho_r)) tot_rho_r => rho_struct%tot_rho_r
     END IF
   END SUBROUTINE qs_rho_get
-!***************************************************************************
 
 END MODULE qs_rho_types
 

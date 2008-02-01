@@ -2,20 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****s* cp2k/mc_environment_types [1.0] *
-!!
-!!   NAME
-!!     mc_environment_types
-!!
-!!   FUNCTION
-!!     contains the subroutines for dealing with the mc_env
-!!
-!!   AUTHOR
-!!     MJM Oct. 15-2003
-!!
-!******************************************************************************
 
-
+! *****************************************************************************
+!> \brief contains the subroutines for dealing with the mc_env
+!> \author MJM Oct. 15-2003
+! *****************************************************************************
 MODULE mc_environment_types
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_type
@@ -26,17 +17,17 @@ MODULE mc_environment_types
 
   PRIVATE
 
- 
+! *****************************************************************************
   TYPE mc_environment_type
      INTEGER :: id_nr, ref_count, in_use
      TYPE ( mc_simulation_parameters_type ), POINTER :: mc_par
      TYPE ( force_env_type ), POINTER :: force_env  
   END TYPE mc_environment_type
 
+! *****************************************************************************
   TYPE mc_environment_p_type
      TYPE(mc_environment_type),POINTER :: mc_env
   END TYPE mc_environment_p_type
-
 
 ! *** Public subroutines and data types ***
   PUBLIC :: mc_environment_type, mc_environment_p_type, &
@@ -48,32 +39,16 @@ MODULE mc_environment_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_environment_types'
   INTEGER, SAVE, PRIVATE :: last_mc_env_id=0
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-!!****s* mc_environment_types.F/mc_env_create
-!!
-!!   NAME
-!!     mc_env_create
-!!
-!!   FUNCTION
-!!     creates and initializes an mc_env
-!!
-!!   ARGUMENTS
-!!     - mc_env: the mc_environment you want to create
-!!
-!!   Suitable for parallel use.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!**************************************************************************
+!> \brief creates and initializes an mc_env
+!> \param mc_env the mc_environment you want to create
+!> 
+!>    Suitable for parallel use.
+!> \author MJM
+! *****************************************************************************
   SUBROUTINE mc_env_create ( mc_env, error )
-
-!   ***************************************************************************
 
     TYPE(mc_environment_type), POINTER       :: mc_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -99,31 +74,17 @@ CONTAINS
   END SUBROUTINE mc_env_create
 
 ! *****************************************************************************
-
+!> \brief provides a method for attaching various structures to an mc_env
+!> \param mc_env the mc_environment you want to change
+!> \param mc_par the mc parameters you want to associate with this mc_env
+!> \param force_env the force environment type you want to associate
+!>                   with this mc_env
+!> 
+!>    Suitable for parallel.
+!> \author MJM
 ! *****************************************************************************
-!!****s* mc_environment_types.F/set_mc_env
-!!
-!!   NAME
-!!     set_mc_env
-!!
-!!   FUNCTION
-!!     provides a method for attaching various structures to an mc_env
-!!
-!!   ARGUMENTS
-!!     - mc_env: the mc_environment you want to change
-!!     - mc_par: the mc parameters you want to associate with this mc_env
-!!     - force_env: the force environment type you want to associate
-!!                  with this mc_env
-!!
-!!   Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!**************************************************************************
   SUBROUTINE set_mc_env ( mc_env,mc_par,force_env)
 
-!   ***************************************************************************
     TYPE(mc_environment_type), POINTER       :: mc_env
     TYPE(mc_simulation_parameters_type), &
       OPTIONAL, POINTER                      :: mc_par
@@ -139,28 +100,17 @@ CONTAINS
   END SUBROUTINE set_mc_env
 
 ! *****************************************************************************
-!!****s* mc_environment_types.F/get_mc_env
-!!
-!!   NAME
-!!     get_mc_env
-!!
-!!   FUNCTION
-!!     provides a method for getting the various structures attached
-!!     to an mc_env
-!!
-!!   ARGUMENTS
-!!     - mc_env: the mc_environment you want to get information on
-!!     - mc_par: the mc parameters you want to point to the parameters
-!!               associated with this mc_env
-!!     - force_env: the force environment type you want to point to the
-!!               force environment associated with this mc_env
-!!
-!!   Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!**************************************************************************
+!> \brief provides a method for getting the various structures attached
+!>      to an mc_env
+!> \param mc_env the mc_environment you want to get information on
+!> \param mc_par the mc parameters you want to point to the parameters
+!>                associated with this mc_env
+!> \param force_env the force environment type you want to point to the
+!>                force environment associated with this mc_env
+!> 
+!>    Suitable for parallel.
+!> \author MJM
+! *****************************************************************************
   SUBROUTINE get_mc_env ( mc_env, mc_par, force_env)
 
     TYPE(mc_environment_type), POINTER       :: mc_env
@@ -176,30 +126,16 @@ CONTAINS
   END SUBROUTINE get_mc_env
 
 ! *****************************************************************************
-!***************************************************************************
-
-!!****f* mc_environment_types/mc_env_retain [1.0] *
-!!
-!!   NAME
-!!     mc_env_retain
-!!
-!!   FUNCTION
-!!     retains the given mc env
-!!
-!!   NOTES
-!!     see doc/ReferenceCounting.html
-!!
-!!   ARGUMENTS
-!!     - mc_env: the force environment to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*** **********************************************************************
+!> \brief retains the given mc env
+!> \param mc_env the force environment to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> 
+!>    Suitable for parallel.
+!> \note
+!>      see doc/ReferenceCounting.html
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE mc_env_retain(mc_env, error)
     TYPE(mc_environment_type), POINTER       :: mc_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -217,30 +153,18 @@ SUBROUTINE mc_env_retain(mc_env, error)
      mc_env%ref_count=mc_env%ref_count+1
   END IF
 END SUBROUTINE mc_env_retain
-!***************************************************************************
 
-!!****f* mc_environment_types/mc_env_release [1.0] *
-!!
-!!   NAME
-!!     mc_env_release
-!!
-!!   FUNCTION
-!!     releases the given mc env
-!!
-!!   NOTES
-!!     see doc/ReferenceCounting.html
-!!
-!!   ARGUMENTS
-!!     - mc_env: the mc environment to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given mc env
+!> \param mc_env the mc environment to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> 
+!>    Suitable for parallel.
+!> \note
+!>      see doc/ReferenceCounting.html
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE mc_env_release(mc_env, error)
     TYPE(mc_environment_type), POINTER       :: mc_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -268,10 +192,5 @@ SUBROUTINE mc_env_release(mc_env, error)
   NULLIFY(mc_env)
 END SUBROUTINE mc_env_release
 
-! *****************************************************************************
-
-!***************************************************************************
-
 END MODULE mc_environment_types
 
-!******************************************************************************

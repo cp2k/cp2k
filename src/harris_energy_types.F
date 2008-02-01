@@ -3,27 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/harris_energy_types [1.0] *
-!!
-!!   NAME
-!!     harris_energy_types
-!!
-!!   FUNCTION
-!!     The Harris energy type, which contains all the informations 
-!!     needed to perform and analyse the Harris functional energy correction.
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief The Harris energy type, which contains all the informations 
+!>      needed to perform and analyse the Harris functional energy correction.
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
 MODULE harris_energy_types
 
   USE f77_blas
@@ -47,43 +33,26 @@ MODULE harris_energy_types
             harris_energy_get, &
             harris_energy_clear, &
             harris_energy_create
-!!***
-!****************************************************************************
 
-!!****s* harris_energy_types/harris_energy_type [1.0] *
-!!
-!!   NAME
-!!     harris_energy_type
-!!
-!!   FUNCTION
-!!     The Harris energy type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - id_nr: unique identifier
-!!     - ref_count: reference counter (see doc/ReferenceCounting.html)
-!!     - Ehartree_elec: The electronic hartree energy
-!!     - Ehartree_core: The hartree energy computed with rho_core
-!!     - Exc: The exchange-correlation energy
-!!     - integral_vxc: The xc potential integral
-!!     - Ecore: The core hamiltonian energy
-!!     - Ecore_overlap: The overalp energy
-!!     - Ecore_self: The self-interaction energy
-!!     - EII: The ion-ion Energy
-!!     - Eharris_correction: The energy correction due to the harris functional
-!!     - sum_of_eigenvalues: The sum of the eigenvalues
-!!     - Eharris: The actual harris functional energy
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief The Harris energy type
+!> \param id_nr unique identifier
+!> \param ref_count reference counter (see doc/ReferenceCounting.html)
+!> \param Ehartree_elec The electronic hartree energy
+!> \param Ehartree_core The hartree energy computed with rho_core
+!> \param Exc The exchange-correlation energy
+!> \param integral_vxc The xc potential integral
+!> \param Ecore The core hamiltonian energy
+!> \param Ecore_overlap The overalp energy
+!> \param Ecore_self The self-interaction energy
+!> \param EII The ion-ion Energy
+!> \param Eharris_correction The energy correction due to the harris functional
+!> \param sum_of_eigenvalues The sum of the eigenvalues
+!> \param Eharris The actual harris functional energy
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   TYPE harris_energy_type
      INTEGER                                         :: id_nr, &
                                                         ref_count
@@ -102,70 +71,31 @@ MODULE harris_energy_types
                                                         Eharris
 
   END TYPE harris_energy_type
-!!***
-!****************************************************************************
 
-!!****s* harris_energy_types/harris_energy_p_type [1.0] *
-!!
-!!   NAME
-!!     harris_energy_p_type
-!!
-!!   FUNCTION
-!!     Type which allows the use of arrays of pointers
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - harris_energy_ptr: Pointer to the actual harris energy type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief Type which allows the use of arrays of pointers
+!> \param harris_energy_ptr Pointer to the actual harris energy type
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   TYPE harris_energy_p_type
      TYPE(harris_energy_type), POINTER :: harris_energy_ptr
   END TYPE harris_energy_p_type
-!!***
-!****************************************************************************
 
 CONTAINS
 
-!!****f* harris_energy_types/harris_energy_retain [1.0] *
-!!
-!!   NAME
-!!     harris_energy_retain
-!!
-!!   SYNOPSIS
-!!     SUBROUTINE harris_energy_retain(harris_energy, error)
-!!       TYPE(harris_energy_type), POINTER :: harris_energy
-!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT):: error
-!!     END SUBROUTINE harris_energy_retain
-!!
-!!   FUNCTION
-!!     Retains a harris force type (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - harris_energy: The harris energy type to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!     For possible missing arguments see the attributes of harris_energy_type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Retains a harris force type (see doc/ReferenceCounting.html)
+!> \param harris_energy The harris energy type to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> 
+!>      For possible missing arguments see the attributes of harris_energy_type
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_energy_retain(harris_energy, error)
 
     TYPE(harris_energy_type), POINTER        :: harris_energy
@@ -186,39 +116,18 @@ CONTAINS
       harris_energy%ref_count = harris_energy%ref_count+1
     END IF
   END SUBROUTINE harris_energy_retain
-!***************************************************************************
 
-!!****f* harris_energy_types/harris_energy_release [1.0] *
-!!
-!!   NAME
-!!     harris_energy_release
-!!
-!!   SYNOPSIS
-!!     SUBROUTINE harris_energy_release(harris_energy, error)
-!!       TYPE(harris_energy_type), POINTER :: harris_energy
-!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
-!!     END SUBROUTINE harris_energy_release
-!!
-!!   FUNCTION
-!!     Releases the given harris energy type (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - harris_energy: The harris energy type to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!     For possible missing arguments see the attributes of harris_energy_type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Releases the given harris energy type (see doc/ReferenceCounting.html)
+!> \param harris_energy The harris energy type to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> 
+!>      For possible missing arguments see the attributes of harris_energy_type
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_energy_release(harris_energy, error)
 
     TYPE(harris_energy_type), POINTER        :: harris_energy
@@ -244,62 +153,30 @@ CONTAINS
     END IF
     NULLIFY(harris_energy)
   END SUBROUTINE harris_energy_release
-!***************************************************************************
 
-!!****f* harris_energy_types/harris_energy_get [1.0] *
-!!
-!!   NAME
-!!     harris_energy_get
-!!
-!!   SYNOPSIS
-!!     SUBROUTINE harris_energy_get(harris_energy, id_nr, Ehartree_elec, 
-!!                                  Ehartree_core, Exc, integral_vxc, Ecore, 
-!!                                  Ecore_overlap, Ecore_self, EII, 
-!!                                  Eharris_correction, sum_of_eigenvalues, 
-!!                                  Eharris, error)
-!!       TYPE(harris_energy_type), POINTER    :: harris_energy
-!!       INTEGER, INTENT(OUT), OPTIONAL       :: id_nr
-!!       REAL(KIND=dp), INTENT(OUT), OPTIONAL :: Ehartreee_elec, 
-!!                                               Ehartree_core, Exc,
-!!                                               integral_vxc, Ecore,
-!!                                               Ecore_overlap, Ecore_self
-!!                                               EII, Eharris_correction,
-!!                                               sum_of_eigenvalues, Eharris
-!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
-!!     END SUBROUTINE harris_energy_get
-!!
-!!   FUNCTION
-!!     Returns various attributes of the harris type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - harris_energy: The enquired harris energy type
-!!     - id_nr: unique identifier
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!     - Ehartree_elec: The electronic hartree energy
-!!     - Ehartree_core: The hartree energy computed with rho_core
-!!     - Exc: The exchange-correlation energy
-!!     - integral_vxc: The xc potential integral
-!!     - Ecore: The core hamiltonian energy
-!!     - Ecore_overlap: The overalp energy
-!!     - Ecore_self: The self-interaction energy
-!!     - EII: The ion-ion Energy
-!!     - Eharris_correction: The energy correction due to the harris functional
-!!     - sum_of_eigenvalues: The sum of the eigenvalues
-!!     - Eharris: The actual harris functional energy
-!!
-!!     For possible missing arguments see the attributes of harris_energy_type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Returns various attributes of the harris type
+!> \param harris_energy The enquired harris energy type
+!> \param id_nr unique identifier
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> \param Ehartree_elec The electronic hartree energy
+!> \param Ehartree_core The hartree energy computed with rho_core
+!> \param Exc The exchange-correlation energy
+!> \param integral_vxc The xc potential integral
+!> \param Ecore The core hamiltonian energy
+!> \param Ecore_overlap The overalp energy
+!> \param Ecore_self The self-interaction energy
+!> \param EII The ion-ion Energy
+!> \param Eharris_correction The energy correction due to the harris functional
+!> \param sum_of_eigenvalues The sum of the eigenvalues
+!> \param Eharris The actual harris functional energy
+!> 
+!>      For possible missing arguments see the attributes of harris_energy_type
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_energy_get(harris_energy, id_nr, Ehartree_elec, &
                                Ehartree_core, Exc, integral_vxc, Ecore, &
                                Ecore_overlap, Ecore_self, EII, &
@@ -346,62 +223,30 @@ CONTAINS
       IF (PRESENT(Eharris)) Eharris = harris_energy%Eharris
     END IF
   END SUBROUTINE harris_energy_get
-!***************************************************************************
 
-!!****f* harris_energy_types/harris_energy_set [1.0] *
-!!
-!!   NAME
-!!     harris_energy_set
-!!
-!!   SYNOPSIS
-!!     SUBROUTINE harris_energy_set(harris_energy, id_nr, Ehartree_elec, 
-!!                                  Ehartree_core, Exc, integral_vxc, Ecore, 
-!!                                  Ecore_overlap, Ecore_self, EII, 
-!!                                  Eharris_correction, sum_of_eigenvalues, 
-!!                                  Eharris, error)
-!!       TYPE(harris_energy_type), POINTER    :: harris_energy
-!!       INTEGER, INTENT(OUT), OPTIONAL       :: id_nr
-!!       REAL(KIND=dp), INTENT(OUT), OPTIONAL :: Ehartreee_elec, 
-!!                                               Ehartree_core, Exc,
-!!                                               integral_vxc, Ecore,
-!!                                               Ecore_overlap, Ecore_self,
-!!                                               EII, Eharris_correction,
-!!                                               sum_of_eigenvalues, Eharris
-!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
-!!     END SUBROUTINE harris_energy_set
-!!
-!!   FUNCTION
-!!     Sets various attributes of the harris energy type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - harris_energy: The enquired harris energy type
-!!     - id_nr: unique identifier
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!     - Ehartree_elec: The electronic hartree energy
-!!     - Ehartree_core: The hartree energy computed with rho_core
-!!     - Exc: The exchange-correlation energy
-!!     - integral_vxc: The xc potential integral
-!!     - Ecore: The core hamiltonian energy
-!!     - Ecore_overlap: The overalp energy
-!!     - Ecore_self: The self-interaction energy
-!!     - EII: The ion-ion Energy
-!!     - Eharris_correction: The energy correction due to the harris functional
-!!     - sum_of_eigenvalues: The sum of the eigenvalues
-!!     - Eharris: The actual harris functional energy
-!!
-!!     For possible missing arguments see the attributes of harris_energy_type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Sets various attributes of the harris energy type
+!> \param harris_energy The enquired harris energy type
+!> \param id_nr unique identifier
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> \param Ehartree_elec The electronic hartree energy
+!> \param Ehartree_core The hartree energy computed with rho_core
+!> \param Exc The exchange-correlation energy
+!> \param integral_vxc The xc potential integral
+!> \param Ecore The core hamiltonian energy
+!> \param Ecore_overlap The overalp energy
+!> \param Ecore_self The self-interaction energy
+!> \param EII The ion-ion Energy
+!> \param Eharris_correction The energy correction due to the harris functional
+!> \param sum_of_eigenvalues The sum of the eigenvalues
+!> \param Eharris The actual harris functional energy
+!> 
+!>      For possible missing arguments see the attributes of harris_energy_type
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_energy_set(harris_energy, id_nr, Ehartree_elec, &
                                Ehartree_core, Exc, integral_vxc, Ecore, &
                                Ecore_overlap, Ecore_self, EII, &
@@ -448,39 +293,18 @@ CONTAINS
       IF (PRESENT(Eharris)) harris_energy%Eharris = Eharris
     END IF
   END SUBROUTINE harris_energy_set
-!***************************************************************************
 
-!!****f* harris_energy_types/harris_energy_clear [1.0] *
-!!
-!!   NAME
-!!     harris_energy_clear
-!!
-!!   SYNOPSIS
-!!     SUBROUTINE harris_energy_clear(harris_energy, error)
-!!       TYPE(harris_energy_type), POINTER :: harris_energy
-!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
-!!     END SUBROUTINE harris_energy_clear
-!!
-!!   FUNCTION
-!!     Reinitializes the harris energy type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - harris_energy: The harris energy type to be reinitialized
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!     For possible missing arguments see the attributes of harris_energy_type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Reinitializes the harris energy type
+!> \param harris_energy The harris energy type to be reinitialized
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> 
+!>      For possible missing arguments see the attributes of harris_energy_type
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_energy_clear(harris_energy, error)
 
     TYPE(harris_energy_type), POINTER        :: harris_energy
@@ -513,39 +337,18 @@ CONTAINS
       CALL harris_energy_create(harris_energy, error=error)
     END IF
   END SUBROUTINE harris_energy_clear
-!***************************************************************************
 
-!!****f* harris_energy_types/harris_energy_create [1.0] *
-!!
-!!   NAME
-!!     harris_energy_create
-!!
-!!   SYNOPSIS
-!!     SUBROUTINE harris_energy_create(harris_energy, error)
-!!       TYPE(harris_energy_type), POINTER :: harris_energy
-!!       TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
-!!     END SUBROUTINE harris_energy_create
-!!
-!!   FUNCTION
-!!     Creates a harris energy type instance
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - harris_energy: The harris energy type to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!     For possible missing arguments see the attributes of harris_energy_type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates a harris energy type instance
+!> \param harris_energy The harris energy type to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> 
+!>      For possible missing arguments see the attributes of harris_energy_type
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_energy_create(harris_energy, error)
 
     TYPE(harris_energy_type), POINTER        :: harris_energy
@@ -571,6 +374,5 @@ CONTAINS
       CALL harris_energy_clear(harris_energy, error=error)
     END IF
   END SUBROUTINE harris_energy_create
-!***************************************************************************
 
 END MODULE harris_energy_types

@@ -3,22 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/qs_initial_guess [1.0] *
-!!
-!!   NAME
-!!     qs_initial_guess
-!!
-!!   FUNCTION
-!!     Routines to somehow generate an intial guess
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!      2006.03 Moved here from qs_scf.F [Joost VandeVondele]
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Routines to somehow generate an intial guess
+!> \par History
+!>       2006.03 Moved here from qs_scf.F [Joost VandeVondele]
+! *****************************************************************************
 MODULE qs_initial_guess
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -93,26 +82,16 @@ MODULE qs_initial_guess
 
 CONTAINS
 
-!!****f* qs_initial_guess/calculate_first_density_matrix *
-!!
-!!   NAME
-!!     calculate_first_density_matrix
-!!
-!!   FUNCTION
-!!     can use a variety of methods to come up with an initial
-!!     density matrix and optionally an initial wavefunction
-!!
-!!   NOTES
-!!     badly needs to be split in subroutines each doing one of the possible
-!!     schemes
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 moved here from qs_scf [Joost VandeVondele]
-!!     06.2007 allow to skip the initial guess [jgh]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief can use a variety of methods to come up with an initial
+!>      density matrix and optionally an initial wavefunction
+!> \note
+!>      badly needs to be split in subroutines each doing one of the possible
+!>      schemes
+!> \par History
+!>      03.2006 moved here from qs_scf [Joost VandeVondele]
+!>      06.2007 allow to skip the initial guess [jgh]
+! *****************************************************************************
   SUBROUTINE calculate_first_density_matrix(scf_env,qs_env,error)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -689,7 +668,5 @@ CPSourceFileRef,&
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_first_density_matrix
-
-  ! ***************************************************************************
 
 END MODULE qs_initial_guess

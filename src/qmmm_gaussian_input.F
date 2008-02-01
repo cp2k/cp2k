@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qmmm_gaussian_input [1.0] *
-!!
-!!   NAME
-!!     qmmm_gaussian_input
-!!
-!!   FUNCTION
-!!     Set the QMMM Gaussian Input Environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     6.2004 created [tlaino]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Set the QMMM Gaussian Input Environment
+!> \par History
+!>      6.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
 MODULE qmmm_gaussian_input
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -54,31 +40,16 @@ MODULE qmmm_gaussian_input
              set_mm_potential_swave,&
              set_mm_potential_erf
 !***
-!****************************************************************************
 CONTAINS
 
-  !!****f* qmmm_gaussian_input/read_mm_potential [1.0] *
-  !!
-  !!   NAME
-  !!     read_mm_potential
-  !!
-  !!   FUNCTION
-  !!     read MM_POTENTIAL file
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     06.2004 created [tlaino]
-  !!
-  !!*************************************************************************
+! *****************************************************************************
+!> \brief read MM_POTENTIAL file
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      06.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE read_mm_potential(para_env, qmmm_gaussian_fns, qm_cell_small,&
                                compatibility, qmmm_section, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -197,28 +168,14 @@ CONTAINS
 
   END SUBROUTINE read_mm_potential
 
-  !!****f* qmmm_gaussian_input/set_mm_potential_erf [1.0] *
-  !!
-  !!   NAME
-  !!     set_mm_potential_erf
-  !!
-  !!   FUNCTION
-  !!     set the GEEP information for Erf(r/rc)/r
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     07.2005 created [tlaino]
-  !!
-  !!*************************************************************************
+! *****************************************************************************
+!> \brief set the GEEP information for Erf(r/rc)/r
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      07.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE set_mm_potential_erf(qmmm_gaussian_fns, qm_cell_small,&
                                compatibility, num_geep_gauss, error)
     TYPE(qmmm_gaussian_p_type), &
@@ -656,28 +613,14 @@ CONTAINS
     END DO
   END SUBROUTINE set_mm_potential_erf
 
-  !!****f* qmmm_gaussian_input/set_mm_potential_swave [1.0] *
-  !!
-  !!   NAME
-  !!     set_mm_potential_swave
-  !!
-  !!   FUNCTION
-  !!     set the GEEP information for the S-WAVE expansion
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     02.2007 created [tlaino]
-  !!
-  !!*************************************************************************
+! *****************************************************************************
+!> \brief set the GEEP information for the S-WAVE expansion
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2007 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE set_mm_potential_swave(qmmm_gaussian_fns, qm_cell_small,&
                                     num_geep_gauss, error)
     TYPE(qmmm_gaussian_p_type), &

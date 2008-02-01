@@ -3,25 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_cp2k_free_energy *
-!!
-!!   NAME
-!!     input_cp2k_free_energy
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     teo & fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 split input_cp2k into smaller modules [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \par History
+!>      10.2005 split input_cp2k into smaller modules [fawzi]
+!> \author teo & fawzi
+! *****************************************************************************
 MODULE input_cp2k_free_energy
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
@@ -53,29 +39,15 @@ PUBLIC :: create_metavar_section,&
           create_fe_section
 
 !***
-!****************************************************************************
 CONTAINS
 
-!!****f* input_cp2k_free_energy/create_fe_section *
-!!
-!!   NAME
-!!     create_fe_section
-!!
-!!   FUNCTION
-!!     creates the free energy section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the free energy section
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_fe_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -133,26 +105,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_fe_section
 
-!!****f* input_cp2k_free_energy/create_metadyn_section *
-!!
-!!   NAME
-!!     create_metadyn_section
-!!
-!!   FUNCTION
-!!     creates the metadynamics section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the metadynamics section
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_metadyn_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -281,26 +240,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_metadyn_section
 
-!!****f* input_cp2k_free_energy/create_ac_section *
-!!
-!!   NAME
-!!     create_ac_section
-!!
-!!   FUNCTION
-!!     creates the alchemical section for free energy evaluation
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teodoro laino [tlaino] 04.2007
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the alchemical section for free energy evaluation
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teodoro laino [tlaino] 04.2007
+! *****************************************************************************
   SUBROUTINE create_ac_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -352,26 +298,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_ac_section
 
-!!****f* input_cp2k_free_energy/create_ui_section *
-!!
-!!   NAME
-!!     create_ui_section
-!!
-!!   FUNCTION
-!!     creates the umbrella integration section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teodoro laino [tlaino] 01.2007
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the umbrella integration section
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teodoro laino [tlaino] 01.2007
+! *****************************************************************************
   SUBROUTINE create_ui_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -408,27 +341,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_ui_section
 
-!***************************************************************************
-!!****f* input_cp2k_free_energy/create_metadyn_history [1.0] *
-!!
-!!   NAME
-!!     create_metadyn_history
-!!
-!!   FUNCTION
-!!     Creates the velocity section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the velocity section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_metadyn_history(section, metadyn_section, error)
     TYPE(section_type), POINTER              :: section, metadyn_section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -518,26 +437,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_metadyn_history
 
-!!****f* input_cp2k_free_energy/create_metavar_section *
-!!
-!!   NAME
-!!     create_metavar_section
-!!
-!!   FUNCTION
-!!     creates the metavar section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the metavar section
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_metavar_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -689,26 +595,13 @@ CONTAINS
 
   END SUBROUTINE create_metavar_section
 
-!!****f* input_cp2k_free_energy/create_uvar_section *
-!!
-!!   NAME
-!!     create_uvar_section
-!!
-!!   FUNCTION
-!!     creates the uvar section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the uvar section
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_uvar_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error

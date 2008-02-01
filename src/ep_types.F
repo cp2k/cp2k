@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/ep_types [1.0] *
-!!
-!!   NAME
-!!     ep_types
-!!
-!!   FUNCTION
-!!     the types needed for the calculation of the enrgy with perturbation
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2002 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief the types needed for the calculation of the enrgy with perturbation
+!> \par History
+!>      11.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE ep_types
   USE cp_array_utils,                  ONLY: cp_2d_r_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type
@@ -67,108 +53,62 @@ MODULE ep_types
   PUBLIC :: ep_envs_get_ep_env, ep_env_create, ep_env_calc_e_f
   PUBLIC :: ep_energy_zero, ep_dealloc_local_sm, ep_force_create,&
        ep_force_retain, ep_force_release, ep_force_zero
-  !!***
-  !****************************************************************************
 
-
-  !!****s* ep_types/ep_energy_type *
-  !!
-  !!   NAME
-  !!     ep_energy_type
-  !!
-  !!   FUNCTION
-  !!     stores various energies calculated during an ep calculation
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     - e_no_int: energy of the single fragments (no interaction)
-  !!     - e0: the energy of the orthogonalized frozen densities
-  !!       (energy of psi0, E(psi0))
-  !!     - e1: the correction energy (E(psi0+psi1)-E(psi0))
-  !!     - e_tot: total energy
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief stores various energies calculated during an ep calculation
+!> \param e_no_int energy of the single fragments (no interaction)
+!> \param e 0: the energy of the orthogonalized frozen densities
+!>        (energy of psi0, E(psi0))
+!> \param e 1: the correction energy (E(psi0+psi1)-E(psi0))
+!> \param e_tot total energy
+!> \author fawzi
+! *****************************************************************************
   TYPE ep_energy_type
      REAL(dp) :: e_no_int,e0,e1,e_tot
   END TYPE ep_energy_type
-  !***************************************************************************
 
-  !!****s* ep_types/ep_force_type *
-  !!
-  !!   NAME
-  !!     ep_force_type
-  !!
-  !!   FUNCTION
-  !!     stores various forces calculated during an ep calculation
-  !!     (only those not stored in main_qs_env)
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     - f0_internal: intermolecular forces due to e0
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief stores various forces calculated during an ep calculation
+!>      (only those not stored in main_qs_env)
+!> \param f 0_internal: intermolecular forces due to e0
+!> \author fawzi
+! *****************************************************************************
   TYPE ep_force_type
      INTEGER :: id_nr, ref_count
      REAL(dp), DIMENSION(:,:), POINTER :: f0_internal
   END TYPE ep_force_type
-  !***************************************************************************
 
-  !!****s* ep_types/ep_env_type [1.0] *
-  !!
-  !!   NAME
-  !!     ep_env_type
-  !!
-  !!   FUNCTION
-  !!     environement for an ep calculation
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     - id_nr: identification number (unique)
-  !!     - ref_count: reference count (see doc/ReferenceCounting.html)
-  !!     - mol_envs: qs_envs that represent the pieces of the full system
-  !!       handled by a replica_env
-  !!     - sub_proj: projection from the full system to the pieces
-  !!     - main_qs_env: qs_env of the full system
-  !!     - main_p_env: perturbation environment for the full system
-  !!     - sub_p_env: perturbation environement for the molecular subsystem
-  !!     - m_pi_Hrho_psi0d: the rhs of the linear system to solve for
-  !!       the perturbation ( - pi Hrho psi0d )
-  !!     - nspins: number of spins
-  !!     - nmol: number of molecules replicas in mol_envs
-  !!     - nat: number of atoms (in main_qs_env)
-  !!     - nat_per_mol: number of atoms in each mol
-  !!     - sub_nao: number of atom orbitals in the mol_env
-  !!     - sub_nmo: number of molecular orbitals in the mol_env
-  !!     - full_nao: number of atom orbitals in main_qs_env
-  !!     - full_nmo: number of molecular orbitals in main_qs_env
-  !!     - at2sub: which molecule owns each atom
-  !!     - para_env: the global parallel environment for the ep calculation
-  !!     - input: the input for the ep calculation
-  !!     - globenv: global environment for the main_qs
-  !!     - energy: the energy of the last configuration evaluated
-  !!     - local_H_full: diagonal elements of the KohnSham matrix
-  !!     - local_matrix_w: matrix_w for the intra forces
-  !!
-  !!   AUTHOR
-  !!     Fawzi Mohamed
-  !!
-  !!   MODIFICATION HISTORY
-  !!     11.2002 created [fawzi]
-  !!
-  !!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief environement for an ep calculation
+!> \param id_nr identification number (unique)
+!> \param ref_count reference count (see doc/ReferenceCounting.html)
+!> \param mol_envs qs_envs that represent the pieces of the full system
+!>        handled by a replica_env
+!> \param sub_proj projection from the full system to the pieces
+!> \param main_qs_env qs_env of the full system
+!> \param main_p_env perturbation environment for the full system
+!> \param sub_p_env perturbation environement for the molecular subsystem
+!> \param m_pi_Hrho_psi 0d: the rhs of the linear system to solve for
+!>        the perturbation ( - pi Hrho psi0d )
+!> \param nspins number of spins
+!> \param nmol number of molecules replicas in mol_envs
+!> \param nat number of atoms (in main_qs_env)
+!> \param nat_per_mol number of atoms in each mol
+!> \param sub_nao number of atom orbitals in the mol_env
+!> \param sub_nmo number of molecular orbitals in the mol_env
+!> \param full_nao number of atom orbitals in main_qs_env
+!> \param full_nmo number of molecular orbitals in main_qs_env
+!> \param at 2sub: which molecule owns each atom
+!> \param para_env the global parallel environment for the ep calculation
+!> \param input the input for the ep calculation
+!> \param globenv global environment for the main_qs
+!> \param energy the energy of the last configuration evaluated
+!> \param local_H_full diagonal elements of the KohnSham matrix
+!> \param local_matrix_w matrix_w for the intra forces
+!> \par History
+!>      11.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE ep_env_type
      INTEGER :: id_nr, ref_count, f_env_id,nspins,nat,nmol,nat_per_mol
      TYPE(global_environment_type), POINTER :: globenv
@@ -188,62 +128,29 @@ MODULE ep_types
      TYPE(ep_force_type), POINTER :: force
      TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: base_C0
   END TYPE ep_env_type
-  !!***
-  !****************************************************************************
 
-  !!****s* ep_types/ep_env_p_type [1.0] *
-  !!
-  !!   NAME
-  !!     ep_env_p_type
-  !!
-  !!   FUNCTION
-  !!     type to have array of pointers
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     - ep_env: the pointer to the ep env
-  !!
-  !!   AUTHOR
-  !!     Fawzi Mohamed
-  !!
-  !!   MODIFICATION HISTORY
-  !!     12.2002 created [fawzi]
-  !!
-  !!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief type to have array of pointers
+!> \param ep_env the pointer to the ep env
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE ep_env_p_type
      TYPE(ep_env_type), POINTER :: ep_env
   END TYPE ep_env_p_type
-  !!***
-  !****************************************************************************
 
   TYPE(ep_env_p_type), DIMENSION(:), POINTER, PRIVATE :: ep_envs
 
 CONTAINS
 
-
-  !!****f* ep_types/ep_energy_zero *
-  !!
-  !!   NAME
-  !!     ep_energy_zero
-  !!
-  !!   FUNCTION
-  !!     zeroes out the energies
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - energy: the energy object to zero out
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief zeroes out the energies
+!> \param energy the energy object to zero out
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE ep_energy_zero(ep_energy,error)
     TYPE(ep_energy_type), INTENT(out)        :: ep_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -256,31 +163,16 @@ CONTAINS
     ep_energy%e1=0._dp
     ep_energy%e_tot=0._dp
   END SUBROUTINE ep_energy_zero
-  !***************************************************************************
 
-  !!****f* ep_types/ep_env_retain [1.0] *
-  !!
-  !!   NAME
-  !!     ep_env_retain
-  !!
-  !!   FUNCTION
-  !!     retains an ep environment (see doc/ReferenceCounting.html)
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - ep_env: the environment to retain
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Fawzi Mohamed
-  !!
-  !!   MODIFICATION HISTORY
-  !!     11.2002 created [fawzi]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains an ep environment (see doc/ReferenceCounting.html)
+!> \param ep_env the environment to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      11.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE ep_env_retain(ep_env, error)
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -298,31 +190,16 @@ CONTAINS
        ep_env%ref_count=ep_env%ref_count+1
     END IF
   END SUBROUTINE ep_env_retain
-  !***************************************************************************
 
-  !!****f* ep_types/ep_env_release [1.0] *
-  !!
-  !!   NAME
-  !!     ep_env_release
-  !!
-  !!   FUNCTION
-  !!     releases the given ep_env (see doc/ReferenceCounting.html)
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - ep_env: the ep_env to release
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Fawzi Mohamed
-  !!
-  !!   MODIFICATION HISTORY
-  !!     11.2002 created [fawzi]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given ep_env (see doc/ReferenceCounting.html)
+!> \param ep_env the ep_env to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      11.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE ep_env_release(ep_env, error)
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -390,33 +267,18 @@ CONTAINS
     END IF
     NULLIFY(ep_env)
   END SUBROUTINE ep_env_release
-  !***************************************************************************
 
-  !!****f* ep_methods/ep_env_get [1.0] *
-  !!
-  !!   NAME
-  !!     ep_env_get
-  !!
-  !!   FUNCTION
-  !!     returns the various attributes of the ep_env
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - ep_env: the ep_env to get the info from
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!     For the other arguments see the attributes of ep_env_type
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   MODIFICATION HISTORY
-  !!     12.2002 created [fawzi]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the various attributes of the ep_env
+!> \param ep_env the ep_env to get the info from
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> 
+!>      For the other arguments see the attributes of ep_env_type
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE ep_env_get(ep_env,id_nr, mol_envs, sub_proj, main_qs_env,&
        main_p_env,sub_p_env, preconditioner, m_pi_Hrho_psi0d, psi1, f_env_id,&
        globenv,at2sub,error)
@@ -474,35 +336,21 @@ CONTAINS
        IF (PRESENT(at2sub)) at2sub => ep_env%at2sub
     END IF
   END SUBROUTINE ep_env_get
-  !***************************************************************************
 
-  !!****f* ep_methods/ep_env_create [1.0] *
-  !!
-  !!   NAME
-  !!     ep_env_create
-  !!
-  !!   FUNCTION
-  !!     creates the environement to perform an ep perturbation
-  !!
-  !!   NOTES
-  !!     Could take more advantage of what is calculated in main_qs_env
-  !!     (for example the S matrix)
-  !!
-  !!
-  !!   INPUTS
-  !!     - ep_env: the ep_env env to create
-  !!     - main_qs_env: the qs_env of the full system
-  !!     - projections: the projections into the subsystems
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Fawzi Mohamed
-  !!
-  !!   MODIFICATION HISTORY
-  !!     11.2002 created [fawzi]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the environement to perform an ep perturbation
+!> \param ep_env the ep_env env to create
+!> \param main_qs_env the qs_env of the full system
+!> \param projections the projections into the subsystems
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      Could take more advantage of what is calculated in main_qs_env
+!>      (for example the S matrix)
+!> \par History
+!>      11.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE ep_env_create(ep_env,root_section,para_env,globenv, error)
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(section_vals_type), POINTER         :: root_section
@@ -552,24 +400,11 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE ep_env_create
 
-  !!****f* ep_types/ep_envs_get_ep_env *
-  !!
-  !!   NAME
-  !!     ep_envs_get_ep_env
-  !!
-  !!   FUNCTION
-  !!     returns the replica environment with the given id_nr
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - id_nr: the id_nr of the requested ep_envs
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the replica environment with the given id_nr
+!> \param id_nr the id_nr of the requested ep_envs
+!> \author fawzi
+! *****************************************************************************
   FUNCTION ep_envs_get_ep_env(id_nr) RESULT(res)
     INTEGER, INTENT(in)                      :: id_nr
     TYPE(ep_env_type), POINTER               :: res
@@ -591,28 +426,14 @@ CONTAINS
        END IF
     END IF
   END FUNCTION ep_envs_get_ep_env
-  !***************************************************************************
 
-  !!****f* ep_types/ep_envs_add_ep_env *
-  !!
-  !!   NAME
-  !!     ep_envs_add_ep_env
-  !!
-  !!   FUNCTION
-  !!     adds the given ep_env to the list of controlled ep_envs.
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - ep_env: the ep_env to add
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief adds the given ep_env to the list of controlled ep_envs.
+!> \param ep_env the ep_env to add
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE ep_envs_add_ep_env(ep_env,error)
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -654,28 +475,14 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE ep_envs_add_ep_env
-  !***************************************************************************
 
-  !!****f* ep_types/ep_envs_rm_ep_env *
-  !!
-  !!   NAME
-  !!     ep_envs_rm_ep_env
-  !!
-  !!   FUNCTION
-  !!     removes the given ep_env to the list of controlled ep_envs.
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - ep_env: the ep_env to remove
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief removes the given ep_env to the list of controlled ep_envs.
+!> \param ep_env the ep_env to remove
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE ep_envs_rm_ep_env(ep_env,error)
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -711,27 +518,13 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE ep_envs_rm_ep_env
-  !***************************************************************************
 
-  !!****f* ep_types/ep_env_calc_e_f *
-  !!
-  !!   NAME
-  !!     ep_env_calc_e_f
-  !!
-  !!   FUNCTION
-  !!     updates forces and energy in the given ep_env
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief updates forces and energy in the given ep_env
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE ep_env_calc_e_f(ep_env,calc_f,error)
     TYPE(ep_env_type), POINTER               :: ep_env
     LOGICAL, INTENT(in)                      :: calc_f
@@ -755,28 +548,14 @@ CONTAINS
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE ep_env_calc_e_f
-  !***************************************************************************
 
-  !!****f* ep_types/ep_dealloc_local_sm *
-  !!
-  !!   NAME
-  !!     ep_dealloc_local_sm
-  !!
-  !!   FUNCTION
-  !!     deallocates a local spare matrix
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - local_sm: the matrix to deallocate
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates a local spare matrix
+!> \param local_sm the matrix to deallocate
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE ep_dealloc_local_sm(local_sm,error)
     TYPE(real_matrix_p_type), &
       DIMENSION(:, :), POINTER               :: local_sm
@@ -802,29 +581,15 @@ CONTAINS
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
   END SUBROUTINE ep_dealloc_local_sm
-  !***************************************************************************
 
-  !!****f* ep_types/ep_force_create *
-  !!
-  !!   NAME
-  !!     ep_force_create
-  !!
-  !!   FUNCTION
-  !!     creates an ep_force_type
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - force: the type to create
-  !!     - nat: the number of atoms
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates an ep_force_type
+!> \param force the type to create
+!> \param nat the number of atoms
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE ep_force_create(force,nat,error)
     TYPE(ep_force_type), POINTER             :: force
     INTEGER, INTENT(in)                      :: nat
@@ -850,28 +615,14 @@ CONTAINS
        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
     END IF
   END SUBROUTINE ep_force_create
-  !***************************************************************************
 
-  !!****f* ep_types/ep_force_zero *
-  !!
-  !!   NAME
-  !!     ep_force_zero
-  !!
-  !!   FUNCTION
-  !!     zeroes the forces
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - force: the force type to zero out
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief zeroes the forces
+!> \param force the force type to zero out
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE ep_force_zero(force,error)
     TYPE(ep_force_type), POINTER             :: force
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -888,28 +639,14 @@ CONTAINS
        force%f0_internal=0._dp
     END IF
   END SUBROUTINE ep_force_zero
-  !***************************************************************************
 
-  !!****f* ep_types/ep_force_retain *
-  !!
-  !!   NAME
-  !!     ep_force_retain
-  !!
-  !!   FUNCTION
-  !!     retains the given force type
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - force: the force type to retain
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given force type
+!> \param force the force type to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE ep_force_retain(force,error)
     TYPE(ep_force_type), POINTER             :: force
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -926,28 +663,14 @@ CONTAINS
        force%ref_count=force%ref_count+1
     END IF
   END SUBROUTINE ep_force_retain
-  !***************************************************************************
 
-  !!****f* ep_types/ep_force_release *
-  !!
-  !!   NAME
-  !!     ep_force_release
-  !!
-  !!   FUNCTION
-  !!     retains the given force type
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - force: the force type to retain
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given force type
+!> \param force the force type to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE ep_force_release(force,error)
     TYPE(ep_force_type), POINTER             :: force
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -971,6 +694,5 @@ CONTAINS
     END IF
     NULLIFY(force)
   END SUBROUTINE ep_force_release
-  !***************************************************************************
 
 END MODULE ep_types

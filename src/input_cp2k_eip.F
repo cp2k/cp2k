@@ -3,25 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_cp2k_eip *
-!!
-!!   NAME
-!!     input_cp2k_eip
-!!
-!!   FUNCTION
-!!     Creates the EIP section of the input
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Creates the EIP section of the input
+!> \par History
+!>      03.2006 created
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
 MODULE input_cp2k_eip
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
@@ -46,35 +33,18 @@ MODULE input_cp2k_eip
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_eip'
 
   PUBLIC :: create_eip_section
-!!***
-!****************************************************************************
 
 CONTAINS
 
-!!****f* input_cp2k_eip/create_eip_section [1.0] *
-!!
-!!   NAME
-!!     create_eip_section
-!!
-!!   FUNCTION
-!!     Create the input section for EIP
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Create the input section for EIP
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      03.2006 created
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE create_eip_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -116,32 +86,16 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_eip_section
-!***************************************************************************
 
-!!****f* input_cp2k_eip/create_eip_print_section [1.0] *
-!!
-!!   NAME
-!!     create_eip_print_section
-!!
-!!   FUNCTION
-!!     Creates the print section for the eip subsection
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the print section for the eip subsection
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      03.2006 created
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE create_eip_print_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -209,6 +163,5 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_eip_print_section
-!***************************************************************************
 
 END MODULE input_cp2k_eip

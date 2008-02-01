@@ -3,6 +3,7 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
+! *****************************************************************************
 MODULE mt_util
   USE bibliography,                    ONLY: Martyna1999,&
                                              cite_reference
@@ -41,23 +42,11 @@ MODULE mt_util
 
   PUBLIC :: MTin_create_screen_fn
 CONTAINS
-!!*****
-!******************************************************************************
-!!****** mt_util/MTin_create_screen_fn *
-!!
-!!   NAME
-!!     MTin_create_screen_fn
-!!
-!!   FUNCTION
-!!    Initialize the Martyna && Tuckerman Poisson Solver
-!!
-!!   AUTHOR
-!!     Teodoro Laino (16.06.2004)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+
+! *****************************************************************************
+!> \brief Initialize the Martyna && Tuckerman Poisson Solver
+!> \author Teodoro Laino (16.06.2004)
+! *****************************************************************************
   SUBROUTINE MTin_create_screen_fn(screen_function, pw_pool, method, alpha, rel_cutoff, cell, &
        special_dimension, slab_size, super_ref_pw_grid, error)
     TYPE(pw_type), POINTER                   :: screen_function
@@ -147,25 +136,12 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE MTin_create_screen_fn
 
-!******************************************************************************
-!!****** mt_util/mt0din [1.0] *
-!!
-!!   NAME
-!!     mt0din
-!!
-!!   FUNCTION
-!!     Calculates the Tuckerman Green's function in reciprocal space
-!!     according the scheme published on:
-!!     Martyna and Tuckerman, J. Chem. Phys. Vol. 110, No. 6, 2810-2821
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino (09.03.2005)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Calculates the Tuckerman Green's function in reciprocal space
+!>      according the scheme published on:
+!>      Martyna and Tuckerman, J. Chem. Phys. Vol. 110, No. 6, 2810-2821
+!> \author Teodoro Laino (09.03.2005)
+! *****************************************************************************
   SUBROUTINE mt0din(Vloc,alpha)
     TYPE(pw_type), POINTER                   :: Vloc
     REAL(KIND=dp), INTENT(in)                :: alpha
@@ -223,25 +199,12 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE Mt0din
 
-!******************************************************************************
-!!****** mt_util/mt1din [1.0] *
-!!
-!!   NAME
-!!     mt1din
-!!
-!!   FUNCTION
-!!     Calculates the Tuckerman Green's function in reciprocal space
-!!     according the scheme published on:
-!!     Martyna and Tuckerman, J. Chem. Phys. Vol. 121, No. 23, 11949
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino (11.2005)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Calculates the Tuckerman Green's function in reciprocal space
+!>      according the scheme published on:
+!>      Martyna and Tuckerman, J. Chem. Phys. Vol. 121, No. 23, 11949
+!> \author Teodoro Laino (11.2005)
+! *****************************************************************************
   SUBROUTINE mt1din(screen_function,iz,error)
     TYPE(pw_type), POINTER                   :: screen_function
     INTEGER, INTENT(IN)                      :: iz

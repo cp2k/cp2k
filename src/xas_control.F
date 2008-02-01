@@ -3,19 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!***** cp2k/xas_control [1.0] *
-!!
-!!   NAME
-!!     cp_control_types
-!!
-!!   FUNCTION
-!!     Defines control structures, which contain the parameters and the
-!!     settings for the calculations.
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Defines control structures, which contain the parameters and the
+!>      settings for the calculations.
+! *****************************************************************************
 MODULE xas_control
 
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -43,22 +34,9 @@ MODULE xas_control
 
   PRIVATE
 
-
-!!****t* xas_control/xas_control_type
-!!
-!! NAME
-!!   xas_control_type
-!!
-!! FUNCTION
-!!   A type that holds controling information for a xas calculation
-!!
-!! ATTRIBUTES
-!!
-!! NOTES  
-!!  
-!! 
-!!***
-
+! *****************************************************************************
+!> \brief A type that holds controling information for a xas calculation
+! *****************************************************************************
   TYPE xas_control_type
     INTEGER                             :: ref_count
     INTEGER                             :: max_scf
@@ -90,7 +68,6 @@ MODULE xas_control
       POINTER                           :: localized_wfn_control
   END TYPE xas_control_type
 
-
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_control'
 
 ! *** Public data types ***
@@ -102,28 +79,15 @@ MODULE xas_control
   PUBLIC :: read_xas_control, write_xas_control, xas_control_create, &
             xas_control_release, xas_control_retain
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
-!   ***************************************************************************
-!!
-!!   NAME
-!!      read_xas_control
-!!   FUNCTION
-!!      read from input the instructions for a xes/xas calculation
-!!   NOTES
-!!
-!!   INPUTS
-!!      xas_control :  control variables
-!!      error
-!!
-!!   MODIFICATION HISTORY
-!!     04.2005 created [MI]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief read from input the instructions for a xes/xas calculation
+!> \param xas_control control variables
+!>       error
+!> \par History
+!>      04.2005 created [MI]
+! *****************************************************************************
   SUBROUTINE read_xas_control(xas_control,dft_section,error)
 
     TYPE(xas_control_type)                   :: xas_control
@@ -220,7 +184,6 @@ CONTAINS
       END DO ! ir
     END IF
 
-
     IF(.NOT. ASSOCIATED(xas_control%exc_atoms)) THEN
       xas_control%nexc_atoms = 1
       xas_control%lb_atom = 1
@@ -254,23 +217,14 @@ CONTAINS
          nloc_xas=xas_control%nexc_search,error=error)
 
   END SUBROUTINE read_xas_control
-!   ***************************************************************************
-!!
-!!   NAME
-!!      write_xas_control
-!!   FUNCTION
-!!      write on the instructions for a xes/xas calculation
-!!   NOTES
-!!
-!!   INPUTS
-!!      xas_control :  control variables
-!!      error
-!!
-!!   MODIFICATION HISTORY
-!!     12.2005 created [MI]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief write on the instructions for a xes/xas calculation
+!> \param xas_control control variables
+!>       error
+!> \par History
+!>      12.2005 created [MI]
+! *****************************************************************************
   SUBROUTINE write_xas_control(xas_control,dft_section, error)
 
     TYPE(xas_control_type)                   :: xas_control
@@ -330,20 +284,12 @@ CONTAINS
   END SUBROUTINE write_xas_control
 
 !****f* xas_control/xas_control_create/retain/release *
-!!
-!!   NAME
-!!      xas_control_create/retain/release
-!!   FUNCTION
-!!      create retain release the xas_control_type
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     04.2005 created [MI]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief create retain release the xas_control_type
+!> \par History
+!>      04.2005 created [MI]
+! *****************************************************************************
   SUBROUTINE xas_control_create(xas_control,error)
 
     TYPE(xas_control_type), POINTER          :: xas_control
@@ -385,6 +331,7 @@ CONTAINS
 
   END SUBROUTINE xas_control_create
 
+! *****************************************************************************
   SUBROUTINE xas_control_release(xas_control,error)
 
     TYPE(xas_control_type), POINTER          :: xas_control
@@ -419,6 +366,7 @@ CONTAINS
 
   END SUBROUTINE xas_control_release
 
+! *****************************************************************************
   SUBROUTINE xas_control_retain(xas_control,error)
 
     TYPE(xas_control_type), POINTER          :: xas_control

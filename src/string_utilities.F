@@ -2,25 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/string_utilities [1.0] *
-!!
-!!   NAME
-!!     string_utilities
-!!
-!!   FUNCTION
-!!     Utilities for string manipulations
-!!
-!!   AUTHOR
-!!     MK & JGH
-!!
-!!   MODIFICATION HISTORY
-!!     Adapted compress and uppercase for use in CP2K (JGH)
-!!     string_to_integer and integer_to_string added (06.02.2001, MK)
-!!     Cleaned (04.01.2004,MK)
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Utilities for string manipulations
+!> \par History
+!>      Adapted compress and uppercase for use in CP2K (JGH)
+!>      string_to_integer and integer_to_string added (06.02.2001, MK)
+!>      Cleaned (04.01.2004,MK)
+!> \author MK & JGH
+! *****************************************************************************
 MODULE string_utilities
 
   USE glob_matching,                   ONLY: pattern_match=>string_match
@@ -32,7 +22,6 @@ MODULE string_utilities
   CHARACTER(len=1), PARAMETER :: backslash = '\\'
   CHARACTER(len=1), PARAMETER :: star      = '*'
   CHARACTER(len=1), PARAMETER :: question  = '?'
-
 
   PUBLIC :: ascii_to_string,&
             compress,&
@@ -56,27 +45,16 @@ MODULE string_utilities
                      s2a_20,s2a_21,s2a_22, s2a_23, s2a_24, s2a_25, s2a_26, s2a_27, s2a_28, s2a_29 ! should be clear how to add more
   END INTERFACE 
 
+CONTAINS
 
 ! *****************************************************************************
-
-CONTAINS
-!!****f* string_utilities/typo_match *
-!!
-!!   NAME
-!!    typo_match
-!!
-!!   FUNCTION
-!!    returns a non-zero positive value if typo_string equals string apart from a few typos.
-!!    It is case sensitive, apart from typos.
-!!
-!!   NOTES
-!!    could maybe be made a bit smarter
-!!
-!!   MODIFICATION HISTORY
-!!     02.2006 created [Joost VandeVondele]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+!> \brief returns a non-zero positive value if typo_string equals string apart from a few typos.
+!>     It is case sensitive, apart from typos.
+!> \note
+!>     could maybe be made a bit smarter
+!> \par History
+!>      02.2006 created [Joost VandeVondele]
+! *****************************************************************************
 FUNCTION typo_match(string,typo_string) RESULT(match)
     CHARACTER(LEN=*), INTENT(IN)             :: string, typo_string
     INTEGER                                  :: match
@@ -118,63 +96,62 @@ FUNCTION typo_match(string,typo_string) RESULT(match)
 
 END FUNCTION typo_match
 
-!!****f* string_utilities/s2a *
-!!
-!!   NAME
-!!    s2a_x
-!!
-!!   FUNCTION
-!!    converts a bunch of strings of different length to an array of strings of the same length
-!!   NOTES
-!!    can be used instead of the illegal (/"12","1234"/) generating s2a("12","1234").EQ.(/"12  ","1234"/)
-!!
-!!   MODIFICATION HISTORY
-!!     11.2004 created [Joost VandeVondele ]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief converts a bunch of strings of different length to an array of strings of the same length
+!> \note
+!>     can be used instead of the illegal (/"12","1234"/) generating s2a("12","1234").EQ.(/"12  ","1234"/)
+!> \par History
+!>      11.2004 created [Joost VandeVondele ]
+! *****************************************************************************
 PURE FUNCTION s2a_1(s1) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1
     CHARACTER(LEN=1000), DIMENSION(1)        :: a
 
   a(1)=s1
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_2(s1,s2) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2
     CHARACTER(LEN=1000), DIMENSION(2)        :: a
 
   a(1)=s1; a(2)=s2
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_3(s1,s2,s3) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3
     CHARACTER(LEN=1000), DIMENSION(3)        :: a
 
   a(1)=s1; a(2)=s2; a(3)=s3
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_4(s1,s2,s3,s4) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4
     CHARACTER(LEN=1000), DIMENSION(4)        :: a
 
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_5(s1,s2,s3,s4,s5) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5
     CHARACTER(LEN=1000), DIMENSION(5)        :: a
 
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_6(s1,s2,s3,s4,s5,s6) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6
     CHARACTER(LEN=1000), DIMENSION(6)        :: a
 
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_7(s1,s2,s3,s4,s5,s6,s7) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7
     CHARACTER(LEN=1000), DIMENSION(7)        :: a
 
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_8(s1,s2,s3,s4,s5,s6,s7,s8) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, s8
     CHARACTER(LEN=1000), DIMENSION(8)        :: a
@@ -182,6 +159,7 @@ PURE FUNCTION s2a_8(s1,s2,s3,s4,s5,s6,s7,s8) RESULT(a)
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
   a(8)=s8
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_9(s1,s2,s3,s4,s5,s6,s7,s8,s9) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
                                                 s8, s9
@@ -190,6 +168,7 @@ PURE FUNCTION s2a_9(s1,s2,s3,s4,s5,s6,s7,s8,s9) RESULT(a)
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
   a(8)=s8; a(9)=s9
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_10(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
                                                 s8, s9, s10
@@ -198,6 +177,7 @@ PURE FUNCTION s2a_10(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10) RESULT(a)
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
   a(8)=s8; a(9)=s9; a(10)=s10
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_11(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
                                                 s8, s9, s10, s11
@@ -206,6 +186,7 @@ PURE FUNCTION s2a_11(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11) RESULT(a)
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
   a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_12(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
                                                 s8, s9, s10, s11, s12
@@ -214,6 +195,7 @@ PURE FUNCTION s2a_12(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12) RESULT(a)
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
   a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_13(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
                                                 s8, s9, s10, s11, s12, s13
@@ -222,6 +204,7 @@ PURE FUNCTION s2a_13(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13) RESULT(a)
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
   a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_14(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
                                                 s8, s9, s10, s11, s12, s13, &
@@ -231,6 +214,7 @@ PURE FUNCTION s2a_14(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14) RESULT(a)
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
   a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_15(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
                                                 s8, s9, s10, s11, s12, s13, &
@@ -241,6 +225,7 @@ PURE FUNCTION s2a_15(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15) RESULT(
   a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
   a(15)=s15
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_16(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
@@ -252,6 +237,7 @@ PURE FUNCTION s2a_16(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
   a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
   a(15)=s15; a(16)=s16
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_17(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
@@ -263,6 +249,7 @@ PURE FUNCTION s2a_17(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
   a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
   a(15)=s15; a(16)=s16; a(17)=s17
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_18(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
@@ -274,6 +261,7 @@ PURE FUNCTION s2a_18(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
   a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
   a(15)=s15; a(16)=s16; a(17)=s17; a(18)=s18
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_19(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18,s19) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
@@ -285,6 +273,7 @@ PURE FUNCTION s2a_19(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
   a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
   a(15)=s15; a(16)=s16; a(17)=s17; a(18)=s18; a(19)=s19
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_20(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18,s19,s20) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
@@ -297,6 +286,7 @@ PURE FUNCTION s2a_20(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
   a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
   a(15)=s15; a(16)=s16; a(17)=s17; a(18)=s18; a(19)=s19; a(20)=s20
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_21(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18,s19,s20,s21) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
@@ -310,6 +300,7 @@ PURE FUNCTION s2a_21(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
   a(15)=s15; a(16)=s16; a(17)=s17; a(18)=s18; a(19)=s19; a(20)=s20
   a(21)=s21
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_22(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18,s19,s20,s21,s22) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
@@ -323,6 +314,7 @@ PURE FUNCTION s2a_22(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
   a(15)=s15; a(16)=s16; a(17)=s17; a(18)=s18; a(19)=s19; a(20)=s20
   a(21)=s21; a(22)=s22
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_23(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18,s19,s20,s21,s22,s23) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
@@ -336,6 +328,7 @@ PURE FUNCTION s2a_23(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
   a(15)=s15; a(16)=s16; a(17)=s17; a(18)=s18; a(19)=s19; a(20)=s20
   a(21)=s21; a(22)=s22; a(23)=s23
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_24(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18,s19,s20,s21,s22,s23,s24) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
@@ -349,6 +342,7 @@ PURE FUNCTION s2a_24(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
   a(15)=s15; a(16)=s16; a(17)=s17; a(18)=s18; a(19)=s19; a(20)=s20
   a(21)=s21; a(22)=s22; a(23)=s23; a(24)=s24
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_25(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18,s19,s20,s21,s22,s23,s24,s25) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
@@ -362,6 +356,7 @@ PURE FUNCTION s2a_25(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
   a(15)=s15; a(16)=s16; a(17)=s17; a(18)=s18; a(19)=s19; a(20)=s20
   a(21)=s21; a(22)=s22; a(23)=s23; a(24)=s24; a(25)=s25
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_26(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18,s19,s20,s21,s22,s23,s24,s25,s26) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
@@ -376,6 +371,7 @@ PURE FUNCTION s2a_26(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
   a(15)=s15; a(16)=s16; a(17)=s17; a(18)=s18; a(19)=s19; a(20)=s20
   a(21)=s21; a(22)=s22; a(23)=s23; a(24)=s24; a(25)=s25; a(26)=s26
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_27(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18,s19,s20,s21,s22,s23,s24,s25,s26,s27) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
@@ -391,6 +387,7 @@ PURE FUNCTION s2a_27(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
   a(21)=s21; a(22)=s22; a(23)=s23; a(24)=s24; a(25)=s25; a(26)=s26
   a(27)=s27
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_28(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18,s19,s20,s21,s22,s23,s24,s25,s26,s27,s28) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
@@ -406,6 +403,7 @@ PURE FUNCTION s2a_28(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
   a(21)=s21; a(22)=s22; a(23)=s23; a(24)=s24; a(25)=s25; a(26)=s26
   a(27)=s27; a(28)=s28
 END FUNCTION
+! *****************************************************************************
 PURE FUNCTION s2a_29(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
                      s16,s17,s18,s19,s20,s21,s22,s23,s24,s25,s26,s27,s28,s29) RESULT(a)
     CHARACTER(LEN=*), INTENT(IN) :: s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, &
@@ -419,16 +417,14 @@ PURE FUNCTION s2a_29(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
   a(21)=s21; a(22)=s22; a(23)=s23; a(24)=s24; a(25)=s25; a(26)=s26
   a(27)=s27; a(28)=s28; a(29)=s29
 END FUNCTION
-! *****************************************************************************
 
+! *****************************************************************************
   SUBROUTINE ascii_to_string(nascii,string)
 
 !   Purpose: Convert a sequence of integer numbers (ASCII code) to a string.
 !            Blanks are inserted for invalid ASCII code numbers.
 
 !   History: - Creation (19.10.2000,MK)
-
-!   ***************************************************************************
 
     INTEGER, DIMENSION(:), INTENT(IN)        :: nascii
     CHARACTER(LEN=*), INTENT(OUT)            :: string
@@ -450,15 +446,12 @@ END FUNCTION
   END SUBROUTINE ascii_to_string
 
 ! *****************************************************************************
-
   SUBROUTINE compress(string,full)
 
 !   Purpose: Eliminate multiple space characters in a string.
 !            If full is .TRUE., then all spaces are eliminated.
 
 !   History: - Creation (23.06.1998,MK)
-
-!   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(INOUT)          :: string
     LOGICAL, INTENT(IN), OPTIONAL            :: full
@@ -495,7 +488,6 @@ END FUNCTION
   END SUBROUTINE compress
 
 ! *****************************************************************************
-
   SUBROUTINE integer_to_string(inumber,string)
 
 !   Purpose: Converts an integer number to a string.
@@ -505,8 +497,6 @@ END FUNCTION
 
 !   History: - Creation (05.01.2004,MK)
 
-!   ***************************************************************************
-
     INTEGER, INTENT(IN)                      :: inumber
     CHARACTER(LEN=*), INTENT(OUT)            :: string
 
@@ -514,14 +504,11 @@ END FUNCTION
   END SUBROUTINE integer_to_string
 
 ! *****************************************************************************
-
   SUBROUTINE string_to_ascii(string,nascii)
 
 !   Purpose: Convert a string to sequence of integer numbers.
 
 !   History: - Creation (19.10.2000,MK)
-
-!   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(IN)             :: string
     INTEGER, DIMENSION(:), INTENT(OUT)       :: nascii
@@ -539,12 +526,9 @@ END FUNCTION
   END SUBROUTINE string_to_ascii
 
 ! *****************************************************************************
-
   SUBROUTINE remove_word(string)
 
 !   Purpose: remove a word from a string (words are separated by white spaces)
-
-!   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(INOUT)          :: string
 
@@ -572,8 +556,6 @@ END FUNCTION
 !            ltu is true.
 
 !   History: - Creation (10.03.2005,MK)
-
-!   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(IN)             :: inp_string
     CHARACTER(LEN=*), INTENT(OUT)            :: out_string
@@ -614,14 +596,11 @@ END FUNCTION
   END SUBROUTINE substitute_special_xml_tokens
 
 ! *****************************************************************************
-
   SUBROUTINE uppercase(string)
 
 !   Purpose: Convert all lower case characters in a string to upper case.
 
 !   History: - Creation (22.06.1998,MK)
-
-!   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(INOUT)          :: string
 
@@ -639,7 +618,6 @@ END FUNCTION
   END SUBROUTINE uppercase
 
 ! *****************************************************************************
-
 SUBROUTINE xstring(string,ia,ib)
 
     CHARACTER(LEN=*), INTENT(IN)             :: string
@@ -657,8 +635,7 @@ SUBROUTINE xstring(string,ia,ib)
 
 END SUBROUTINE xstring
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE make_tuple(int,nt,na,tuple)
 
     INTEGER, INTENT(IN)                      :: INT( :, : ), nt, na
@@ -720,8 +697,7 @@ SUBROUTINE make_tuple(int,nt,na,tuple)
 
 END SUBROUTINE make_tuple
 
-!******************************************************************************
-
+! *****************************************************************************
 FUNCTION str_comp(str1,str2) RESULT (equal)
 
     CHARACTER(LEN=*), INTENT(IN)             :: str1, str2
@@ -738,8 +714,7 @@ FUNCTION str_comp(str1,str2) RESULT (equal)
   equal = (str1(i1:i2)==str2(j1:j2))
 END FUNCTION str_comp
 
-!******************************************************************************
-
+! *****************************************************************************
 FUNCTION str_search(str1,n,str2) RESULT (pos)
     CHARACTER(LEN=*), INTENT(IN)             :: str1( : )
     INTEGER, INTENT(IN)                      :: n
@@ -756,7 +731,5 @@ FUNCTION str_search(str1,n,str2) RESULT (pos)
      END IF
   END DO
 END FUNCTION str_search
-
-!******************************************************************************
 
 END MODULE string_utilities

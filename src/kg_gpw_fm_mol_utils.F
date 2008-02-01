@@ -3,25 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/kg_gpw_fm_mol_methods [1.0] *
-!!
-!!   NAME
-!!     kg_gpw_fm_mol_methods
-!!
-!!   FUNCTION
-!!     Some utilities to handle the molecular blocks of the full matrix
-!!     of the molecular orbitals
-!!
-!!   AUTHOR
-!!     MI (29.11.2004)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Some utilities to handle the molecular blocks of the full matrix
+!>      of the molecular orbitals
+!> \par History
+!>      none
+!> \author MI (29.11.2004)
+! *****************************************************************************
 MODULE kg_gpw_fm_mol_utils
 
   USE cp_files,                        ONLY: close_file,&
@@ -71,34 +59,20 @@ MODULE kg_gpw_fm_mol_utils
             fm_mol_power, fm_mol_syevd, fm_mol_syevx, mol_mo_random,&
             read_mo_mol_restart, write_mo_mol_restart
 
-! *****************************************************************************
-
 CONTAINS
-!***************************************************************************
-!!****f* kg_gpw_fm_mol_utils/calculate_w_matrix_per_molecule
-!!
-!!   NAME
-!!     calculate_w_matrix_per_molecule
-!!
-!!   FUNCTION
-!!     Create the sparse matrix W =  fE*MO by MO^T, where fE is the
-!!     diagonal matrix of the eigenvalues multiplied by the occupation numbers
-!!     Here each molecular block of the MO is treated independently and the
-!!     result is copied inthe right part of the sparse W matrix.
-!!     Therefore everything is done in a loop over the molecules
-!!
-!!   INPUTS
-!!     - fm_mol_set: molecular MO blocks and other info about the molecules
-!!     - matrix_w: sparse matrix, the structure must be already there
-!!     - ispin
-!!     - error
-!!
-!!   AURHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief Create the sparse matrix W =  fE*MO by MO^T, where fE is the
+!>      diagonal matrix of the eigenvalues multiplied by the occupation numbers
+!>      Here each molecular block of the MO is treated independently and the
+!>      result is copied inthe right part of the sparse W matrix.
+!>      Therefore everything is done in a loop over the molecules
+!> \param fm_mol_set molecular MO blocks and other info about the molecules
+!> \param matrix_w sparse matrix, the structure must be already there
+!> \param ispi n
+!> \param erro r
+!> \author MI
+! *****************************************************************************
   SUBROUTINE calculate_w_matrix_per_molecule(fm_mol_set,w_matrix,ispin,error)
 
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
@@ -190,7 +164,6 @@ CONTAINS
             jls = ilast_ao(jat_mol)
             jnao = jls - jfs + 1
 
-
             NULLIFY(w_block)
             IF(iatom <= jatom) THEN
 
@@ -237,31 +210,17 @@ CONTAINS
 
   END SUBROUTINE calculate_w_matrix_per_molecule
 
-!***************************************************************************
-!!****f* kg_gpw_fm_mol_utils/fm_mol_cholesky_restore
-!!
-!!   NAME
-!!     fm_mol_cholesky_restore
-!!
-!!   FUNCTION
-!!     Multiply one block (molecular block for KG_GPW) of the MO full matrix by the
-!!     corresponding cholesky decomposition of the overlap matrix, U
-!!
-!!   INPUTS
-!!     -vectors_in: set of MO as input
-!!     -nmo:  number of MO we need
-!!     -upper_dec: cholesky decomposition of the overlap matrix, U
-!!     -vectors_out:  set of MO as output after restore
-!!     - op : can be "SOLVE" (out = U^-1 * in ) or "MULTIPLY"   (out = U * in )
-!!     - pos: can be "LEFT" or "RIGHT" (U at the left or at the right)
-!!
-!!   AURHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief Multiply one block (molecular block for KG_GPW) of the MO full matrix by the
+!>      corresponding cholesky decomposition of the overlap matrix, U
+!> \param vectors_in set of MO as input
+!> \param nmo number of MO we need
+!> \param upper_dec cholesky decomposition of the overlap matrix, U
+!> \param vectors_out set of MO as output after restore
+!> \param op can be "SOLVE" (out = U^-1 * in ) or "MULTIPLY"   (out = U * in )
+!> \param pos can be "LEFT" or "RIGHT" (U at the left or at the right)
+!> \author MI
+! *****************************************************************************
   SUBROUTINE fm_mol_cholesky_restore(vectors_in,nmo,upper_dec,vectors_out,&
                                      op,pos,error)
 
@@ -318,34 +277,20 @@ CONTAINS
 
   END SUBROUTINE fm_mol_cholesky_restore
 
-!***************************************************************************
-!!****f* kg_gpw_fm_mol_utils/fm_mol_power
-!!
-!!   NAME
-!!     fm_mol_power
-!!
-!!   FUNCTION
-!!     Raise the real symmetric n by n matrix to the power given by
-!!     exponent. All eigenvectors with a corresponding eigenvalue lower
-!!     than threshold are quenched. Here the n by n matrix is the block of
-!!     the overlap matrix corresponding to one molecule
-!!
-!!   INPUTS
-!!     -matrix: block of the overlap matrix
-!!     -eigenvectors:
-!!     -ldv: leading dimension of the matrix
-!!     -ncv: number of vectors
-!!     -exponent
-!!     -threshold: to quench the eigenvalues
-!!     -n_dependent
-!!
-!!   AURHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief Raise the real symmetric n by n matrix to the power given by
+!>      exponent. All eigenvectors with a corresponding eigenvalue lower
+!>      than threshold are quenched. Here the n by n matrix is the block of
+!>      the overlap matrix corresponding to one molecule
+!> \param matrix block of the overlap matrix
+!> \param eigenvectors :
+!> \param ldv leading dimension of the matrix
+!> \param ncv number of vectors
+!> \param exponen t
+!> \param threshold to quench the eigenvalues
+!> \param n_dependen t
+!> \author MI
+! *****************************************************************************
   SUBROUTINE fm_mol_power(matrix,eigenvectors,ldv,ncv,exponent,threshold,n_dependent,error)
 
     REAL(dp), DIMENSION(:, :), POINTER       :: matrix
@@ -402,30 +347,15 @@ CONTAINS
 
   END SUBROUTINE fm_mol_power
 
-!***************************************************************************
-!!****f* kg_gpw_fm_mol_utils/fm_mol_syevd
-!!
-!!   NAME
-!!     fm_mol_syevd
-!!
-!!   FUNCTION
-!!     computes all eigenvalues and vectors of a real symmetric matrix
-!!
-!!   INPUTS
-!!     -matrix: block of the full matrix
-!!     -nrow: leading dimension of the matrix
-!!     -eigenvalues
-!!     -matrix_out
-!!     -error
-!!
-!!   AURHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
-
-
+! *****************************************************************************
+!> \brief computes all eigenvalues and vectors of a real symmetric matrix
+!> \param matrix block of the full matrix
+!> \param nrow leading dimension of the matrix
+!> \param eigenvalue s
+!> \param matrix_ou t
+!> \param erro r
+!> \author MI
+! *****************************************************************************
   SUBROUTINE fm_mol_syevd(matrix,nrow,eigenvalues,matrix_out,error)
 
     REAL(dp), DIMENSION(:, :), POINTER       :: matrix
@@ -472,32 +402,18 @@ CONTAINS
 
   END SUBROUTINE fm_mol_syevd
 
-!***************************************************************************
-!!****f* kg_gpw_fm_mol_utils/fm_mol_syevx
-!!
-!!   NAME
-!!     fm_mol_syevx
-!!
-!!   FUNCTION
-!!     Diagonalise the symmetric n by n matrix using the LAPACK library
-!!     Compute ncol egenvalues and eigenvectors
-!!
-!!   INPUTS
-!!     -matrix: block of the full matrix
-!!     -eigenvetors
-!!     -ldv: leading dimension of the matrix
-!!     -ncv: number of columns available
-!!     -eigenvalues
-!!     -ncol: number of vector to be calculated
-!!     -error
-!!
-!!   AURHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief Diagonalise the symmetric n by n matrix using the LAPACK library
+!>      Compute ncol egenvalues and eigenvectors
+!> \param matrix block of the full matrix
+!> \param eigenvetor s
+!> \param ldv leading dimension of the matrix
+!> \param ncv number of columns available
+!> \param eigenvalue s
+!> \param ncol number of vector to be calculated
+!> \param erro r
+!> \author MI
+! *****************************************************************************
   SUBROUTINE fm_mol_syevx(matrix,eigenvetors,ldv,ncv,eigenvalues,ncol,error)
 
     REAL(dp), DIMENSION(:, :), POINTER       :: matrix
@@ -564,30 +480,16 @@ CONTAINS
 
   END SUBROUTINE fm_mol_syevx
 
-!***************************************************************************
-!!****f* kg_gpw_fm_mol_utils/mol_mo_random
-!!
-!!   NAME
-!!     mol_mo_random
-!!
-!!   FUNCTION
-!!     Assign a random value to the MO block matrix
-!!
-!!   INPUTS
-!!     -mo: block of the full matrix
-!!     -mepos
-!!     -num_pe
-!!     -ncol: number of vector to be calculated
-!!     -start_col: from which column to start
-!!     -error
-!!
-!!   AURHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief Assign a random value to the MO block matrix
+!> \param mo block of the full matrix
+!> \param mepo s
+!> \param num_p e
+!> \param ncol number of vector to be calculated
+!> \param start_col from which column to start
+!> \param erro r
+!> \author MI
+! *****************************************************************************
   SUBROUTINE mol_mo_random(mo,mepos,num_pe,ncol,start_col,error)
 
     REAL(dp), DIMENSION(:, :), POINTER       :: mo
@@ -632,32 +534,18 @@ CONTAINS
 
   END SUBROUTINE mol_mo_random
 
-!***************************************************************************
-!!****f* kg_gpw_fm_mol_utils/copy_sparse2mol_block
-!!
-!!   NAME
-!!     copy_sparse2mol_block
-!!
-!!   FUNCTION
-!!     Copy a block of a sparse matrix into the right part of the
-!!     molecular block of a full matrix (full for one molecule not the whole system)
-!!
-!!   INPUTS
-!!     -matrix
-!!     -mol_block
-!!     -matrix_mol_block
-!!     -natom
-!!     -nrow
-!!     -ncol
-!!     -error
-!!
-!!   AURHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief Copy a block of a sparse matrix into the right part of the
+!>      molecular block of a full matrix (full for one molecule not the whole system)
+!> \param matri x
+!> \param mol_bloc k
+!> \param matrix_mol_bloc k
+!> \param nato m
+!> \param nro w
+!> \param nco l
+!> \param erro r
+!> \author MI
+! *****************************************************************************
   SUBROUTINE copy_sparse2mol_block(matrix, mol_block, matrix_mol_block, &
                                    natom, nrow, ncol, error)
 
@@ -735,36 +623,20 @@ CONTAINS
 
   END SUBROUTINE copy_sparse2mol_block
 
-
-!***************************************************************************
-!!****f* kg_gpw_fm_mol_utils/write_mo_mol_restart
-!!
-!!   NAME
-!!     write_mo_mol_restart
-!!
-!!   FUNCTION
-!!     Write a RESTART file for the KG_GPW calculation
-!!     The MO are written in a list of blocks, each one corresponding
-!!     to one molecule
-!!     Since the molecule are distributed over the projectors, some commuication
-!!     is required to write the list in the correct order (order of the molecule)
-!!
-!!   NOTE
-!!     The KG_GPW RESTART file has a special form. It should be read and written only
-!!     in a KG_GPW calculation. However the defoult name is still RESTART.
-!!     An initial flag identifies this as a KG_GPW RESTART.
-!!
-!!   INPUTS
-!!     - kg_fm : containes all the info abut the molecules and the MOof each molecule
-!!     - id_nr: give an index to the restart if =/ 1
-!!
-!!   AURHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief Write a RESTART file for the KG_GPW calculation
+!>      The MO are written in a list of blocks, each one corresponding
+!>      to one molecule
+!>      Since the molecule are distributed over the projectors, some commuication
+!>      is required to write the list in the correct order (order of the molecule)
+!> \param kg_fm containes all the info abut the molecules and the MOof each molecule
+!> \param id_nr give an index to the restart if =/ 1
+!> \note
+!>      The KG_GPW RESTART file has a special form. It should be read and written only
+!>      in a KG_GPW calculation. However the defoult name is still RESTART.
+!>      An initial flag identifies this as a KG_GPW RESTART.
+!> \author MI
+! *****************************************************************************
   SUBROUTINE write_mo_mol_restart(kg_fm,para_env,nspins,id_nr,force_env_section,error)
 
     TYPE(kg_fm_p_type)                       :: kg_fm
@@ -962,37 +834,22 @@ CONTAINS
    
  END SUBROUTINE write_mo_mol_restart
 
-!***************************************************************************
-!!****f* kg_gpw_fm_mol_utils/read_mo_mol_restart
-!!
-!!   NAME
-!!     read_mo_mol_restart
-!!
-!!   FUNCTION
-!!     Read  the RESTART file for the KG_GPW calculation
-!!     The MO are written in a list of blocks, each one corresponding
-!!     to one molecule
-!!     Since the molecule are distributed over the projectors, some commuication
-!!     is required to write the list in the correct order (order of the molecule)
-!!
-!!   NOTE
-!!     The KG_GPW RESTART file has a special form. It should be read and written only
-!!     in a KG_GPW calculation. However the defoult name is still RESTART.
-!!     An initial flag identifies this as a KG_GPW RESTART.
-!!
-!!   INPUTS
-!!     - kg_fm : containes all the info abut the molecules and the MOof each molecule
-!!     - nspins
-!!     - id_nr: give an index to the restart if =/ 1
-!!     - error
-!!
-!!   AURHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief Read  the RESTART file for the KG_GPW calculation
+!>      The MO are written in a list of blocks, each one corresponding
+!>      to one molecule
+!>      Since the molecule are distributed over the projectors, some commuication
+!>      is required to write the list in the correct order (order of the molecule)
+!> \param kg_fm containes all the info abut the molecules and the MOof each molecule
+!> \param nspin s
+!> \param id_nr give an index to the restart if =/ 1
+!> \param erro r
+!> \note
+!>      The KG_GPW RESTART file has a special form. It should be read and written only
+!>      in a KG_GPW calculation. However the defoult name is still RESTART.
+!>      An initial flag identifies this as a KG_GPW RESTART.
+!> \author MI
+! *****************************************************************************
   SUBROUTINE read_mo_mol_restart(kg_fm,para_env,nspins,id_nr,force_env_section,error)
 
     TYPE(kg_fm_p_type)                       :: kg_fm
@@ -1037,7 +894,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
-
 
     failure = .FALSE.
 
@@ -1221,13 +1077,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-
   END SUBROUTINE read_mo_mol_restart
 
-
-!***************************************************************************
 END MODULE  kg_gpw_fm_mol_utils
-
-
-
 

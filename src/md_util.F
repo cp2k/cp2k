@@ -2,23 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/md_util [1.0] *
-!!
-!!   NAME
-!!     md_util
-!!
-!!   FUNCTION
-!!     Utilities for Molecular Dynamics
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - University of Zurich - 09.2007
-!!
-!!   MODIFICATION HISTORY
-!!  
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Utilities for Molecular Dynamics
+!> \author Teodoro Laino [tlaino] - University of Zurich - 09.2007
+! *****************************************************************************
 MODULE md_util
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -73,22 +61,11 @@ MODULE md_util
 
 CONTAINS
 
-!!****f* md_util/md_output *
-!!
-!!   NAME
-!!     md_output
-!!
-!!   FUNCTION
-!!     collects the part of the MD that, basically, does the output
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief collects the part of the MD that, basically, does the output
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE md_output(md_env,force_env_section,root_section,forced_io,error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(section_vals_type), POINTER         :: force_env_section, &
@@ -119,22 +96,11 @@ CONTAINS
 
   END SUBROUTINE md_output
 
-!!****f* md_util/compute_ekin_temp_part *
-!!
-!!   NAME
-!!    compute_ekin_temp_part 
-!!
-!!   FUNCTION
-!!    Computes Ekin, VCOM and Temp for particles
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!    Teodoro Laino - University of Zurich - 09.2007 [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Computes Ekin, VCOM and Temp for particles
+!> \par History
+!>     Teodoro Laino - University of Zurich - 09.2007 [tlaino]
+! *****************************************************************************
   SUBROUTINE reset_vcom(simpar, subsys, md_ener, vsubtract, error)
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
@@ -224,22 +190,11 @@ CONTAINS
 
   END SUBROUTINE reset_vcom
 
-!!****f* md_util/scale_velocity *
-!!
-!!   NAME
-!!    scale_velocity 
-!!
-!!   FUNCTION
-!!    Scale velocities to get the correct temperature
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!    Teodoro Laino - University of Zurich - 09.2007 [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Scale velocities to get the correct temperature
+!> \par History
+!>     Teodoro Laino - University of Zurich - 09.2007 [tlaino]
+! *****************************************************************************
   SUBROUTINE scale_velocity(subsys, md_ener, temp_expected, temp_tol, iw, error)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(md_ener_type), POINTER              :: md_ener
@@ -342,22 +297,11 @@ CONTAINS
     END IF
   END SUBROUTINE scale_velocity
 
-!!****f* md_util/scale_velocity_internal *
-!!
-!!   NAME
-!!    scale_velocity_internal
-!!
-!!   FUNCTION
-!!    Scale internal motion of CORE-SHELL model to the correct temperature
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!    Teodoro Laino - University of Zurich - 09.2007 [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Scale internal motion of CORE-SHELL model to the correct temperature
+!> \par History
+!>     Teodoro Laino - University of Zurich - 09.2007 [tlaino]
+! *****************************************************************************
   SUBROUTINE scale_velocity_internal(subsys, md_ener,  temp_expected, temp_tol, iw, error)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(md_ener_type), POINTER              :: md_ener
@@ -442,24 +386,13 @@ CONTAINS
 
   END SUBROUTINE scale_velocity_internal
 
-!!****f* md_util/temperature_control *
-!!
-!!   NAME
-!!    temperature_control
-!!
-!!   FUNCTION
-!!    Perform all temperature manipulations during a QS MD run. 
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!    Creation (15.09.2003,MK)
-!!    adapted to force_env (05.10.2003,fawzi)
-!!    Cleaned (09.2007) Teodoro Laino [tlaino] - University of Zurich
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Perform all temperature manipulations during a QS MD run. 
+!> \par History
+!>     Creation (15.09.2003,MK)
+!>     adapted to force_env (05.10.2003,fawzi)
+!>     Cleaned (09.2007) Teodoro Laino [tlaino] - University of Zurich
+! *****************************************************************************
   SUBROUTINE temperature_control(simpar,md_ener,force_env,logger, error)
 
     TYPE(simulation_parameters_type), &
@@ -500,23 +433,12 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE temperature_control
 
-!!****f* md_util/comvel_control *
-!!
-!!   NAME
-!!     comvel_control
-!!
-!!   FUNCTION
-!!     Set to 0 the velocity of the COM along MD runs, if required. 
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     Creation (29.04.2007,MI)
-!!     Cleaned (09.2007) Teodoro Laino [tlaino] - University of Zurich
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Set to 0 the velocity of the COM along MD runs, if required. 
+!> \par History
+!>      Creation (29.04.2007,MI)
+!>      Cleaned (09.2007) Teodoro Laino [tlaino] - University of Zurich
+! *****************************************************************************
   SUBROUTINE comvel_control(simpar,md_ener,force_env,logger, error)
 
     TYPE(simulation_parameters_type), &
@@ -580,22 +502,11 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE comvel_control
 
-!!****f* md_util/setup_velocities *
-!!
-!!   NAME
-!!    setup_velocities
-!!
-!!   FUNCTION
-!!    Initialize Velocities for MD runs
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!    Teodoro Laino - University of Zurich - 09.2007 [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Initialize Velocities for MD runs
+!> \par History
+!>     Teodoro Laino - University of Zurich - 09.2007 [tlaino]
+! *****************************************************************************
   SUBROUTINE setup_velocities(force_env, simpar, globenv, motion_section, error)
 
     TYPE(force_env_type), POINTER            :: force_env

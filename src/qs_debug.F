@@ -3,35 +3,22 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qs_debug [1.0] *
-!!
-!!   NAME
-!!     qs_debug
-!!
-!!   FUNCTION
-!!     Debug energy and derivatives w.r.t. finite differences
-!!
-!!   NOTES
-!!     Use INTERPOLATION USE_GUESS, in order to perform force and energy
-!!     calculations with the same density. This is not compulsory when iterating
-!!     to selfconsistency, but essential in the non-selfconsistent case [08.2005,TdK].
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     12.2004 created [tlaino]
-!!     08.2005 consistent_energies option added, to allow FD calculations
-!!             with the correct energies in the non-selfconsistent case, but
-!!             keep in mind, that the QS energies and forces are then NOT
-!!             consistent to each other [TdK].
-!!     08.2005 In case the Harris functional is used, consistent_energies is
-!!             et to .FALSE., otherwise the QS energies are spuriously used [TdK].
-!!
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Debug energy and derivatives w.r.t. finite differences
+!> \note
+!>      Use INTERPOLATION USE_GUESS, in order to perform force and energy
+!>      calculations with the same density. This is not compulsory when iterating
+!>      to selfconsistency, but essential in the non-selfconsistent case [08.2005,TdK].
+!> \par History
+!>      12.2004 created [tlaino]
+!>      08.2005 consistent_energies option added, to allow FD calculations
+!>              with the correct energies in the non-selfconsistent case, but
+!>              keep in mind, that the QS energies and forces are then NOT
+!>              consistent to each other [TdK].
+!>      08.2005 In case the Harris functional is used, consistent_energies is
+!>              et to .FALSE., otherwise the QS energies are spuriously used [TdK].
+!> \author Teodoro Laino
+! *****************************************************************************
 MODULE qs_debug
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -58,6 +45,7 @@ MODULE qs_debug
 
 CONTAINS
 
+! *****************************************************************************
   SUBROUTINE qs_debug_energy_and_forces(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -194,6 +182,5 @@ CONTAINS
     END IF
 100 FORMAT(I5,F15.9," ( ",F7.2," ) ",F15.9," ( ",F7.2," ) ",F15.9," ( ",F7.2," ) ")
   END SUBROUTINE qs_debug_energy_and_forces
-
 
 END MODULE qs_debug

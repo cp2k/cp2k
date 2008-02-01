@@ -2,30 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/integrator [1.0] *
-!!
-!!   NAME
-!!     integrator
-!!
-!!   FUNCTION
-!!     Provides integrator routines (velocity verlet) for all the
-!!     ensemble types
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (15-Mar-2001) : Pass logical for box change to force routine
-!!     Harald Forbert (Apr-2001): added path integral routine nvt_pimd
-!!     CJM (15-Apr-2001) : added coef integrators and energy routines
-!!     Joost VandeVondele (Juli-2003): simple version of isokinetic ensemble
-!!     Teodoro Laino [tlaino] 10.2007 - University of Zurich: Generalization to
-!!                                      different kind of thermostats
-!!     Teodoro Laino [tlaino] 11.2007 - Metadynamics: now part of the MD modules
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Provides integrator routines (velocity verlet) for all the
+!>      ensemble types
+!> \par History
+!>      JGH (15-Mar-2001) : Pass logical for box change to force routine
+!>      Harald Forbert (Apr-2001): added path integral routine nvt_pimd
+!>      CJM (15-Apr-2001) : added coef integrators and energy routines
+!>      Joost VandeVondele (Juli-2003): simple version of isokinetic ensemble
+!>      Teodoro Laino [tlaino] 10.2007 - University of Zurich: Generalization to
+!>                                       different kind of thermostats
+!>      Teodoro Laino [tlaino] 11.2007 - Metadynamics: now part of the MD modules
+!> \author CJM
+! *****************************************************************************
 MODULE integrator
 
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
@@ -106,6 +96,7 @@ MODULE integrator
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'integrator'
 
+! *****************************************************************************
   TYPE old_variables_type
     REAL(KIND=dp), POINTER, DIMENSION(:,:) :: v
     REAL(KIND=dp), POINTER, DIMENSION(:,:) :: r
@@ -130,33 +121,17 @@ MODULE integrator
   INTERFACE damp_v
      MODULE PROCEDURE damp_v_particle_set, damp_v_velocity
   END INTERFACE
-!******************************************************************************
 
 CONTAINS
 
 ! *****************************************************************************
-
-!******************************************************************************
-!!****** integrator/langevin [1.0] *
-!!
-!!   NAME
-!!     langevin
-!!
-!!   FUNCTION
-!!     Langevin integrator for particle positions & momenta (Brownian dynamics)
-!!
-!!   AUTHOR
-!!     Matthias Krack
-!!
-!!   LITERATURE
-!!     - A. Ricci and G. Ciccotti, Mol. Phys. 101, 1927-1931 (2003)
-!!
-!!   MODIFICATION HISTORY
-!!     - Created (01.07.2005,MK)
-!!
-!!   SOURCE
-!******************************************************************************
-
+!> \brief Langevin integrator for particle positions & momenta (Brownian dynamics)
+!> \par Literature
+!>      - A. Ricci and G. Ciccotti, Mol. Phys. 101, 1927-1931 (2003)
+!> \par History
+!>      - Created (01.07.2005,MK)
+!> \author Matthias Krack
+! *****************************************************************************
   SUBROUTINE langevin(md_env,error)
 
     TYPE(md_environment_type), POINTER       :: md_env
@@ -210,7 +185,6 @@ CONTAINS
 
     ! Do some checks on coordinates and box
     CALL apply_qmmm_walls(force_env, error=error)
-
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
          particles=particles,local_molecules_new=local_molecules,molecules_new=molecules,&
@@ -347,25 +321,13 @@ CONTAINS
 
   END SUBROUTINE langevin
 
-!******************************************************************************
-!!****** integrator/nve [1.0] *
-!!
-!!   NAME
-!!     nve
-!!
-!!   FUNCTION
-!!     nve integrator for particle positions & momenta
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     - the local particle lists are used instead of pnode (Sep. 2003,MK)
-!!     - usage of fragments retrieved from the force environment (Oct. 2003,MK)
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief nve integrator for particle positions & momenta
+!> \par History
+!>      - the local particle lists are used instead of pnode (Sep. 2003,MK)
+!>      - usage of fragments retrieved from the force environment (Oct. 2003,MK)
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE nve ( md_env, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
@@ -649,7 +611,6 @@ CONTAINS
             error=error)
     END IF
 
-
     IF (simpar%annealing) THEN
        vel(:,:)=vel(:,:)*simpar%f_annealing
        IF (shell_adiabatic) THEN
@@ -686,31 +647,19 @@ CONTAINS
 
   END SUBROUTINE nve
 
-!******************************************************************************
-!!****** integrator/isokin [1.0] *
-!!
-!!   NAME
-!!     isokin
-!!
-!!   FUNCTION
-!!     simplest version of the isokinetic gaussian thermostat
-!!
-!!   NOTES
-!!     - time reversible, and conserves the kinetic energy to machine precision
-!!     - is not yet supposed to work for e.g. constraints, our the extended version
-!!       of this thermostat
-!!       see:
-!!        - Zhang F. , JCP 106, 6102 (1997)
-!!        - Minary P. et al, JCP 118, 2510 (2003)
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!     - Created [2004-07]
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief simplest version of the isokinetic gaussian thermostat
+!> \note
+!>      - time reversible, and conserves the kinetic energy to machine precision
+!>      - is not yet supposed to work for e.g. constraints, our the extended version
+!>        of this thermostat
+!>        see:
+!>         - Zhang F. , JCP 106, 6102 (1997)
+!>         - Minary P. et al, JCP 118, 2510 (2003)
+!> \par History
+!>      - Created [2004-07]
+!> \author Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE isokin ( md_env, error )
 
     TYPE(md_environment_type), POINTER       :: md_env
@@ -834,24 +783,13 @@ CONTAINS
 
   END SUBROUTINE isokin
 
-!******************************************************************************
-!!****** integrator/nvt [1.0] *
-!!
-!!   NAME
-!!     nvt
-!!
-!!   FUNCTION
-!!     nvt integrator for particle positions & momenta
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     - the local particle lists are used instead of pnode (Sep. 2003,MK)
-!!     - usage of fragments retrieved from the force environment (Oct. 2003,MK)
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief nvt integrator for particle positions & momenta
+!> \par History
+!>      - the local particle lists are used instead of pnode (Sep. 2003,MK)
+!>      - usage of fragments retrieved from the force environment (Oct. 2003,MK)
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE nvt ( md_env, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
@@ -1043,7 +981,6 @@ CONTAINS
        END DO
     END IF
 
-
     IF (simpar%constraint) CALL shake_control( gci, local_molecules, molecule_set,   &
          molecule_kind_set, particle_set, pos, vel, simpar%dt,simpar%shake_tol,&
          simpar%info_constraint,simpar%lagrange_multipliers,simpar%dump_lm,&
@@ -1062,7 +999,6 @@ CONTAINS
        DEALLOCATE (core_pos,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
-
 
     !     *** coefficients
     CALL dynamical_coeff_verlet1 ( dyn_coeff_set, thermostat_coeff, para_env, dt, error)
@@ -1158,14 +1094,12 @@ CONTAINS
        END IF
     END IF
 
-
     !     *** Broadcast the new particle velocities ***
     CALL update_particle_set ( particle_set, para_env % group, vel = vel )
     IF (shell_adiabatic) THEN
        CALL update_particle_set ( shell_particle_set, para_env % group, vel = shell_vel )
        CALL update_particle_set ( core_particle_set, para_env % group, vel = core_vel )
     END IF
-
 
     !     *** Update constraint virial ***
     IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
@@ -1189,31 +1123,13 @@ CONTAINS
 
   END SUBROUTINE nvt
 
-!******************************************************************************
-!!****** integrator/npt_i [1.0] *
-!!
-!!   NAME
-!!     npt_i
-!!
-!!   SYNOPSIS
-!!     Subroutine npt_i(md_env)
-!!       Implicit None
-!!       Type(md_environment_type), Intent (INOUT):: md_env
-!!     End Subroutine npt_i
-!!
-!!   FUNCTION
-!!     npt_i integrator for particle positions & momenta
-!!     isotropic box changes
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief npt_i integrator for particle positions & momenta
+!>      isotropic box changes
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE npt_i ( md_env, error )
 
     TYPE(md_environment_type), POINTER       :: md_env
@@ -1313,7 +1229,6 @@ CONTAINS
             local_particles, virial, para_env % group, error=error)
     END IF
 
-
     !     *** Allocate work storage for positions and velocities ***
     CALL allocate_old ( particle_set, npt, error=error )
 
@@ -1380,7 +1295,6 @@ CONTAINS
        CALL getold ( gci, local_molecules, molecule_set,  &
             molecule_kind_set, particle_set, cell, error)
     ENDIF
-
 
     SR: DO WHILE (ABS(roll_tol)>=1.E-10_dp) ! SHAKE-ROLL LOOP
 
@@ -1476,7 +1390,6 @@ CONTAINS
             roll_tol, iroll, vector_r, vector_v, para_env % group, cell=cell, &
             local_particles=local_particles, error=error )
     END DO SR
-
 
     ! Update eps:
     npt ( :, : ) % eps =  npt ( :, : ) % eps + dt * npt ( :, : ) % v
@@ -1650,25 +1563,13 @@ CONTAINS
 
   END SUBROUTINE npt_i
 
-!!****f* integrator/reftraj *
-!!
-!!   NAME
-!!    reftraj
-!!
-!!   FUNCTION
-!!    uses coordinates in a file and generates frame after frame of these
-!!
-!!   NOTES
-!!    this seems like it is a bit of a hack
-!!
-!!   INPUTS
-!!    -
-!!    -
-!!
-!!   MODIFICATION HISTORY
-!!     04.2005 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief uses coordinates in a file and generates frame after frame of these
+!> \note
+!>     this seems like it is a bit of a hack
+!> \par History
+!>      04.2005 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE reftraj ( md_env, error )
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1772,7 +1673,6 @@ CONTAINS
        CALL get_hinv(cell)
     END IF
     
-    
     DEALLOCATE(pos ,stat=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
@@ -1806,33 +1706,16 @@ CONTAINS
 
   END SUBROUTINE reftraj
 
-!******************************************************************************
-!!****** integrator/nph_uniaxial [1.0] *
-!!
-!!   NAME
-!!     nph_uniaxial
-!!
-!!   SYNOPSIS
-!!     Subroutine npt_uniaxial(md_env)
-!!       Implicit None
-!!       Type(md_environment_type), Intent (INOUT):: md_env
-!!     End Subroutine npt_i
-!!
-!!   FUNCTION
-!!     nph_uniaxial integrator (non-Hamiltonian version)
-!!     for particle positions & momenta undergoing
-!!     uniaxial stress ( in x-direction of orthorhombic cell)
-!!     due to a shock compression:
-!!     Reed et. al. Physical Review Letters 90, 235503 (2003).
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief nph_uniaxial integrator (non-Hamiltonian version)
+!>      for particle positions & momenta undergoing
+!>      uniaxial stress ( in x-direction of orthorhombic cell)
+!>      due to a shock compression:
+!>      Reed et. al. Physical Review Letters 90, 235503 (2003).
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE nph_uniaxial ( md_env, error )
 
     TYPE(md_environment_type), POINTER       :: md_env
@@ -1933,7 +1816,6 @@ CONTAINS
        CALL getold ( gci, local_molecules, molecule_set,  &
             molecule_kind_set, particle_set, cell, error)
     ENDIF
-
 
     SR: DO WHILE (ABS(roll_tol)>=1.E-10_dp) ! SHAKE-ROLL LOOP
 
@@ -2078,34 +1960,17 @@ CONTAINS
 
   END SUBROUTINE nph_uniaxial
 
-!******************************************************************************
-!!****** integrator/nph_uniaxial_damped [1.0] *
-!!
-!!   NAME
-!!     nph_uniaxial_damped
-!!
-!!   SYNOPSIS
-!!     Subroutine nph_uniaxial(md_env)
-!!       Implicit None
-!!       Type(md_environment_type), Intent (INOUT):: md_env
-!!     End Subroutine npt_i
-!!
-!!   FUNCTION
-!!     nph_uniaxial integrator (non-Hamiltonian version)
-!!     for particle positions & momenta undergoing
-!!     uniaxial stress ( in x-direction of orthorhombic cell)
-!!     due to a shock compression:
-!!     Reed et. al. Physical Review Letters 90, 235503 (2003).
-!!     Added damping (e.g. thermostat to barostat)
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief nph_uniaxial integrator (non-Hamiltonian version)
+!>      for particle positions & momenta undergoing
+!>      uniaxial stress ( in x-direction of orthorhombic cell)
+!>      due to a shock compression:
+!>      Reed et. al. Physical Review Letters 90, 235503 (2003).
+!>      Added damping (e.g. thermostat to barostat)
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE nph_uniaxial_damped ( md_env, error )
 
     TYPE(md_environment_type), POINTER       :: md_env
@@ -2197,7 +2062,6 @@ CONTAINS
     CALL damp_v ( molecule_kind_set, molecule_set, particle_set, local_molecules,&
          gamma1, npt(1,1), dt, para_env % group )
 
-
     ! setting up for ROLL: saving old variables
     roll_tol = -1.0E+10_dp
     IF (simpar%constraint) THEN
@@ -2206,7 +2070,6 @@ CONTAINS
        CALL getold ( gci, local_molecules, molecule_set,  &
             molecule_kind_set, particle_set, cell, error)
     ENDIF
-
 
     SR: DO WHILE (ABS(roll_tol)>=1.E-10_dp) ! SHAKE-ROLL LOOP
 
@@ -2278,7 +2141,6 @@ CONTAINS
     ! Update h_mat
     cell % hmat ( 1, 1 ) = cell % hmat ( 1, 1 ) * scale_r * scale_r
 
-
     ! Update the inverse
     CALL get_hinv ( cell )
 
@@ -2287,7 +2149,6 @@ CONTAINS
 
     DEALLOCATE (pos,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
 
     !     *** Update forces ***
     CALL force_env_set_cell(force_env, cell, error)
@@ -2370,27 +2231,11 @@ CONTAINS
 
 END SUBROUTINE nph_uniaxial_damped
 
-
-!******************************************************************************
-!!****** integrator/get_s_ds [1.0] *
-!!
-!!   NAME
-!!     get_s_ds
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!     - Created [2004-07]
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      - Created [2004-07]
+!> \author Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE get_s_ds(s, ds, nparticle_kind, atomic_kind_set,  local_particles, particle_set,&
        dt, para_env, error)
     REAL(KIND=dp)                            :: s, ds
@@ -2438,23 +2283,11 @@ END SUBROUTINE nph_uniaxial_damped
 
   END SUBROUTINE get_s_ds
 
-!******************************************************************************
-!!****** integrator/set [1.0] *
-!!
-!!   NAME
-!!     set_particle_set
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE set_particle_set ( atomic_kind_set, particle_set, local_particles, cell , npt, char )
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -2508,22 +2341,11 @@ END SUBROUTINE nph_uniaxial_damped
 
   END SUBROUTINE set_particle_set
 
-!******************************************************************************
-!!****** integrator/set [1.0] *
-!!
-!!   NAME
-!!     set_vel
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE set_vel ( atomic_kind_set, particle_set, vel, local_particles, cell , npt, char )
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -2578,22 +2400,11 @@ END SUBROUTINE nph_uniaxial_damped
 
   END SUBROUTINE set_vel
 
-!******************************************************************************
-!!****** integrator/allocate_old [1.0] *
-!!
-!!   NAME
-!!     set
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE allocate_old ( particle_set, npt, error )
 
     TYPE(particle_type), POINTER             :: particle_set(:)
@@ -2635,22 +2446,11 @@ END SUBROUTINE nph_uniaxial_damped
 
   END SUBROUTINE allocate_old
 
-!******************************************************************************
-!!****** integrator/deallocate_old [1.0] *
-!!
-!!   NAME
-!!     set
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE deallocate_old (error)
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -2680,30 +2480,12 @@ END SUBROUTINE nph_uniaxial_damped
 
   END SUBROUTINE deallocate_old
 
-!******************************************************************************
-!!****** integrator/npt_f [1.0] *
-!!
-!!   NAME
-!!     npt_f
-!!
-!!   SYNOPSIS
-!!     Subroutine npt_f(md_env)
-!!       Implicit None
-!!       Type(md_environment_type), Intent (INOUT):: md_env
-!!     End Subroutine npt_f
-!!
-!!   FUNCTION
-!!     Velocity Verlet integrator for the NPT ensemble with fully flexible cell
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Velocity Verlet integrator for the NPT ensemble with fully flexible cell
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE npt_f ( md_env, error )
 
     TYPE(md_environment_type), POINTER       :: md_env
@@ -2879,7 +2661,6 @@ END SUBROUTINE nph_uniaxial_damped
             local_molecules, molecule_set, molecule_kind_set, &
             local_particles, kin, pv_kin, virial, para_env % group )
        CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
-
 
        trvg = npt ( 1, 1 ) % v  + npt ( 2, 2 ) % v + npt ( 3, 3 ) % v
        !
@@ -3204,23 +2985,12 @@ END SUBROUTINE nph_uniaxial_damped
 
   END SUBROUTINE npt_f
 
-!******************************************************************************
-!!****** integrator/damp_v_particle_set [1.0] *
-!!
-!!   NAME
-!!     damp_v_particle_set
-!!
-!!   FUNCTION
-!!     overloaded routine provides damping for particles via nph_uniaxial_damped dynamics
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief overloaded routine provides damping for particles via nph_uniaxial_damped dynamics
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE damp_v_particle_set (molecule_kind_set, molecule_set,&
        particle_set, local_molecules, gamma1, npt, dt, group )
 
@@ -3287,23 +3057,12 @@ END SUBROUTINE nph_uniaxial_damped
 
   END SUBROUTINE damp_v_particle_set
 
-!******************************************************************************
-!!****** integrator/damp_v_velocity [1.0] *
-!!
-!!   NAME
-!!     damp_v_velocity
-!!
-!!   FUNCTION
-!!     overloaded provides damping for particles via nph_uniaxial_damped dynamics
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief overloaded provides damping for particles via nph_uniaxial_damped dynamics
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE damp_v_velocity (molecule_kind_set, molecule_set, &
        particle_set, local_molecules, vel, gamma1, npt, dt, group )
 
@@ -3369,23 +3128,13 @@ END SUBROUTINE nph_uniaxial_damped
   END SUBROUTINE damp_v_velocity
 
 !*****
-!******************************************************************************
-!!****** integrator/damp_veps [1.0] *
-!!
-!!   NAME
-!!     damp_veps
-!!
-!!   FUNCTION
-!!     provides damping for barostat via nph_uniaxial_damped dynamics
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief provides damping for barostat via nph_uniaxial_damped dynamics
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE damp_veps ( npt, gamma1, dt )
 
     TYPE(npt_info_type), INTENT(INOUT)       :: npt
@@ -3399,30 +3148,17 @@ END SUBROUTINE nph_uniaxial_damped
     npt % v = npt % v * scale
 
   END SUBROUTINE damp_veps
-!!*****
-!******************************************************************************
-!!****** integrator/rattle_roll_setup [1.0] *
-!!
-!!   NAME
-!!     rattle_roll_setup
-!!
-!!   FUNCTION
-!!     update veps using multiplier obtained from SHAKE
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief update veps using multiplier obtained from SHAKE
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE rattle_roll_setup ( gci, atomic_kind_set, particle_set, local_particles, &
        molecule_kind_set, molecule_set, local_molecules, &
        vel, cell, npt, simpar, virial, vector_v,  &
        roll_tol, iroll, infree, first, para_env, u, error )
-
 
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -3482,28 +3218,15 @@ END SUBROUTINE nph_uniaxial_damped
          npt_loc % v, npt_loc %  mass, roll_tol, iroll,    &
          para_env, u, cell, local_particles, error=error )
 
-
   END SUBROUTINE rattle_roll_setup
-!!*****
-!******************************************************************************
-!!****** integrator/update_pv_particle_set [1.0] *
-!!
-!!   NAME
-!!     get_veps_particle_set, get_veps_velocity
-!!
-!!   FUNCTION
-!!     Overloaded routine to compute veps given the particles
-!!     structure or a local copy of the velocity array
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Overloaded routine to compute veps given the particles
+!>      structure or a local copy of the velocity array
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE update_pv_particle_set ( gci, simpar, atomic_kind_set, particle_set,  &
        local_molecules, molecule_set, molecule_kind_set, &
        local_particles, kin, pv_kin, virial, int_group )
@@ -3560,26 +3283,13 @@ END SUBROUTINE nph_uniaxial_damped
 
   END SUBROUTINE update_pv_particle_set
 
-!!*****
-!******************************************************************************
-!!****** integrator/update_pv_velocity [1.0] *
-!!
-!!   NAME
-!!     update_pv_particle_set, update_pv_velocity
-!!
-!!   FUNCTION
-!!     Overloaded routine to compute kinetic virials given the particles
-!!     structure or a local copy of the velocity array
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Overloaded routine to compute kinetic virials given the particles
+!>      structure or a local copy of the velocity array
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE update_pv_velocity ( gci, simpar, atomic_kind_set, vel, particle_set,  &
        local_molecules, molecule_set, molecule_kind_set, &
        local_particles, kin, pv_kin, virial, int_group )
@@ -3634,25 +3344,13 @@ END SUBROUTINE nph_uniaxial_damped
          int_group )
 
   END SUBROUTINE update_pv_velocity
-!!*****
-!******************************************************************************
-!!****** integrator/update_veps [1.0] *
-!!
-!!   NAME
-!!     update_veps
-!!
-!!   FUNCTION
-!!     Routine to compute veps
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Routine to compute veps
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE update_veps ( box, npt, simpar, pv_kin, kin, virial, infree )
 
     TYPE(cell_type), INTENT(IN)              :: box
@@ -3731,24 +3429,10 @@ END SUBROUTINE nph_uniaxial_damped
 
   END SUBROUTINE update_veps
 
-!!*****
-!******************************************************************************
-!!****** integrator/nve_respa [1.0] *
-!!
-!!   NAME
-!!     nve_respa
-!!
-!!   FUNCTION
-!!     RESPA integrator for nve ensemble for particle positions & momenta
-!!
-!!   AUTHOR
-!!     FS
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief RESPA integrator for nve ensemble for particle positions & momenta
+!> \author FS
+! *****************************************************************************
   SUBROUTINE nve_respa ( md_env, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
@@ -3809,7 +3493,6 @@ END SUBROUTINE nph_uniaxial_damped
 
     CALL cp_subsys_get (subsys=subsys_respa, particles=particles_respa,error=error)
     particle_set_respa => particles_respa%els
-
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -3872,7 +3555,6 @@ END SUBROUTINE nph_uniaxial_damped
        DO iparticle = 1, SIZE(particle_set)
           particle_set_respa(iparticle)%r = particle_set(iparticle)%r
        END DO
-
 
        !     *** Update forces ***
        CALL force_env_calc_energy_force(force_env%sub_force_env(1)%force_env,error=error)
@@ -3938,9 +3620,6 @@ END SUBROUTINE nph_uniaxial_damped
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE nve_respa
-!!****
-!******************************************************************************
 
 END MODULE integrator
 
-!******************************************************************************

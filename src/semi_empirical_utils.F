@@ -2,22 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/semi_empirical_utils [1.0] *
-!!
-!!   NAME
-!!     semi_empirical_utils
-!!
-!!   FUNCTION
-!!     Working with the  semi empirical parameter types.
-!!
-!!   AUTHOR
-!!     JGH (14.08.2004)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Working with the  semi empirical parameter types.
+!> \author JGH (14.08.2004)
+! *****************************************************************************
 MODULE semi_empirical_utils
   USE basis_set_types,                 ONLY: allocate_sto_basis_set,&
                                              create_gto_from_sto_basis,&
@@ -73,13 +62,9 @@ MODULE semi_empirical_utils
        traceb,&
        contract
 
-  !!***
-  ! *****************************************************************************
-
 CONTAINS
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE allocate_se_param(se_parameter, error)
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
@@ -149,8 +134,7 @@ CONTAINS
 
   END SUBROUTINE allocate_se_param
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE deallocate_se_param(se_parameter, error)
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
@@ -177,8 +161,7 @@ CONTAINS
 
   END SUBROUTINE deallocate_se_param
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE get_se_param(se_parameter,name,typ,defined,z,zeff,natorb,eheat,&
        beta,sto_exponents,uss,upp,udd,uff,alp,eisol,&
        gss,gsp,gpp,gp2,hsp,gsd,gpd,gdd,ppddg,dpddg,ngauss)
@@ -243,8 +226,7 @@ CONTAINS
 
   END SUBROUTINE get_se_param
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE init_se_param(se_parameter,orb_basis_set,error)
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
@@ -324,8 +306,7 @@ CONTAINS
 
   END SUBROUTINE init_se_param
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE set_se_param(se_parameter,name,typ,defined,z,zeff,natorb,eheat,&
        beta,sto_exponents,uss,upp,udd,uff,alp,eisol,&
        gss,gsp,gpp,gp2,hsp,gsd,gpd,gdd,ppddg,dpddg,ngauss)
@@ -390,8 +371,7 @@ CONTAINS
 
   END SUBROUTINE set_se_param
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE write_se_param(se_parameter,subsys_section,error)
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
@@ -429,7 +409,6 @@ CONTAINS
                gss=gss,gsp=gsp,gpp=gpp,gp2=gp2,hsp=hsp,&
                ppddg=ppddg,dpddg=dpddg,&
                ngauss=ngauss)
-
 
           u(0) = uss
           u(1) = upp
@@ -616,8 +595,7 @@ CONTAINS
 
   END SUBROUTINE write_se_param
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE se_param_set_default(se_parameter,z,method)
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
@@ -660,8 +638,7 @@ CONTAINS
 
   END SUBROUTINE se_param_set_default
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   FUNCTION get_se_type(se_method) RESULT(se_type)
 
     INTEGER, INTENT(IN)                      :: se_method
@@ -679,8 +656,7 @@ CONTAINS
 
   END FUNCTION get_se_type
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE contract ( amat, avec )
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: amat
     REAL(dp), DIMENSION(:), INTENT(OUT)      :: avec
@@ -701,6 +677,7 @@ CONTAINS
 
   END SUBROUTINE contract
 
+! *****************************************************************************
   SUBROUTINE expand ( amat, avec )
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: amat
     REAL(dp), DIMENSION(:), INTENT(IN)       :: avec
@@ -727,6 +704,7 @@ CONTAINS
 
   END SUBROUTINE expand
 
+! *****************************************************************************
   FUNCTION traceb ( pmat, avec ) RESULT(trace)
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pmat
     REAL(dp), DIMENSION(:), INTENT(IN)       :: avec
@@ -744,8 +722,5 @@ CONTAINS
 
   END FUNCTION traceb
 
-  ! *****************************************************************************
-
 END MODULE semi_empirical_utils
 
-! *****************************************************************************

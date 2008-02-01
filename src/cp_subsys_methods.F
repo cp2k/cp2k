@@ -3,26 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/cp_subsys_methods [1.0] *
-!!
-!!   NAME
-!!     cp_subsys_methods
-!!
-!!   FUNCTION
-!!     Initialize a small environment for a particular calculation
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     5.2004 created [fawzi]
-!!     9.2007 cleaned [tlaino] - University of Zurich
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Initialize a small environment for a particular calculation
+!> \par History
+!>      5.2004 created [fawzi]
+!>      9.2007 cleaned [tlaino] - University of Zurich
+!> \author Teodoro Laino
+! *****************************************************************************
 MODULE cp_subsys_methods
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
@@ -76,24 +63,11 @@ MODULE cp_subsys_methods
 
 CONTAINS
 
-!!****f* cp_subsys_methods/cp_subsys_read_colvar [1.0] *
-!!
-!!   NAME
-!!     cp_subsys_read_colvar
-!!
-!!   FUNCTION
-!!     reads the colvar section of the colvar
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     2006.01 Joost VandeVondele
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief reads the colvar section of the colvar
+!> \par History
+!>      2006.01 Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE cp_subsys_read_colvar(subsys,colvar_section,error)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: colvar_section
@@ -117,34 +91,22 @@ CONTAINS
     ENDIF
   END SUBROUTINE cp_subsys_read_colvar
 
-!!****f* cp_subsys_methods/create_small_subsys [1.0] *
-!!
-!!   NAME
-!!     create_small_subsys
-!!
-!!   FUNCTION
-!!     updates the molecule information of the given subsys
-!!
-!!   NOTES
-!!     not really ready to be used with different para_envs for the small
-!!     and big part
-!!
-!!   INPUTS
-!!     - small_subsys: the subsys to create
-!!     - big_subsys: the superset of small_subsys
-!!     - small_para_env: the parallel environment for the new (small)
-!!       subsys
-!!     - sub_atom_index: indexes of the atoms that should be in small_subsys
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed, Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief updates the molecule information of the given subsys
+!> \param small_subsys the subsys to create
+!> \param big_subsys the superset of small_subsys
+!> \param small_para_env the parallel environment for the new (small)
+!>        subsys
+!> \param sub_atom_index indexes of the atoms that should be in small_subsys
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      not really ready to be used with different para_envs for the small
+!>      and big part
+!> \par History
+!>      05.2004 created [fawzi]
+!> \author Fawzi Mohamed, Teodoro Laino
+! *****************************************************************************
   SUBROUTINE create_small_subsys(small_subsys, big_subsys, small_cell,&
        small_para_env, sub_atom_index, sub_atom_kind_name, root_section,&
        para_env, force_env_section, subsys_section, error)
@@ -287,6 +249,5 @@ CONTAINS
        CALL mol_kind_new_list_release(mol_kinds,error=error)
     END IF
   END SUBROUTINE create_small_subsys
-
 
 END MODULE cp_subsys_methods

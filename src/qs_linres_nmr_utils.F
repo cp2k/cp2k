@@ -3,33 +3,20 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****m* cp2k/qs_linres_nmr_utils *
-!!
-!!   NAME
-!!     qs_linres_nmr_utils
-!!
-!!   FUNCTION
-!!     Chemical shift calculation by dfpt
-!!     Initialization of the nmr_env, creation of the special neighbor lists
-!!     Perturbation Hamiltonians by application of the p and rxp oprtators to  psi0
-!!     Write output
-!!     Deallocate everything
-!!
-!!   NOTE
-!!     The psi0 should be localized
-!!     the Sebastiani method works within the assumption that the orbitals are
-!!     completely contained in the simulation box
-!!
-!!   AUTHOR
-!!      MI
-!!
-!!   MODIFICATION HISTORY
-!!      created 07-2005 [MI]
-!!
-!!   SOURCE
-!!****
-
+! *****************************************************************************
+!> \brief Chemical shift calculation by dfpt
+!>      Initialization of the nmr_env, creation of the special neighbor lists
+!>      Perturbation Hamiltonians by application of the p and rxp oprtators to  psi0
+!>      Write output
+!>      Deallocate everything
+!> \note
+!>      The psi0 should be localized
+!>      the Sebastiani method works within the assumption that the orbitals are
+!>      completely contained in the simulation box
+!> \par History
+!>       created 07-2005 [MI]
+!> \author MI
+! *****************************************************************************
 MODULE qs_linres_nmr_utils
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type,&
@@ -132,6 +119,7 @@ MODULE qs_linres_nmr_utils
 
 CONTAINS
 
+! *****************************************************************************
   SUBROUTINE nmr_do_nmr(nmr_env,p_env,qs_env,error)
     !
     TYPE(nmr_env_type)                       :: nmr_env
@@ -542,24 +530,11 @@ CONTAINS
   END SUBROUTINE nmr_do_nmr
 
 ! *****************************************************************************
-!!****f* cp2k/qs_linres_nmr_utils/nmr_env_init
-!!
-!!   NAME
-!!     nmr_env_init
-!!
-!!   FUNCTION
-!!     Initialize the nmr environment
-!!
-!!   NOTES
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     07.2006 created [MI]
-!!
-!****************************************************************************
-
+!> \brief Initialize the nmr environment
+!> \par History
+!>      07.2006 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE nmr_env_init(nmr_env,qs_env,error)
     !
     TYPE(nmr_env_type)                       :: nmr_env
@@ -1125,24 +1100,11 @@ CONTAINS
   END SUBROUTINE nmr_env_init
 
 ! *****************************************************************************
-!!****f* cp2k/qs_linres_nmr_utils/nmr_env_cleanup
-!!
-!!   NAME
-!!     nmr_env_cleanup
-!!
-!!   FUNCTION
-!!     Deallocate the nmr environment
-!!
-!!   NOTES
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     07.2005 created [MI]
-!!
-!****************************************************************************
-
+!> \brief Deallocate the nmr environment
+!> \par History
+!>      07.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE nmr_env_cleanup(nmr_env,error)
 
     TYPE(nmr_env_type)                       :: nmr_env
@@ -1322,6 +1284,5 @@ CONTAINS
     END IF ! failure
 
   END SUBROUTINE nmr_env_cleanup
-
 
 END MODULE  qs_linres_nmr_utils

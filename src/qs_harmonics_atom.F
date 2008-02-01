@@ -2,19 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_harmonics_atom [1.0] *
-!!
-!!   NAME
-!!     qs_harmonics_atom
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
 MODULE qs_harmonics_atom
 
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
@@ -43,6 +31,7 @@ MODULE qs_harmonics_atom
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_harmonics_atom'
 
+! *****************************************************************************
   TYPE harmonics_atom_type
      INTEGER                                :: max_s_harm, &
                                                max_iso_not0, &
@@ -61,34 +50,24 @@ MODULE qs_harmonics_atom
 
   END TYPE harmonics_atom_type
 
-
   ! *** Public subroutines ***
 
   PUBLIC :: allocate_harmonics_atom, &
             create_harmonics_atom, &
             deallocate_harmonics_atom
 
-
   ! *** Public data types ***
 
   PUBLIC :: harmonics_atom_type
 
-
-  !!***
-  ! *****************************************************************************
-
 CONTAINS
 
-  ! *****************************************************************************
-
-
+! *****************************************************************************
   SUBROUTINE allocate_harmonics_atom(harmonics,error)
 
     !   Purpose: Allocate a spherical harmonics set for the atom grid.
 
     !   History: - Creation ()
-
-    !   ***************************************************************************
 
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -132,16 +111,12 @@ CONTAINS
 
   END SUBROUTINE allocate_harmonics_atom
 
-  ! *****************************************************************************
-
-
+! *****************************************************************************
   SUBROUTINE deallocate_harmonics_atom(harmonics,error)
 
     !   Purpose: Deallocate the spherical harmonics set for the atom grid.
 
     !   History: - Creation ()
-
-    !   ***************************************************************************
 
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -229,7 +204,6 @@ CONTAINS
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDIF
 
-
        IF(ASSOCIATED(harmonics%a)) THEN
           DEALLOCATE (harmonics%a,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -245,8 +219,7 @@ CONTAINS
 
   END SUBROUTINE deallocate_harmonics_atom
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE create_harmonics_atom(harmonics,orb_basis,my_CG,na,&
        llmax,max_s_harm,ll,wa,azi,cos_azi,pol,cos_pol,cotan_azi,&
        do_dxyz_asym)
@@ -275,8 +248,6 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: slm_int, y
     REAL(dp), DIMENSION(:, :), POINTER       :: dc, dy, slm
     REAL(dp), DIMENSION(:, :, :), POINTER    :: dslm_dxyz
-
-! *****************************************************************************
 
     NULLIFY (y,dy,slm,dslm_dxyz,dc)
 
@@ -492,7 +463,6 @@ CONTAINS
           m = indso(2,iso)
           l_r = REAL(l,dp)
           m_r = REAL(m,dp)
-
 
           !  Derivative with respect to the polar angle
           IF(m==0) THEN
@@ -710,7 +680,6 @@ CONTAINS
        !  DEALLOCATE(ss)
        !  stop 'ss'
 
-
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer harmonics is not associated")
@@ -718,5 +687,4 @@ CONTAINS
 
   END SUBROUTINE  create_harmonics_atom
 
-  !*******************************************************************************
 END MODULE qs_harmonics_atom

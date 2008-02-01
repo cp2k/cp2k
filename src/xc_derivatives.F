@@ -3,19 +3,7 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/xc_derivatives [1.0] *
-!!
-!!   NAME
-!!     xc_derivatives
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!****
+! *****************************************************************************
 MODULE xc_derivatives
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals2,&
@@ -112,37 +100,22 @@ MODULE xc_derivatives
 
   PUBLIC :: xc_functional_get_info, xc_functionals_eval, xc_functionals_get_needs
 
-!****************************************************************************
-
 CONTAINS
 
-!!****f* xc_derivatives/xc_functional_get_info [1.0] *
-!!
-!!   NAME
-!!     xc_functional_get_info
-!!
-!!   FUNCTION
-!!     get the information about the given functional
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - functional: the functional you want info about
-!!     - lsd: if you are using lsd or lda
-!!     - reference: the reference to the acticle where the functional is
-!!       explained
-!!     - shortform: the short definition of the functional
-!!     - needs: the flags corresponding to the inputs needed by this 
-!!       functional are set to true (the flags not needed aren't touched)
-!!     - max_deriv: the maximal derivative available
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief get the information about the given functional
+!> \param functional the functional you want info about
+!> \param lsd if you are using lsd or lda
+!> \param reference the reference to the acticle where the functional is
+!>        explained
+!> \param shortform the short definition of the functional
+!> \param needs the flags corresponding to the inputs needed by this 
+!>        functional are set to true (the flags not needed aren't touched)
+!> \param max_deriv the maximal derivative available
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
      needs, max_deriv, error)
     TYPE(section_vals_type), POINTER         :: functional
@@ -304,43 +277,28 @@ CPSourceFileRef,&
      END SELECT
   END IF
 END SUBROUTINE xc_functional_get_info
-!***************************************************************************
 
-!!****f* xc_derivatives/xc_functional_eval [1.0] *
-!!
-!!   NAME
-!!     xc_functional_eval
-!!
-!!   FUNCTION
-!!     evaluate a functional (and its derivatives)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - functional: a section that describes the functional to be added
-!!     - lsd: if a local spin desnity is performed
-!!     - rho_set: a rho set where all the arguments needed by this functional
-!!       should be valid (which argument are needed can be found with
-!!       xc_functional_get_info)
-!!     - deriv_set: place where to store the functional derivatives (they are
-!!       added to the derivatives)
-!!     - deriv_order: degree of the derivative that should be evalated,
-!!       if positive all the derivatives up to the given degree are evaluated,
-!!       if negative only the given degree is requested (but to simplify 
-!!       the code all the derivatives might be calculated, you should ignore
-!!       them: when adding derivatives of various functionals they might contain
-!!       the derivative of just one functional)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief evaluate a functional (and its derivatives)
+!> \param functional a section that describes the functional to be added
+!> \param lsd if a local spin desnity is performed
+!> \param rho_set a rho set where all the arguments needed by this functional
+!>        should be valid (which argument are needed can be found with
+!>        xc_functional_get_info)
+!> \param deriv_set place where to store the functional derivatives (they are
+!>        added to the derivatives)
+!> \param deriv_order degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is requested (but to simplify 
+!>        the code all the derivatives might be calculated, you should ignore
+!> \param them when adding derivatives of various functionals they might contain
+!>        the derivative of just one functional)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
      deriv_order, error)
 
@@ -519,41 +477,26 @@ CPSourceFileRef,&
 123 CONTINUE
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE xc_functional_eval
-!***************************************************************************
 
-!!****f* xc_derivatives/xc_functionals_eval *
-!!
-!!   NAME
-!!     xc_functionals_eval
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - functionals: a section containing the functional combination to be
-!!       applied
-!!     - lsd: if a local spin desnity is performed
-!!     - rho_set: a rho set where all the arguments needed by this functional
-!!       should be valid (which argument are needed can be found with
-!!       xc_functional_get_info)
-!!     - deriv_set: place where to store the functional derivatives (they are
-!!       added to the derivatives)
-!!     - deriv_order: degree of the derivative that should be evalated,
-!!       if positive all the derivatives up to the given degree are evaluated,
-!!       if negative only the given degree is requested (but to simplify 
-!!       the code all the derivatives might be calculated, you should ignore
-!!       them: when adding derivatives of various functionals they might contain
-!!       the derivative of just one functional)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param functionals a section containing the functional combination to be
+!>        applied
+!> \param lsd if a local spin desnity is performed
+!> \param rho_set a rho set where all the arguments needed by this functional
+!>        should be valid (which argument are needed can be found with
+!>        xc_functional_get_info)
+!> \param deriv_set place where to store the functional derivatives (they are
+!>        added to the derivatives)
+!> \param deriv_order degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is requested (but to simplify 
+!>        the code all the derivatives might be calculated, you should ignore
+!> \param them when adding derivatives of various functionals they might contain
+!>        the derivative of just one functional)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE xc_functionals_eval(functionals, lsd, rho_set, deriv_set, &
      deriv_order, error)
     TYPE(section_vals_type), POINTER         :: functionals
@@ -588,33 +531,18 @@ SUBROUTINE xc_functionals_eval(functionals, lsd, rho_set, deriv_set, &
      END DO
   END IF
 END SUBROUTINE xc_functionals_eval
-!***************************************************************************
 
-!!****f* xc_derivatives/xc_functionals_get_needs *
-!!
-!!   NAME
-!!     xc_functionals_get_needs
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - functionals: a section containing the functional combination to be
-!!       applied
-!!     - lsd: if a local spin desnity is performed
-!!     - add_basic_components: makes sure that if some gradient combination
-!!       is needed also the gradient components are requested, and if lsd
-!!       is true rho_spin is requested. Defaults to false.
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param functionals a section containing the functional combination to be
+!>        applied
+!> \param lsd if a local spin desnity is performed
+!> \param add_basic_components makes sure that if some gradient combination
+!>        is needed also the gradient components are requested, and if lsd
+!>        is true rho_spin is requested. Defaults to false.
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 FUNCTION xc_functionals_get_needs(functionals, lsd, add_basic_components,&
      error) RESULT(needs)
     TYPE(section_vals_type), POINTER         :: functionals
@@ -663,6 +591,5 @@ FUNCTION xc_functionals_get_needs(functionals, lsd, add_basic_components,&
      END IF
   END IF
 END FUNCTION xc_functionals_get_needs
-!***************************************************************************
 
 END MODULE xc_derivatives

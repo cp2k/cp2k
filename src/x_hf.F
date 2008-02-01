@@ -2,24 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!***** cp2k/x_hf [1.0] *
-!!
-!!   NAME
-!!     x_hf
-!!
-!!   FUNCTION
-!!     routines and types for Hartree-Fock-Exchange
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Manuel Guidon 
-!!
-!!   MODIFICATION HISTORY
-!!     11.2006 created [Manuel Guidon]
-!!
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief routines and types for Hartree-Fock-Exchange
+!> \par History
+!>      11.2006 created [Manuel Guidon]
+!> \author Manuel Guidon 
+! *****************************************************************************
 MODULE x_hf   
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -57,9 +46,8 @@ MODULE x_hf
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'x_hf'
   INTEGER(int_8), PARAMETER, PRIVATE :: one = 1_int_8
 !***
-!****************************************************************************
 
-
+! *****************************************************************************
   TYPE x_hf_potential_type
     INTEGER                                  :: potential_type     !! 1/r/ erfc(wr)/r ...
     REAL(dp)                                 :: omega              !! w 
@@ -68,6 +56,7 @@ MODULE x_hf
     REAL(dp)                                 :: scale_gaussian     !! scaling factor for mixed potential
   END TYPE
 
+! *****************************************************************************
   TYPE x_hf_screening_type
     REAL(dp)                                 :: eps_schwarz         !! threshold
     REAL(dp)                                 :: eps_schwarz_forces  !! threshold
@@ -79,6 +68,7 @@ MODULE x_hf
     REAL(dp)                                 :: initial_p_screening_correction !! corection factor
   END TYPE
   
+! *****************************************************************************
   TYPE x_hf_memory_type
     INTEGER                                  :: max_memory              !! user def max memory MB
     INTEGER(int_8)                           :: max_compression_counter !! corresponding number of reals 
@@ -88,11 +78,13 @@ MODULE x_hf
     INTEGER                                  :: actual_memory_usage
   END TYPE
 
+! *****************************************************************************
   TYPE x_hf_periodic_type
     INTEGER                                  :: number_of_shells        !! number of periodic image cells 
     LOGICAL                                  :: do_periodic             !! periodic ?
   END TYPE
 
+! *****************************************************************************
   TYPE x_hf_load_balance_type
     INTEGER                                  :: nbins                   
     INTEGER                                  :: moves
@@ -104,14 +96,17 @@ MODULE x_hf
     REAL(dp)                                 :: swap_probability
   END TYPE
 
+! *****************************************************************************
   TYPE x_hf_general_type
     REAL(dp)                                 :: fraction                 !! for hybrids
   END TYPE
 
+! *****************************************************************************
   TYPE x_hf_cell_type
     INTEGER                                  :: cell(3)
   END TYPE
 
+! *****************************************************************************
   TYPE x_hf_distribution
     INTEGER                                  :: istart, jstart, kstart, lstart
     INTEGER(int_8)                           :: number_of_integrals
@@ -122,6 +117,7 @@ MODULE x_hf
     REAL(KIND=dp)                            :: time_forces
   END TYPE
   
+! *****************************************************************************
   TYPE x_hf_box_scheme
     REAL(dp)                                 :: center(3)
     REAL(dp)                                 :: K
@@ -130,27 +126,32 @@ MODULE x_hf
     INTEGER                                  :: radius                                 
   END TYPE
   
+! *****************************************************************************
   TYPE x_hf_compression_type
     INTEGER(int_8), DIMENSION(:), POINTER    :: compressed_data
     INTEGER(int_8)                           :: element_pointer
     INTEGER                                  :: bit_pointer
   END TYPE
  
+! *****************************************************************************
   TYPE x_hf_cache_type
     INTEGER(int_8), DIMENSION(CACHE_SIZE)    :: DATA
     INTEGER                                  :: element_counter
   END TYPE
 
+! *****************************************************************************
   TYPE x_hf_container_node
     TYPE(x_hf_container_node), POINTER       :: next, prev
     INTEGER(int_8), DIMENSION(CACHE_SIZE)    :: DATA
   END TYPE
 
+! *****************************************************************************
   TYPE x_hf_container_type
     TYPE(x_hf_container_node), POINTER       :: first, current    
     INTEGER                                  :: element_counter
   END TYPE
 
+! *****************************************************************************
   TYPE x_hf_basis_type
     INTEGER, DIMENSION(:), POINTER           :: lmax
     INTEGER, DIMENSION(:), POINTER           :: lmin
@@ -163,46 +164,29 @@ MODULE x_hf
     INTEGER                                  :: nsgf_total
   END TYPE
 
-!!***** x_hf/x_hf_type [1.0] *
-!!
-!!   NAME
-!!     x_hf_type
-!!
-!!   FUNCTION
-!!     stores some data used in construction of Kohn-Sham matrix
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - potential_parameter: stores information on the potential (1/r, erfc(wr)/r
-!!     - screening_parameter: stores screening infos such as epsilon
-!!     - memory_parameter: stores infos on memory used for in-core calculations
-!!     - periodic_parameter: stores information on how to apply pbc
-!!     - load_balance_parameter: contains infos for Monte Carlo simulated annealing
-!!     - general_paramter: at the moment stores the fraction of HF amount to be included
-!!     - maxval_container: stores the maxvals in compressed form
-!!     - maxval_cache: cache for maxvals in decompressed form
-!!     - integral_containers: 64 containers for compressed integrals
-!!     - integral_caches: 64 caches for decompressed integrals
-!!     - x_screening_buffer: contains screening matrices in non-periodic case
-!!     - x_screening_buffer_periodic: contains screening matrices in periodic case
-!!     - far_field_boxes: contains information on far field screening
-!!     - neighbor_cells: manages handling of periodic cells
-!!     - distribution_energy: stores information on parallelization of energy
-!!     - distribution_forces: stores information on parallelization of forces
-!!     - initial_p: stores the initial guess if requested
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     11.2006 created [Manuel Guidon]
-!!
-!***************************************************************************
-
-
+! *****************************************************************************
+!> \brief stores some data used in construction of Kohn-Sham matrix
+!> \param potential_parameter stores information on the potential (1/r, erfc(wr)/r
+!> \param screening_parameter stores screening infos such as epsilon
+!> \param memory_parameter stores infos on memory used for in-core calculations
+!> \param periodic_parameter stores information on how to apply pbc
+!> \param load_balance_parameter contains infos for Monte Carlo simulated annealing
+!> \param general_paramter at the moment stores the fraction of HF amount to be included
+!> \param maxval_container stores the maxvals in compressed form
+!> \param maxval_cache cache for maxvals in decompressed form
+!> \param integral_containers 64 containers for compressed integrals
+!> \param integral_caches 64 caches for decompressed integrals
+!> \param x_screening_buffer contains screening matrices in non-periodic case
+!> \param x_screening_buffer_periodic contains screening matrices in periodic case
+!> \param far_field_boxes contains information on far field screening
+!> \param neighbor_cells manages handling of periodic cells
+!> \param distribution_energy stores information on parallelization of energy
+!> \param distribution_forces stores information on parallelization of forces
+!> \param initial_p stores the initial guess if requested
+!> \par History
+!>      11.2006 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   TYPE x_hf_type
     TYPE(x_hf_potential_type)                :: potential_parameter
     TYPE(x_hf_screening_type)                :: screening_parameter
@@ -242,35 +226,20 @@ MODULE x_hf
 
   CONTAINS
 
-
-
-!!***** x_hf/x_hf_create [1.0] *
-!!
-!!   NAME
-!!     x_hf_create
-!!
-!!   FUNCTION
-!!     - This routine allocates and initializes all types in x_hf_data
-!!
-!!   NOTES
-!!     - All POINTERS and ALLOCATABLES are allocated, even if their size is
-!!       unknown at invocation time
-!!
-!!   INPUTS
-!!     - x_data: contains all relevant data structures for hfx runs
-!!     - hf_section: input section
-!!     - natom, max_set: quantities that define some array sizes
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief - This routine allocates and initializes all types in x_hf_data
+!> \param x_data contains all relevant data structures for hfx runs
+!> \param hf_section input section
+!> \param natom , max_set: quantities that define some array sizes
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      - All POINTERS and ALLOCATABLES are allocated, even if their size is
+!>        unknown at invocation time
+!> \par History
+!>      09.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE x_hf_create(x_data,hf_section,natom,max_set,atomic_kind_set, particle_set, error)
     TYPE(x_hf_type), DIMENSION(:), POINTER   :: x_data
     TYPE(section_vals_type), POINTER         :: hf_section
@@ -463,32 +432,16 @@ MODULE x_hf
       actual_x_data%b_first_load_balance_forces = .TRUE.
     END DO
   END SUBROUTINE x_hf_create 
-!***************************************************************************
 
-!!***** x_hf/x_hf_release [1.0] *
-!!
-!!   NAME
-!!     x_hf_release
-!!
-!!   FUNCTION
-!!     - This routine deallocates all data structures
-!!
-!!   NOTES
-!!     - 
-!!
-!!   INPUTS
-!!     - x_data: contains all relevant data structures for hfx runs
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief - This routine deallocates all data structures
+!> \param x_data contains all relevant data structures for hfx runs
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE x_hf_release(x_data, error)
     TYPE(x_hf_type), DIMENSION(:), POINTER   :: x_data
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -551,34 +504,18 @@ MODULE x_hf
     DEALLOCATE(x_data,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE x_hf_release
-!***************************************************************************
 
-!!***** x_hf/x_hf_set_distr_energy [1.0] *
-!!
-!!   NAME
-!!     x_hf_set_distr_energy
-!!
-!!   FUNCTION
-!!     - This routine stores the data obtained from the load balance routine 
-!!       for the energy
-!!
-!!   NOTES
-!!     - 
-!!
-!!   INPUTS
-!!     - ptr_to_distr_energy: contains data to store
-!!     - x_data: contains all relevant data structures for hfx runs
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief - This routine stores the data obtained from the load balance routine 
+!>        for the energy
+!> \param ptr_to_distr_energy contains data to store
+!> \param x_data contains all relevant data structures for hfx runs
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE x_hf_set_distr_energy(ptr_to_distr,x_data, error)
     TYPE(x_hf_distribution), DIMENSION(:), &
       POINTER                                :: ptr_to_distr
@@ -598,34 +535,18 @@ MODULE x_hf
     x_data%distribution_energy = ptr_to_distr
 
   END SUBROUTINE x_hf_set_distr_energy
-!***************************************************************************
 
-!!***** x_hf/x_hf_set_distr_forces [1.0] *
-!!
-!!   NAME
-!!     x_hf_set_distr_forces
-!!
-!!   FUNCTION
-!!     - This routine stores the data obtained from the load balance routine 
-!!       for the forces
-!!
-!!   NOTES
-!!     - 
-!!
-!!   INPUTS
-!!     - ptr_to_distr_energy: contains data to store
-!!     - x_data: contains all relevant data structures for hfx runs
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief - This routine stores the data obtained from the load balance routine 
+!>        for the forces
+!> \param ptr_to_distr_energy contains data to store
+!> \param x_data contains all relevant data structures for hfx runs
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE x_hf_set_distr_forces(ptr_to_distr, x_data, error)
     TYPE(x_hf_distribution), DIMENSION(:), &
       POINTER                                :: ptr_to_distr
@@ -645,34 +566,18 @@ MODULE x_hf
     x_data%distribution_forces = ptr_to_distr
 
   END SUBROUTINE x_hf_set_distr_forces
-!***************************************************************************
 
-!!***** x_hf/x_hf_create_neighbor_cells [1.0] *
-!!
-!!   NAME
-!!     x_hf_create_neighbor_cells
-!!
-!!   FUNCTION
-!!     - This routine computes the neighbor cells that are taken into account
-!!       in periodic runs 
-!!
-!!   NOTES
-!!     - 
-!!
-!!   INPUTS
-!!     - x_data: contains all relevant data structures for hfx runs
-!!     - pbc_shells: number of shells taken into account
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief - This routine computes the neighbor cells that are taken into account
+!>        in periodic runs 
+!> \param x_data contains all relevant data structures for hfx runs
+!> \param pbc_shells number of shells taken into account
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE x_hf_create_neighbor_cells(x_data, pbc_shells, error)
     TYPE(x_hf_type), POINTER                 :: x_data
     INTEGER, INTENT(IN)                      :: pbc_shells
@@ -705,30 +610,14 @@ MODULE x_hf
        i=i+1
     ENDDO
   END SUBROUTINE x_hf_create_neighbor_cells
-!***************************************************************************
 
-!!***** x_hf/count_cells [1.0] *
-!!
-!!   NAME
-!!     count_cells
-!!
-!!   FUNCTION
-!!     - Auxiliary function for creating periodic neighbor cells
-!!
-!!   NOTES
-!!     - 
-!!
-!!   INPUTS
-!!     - shell: number of shells in each coordinate direction
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief - Auxiliary function for creating periodic neighbor cells
+!> \param shell number of shells in each coordinate direction
+!> \par History
+!>      09.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
    FUNCTION count_cells(shell)
     INTEGER, INTENT(IN)                      :: shell
     INTEGER                                  :: count_cells
@@ -744,31 +633,15 @@ MODULE x_hf
       ENDDO
     ENDDO
   END FUNCTION count_cells
-!***************************************************************************
 
-!!***** x_hf/next_image_cell [1.0] *
-!!
-!!   NAME
-!!     next_image_cell
-!!
-!!   FUNCTION
-!!     - Auxiliary function for creating periodic neighbor cells
-!!
-!!   NOTES
-!!     - 
-!!
-!!   INPUTS
-!!     - shell: shell for which we need the next, stored as number of shifts
-!!              in each direction
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief - Auxiliary function for creating periodic neighbor cells
+!> \param shell shell for which we need the next, stored as number of shifts
+!>               in each direction
+!> \par History
+!>      09.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE next_image_cell(m)
     INTEGER                                  :: m(3)
 
@@ -793,36 +666,20 @@ MODULE x_hf
            shell=shell+1
            ENDDO outer
   END SUBROUTINE next_image_cell
-!***************************************************************************
 
-!!***** x_hf/x_hf_add_single_cache_element [1.0] *
-!!
-!!   NAME
-!!     x_hf_add_single_cache_element
-!!
-!!   FUNCTION
-!!     - This routine adds an int_8 value to a cache. If the cache is full
-!!       a compression routine is invoked and the cache is cleared
-!!
-!!   NOTES
-!!     - 
-!!
-!!   INPUTS
-!!     - value: value to be added to the cache
-!!     - nbits: number of bits to be stored
-!!     - cache: cache to which we want to add
-!!     - container: container that contains the compressed elements
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief - This routine adds an int_8 value to a cache. If the cache is full
+!>        a compression routine is invoked and the cache is cleared
+!> \param value value to be added to the cache
+!> \param nbits number of bits to be stored
+!> \param cache cache to which we want to add
+!> \param container container that contains the compressed elements
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE x_hf_add_single_cache_element(value, nbits, cache, container, memory_usage, error)
     INTEGER(int_8)                           :: value
     INTEGER                                  :: nbits
@@ -844,36 +701,20 @@ MODULE x_hf
       cache%element_counter = 1
     END IF
   END SUBROUTINE x_hf_add_single_cache_element
-!***************************************************************************
 
-!!***** x_hf/x_hf_compress_cache [1.0] *
-!!
-!!   NAME
-!!     x_hf_compress_cache
-!!
-!!   FUNCTION
-!!     - This routine compresses a full cache and stores its values
-!!       in a container. If necessary, a new list entry is allocated 
-!!
-!!   NOTES
-!!     - 
-!!
-!!   INPUTS
-!!     - full_array: values from the cache
-!!     - container: linked list, that stores the compressed values
-!!     - nints: number of int_8 values to be compressed
-!!     - nbits: number of bits to be stored
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief - This routine compresses a full cache and stores its values
+!>        in a container. If necessary, a new list entry is allocated 
+!> \param full_array values from the cache
+!> \param container linked list, that stores the compressed values
+!> \param nints number of int_8 values to be compressed
+!> \param nbits number of bits to be stored
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE x_hf_compress_cache(full_array, container, nints, nbits, memory_usage, error)
     INTEGER(int_8)                           :: full_array(*)
     TYPE(x_hf_container_type)                :: container
@@ -913,35 +754,19 @@ MODULE x_hf
       container%element_counter = 1 + (nbits*(CACHE_SIZE-tmp_nints) + 63)/64 
    END IF
   END SUBROUTINE x_hf_compress_cache
-!***************************************************************************
 
-!!***** x_hf/x_hf_get_single_cache_element [1.0] *
-!!
-!!   NAME
-!!     x_hf_get_single_cache_element
-!!
-!!   FUNCTION
-!!     - This routine returns an int_8 value from a cache. If the cache is empty
-!!       a decompression routine is invoked and the cache is refilled with decompressed
-!!       values from a container
-!!
-!!   NOTES
-!!     - 
-!!
-!!   INPUTS
-!!     - value: value to be retained from the cache
-!!     - nbits: number of bits with which the value has been compressed
-!!     - cache: cache from which we get the value
-!!     - container: container that contains the compressed elements
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief - This routine returns an int_8 value from a cache. If the cache is empty
+!>        a decompression routine is invoked and the cache is refilled with decompressed
+!>        values from a container
+!> \param value value to be retained from the cache
+!> \param nbits number of bits with which the value has been compressed
+!> \param cache cache from which we get the value
+!> \param container container that contains the compressed elements
+!> \par History
+!>      10.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE x_hf_get_single_cache_element(value, nbits, cache, container, memory_usage)
     INTEGER(int_8)                           :: value
     INTEGER                                  :: nbits
@@ -961,34 +786,18 @@ MODULE x_hf
     value = value - IBSET(one,nbits-1)
 
   END SUBROUTINE x_hf_get_single_cache_element
-!***************************************************************************
 
-!!***** x_hf/x_hf_decompress_cache [1.0] *
-!!
-!!   NAME
-!!     x_hf_decompress_cache
-!!
-!!   FUNCTION
-!!     - This routine decompresses data from a container in order to fill
-!!       a cache.
-!!
-!!   NOTES
-!!     - 
-!!
-!!   INPUTS
-!!     - full_array: values to be retained from container
-!!     - container: linked list, that stores the compressed values
-!!     - nints: number of int_8 values to be decompressed
-!!     - nbits: number of bits with which the values have been stored
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief - This routine decompresses data from a container in order to fill
+!>        a cache.
+!> \param full_array values to be retained from container
+!> \param container linked list, that stores the compressed values
+!> \param nints number of int_8 values to be decompressed
+!> \param nbits number of bits with which the values have been stored
+!> \par History
+!>      10.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE x_hf_decompress_cache(full_array, container, nints, nbits, memory_usage)
     INTEGER(int_8)                           :: full_array(*)
     TYPE(x_hf_container_type)                :: container
@@ -1017,32 +826,16 @@ MODULE x_hf
       container%element_counter = 1 + (nbits*(CACHE_SIZE-tmp_nints) + 63)/64 
     END IF
   END SUBROUTINE x_hf_decompress_cache
-!***************************************************************************
 
-!!***** x_hf/x_hf_reset_cache_and_container[1.0] *
-!!
-!!   NAME
-!!     x_hf_reset_cache_and_container
-!!
-!!   FUNCTION
-!!     - This routine resets the containers list pointer to the first element and
-!!       moves the element counters of container and cache to the beginning
-!!
-!!   NOTES
-!!     - 
-!!
-!!   INPUTS
-!!     - cache: cache from which we get the value
-!!     - container: container that contains the compressed elements
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief - This routine resets the containers list pointer to the first element and
+!>        moves the element counters of container and cache to the beginning
+!> \param cache cache from which we get the value
+!> \param container container that contains the compressed elements
+!> \par History
+!>      10.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE x_hf_reset_cache_and_container(cache, container, memory_usage)
     TYPE(x_hf_cache_type)                    :: cache
     TYPE(x_hf_container_type)                :: container
@@ -1053,33 +846,17 @@ MODULE x_hf
     container%element_counter = 1
     memory_usage = 1
   END SUBROUTINE x_hf_reset_cache_and_container
-!***************************************************************************
 
-!!***** x_hf/x_hf_init_container[1.0] *
-!!
-!!   NAME
-!!     x_hf_reset_init_container
-!!
-!!   FUNCTION
-!!     - This routine deletes all list entries in a container in order to
-!!       deallocate the memory.
-!!
-!!   NOTES
-!!     - 
-!!
-!!   INPUTS
-!!     - container: container that contains the compressed elements
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief - This routine deletes all list entries in a container in order to
+!>        deallocate the memory.
+!> \param container container that contains the compressed elements
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE x_hf_init_container(container, memory_usage,  error)
     TYPE(x_hf_container_type)                :: container
     INTEGER                                  :: memory_usage
@@ -1114,33 +891,17 @@ MODULE x_hf
     memory_usage = 1
 
   END SUBROUTINE x_hf_init_container
-!***************************************************************************
 
-!!***** x_hf/x_hf_decompress_first_cache[1.0] *
-!!
-!!   NAME
-!!     x_hf_decompress_first_cache
-!!
-!!   FUNCTION
-!!     - This routine decompresses the first bunch of data in a container and
-!!       copies them into a cache
-!!
-!!   NOTES
-!!     - 
-!!
-!!   INPUTS
-!!     - nbits: number of bits with which the data has been stored
-!!     - cache: array where we want to decompress the data
-!!     - container: container that contains the compressed elements
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief - This routine decompresses the first bunch of data in a container and
+!>        copies them into a cache
+!> \param nbits number of bits with which the data has been stored
+!> \param cache array where we want to decompress the data
+!> \param container container that contains the compressed elements
+!> \par History
+!>      10.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE x_hf_decompress_first_cache(nbits, cache, container, memory_usage)
     INTEGER                                  :: nbits
     TYPE(x_hf_cache_type)                    :: cache
@@ -1150,35 +911,19 @@ MODULE x_hf
     CALL x_hf_decompress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage)
     cache%element_counter = 1
   END SUBROUTINE x_hf_decompress_first_cache
-!***************************************************************************
 
-!!***** x_hf/x_hf_flush_last_cache[1.0] *
-!!
-!!   NAME
-!!     x_hf_flush_last_cache
-!!
-!!   FUNCTION
-!!     - This routine compresses the last probably not yet compressed cache into
-!!       a container
-!!
-!!   NOTES
-!!     - 
-!!
-!!   INPUTS
-!!     - nbits: number of bits with which the data has been stored
-!!     - cache: array where we want to decompress the data
-!!     - container: container that contains the compressed elements
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief - This routine compresses the last probably not yet compressed cache into
+!>        a container
+!> \param nbits number of bits with which the data has been stored
+!> \param cache array where we want to decompress the data
+!> \param container container that contains the compressed elements
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE x_hf_flush_last_cache(nbits, cache, container, memory_usage, error)
     INTEGER                                  :: nbits
     TYPE(x_hf_cache_type)                    :: cache
@@ -1188,36 +933,20 @@ MODULE x_hf
 
     CALL x_hf_compress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage, error)
   END SUBROUTINE x_hf_flush_last_cache
-!***************************************************************************
 
-!!***** x_hf/x_hf_add_mult_cache_elements [1.0] *
-!!
-!!   NAME
-!!     x_hf_add_mult_cache_elements
-!!
-!!   FUNCTION
-!!     - This routine adds an a few real values to a cache. If the cache is full
-!!       a compression routine is invoked and the cache is cleared
-!!
-!!   NOTES
-!!     - 
-!!
-!!   INPUTS
-!!     - values: values to be added to the cache
-!!     - nbits: number of bits to be stored
-!!     - cache: cache to which we want to add
-!!     - container: container that contains the compressed elements
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief - This routine adds an a few real values to a cache. If the cache is full
+!>        a compression routine is invoked and the cache is cleared
+!> \param values values to be added to the cache
+!> \param nbits number of bits to be stored
+!> \param cache cache to which we want to add
+!> \param container container that contains the compressed elements
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE x_hf_add_mult_cache_elements(values, nints, nbits, cache, container, eps_schwarz, pmax_entry, memory_usage, error)
     REAL(dp)                                 :: values(*)
     INTEGER, INTENT(IN)                      :: nints, nbits
@@ -1277,40 +1006,24 @@ MODULE x_hf
       cache%element_counter = nints-tmp_elements + 1 
     END IF
   END SUBROUTINE x_hf_add_mult_cache_elements
-!***************************************************************************
 
-!!***** x_hf/x_hf_get_mult_cache_elements [1.0] *
-!!
-!!   NAME
-!!     x_hf_get_mult_cache_elements
-!!
-!!   FUNCTION
-!!     - This routine returns a bunch real values from a cache. If the cache is empty
-!!       a decompression routine is invoked and the cache is refilled with decompressed
-!!       values from a container
-!!
-!!   NOTES
-!!     - 
-!!
-!!   INPUTS
-!!     - values: value to be retained from the cache
-!!     - nints: number of values to be retained
-!!     - nbits: number of bits with which the value has been compressed
-!!     - cache: cache from which we get the value
-!!     - container: container that contains the compressed elements
-!!     - eps_schwarz: threshold for storage
-!!     - pmax_entry: multiplication factor for values
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief - This routine returns a bunch real values from a cache. If the cache is empty
+!>        a decompression routine is invoked and the cache is refilled with decompressed
+!>        values from a container
+!> \param values value to be retained from the cache
+!> \param nints number of values to be retained
+!> \param nbits number of bits with which the value has been compressed
+!> \param cache cache from which we get the value
+!> \param container container that contains the compressed elements
+!> \param eps_schwarz threshold for storage
+!> \param pmax_entry multiplication factor for values
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE x_hf_get_mult_cache_elements(values, nints, nbits, cache, container, eps_schwarz, pmax_entry, memory_usage, error)
     REAL(dp)                                 :: values(*)
     INTEGER, INTENT(IN)                      :: nints, nbits
@@ -1350,8 +1063,6 @@ MODULE x_hf
       cache%element_counter = nints - tmp_elements + 1
     END IF
   END SUBROUTINE x_hf_get_mult_cache_elements
-!***************************************************************************
 
 END MODULE x_hf
-
 

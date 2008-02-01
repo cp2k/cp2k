@@ -3,27 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/cp_fm_types [1.0] *
-!!
-!!   NAME
-!!     cp_fm_types
-!!
-!!   FUNCTION
-!!     represent a full matrix distribued on many processors
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Matthias Krack (22.05.2001)
-!!
-!!   MODIFICATION HISTORY
-!!     3) separated structure object, removed globenv, renamed to full matrix
-!!        many changes (fawzi 08.2002)
-!!
-!!   SOURCE
-!****************************************************************************
-
+! *****************************************************************************
+!> \brief represent a full matrix distribued on many processors
+!> \par History
+!>      3) separated structure object, removed globenv, renamed to full matrix
+!>         many changes (fawzi 08.2002)
+!> \author Matthias Krack (22.05.2001)
+! *****************************************************************************
 MODULE cp_fm_types
 
   USE cp_array_r_utils,                ONLY: cp_2d_r_write
@@ -80,44 +66,26 @@ MODULE cp_fm_types
             cp_fm_to_fm,&              ! copy (parts of) a fm to a fm
             cp_fm_vectorsnorm          ! compute the norm of the column-vectors
 
-
   INTERFACE cp_fm_to_fm
     MODULE PROCEDURE cp_fm_to_fm_matrix, &  ! a full matrix
                      cp_fm_to_fm_columns    ! just a number of columns
   END INTERFACE
 
-!****************************************************************************
-
-!!****s* cp_fm_types/cp_fm_type [1.0] *
-!!
-!!   NAME
-!!     cp_fm_type
-!!
-!!   FUNCTION
-!!     represent a full matrix
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - name: the name of the matrix, used for printing
-!!     - id_nr: identification number that makes this matrix unique
-!!     - ref_cont: reference count (see doc/ReferenceCounting.html)
-!!     - print_count: sequential number to make the printed files unique
-!!     - matrix_struct: structure of this matrix
-!!     - local_data: array with the data of the matrix (its contents
-!!       depend on the matrix type used: in parallel runs it will be
-!!       in scalapack format, in sequential, it will simply contain
-!!       the matrix)
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief represent a full matrix
+!> \param name the name of the matrix, used for printing
+!> \param id_nr identification number that makes this matrix unique
+!> \param ref_cont reference count (see doc/ReferenceCounting.html)
+!> \param print_count sequential number to make the printed files unique
+!> \param matrix_struct structure of this matrix
+!> \param local_data array with the data of the matrix (its contents
+!>        depend on the matrix type used: in parallel runs it will be
+!>        in scalapack format, in sequential, it will simply contain
+!>        the matrix)
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   TYPE cp_fm_type
 !    PRIVATE
      CHARACTER(LEN=60) :: name
@@ -125,63 +93,32 @@ MODULE cp_fm_types
      TYPE(cp_fm_struct_type), POINTER :: matrix_struct
      REAL(KIND = dp), DIMENSION(:,:), POINTER :: local_data
   END TYPE cp_fm_type
-!!***
-  !****************************************************************************
 
-!!****s* cp_fm_types/cp_fm_p_type [1.0] *
-!!
-!!   NAME
-!!     cp_fm_p_type
-!!
-!!   FUNCTION
-!!     just to build arrays of pointers to matrixes
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - matrix: the pointer to the matrix
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief just to build arrays of pointers to matrixes
+!> \param matrix the pointer to the matrix
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   TYPE cp_fm_p_type
      TYPE(cp_fm_type), POINTER :: matrix
   END TYPE cp_fm_p_type
-!!***
-  !****************************************************************************
 
 CONTAINS
 
-!!****f* cp_fm_types/cp_fm_create [1.0] *
-!!
-!!   NAME
-!!     cp_fm_create
-!!
-!!   FUNCTION
-!!     creates a new full matrix with the given structure
-!!
-!!   NOTES
-!!     preferred allocation routine
-!!
-!!   INPUTS
-!!     - matrix: the matrix to be created
-!!     - matrix_struct: the structure of matrix
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a new full matrix with the given structure
+!> \param matrix the matrix to be created
+!> \param matrix_struct the structure of matrix
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      preferred allocation routine
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_fm_create(matrix,matrix_struct,name,error)
     TYPE(cp_fm_type), POINTER                :: matrix
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
@@ -241,31 +178,16 @@ CPSourceFileRef,&
        END IF
     END IF
   END SUBROUTINE cp_fm_create
-!***************************************************************************
 
-!!****f* cp_fm_types/cp_fm_retain [1.0] *
-!!
-!!   NAME
-!!     cp_fm_retain
-!!
-!!   FUNCTION
-!!     retains a full matrix
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - matrix: the matrix to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains a full matrix
+!> \param matrix the matrix to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_fm_retain(matrix,error)
     TYPE(cp_fm_type), POINTER                :: matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -284,31 +206,16 @@ CPSourceFileRef,&
     END IF
 
   END SUBROUTINE cp_fm_retain
-!***************************************************************************
 
-!!****f* cp_fm_types/cp_fm_release [1.0] *
-!!
-!!   NAME
-!!     cp_fm_release
-!!
-!!   FUNCTION
-!!     releases a full matrix
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - matrix: the matrix to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases a full matrix
+!> \param matrix the matrix to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_fm_release(matrix,error)
     TYPE(cp_fm_type), POINTER                :: matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -338,30 +245,16 @@ CPSourceFileRef,&
     NULLIFY(matrix)
 
   END SUBROUTINE cp_fm_release
-!***************************************************************************
 
-!!****f* cp_fm_types/cp_fm_init_random [1.0] *
-!!
-!!   NAME
-!!     cp_fm_init_random
-!!
-!!   FUNCTION
-!!     fills a matrix with random numbers
-!!
-!!   NOTES
-!!     the value of a_ij is independent of the number of cpus
-!!
-!!   INPUTS
-!!     matrix :: to be initialized
-!!     ncol :: numbers of cols to fill
-!!     start_col :: starting at coll number
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief fills a matrix with random numbers
+!> \param matrix : to be initialized
+!> \param ncol : numbers of cols to fill
+!> \param start_col : starting at coll number
+!> \note
+!>      the value of a_ij is independent of the number of cpus
+!> \author Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE cp_fm_init_random(matrix,ncol,start_col,error)
     TYPE(cp_fm_type), POINTER                :: matrix
     INTEGER, INTENT(IN), OPTIONAL            :: ncol, start_col
@@ -412,27 +305,13 @@ CPSourceFileRef,&
 
   END SUBROUTINE cp_fm_init_random
 
-!!****f* cp_fm_types/cp_fm_set_all [1.0] *
-!!
-!!   NAME
-!!     cp_fm_set_all
-!!
-!!   FUNCTION
-!!     set all elements of a matrix to the same value,
-!!     and optionally the diagonal to a different one
-!!
-!!   NOTES
-!!     can be used to zero a matrix
-!!     can be used to create a unit matrix (I-matrix) alpha=0.0_dp beta=1.0_dp
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
-
+! *****************************************************************************
+!> \brief set all elements of a matrix to the same value,
+!>      and optionally the diagonal to a different one
+!> \note
+!>      can be used to zero a matrix
+!>      can be used to create a unit matrix (I-matrix) alpha=0.0_dp beta=1.0_dp
+! *****************************************************************************
   SUBROUTINE cp_fm_set_all(matrix,alpha,beta,error)
 
     TYPE(cp_fm_type), POINTER                :: matrix
@@ -458,20 +337,8 @@ CPSourceFileRef,&
   END SUBROUTINE cp_fm_set_all
 
 ! *****************************************************************************
-
-!!****f* cp2k/cp_fm_types/cp_fm_get_diag *
-!!
-!!   NAME
-!!     cp_fm_get_diag
-!!
-!!   FUNCTION
-!!     returns the diagonal elements of a fm
-!!
-!!   ARGUMENTS
-!!
-!!   NOTES
-!!
-!!****
+!> \brief returns the diagonal elements of a fm
+! *****************************************************************************
   SUBROUTINE cp_fm_get_diag(matrix,diag,error)
 
     IMPLICIT NONE
@@ -480,7 +347,6 @@ CPSourceFileRef,&
     TYPE(cp_fm_type), POINTER                  :: matrix
     REAL(KIND = dp), DIMENSION(:), INTENT(OUT) :: diag    
     TYPE(cp_error_type), INTENT(inout)         :: error
-
 
     ! locals
     INTEGER :: i,nrow_global
@@ -521,32 +387,23 @@ CPSourceFileRef,&
 
   END SUBROUTINE cp_fm_get_diag
 
-!!****f* cp2k/cp_fm_types/cp_fm_get_element *
-!!
-!!   NAME
-!!     cp_fm_get_element
-!!
-!!   FUNCTION
-!!     returns an element of a fm
-!!     this value is valid on every cpu
-!!     using this call is expensive
-!!
-!!   ARGUMENTS
-!!     - matrix: the matrix to read
-!!     - irow_global: the row
-!!     - icol_global: the col
-!!     - alpha: the value of matrix(irow_global, icol_global)
-!!     - local: true if the element is on this cpu, false otherwise
-!!
-!!   NOTES
-!!     - modified semantics. now this function always returns the value
-!!       previously the value was zero on cpus that didn't own the relevant
-!!       part of the matrix (Joost VandeVondele, May 2003)
-!!     - usage of the function should be avoided, as it is likely to rather slow
-!!       using row_indices/col_indices/local_data + some smart scheme normally
-!!       yields a real parallel code
-!!
-!!****
+! *****************************************************************************
+!> \brief returns an element of a fm
+!>      this value is valid on every cpu
+!>      using this call is expensive
+!> \param matrix the matrix to read
+!> \param irow_global the row
+!> \param icol_global the col
+!> \param alpha the value of matrix(irow_global, icol_global)
+!> \param local true if the element is on this cpu, false otherwise
+!> \note
+!>      - modified semantics. now this function always returns the value
+!>        previously the value was zero on cpus that didn't own the relevant
+!>        part of the matrix (Joost VandeVondele, May 2003)
+!>      - usage of the function should be avoided, as it is likely to rather slow
+!>        using row_indices/col_indices/local_data + some smart scheme normally
+!>        yields a real parallel code
+! *****************************************************************************
   SUBROUTINE cp_fm_get_element(matrix,irow_global,icol_global,alpha,local)
 
     IMPLICIT NONE
@@ -596,25 +453,12 @@ CPSourceFileRef,&
 
   END SUBROUTINE cp_fm_get_element
 
-!!****f* cp_fm_types/cp_fm_set_element [1.0] *
-!!
-!!   NAME
-!!     cp_fm_set_element
-!!
-!!   FUNCTION
-!!     sets an element of a matrix
-!!
-!!   NOTES
-!!     we expect all cpus to have the same arguments in the call to this function
-!!     (otherwise one should use local_data tricks)
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief sets an element of a matrix
+!> \note
+!>      we expect all cpus to have the same arguments in the call to this function
+!>      (otherwise one should use local_data tricks)
+! *****************************************************************************
   SUBROUTINE cp_fm_set_element(matrix,irow_global,icol_global,alpha,error)
     TYPE(cp_fm_type), POINTER                :: matrix
     INTEGER, INTENT(IN)                      :: irow_global, icol_global
@@ -656,45 +500,33 @@ CPSourceFileRef,&
 #endif
   END SUBROUTINE cp_fm_set_element
 
-!!****f* cp_fm_types/cp_fm_set_submatrix [1.0] *
-!!
-!!   NAME
-!!     cp_fm_set_submatrix
-!!
-!!   FUNCTION
-!!     sets a submatrix of a full matrix
-!!      fm(start_row:start_row+n_rows,start_col:start_col+n_cols)
-!!      = alpha*op(new_values)(1:n_rows,1:n_cols)+ beta
-!!      * fm(start_row:start_row+n_rows,start_col:start_col+n_cols)
-!!
-!!   NOTES
-!!     optimized for full column updates and alpha=1.0, beta=0.0
-!!     the new_values need to be valid on all cpus
-!!
-!!   INPUTS
-!!     - new_values: a replicated full matrix with the new values
-!!     - fm: the full to change
-!!     - start_row: the starting row of b_matrix (defaults to 1)
-!!     - start_col: the starting col of b_matrix (defaults to 1)
-!!     - n_rows: the number of row to change in b (defaults to
-!!       size(op(new_values),1))
-!!     - n_cols: the number of columns to change in b (defaults to
-!!       size(op(new_values),2))
-!!     - alpha: rescaling factor for the new values (defaults to 1.0)
-!!     - beta: rescaling factor for the old values (defaults to 0.0)
-!!     - transpose: if new_values should be transposed: if true
-!!       op(new_values)=new_values^T, else op(new_values)=new_values
-!!       (defaults to false)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created borrowing from Joost's blacs_replicated_copy [fawzi]
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief sets a submatrix of a full matrix
+!>       fm(start_row:start_row+n_rows,start_col:start_col+n_cols)
+!>       = alpha*op(new_values)(1:n_rows,1:n_cols)+ beta
+!>       * fm(start_row:start_row+n_rows,start_col:start_col+n_cols)
+!> \param new_values a replicated full matrix with the new values
+!> \param fm the full to change
+!> \param start_row the starting row of b_matrix (defaults to 1)
+!> \param start_col the starting col of b_matrix (defaults to 1)
+!> \param n_rows the number of row to change in b (defaults to
+!>        size(op(new_values),1))
+!> \param n_cols the number of columns to change in b (defaults to
+!>        size(op(new_values),2))
+!> \param alpha rescaling factor for the new values (defaults to 1.0)
+!> \param beta rescaling factor for the old values (defaults to 0.0)
+!> \param transpose if new_values should be transposed: if true
+!>        op(new_values)=new_values^T, else op(new_values)=new_values
+!>        (defaults to false)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      optimized for full column updates and alpha=1.0, beta=0.0
+!>      the new_values need to be valid on all cpus
+!> \par History
+!>      07.2002 created borrowing from Joost's blacs_replicated_copy [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_fm_set_submatrix(fm,new_values,start_row,&
        start_col, n_rows, n_cols, alpha, beta, transpose, error)
     TYPE(cp_fm_type), POINTER                :: fm
@@ -813,45 +645,33 @@ CPSourceFileRef,&
 
   END SUBROUTINE cp_fm_set_submatrix
 
-!!****f* cp_fm_types/cp_fm_get_submatrix [1.0] *
-!!
-!!   NAME
-!!     cp_fm_get_submatrix
-!!
-!!   FUNCTION
-!!     gets a submatrix of a full matrix
-!!      op(target_m)(1:n_rows,1:n_cols)
-!!      =fm(start_row:start_row+n_rows,start_col:start_col+n_cols)
-!!     target_m is replicated on all cpus
-!!     using this call is expensive
-!!
-!!   NOTES
-!!     optimized for full column updates. Zeros out a little too much
-!!     of target_m
-!!     the target_m is replicated and valid on all cpus
-!!
-!!   INPUTS
-!!     - target_m: a replicated full matrix that will contain the result
-!!     - fm: the full you want to get the info from
-!!     - start_row: the starting row of b_matrix (defaults to 1)
-!!     - start_col: the starting col of b_matrix (defaults to 1)
-!!     - n_rows: the number of row to change in b (defaults to
-!!       size(op(new_values),1))
-!!     - n_cols: the number of columns to change in b (defaults to
-!!       size(op(new_values),2))
-!!     - transpose: if target_m should be transposed: if true
-!!       op(target_m)=target_m^T, else op(target_m)=target_m
-!!       (defaults to false)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created borrowing from Joost's blacs_replicated_copy [fawzi]
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief gets a submatrix of a full matrix
+!>       op(target_m)(1:n_rows,1:n_cols)
+!>       =fm(start_row:start_row+n_rows,start_col:start_col+n_cols)
+!>      target_m is replicated on all cpus
+!>      using this call is expensive
+!> \param target_m a replicated full matrix that will contain the result
+!> \param fm the full you want to get the info from
+!> \param start_row the starting row of b_matrix (defaults to 1)
+!> \param start_col the starting col of b_matrix (defaults to 1)
+!> \param n_rows the number of row to change in b (defaults to
+!>        size(op(new_values),1))
+!> \param n_cols the number of columns to change in b (defaults to
+!>        size(op(new_values),2))
+!> \param transpose if target_m should be transposed: if true
+!>        op(target_m)=target_m^T, else op(target_m)=target_m
+!>        (defaults to false)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      optimized for full column updates. Zeros out a little too much
+!>      of target_m
+!>      the target_m is replicated and valid on all cpus
+!> \par History
+!>      07.2002 created borrowing from Joost's blacs_replicated_copy [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_fm_get_submatrix(fm,target_m, start_row,&
        start_col, n_rows, n_cols, transpose, error)
     TYPE(cp_fm_type), POINTER                :: fm
@@ -908,7 +728,6 @@ CPSourceFileRef,&
             nrow_local =nrow_local ,ncol_local =ncol_local , &
             row_indices=row_indices,col_indices=col_indices,error=error)
 
-
        DO j=1,ncol_local
           this_col=col_indices(j)-j0+1
           IF (this_col.GE.1 .AND. this_col.LE.ncol) THEN
@@ -949,25 +768,13 @@ CPSourceFileRef,&
 
   END SUBROUTINE cp_fm_get_submatrix
 
-
-!!****f* cp_fm_types/cp_fm_get_info [1.0] *
-!!
-!!   NAME
-!!     cp_fm_get_info
-!!
-!!   FUNCTION
-!!      returns all kind of information about the full matrix
-!!
-!!   NOTES
-!!      see also cp_fm_struct for explaination
-!!      - nrow_local, ncol_local, row_indices, col_indices, local_data are hooks for efficient
-!!        access to the local blacs block
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief returns all kind of information about the full matrix
+!> \note
+!>       see also cp_fm_struct for explaination
+!>       - nrow_local, ncol_local, row_indices, col_indices, local_data are hooks for efficient
+!>         access to the local blacs block
+! *****************************************************************************
   SUBROUTINE cp_fm_get_info(matrix,name,nrow_global,ncol_global,&
        nrow_block,ncol_block,nrow_local,ncol_local,&
        row_indices,col_indices,local_data,context,&
@@ -1025,25 +832,10 @@ CPSourceFileRef,&
 
   END SUBROUTINE cp_fm_get_info
 
-
-!!****f* cp_fm_types/cp_fm_maxabsval [1.0] *
-!!
-!!   NAME
-!!     cp_fm_maxabsval
-!!
-!!   FUNCTION
-!!     find the maximum absolute value of the matrix element
-!!     maxval(abs(matrix))
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief find the maximum absolute value of the matrix element
+!>      maxval(abs(matrix))
+! *****************************************************************************
   SUBROUTINE cp_fm_maxabsval(matrix,a_max,ir_max,ic_max,error)
     TYPE(cp_fm_type), POINTER                :: matrix
     REAL(KIND=dp), INTENT(OUT)               :: a_max
@@ -1131,28 +923,15 @@ CPSourceFileRef,&
 
   END SUBROUTINE cp_fm_maxabsval
 
-!!****f* cp_fm_types/cp_fm_maxabsrownorm [1.0] *
-!!
-!!   NAME
-!!     cp_fm_maxabsrownorm
-!!
-!!   FUNCTION
-!!     find the maximum over the rows of the sum of the absolute values of the elements of a given row
-!!     = || A ||_infinity
-!!
-!!   NOTES
-!!     for a real symmetric matrix it holds that || A ||_2 = |lambda_max| < || A ||_infinity
-!!     Hence this can be used to estimate an upper bound for the eigenvalues of a matrix
-!!     http://mathworld.wolfram.com/MatrixNorm.html
-!!     (but the bound is not so tight in the general case)
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief find the maximum over the rows of the sum of the absolute values of the elements of a given row
+!>      = || A ||_infinity
+!> \note
+!>      for a real symmetric matrix it holds that || A ||_2 = |lambda_max| < || A ||_infinity
+!>      Hence this can be used to estimate an upper bound for the eigenvalues of a matrix
+!>      http://mathworld.wolfram.com/MatrixNorm.html
+!>      (but the bound is not so tight in the general case)
+! *****************************************************************************
   SUBROUTINE cp_fm_maxabsrownorm(matrix, a_max,error)
     TYPE(cp_fm_type), POINTER                :: matrix
     REAL(KIND=dp), INTENT(OUT)               :: a_max
@@ -1190,23 +969,9 @@ CPSourceFileRef,&
     CALL timestop(handle)
   END SUBROUTINE
 
-!!****f* cp_fm_types/cp_fm_vectorsnorm [1.0] *
-!!
-!!   NAME
-!!     cp_fm_vectorsnorm
-!!
-!!   FUNCTION
-!!     find the inorm of each column norm_{j}= sqrt( \sum_{i} A_{ij}*A_{ij} )
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief find the inorm of each column norm_{j}= sqrt( \sum_{i} A_{ij}*A_{ij} )
+! *****************************************************************************
   SUBROUTINE cp_fm_vectorsnorm(matrix, norm_array, error)
     TYPE(cp_fm_type), POINTER                :: matrix
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: norm_array
@@ -1241,39 +1006,25 @@ CPSourceFileRef,&
     CALL timestop(handle)
   END SUBROUTINE
 
-  ! ***************************************************************************
-
- !!****f* cp_fm_types/cp_fm_write [1.0] *
- !!
- !!   NAME
- !!     cp_fm_write
- !!
- !!   FUNCTION
- !!     writes out the matrix (if long description, might need some refactoring
- !!
- !!   NOTES
- !!     uniquing_nr should be smartened: don't add if no file exist, else
- !!     increase nr until no file exists
- !!     routine to help debugging
- !!
- !!   INPUTS
- !!     - matrix: the matrix to output
- !!     - unit_nr: the unit where to output
- !!     - long_description: if a long description should be written (is
- !!       needed to see the content of the matrix)
- !!       (defaults to false)
- !!     - local: if the unit is a local unit or a global unit
- !!       (defaults to false, i.e. global)
- !!     - error: variable to control error logging, stopping,...
- !!       see module cp_error_handling
- !!
- !!   AUTHOR
- !!     Fawzi Mohamed
- !!
- !!   MODIFICATION HISTORY
- !!     08.2002 created [fawzi]
- !!
- !!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes out the matrix (if long description, might need some refactoring
+!> \param matrix the matrix to output
+!> \param unit_nr the unit where to output
+!> \param long_description if a long description should be written (is
+!>        needed to see the content of the matrix)
+!>        (defaults to false)
+!> \param local if the unit is a local unit or a global unit
+!>        (defaults to false, i.e. global)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      uniquing_nr should be smartened: don't add if no file exist, else
+!>      increase nr until no file exists
+!>      routine to help debugging
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
    SUBROUTINE cp_fm_write(matrix, unit_nr, long_description, local, error)
     TYPE(cp_fm_type), POINTER                :: matrix
     INTEGER, INTENT(in)                      :: unit_nr
@@ -1371,27 +1122,12 @@ CPSourceFileRef,&
         END IF
      END IF
    END SUBROUTINE cp_fm_write
-!**************************************************************************
 
-!!****f* cp_fm_types/cp_fm_to_fm_matrix [1.0] *
-!!
-!!   NAME
-!!     cp_fm_to_fm_matrix  ! interface cp_fm_to_fm
-!!
-!!   FUNCTION
-!!     copy one identically sized matrix in the other
-!!
-!!   NOTES
-!!     see also cp_fm_to_fm_columns
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
-
+! *****************************************************************************
+!> \brief copy one identically sized matrix in the other
+!> \note
+!>      see also cp_fm_to_fm_columns
+! *****************************************************************************
   SUBROUTINE cp_fm_to_fm_matrix(source,destination,error)
 
     TYPE(cp_fm_type), POINTER                :: source, destination
@@ -1454,26 +1190,9 @@ CPSourceFileRef,&
 
   END SUBROUTINE cp_fm_to_fm_matrix
 
-  ! ***************************************************************************
-
-!!****f* cp_fm_types/cp_fm_to_fm_columns [1.0] *
-!!
-!!   NAME
-!!     cp_fm_to_fm_columns ! interface cp_fm_to_fm
-!!
-!!   FUNCTION
-!!     copy just a subset of columns of a fm to a fm
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
-
+! *****************************************************************************
+!> \brief copy just a subset of columns of a fm to a fm
+! *****************************************************************************
   SUBROUTINE cp_fm_to_fm_columns(msource,mtarget,ncol,source_start,&
                                  target_start)
 
@@ -1522,8 +1241,7 @@ CPSourceFileRef,&
 
   END SUBROUTINE cp_fm_to_fm_columns
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE cp_fm_add_to_element(matrix,irow_global,icol_global,alpha,error)
 
     ! Add alpha to the matrix element specified by the global indices
@@ -1581,7 +1299,5 @@ CPSourceFileRef,&
 #endif
 
   END SUBROUTINE cp_fm_add_to_element
-
-  ! ***************************************************************************
 
 END MODULE cp_fm_types

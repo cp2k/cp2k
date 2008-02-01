@@ -3,26 +3,15 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/pint_types *
-!!
-!!   NAME
-!!     pint_types
-!!
-!!   FUNCTION
-!!     types to performs a path integral run
-!!
-!!   NOTES
-!!     quick & dirty rewrite of my python program
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2006 created
-!!     11.2006 modified so it might actually work [hforbert]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief types to performs a path integral run
+!> \note
+!>      quick & dirty rewrite of my python program
+!> \par History
+!>      02.2006 created
+!>      11.2006 modified so it might actually work [hforbert]
+!> \author fawzi
+! *****************************************************************************
 MODULE pint_types
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cell_types,                      ONLY: cell_type
@@ -91,76 +80,59 @@ MODULE pint_types
             normalmode_f2uf, normalmode_init_masses, normalmode_release, &
             normalmode_retain, normalmode_calc_uf_h
 !***
-!****************************************************************************
 
-  !!****s* pint_types/pint_env_type *
-  !!
-  !!   NAME
-  !!     pint_env_type
-  !!
-  !!   FUNCTION
-  !!     environment for a path integral run
-  !!
-  !!   NOTES
-  !!   
-  !!   ref_count     - reference count of this data structure
-  !!   id_nr         - identification number of this data structure
-  !!   p             - number of replicas/beads
-  !!   nnos          - nose hoover chain length
-  !!   nrespa        - number of respa steps
-  !!   iter          - current iteration number
-  !!   ndim          - number of coordinates per replica/bead
-  !!   transform     - type of transform (normalmode or staging)
-  !!   v_tol         - velocity tolerance for rescaling
-  !!   kT            - boltzmann factor times temperature
-  !!   beta          - 1/kT
-  !!   dt            - time step for dynamic
-  !!   e_pot_h       - potential energy in harmonic springs
-  !!   e_kin_beads   - (fictious) kinetic energy of the beads
-  !!   e_pot_t       - potential energy of thermostats
-  !!   e_kin_t       - kinetic energy of thermostats
-  !!   e_vir         - virial estimator of the (real) kinetic energy
-  !!   t             - current simulation time
-  !!   replicas      - replica environment for force calculations
-  !!   input         - input data structure
-  !!   staging_env   - description for the staging transformation
-  !!   normalmode_env - description for the normal mode transformation
-  !!   randomG       - random number stream descriptor
-  !!   mass          - real masses
-  !!   e_pot_bead    - array with last energies from QS per replica
-  !!   x             - array with real space coordinates
-  !!   v             - array with real space velocities 
-  !!   f             - array with real space forces
-  !!   mass_beads    - masses of the beads for harmonic forces (harmonic mass)
-  !!   mass_fict     - fictious mass of the beads for dynamics (kinetic mass)
-  !!   ux            - array with transformed space coordinates
-  !!   uv            - array with transformed velocities
-  !!   uv_t          - array with temporary transformed velocities
-  !!   uv_new        - array with new transformed velocities
-  !!   uf            - array with transformed accelerations (QS part)
-  !!   uf_h          - array with harmonic part transformed forces
-  !!                   (sometimes with uf added)
-  !!   tx            - nose hoover chain positions
-  !!   tv            - nose hoover chain velocities 
-  !!   tv_t          - nose hoover chain velocities (temporary)
-  !!   tv_old        - nose hoover chain velocities (older)
-  !!   tv_new        - nose hoover chain velocities (newer)
-  !!   tf            - nose hoover chain forces (?)
-  !!   Q             - nose hoover chain masses
-  !! 
-  !!
-  !!   ATTRIBUTES
-  !!     -
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   MODIFICATION HISTORY
-  !!     Added some comments - hforbert
-  !!     Added normal mode transformation - hforbert
-  !!
-  !!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief environment for a path integral run
+!> \note
+!>    ref_count     - reference count of this data structure
+!>    id_nr         - identification number of this data structure
+!>    p             - number of replicas/beads
+!>    nnos          - nose hoover chain length
+!>    nrespa        - number of respa steps
+!>    iter          - current iteration number
+!>    ndim          - number of coordinates per replica/bead
+!>    transform     - type of transform (normalmode or staging)
+!>    v_tol         - velocity tolerance for rescaling
+!>    kT            - boltzmann factor times temperature
+!>    beta          - 1/kT
+!>    dt            - time step for dynamic
+!>    e_pot_h       - potential energy in harmonic springs
+!>    e_kin_beads   - (fictious) kinetic energy of the beads
+!>    e_pot_t       - potential energy of thermostats
+!>    e_kin_t       - kinetic energy of thermostats
+!>    e_vir         - virial estimator of the (real) kinetic energy
+!>    t             - current simulation time
+!>    replicas      - replica environment for force calculations
+!>    input         - input data structure
+!>    staging_env   - description for the staging transformation
+!>    normalmode_env - description for the normal mode transformation
+!>    randomG       - random number stream descriptor
+!>    mass          - real masses
+!>    e_pot_bead    - array with last energies from QS per replica
+!>    x             - array with real space coordinates
+!>    v             - array with real space velocities 
+!>    f             - array with real space forces
+!>    mass_beads    - masses of the beads for harmonic forces (harmonic mass)
+!>    mass_fict     - fictious mass of the beads for dynamics (kinetic mass)
+!>    ux            - array with transformed space coordinates
+!>    uv            - array with transformed velocities
+!>    uv_t          - array with temporary transformed velocities
+!>    uv_new        - array with new transformed velocities
+!>    uf            - array with transformed accelerations (QS part)
+!>    uf_h          - array with harmonic part transformed forces
+!>                    (sometimes with uf added)
+!>    tx            - nose hoover chain positions
+!>    tv            - nose hoover chain velocities 
+!>    tv_t          - nose hoover chain velocities (temporary)
+!>    tv_old        - nose hoover chain velocities (older)
+!>    tv_new        - nose hoover chain velocities (newer)
+!>    tf            - nose hoover chain forces (?)
+!>    Q             - nose hoover chain masses
+!> \par History
+!>      Added some comments - hforbert
+!>      Added normal mode transformation - hforbert
+!> \author fawzi
+! *****************************************************************************
   TYPE pint_env_type
      INTEGER :: ref_count, id_nr, p,nnos,nrespa, iter,ndim, transform
      REAL(kind=dp) :: v_tol,kT,beta,dt,&
@@ -176,108 +148,62 @@ MODULE pint_types
      REAL(kind=dp), DIMENSION(:,:,:), POINTER :: tx,tv,tv_t,tv_old,tv_new,tf
      REAL(kind=dp), DIMENSION(:), POINTER :: Q ! dim p, make it (p,ndim)?
   END TYPE pint_env_type
-  !!***
-  !****************************************************************************
 
-  !!****s* pint_types/staging_env_type *
-  !!
-  !!   NAME
-  !!     staging_env_type
-  !!
-  !!   FUNCTION
-  !!     data to perform the staging transformation
-  !!
-  !!   NOTES
-  !!
-  !!   ref_count     - reference count of this data structure
-  !!   id_nr         - identification number of this data structure
-  !!   nseg
-  !!   j
-  !!   p
-  !!   w_p
-  !!   w_j
-  !!   Q_stage
-  !!   Q_end
-  !!
-  !!   ATTRIBUTES
-  !!     -
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief data to perform the staging transformation
+!> \note
+!>    ref_count     - reference count of this data structure
+!>    id_nr         - identification number of this data structure
+!>    nseg
+!>    j
+!>    p
+!>    w_p
+!>    w_j
+!>    Q_stage
+!>    Q_end
+!> \author fawzi
+! *****************************************************************************
   TYPE staging_env_type
      INTEGER :: id_nr,ref_count,nseg,j,p
      REAL(kind=dp) w_p,w_j,Q_stage,Q_end
   END TYPE staging_env_type
-  !!***
-  !****************************************************************************
 
-  !!****s* pint_types/normalmode_env_type *
-  !!
-  !!   NAME
-  !!     normalmode_env_type
-  !!
-  !!   FUNCTION
-  !!     data to perform the normalmode transformation
-  !!
-  !!   NOTES
-  !!
-  !!   ref_count     - reference count of this data structure
-  !!   id_nr         - identification number of this data structure
-  !!   p             - number of beads
-  !!   Q_bead        - thermostat mass for a non-centroid bead
-  !!   Q_centroid    - thermostat mass for a centroid degree of freedom
-  !!   modefactor    - mass scale factor for non-centroid degrees of freedom
-  !!   harm          - factor for harmonic potential ( w_p^2/modefactor )
-  !!   x2u           - transformation matrix real coord to normal mode space
-  !!   u2x           - transformation matrix normal mode coord to real space
-  !!
-  !!   This could be done via FFT calls as well, but for now...
-  !!
-  !!   ATTRIBUTES
-  !!     -
-  !!
-  !!   AUTHOR
-  !!     hforbert
-  !!
-  !!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief data to perform the normalmode transformation
+!> \note
+!>    ref_count     - reference count of this data structure
+!>    id_nr         - identification number of this data structure
+!>    p             - number of beads
+!>    Q_bead        - thermostat mass for a non-centroid bead
+!>    Q_centroid    - thermostat mass for a centroid degree of freedom
+!>    modefactor    - mass scale factor for non-centroid degrees of freedom
+!>    harm          - factor for harmonic potential ( w_p^2/modefactor )
+!>    x2u           - transformation matrix real coord to normal mode space
+!>    u2x           - transformation matrix normal mode coord to real space
+!> 
+!>    This could be done via FFT calls as well, but for now...
+!> \author hforbert
+! *****************************************************************************
   TYPE normalmode_env_type
      INTEGER :: id_nr,ref_count,p
      REAL(kind=dp) :: Q_bead, Q_centroid, modefactor, harm
      REAL(kind=dp), DIMENSION(:,:), POINTER :: x2u, u2x
   END TYPE normalmode_env_type
-  !!***
-  !****************************************************************************
 
 CONTAINS
 
-!!****f* pint_types/pint_env_create *
-!!
-!!   NAME
-!!     pint_env_create
-!!
-!!   FUNCTION
-!!     creates a path integral environment
-!!
-!!   NOTES
-!!     might return an unassociated pointer in parallel on the processors
-!!     that are not needed
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     Fixed some bugs - hforbert
-!!     Added normal mode transformation - hforbert
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a path integral environment
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      might return an unassociated pointer in parallel on the processors
+!>      that are not needed
+!> \par History
+!>      Fixed some bugs - hforbert
+!>      Added normal mode transformation - hforbert
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE pint_env_create(pint_env,input,para_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(section_vals_type), POINTER         :: input
@@ -466,28 +392,14 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE pint_env_create
-!***************************************************************************
 
-!!****f* pint_types/pint_retain [1.0] *
-!!
-!!   NAME
-!!     pint_retain
-!!
-!!   FUNCTION
-!!     retains a path integral environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pint_env: the pint_env to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains a path integral environment
+!> \param pint_env the pint_env to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE pint_retain(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -505,31 +417,16 @@ SUBROUTINE pint_retain(pint_env,error)
      pint_env%ref_count=pint_env%ref_count+1
   END IF
 END SUBROUTINE pint_retain
-!***************************************************************************
 
-!!****f* pint_types/pint_release [1.0] *
-!!
-!!   NAME
-!!     pint_release
-!!
-!!   FUNCTION
-!!     releases a path integral environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pint_env: the pint_env to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     Added normal mode transformation - hforbert
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases a path integral environment
+!> \param pint_env the pint_env to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      Added normal mode transformation - hforbert
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE pint_release(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -606,28 +503,14 @@ SUBROUTINE pint_release(pint_env,error)
   END IF
   NULLIFY(pint_env)
 END SUBROUTINE pint_release
-!***************************************************************************
 
-!!****f* pint_types/staging_retain [1.0] *
-!!
-!!   NAME
-!!     staging_retain
-!!
-!!   FUNCTION
-!!     retains a staging_env
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - staging_env: the staging_env to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains a staging_env
+!> \param staging_env the staging_env to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE staging_retain(staging_env,error)
     TYPE(staging_env_type), POINTER          :: staging_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -645,28 +528,14 @@ SUBROUTINE staging_retain(staging_env,error)
      staging_env%ref_count=staging_env%ref_count+1
   END IF
 END SUBROUTINE staging_retain
-!***************************************************************************
 
-!!****f* pint_types/staging_release [1.0] *
-!!
-!!   NAME
-!!     staging_release
-!!
-!!   FUNCTION
-!!     releases the staging environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - staging_env: the staging_env to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the staging environment
+!> \param staging_env the staging_env to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE staging_release(staging_env,error)
     TYPE(staging_env_type), POINTER          :: staging_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -689,36 +558,21 @@ SUBROUTINE staging_release(staging_env,error)
   END IF
   NULLIFY(staging_env)
 END SUBROUTINE staging_release
-!***************************************************************************
 
-!!****f* pint_types/staging_init_masses [1.0] *
-!!
-!!   NAME
-!!     staging_init_masses
-!!
-!!   FUNCTION
-!!     initializes the masses and fictitious masses compatibly with the
-!!     staging information
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - staging_env: the definition of the staging transformation
-!!     - masses: *input* the masses of the particles
-!!     - mass_beads: masses of the beads
-!!     - mass_fict: the fictitious masses
-!!     - Q: masses of the nose thermostats
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief initializes the masses and fictitious masses compatibly with the
+!>      staging information
+!> \param staging_env the definition of the staging transformation
+!> \param masses *input* the masses of the particles
+!> \param mass_beads masses of the beads
+!> \param mass_fict the fictitious masses
+!> \param Q masses of the nose thermostats
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE staging_init_masses(staging_env,mass,mass_beads,mass_fict,&
      Q,error)
     TYPE(staging_env_type), POINTER          :: staging_env
@@ -777,27 +631,13 @@ SUBROUTINE staging_init_masses(staging_env,mass,mass_beads,mass_fict,&
      END IF
   END IF
 END SUBROUTINE staging_init_masses
-!***************************************************************************
 
-!!****f* pint_types/staging_env_create *
-!!
-!!   NAME
-!!     staging_env_create
-!!
-!!   FUNCTION
-!!     creates the data needed for a staging transformation
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the data needed for a staging transformation
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE staging_env_create(staging_env,staging_section,p,ndim,kT,error)
     TYPE(staging_env_type), POINTER          :: staging_env
     TYPE(section_vals_type), POINTER         :: staging_section
@@ -838,28 +678,14 @@ SUBROUTINE staging_env_create(staging_env,staging_section,p,ndim,kT,error)
      END IF
   END IF
 END SUBROUTINE staging_env_create
-!***************************************************************************
 
-!!****f* pint_types/normalmode_retain [1.0] *
-!!
-!!   NAME
-!!     normalmode_retain
-!!
-!!   FUNCTION
-!!     retains a normalmode_env
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - normalmode_env: the normalmode_env to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Harald Forbert
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains a normalmode_env
+!> \param normalmode_env the normalmode_env to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Harald Forbert
+! *****************************************************************************
 SUBROUTINE normalmode_retain(normalmode_env,error)
 
     TYPE(normalmode_env_type), POINTER       :: normalmode_env
@@ -879,28 +705,14 @@ SUBROUTINE normalmode_retain(normalmode_env,error)
    END IF
 
 END SUBROUTINE normalmode_retain
-!***************************************************************************
 
-!!****f* pint_types/normalmode_release [1.0] *
-!!
-!!   NAME
-!!     normalmode_release
-!!
-!!   FUNCTION
-!!     releases the normalmode environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - normalmode_env: the normalmode_env to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Harald Forbert
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the normalmode environment
+!> \param normalmode_env the normalmode_env to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Harald Forbert
+! *****************************************************************************
 SUBROUTINE normalmode_release(normalmode_env,error)
 
     TYPE(normalmode_env_type), POINTER       :: normalmode_env
@@ -929,33 +741,19 @@ SUBROUTINE normalmode_release(normalmode_env,error)
    NULLIFY(normalmode_env)
 
 END SUBROUTINE normalmode_release
-!***************************************************************************
 
-!!****f* pint_types/normalmode_init_masses [1.0] *
-!!
-!!   NAME
-!!     normalmode_init_masses
-!!
-!!   FUNCTION
-!!     initializes the masses and fictitious masses compatible with the
-!!     normal mode information
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - normalmode_env: the definition of the normal mode transformation
-!!     - masses: *input* the masses of the particles
-!!     - mass_beads: masses of the beads
-!!     - mass_fict: the fictitious masses
-!!     - Q: masses of the nose thermostats
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Harald Forbert
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief initializes the masses and fictitious masses compatible with the
+!>      normal mode information
+!> \param normalmode_env the definition of the normal mode transformation
+!> \param masses *input* the masses of the particles
+!> \param mass_beads masses of the beads
+!> \param mass_fict the fictitious masses
+!> \param Q masses of the nose thermostats
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Harald Forbert
+! *****************************************************************************
 SUBROUTINE normalmode_init_masses(normalmode_env,mass,mass_beads,mass_fict,&
      Q,error)
 
@@ -1000,27 +798,13 @@ SUBROUTINE normalmode_init_masses(normalmode_env,mass,mass_beads,mass_fict,&
    END IF
 
 END SUBROUTINE normalmode_init_masses
-!***************************************************************************
 
-!!****f* pint_types/normalmode_env_create *
-!!
-!!   NAME
-!!     normalmode_env_create
-!!
-!!   FUNCTION
-!!     creates the data needed for a normal mode transformation
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Harald Forbert
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the data needed for a normal mode transformation
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Harald Forbert
+! *****************************************************************************
 SUBROUTINE normalmode_env_create(normalmode_env,normalmode_section,p,kT,error)
     TYPE(normalmode_env_type), POINTER       :: normalmode_env
     TYPE(section_vals_type), POINTER         :: normalmode_section
@@ -1096,34 +880,19 @@ SUBROUTINE normalmode_env_create(normalmode_env,normalmode_section,p,kT,error)
      END DO
   END IF
 END SUBROUTINE normalmode_env_create
-!***************************************************************************
 
-!!****f* pint_types/pint_x2u *
-!!
-!!   NAME
-!!     pint_x2u
-!!
-!!   FUNCTION
-!!     Transforms from the x into the u variables
-!!     (at the moment a staging transformation for the positions)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pint_env: the path integral environment
-!!     - ux: will contain the u variable (defaults to pint_env%ux)
-!!     - x: the positions to transform (defaults to pint_env%x)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     Added normal mode transformation by hforbert
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Transforms from the x into the u variables
+!>      (at the moment a staging transformation for the positions)
+!> \param pint_env the path integral environment
+!> \param ux will contain the u variable (defaults to pint_env%ux)
+!> \param x the positions to transform (defaults to pint_env%x)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      Added normal mode transformation by hforbert
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pint_x2u(pint_env,ux,x,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     REAL(kind=dp), DIMENSION(:, :), &
@@ -1157,31 +926,17 @@ SUBROUTINE pint_x2u(pint_env,ux,x,error)
      END IF
   END IF
 END SUBROUTINE pint_x2u
-!***************************************************************************
 
-!!****f* pint_types/staging_x2u *
-!!
-!!   NAME
-!!     staging_x2u
-!!
-!!   FUNCTION
-!!     Transforms from the x into the u variables using a staging
-!!     transformation for the positions
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - staging_env: the environment for the staging transformation
-!!     - ux: will contain the u variable
-!!     - x: the positions to transform
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Transforms from the x into the u variables using a staging
+!>      transformation for the positions
+!> \param staging_env the environment for the staging transformation
+!> \param ux will contain the u variable
+!> \param x the positions to transform
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE staging_x2u(staging_env,ux,x,error)
     TYPE(staging_env_type), POINTER          :: staging_env
     REAL(kind=dp), DIMENSION(:, :), &
@@ -1212,31 +967,17 @@ SUBROUTINE staging_x2u(staging_env,ux,x,error)
      END DO
   END IF
 END SUBROUTINE staging_x2u
-!***************************************************************************
 
-!!****f* pint_types/normalmode_x2u *
-!!
-!!   NAME
-!!     normalmode_x2u
-!!
-!!   FUNCTION
-!!     Transforms from the x into the u variables using a normal mode
-!!     transformation for the positions
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - normalmode_env: the environment for the normal mode transformation
-!!     - ux: will contain the u variable
-!!     - x: the positions to transform
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Harald Forbert
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Transforms from the x into the u variables using a normal mode
+!>      transformation for the positions
+!> \param normalmode_env the environment for the normal mode transformation
+!> \param ux will contain the u variable
+!> \param x the positions to transform
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Harald Forbert
+! *****************************************************************************
 SUBROUTINE normalmode_x2u(normalmode_env,ux,x,error)
     TYPE(normalmode_env_type), POINTER       :: normalmode_env
     REAL(kind=dp), DIMENSION(:, :), &
@@ -1260,33 +1001,18 @@ SUBROUTINE normalmode_x2u(normalmode_env,ux,x,error)
         0.0_dp,ux,SIZE(ux,1))
   END IF
 END SUBROUTINE normalmode_x2u
-!***************************************************************************
 
-!!****f* pint_types/pint_u2x *
-!!
-!!   NAME
-!!     pint_u2x
-!!
-!!   FUNCTION
-!!     transform from the u variable to the x (inverse of x2u)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pint_env: path integral environment
-!!     - ux: the u variable (positions to be backtransformed)
-!!     - x: will contain the positions
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     Added normal mode transformation by hforbert
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief transform from the u variable to the x (inverse of x2u)
+!> \param pint_env path integral environment
+!> \param ux the u variable (positions to be backtransformed)
+!> \param x will contain the positions
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      Added normal mode transformation by hforbert
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pint_u2x(pint_env,ux,x,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     REAL(kind=dp), DIMENSION(:, :), &
@@ -1320,31 +1046,17 @@ SUBROUTINE pint_u2x(pint_env,ux,x,error)
      END IF
   END IF
 END SUBROUTINE pint_u2x
-!***************************************************************************
 
-!!****f* pint_types/staging_u2x *
-!!
-!!   NAME
-!!     staging_u2x
-!!
-!!   FUNCTION
-!!     transform from the u variable to the x (back staging transformation
-!!     for the positions)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - staging_env: the environment for the staging transformation
-!!     - ux: the u variable (positions to be backtransformed)
-!!     - x: will contain the positions
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief transform from the u variable to the x (back staging transformation
+!>      for the positions)
+!> \param staging_env the environment for the staging transformation
+!> \param ux the u variable (positions to be backtransformed)
+!> \param x will contain the positions
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE staging_u2x(staging_env,ux,x,error)
     TYPE(staging_env_type), POINTER          :: staging_env
     REAL(kind=dp), DIMENSION(:, :), &
@@ -1393,31 +1105,17 @@ SUBROUTINE staging_u2x(staging_env,ux,x,error)
      END DO
   END IF
 END SUBROUTINE staging_u2x
-!***************************************************************************
 
-!!****f* pint_types/normalmode_u2x *
-!!
-!!   NAME
-!!     normalmode_u2x
-!!
-!!   FUNCTION
-!!     transform from the u variable to the x (back normal mode transformation
-!!     for the positions)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - normalmode_env: the environment for the normal mode transformation
-!!     - ux: the u variable (positions to be backtransformed)
-!!     - x: will contain the positions
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Harald Forbert
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief transform from the u variable to the x (back normal mode transformation
+!>      for the positions)
+!> \param normalmode_env the environment for the normal mode transformation
+!> \param ux the u variable (positions to be backtransformed)
+!> \param x will contain the positions
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Harald Forbert
+! *****************************************************************************
 SUBROUTINE normalmode_u2x(normalmode_env,ux,x,error)
     TYPE(normalmode_env_type), POINTER       :: normalmode_env
     REAL(kind=dp), DIMENSION(:, :), &
@@ -1441,36 +1139,21 @@ SUBROUTINE normalmode_u2x(normalmode_env,ux,x,error)
         0.0_dp,x,SIZE(x,1))
   END IF
 END SUBROUTINE normalmode_u2x
-!***************************************************************************
 
-!!****f* pint_types/pint_f2uf *
-!!
-!!   NAME
-!!     pint_f2uf
-!!
-!!   FUNCTION
-!!     transformation x to u for the forces
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pint_env: the path integral environment
-!!     - uf: will contain the accelerations for the transformed variables
-!!       afterwards
-!!     - f: the forces to transform
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     Added normal mode transformation by hforbert
-!!     Divide forces by the number of beads, since the replication
-!!       environment (should) give raw forces. hforbert
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief transformation x to u for the forces
+!> \param pint_env the path integral environment
+!> \param uf will contain the accelerations for the transformed variables
+!>        afterwards
+!> \param f the forces to transform
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      Added normal mode transformation by hforbert
+!>      Divide forces by the number of beads, since the replication
+!>        environment (should) give raw forces. hforbert
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pint_f2uf(pint_env,uf,f,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     REAL(kind=dp), DIMENSION(:, :), &
@@ -1505,30 +1188,16 @@ SUBROUTINE pint_f2uf(pint_env,uf,f,error)
      my_uf=my_uf/pint_env%mass_fict/REAL(pint_env%p,dp)
   END IF
 END SUBROUTINE pint_f2uf
-!***************************************************************************
 
-!!****f* pint_types/staging_f2uf *
-!!
-!!   NAME
-!!     staging_f2uf
-!!
-!!   FUNCTION
-!!     staging transformation for the forces
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - staging_env: the environment for the staging transformation
-!!     - uf: will contain the forces after for the transformed variable
-!!     - f: the forces to transform
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief staging transformation for the forces
+!> \param staging_env the environment for the staging transformation
+!> \param uf will contain the forces after for the transformed variable
+!> \param f the forces to transform
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE staging_f2uf(staging_env,uf,f,error)
     TYPE(staging_env_type), POINTER          :: staging_env
     REAL(kind=dp), DIMENSION(:, :), &
@@ -1582,30 +1251,16 @@ SUBROUTINE staging_f2uf(staging_env,uf,f,error)
      END DO
   END IF
 END SUBROUTINE staging_f2uf
-!***************************************************************************
 
-!!****f* pint_types/normalmode_f2uf *
-!!
-!!   NAME
-!!     normalmode_f2uf
-!!
-!!   FUNCTION
-!!     normalmode transformation for the forces
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - normalmode_env: the environment for the normal mode transformation
-!!     - uf: will contain the forces for the transformed variables afterwards
-!!     - f: the forces to transform
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Harald Forbert
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief normalmode transformation for the forces
+!> \param normalmode_env the environment for the normal mode transformation
+!> \param uf will contain the forces for the transformed variables afterwards
+!> \param f the forces to transform
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Harald Forbert
+! *****************************************************************************
 SUBROUTINE normalmode_f2uf(normalmode_env,uf,f,error)
     TYPE(normalmode_env_type), POINTER       :: normalmode_env
     REAL(kind=dp), DIMENSION(:, :), &
@@ -1629,31 +1284,17 @@ SUBROUTINE normalmode_f2uf(normalmode_env,uf,f,error)
         0.0_dp,uf,SIZE(uf,1))
   END IF
 END SUBROUTINE normalmode_f2uf
-!***************************************************************************
 
-!!****f* pint_types/pint_init_v *
-!!
-!!   NAME
-!!     pint_init_v
-!!
-!!   FUNCTION
-!!     initial velocity
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pint_env: the pint env in which you should initialize the
-!!       velocity
-!!     - kT: the temperature the particles should be initialized to
-!!       (defaults to pint_env%kT)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief initial velocity
+!> \param pint_env the pint env in which you should initialize the
+!>        velocity
+!> \param kT the temperature the particles should be initialized to
+!>        (defaults to pint_env%kT)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pint_init_v(pint_env,kT,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     REAL(kind=dp), INTENT(in), OPTIONAL      :: kT
@@ -1687,32 +1328,17 @@ SUBROUTINE pint_init_v(pint_env,kT,error)
      END DO
   END DO
 END SUBROUTINE pint_init_v
-!***************************************************************************
 
-!!****s* pint_types/pint_calc_uf_h *
-!!
-!!   NAME
-!!     pint_calc_uf_h
-!!
-!!   FUNCTION
-!!     calculates the harmonic force in the u basis
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pint_env: the path integral environment in which the harmonic
-!!       forces should be calculated
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     Added normal mode transformation by hforbert
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates the harmonic force in the u basis
+!> \param pint_env the path integral environment in which the harmonic
+!>        forces should be calculated
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      Added normal mode transformation by hforbert
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pint_calc_uf_h(pint_env,e_h,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     REAL(KIND=dp), INTENT(OUT)               :: e_h
@@ -1748,31 +1374,17 @@ SUBROUTINE pint_calc_uf_h(pint_env,e_h,error)
      pint_env%uf_h=pint_env%uf_h/pint_env%mass_fict
   END IF
 END SUBROUTINE pint_calc_uf_h
-!***************************************************************************
 
-!!****f* pint_types/staging_calc_uf_h *
-!!
-!!   NAME
-!!     staging_calc_uf_h
-!!
-!!   FUNCTION
-!!     calculates the harmonic force in the staging basis
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - staging_env: the staging environment
-!!     - mass_beads: the masses of the beads
-!!     - ux: the positions of the beads in the staging basis
-!!     - uf_h: the harmonic forces (not accelerations)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates the harmonic force in the staging basis
+!> \param staging_env the staging environment
+!> \param mass_beads the masses of the beads
+!> \param ux the positions of the beads in the staging basis
+!> \param uf_h the harmonic forces (not accelerations)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE staging_calc_uf_h(staging_env,mass_beads,ux,uf_h,e_h,error)
     TYPE(staging_env_type), POINTER          :: staging_env
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: mass_beads, ux, uf_h
@@ -1824,31 +1436,17 @@ SUBROUTINE staging_calc_uf_h(staging_env,mass_beads,ux,uf_h,e_h,error)
      END DO
   END IF
 END SUBROUTINE staging_calc_uf_h
-!***************************************************************************
 
-!!****f* pint_types/normalmode_calc_uf_h *
-!!
-!!   NAME
-!!     normalmode_calc_uf_h
-!!
-!!   FUNCTION
-!!     calculates the harmonic force in the normal mode basis
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - normalmode_env: the normal mode environment
-!!     - mass_beads: the masses of the beads
-!!     - ux: the positions of the beads in the staging basis
-!!     - uf_h: the harmonic forces (not accelerations)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Harald Forbert
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates the harmonic force in the normal mode basis
+!> \param normalmode_env the normal mode environment
+!> \param mass_beads the masses of the beads
+!> \param ux the positions of the beads in the staging basis
+!> \param uf_h the harmonic forces (not accelerations)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Harald Forbert
+! *****************************************************************************
 SUBROUTINE normalmode_calc_uf_h(normalmode_env,mass_beads,ux,uf_h,e_h,error)
     TYPE(normalmode_env_type), POINTER       :: normalmode_env
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: mass_beads, ux, uf_h
@@ -1882,33 +1480,19 @@ SUBROUTINE normalmode_calc_uf_h(normalmode_env,mass_beads,ux,uf_h,e_h,error)
      END DO
   END IF
 END SUBROUTINE normalmode_calc_uf_h
-!***************************************************************************
 
-!!****f* pint_types/pint_calc_f *
-!!
-!!   NAME
-!!     pint_calc_f
-!!
-!!   FUNCTION
-!!     calculates the force (and energy) in each bead, returns the sum
-!!     of the potential energy
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pint_env: path integral environment on which you want calculate
-!!       the forces
-!!     - x: positions at which you want to evaluate the forces
-!!     - f: the forces
-!!     - e: potential energy on each bead
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates the force (and energy) in each bead, returns the sum
+!>      of the potential energy
+!> \param pint_env path integral environment on which you want calculate
+!>        the forces
+!> \param x positions at which you want to evaluate the forces
+!> \param f the forces
+!> \param e potential energy on each bead
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pint_calc_f(pint_env,x,f,e,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     REAL(kind=dp), DIMENSION(:, :), &
@@ -1955,32 +1539,17 @@ SUBROUTINE pint_calc_f(pint_env,x,f,e,error)
 !          /REAL(SIZE(pint_env%replicas%f),dp)
   END IF
 END SUBROUTINE pint_calc_f
-!***************************************************************************
 
-!!****f* pint_types/pint_setup *
-!!
-!!   NAME
-!!     pint_setup
-!!
-!!   FUNCTION
-!!     prepares the things (forces) to perform a step of md
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pint_env: path integral env
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!! 
-!!   MODIFICATION HISTORY
-!!     Added nh_energy calculation - hforbert
-!!     Bug fixes for no thermostats - hforbert
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief prepares the things (forces) to perform a step of md
+!> \param pint_env path integral env
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      Added nh_energy calculation - hforbert
+!>      Bug fixes for no thermostats - hforbert
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pint_setup(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1993,7 +1562,6 @@ SUBROUTINE pint_setup(pint_env,error)
     REAL(kind=dp)                            :: e_h
 
   failure=.FALSE.
-
 
   CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -2034,30 +1602,15 @@ SUBROUTINE pint_setup(pint_env,error)
      END IF
   END IF
 END SUBROUTINE pint_setup
-!***************************************************************************
 
-!!****s* pint_types/pint_calc_e_kin_beads_u *
-!!
-!!   NAME
-!!     pint_calc_e_kin_beads_u
-!!
-!!   FUNCTION
-!!     calculate the kinetic energy of the beads (in the u variables)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     Bug fix to give my_uv a default location if not given in call - hforbert
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculate the kinetic energy of the beads (in the u variables)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      Bug fix to give my_uv a default location if not given in call - hforbert
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pint_calc_e_kin_beads_u(pint_env,uv,e_k,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     REAL(kind=dp), DIMENSION(:, :), &
@@ -2092,30 +1645,14 @@ SUBROUTINE pint_calc_e_kin_beads_u(pint_env,uv,e_k,error)
   END IF
   IF (PRESENT(e_k)) e_k=res
 END SUBROUTINE pint_calc_e_kin_beads_u
-!***************************************************************************
 
-!!****f* pint_types/pint_calc_e_vir *
-!!
-!!   NAME
-!!     pint_calc_e_vir
-!!
-!!   FUNCTION
-!!     calculate the virial estimator of the real (quantum) kinetic
-!!     energy
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     hforbert
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculate the virial estimator of the real (quantum) kinetic
+!>      energy
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author hforbert
+! *****************************************************************************
 SUBROUTINE pint_calc_e_vir(pint_env,e_vir,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     REAL(kind=dp), INTENT(out), OPTIONAL     :: e_vir
@@ -2151,29 +1688,15 @@ SUBROUTINE pint_calc_e_vir(pint_env,e_vir,error)
   END IF
   IF (PRESENT(e_vir)) e_vir=res
 END SUBROUTINE pint_calc_e_vir
-!***************************************************************************
 
-!!****f* pint_types/pint_calc_nh_energy *
-!!
-!!   NAME
-!!     pint_calc_nh_energy
-!!
-!!   FUNCTION
-!!     calculates the energy (potential and kinetic) of the Nose-Hoover
-!!     chain thermostats
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pint_env: the path integral environment
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates the energy (potential and kinetic) of the Nose-Hoover
+!>      chain thermostats
+!> \param pint_env the path integral environment
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pint_calc_nh_energy(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2210,31 +1733,16 @@ SUBROUTINE pint_calc_nh_energy(pint_env,error)
      pint_env%e_pot_t=pint_env%kT*epot
   END IF
 END SUBROUTINE pint_calc_nh_energy
-!***************************************************************************
 
-!!****f* pint_types/pint_step *
-!!
-!!   NAME
-!!     pint_step
-!!
-!!   FUNCTION
-!!     does an md step (and nrespa harmonic evaluations)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pint_env: the path integral environment to evolve
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     various bug fixes - hforbert
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief does an md step (and nrespa harmonic evaluations)
+!> \param pint_env the path integral environment to evolve
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      various bug fixes - hforbert
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pint_step(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2360,31 +1868,16 @@ SUBROUTINE pint_step(pint_env,error)
      CALL f_env_rm_defaults(f_env,new_error,ierr)
   END IF
 END SUBROUTINE pint_step
-!***************************************************************************
 
-!!****f* pint_types/pint_write_centroids *
-!!
-!!   NAME
-!!     pint_write_centroids
-!!
-!!   FUNCTION
-!!     writes out the trajectory of the centroids (and their spread)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pint_env: path integral environment
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     various bug fixes - hforbert
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes out the trajectory of the centroids (and their spread)
+!> \param pint_env path integral environment
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      various bug fixes - hforbert
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pint_write_centroids(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2469,31 +1962,16 @@ SUBROUTINE pint_write_centroids(pint_env,error)
      END IF
   END IF
 END SUBROUTINE pint_write_centroids
-!***************************************************************************
 
-!!****f* pint_types/pint_write_ener *
-!!
-!!   NAME
-!!     pint_write_ener
-!!
-!!   FUNCTION
-!!     writes out the ener info of the centroids
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pint_env: path integral environment
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     various bug fixes - hforbert
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes out the ener info of the centroids
+!> \param pint_env path integral environment
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      various bug fixes - hforbert
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pint_write_ener(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2554,33 +2032,18 @@ SUBROUTINE pint_write_ener(pint_env,error)
      END IF
   END IF
 END SUBROUTINE pint_write_ener
-!***************************************************************************
 
-!!****f* pint_types/pint_start [1.0] *
-!!
-!!   NAME
-!!     pint_start
-!!
-!!   FUNCTION
-!!     reads the restart, makes initial initialization to beads,...
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - para_env: parallel environment
-!!     - input: the input to test
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!     actually ASSIGN input pointer [hforbert]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief reads the restart, makes initial initialization to beads,...
+!> \param para_env parallel environment
+!> \param input the input to test
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      11.2003 created [fawzi]
+!>      actually ASSIGN input pointer [hforbert]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE pint_start(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2748,30 +2211,15 @@ SUBROUTINE pint_start(pint_env,error)
 !  CALL pint_write_restart(pint_env,error=error)
 
 END SUBROUTINE pint_start
-!***************************************************************************
 
-!!****f* pint_types/pint_write_restart [1.0] *
-!!
-!!   NAME
-!!     pint_write_restart
-!!
-!!   FUNCTION
-!!     writes a restart file for pint
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes a restart file for pint
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE pint_write_restart(pint_env,force,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     LOGICAL, INTENT(in), OPTIONAL            :: force
@@ -2907,33 +2355,20 @@ SUBROUTINE pint_write_restart(pint_env,force,error)
      END IF 
   END IF
 END SUBROUTINE pint_write_restart
-!***************************************************************************
 
-!!****f* pint_types/pint_do_run [1.0] *
-!!
-!!   NAME
-!!     pint_do_run
-!!
-!!   FUNCTION
-!!     runs the dynamic
-!!
-!!   NOTES
-!!    everything should be read for an md step
-!!
-!!   INPUTS
-!!     - pint_env: the pint env to run
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!     renamed from pint_run to pint_do_run because of conflicting name
-!!        of pint_run in input_constants - hforbert
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief runs the dynamic
+!> \param pint_env the pint env to run
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>     everything should be read for an md step
+!> \par History
+!>      11.2003 created [fawzi]
+!>      renamed from pint_run to pint_do_run because of conflicting name
+!>         of pint_run in input_constants - hforbert
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE pint_do_run(pint_env,error)
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2970,6 +2405,5 @@ SUBROUTINE pint_do_run(pint_env,error)
      CALL pint_write_restart(pint_env,error=error)
   END IF
 END SUBROUTINE pint_do_run
-!***************************************************************************
 
 END MODULE pint_types

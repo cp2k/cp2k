@@ -3,27 +3,14 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
+! *****************************************************************************
 MODULE qmmm_per_elpot
-!!****h* cp2k/qmmm_per_elpot *
-!!
-!!   NAME
-!!    qmmm_per_elpot
-!!
-!!   FUNCTION
-!!     Setting up the potential for QM/MM periodic boundary conditions calculations
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     07.2005 created [tlaino]
-!!
-!!   SOURCE
-!****************************************************************************  
+
+! *****************************************************************************
+!> \brief Setting up the potential for QM/MM periodic boundary conditions calculations
+!> \par History
+!>      07.2005 created [tlaino]
+!> \author Teodoro Laino
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -56,29 +43,16 @@ MODULE qmmm_per_elpot
   PUBLIC :: qmmm_per_potential_init
   
 CONTAINS
-!!****f* qmmm_per_elpot/qmmm_per_potential_init [1.0] *
-!!
-!!   NAME
-!!     qmmm_per_potential_init
-!!
-!!   FUNCTION
-!!     Initialize the QMMM potential stored on vector, 
-!!     according the qmmm_coupl_type
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     09.2004 created [tlaino]
-!!
-!!*** ********************************************************************** 
+
+! *****************************************************************************
+!> \brief Initialize the QMMM potential stored on vector, 
+!>      according the qmmm_coupl_type
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      09.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_per_potential_init(qmmm_coupl_type, per_potentials, potentials,&
     pgfs, qm_cell_small, mm_cell, para_env, compatibility, qmmm_periodic, print_section,&
     eps_mm_rspace, maxchrg, ncp, ncpl, error)
@@ -274,28 +248,14 @@ CONTAINS
 
   END SUBROUTINE qmmm_per_potential_init
 
-!!****f* qmmm_per_elpot/qmmm_per_pot_type_create [1.0] *
-!!
-!!   NAME
-!!     qmmm_per_pot_type_create
-!!
-!!   FUNCTION
-!!     Creates the qmmm_pot_type structure
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     09.2004 created [tlaino]
-!!
-!!*** ********************************************************************** 
+! *****************************************************************************
+!> \brief Creates the qmmm_pot_type structure
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      09.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_per_pot_type_create(Pot, LG, gx, gy, gz, GMax, Kmax, n_rep_real,&
        Fac, mm_atom_index, qm_cell, mm_cell, para_env, qmmm_per_section, print_section,&
        error)
@@ -351,6 +311,4 @@ CONTAINS
   END SUBROUTINE qmmm_per_pot_type_create
 
 END MODULE qmmm_per_elpot
-
-
 

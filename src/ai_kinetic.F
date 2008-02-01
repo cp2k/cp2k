@@ -2,32 +2,19 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/ai_kinetic [1.0] *
-!!
-!!   NAME
-!!     ai_kinetic
-!!
-!!   FUNCTION
-!!     Calculation of the kinetic energy integrals over Cartesian
-!!     Gaussian-type functions.
-!!
-!!     [a|T|b] = [a|-nabla**2/2|b]
-!!
-!!   AUTHOR
-!!     Matthias Krack (31.07.2000)
-!!
-!!   LITERATURE
-!!     S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
-!!
-!!   MODIFICATION HISTORY
-!!     - Derivatives added (10.05.2002,MK)
-!!
-!!   SOURCE
-!******************************************************************************
-
-MODULE ai_kinetic
 
 ! *****************************************************************************
+!> \brief Calculation of the kinetic energy integrals over Cartesian
+!>      Gaussian-type functions.
+!> 
+!>      [a|T|b] = [a|-nabla**2/2|b]
+!> \par Literature
+!>      S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
+!> \par History
+!>      - Derivatives added (10.05.2002,MK)
+!> \author Matthias Krack (31.07.2000)
+! *****************************************************************************
+MODULE ai_kinetic
 
 ! ax,ay,az  : Angular momentum index numbers of orbital a.
 ! bx,by,bz  : Angular momentum index numbers of orbital b.
@@ -42,8 +29,6 @@ MODULE ai_kinetic
 ! sab       : Shell set of overlap integrals.
 ! tab       : Shell set of kinetic energy integrals.
 ! zet{a,b}  : Exponents of the Gaussian functions.
-
-! *****************************************************************************
 
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -61,13 +46,9 @@ MODULE ai_kinetic
 
   PUBLIC :: kinetic
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE kinetic(la_max_set,la_min_set,npgfa,rpgfa,zeta,&
                      lb_max_set,lb_min_set,npgfb,rpgfb,zetb,&
                      rab,dab,sdab,tab,da_max,return_derivatives,&
@@ -77,8 +58,6 @@ CONTAINS
 !            over Cartesian Gaussian-type functions.
 
 !   History: - Creation (22.09.2000, Matthias Krack)
-
-!   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: la_max_set, la_min_set, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa, zeta
@@ -716,7 +695,5 @@ CONTAINS
     END DO
 
   END SUBROUTINE kinetic
-
-! *****************************************************************************
 
 END MODULE ai_kinetic

@@ -2,26 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/pair_potential [1.0] *
-!!
-!!   NAME
-!!     pair_potential
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     September 2005 - Introduced the Born-Mayer-Huggins-Fumi-Tosi  Potential (BMHTF)
-!!     2006 - Major rewriting of the routines.. Linear scaling setup of splines
-!!     2007 - Teodoro Laino - University of Zurich - Multiple potential 
-!!            Major rewriting nr.2
-!!
-!!   SOURCE
-!!
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      September 2005 - Introduced the Born-Mayer-Huggins-Fumi-Tosi  Potential (BMHTF)
+!>      2006 - Major rewriting of the routines.. Linear scaling setup of splines
+!>      2007 - Teodoro Laino - University of Zurich - Multiple potential 
+!>             Major rewriting nr.2
+!> \author CJM
+! *****************************************************************************
 MODULE pair_potential
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -74,27 +63,13 @@ MODULE pair_potential
   PUBLIC :: spline_nonbond_control,&
             get_nonbond_storage
 
-
 CONTAINS
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential/init_genpot [1.0] *
-  !!
-  !!   NAME
-  !!     init_genpot
-  !!
-  !!   FUNCTION
-  !!     Initialize genpot
-  !!
-  !!   AUTHOR
-  !!
-  !!
-  !!   MODIFICATION HISTORY
-  !!     Teo 2007.06 - Zurich University
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Initialize genpot
+!> \par History
+!>      Teo 2007.06 - Zurich University
+! *****************************************************************************
   SUBROUTINE init_genpot(potparm, ntype)
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     INTEGER, INTENT(IN)                      :: ntype
@@ -128,24 +103,11 @@ CONTAINS
     END DO
   END SUBROUTINE init_genpot
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential/spline_nonbond_control [1.0] *
-  !!
-  !!   NAME
-  !!     spline_nonbond_control
-  !!
-  !!   FUNCTION
-  !!     creates the splines for the potentials
-  !!
-  !!   AUTHOR
-  !!
-  !!
-  !!   MODIFICATION HISTORY
-  !!     Teo 2006.05 : Improved speed and accuracy. Linear scaling of the setup
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief creates the splines for the potentials
+!> \par History
+!>      Teo 2006.05 : Improved speed and accuracy. Linear scaling of the setup
+! *****************************************************************************
   SUBROUTINE spline_nonbond_control ( spline_env, potparm, atomic_kind_set, &
        ewald_env, ei_scale14, vdw_scale14, eps_spline, max_energy, rlow_nb,&
        emax_spline, iw, iw2, iw3, do_14, scale_cutoff, spline_c_coul, &
@@ -347,23 +309,12 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE spline_nonbond_control
 
-  !******************************************************************************
-  !!****s* pair_potential/get_atom_info [1.0] *
-  !!
-  !!   NAME
-  !!     get_atom_info
-  !! 
-  !!   FUNCTION
-  !!     Gather atom info for the evaluation of the splines
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [tlaino] 2007.06
-  !!
-  !!   MODIFICATION HISTORY
-  !!     Splitting in order to make some season cleaning..
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Gather atom info for the evaluation of the splines
+!> \par History
+!>      Splitting in order to make some season cleaning..
+!> \author Teodoro Laino [tlaino] 2007.06
+! *****************************************************************************
   SUBROUTINE get_atom_info(atomic_kind, my_do_14, qi, qci, qsi, do_shell_model, error)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     LOGICAL, INTENT(IN)                      :: my_do_14
@@ -393,24 +344,13 @@ CONTAINS
     IF (PRESENT(do_shell_model)) do_shell_model = my_do_shell_model
   END SUBROUTINE get_atom_info
 
-  !******************************************************************************
-  !!****s* pair_potential/get_spline_cutoff [1.0] *
-  !!
-  !!   NAME
-  !!     get_spline_cutoff
-  !! 
-  !!   FUNCTION
-  !!     Finds the cutoff for the generation of the spline
-  !!     In a two pass approach, first with low resolution, refine in a second iteration
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [tlaino] 2007.06
-  !!
-  !!   MODIFICATION HISTORY
-  !!     Splitting in order to make some season cleaning..
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Finds the cutoff for the generation of the spline
+!>      In a two pass approach, first with low resolution, refine in a second iteration
+!> \par History
+!>      Splitting in order to make some season cleaning..
+!> \author Teodoro Laino [tlaino] 2007.06
+! *****************************************************************************
   SUBROUTINE  get_spline_cutoff(hicut, locut, found_locut, do_shell_model, pot,&
        my_vdw_scale14, my_ei_scale14, my_do_14, ewald_type, do_multipoles, alpha,&
        eps0, e_cutoff_coul, ec_cc, ec_sc, ec_cs, energy_cutoff, emax_spline)
@@ -484,23 +424,12 @@ CONTAINS
 
   END SUBROUTINE get_spline_cutoff
 
-  !******************************************************************************
-  !!****s* pair_potential/generate_spline_low [1.0] *
-  !!
-  !!   NAME
-  !!     generate_spline_low
-  !! 
-  !!   FUNCTION
-  !!     Real Generation of spline.. 
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [tlaino] 2007.06
-  !!
-  !!   MODIFICATION HISTORY
-  !!     Splitting in order to make some season cleaning..
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Real Generation of spline.. 
+!> \par History
+!>      Splitting in order to make some season cleaning..
+!> \author Teodoro Laino [tlaino] 2007.06
+! *****************************************************************************
   SUBROUTINE generate_spline_low(spl_p, npoints, locut, hicut, my_vdw_scale14,&
        my_ei_scale14, my_do_14, ewald_type, do_multipoles, alpha, eps0, e_fac,&
        scale_cutoff, eps_spline, iw, iw2, i, j, n, ncount, max_energy, e_cutoff_coul,&
@@ -705,23 +634,10 @@ CPSourceFileRef,&
     CALL spline_factor_release(spl_f, error)
   END SUBROUTINE generate_spline_low
 
-  !******************************************************************************
-  !!****s* pair_potential/get_nonbond_storage [1.0] *
-  !!
-  !!   NAME
-  !!     get_nonbond_storage
-  !! 
-  !!   FUNCTION
-  !!     Prescreening of the effective bonds evaluations. linear scaling algorithm
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [tlaino] 2006.05
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Prescreening of the effective bonds evaluations. linear scaling algorithm
+!> \author Teodoro Laino [tlaino] 2006.05
+! *****************************************************************************
   SUBROUTINE get_nonbond_storage ( spline_env, potparm, atomic_kind_set, &
        spline_c_coul_env, spline_cs_coul_env, spline_sc_coul_env,&
        ei_scale14, vdw_scale14, do_14, scale_cutoff, ewald_env, error)
@@ -1129,24 +1045,11 @@ CPSourceFileRef,&
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE get_nonbond_storage
 
-  !!****
-  !!****s* pair_potential/set_potparm_index [1.0] *
-  !!
-  !!   NAME
-  !!     set_potparm_index
-  !!
-  !!   FUNCTION
-  !!     Trivial for non LJ potential.. gives back in the case of LJ
-  !!     the potparm with the smallest sigma..
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [tlaino] 2007.06
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Trivial for non LJ potential.. gives back in the case of LJ
+!>      the potparm with the smallest sigma..
+!> \author Teodoro Laino [tlaino] 2007.06
+! *****************************************************************************
   SUBROUTINE set_potparm_index(potparm, my_index, pot_target, ntype, tmpij_out,&
        atomic_kind_set, my_do_14, scale_cutoff, ewald_env, my_ei_scale14, my_vdw_scale14,&
        error)
@@ -1408,24 +1311,10 @@ CPSourceFileRef,&
     CALL finalizef()
   END SUBROUTINE set_potparm_index
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential/get_indexes [1.0] *
-  !!
-  !!   NAME
-  !!     get_indexes
-  !!
-  !!   FUNCTION
-  !!     Gives back the indices of the matrix w.r.t. the collective array index
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [tlaino] 2006.05
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Gives back the indices of the matrix w.r.t. the collective array index
+!> \author Teodoro Laino [tlaino] 2006.05
+! *****************************************************************************
   SUBROUTINE get_indexes(Inind, ndim, ij)
     INTEGER, INTENT(IN)                      :: Inind, ndim
     INTEGER, DIMENSION(2), INTENT(OUT)       :: ij

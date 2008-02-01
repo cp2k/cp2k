@@ -2,27 +2,16 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/scf_control_types [1.0] *
-!!
-!!   NAME
-!!     scf_control_types
-!!
-!!   FUNCTION
-!!     parameters that control an scf iteration
-!!
-!!   NOTES
-!!      not in cp_control_types, to separate operator related parameters from
-!!      method related parameters (as suggested by Matthias)
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     09.2002 created [fawzi]
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief parameters that control an scf iteration
+!> \note
+!>       not in cp_control_types, to separate operator related parameters from
+!>       method related parameters (as suggested by Matthias)
+!> \par History
+!>      09.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE scf_control_types
 
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -73,47 +62,30 @@ MODULE scf_control_types
             scf_c_retain,&
             scf_c_write_parameters
 
-!!*****************************************************************************
-!!****s* scf_control/scf_control_type [1.0] *
-!!
-!!   NAME
-!!     scf_control_type
-!!
-!!   FUNCTION
-!!     contains the parameters needed by a scf run
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - density_guess: how to choose the initial density
-!!       (CORE,RANDOM,RESTART,ATOMIC,FROZEN)
-!!     - eps_eigval: wanted error on the eigenvalues
-!!     - eps_scf: whanted error on the whole scf
-!!     - level_shift: amount of level shift
-!!     - p_mix: how to mix the new and old densities in non diss iterations
-!!     - smear: amount of smeating applied at the orbitals
-!!     - work_syevx: real to control the amount of temporary memory needed
-!!       by lapack syevx
-!!     - eps_lumos: error on the lumos calculated at the end of the scf
-!!     - max_iter_lumus: maxumum number of iterations used to calculate
-!!       the lumos at the end of the scf
-!!     - max_scf: max scf iterations
-!!     - nrow_block: number of rows of a full matrix block
-!!     - ncol_block: number of of columns in a block of a full matrix
-!!     - id_nr: unique number to identify an scf control
-!!     - ref_count: reference count (see cp2k/doc/ReferenceCounting.html)
-!!     - added_mos: additional number of MOs that might be used in the SCF
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     09.2002 created [fawzi]
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief contains the parameters needed by a scf run
+!> \param density_guess how to choose the initial density
+!>        (CORE,RANDOM,RESTART,ATOMIC,FROZEN)
+!> \param eps_eigval wanted error on the eigenvalues
+!> \param eps_scf whanted error on the whole scf
+!> \param level_shift amount of level shift
+!> \param p_mix how to mix the new and old densities in non diss iterations
+!> \param smear amount of smeating applied at the orbitals
+!> \param work_syevx real to control the amount of temporary memory needed
+!>        by lapack syevx
+!> \param eps_lumos error on the lumos calculated at the end of the scf
+!> \param max_iter_lumus maxumum number of iterations used to calculate
+!>        the lumos at the end of the scf
+!> \param max_scf max scf iterations
+!> \param nrow_block number of rows of a full matrix block
+!> \param ncol_block number of of columns in a block of a full matrix
+!> \param id_nr unique number to identify an scf control
+!> \param ref_count reference count (see cp2k/doc/ReferenceCounting.html)
+!> \param added_mos additional number of MOs that might be used in the SCF
+!> \par History
+!>      09.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE outer_scf_control_type
     LOGICAL               :: have_scf
     INTEGER               :: max_scf
@@ -125,6 +97,7 @@ MODULE scf_control_types
     INTEGER               :: bisect_trust_count
   END TYPE outer_scf_control_type
 
+! *****************************************************************************
   TYPE scf_control_type
     TYPE(outer_scf_control_type) :: outer_scf
     INTEGER               :: density_guess
@@ -142,34 +115,19 @@ MODULE scf_control_types
     REAL(KIND=dp)                         :: roks_f
     REAL(KIND=dp), DIMENSION(0:2,0:2,1:2) :: roks_parameter
    END TYPE scf_control_type
-!!***
-!*****************************************************************************
 
 CONTAINS
 
-!******************************************************************************
-!!****f* scf_control/scf_c_create [1.0] *
-!!
-!!   NAME
-!!     scf_c_create
-!!
-!!   FUNCTION
-!!     allocates and initializes an scf control object with the default values
-!!
-!!   INPUTS
-!!     - scf_control: the object to initialize
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     09.2002 created [fawzi]
-!!     - Default ROKS parameters added (05.04.06,MK)
-!!
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief allocates and initializes an scf control object with the default values
+!> \param scf_control the object to initialize
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2002 created [fawzi]
+!>      - Default ROKS parameters added (05.04.06,MK)
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE scf_c_create(scf_control,error)
 
     TYPE(scf_control_type), POINTER          :: scf_control
@@ -269,28 +227,15 @@ CONTAINS
 
   END SUBROUTINE scf_c_create
 
-!******************************************************************************
-!!****f* scf_control/scf_c_retain [1.0] *
-!!
-!!   NAME
-!!     scf_c_retain
-!!
-!!   FUNCTION
-!!     retains the given scf_control (see cp2k/doc/ReferenceCounting.html)
-!!
-!!   INPUTS
-!!     - scf_control: the object to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     09.2002 created [fawzi]
-!!
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief retains the given scf_control (see cp2k/doc/ReferenceCounting.html)
+!> \param scf_control the object to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE scf_c_retain(scf_control,error)
 
     TYPE(scf_control_type), POINTER          :: scf_control
@@ -314,31 +259,17 @@ CONTAINS
 
   END SUBROUTINE scf_c_retain
 
-!******************************************************************************
-!!****f* scf_control/scf_c_release [1.0] *
-!!
-!!   NAME
-!!     scf_c_release
-!!
-!!   FUNCTION
-!!     releases the given scf_control (see cp2k/doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     at the moment does nothing
-!!
-!!   INPUTS
-!!     - scf_control: the object to free
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     09.2002 created [fawzi]
-!!
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief releases the given scf_control (see cp2k/doc/ReferenceCounting.html)
+!> \param scf_control the object to free
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      at the moment does nothing
+!> \par History
+!>      09.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE scf_c_release(scf_control,error)
 
     TYPE(scf_control_type), POINTER          :: scf_control
@@ -367,28 +298,15 @@ CONTAINS
 
   END SUBROUTINE scf_c_release
 
-!******************************************************************************
-!!****f* scf_control/scf_c_read_parameters [1.0] *
-!!
-!!   NAME
-!!     scf_c_read_parameters
-!!
-!!   FUNCTION
-!!     reads the parameters of the scf section into the given scf_control
-!!
-!!   INPUTS
-!!     - scf_control: the object that wil contain the values read
-!!     - error: controls log and error handling
-!!
-!!   AUTHOR
-!!     Matthias Krack
-!!
-!!   MODIFICATION HISTORY
-!!     05.2001 created [Matthias]
-!!     09.2002 creaded separated scf_control type [fawzi]
-!!
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief reads the parameters of the scf section into the given scf_control
+!> \param scf_control the object that wil contain the values read
+!> \param error controls log and error handling
+!> \par History
+!>      05.2001 created [Matthias]
+!>      09.2002 creaded separated scf_control type [fawzi]
+!> \author Matthias Krack
+! *****************************************************************************
   SUBROUTINE scf_c_read_parameters(scf_control,root_section,force_env_section,error)
 
     TYPE(scf_control_type), POINTER          :: scf_control
@@ -553,28 +471,15 @@ CONTAINS
 
   END SUBROUTINE scf_c_read_parameters
 
-!******************************************************************************
-!!****f* scf_control/scf_c_write_parameters [1.0] *
-!!
-!!   NAME
-!!     scf_c_write_parameters
-!!
-!!   FUNCTION
-!!     writes out the scf parameters
-!!
-!!   INPUTS
-!!     - scf_control: the object you want to print
-!!     - error: controls log and error handling
-!!
-!!   AUTHOR
-!!     Matthias Krack
-!!
-!!   MODIFICATION HISTORY
-!!     05.2001 created [Matthias]
-!!     09.2002 created separated scf_control type [fawzi]
-!!
-!!*** ************************************************************************
-
+! *****************************************************************************
+!> \brief writes out the scf parameters
+!> \param scf_control the object you want to print
+!> \param error controls log and error handling
+!> \par History
+!>      05.2001 created [Matthias]
+!>      09.2002 created separated scf_control type [fawzi]
+!> \author Matthias Krack
+! *****************************************************************************
   SUBROUTINE scf_c_write_parameters(scf_control,force_env_section,error)
 
     TYPE(scf_control_type), POINTER          :: scf_control
@@ -712,7 +617,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE scf_c_write_parameters
-
-  ! ***************************************************************************
 
 END MODULE scf_control_types

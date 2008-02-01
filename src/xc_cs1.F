@@ -2,26 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/xc_cs1 [1.0] *
-!!
-!!   NAME
-!!     xc_cs1
-!!
-!!   FUNCTION
-!!     Calculate the CS1 Functional (Handy s improved LYP functional)
-!!
-!!   AUTHOR
-!!     JGH (16.03.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (26.02.2003) : OpenMP enabled
-!!     fawzi (04.2004)  : adapted to the new xc interface
-!!
-!******************************************************************************
-
-MODULE xc_cs1
 
 ! *****************************************************************************
+!> \brief Calculate the CS1 Functional (Handy s improved LYP functional)
+!> \par History
+!>      JGH (26.02.2003) : OpenMP enabled
+!>      fawzi (04.2004)  : adapted to the new xc interface
+!> \author JGH (16.03.2002)
+! *****************************************************************************
+MODULE xc_cs1
 
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -68,31 +57,17 @@ MODULE xc_cs1
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_cs1'
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
-  !!****f* xc_cs1/cs1_lda_info [1.0] *
-  !!
-  !!   NAME
-  !!     cs1_lda_info
-  !!
-  !!   FUNCTION
-  !!     return various information on the functional
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - reference: string with the reference of the actual functional
-  !!     - shortform: string with the shortform of the functional name
-  !!     - needs: the components needed by this functional are set to
-  !!       true (does not set the unneeded components to false)
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief return various information on the functional
+!> \param reference string with the reference of the actual functional
+!> \param shortform string with the shortform of the functional name
+!> \param needs the components needed by this functional are set to
+!>        true (does not set the unneeded components to false)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+! *****************************************************************************
   SUBROUTINE cs1_lda_info(reference,shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
@@ -118,28 +93,16 @@ CONTAINS
     IF (PRESENT(max_deriv)) max_deriv=3
 
   END SUBROUTINE cs1_lda_info
-  !***************************************************************************
 
-  !!****f* xc_cs1/cs1_lsd_info [1.0] *
-  !!
-  !!   NAME
-  !!     cs1_lsd_info
-  !!
-  !!   FUNCTION
-  !!     return various information on the functional
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - reference: string with the reference of the actual functional
-  !!     - shortform: string with the shortform of the functional name
-  !!     - needs: the components needed by this functional are set to
-  !!       true (does not set the unneeded components to false)
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief return various information on the functional
+!> \param reference string with the reference of the actual functional
+!> \param shortform string with the shortform of the functional name
+!> \param needs the components needed by this functional are set to
+!>        true (does not set the unneeded components to false)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+! *****************************************************************************
   SUBROUTINE cs1_lsd_info(reference,shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
@@ -164,10 +127,8 @@ CONTAINS
     IF (PRESENT(max_deriv)) max_deriv=1
 
   END SUBROUTINE cs1_lsd_info
-  !***************************************************************************
 
 ! *****************************************************************************
-
   SUBROUTINE cs1_init ( cutoff, debug )
 
     REAL(KIND=dp), INTENT(IN)                :: cutoff
@@ -187,7 +148,6 @@ CONTAINS
   END SUBROUTINE cs1_init
 
 ! *****************************************************************************
-
   SUBROUTINE cs1_lda_eval (rho_set,deriv_set,order,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -287,7 +247,6 @@ CONTAINS
   END SUBROUTINE cs1_lda_eval
 
 ! *****************************************************************************
-
   SUBROUTINE cs1_lsd_eval (rho_set,deriv_set,order,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -360,7 +319,6 @@ CONTAINS
   END SUBROUTINE cs1_lsd_eval
 
 ! *****************************************************************************
-
   SUBROUTINE cs1_u_0 ( rho, grho, r13, e_0, npoints, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13
@@ -406,7 +364,6 @@ CONTAINS
   END SUBROUTINE cs1_u_0
 
 ! *****************************************************************************
-
   SUBROUTINE cs1_u_1 ( rho, grho, r13, e_rho, e_ndrho, npoints, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13
@@ -456,7 +413,6 @@ CONTAINS
   END SUBROUTINE cs1_u_1
 
 ! *****************************************************************************
-
   SUBROUTINE cs1_u_2 ( rho, grho, r13, e_rho_rho, e_rho_ndrho, e_ndrho_ndrho,&
        npoints, error)
 
@@ -519,7 +475,6 @@ CONTAINS
   END SUBROUTINE cs1_u_2
 
 ! *****************************************************************************
-
   SUBROUTINE cs1_u_3 ( rho, grho, r13, e_rho_rho_rho, e_rho_rho_ndrho,&
        e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho, npoints, error)
 
@@ -615,7 +570,6 @@ CONTAINS
   END SUBROUTINE cs1_u_3
 
 ! *****************************************************************************
-
   SUBROUTINE cs1_ss_0 ( rhoa, rhob, grhoa, grhob, r13a, r13b, e_0,&
        npoints,error)
 
@@ -678,7 +632,6 @@ CONTAINS
   END SUBROUTINE cs1_ss_0
 
 ! *****************************************************************************
-
   SUBROUTINE cs1_ss_1 ( rhoa, rhob, grhoa, grhob, r13a, r13b, e_rhoa,&
        e_rhob, e_ndrhoa, e_ndrhob, npoints, error )
 
@@ -754,8 +707,5 @@ CONTAINS
 
   END SUBROUTINE cs1_ss_1
 
-! *****************************************************************************
-
 END MODULE xc_cs1
 
-! *****************************************************************************

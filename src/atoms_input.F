@@ -2,29 +2,19 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/atoms_input [1.0] *
-!!
-!!   NAME
-!!     atoms_input
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!   cjm, Feb-20-2001 : added all the extended variables to
-!!   system_type
-!!   gt 23-09-2002 : major changes. Pointer part is allocated/deallocated
-!!                   and initialized here. Atomic coordinates can now be 
-!!                   read also from &COORD section in the input file.
-!!                   If &COORD is not found, .dat file is read.  
-!!                   If & coord is found and .NOT. 'INIT', parsing of the .dat
-!!                   is performed to get the proper coords/vel/eta variables
-!!    CJM 31-7-03  : Major rewrite.  No more atype
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>    cjm, Feb-20-2001 : added all the extended variables to
+!>    system_type
+!>    gt 23-09-2002 : major changes. Pointer part is allocated/deallocated
+!>                    and initialized here. Atomic coordinates can now be 
+!>                    read also from &COORD section in the input file.
+!>                    If &COORD is not found, .dat file is read.  
+!>                    If & coord is found and .NOT. 'INIT', parsing of the .dat
+!>                    is performed to get the proper coords/vel/eta variables
+!>     CJM 31-7-03  : Major rewrite.  No more atype
+! *****************************************************************************
 MODULE atoms_input
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -61,31 +51,13 @@ MODULE atoms_input
   PRIVATE
   PUBLIC :: read_atoms_input, read_shell_coord_input
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atoms_input'
-!!*****
-!******************************************************************************
 
 CONTAINS
 
-!******************************************************************************
-!!****** atoms_input/read_atoms_input [1.0] *
-!!
-!!   NAME
-!!     read_atoms_input
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!    CJM
-!!
-!!   MODIFICATION HISTORY
-!!
-!!  OPTIONS
-!!
-!!  INPUTS
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE read_atoms_input ( topology, root_section, overwrite, subsys_section, save_mem, error )
-
 
     TYPE(topology_parameters_type)           :: topology
     TYPE(section_vals_type), POINTER         :: root_section
@@ -270,24 +242,9 @@ CPSourceFileRef,&
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE read_atoms_input
 
-!******************************************************************************
-!!****** atoms_input/read_shell_coord_input [1.0] *
-!!
-!!   NAME
-!!     read_shell_coord_input
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!    MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!  OPTIONS
-!!
-!!  INPUTS
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \author MI
+! *****************************************************************************
   SUBROUTINE read_shell_coord_input ( particle_set, shell_particle_set, cell,&
              root_section, subsys_section, core_particle_set, save_mem, error )
 

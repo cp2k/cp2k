@@ -4,24 +4,14 @@
 !-----------------------------------------------------------------------------!
 
 #if !defined(__DEBUG__)
-!!****** cp2k/machine_nag [1.0] *
-!!
-!!   NAME
-!!     machine_nag
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     APSI & JGH
-!!
-!!   MODIFICATION HISTORY
-!!     - m_flush added (12.06.2002,MK)
-!!     - print_memory changed (24.09.2002,MK)
-!!     - adapted for g95 (29.05.2003,JVdV)
-!!
-!!   SOURCE
-!!*****
-!******************************************************************************
+
+! *****************************************************************************
+!> \par History
+!>      - m_flush added (12.06.2002,MK)
+!>      - print_memory changed (24.09.2002,MK)
+!>      - adapted for g95 (29.05.2003,JVdV)
+!> \author APSI & JGH
+! *****************************************************************************
 MODULE machine_nag
 
   USE f90_unix
@@ -50,12 +40,14 @@ MODULE machine_nag
 ! { *adr = (int)p; }
 !----------------
   INTERFACE
+! *****************************************************************************
      SUBROUTINE fd_loc(ar,val)
        USE kinds, ONLY: dp
     REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: ar
     INTEGER, INTENT(out)                     :: val
 
      END SUBROUTINE fd_loc
+! *****************************************************************************
      SUBROUTINE fd_loc2(ar,val)
        USE kinds, ONLY: dp
     COMPLEX(KIND=dp), DIMENSION(*), &
@@ -66,11 +58,9 @@ MODULE machine_nag
   END INTERFACE
 #endif
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
+! *****************************************************************************
 FUNCTION m_loc_r(a) RESULT(res)
   REAL(KIND=dp), INTENT(in), DIMENSION(*) :: a
   INTEGER :: res
@@ -82,6 +72,7 @@ FUNCTION m_loc_r(a) RESULT(res)
 #endif
 END FUNCTION m_loc_r
   
+! *****************************************************************************
 FUNCTION m_loc_c(a) RESULT(res)
   COMPLEX(KIND=dp), INTENT(in), DIMENSION(*) :: a
   INTEGER :: res
@@ -93,21 +84,21 @@ FUNCTION m_loc_c(a) RESULT(res)
 #endif
 END FUNCTION m_loc_c
   
-
 ! can be used to get a nice core
+! *****************************************************************************
 SUBROUTINE m_abort()
    CALL abort()
 END SUBROUTINE m_abort
 
-
+! *****************************************************************************
 FUNCTION m_iargc() RESULT (ic)
     INTEGER                                  :: ic
 
   ic = iargc()
 END FUNCTION m_iargc
 
-!******************************************************************************
 !!  cpu time in seconds
+! *****************************************************************************
 FUNCTION m_cputime() RESULT (ct)
     REAL(KIND=dp)                            :: ct
 
@@ -116,8 +107,8 @@ FUNCTION m_cputime() RESULT (ct)
   CALL CPU_TIME(ctr)
   ct=ctr
 END FUNCTION m_cputime
-!******************************************************************************
 !!  time and date
+! *****************************************************************************
 SUBROUTINE m_datum(cal_date)
     CHARACTER(len=*), INTENT(OUT)            :: cal_date
 
@@ -131,14 +122,11 @@ SUBROUTINE m_datum(cal_date)
 END SUBROUTINE m_datum
 
 ! *****************************************************************************
-
   SUBROUTINE m_flush(lunit)
 
 !   Purpose: Flush the output to a logical unit.
 
 !   History: - Creation (14.10.1999,MK)
-
-!   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: lunit
 
@@ -148,9 +136,6 @@ END SUBROUTINE m_datum
 
   END SUBROUTINE m_flush
 
-! *****************************************************************************
-
-! *****************************************************************************
 ! returns the total amount of memory [bytes] in use, if known, zero otherwise
 ! *****************************************************************************
   FUNCTION m_memory()
@@ -160,10 +145,6 @@ END SUBROUTINE m_datum
   END FUNCTION m_memory
 
 ! *****************************************************************************
-
-
-! *****************************************************************************
-
   SUBROUTINE m_mov(source,TARGET)
 
     CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
@@ -175,7 +156,6 @@ END SUBROUTINE m_datum
   END SUBROUTINE m_mov
 
 ! *****************************************************************************
-
 SUBROUTINE m_hostnm(hname)
     CHARACTER(len=*), INTENT(OUT)            :: hname
 
@@ -187,8 +167,7 @@ SUBROUTINE m_hostnm(hname)
   hname=tmpname(1:len)
 END SUBROUTINE m_hostnm
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE m_getcwd(cwd)
 
     CHARACTER(LEN=*), INTENT(OUT)            :: cwd
@@ -200,7 +179,6 @@ END SUBROUTINE m_hostnm
   END SUBROUTINE m_getcwd
 
 ! *****************************************************************************
-
 SUBROUTINE m_chdir(dir,ierror)
     CHARACTER(len=*), INTENT(IN)             :: dir
     INTEGER, INTENT(OUT)                     :: ierror
@@ -208,7 +186,7 @@ SUBROUTINE m_chdir(dir,ierror)
     CALL chdir(dir,ierror)
 END SUBROUTINE m_chdir
 
-!******************************************************************************
+! *****************************************************************************
 SUBROUTINE m_getlog(user)
     CHARACTER(len=*), INTENT(OUT)            :: user
 
@@ -219,47 +197,35 @@ SUBROUTINE m_getlog(user)
   CALL getlogin(tmp,len)
   user=tmp(1:len)
 END SUBROUTINE m_getlog
-!******************************************************************************
+! *****************************************************************************
 SUBROUTINE m_getuid(uid)
     INTEGER, INTENT(OUT)                     :: uid
 
   uid = getuid()
 END SUBROUTINE m_getuid
-!******************************************************************************
+! *****************************************************************************
 SUBROUTINE m_getpid(pid)
     INTEGER, INTENT(OUT)                     :: pid
 
   pid = getpid()
 END SUBROUTINE m_getpid
-!******************************************************************************
+! *****************************************************************************
 SUBROUTINE m_getarg(i,arg)
     INTEGER, INTENT(IN)                      :: i
     CHARACTER(len=*), INTENT(OUT)            :: arg
 
   CALL getarg(i,arg)
 END SUBROUTINE m_getarg
-!******************************************************************************
 END MODULE machine_nag
 
 #else
-!!****** cp2k/machine_nag [1.0] *
-!!
-!!   NAME
-!!     machine_nag
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     APSI & JGH
-!!
-!!   MODIFICATION HISTORY
-!!     - m_flush added (12.06.2002,MK)
-!!     - print_memory changed (24.09.2002,MK)
-!!     - adapted for g95 (29.05.2003,JVdV)
-!!
-!!   SOURCE
-!!*****
-!******************************************************************************
+
+! *****************************************************************************
+!> \par History
+!>      - m_flush added (12.06.2002,MK)
+!>      - print_memory changed (24.09.2002,MK)
+!>      - adapted for g95 (29.05.2003,JVdV)
+!> \author APSI & JGH
 MODULE machine_nag
 
   USE kinds,                           ONLY: dp, int_8
@@ -282,12 +248,14 @@ MODULE machine_nag
 ! { *adr = (int)p; }
 !----------------
   INTERFACE
+! *****************************************************************************
      SUBROUTINE fd_loc(ar,val)
        USE kinds, ONLY: dp
     REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: ar
     INTEGER, INTENT(out)                     :: val
 
      END SUBROUTINE fd_loc
+! *****************************************************************************
      SUBROUTINE fd_loc2(ar,val)
        USE kinds, ONLY: dp
     COMPLEX(KIND=dp), DIMENSION(*), &
@@ -298,11 +266,9 @@ MODULE machine_nag
   END INTERFACE
 #endif
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
+! *****************************************************************************
 FUNCTION m_loc_r(a) RESULT(res)
   REAL(KIND=dp), INTENT(in), DIMENSION(*) :: a
   INTEGER :: res
@@ -314,6 +280,7 @@ FUNCTION m_loc_r(a) RESULT(res)
 #endif
 END FUNCTION m_loc_r
   
+! *****************************************************************************
 FUNCTION m_loc_c(a) RESULT(res)
   COMPLEX(KIND=dp), INTENT(in), DIMENSION(*) :: a
   INTEGER :: res
@@ -325,21 +292,21 @@ FUNCTION m_loc_c(a) RESULT(res)
 #endif
 END FUNCTION m_loc_c
   
-
 ! can be used to get a nice core
+! *****************************************************************************
 SUBROUTINE m_abort()
    ! CALL abort()
 END SUBROUTINE m_abort
 
-
+! *****************************************************************************
 FUNCTION m_iargc() RESULT (ic)
     INTEGER                                  :: ic
 
      ic = 1
 END FUNCTION m_iargc
 
-!******************************************************************************
 !!  cpu time in seconds
+! *****************************************************************************
 FUNCTION m_cputime() RESULT (ct)
     REAL(KIND=dp)                            :: ct
 
@@ -348,8 +315,8 @@ FUNCTION m_cputime() RESULT (ct)
   CALL CPU_TIME(ctr)
   ct=ctr
 END FUNCTION m_cputime
-!******************************************************************************
 !!  time and date
+! *****************************************************************************
 SUBROUTINE m_datum(cal_date)
     CHARACTER(len=*), INTENT(OUT)            :: cal_date
 
@@ -363,14 +330,11 @@ SUBROUTINE m_datum(cal_date)
 END SUBROUTINE m_datum
 
 ! *****************************************************************************
-
   SUBROUTINE m_flush(lunit)
 
 !   Purpose: Flush the output to a logical unit.
 
 !   History: - Creation (14.10.1999,MK)
-
-!   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: lunit
 
@@ -378,9 +342,6 @@ END SUBROUTINE m_datum
 
   END SUBROUTINE m_flush
 
-! *****************************************************************************
-
-! *****************************************************************************
 ! returns the total amount of memory [bytes] in use, if known, zero otherwise
 ! *****************************************************************************
   FUNCTION m_memory()
@@ -395,13 +356,13 @@ SUBROUTINE m_hostnm(hname)
 
     hname=""
 END SUBROUTINE m_hostnm
-!******************************************************************************
+! *****************************************************************************
 SUBROUTINE m_getcwd(curdir)
     CHARACTER(len=*), INTENT(OUT)            :: curdir
 
   curdir="./"
 END SUBROUTINE m_getcwd
-!******************************************************************************
+! *****************************************************************************
 SUBROUTINE m_chdir(dir,ierror)
     CHARACTER(len=*), INTENT(IN)             :: dir
     INTEGER, INTENT(OUT)                     :: ierror
@@ -409,34 +370,33 @@ SUBROUTINE m_chdir(dir,ierror)
     ierror=-1
 END SUBROUTINE m_chdir
 
-!******************************************************************************
+! *****************************************************************************
 SUBROUTINE m_getlog(user)
     CHARACTER(len=*), INTENT(OUT)            :: user
 
     user=""
 END SUBROUTINE m_getlog
-!******************************************************************************
+! *****************************************************************************
 SUBROUTINE m_getuid(uid)
     INTEGER, INTENT(OUT)                     :: uid
 
     uid = 0
 END SUBROUTINE m_getuid
-!******************************************************************************
+! *****************************************************************************
 SUBROUTINE m_getpid(pid)
     INTEGER, INTENT(OUT)                     :: pid
 
     pid = 0
 END SUBROUTINE m_getpid
-!******************************************************************************
+! *****************************************************************************
 SUBROUTINE m_getarg(i,arg)
     INTEGER, INTENT(IN)                      :: i
     CHARACTER(len=*), INTENT(OUT)            :: arg
 
     arg="inp" 
 END SUBROUTINE m_getarg
-!******************************************************************************
-! *****************************************************************************
 
+! *****************************************************************************
   SUBROUTINE m_mov(source,TARGET)
 
     CHARACTER(LEN=*), INTENT(IN)             :: source, TARGET
@@ -446,8 +406,6 @@ END SUBROUTINE m_getarg
     STOP "m_mov not supported .... "
 
   END SUBROUTINE m_mov
-
-! *****************************************************************************
 
 END MODULE machine_nag
 

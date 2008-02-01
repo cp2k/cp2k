@@ -3,24 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** mc_control.F *********************************************************
-!!
-!!   NAME
-!!     mc_control
-!!
-!!   FUNCTION
-!!     contains some general routines for dealing with the restart
-!!     files and creating force_env for MC use
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief contains some general routines for dealing with the restart
+!>      files and creating force_env for MC use
+!> \par History
+!>      none
+!> \author MJM
+! *****************************************************************************
 MODULE mc_control
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell
@@ -84,32 +73,18 @@ MODULE mc_control
   PUBLIC :: write_mc_restart,read_mc_restart,mc_create_force_env,&
        mc_create_bias_force_env
 
-
-  !****************************************************************************
-
 CONTAINS
 
-  ! *****************************************************************************
-  !!****s* mc_control.F/write_mc_restart
-  !!
-  !!   NAME
-  !!     write_mc_restart
-  !!
-  !!   FUNCTION
-  !!     writes the coordinates of the current step to a file that can
-  !!     be read in at the start of the next simulation
-  !!
-  !!   ARGUMENTS
-  !!     - mc_par: the mc parameters for the force env
-  !!     - force_env: the force environment to write the coords from
-  !!     - nnstep: how many steps the simulation has run
-  !!
-  !!   Only use in serial.
-  !!
-  !!   AUTHOR
-  !!     MJM
-  !!
-  !!*****************************************************************************
+! *****************************************************************************
+!> \brief writes the coordinates of the current step to a file that can
+!>      be read in at the start of the next simulation
+!> \param mc_par the mc parameters for the force env
+!> \param force_env the force environment to write the coords from
+!> \param nnstep how many steps the simulation has run
+!> 
+!>    Only use in serial.
+!> \author MJM
+! *****************************************************************************
   SUBROUTINE write_mc_restart ( nnstep, mc_par, nchains,force_env )
 
     INTEGER, INTENT(IN)                      :: nnstep
@@ -190,31 +165,19 @@ CONTAINS
     ! end the timing
     CALL timestop(0.0E0_dp,handle)
 
-
   END SUBROUTINE write_mc_restart
 
-  ! *****************************************************************************
-  !!****s* mc_control.F/read_mc_restart
-  !!
-  !!   NAME
-  !!     read_mc_restart
-  !!
-  !!   FUNCTION
-  !!     reads the input coordinates of the simulation from a file written above
-  !!
-  !!   ARGUMENTS
-  !!     - mc_par: the mc parameters for the force env
-  !!     - force_env: the force environment to write the coords from
-  !!     - iw: the unit to write an error message to, in case current
-  !!           simulation parameters don't match what's in the restart file
-  !!     - rng_stream: the stream we pull random numbers from
-  !!
-  !!     Used in parallel.
-  !!
-  !!   AUTHOR
-  !!     MJM
-  !!
-  !!*****************************************************************************
+! *****************************************************************************
+!> \brief reads the input coordinates of the simulation from a file written above
+!> \param mc_par the mc parameters for the force env
+!> \param force_env the force environment to write the coords from
+!> \param iw the unit to write an error message to, in case current
+!>            simulation parameters don't match what's in the restart file
+!> \param rng_stream the stream we pull random numbers from
+!> 
+!>      Used in parallel.
+!> \author MJM
+! *****************************************************************************
   SUBROUTINE read_mc_restart ( mc_par, force_env, iw, mc_nunits_tot,rng_stream)
 
     TYPE(mc_simulation_parameters_type), &
@@ -397,27 +360,16 @@ CONTAINS
 
   END SUBROUTINE read_mc_restart
 
-  ! *****************************************************************************
-  !!****s* mc_control.F/mc_create_force_env
-  !!
-  !!   NAME
-  !!     mc_create_force_env
-  !!
-  !!   FUNCTION
-  !!     creates a force environment for any of the different kinds of
-  !!     MC simulations we can do (FIST, QS, KG)
-  !!
-  !!   ARGUMENTS
-  !!     - force_env: the force environment to create
-  !!     - globenv: the global environment parameters
-  !!     - error: the CP error structure
-  !!
-  !!   Suitable for parallel.
-  !!
-  !!   AUTHOR
-  !!     MJM
-  !!
-  !!*****************************************************************************
+! *****************************************************************************
+!> \brief creates a force environment for any of the different kinds of
+!>      MC simulations we can do (FIST, QS, KG)
+!> \param force_env the force environment to create
+!> \param globenv the global environment parameters
+!> \param error the CP error structure
+!> 
+!>    Suitable for parallel.
+!> \author MJM
+! *****************************************************************************
   SUBROUTINE mc_create_force_env ( force_env, para_env, input_file_name,&
        globenv_new, error )
 
@@ -436,8 +388,6 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 root_section, subsys_section
-
-!**************************************************************************
 
     failure= .FALSE.
     NULLIFY(globenv, force_env, force_env_section, subsys_section )
@@ -480,29 +430,18 @@ CONTAINS
 
   END SUBROUTINE mc_create_force_env
 
-  ! *****************************************************************************
-  !!****s* mc_control.F/mc_create_bias_force_env
-  !!
-  !!   NAME
-  !!     mc_create_bias_force_env
-  !!
-  !!   FUNCTION
-  !!     essentially copies the cell size and coordinates of one force env
-  !!     to another that we will use to bias some moves with
-  !!
-  !!   ARGUMENTS
-  !!     - bias_env: the force environment to create
-  !!     - force_env: the force environment we're copying cell length
-  !!           and coordinates from
-  !!     - globenv: the global environment parameters
-  !!     - error: the CP error structure
-  !!
-  !!   Suitable for parallel.
-  !!
-  !!   AUTHOR
-  !!     MJM
-  !!
-  !!*****************************************************************************
+! *****************************************************************************
+!> \brief essentially copies the cell size and coordinates of one force env
+!>      to another that we will use to bias some moves with
+!> \param bias_env the force environment to create
+!> \param force_env the force environment we're copying cell length
+!>            and coordinates from
+!> \param globenv the global environment parameters
+!> \param error the CP error structure
+!> 
+!>    Suitable for parallel.
+!> \author MJM
+! *****************************************************************************
   SUBROUTINE mc_create_bias_force_env (bias_env,r,atom_symbols,nunits_tot,&
        para_env, box_length,nchains,mc_input_file,ionode,error)
 
@@ -528,9 +467,7 @@ CONTAINS
 
     CALL mc_create_force_env(bias_env, para_env, 'bias_temp.dat',error=error)
 
-
   END SUBROUTINE mc_create_bias_force_env
 
 END MODULE mc_control
 
-!******************************************************************************

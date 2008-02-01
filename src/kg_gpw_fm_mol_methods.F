@@ -3,34 +3,22 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/kg_gpw_fm_mol_methods [1.0] *
-!!
-!!   NAME
-!!     kg_gpw_fm_mol_methods
-!!
-!!   FUNCTION
-!!     Construct, initialize and use the full matrix blocks for the KG_GPW method
-!!     Using this method all the operations on the full matrixes can be
-!!     splitted inoperations on the single molecular blocks, because
-!!     each molecule is treated as independent, i.e. it does not interact
-!!     directly with the other molecules
-!!
-!!     It should contain also the routines for the :
-!!                           initialization of mos (guess or restart)
-!!                           orthogonalization
-!!                           diagonalization
-!!                           transfer of data to and from the sparse matrix
-!!
-!!   AUTHOR
-!!     MI (20.11.2004)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Construct, initialize and use the full matrix blocks for the KG_GPW method
+!>      Using this method all the operations on the full matrixes can be
+!>      splitted inoperations on the single molecular blocks, because
+!>      each molecule is treated as independent, i.e. it does not interact
+!>      directly with the other molecules
+!> 
+!>      It should contain also the routines for the :
+!>                            initialization of mos (guess or restart)
+!>                            orthogonalization
+!>                            diagonalization
+!>                            transfer of data to and from the sparse matrix
+!> \par History
+!>      none
+!> \author MI (20.11.2004)
+! *****************************************************************************
 MODULE kg_gpw_fm_mol_methods
 
   USE atomic_kind_types,               ONLY: get_atomic_kind
@@ -74,12 +62,9 @@ MODULE kg_gpw_fm_mol_methods
              mol_make_basis, multiply_sparse_mol_mo, &
              mol_density_matrix
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE  build_local_fm_mol(fm_mol_set,molecule_kind, imolkind,&
                                  local_molecules, molecule_set,&
                                  particle_set, nspins, nmo_eq_nao, &
@@ -91,8 +76,6 @@ CONTAINS
 !   Purpose:
 
 !   History: - Creation (20.11.2004,MI)
-
-!   ***************************************************************************
 
     TYPE(kg_fm_mol_set_type), TARGET         :: fm_mol_set
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -154,7 +137,6 @@ CONTAINS
          multiplicity = 2
       END IF
     END IF
-
 
     IF (nspins == 1) THEN
 
@@ -267,8 +249,7 @@ CONTAINS
 
   END SUBROUTINE build_local_fm_mol
 
-!***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE calculate_mol_density_matrix(mo_set,mol_block,natom,p_ispin,error)
 
     TYPE(mol_mo_set_type), POINTER           :: mo_set
@@ -391,8 +372,7 @@ CONTAINS
 
   END SUBROUTINE calculate_mol_density_matrix
 
-!***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE mol_density_matrix(mo_set,pmat,error)
 
     TYPE(mol_mo_set_type), POINTER           :: mo_set
@@ -447,8 +427,7 @@ CONTAINS
 
   END SUBROUTINE mol_density_matrix
 
-!***************************************************************************
-
+! *****************************************************************************
    SUBROUTINE fm_mol_eigensolver(ks_mol_block, mo_set, ortho, aux_nxn,ldaux,&
                                  do_level_shift, level_shift, use_cholesky, &
                                  use_jacobi, jacobi_threshold ,&
@@ -460,7 +439,6 @@ CONTAINS
 
 !   History: - Creation (01.12.2004, Matthias Krack)
 !
-!   ***************************************************************************
 
     REAL(dp), DIMENSION(:, :), POINTER       :: ks_mol_block
     TYPE(mol_mo_set_type), POINTER           :: mo_set
@@ -625,8 +603,7 @@ CONTAINS
 
   END SUBROUTINE fm_mol_eigensolver
 
-!***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE fm_mol_orthonormality(orthonormality,kg_fm_mol_set,overlap,nspins,error)
 
     REAL(dp), DIMENSION(:)                   :: orthonormality
@@ -734,8 +711,7 @@ CONTAINS
 
   END SUBROUTINE fm_mol_orthonormality
 
-!***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE mol_make_basis(matrix_mo, ncol, matrix_ortho, otype,&
                             matrix_p, work, error)
 
@@ -766,7 +742,6 @@ CONTAINS
     use_cholesky = .FALSE.
     use_sv = .FALSE.
     found_type = .FALSE.
-
 
     nrow = SIZE(matrix_mo,1)
 
@@ -822,14 +797,12 @@ CONTAINS
     CALL DTRSM('R','U','N','N',nrow,ncol,rone,matrix_cc(1,1),ncol,&
                  matrix_mo(1,1),nrow)
 
-
     DEALLOCATE(matrix_cc, STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"matrix_cc")
 
   END SUBROUTINE mol_make_basis
 
 ! *****************************************************************************
-
   SUBROUTINE multiply_sparse_mol_mo(matrix,mol_block,natom,vectors,&
                                     nmo,mat_x_vec,error)
 
@@ -920,5 +893,4 @@ CONTAINS
 
   END SUBROUTINE multiply_sparse_mol_mo
 
-!***************************************************************************
 END MODULE  kg_gpw_fm_mol_methods

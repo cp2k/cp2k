@@ -2,22 +2,13 @@
 !   CP2K: A general program to perform molecular auxamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****s* cp2k/scp_coeff_type [1.0] *
-!!
-!!   NAME
-!!     scp_coeff_type
-!!   FUNCTION
-!!     Define the data structure for the auxilliary basis SCP coefficents .
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Define the data structure for the auxilliary basis SCP coefficents .
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
 MODULE scp_coeff_types
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -47,6 +38,7 @@ MODULE scp_coeff_types
 
   INTEGER, PARAMETER,PUBLIC :: aux_coeff_replicated=1, aux_coeff_distributed=2
 
+! *****************************************************************************
   TYPE aux_coeff_set_type
    INTEGER :: ref_count, id_nr
    INTEGER :: distribution_method
@@ -56,10 +48,12 @@ MODULE scp_coeff_types
    TYPE ( aux_coeff_p_type ), POINTER, DIMENSION(:) :: coeffs_of_kind
   END TYPE aux_coeff_set_type
 
+! *****************************************************************************
   TYPE aux_coeff_set_p_type
    TYPE(aux_coeff_set_type), POINTER :: aux_coeff_set
   END TYPE aux_coeff_set_p_type
 
+! *****************************************************************************
   TYPE aux_coeff_type
    INTEGER :: ref_count, id_nr
    INTEGER :: n_els
@@ -67,6 +61,7 @@ MODULE scp_coeff_types
    REAL(KIND=dp), DIMENSION(:,:), POINTER :: c, fc
   END TYPE aux_coeff_type
 
+! *****************************************************************************
   TYPE aux_coeff_p_type
    TYPE(aux_coeff_type), POINTER :: coeffs
   END TYPE aux_coeff_p_type
@@ -83,14 +78,9 @@ MODULE scp_coeff_types
             get_aux_coeff_set, aux_coeff_create, setup_aux_coeff, &
             aux_coeff_release, get_aux_coeff, aux_coeff_zero_fc
             
-
-
-! *****************************************************************************
   CONTAINS
 
 ! *****************************************************************************
-
-!!*** **********************************************************************
 SUBROUTINE aux_coeff_set_create(aux_coeff_set,atomic_kind_set,&
                                 distribution, error)
 
@@ -167,7 +157,7 @@ SUBROUTINE aux_coeff_set_create(aux_coeff_set,atomic_kind_set,&
 
 END SUBROUTINE aux_coeff_set_create
 
-!***************************************************************************
+! *****************************************************************************
 SUBROUTINE aux_coeff_set_retain(aux_coeff_set, error)
 
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
@@ -188,7 +178,7 @@ SUBROUTINE aux_coeff_set_retain(aux_coeff_set, error)
 
 END SUBROUTINE aux_coeff_set_retain
 
-!***************************************************************************
+! *****************************************************************************
 SUBROUTINE aux_coeff_zero_fc (aux_coeff_set, error)
 
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
@@ -220,8 +210,7 @@ SUBROUTINE aux_coeff_zero_fc (aux_coeff_set, error)
 
 END SUBROUTINE aux_coeff_zero_fc
 
-!!*** **********************************************************************
-
+! *****************************************************************************
 SUBROUTINE aux_coeff_set_release(aux_coeff_set, error)
 
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
@@ -257,8 +246,7 @@ SUBROUTINE aux_coeff_set_release(aux_coeff_set, error)
 
 END SUBROUTINE aux_coeff_set_release
 
-!***************************************************************************
-
+! *****************************************************************************
 SUBROUTINE get_aux_coeff_set(aux_coeff_set,distribution, coeffs_of_kind,&
                              ncoefs,id_nr,ref_count,error)
 
@@ -300,7 +288,7 @@ SUBROUTINE get_aux_coeff_set(aux_coeff_set,distribution, coeffs_of_kind,&
   END IF
 END SUBROUTINE get_aux_coeff_set
 
-!***************************************************************************
+! *****************************************************************************
 SUBROUTINE aux_coeff_create(coeffs, error)
 
     TYPE(aux_coeff_type), POINTER            :: coeffs
@@ -325,7 +313,7 @@ SUBROUTINE aux_coeff_create(coeffs, error)
 
 END SUBROUTINE aux_coeff_create
 
-!***************************************************************************
+! *****************************************************************************
 SUBROUTINE aux_coeff_release(coeffs, error)
 
     TYPE(aux_coeff_type), POINTER            :: coeffs
@@ -358,7 +346,7 @@ SUBROUTINE aux_coeff_release(coeffs, error)
 
 END SUBROUTINE aux_coeff_release
 
-!***************************************************************************
+! *****************************************************************************
 SUBROUTINE setup_aux_coeff(coeffs,aux_basis_set, n_els, error)
 
     TYPE(aux_coeff_type), POINTER            :: coeffs
@@ -388,7 +376,7 @@ SUBROUTINE setup_aux_coeff(coeffs,aux_basis_set, n_els, error)
   END IF
 
 END SUBROUTINE setup_aux_coeff
-!***************************************************************************
+! *****************************************************************************
 SUBROUTINE get_aux_coeff(coeffs, c, fc, n_els,&
                          ncoef_atom,ncoef_of_kind,id_nr,ref_count,error)
 
@@ -418,7 +406,7 @@ SUBROUTINE get_aux_coeff(coeffs, c, fc, n_els,&
   END IF
 
 END SUBROUTINE get_aux_coeff
-!***************************************************************************
+! *****************************************************************************
 SUBROUTINE aux_coeff_set_initialize(aux_coeff_set,coeff_section,para_env,error)
 
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
@@ -434,18 +422,14 @@ SUBROUTINE aux_coeff_set_initialize(aux_coeff_set,coeff_section,para_env,error)
     LOGICAL                                  :: restart
     TYPE(aux_coeff_type), POINTER            :: coeffs
 
-!***************************************************************************
-
   group=para_env%group
   source=para_env%source
   restart = .FALSE.
   ! initialize to default values
 
-
   nel_tot=0
   ncoef_tot=0
   ncoef_atom_max=0
-
 
 ! get the SCP coefficients' parameters from input structure
 !  work_section => section_vals_get_subs_vals(coeff_section,"COORD",error=error)
@@ -488,7 +472,5 @@ SUBROUTINE aux_coeff_set_initialize(aux_coeff_set,coeff_section,para_env,error)
 !  END IF
 
 END SUBROUTINE aux_coeff_set_initialize
-
-!!*************************************************************************
 
 END MODULE scp_coeff_types

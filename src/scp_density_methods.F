@@ -2,26 +2,14 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/scp_density_methods [1.0] *
-!!
-!!   NAME
-!!     scp_density_methods
-!!
-!!   FUNCTION
-!!     Calculate the SPC plane wave density by collocating the primitive Gaussian
-!!     functions (pgf). Also computes the integral of the potential with a density
-!!     in the primitive gaussian basis
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
-MODULE scp_density_methods
 
 ! *****************************************************************************
+!> \brief Calculate the SPC plane wave density by collocating the primitive Gaussian
+!>      functions (pgf). Also computes the integral of the potential with a density
+!>      in the primitive gaussian basis
+! *****************************************************************************
+MODULE scp_density_methods
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -87,16 +75,11 @@ MODULE scp_density_methods
  
 ! *** Public subroutines ***
 
-
   PUBLIC :: collocate_scp_density, integrate_rhoscp_vrspace, update_rhoscp
-
-!!***
-! *****************************************************************************
 
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE update_rhoscp ( qs_env,  error )
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -152,8 +135,6 @@ CONTAINS
                       rs_pools = rs_pools, pw_pools=pw_pools, cube_info = cube_info, &
                       error = error )
 
-                    
-
 ! Compute SCP density
     CALL collocate_scp_density ( scp_env, atomic_kind_set, particle_set,        &
                                  local_particles, cell, rs_pools, pw_pools,     &
@@ -165,7 +146,6 @@ CONTAINS
   END SUBROUTINE update_rhoscp 
 
 ! *****************************************************************************
-
   SUBROUTINE collocate_scp_density( scp_env, atomic_kind_set, particle_set, &
                                     local_particles, cell, rs_pools, pw_pools, &
                                     cube_info, gridlevel_info, eps_rho_rspace, error )
@@ -231,8 +211,6 @@ CONTAINS
     CALL scp_rho_get ( rho_scp = rho_scp, rhop_r = rhop_r, &
                        rhop_g = rhop_g, error=error )
     
-
-
     ! *** set up the pw multi-grids *** !
 
     ALLOCATE(mgrid_rspace(SIZE(pw_pools)) ,stat=stat)
@@ -262,7 +240,6 @@ CONTAINS
                              maxco=maxco,&
                              natom=natom )
                              
-
     ALLOCATE (pab(maxco,1),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"pab",maxco*1*dp_size)
     ALLOCATE (work(maxco,1),STAT=istat)
@@ -319,10 +296,8 @@ CONTAINS
 
             DO ipgf=1,npgfa(iset)
 
-
                na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
                na2 = ipgf*ncoset(la_max(iset))
-
 
                scale = 1.0_dp  ! SCP density is electronic
                zetp = zeta(ipgf,iset)
@@ -385,7 +360,6 @@ CONTAINS
    END SUBROUTINE collocate_scp_density
 
 ! *****************************************************************************
-
   SUBROUTINE integrate_rhoscp_vrspace ( scp_env, v_rspace, pw_env, atomic_kind_set, &
                                         particle_set, local_particles, cell,  &
                                         eps_gvg_rspace, calculate_forces, just_energy, debug, error )
@@ -494,7 +468,6 @@ CONTAINS
     ALLOCATE (atom_of_kind(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
 
-
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              atom_of_kind=atom_of_kind,&
                              maxco=maxco,&
@@ -567,7 +540,6 @@ CONTAINS
 
            DO ipgf=1,npgfa(iset)
 
-
              na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
              na2 = ipgf*ncoset(la_max(iset))
 
@@ -632,6 +604,4 @@ CONTAINS
 
   END SUBROUTINE integrate_rhoscp_vrspace
 
-! *****************************************************************************
 END MODULE scp_density_methods
-! *****************************************************************************

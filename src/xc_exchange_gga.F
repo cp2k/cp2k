@@ -2,26 +2,16 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/xc_exchange_gga [1.0] *
-!!
-!!   NAME
-!!     xc_exchange_gga
-!!
-!!   FUNCTION
-!!     Calculate several different exchange energy functionals
-!!     with a GGA form 
-!!
-!!   AUTHOR
-!!     JGH (27.02.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (26.02.2003) : OpenMP enabled
-!!     fawzi (04.2004)  : adapted to the new xc interface
-!!
-!!*** *************************************************************************
 
-MODULE xc_exchange_gga
 ! *****************************************************************************
+!> \brief Calculate several different exchange energy functionals
+!>      with a GGA form 
+!> \par History
+!>      JGH (26.02.2003) : OpenMP enabled
+!>      fawzi (04.2004)  : adapted to the new xc interface
+!> \author JGH (27.02.2002)
+! *****************************************************************************
+MODULE xc_exchange_gga
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE f77_blas
   USE input_constants,                 ONLY: xgga_b88,&
@@ -58,53 +48,27 @@ MODULE xc_exchange_gga
                           f43 = 4.0_dp*f13, &
                           f53 = 5.0_dp*f13
 
-
   REAL(KIND=dp) :: cx, flda, flsd, sfac, t13
   REAL(KIND=dp) :: fact, tact
   REAL(KIND=dp) :: eps_rho
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_exchange_gga'  
 
-! *****************************************************************************
-
 CONTAINS
-!!****f* xc_exchange_gga/xgga_info [1.0] *
-!!
-!!   NAME
-!!     xgga_info
-!!
-!!   SYNOPSIS
-!!     Subroutine xgga_info(functional, lsd, reference, shortform, needs,&
-!!         max_deriv, error)
-!!       Integer, Intent (IN):: functional
-!!       Logical, Intent (IN):: lsd
-!!       Character(Len=*), Intent (OUT), Optional:: reference, shortform
-!!       Type(xc_rho_cflags_type), Intent (INOUT), Optional:: needs
-!!       Integer, Intent (OUT), Optional:: max_deriv
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine xgga_info
-!!
-!!   FUNCTION
-!!     return various information on the xgga functionals
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - functional: integer selecting the xgga functional, it should be one of
-!!       the constants defined in this module: xgga_b88, xgga_pw86,...
-!!     - lsd: a logical that specifies if you are asking about the lsd or lda
-!!       version of the functional
-!!     - reference: string with the reference of the actual functional
-!!     - shortform: string with the shortform of the functional name
-!!     - needs: the components needed by this functional are set to
-!!       true (does not set the unneeded components to false)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief return various information on the xgga functionals
+!> \param functional integer selecting the xgga functional, it should be one of
+!>        the constants defined in this module: xgga_b88, xgga_pw86,...
+!> \param lsd a logical that specifies if you are asking about the lsd or lda
+!>        version of the functional
+!> \param reference string with the reference of the actual functional
+!> \param shortform string with the shortform of the functional name
+!> \param needs the components needed by this functional are set to
+!>        true (does not set the unneeded components to false)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE xgga_info(functional,lsd,reference,shortform, needs, max_deriv, error)
     INTEGER, INTENT(in)                      :: functional
     LOGICAL, INTENT(in)                      :: lsd
@@ -181,47 +145,22 @@ CONTAINS
     IF (PRESENT(max_deriv)) max_deriv=3
 
   END SUBROUTINE xgga_info
-  !***************************************************************************
 
-!!****f* xc_exchange_gga/xgga_eval [1.0] *
-!!
-!!   NAME
-!!     xgga_eval
-!!
-!!   SYNOPSIS
-!!     Subroutine xgga_eval(functional, lsd, rho_set, deriv_set, order,&
-!!         error)
-!!       Integer, Intent (IN):: functional
-!!       Logical, Intent (IN):: lsd
-!!       Type(xc_rho_set_type), Pointer:: rho_set
-!!       Type(xc_derivative_set_type), Pointer:: deriv_set
-!!       Integer, Intent (IN):: order
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine xgga_eval
-!!
-!!   FUNCTION
-!!     evaluates different exchange gga
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - functional: integer to select the functional that should be evaluated
-!!     - lsd: if the lsd version of the functional should be used
-!!     - rho_set: the density where you want to evaluate the functional
-!!     - deriv_set: place where to store the functional derivatives (they are
-!!       added to the derivatives)
-!!     - grad_deriv: degree of the derivative that should be evalated,
-!!       if positive all the derivatives up to the given degree are evaluated,
-!!       if negative only the given degree is calculated
-!!     - iparset: the parameter set that should be used (93,120,147,407)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief evaluates different exchange gga
+!> \param functional integer to select the functional that should be evaluated
+!> \param lsd if the lsd version of the functional should be used
+!> \param rho_set the density where you want to evaluate the functional
+!> \param deriv_set place where to store the functional derivatives (they are
+!>        added to the derivatives)
+!> \param grad_deriv degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param iparset the parameter set that should be used (93,120,147,407)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE xgga_eval(functional,lsd,rho_set,deriv_set,order,error)
     INTEGER, INTENT(in)                      :: functional
     LOGICAL, INTENT(in)                      :: lsd
@@ -393,11 +332,8 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE xgga_eval
-  !***************************************************************************
-
 
 ! *****************************************************************************
-
   SUBROUTINE xgga_init ( cutoff )
 
     REAL(KIND=dp), INTENT(IN)                :: cutoff
@@ -415,7 +351,6 @@ CONTAINS
   END SUBROUTINE xgga_init
 
 ! *****************************************************************************
-
   SUBROUTINE x_p_0 ( rho, r13, fs, e_0, npoints, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13
@@ -442,7 +377,6 @@ CONTAINS
   END SUBROUTINE x_p_0
 
 ! *****************************************************************************
-
   SUBROUTINE x_p_1 ( rho, grho, r13, s, fs, e_rho,e_ndrho,npoints,error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13, s
@@ -477,7 +411,6 @@ CONTAINS
   END SUBROUTINE x_p_1
 
 ! *****************************************************************************
-
   SUBROUTINE x_p_2 ( rho, grho, r13, s, fs, e_rho_rho, e_rho_ndrho, &
        e_ndrho_ndrho, npoints, error )
 
@@ -520,7 +453,6 @@ CONTAINS
   END SUBROUTINE x_p_2
 
 ! *****************************************************************************
-
   SUBROUTINE x_p_3 ( rho, grho, r13, s, fs, e_rho_rho_rho, e_rho_rho_ndrho,&
        e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho, npoints,error )
 
@@ -578,7 +510,6 @@ CONTAINS
 
   END SUBROUTINE x_p_3
 
-! *****************************************************************************
 ! Enhancement Factors
 ! *****************************************************************************
   SUBROUTINE efactor_b88 ( s, fs, m )
@@ -665,7 +596,6 @@ CONTAINS
          CALL stop_program("efactor_b88","Illegal order")
       END SELECT
     END DO
-
 
   END SUBROUTINE efactor_b88
 ! *****************************************************************************
@@ -773,8 +703,8 @@ CONTAINS
     END DO
 
   END SUBROUTINE efactor_optx
-! *****************************************************************************
 
+! *****************************************************************************
   SUBROUTINE efactor_pw91 ( s, fs, m )
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: s
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -1080,8 +1010,5 @@ CONTAINS
 
   END SUBROUTINE efactor_pbex
 
-! *****************************************************************************
-
 END MODULE xc_exchange_gga
 
-! *****************************************************************************

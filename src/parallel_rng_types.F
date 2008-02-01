@@ -3,66 +3,53 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/parallel_rng_types [1.0] *
-!!
-!!   NAME
-!!     parallel_rng_types
-!!
-!!   FUNCTION
-!!     Parallel (pseudo)random number generator (RNG) for multiple streams
-!!     and substreams of random numbers.
-!!
-!!     In detail, this RNG provides 2**64 random number streams each with a
-!!     length of 2**127 resulting in a length of 2**191 for the total RNG.
-!!     Moreover, each stream is divided in 2**51 substream of length 2**76.
-!!     The stream lengths refer to the default precision of 32 bit random
-!!     number, but also an extended precision of 53 bit per random number
-!!     can be requested. In this case, two 32 bit random numbers are used
-!!     to generate a 53 bit random number and therefore the stream length
-!!     is halved when extended precision are requested.
-!!
-!!     Usage hint:
-!!
-!!     CALL create_rng_stream(rng_stream,name,...,error=error)
-!!
-!!     to generate the first stream. Optionally, you may define a different
-!!     seed or create a stream of extended precision (53 bits). Then
-!!
-!!     CALL create_rng_stream(next_rng_stream,name,last_rng_stream=rng_stream)
-!!
-!!     to create all the following RNG streams w.r.t. the previous stream.
-!!     The command line
-!!
-!!     x = next_random_number(rng_stream,error=error)
-!!
-!!     will provide the next real random number x between 0 and 1 and
-!!
-!!     ix = next_random_number(rng_stream,low,high,error=error)
-!!
-!!     the next integer random number ix between low and high from stream
-!!     rng_stream. The default distribution type is a uniform distribution
-!!     [0,1], but also other distribution types are available (see below).
-!!
-!!     Finally, do not forget to delete each created RNG stream when it is
-!!     no longer needed by
-!!
-!!     CALL delete_rng_stream(rng_stream,error=error)
-!!
-!!     to avoid memory leaks!
-!!
-!!   LITERATURE
-!!     P. L'Ecuyer, R. Simard, E. J. Chen, and W. D. Kelton,
-!!     "An object-oriented random-number package with many long streams
-!!      and substreams", Operations Research 50(6), 1073-1075 (2002)
-!!
-!!   AUTHOR
-!!     C++ code converted to Fortran 90/95 (18.05.2005, Matthias Krack)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Parallel (pseudo)random number generator (RNG) for multiple streams
+!>      and substreams of random numbers.
+!> 
+!>      In detail, this RNG provides 2**64 random number streams each with a
+!>      length of 2**127 resulting in a length of 2**191 for the total RNG.
+!>      Moreover, each stream is divided in 2**51 substream of length 2**76.
+!>      The stream lengths refer to the default precision of 32 bit random
+!>      number, but also an extended precision of 53 bit per random number
+!>      can be requested. In this case, two 32 bit random numbers are used
+!>      to generate a 53 bit random number and therefore the stream length
+!>      is halved when extended precision are requested.
+!> 
+!>      Usage hint:
+!> 
+!>      CALL create_rng_stream(rng_stream,name,...,error=error)
+!> 
+!>      to generate the first stream. Optionally, you may define a different
+!>      seed or create a stream of extended precision (53 bits). Then
+!> 
+!>      CALL create_rng_stream(next_rng_stream,name,last_rng_stream=rng_stream)
+!> 
+!>      to create all the following RNG streams w.r.t. the previous stream.
+!>      The command line
+!> 
+!>      x = next_random_number(rng_stream,error=error)
+!> 
+!>      will provide the next real random number x between 0 and 1 and
+!> 
+!>      ix = next_random_number(rng_stream,low,high,error=error)
+!> 
+!>      the next integer random number ix between low and high from stream
+!>      rng_stream. The default distribution type is a uniform distribution
+!>      [0,1], but also other distribution types are available (see below).
+!> 
+!>      Finally, do not forget to delete each created RNG stream when it is
+!>      no longer needed by
+!> 
+!>      CALL delete_rng_stream(rng_stream,error=error)
+!> 
+!>      to avoid memory leaks!
+!> \par Literature
+!>      P. L'Ecuyer, R. Simard, E. J. Chen, and W. D. Kelton,
+!>      "An object-oriented random-number package with many long streams
+!>       and substreams", Operations Research 50(6), 1073-1075 (2002)
+!> \author C++ code converted to Fortran 90/95 (18.05.2005, Matthias Krack)
+! *****************************************************************************
 MODULE parallel_rng_types
 
   USE f77_blas
@@ -108,6 +95,7 @@ MODULE parallel_rng_types
   ! (53 bits, if machine follows IEEE 754 standard), if extended_precision =
   ! .TRUE., otherwise, numbers with 32 bits precision are generated.
 
+! *****************************************************************************
   TYPE rng_stream_type
     PRIVATE
     CHARACTER(LEN=40)             :: name
@@ -119,6 +107,7 @@ MODULE parallel_rng_types
     LOGICAL                       :: buffer_filled
   END TYPE rng_stream_type
 
+! *****************************************************************************
   TYPE rng_stream_p_type
     TYPE(rng_stream_type), POINTER :: stream
   END TYPE rng_stream_p_type
@@ -174,12 +163,9 @@ MODULE parallel_rng_types
             write_rng_matrices,&
             write_rng_stream
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE advance_rng_state(rng_stream,e,c,error)
 
     ! Advance the state by n steps, i.e. jump n steps forward, if n > 0, or
@@ -251,8 +237,7 @@ CONTAINS
 
   END SUBROUTINE advance_rng_state
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE check_rng(output_unit,ionode,error)
 
     ! Check the parallel (pseudo)random number generator (RNG).
@@ -440,8 +425,7 @@ CONTAINS
 
   END SUBROUTINE check_rng
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE check_seed(seed,error)
 
     ! Check that the seeds are legitimate values.
@@ -513,8 +497,7 @@ CONTAINS
 
   END SUBROUTINE check_seed
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE create_rng_stream(rng_stream,name,last_rng_stream,&
                                distribution_type,seed,antithetic,&
                                extended_precision,error)
@@ -609,8 +592,7 @@ CONTAINS
 
   END SUBROUTINE create_rng_stream
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE delete_rng_stream(rng_stream,error)
 
     ! Delete a random number stream.
@@ -637,8 +619,7 @@ CONTAINS
 
   END SUBROUTINE delete_rng_stream
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE dump_rng_stream(rng_stream,rng_record,error)
 
     ! Dump a RNG stream as a record given as an internal file (string).
@@ -675,8 +656,7 @@ CONTAINS
 
   END SUBROUTINE dump_rng_stream
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE get_rng_stream(rng_stream,name,distribution_type,bg,cg,ig,&
                             antithetic,extended_precision,error)
 
@@ -717,8 +697,7 @@ CONTAINS
 
   END SUBROUTINE get_rng_stream
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE init_rng()
 
     ! Initialize the transformation matrices for the RNG.
@@ -829,8 +808,7 @@ CONTAINS
 
   END SUBROUTINE init_rng
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE mat_mat_mod_m(a,b,c,m)
 
     ! Returns c = MODULO(a*b,m).
@@ -851,8 +829,7 @@ CONTAINS
 
   END SUBROUTINE mat_mat_mod_m
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE mat_pow_mod_m(a,b,m,n)
 
     ! Compute matrix b = MODULO(a**n,m)
@@ -901,8 +878,7 @@ CONTAINS
 
   END SUBROUTINE mat_pow_mod_m
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE mat_two_pow_mod_m(a,b,m,e)
 
     ! Compute matrix b = MODULO(a**(2**e),m)
@@ -931,8 +907,7 @@ CONTAINS
 
   END SUBROUTINE mat_two_pow_mod_m
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE mat_vec_mod_m(a,s,v,m)
 
     ! Returns v = MODULO(a*s,m). Assumes that -m < s(i) < m.
@@ -971,8 +946,7 @@ CONTAINS
 
   END SUBROUTINE mat_vec_mod_m
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   FUNCTION next_integer_random_number(rng_stream,low,high,error) RESULT(u)
 
     ! Get the next integer random number between low and high from the stream
@@ -1003,8 +977,7 @@ CONTAINS
 
   END FUNCTION next_integer_random_number
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   FUNCTION next_real_random_number(rng_stream,variance,error) RESULT(u)
 
     ! Get the next real random number from the stream rng_stream.
@@ -1066,8 +1039,7 @@ CONTAINS
 
   END FUNCTION next_real_random_number
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   FUNCTION next_rng_seed(seed,error) RESULT(next_seed)
 
     ! Get the seed for the next RNG stream w.r.t. a given seed.
@@ -1091,8 +1063,7 @@ CONTAINS
 
   END FUNCTION next_rng_seed
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE random_numbers_1(array,rng_stream,error)
 
     ! Fill entity array with random numbers from the RNG stream rng_stream.
@@ -1121,8 +1092,7 @@ CONTAINS
 
   END SUBROUTINE random_numbers_1
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE random_numbers_2(array,rng_stream,error)
 
     ! Fill entity array with random numbers from the RNG stream rng_stream.
@@ -1153,8 +1123,7 @@ CONTAINS
 
   END SUBROUTINE random_numbers_2
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE random_numbers_3(array,rng_stream,error)
 
     ! Fill entity array with random numbers from the RNG stream rng_stream.
@@ -1187,8 +1156,7 @@ CONTAINS
 
   END SUBROUTINE random_numbers_3
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE read_rng_stream(rng_stream,rng_record,error)
 
     ! Read a RNG stream from a record given as an internal file (string).
@@ -1228,8 +1196,7 @@ CONTAINS
 
   END SUBROUTINE read_rng_stream
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE reset_rng_stream(rng_stream,error)
 
     ! Reset a random number stream to its initial state.
@@ -1255,8 +1222,7 @@ CONTAINS
 
   END SUBROUTINE reset_rng_stream
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE reset_rng_substream(rng_stream)
 
     ! Reset a random number stream to the beginning of its current substream.
@@ -1269,8 +1235,7 @@ CONTAINS
 
   END SUBROUTINE reset_rng_substream
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE reset_to_next_rng_substream(rng_stream,error)
 
     ! Reset a random number stream to the beginning of its next substream.
@@ -1304,8 +1269,7 @@ CONTAINS
 
   END SUBROUTINE reset_to_next_rng_substream
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   FUNCTION rn32(rng_stream) RESULT(u)
 
     ! Generate the next random number with standard precision (32 bits).
@@ -1349,8 +1313,7 @@ CONTAINS
 
   END FUNCTION rn32
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   FUNCTION rn53(rng_stream) RESULT(u)
 
     ! Generate the next random number with extended precision (53 bits).
@@ -1374,8 +1337,7 @@ CONTAINS
 
   END FUNCTION rn53
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE set_rng_stream(rng_stream,name,distribution_type,bg,cg,ig,&
                             seed,antithetic,extended_precision,error)
 
@@ -1425,8 +1387,7 @@ CONTAINS
 
   END SUBROUTINE set_rng_stream
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE write_rng_matrices(output_unit)
 
     ! Write the transformation matrices of the two MRG components (raised to
@@ -1466,8 +1427,7 @@ CONTAINS
 
   END SUBROUTINE write_rng_matrices
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE write_rng_stream(rng_stream,output_unit,write_all,error)
 
     ! write_all: if .TRUE., then print all stream informations.
@@ -1545,7 +1505,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE write_rng_stream
-
-  ! ***************************************************************************
 
 END MODULE parallel_rng_types

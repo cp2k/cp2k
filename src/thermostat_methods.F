@@ -3,22 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!***** cp2k/thermostat_methods [1.0] *
-!!
-!!   NAME
-!!     thermostat_methods
-!!
-!!   FUNCTION
-!!     Methods for Thermostats 
-!!
-!!   AUTHOR
-!!     teo [tlaino] - University of Zurich - 10.2007
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Methods for Thermostats 
+!> \author teo [tlaino] - University of Zurich - 10.2007
+! *****************************************************************************
 MODULE thermostat_methods
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -104,28 +92,13 @@ MODULE thermostat_methods
 
 CONTAINS
 
-!!****f* thermostat_methods/create_thermostats [1.0] *
-!!
-!!   NAME
-!!     create_thermostats
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE create_thermostats(thermostats,motion_section, &
        force_env, simpar, para_env, globenv, global_section, error )
     TYPE(thermostats_type), POINTER          :: thermostats
@@ -376,28 +349,13 @@ CPSourceFileRef,&
 
   END SUBROUTINE create_thermostats
 
-!!****f* thermostat_methods/update_thermo_baro_section [1.0] *
-!!
-!!   NAME
-!!    update_thermo_baro_section 
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE update_thermo_baro_section(thermostat, section, error)
     TYPE(thermostat_type), POINTER           :: thermostat
     TYPE(section_vals_type), POINTER         :: section
@@ -423,28 +381,13 @@ CPSourceFileRef,&
 
   END SUBROUTINE update_thermo_baro_section
 
-!!****f* thermostat_methods/thermostat_info [1.0] *
-!!
-!!   NAME
-!!    thermostat_info 
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE thermostat_info(thermostat, label, section,  simpar, para_env, error)
     TYPE(thermostat_type), POINTER           :: thermostat
     CHARACTER(LEN=*), INTENT(IN)             :: label
@@ -501,28 +444,13 @@ CPSourceFileRef,&
 
   END SUBROUTINE thermostat_info
 
-!!****f* thermostat_methods/apply_thermostat_coeff [1.0] *
-!!
-!!   NAME
-!!     apply_thermostat_coeff
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE apply_thermostat_coeff(thermostat, dyn_coeff_set, group, error)
     TYPE(thermostat_type), POINTER           :: thermostat
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
@@ -548,28 +476,13 @@ CPSourceFileRef,&
     END IF
   END SUBROUTINE apply_thermostat_coeff
 
-!!****f* thermostat_methods/apply_thermostat_baro [1.0] *
-!!
-!!   NAME
-!!     apply_thermostat_baro
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE apply_thermostat_baro(thermostat, npt, group, error)
     TYPE(thermostat_type), POINTER           :: thermostat
     TYPE(npt_info_type), DIMENSION(:, :), &
@@ -596,28 +509,13 @@ CPSourceFileRef,&
     END IF
   END SUBROUTINE apply_thermostat_baro
 
-!!****f* thermostat_methods/apply_thermostat_particles [1.0] *
-!!
-!!   NAME
-!!     apply_thermostat_particles
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE apply_thermostat_particles(thermostat, molecule_kind_set, molecule_set,&
        particle_set, local_molecules, group, shell_adiabatic, shell_particle_set,&
        core_particle_set, vel, shell_vel, core_vel, error)
@@ -658,28 +556,13 @@ CPSourceFileRef,&
     END IF
   END SUBROUTINE apply_thermostat_particles
 
-!!****f* thermostat_methods/apply_thermostat_shells [1.0] *
-!!
-!!   NAME
-!!     apply_thermostat_shells
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE apply_thermostat_shells(thermostat,atomic_kind_set, particle_set,&
        local_particles, group, shell_particle_set, core_particle_set, vel, shell_vel,&
        core_vel, error)
@@ -717,4 +600,3 @@ CPSourceFileRef,&
   END SUBROUTINE apply_thermostat_shells
 
 END MODULE thermostat_methods
-!******************************************************************************

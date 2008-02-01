@@ -3,24 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/lowdin [1.0] *
-!!
-!!   NAME
-!!     lowdin
-!!
-!!   FUNCTION
-!!     compute lowdin charges
-!!     sum(mu in C, (Shalf P Shalf)mumu)
-!!
-!!   AUTHOR
-!!     Joost VandeVondele, Feb 2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief compute lowdin charges
+!>      sum(mu in C, (Shalf P Shalf)mumu)
+!> \author Joost VandeVondele, Feb 2006
+! *****************************************************************************
 MODULE lowdin
   USE atomic_charges,                  ONLY: print_atomic_charges
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -58,27 +45,17 @@ MODULE lowdin
   PUBLIC :: lowdin_charges
 
 CONTAINS
-!!****f* lowdin/compute_charges *
-!!
-!!   NAME
-!!     compute_charges
-!!
-!!   FUNCTION
-!!     compute the lowdin charges
-!!
-!!   NOTES
-!!     charges are computed per spin in the LSD case
-!!     no effort to do this in a computational very efficient way.
-!!
-!!   INPUTS
-!!    - p_matrix, s_matrix, para_env
-!!    - charges : previously allocated with the right size (natom,nspin)
-!!
-!!   MODIFICATION HISTORY
-!!     02.2006 created [Joost VandeVondele]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief compute the lowdin charges
+!> \param p_matrix , s_matrix, para_env
+!> \param charges previously allocated with the right size (natom,nspin)
+!> \note
+!>      charges are computed per spin in the LSD case
+!>      no effort to do this in a computational very efficient way.
+!> \par History
+!>      02.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE compute_charges(s_matrix,mos,charges,error)
     TYPE(real_matrix_type), POINTER          :: s_matrix
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -156,27 +133,15 @@ CONTAINS
 
   END SUBROUTINE compute_charges
 
-!!****f* lowdin/lowdin_charges *
-!!
-!!   NAME
-!!     lowdin_charges
-!!
-!!   FUNCTION
-!!     print the lowdin charges to scr on ionode
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!    - p_matrix, s_matrix, para_env
-!!    - particle_set (needed for Z)
-!!    - scr : unit for output
-!!    - ionode : true if scr is connected, and output is needed
-!!
-!!   MODIFICATION HISTORY
-!!     02.2006 Joost VandeVondele
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief print the lowdin charges to scr on ionode
+!> \param p_matrix , s_matrix, para_env
+!> \param particle_set (needed for Z)
+!> \param scr unit for output
+!> \param ionode true if scr is connected, and output is needed
+!> \par History
+!>      02.2006 Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE lowdin_charges(s_matrix,mos,particle_set, &
                               scr,title,error)
     TYPE(real_matrix_type), POINTER          :: s_matrix

@@ -3,29 +3,16 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/ep_methods [1.0] *
-!!
-!!   NAME
-!!     ep_methods
-!!
-!!   FUNCTION
-!!     in this module there are the routines for the calculation of
-!!     psi and energy without scf, but perturbatively as in PRL 87(22);226401;
-!!     26 Nov 2001,"Accurate Total Energies without Self-Consistency",
-!!     David M. Benoit, Daniel Sebastiani, and Michele Parrinello
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2002 created [fawzi]
-!!     06.2006 ressurected, renamed qs_ep_methods => ep_methods
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief in this module there are the routines for the calculation of
+!>      psi and energy without scf, but perturbatively as in PRL 87(22);226401;
+!>      26 Nov 2001,"Accurate Total Energies without Self-Consistency",
+!>      David M. Benoit, Daniel Sebastiani, and Michele Parrinello
+!> \par History
+!>      11.2002 created [fawzi]
+!>      06.2006 ressurected, renamed qs_ep_methods => ep_methods
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE ep_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
@@ -185,30 +172,14 @@ MODULE ep_methods
   PUBLIC :: ep_env_init_low, ep_env_transfer_psi0, &
        ep_env_localize_matrix, ep_env_calc_e_f_low
 
-  !!***
-  !****************************************************************************
-
 CONTAINS
 
-!!****f* ep_methods/print_qs_energies *
-!!
-!!   NAME
-!!     print_qs_energies
-!!
-!!   FUNCTION
-!!     writes out the qs energies
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes out the qs energies
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE print_qs_energies(qs_env,output_unit,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: output_unit
@@ -261,27 +232,16 @@ CONTAINS
     END IF
     CALL timestop(handle)
   END SUBROUTINE print_qs_energies
-!***************************************************************************
 
-  !!****f* ep_methods/calc_c0_tilde [1.0] *
-  !!
-  !!   NAME
-  !!     calc_c0_tilde
-  !!
-  !!   FUNCTION
-  !!     calculates c0 for a single molecule
-  !!
-  !!   INPUTS
-  !!     - ep_env: the ep_env with all the 
-  !!     - main_qs_env: the qs_env of the full system
-  !!     - projections: the projections into the subsystems
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Clotilde Cucinotta
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates c0 for a single molecule
+!> \param ep_env the ep_env with all the 
+!> \param main_qs_env the qs_env of the full system
+!> \param projections the projections into the subsystems
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Clotilde Cucinotta
+! *****************************************************************************
   SUBROUTINE calc_c0_tilde(ep_env,mol_pos,new_c,imol,error)
     TYPE(ep_env_type), POINTER               :: ep_env
     REAL(kind=dp), DIMENSION(:), INTENT(in)  :: mol_pos
@@ -311,35 +271,21 @@ CONTAINS
        END DO
     END DO
   END SUBROUTINE calc_c0_tilde
-  !***************************************************************************
   
-  !!****f* ep_methods/ep_env_create [1.0] *
-  !!
-  !!   NAME
-  !!     ep_env_create
-  !!
-  !!   FUNCTION
-  !!     creates the environement to perform an ep perturbation
-  !!
-  !!   NOTES
-  !!     Could take more advantage of what is calculated in main_qs_env
-  !!     (for example the S matrix)
-  !!
-  !!
-  !!   INPUTS
-  !!     - ep_env: the ep_env env to create
-  !!     - main_qs_env: the qs_env of the full system
-  !!     - projections: the projections into the subsystems
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Fawzi Mohamed
-  !!
-  !!   MODIFICATION HISTORY
-  !!     11.2002 created [fawzi]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the environement to perform an ep perturbation
+!> \param ep_env the ep_env env to create
+!> \param main_qs_env the qs_env of the full system
+!> \param projections the projections into the subsystems
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      Could take more advantage of what is calculated in main_qs_env
+!>      (for example the S matrix)
+!> \par History
+!>      11.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE ep_env_init_low(ep_env_id,ierr)
     INTEGER, INTENT(in)                      :: ep_env_id
     INTEGER, INTENT(out)                     :: ierr
@@ -617,32 +563,17 @@ CONTAINS
     CALL cp_error_dealloc_ref(error)
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE ep_env_init_low
-  !***************************************************************************
 
-  !!****f* ep_methods/ep_env_finish_qs_init [1.0] *
-  !!
-  !!   NAME
-  !!     ep_env_finish_qs_init
-  !!
-  !!   FUNCTION
-  !!     finish the initialization of the qs environement
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - qs_env: the qs_environment to fully initialize
-  !!     - globenv: global environment finish the the initialization
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Fawzi Mohamed
-  !!
-  !!   MODIFICATION HISTORY
-  !!     12.2002 created [fawzi]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief finish the initialization of the qs environement
+!> \param qs_env the qs_environment to fully initialize
+!> \param globenv global environment finish the the initialization
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -718,32 +649,17 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE ep_env_finish_qs_init
-  !***************************************************************************
 
-  !!****f* ep_methods/ep_env_transfer_psi0 [1.0] *
-  !!
-  !!   NAME
-  !!     ep_env_transfer_psi0
-  !!
-  !!   FUNCTION
-  !!     transfers psi0 from the sub_qs_env to the main_qs_env
-  !!     (i.e. sub_qs_env%c are injected into main_qs_env%c)
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - ep_env: ep environment in which the transfer should be performed
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Fawzi Mohamed
-  !!
-  !!   MODIFICATION HISTORY
-  !!     12.2002 created [fawzi]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief transfers psi0 from the sub_qs_env to the main_qs_env
+!>      (i.e. sub_qs_env%c are injected into main_qs_env%c)
+!> \param ep_env ep environment in which the transfer should be performed
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE ep_env_transfer_psi0(ep_env, error)
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -911,40 +827,26 @@ CONTAINS
           END IF
        END DO
 
-
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE ep_env_transfer_psi0
-  !***************************************************************************
 
-  !!****f* ep_methods/stupid_solve [1.0] *
-  !!
-  !!   NAME
-  !!     stupid_solve
-  !!
-  !!   FUNCTION
-  !!     solves a linear system with conjugated gradient
-  !!
-  !!   NOTES
-  !!     The linear solver should go in another module, this is a quick and
-  !!     dirty implementation.
-  !!     A: postortho (p_op_l1+p_op_l2) preortho
-  !!     x: ep_env%psi1
-  !!     ugly scaling of p (to avoid cutoff of small values on the grids)
-  !!
-  !!   ARGUMENTS
-  !!     - ep_env: the sytem to solve
-  !!     - eps_r: wanted residual error
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   MODIFICATION HISTORY
-  !!     12.2002 created [fawzi]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief solves a linear system with conjugated gradient
+!> \param ep_env the sytem to solve
+!> \param eps_r wanted residual error
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      The linear solver should go in another module, this is a quick and
+!>      dirty implementation.
+!>      A: postortho (p_op_l1+p_op_l2) preortho
+!>      x: ep_env%psi1
+!>      ugly scaling of p (to avoid cutoff of small values on the grids)
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE stupid_solve(ep_env,eps_r,error)
     TYPE(ep_env_type), POINTER               :: ep_env
     REAL(KIND=dp), INTENT(in)                :: eps_r
@@ -1198,33 +1100,20 @@ CONTAINS
     END IF
 
   END SUBROUTINE stupid_solve
-  !***************************************************************************
 
-  !!****f* ep_methods/p_op_ep [1.0] *
-  !!
-  !!   NAME
-  !!     p_op_ep
-  !!
-  !!   FUNCTION
-  !!     evaluates the ep operator (p_op_l1+p_op_l2) on the given vector
-  !!
-  !!   NOTES
-  !!     no preorthogonalization, thus v must be orthogonal to the psi0
-  !!
-  !!   ARGUMENTS
-  !!     - p_env : perturbation calculation environment
-  !!     - qs_env: the qs_env that is perturbed by this p_env
-  !!     - v     : the matrix to operate on (must be orthogonal to the psi0)
-  !!     - res   : the result
-  !!     - error : error handling object (optional)
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   MODIFICATION HISTORY
-  !!     12.2002 created [fawzi]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief evaluates the ep operator (p_op_l1+p_op_l2) on the given vector
+!> \param p_env perturbation calculation environment
+!> \param qs_env the qs_env that is perturbed by this p_env
+!> \param v the matrix to operate on (must be orthogonal to the psi0)
+!> \param res the result
+!> \param error error handling object (optional)
+!> \note
+!>      no preorthogonalization, thus v must be orthogonal to the psi0
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE p_op_ep(p_env, qs_env, v, res, error)
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1277,34 +1166,19 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE p_op_ep
-  !***************************************************************************
 
-  !!****f* ep_methods/p_env_write_ep_matrix [1.0] *
-  !!
-  !!   NAME
-  !!     p_env_write_ep_matrix
-  !!
-  !!   FUNCTION
-  !!     writes out the whole ep interaction matrix (as defined by p_op_ep)
-  !!     one column per file
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - p_env: the p_env where to evaluate the interaction matrix
-  !!     - qs_env: the qs_env that is perturbed by the p_env
-  !!     - name: name used for the matrixes outputted
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   MODIFICATION HISTORY
-  !!     12.2002 created [fawzi]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes out the whole ep interaction matrix (as defined by p_op_ep)
+!>      one column per file
+!> \param p_env the p_env where to evaluate the interaction matrix
+!> \param qs_env the qs_env that is perturbed by the p_env
+!> \param name name used for the matrixes outputted
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE p_env_write_ep_matrix(p_env, qs_env, name, error)
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1386,30 +1260,15 @@ CONTAINS
        CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, res, error=error)
     END IF
   END SUBROUTINE p_env_write_ep_matrix
-  !***************************************************************************
 
-  !!****f* ep_methods/ep_env_localize_matrix [1.0] *
-  !!
-  !!   NAME
-  !!     ep_env_localize_matrix
-  !!
-  !!   FUNCTION
-  !!     localizes the wavefunction matrix, restraining it the the subsystem
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   MODIFICATION HISTORY
-  !!     03.2003 created [fawzi]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief localizes the wavefunction matrix, restraining it the the subsystem
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      03.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE ep_env_localize_matrix(ep_env, wf_coeff, error)
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -1461,29 +1320,14 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE ep_env_localize_matrix
-  !***************************************************************************
 
-
-  !!****f* ep_methods/ep_env_calc_e_f_low *
-  !!
-  !!   NAME
-  !!     ep_env_calc_e_f_low
-  !!
-  !!   FUNCTION
-  !!     calculates the energy and forces using the ep method
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - ep_env_id: the id of the ep_env that should be updated
-  !!     - calc_f: if non zero then calculates also the forces
-  !!     - ierr: will be nonzero if there is an error
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates the energy and forces using the ep method
+!> \param ep_env_id the id of the ep_env that should be updated
+!> \param calc_f if non zero then calculates also the forces
+!> \param ierr will be nonzero if there is an error
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE ep_env_calc_e_f_low(ep_env_id, calc_f, ierr)
     INTEGER, INTENT(in)                      :: ep_env_id, calc_f
     INTEGER, INTENT(out)                     :: ierr
@@ -1511,33 +1355,17 @@ CONTAINS
     END IF
     CALL cp_error_dealloc_ref(error)
   END SUBROUTINE ep_env_calc_e_f_low
-  !***************************************************************************
 
-
-  !!****f* qs_scf/qs_check_i_alloc [1.0] *
-  !!
-  !!   NAME
-  !!     qs_check_i_alloc
-  !!
-  !!   FUNCTION
-  !!     checks the allocation status of the needed matrixes, and if necessary
-  !!     allocate them
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - qs_env: the qs_env, the scf_env lives in
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   MODIFICATION HISTORY
-  !!     07.2006 taken from scf_env_check_i_alloc [fawzi]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief checks the allocation status of the needed matrixes, and if necessary
+!>      allocate them
+!> \param qs_env the qs_env, the scf_env lives in
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      07.2006 taken from scf_env_check_i_alloc [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE qs_check_i_alloc(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1641,7 +1469,6 @@ CONTAINS
        ! nothing should be done
     ENDIF
 
-
     !   *** Allocate matrix_ks and put it in the QS environment ***
 
     IF (.not.ASSOCIATED(matrix_ks)) THEN
@@ -1664,25 +1491,11 @@ CONTAINS
 
   END SUBROUTINE qs_check_i_alloc
 
-  !!****f* ep_methods/ep_env_calc_e0 *
-  !!
-  !!   NAME
-  !!     ep_env_calc_e0
-  !!
-  !!   FUNCTION
-  !!     -
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE ep_env_calc_e0(ep_env,error)
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2090,7 +1903,6 @@ CONTAINS
          mos=mos,&
          rho=rho,error=error)
 
-
     ! forces
     ! Build W matrix (from the orthonormality constraint lambda C^T S C)
     CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
@@ -2150,7 +1962,6 @@ CONTAINS
     CALL qs_ks_update_qs_env(ks_env=ks_env,&
          qs_env=qs_env,&
          calculate_forces=.TRUE.,error=error)
-
 
     !  *** replicate forces ***
     CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
@@ -2242,26 +2053,13 @@ CONTAINS
 
     CALL timestop(handle)
   END SUBROUTINE ep_env_calc_e0
-  !***************************************************************************
 
-  !!****f* ep_methods/ep_calc_w_matrix_full [1.0] *
-  !!
-  !!    NAME
-  !!      ep_calc_w_matrix_full
-  !!
-  !!    FUNCTION
-  !!      Calculate the W matrix for the full system
-  !!
-  !!    NOTE
-  !!      -
-  !!
-  !!    INPUTS
-  !!       ep_env: the ep environment
-  !!       w_matrix : sparse matrix vector that will contain the w matrix
-  !!       error: controls error handling
-  !!
-  !!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Calculate the W matrix for the full system
+!> \param ep_env the ep environment
+!> \param w_matrix sparse matrix vector that will contain the w matrix
+!> \param error controls error handling
+! *****************************************************************************
   SUBROUTINE ep_calc_w_matrix_full(ep_env,w_matrix,error)
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -2311,33 +2109,20 @@ CONTAINS
 
   END SUBROUTINE ep_calc_w_matrix_full
 
-  ! ***************************************************************************
-
-!!****f* ep_methods/ep_calc_dc_dr_fdiff *
-!!
-!!   NAME
-!!     ep_calc_dc_dr_fdiff
-!!
-!!   FUNCTION
-!!     calculates the derivative of dc with respect to an atomic coord
-!!     with finite differences
-!!
-!!   NOTES
-!!     for debugging purposes only, non symmetric derivative
-!!
-!!   ARGUMENTS
-!!     - ep_env: the ep_environment
-!!     - dc_dr: the derivative
-!!     - imol: the subsystem you are interested in
-!!     - iat: atom to derive
-!!     - idir: direction to derive
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates the derivative of dc with respect to an atomic coord
+!>      with finite differences
+!> \param ep_env the ep_environment
+!> \param dc_dr the derivative
+!> \param imol the subsystem you are interested in
+!> \param iat atom to derive
+!> \param idir direction to derive
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      for debugging purposes only, non symmetric derivative
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE ep_calc_dc_dr_fdiff(ep_env,dc_dr,imol,iat,idir,error)
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(cp_fm_p_type), DIMENSION(:)         :: dc_dr
@@ -2451,24 +2236,12 @@ CONTAINS
     END IF
     CALL timestop(handle)
   END SUBROUTINE ep_calc_dc_dr_fdiff
-!***************************************************************************
 
-  !!****f* ep_methods/ep_calc_f_sub [1.0] *
-  !!
-  !!    NAME
-  !!      ep_calc_f_sub
-  !!
-  !!    FUNCTION
-  !!      Calculate the forces due to dC/dR (in the sub systems)
-  !!
-  !!    NOTE
-  !!      -
-  !!
-  !!    INPUTS
-  !!       ep_env: the ep environment
-  !!       error: controls error handling
-  !!
-  !!*** *************************************************************************
+! *****************************************************************************
+!> \brief Calculate the forces due to dC/dR (in the sub systems)
+!> \param ep_env the ep environment
+!> \param error controls error handling
+! *****************************************************************************
   SUBROUTINE ep_calc_f_sub(ep_env,error)
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2671,37 +2444,21 @@ CONTAINS
 
   END SUBROUTINE ep_calc_f_sub
 
-  ! ***************************************************************************
-  !!****f* ep_methods/ep_create_full_diag_sm *
-  !!
-  !!   NAME
-  !!     ep_create_full_diag_sm
-  !!
-  !!   FUNCTION
-  !!     creates a zeroed diagonal (molecular) sparse matrix without
-  !!     symmetry
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - ep_env: the ep_environment
-  !!     - source_m: the source matrix
-  !!     - diag_m: diagonal matrix that will be created
-  !!     - diag_m_name: name of the newly created matrix
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a zeroed diagonal (molecular) sparse matrix without
+!>      symmetry
+!> \param ep_env the ep_environment
+!> \param source_m the source matrix
+!> \param diag_m diagonal matrix that will be created
+!> \param diag_m_name name of the newly created matrix
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE ep_create_full_diag_sm(ep_env,source_m,diag_m,diag_m_name,&
        error)
 
     !   History: - Creation (17.11.2000, MK)
-
-    !   ***************************************************************************
 
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(real_matrix_type), POINTER          :: source_m, diag_m
@@ -2756,38 +2513,22 @@ CONTAINS
 !    PRINT *,"end ", routineP
 
   END SUBROUTINE ep_create_full_diag_sm
-  !***************************************************************************
 
-  !!****f* ep_methods/ep_create_diag_sm *
-  !!
-  !!   NAME
-  !!     ep_create_diag_sm
-  !!
-  !!   FUNCTION
-  !!     creates copy of the diagonal (molecular) part of a sparse matrix
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - ep_env: the ep_environment
-  !!     - source_m: the source matrix
-  !!     - diag_m: diagonal matrix that will be created
-  !!     - diag_m_name: name of the newly created matrix
-  !!     - do_copy: if source_m should be copied or only the structure should
-  !!       be recreated. Defaults to false (only structure)
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates copy of the diagonal (molecular) part of a sparse matrix
+!> \param ep_env the ep_environment
+!> \param source_m the source matrix
+!> \param diag_m diagonal matrix that will be created
+!> \param diag_m_name name of the newly created matrix
+!> \param do_copy if source_m should be copied or only the structure should
+!>        be recreated. Defaults to false (only structure)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE ep_create_diag_sm(ep_env,source_m,diag_m,diag_m_name,do_copy,error)
 
     !   History: - Creation (17.11.2000, MK)
-
-    !   ***************************************************************************
 
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(real_matrix_type), POINTER          :: source_m, diag_m
@@ -2852,32 +2593,17 @@ CONTAINS
     END DO
 
   END SUBROUTINE ep_create_diag_sm
-  ! *****************************************************************************
 
-
-  !!****f* ep_methods/ep_create_local_empty_sm *
-  !!
-  !!   NAME
-  !!     ep_create_local_empty_sm
-  !!
-  !!   FUNCTION
-  !!     creates local sparse matrixes with no blocks.
-  !!     WARNING, this is obviously incompatible with s-matrix
-  !!     sparsity/distribution!
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - ep_env: the ep_environment
-  !!     - local_sm: the matrixes to be created
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates local sparse matrixes with no blocks.
+!>      WARNING, this is obviously incompatible with s-matrix
+!>      sparsity/distribution!
+!> \param ep_env the ep_environment
+!> \param local_sm the matrixes to be created
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE ep_create_local_empty_sm(ep_env,local_sm,name,symmetry,error)
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(real_matrix_p_type), &
@@ -2955,29 +2681,15 @@ CONTAINS
     END IF
     CALL timestop(handle)
   END SUBROUTINE ep_create_local_empty_sm
-  !***************************************************************************
 
-  !!****f* ep_methods/ep_create_local_sm *
-  !!
-  !!   NAME
-  !!     ep_create_local_sm
-  !!
-  !!   FUNCTION
-  !!     creates local sparse matrixes with the sparsity of the local S matrix
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - ep_env: the ep_environment
-  !!     - local_sm: the matrixes to be created
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates local sparse matrixes with the sparsity of the local S matrix
+!> \param ep_env the ep_environment
+!> \param local_sm the matrixes to be created
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE ep_create_local_sm(ep_env,local_sm,error)
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(real_matrix_p_type), &
@@ -3022,29 +2734,15 @@ CONTAINS
     END IF
     CALL timestop(handle)
   END SUBROUTINE ep_create_local_sm
-  !***************************************************************************
 
-  !!****f* ep_types/ep_give_back_local_sm *
-  !!
-  !!   NAME
-  !!     ep_give_back_local_sm
-  !!
-  !!   FUNCTION
-  !!     gives back a local spare matrix
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - ep_env: the ep_env
-  !!     - local_sm: the matrix to give back
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief gives back a local spare matrix
+!> \param ep_env the ep_env
+!> \param local_sm the matrix to give back
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE ep_give_back_local_sm(ep_env, local_sm,error)
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(real_matrix_p_type), &
@@ -3087,30 +2785,16 @@ CONTAINS
        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE ep_give_back_local_sm
-  !***************************************************************************
 
-  !!****f* ep_methods/ep_full_to_local_sm *
-  !!
-  !!   NAME
-  !!     ep_full_to_local_sm
-  !!
-  !!   FUNCTION
-  !!     transfers a full sparse matrix to local matrix
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - ep_env: the ep_environment
-  !!     - full_sm: the full matrix to copy
-  !!     - local_sm: the targt local matrix
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief transfers a full sparse matrix to local matrix
+!> \param ep_env the ep_environment
+!> \param full_sm the full matrix to copy
+!> \param local_sm the targt local matrix
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE ep_full_to_local_sm(ep_env, full_sm, local_sm, ispin, error)
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(real_matrix_type), POINTER          :: full_sm
@@ -3270,6 +2954,5 @@ CONTAINS
        END DO
     END IF
   END SUBROUTINE ep_full_to_local_sm
-  !***************************************************************************
 
 END MODULE ep_methods

@@ -3,24 +3,14 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!***** cp2k/qs_loc_control [1.0] *
-!!
-!!   NAME
-!!     qs_loc_control
-!!
-!!   FUNCTION
-!!     Defines the control structure, which contain the parameters and the
-!!     settings for the calculations of the localization of wavefunctions.
-!!
-!!   AUTHORS
-!!     MI (04.2005)
-!!
-!!   MODIFICATION HISTORY
-!!     01.2008 Teodoro Laino [tlaino] - University of Zurich
-!!       - Merging the two localization codes and updating to new structures
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Defines the control structure, which contain the parameters and the
+!>      settings for the calculations of the localization of wavefunctions.
+!> \par History
+!>      01.2008 Teodoro Laino [tlaino] - University of Zurich
+!>        - Merging the two localization codes and updating to new structures
+!> \author MI (04.2005)
+! *****************************************************************************
 MODULE qs_loc_control
 
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
@@ -43,35 +33,24 @@ MODULE qs_loc_control
 
   PRIVATE
 
-!!***** qs_loc_control/localized_wfn_control_type
-!!
-!! NAME
-!!   localized_wfn_control_type
-!!
-!! FUNCTION
-!!   A type that holds controling information for the
-!!   calculation of the spread of wfn and theoptimization of
-!!   the spread functional
-!!
-!! ATTRIBUTES
-!!   ref_count:
-!!   localization_method: which algorithm is used for the optimization
-!!   operator_type: how the spread is defined
-!!   nloc_states: number of states on which the spread is computed
-!!   set_of_states: how to choose the states
-!!   lu_bound_states: lower and upper bounds of the set of states
-!!   print_cubes:
-!!   print_centers:
-!!   print_spreads:
-!!   loc_states: list of states on which the spread is computed
-!!   centers_set:  arrais containing centers and spreads of the selected wfn
-!!   centers_file_name: output file names
-!!   spreads_file_name: output file names
-!!
-!! NOTES
-!!
-!!
-!!***
+! *****************************************************************************
+!> \brief A type that holds controling information for the
+!>    calculation of the spread of wfn and theoptimization of
+!>    the spread functional
+!> \param ref_count:
+!> \param localization_method which algorithm is used for the optimization
+!> \param operator_type how the spread is defined
+!> \param nloc_states number of states on which the spread is computed
+!> \param set_of_states how to choose the states
+!> \param lu_bound_states lower and upper bounds of the set of states
+!>    print_cubes:
+!>    print_centers:
+!>    print_spreads:
+!> \param loc_states list of states on which the spread is computed
+!> \param centers_set arrais containing centers and spreads of the selected wfn
+!> \param centers_file_name output file names
+!> \param spreads_file_name output file names
+! *****************************************************************************
   TYPE localized_wfn_control_type
     INTEGER                              :: ref_count
     INTEGER                              :: min_or_max
@@ -104,28 +83,13 @@ MODULE qs_loc_control
             set_loc_wfn_lists,&
             set_loc_centers
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
-!!****f* qs_loc_control/localized_wfn_control_create *
-!!
-!!   NAME
-!!      localized_wfn_control_create
-!!
-!!   FUNCTION
-!!      create the localized_wfn_control_type
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     04.2005 created [MI]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief create the localized_wfn_control_type
+!> \par History
+!>      04.2005 created [MI]
+! *****************************************************************************
   SUBROUTINE localized_wfn_control_create(localized_wfn_control,error)
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
@@ -154,23 +118,11 @@ CONTAINS
     NULLIFY(localized_wfn_control%centers_set(2)%array)
   END SUBROUTINE localized_wfn_control_create
 
-!!****f* qs_loc_control/localized_wfn_control_release *
-!!
-!!   NAME
-!!      localized_wfn_control_release
-!!
-!!   FUNCTION
-!!      release the localized_wfn_control_type
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     04.2005 created [MI]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief release the localized_wfn_control_type
+!> \par History
+!>      04.2005 created [MI]
+! *****************************************************************************
   SUBROUTINE localized_wfn_control_release(localized_wfn_control,error)
 
     TYPE(localized_wfn_control_type), &
@@ -202,23 +154,11 @@ CONTAINS
     END IF
   END SUBROUTINE localized_wfn_control_release
 
-!!****f* qs_loc_control/localized_wfn_control_retain *
-!!
-!!   NAME
-!!      localized_wfn_control_retain
-!!
-!!   FUNCTION
-!!      retain the localized_wfn_control_type
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     04.2005 created [MI]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retain the localized_wfn_control_type
+!> \par History
+!>      04.2005 created [MI]
+! *****************************************************************************
   SUBROUTINE localized_wfn_control_retain(localized_wfn_control,error)
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
@@ -235,21 +175,11 @@ CONTAINS
     localized_wfn_control%ref_count=localized_wfn_control%ref_count+1
   END SUBROUTINE localized_wfn_control_retain
 
-!!****f* qs_loc_control/read_loc_section *
-!!
-!!   NAME
-!!      read_loc_section
-!!   FUNCTION
-!!      read the controlparameter from input, using the new input scheme
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     05.2005 created [MI]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief read the controlparameter from input, using the new input scheme
+!> \par History
+!>      05.2005 created [MI]
+! *****************************************************************************
   SUBROUTINE read_loc_section(localized_wfn_control,loc_section,localize,&
        do_xas,nloc_xas,error)
 
@@ -440,22 +370,13 @@ CONTAINS
 
   END SUBROUTINE read_loc_section
 
-!!****f* qs_loc_control/set_loc_centers *
-!!
-!!   NAME
-!!      set_loc_centers
-!!   FUNCTION
-!!      create the center and spread array and the file names for the output
-!!   NOTES
-!!     would be better to get rid of globenv
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     04.2005 created [MI]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief create the center and spread array and the file names for the output
+!> \note
+!>      would be better to get rid of globenv
+!> \par History
+!>      04.2005 created [MI]
+! *****************************************************************************
   SUBROUTINE set_loc_centers(localized_wfn_control,nmoloc,nspins,error)
 
     TYPE(localized_wfn_control_type)         :: localized_wfn_control
@@ -478,21 +399,11 @@ CONTAINS
 
   END SUBROUTINE set_loc_centers
 
-!!****f* qs_loc_control/set_loc_wfn_lists *
-!!
-!!   NAME
-!!      loc_wfn_lists
-!!   FUNCTION
-!!      create the lists of mos that are taken into account
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     04.2005 created [MI]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief create the lists of mos that are taken into account
+!> \par History
+!>      04.2005 created [MI]
+! *****************************************************************************
   SUBROUTINE set_loc_wfn_lists(localized_wfn_control,nmoloc,nmo,nspins,error)
 
     TYPE(localized_wfn_control_type)         :: localized_wfn_control
@@ -555,5 +466,4 @@ CONTAINS
 
   END SUBROUTINE set_loc_wfn_lists
 
-! ******************************************************************************
 END MODULE qs_loc_control

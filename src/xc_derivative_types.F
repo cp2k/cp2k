@@ -3,20 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****m* cp2k/xc_derivative_types *
-!!
-!!   NAME
-!!     xc_derivative_types
-!!
-!!   FUNCTION
-!!     Provides types for the management of the xc-functionals and
-!!     their derivatives.
-!!
-!!   NOTES
-!!
-!!
-!!****
+! *****************************************************************************
+!> \brief Provides types for the management of the xc-functionals and
+!>      their derivatives.
+! *****************************************************************************
 MODULE xc_derivative_types
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -40,84 +30,38 @@ MODULE xc_derivative_types
    PUBLIC :: xc_derivative_create, xc_derivative_release, xc_derivative_retain,&
         xc_derivative_get
 
-!!*** *************************************************************************
-
-!!****s* xc_derivative_types/xc_derivative_type  *
-!!
-!!   NAME
-!!     xc_derivative_type
-!!
-!!   FUNCTION
-!!     represent a derivative of a functional
-!!
-!!****
+! *****************************************************************************
+!> \brief represent a derivative of a functional
+! *****************************************************************************
   TYPE xc_derivative_type
      INTEGER                                   :: ref_count, id_nr
      CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH) :: desc
      CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), POINTER :: split_desc
      REAL(KIND = dp), DIMENSION(:,:,:), POINTER    :: deriv_data
   END TYPE xc_derivative_type
-!!*** **********************************************************************
 
-!!****s* xc_derivative_types/xc_derivative_p_type [1.0] *
-!!
-!!   NAME
-!!     xc_derivative_p_type
-!!
-!!   FUNCTION
-!!     represent a pointer to a derivative (to have arrays of derivatives)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - deriv: the pointer to the derivative
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief represent a pointer to a derivative (to have arrays of derivatives)
+!> \param deriv the pointer to the derivative
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   TYPE xc_derivative_p_type
      TYPE(xc_derivative_type), POINTER :: deriv
   END TYPE xc_derivative_p_type
-!!***
-  !****************************************************************************
-
 
 CONTAINS
 
-!!****f* xc_derivative_types/xc_derivative_create [1.0] *
-!!
-!!   NAME
-!!     xc_derivative_create
-!!
-!!   SYNOPSIS
-!!     Subroutine xc_derivative_create(derivative, desc, cr3d_ptr, error)
-!!       Type(xc_derivative_type), Pointer:: derivative
-!!       Character(Len=*), Intent (IN):: desc
-!!       Real(Kind=dp), Dimension(:,:,:), Pointer:: cr3d_ptr
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine xc_derivative_create
-!!
-!!   FUNCTION
-!!     allocates and initializes a derivative type
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - derivative  : the object to create
-!!     - desc : the derivative description
-!!     - cr3d_ptr    : the data array (the ownership of it passes to the
-!!                     derivative type), the array is not zeroed
-!!     - error       : variable to control error logging, stopping,...
-!!                     see module cp_error_handling
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief allocates and initializes a derivative type
+!> \param derivative the object to create
+!> \param desc the derivative description
+!> \param cr 3d_ptr    : the data array (the ownership of it passes to the
+!>                      derivative type), the array is not zeroed
+!> \param error variable to control error logging, stopping,...
+!>                      see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE xc_derivative_create(derivative, desc, cr3d_ptr, error)
 
     TYPE(xc_derivative_type), POINTER        :: derivative
@@ -150,37 +94,16 @@ CONTAINS
     END IF
 
   END SUBROUTINE xc_derivative_create
-  !***************************************************************************
 
-!!****f* xc_derivative_types/xc_derivative_retain [1.0] *
-!!
-!!   NAME
-!!     xc_derivative_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine xc_derivative_retain(deriv, error)
-!!       Type(xc_derivative_type), Pointer:: deriv
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine xc_derivative_retain
-!!
-!!   FUNCTION
-!!     retains the given derivative (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - deriv: the object you want to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given derivative (see doc/ReferenceCounting.html)
+!> \param deriv the object you want to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE xc_derivative_retain(deriv,error)
     TYPE(xc_derivative_type), POINTER        :: deriv
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -198,34 +121,15 @@ SUBROUTINE xc_derivative_retain(deriv,error)
      deriv%ref_count=deriv%ref_count+1
   END IF
 END SUBROUTINE xc_derivative_retain
-!***************************************************************************
 
-!!****f* xc_derivative_types/xc_derivative_release [1.0] *
-!!
-!!   NAME
-!!     xc_derivative_release
-!!
-!!   SYNOPSIS
-!!     Subroutine xc_derivative_release(derivative, pw_pool, error)
-!!       Type(xc_derivative_type), Pointer:: derivative
-!!       Type(pw_pool_type), Optional, Pointer:: pw_pool
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine xc_derivative_release
-!!
-!!   FUNCTION
-!!     allocates and initializes a derivative type
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - derivative  : the object to create
-!!     - pw_pool     : if given gives back the cr3d array %deriv_data back to it
-!!                     instead of deallocating it
-!!     - error       : variable to control error logging, stopping,...
-!!                     see module cp_error_handling
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief allocates and initializes a derivative type
+!> \param derivative the object to create
+!> \param pw_pool if given gives back the cr3d array %deriv_data back to it
+!>                      instead of deallocating it
+!> \param error variable to control error logging, stopping,...
+!>                      see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE xc_derivative_release(derivative, pw_pool, error)
 
     TYPE(xc_derivative_type), POINTER        :: derivative
@@ -266,48 +170,22 @@ END SUBROUTINE xc_derivative_retain
     NULLIFY(derivative)
 
   END SUBROUTINE xc_derivative_release
-  !***************************************************************************
 
-!!****f* xc_derivative_types/xc_derivative_get [1.0] *
-!!
-!!   NAME
-!!     xc_derivative_get
-!!
-!!   SYNOPSIS
-!!     Subroutine xc_derivative_get(deriv, desc, split_desc, order,&
-!!         deriv_data, accept_null_data, error)
-!!       Type(xc_derivative_type), Pointer:: deriv
-!!       Character(Len=max_derivative_desc_length), Optional, Intent (OUT)::&
-!!         desc
-!!       Character(Len=max_label_length), Dimension(:), Optional, Pointer::&
-!!         split_desc
-!!       Integer, Intent (OUT), Optional:: order
-!!       Real(Kind=dp), Dimension(:,:,:), Optional, Pointer:: deriv_data
-!!       Logical, Intent (IN), Optional:: accept_null_data
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine xc_derivative_get
-!!
-!!   FUNCTION
-!!     returns various information on the given derivative
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - deriv: thederivative you whant information about
-!!     - desc: a string that describes the derivative (empty string
-!!       for the function itself, otherwise a string of the form
-!!       "(rho)(rho)(norm_drhoa)")
-!!     - split_desc: the same as desc but with an array of strings,
-!!       and a derivative coordinate in each string (the previous
-!!       example would become (/"rho","rho","norm_drhoa"/)
-!!     - order: the order of the derivative
-!!     - deriv_data: the 3d real array with the derivative
-!!     - accept_null_data: if deriv_data can be unassociated (defaults to no)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns various information on the given derivative
+!> \param deriv thederivative you whant information about
+!> \param desc a string that describes the derivative (empty string
+!>        for the function itself, otherwise a string of the form
+!>        "(rho)(rho)(norm_drhoa)")
+!> \param split_desc the same as desc but with an array of strings,
+!>        and a derivative coordinate in each string (the previous
+!>        example would become (/"rho","rho","norm_drhoa"/)
+!> \param order the order of the derivative
+!> \param deriv_data the 3d real array with the derivative
+!> \param accept_null_data if deriv_data can be unassociated (defaults to no)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
 SUBROUTINE xc_derivative_get(deriv,desc,split_desc,&
      order,deriv_data,accept_null_data, error)
     TYPE(xc_derivative_type), POINTER        :: deriv
@@ -345,7 +223,6 @@ SUBROUTINE xc_derivative_get(deriv,desc,split_desc,&
      IF (PRESENT(order)) order=SIZE(deriv%split_desc)
   END IF
 END SUBROUTINE xc_derivative_get
-!***************************************************************************
 
 END MODULE xc_derivative_types
 

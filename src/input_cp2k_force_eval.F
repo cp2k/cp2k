@@ -3,25 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_cp2k_force_eval [1.0] *
-!!
-!!   NAME
-!!     input_cp2k_force_eval
-!!
-!!   FUNCTION
-!!     builds the input structure for the FORCE_EVAL section of cp2k
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief builds the input structure for the FORCE_EVAL section of cp2k
+!> \par History
+!>      06.2004 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 MODULE input_cp2k_force_eval
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
@@ -60,30 +47,15 @@ MODULE input_cp2k_force_eval
   
   PUBLIC :: create_force_eval_section
 
-!!***
-!****************************************************************************
 CONTAINS
 
-!!****f* input_cp2k_force_eval/create_force_eval_section *
-!!
-!!   NAME
-!!     create_force_eval_section
-!!
-!!   FUNCTION
-!!     creates the force_eval section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the force_eval section
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE create_force_eval_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -178,28 +150,14 @@ CONTAINS
     CALL section_release(subsection,error=error)
 
   END SUBROUTINE create_force_eval_section
-!***************************************************************************
 
-!!****f* input_cp2k_force_eval/create_rescale_force_section [1.0] *
-!!
-!!   NAME
-!!     create_rescale_force_section
-!!
-!!   FUNCTION
-!!     Creates the section controlling the rescaling of forces
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the section controlling the rescaling of forces
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_rescale_force_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -235,27 +193,12 @@ CONTAINS
        
     END IF
   END SUBROUTINE create_rescale_force_section
-!***************************************************************************
 
-!!****f* input_cp2k_force_eval/create_f_env_print_section *
-!!
-!!   NAME
-!!     create_f_env_print_section
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE create_f_env_print_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -315,28 +258,14 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_f_env_print_section
-!***************************************************************************
 
-!!****f* input_cp2k_force_eval/create_mix_section [1.0] *
-!!
-!!   NAME
-!!     create_mixed_section
-!!
-!!   FUNCTION
-!!     Create the input section for MIXED.
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fschiff
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Create the input section for MIXED.
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fschiff
+! *****************************************************************************
   SUBROUTINE create_mix_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error

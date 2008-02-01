@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/gopt_param_types [1.0] *
-!!
-!!   NAME
-!!     gopt_param_types
-!!
-!!   FUNCTION
-!!     contains typo and related routines to handle parameters controlling the
-!!     GEO_OPT module
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     -
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!*****************************************************************************
+! *****************************************************************************
+!> \brief contains typo and related routines to handle parameters controlling the
+!>      GEO_OPT module
+!> \par History
+!>      none
+! *****************************************************************************
 MODULE gopt_param_types
   USE f77_blas
   USE input_constants,                 ONLY: default_bfgs_method_id,&
@@ -49,38 +35,24 @@ MODULE gopt_param_types
   PUBLIC :: gopt_param_create, gopt_param_read, gopt_param_retain, &
             gopt_param_release
 
-!!****s* gopt_param_types/gopt_param_type [1.0] *
-!!
-!!   NAME
-!!     gopt_param_type
-!!
-!!   FUNCTION
-!!     stores the parameters nedeed for a geometry optimization
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - method_id: the optimization method
-!!     - wanted_proj_gradient: the wanted accuracy on the projected gradient
-!!     - wanted_rel_f_error:
-!!     - max_h_rank: maximum rank of the hessian approximation
-!!     - max_f_per_iter: maximum number of function evaluations per iteration
-!!     - max_iter: maximum number of iterations
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [fawzi]
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief stores the parameters nedeed for a geometry optimization
+!> \param method_id the optimization method
+!> \param wanted_proj_gradient the wanted accuracy on the projected gradient
+!> \param wanted_rel_f_error :
+!> \param max_h_rank maximum rank of the hessian approximation
+!> \param max_f_per_iter maximum number of function evaluations per iteration
+!> \param max_iter maximum number of iterations
+!> \par History
+!>      08.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE cg_ls_param_type
      INTEGER         :: brent_max_iter, type_id
      REAL(KIND = dp) :: brent_tol, brack_limit, initial_step
   END TYPE cg_ls_param_type
 
+! *****************************************************************************
   TYPE gopt_param_type
      LOGICAL                  :: Fletcher_Reeves
      INTEGER                  :: id_nr, ref_count
@@ -94,34 +66,18 @@ MODULE gopt_param_types
      REAL(KIND = dp)          :: dimer_angle_tol
      TYPE(cg_ls_param_type)   :: cg_ls
   END TYPE gopt_param_type
-!!***
-  !****************************************************************************
 
 CONTAINS
   
-!!****f* gopt_param_types/gopt_param_create [1.0] *
-!!
-!!   NAME
-!!     gopt_param_create
-!!
-!!   FUNCTION
-!!     creates a new gopt_param object
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - gopt_param: the object to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a new gopt_param object
+!> \param gopt_param the object to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE gopt_param_create(gopt_param,error)
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -143,31 +99,15 @@ CONTAINS
        gopt_param%ref_count=1
     END IF
   END SUBROUTINE gopt_param_create
-!***************************************************************************
 
-!!****f* gopt_param_types/gopt_param_read [1.0] *
-!!
-!!   NAME
-!!     gopt_param_read
-!!
-!!   FUNCTION
-!!     reads the parameters of the geopmetry optimizer
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - 
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief reads the parameters of the geopmetry optimizer
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE gopt_param_read(gopt_param, gopt_section, type_id, error)
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(section_vals_type), POINTER         :: gopt_section
@@ -230,28 +170,13 @@ CONTAINS
 
   END SUBROUTINE gopt_param_read
 
-!!****f* gopt_param_types/gopt_param_retain [1.0] *
-!!
-!!   NAME
-!!     gopt_param_retain
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     gopt_param: the geometry optimization environment to retain
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param gopt_param the geometry optimization environment to retain
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE gopt_param_retain(gopt_param, error)
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -269,30 +194,14 @@ CONTAINS
        gopt_param%ref_count=gopt_param%ref_count+1
     END IF
   END SUBROUTINE gopt_param_retain
-!***************************************************************************
 
-!!****f* gopt_param_types/gopt_param_release [1.0] *
-!!
-!!   NAME
-!!     gopt_param_release
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     gopt_param: the geometry optimization environment to release
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param gopt_param the geometry optimization environment to release
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE gopt_param_release(gopt_param, error)
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -314,6 +223,5 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE gopt_param_release
-!***************************************************************************
 
 END MODULE gopt_param_types

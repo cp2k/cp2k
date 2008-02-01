@@ -2,23 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/csvr_system_utils [1.0] *
-!!
-!!   NAME
-!!     csvr_system_utils
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     Teodoro Laino - 09.2007 - University of Zurich [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     15.10.2007 Giovanni Bussi - Implementation validated.
-!!     
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      15.10.2007 Giovanni Bussi - Implementation validated.
+!> \author Teodoro Laino - 09.2007 - University of Zurich [tlaino]
+! *****************************************************************************
 MODULE csvr_system_utils
 
   USE f77_blas
@@ -33,69 +22,53 @@ MODULE csvr_system_utils
   PUBLIC                               :: rescaling_factor
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'csvr_system_utils'
 
-!!*****
-!******************************************************************************
 CONTAINS
-!******************************************************************************
-!!****** extended_system_util/rescaling_factor [1.0] *
-!!
-!!   NAME
-!!     rescaling_factor
-!!
-!!   FUNCTION
-!!     Stochastic velocity rescale, as described in
-!!     Bussi, Donadio and Parrinello, J. Chem. Phys. 126, 014101 (2007)
-!!     
-!!     This subroutine implements Eq.(A7) and returns the new value for the kinetic energy,
-!!     which can be used to rescale the velocities.
-!!     The procedure can be applied to all atoms or to smaller groups.
-!!     If it is applied to intersecting groups in sequence, the kinetic energy
-!!     that is given as an input (kk) has to be up-to-date with respect to the previous 
-!!     rescalings.
-!!     
-!!     When applied to the entire system, and when performing standard molecular dynamics 
-!!     (fixed c.o.m. (center of mass))
-!!     the degrees of freedom of the c.o.m. have to be discarded in the calculation of ndeg,
-!!     and the c.o.m. momentum HAS TO BE SET TO ZERO.
-!!     When applied to subgroups, one can chose to:
-!!     (a) calculate the subgroup kinetic energy in the usual reference frame, and count 
-!!         the c.o.m. in ndeg
-!!     (b) calculate the subgroup kinetic energy with respect to its c.o.m. motion, discard
-!!         the c.o.m. in ndeg and apply the rescale factor with respect to the subgroup c.o.m.
-!!         velocity.
-!!     They should be almost equivalent.
-!!     If the subgroups are expected to move one respect to the other, the choice (b)
-!!     should be better.
-!!     
-!!     If a null relaxation time is required (taut=0.0), the procedure reduces to an istantaneous
-!!     randomization of the kinetic energy, as described in paragraph IIA.
-!!     
-!!     HOW TO CALCULATE THE EFFECTIVE-ENERGY DRIFT
-!!     The effective-energy (htilde) drift can be used to check the integrator against
-!!     discretization errors.
-!!     The easiest recipe is:
-!!     htilde = h + conint
-!!     where h is the total energy (kinetic + potential)
-!!     and conint is a quantity accumulated along the trajectory as minus the sum of all
-!!     the increments of kinetic energy due to the thermostat.
-!!
-!!     Variables:
-!!      kk    ! present value of the kinetic energy of the atoms to be thermalized (in arbitrary units)
-!!      sigma ! target average value of the kinetic energy (ndeg k_b T/2)  (in the same units as kk)
-!!      ndeg  ! number of degrees of freedom of the atoms to be thermalized
-!!      taut  ! relaxation time of the thermostat, in units of 'how often this routine is called'
-!!
-!!   AUTHOR
-!!     Giovanni Bussi - ETH Zurich, Lugano 10.2007
-!!
-!!   CREATION DATE
-!!     09.2007
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!!
-!******************************************************************************
+
+! *****************************************************************************
+!> \brief Stochastic velocity rescale, as described in
+!>      Bussi, Donadio and Parrinello, J. Chem. Phys. 126, 014101 (2007)
+!> 
+!>      This subroutine implements Eq.(A7) and returns the new value for the kinetic energy,
+!>      which can be used to rescale the velocities.
+!>      The procedure can be applied to all atoms or to smaller groups.
+!>      If it is applied to intersecting groups in sequence, the kinetic energy
+!>      that is given as an input (kk) has to be up-to-date with respect to the previous 
+!>      rescalings.
+!> 
+!>      When applied to the entire system, and when performing standard molecular dynamics 
+!>      (fixed c.o.m. (center of mass))
+!>      the degrees of freedom of the c.o.m. have to be discarded in the calculation of ndeg,
+!>      and the c.o.m. momentum HAS TO BE SET TO ZERO.
+!>      When applied to subgroups, one can chose to:
+!>      (a) calculate the subgroup kinetic energy in the usual reference frame, and count 
+!>          the c.o.m. in ndeg
+!>      (b) calculate the subgroup kinetic energy with respect to its c.o.m. motion, discard
+!>          the c.o.m. in ndeg and apply the rescale factor with respect to the subgroup c.o.m.
+!>          velocity.
+!>      They should be almost equivalent.
+!>      If the subgroups are expected to move one respect to the other, the choice (b)
+!>      should be better.
+!> 
+!>      If a null relaxation time is required (taut=0.0), the procedure reduces to an istantaneous
+!>      randomization of the kinetic energy, as described in paragraph IIA.
+!> 
+!>      HOW TO CALCULATE THE EFFECTIVE-ENERGY DRIFT
+!>      The effective-energy (htilde) drift can be used to check the integrator against
+!>      discretization errors.
+!>      The easiest recipe is:
+!>      htilde = h + conint
+!>      where h is the total energy (kinetic + potential)
+!>      and conint is a quantity accumulated along the trajectory as minus the sum of all
+!>      the increments of kinetic energy due to the thermostat.
+!> 
+!>      Variables:
+!>       kk    ! present value of the kinetic energy of the atoms to be thermalized (in arbitrary units)
+!>       sigma ! target average value of the kinetic energy (ndeg k_b T/2)  (in the same units as kk)
+!>       ndeg  ! number of degrees of freedom of the atoms to be thermalized
+!>       taut  ! relaxation time of the thermostat, in units of 'how often this routine is called'
+!> \author Giovanni Bussi - ETH Zurich, Lugano 10.2007
+!> \date 09.2007
+! *****************************************************************************
   FUNCTION rescaling_factor(kk, sigma, ndeg, taut, rng_stream, error) RESULT(RESULT)
     REAL(KIND=dp), INTENT(IN)                :: kk, sigma
     INTEGER, INTENT(IN)                      :: ndeg
@@ -131,26 +104,12 @@ CONTAINS
     END IF
   END FUNCTION rescaling_factor
 
-!!****** extended_system_util/sumnoises [1.0] *
-!!
-!!   NAME
-!!     sumnoises
-!!
-!!   FUNCTION
-!!     returns the sum of n independent gaussian noises squared
-!!     (i.e. equivalent to summing the square of the return values of nn calls to gasdev)
-!!
-!!   AUTHOR
-!!    Teo - University of Zurich
-!!
-!!   CREATION DATE
-!!     09.2007
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!!     
-!******************************************************************************
+! *****************************************************************************
+!> \brief returns the sum of n independent gaussian noises squared
+!>      (i.e. equivalent to summing the square of the return values of nn calls to gasdev)
+!> \author Teo - University of Zurich
+!> \date 09.2007
+! *****************************************************************************
   FUNCTION sumnoises(nn, rng_stream, error) RESULT(sum_gauss)
     INTEGER, INTENT(IN)                      :: nn
     TYPE(rng_stream_type), POINTER           :: rng_stream

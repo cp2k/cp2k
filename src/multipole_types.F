@@ -3,22 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!***** cp2k/multipole_types [1.0] *
-!!
-!!   NAME
-!!     multipole_types
-!!
-!!   FUNCTION
-!!     Multipole structure: for multipole (fixed and induced) in FF based MD
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - University of Zurich - 12.2007
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Multipole structure: for multipole (fixed and induced) in FF based MD
+!> \author Teodoro Laino [tlaino] - University of Zurich - 12.2007
+! *****************************************************************************
 MODULE multipole_types
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -46,28 +34,14 @@ MODULE multipole_types
             release_multipole_type,&
             retain_multipole_type
 
-!!****f* multipole_types/multipole_type [1.0] *
-!!
-!!   NAME
-!!    multipole_type 
-!!
-!!   FUNCTION
-!!    Define multipole type
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     12.2007 created [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Define multipole type
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2007 created [tlaino] - Teodoro Laino - University of Zurich
+!> \author Teodoro Laino
+! *****************************************************************************
   TYPE multipole_type
      INTEGER :: id_nr, ref_count
      LOGICAL, DIMENSION(3)                    :: task
@@ -81,27 +55,12 @@ MODULE multipole_types
 
 CONTAINS
 
-!!****f* multipole_types/create_multipole_type [1.0] *
-!!
-!!   NAME
-!!    create_multipole_type 
-!!
-!!   FUNCTION
-!!    Create a multipole type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     -
-!!
-!!   AUTHOR
-!!    Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     12.2007 created [tlaino] - Teodoro Laino - University of Zurich
-!! 
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Create a multipole type
+!> \par History
+!>      12.2007 created [tlaino] - Teodoro Laino - University of Zurich
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE create_multipole_type(multipoles, particle_set, subsys_section, ewald_env, error)
     TYPE(multipole_type), POINTER            :: multipoles
     TYPE(particle_type), DIMENSION(:), &
@@ -195,28 +154,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_multipole_type
 
-!!****f* multipole_types/release_multipole_type [1.0] *
-!!
-!!   NAME
-!!     release_multipole_type
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     12.2007 created [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2007 created [tlaino] - Teodoro Laino - University of Zurich
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE release_multipole_type(multipoles, error)
     TYPE(multipole_type), POINTER            :: multipoles
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -250,28 +194,13 @@ CONTAINS
     END IF
   END SUBROUTINE release_multipole_type
 
-!!****f* multipole_types/retain_multipole_type [1.0] *
-!!
-!!   NAME
-!!     retain_multipole_type
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     12.2007 created [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2007 created [tlaino] - Teodoro Laino - University of Zurich
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE retain_multipole_type(multipoles, error)
     TYPE(multipole_type), POINTER            :: multipoles
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -289,4 +218,3 @@ CONTAINS
   END SUBROUTINE retain_multipole_type
 
 END MODULE multipole_types
-!******************************************************************************

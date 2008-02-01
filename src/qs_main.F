@@ -2,29 +2,18 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/qs_main [1.0] *
-!!
-!!   NAME
-!!     qs_main
-!!
-!!   FUNCTION
-!!     Perform a LCGTO-SCF-DF calculation using the Gaussian plane wave (GPW)
-!!     method
-!!
-!!   AUTHOR
-!!     Matthias Krack (03.04.2001)
-!!
-!!   LITERATURE
-!!     G. Lippert, J. Hutter, M. Parrinello, Mol. Phys. 92, 477 (1997)
-!!     G. Lippert, J. Hutter, M. Parrinello, Theor. Chem. Acc. 103, 124 (1999)
-!!     M. Krack, M. Parrinello, Phys. Chem. Chem. Phys. 2, 2105 (2000)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!*******************************************************************************
 
+! *****************************************************************************
+!> \brief Perform a LCGTO-SCF-DF calculation using the Gaussian plane wave (GPW)
+!>      method
+!> \par Literature
+!>      G. Lippert, J. Hutter, M. Parrinello, Mol. Phys. 92, 477 (1997)
+!>      G. Lippert, J. Hutter, M. Parrinello, Theor. Chem. Acc. 103, 124 (1999)
+!>      M. Krack, M. Parrinello, Phys. Chem. Chem. Phys. 2, 2105 (2000)
+!> \par History
+!>      none
+!> \author Matthias Krack (03.04.2001)
+! *****************************************************************************
 MODULE qs_main
   USE bibliography,                    ONLY: VandeVondele2005a,&
                                              cite_reference
@@ -56,33 +45,16 @@ MODULE qs_main
 
   PUBLIC :: quickstep_create_force_env
 
-! *****************************************************************************
-
 CONTAINS
 
-!!******
-!******************************************************************************
-
-!!****f* qs_main/quickstep_create_force_env [1.0] *
-!!
-!!   NAME
-!!     quickstep
-!!
-!!   SYNOPSIS
-!!     Subroutine quickstep(globenv)
-!!       Type(global_environment_type), pointer:: globenv
-!!     End Subroutine quickstep
-!!
-!!   FUNCTION
-!!     Main driver routine for a Quickstep calculation.
-!!     QS_INIT:: Read the input and the database files and perform further
-!!               initializations for the setup of the QUICKSTEP environment
-!!
-!!   MODIFICATION HISTORY
-!!    Creation (23.01.2002,MK)
-!!    Modified for RESPA (07.2006)
-!!
-!******************************************************************************
+! *****************************************************************************
+!> \brief Main driver routine for a Quickstep calculation.
+!>      QS_INIT:: Read the input and the database files and perform further
+!>                initializations for the setup of the QUICKSTEP environment
+!> \par History
+!>     Creation (23.01.2002,MK)
+!>     Modified for RESPA (07.2006)
+! *****************************************************************************
   SUBROUTINE quickstep_create_force_env(force_env,root_section,para_env,globenv,&
        subsys,cell,cell_ref, qmmm, qmmm_periodic, force_env_section, subsys_section,&
        use_motion_section, error)
@@ -124,7 +96,4 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE quickstep_create_force_env
 
-! *****************************************************************************
-
 END MODULE qs_main
-!!*****

@@ -2,21 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/scp_energy [1.0] *
-!!
-!!   NAME
-!!     scp_energy
-!!
-!!   FUNCTION
-!!     scp_energy minim routine
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief scp_energy minim routine
+!> \author CJM
+! *****************************************************************************
 MODULE scp_energy
 !  USE input_cp2k_restarts,             ONLY: write_restart
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -55,26 +45,14 @@ MODULE scp_energy
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_energy'
   PUBLIC :: scp_qs_energies
 
-!******************************************************************************
-
 CONTAINS
 
-!!****f** scp_energy/scp_qs_energies [1.1] *
-!!
-!!   NAME
-!!    scp_qs_energies
-!!
-!!   FUNCTION
-!!     Calculates the pieces of the SCP energy involved
-!!     in the optimization of the polarization coefficients [AUX_COEF_SET]
-!!     within a GPW calculation
-!!
-!!   AUTHOR
-!!    CJM
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Calculates the pieces of the SCP energy involved
+!>      in the optimization of the polarization coefficients [AUX_COEF_SET]
+!>      within a GPW calculation
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE scp_qs_energies ( qs_env, calculate_forces, just_energy, error )
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -227,5 +205,4 @@ CONTAINS
 
   END SUBROUTINE scp_qs_energies
 
-!******************************************************************************
 END MODULE scp_energy

@@ -3,26 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/qs_ot_scf [1.0] *
-!!
-!!   NAME
-!!     qs_ot_scf
-!!
-!!   FUNCTION
-!!
-!!     basic functionality for using ot in the scf routines.
-!!
-!!   AUTHOR
-!!     Joost VandeVondele (25.08.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     01.2003 : Joost VandeVondele : adapted for LSD
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief basic functionality for using ot in the scf routines.
+!> \par History
+!>      01.2003 : Joost VandeVondele : adapted for LSD
+!> \author Joost VandeVondele (25.08.2002)
+! *****************************************************************************
 MODULE qs_ot_scf
-  ! *****************************************************************************
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_p_type,&
@@ -73,11 +60,9 @@ MODULE qs_ot_scf
   PUBLIC :: ot_scf_destroy
   PUBLIC :: ot_scf_read_input
 
-  !!***
-  ! *****************************************************************************
-
 CONTAINS
 
+! *****************************************************************************
   SUBROUTINE ot_scf_read_input(qs_ot_env,para_env,scf_section,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -160,7 +145,6 @@ CONTAINS
 
     CALL section_vals_val_get(ot_section,"ON_THE_FLY_LOC",l_val=qs_ot_env(1)%settings%on_the_fly_loc, &
          &                    error=error)
-
 
     CALL section_vals_val_get(ot_section,"MINIMIZER",i_val=ot_method,error=error)
     ! compatibility
@@ -311,7 +295,6 @@ CONTAINS
        qs_ot_env(ispin)%settings=qs_ot_env(1)%settings
     ENDDO
 
-
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE ot_scf_read_input
@@ -322,9 +305,9 @@ CONTAINS
   ! a null pointer for matrix_s implies that matrix_s is the unit matrix
   !
   !
+! *****************************************************************************
   SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,matrix_s,energy, &
        aux_coeff_set, energy_only, delta, qs_ot_env,error)
-
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -405,6 +388,7 @@ CONTAINS
   ! initialises qs_ot_env so that mo_coeff is the current point
   ! and that the mimizization can be started.
   !
+! *****************************************************************************
   SUBROUTINE ot_scf_init ( mo_array, matrix_s, aux_coeff_set, qs_ot_env, error )
 
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -451,7 +435,6 @@ CONTAINS
           CALL cp_fm_to_fm ( qs_ot_env ( ispin ) % matrix_c0,  &
                qs_ot_env ( ispin ) % matrix_sc0, error = error )
        ENDIF
-
 
        ! init
        CALL qs_ot_init(qs_ot_env(ispin),error=error)
@@ -506,6 +489,7 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE ot_scf_init
 
+! *****************************************************************************
   SUBROUTINE ot_scf_destroy(qs_ot_env,error)
 
     TYPE(qs_ot_type)                         :: qs_ot_env

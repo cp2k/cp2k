@@ -3,28 +3,15 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/kg_gpw_pw_env_methods
-!!
-!!   NAME
-!!     kg_gpw_pw_env_methods
-!!
-!!   FUNCTION
-!!     Module used in a KF_GPW calculation to prepare the molecular
-!!     densities used to calculate the KE correction molecule by molecule.
-!!     Construction of cell  and pw_env for each molecule kind.
-!!     Collocation of the density of each single molecule on the grid.
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     Created (20.12.2004)
-!!
-!!   SOURCE
-!******************************************************************************
-
-
+! *****************************************************************************
+!> \brief Module used in a KF_GPW calculation to prepare the molecular
+!>      densities used to calculate the KE correction molecule by molecule.
+!>      Construction of cell  and pw_env for each molecule kind.
+!>      Collocation of the density of each single molecule on the grid.
+!> \par History
+!>      Created (20.12.2004)
+!> \author MI
+! *****************************************************************************
 MODULE kg_gpw_pw_env_methods
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -126,35 +113,19 @@ MODULE kg_gpw_pw_env_methods
 
   PUBLIC :: build_molbox_env, kg_rho_update_rho_mol, update_rho_mol_blocks
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-!!****f* kg_gpw_pw_env_methods/build_molbox_env
-!!
-!!    NAME
-!!      build_molbox_env
-!!
-!!    FUNCTION
-!!      Build the pw_env and cell box for each molecule kind
-!!      The internal coordinates of each molecule in the new box
-!!      are such that the molecule is centered in the middle of the box
-!!
-!!    NOTE
-!!      - Some shift should be added in the internal coordinates in order
-!!        with respect to the grid nodes
-!!
-!!    INPUTS
-!!
-!!    AUTHOR
-!!       MI
-!!
-!!    MODIFICATION HISTORY
-!!        Creation (MI)
-!!
-!!*** *************************************************************************
-
+!> \brief Build the pw_env and cell box for each molecule kind
+!>       The internal coordinates of each molecule in the new box
+!>       are such that the molecule is centered in the middle of the box
+!> \note
+!>       - Some shift should be added in the internal coordinates in order
+!>         with respect to the grid nodes
+!> \par History
+!>         Creation (MI)
+!> \author MI
+! *****************************************************************************
   SUBROUTINE build_molbox_env(molbox_env,fm_mol,qs_env,poisson_section,error)
 
     TYPE(kg_molbox_env_type), TARGET         :: molbox_env
@@ -350,30 +321,15 @@ CONTAINS
   END SUBROUTINE build_molbox_env
 
 ! *****************************************************************************
-!!****f* kg_gpw_pw_env_methods/pw_env_mol_rebuild
-!!
-!!    NAME
-!!       pw_env_mol_rebuild
-!!
-!!    FUNCTION
-!!      Build the pw_env and cell box for each molecule kind
-!!      Multigrids can be used
-!!
-!!    NOTE
-!!      - The densest grid of pw_env_mol has the same dr of the densest full grid
-!!        The box size is changed to match Npt*dr
-!!
-!!    INPUTS
-!!
-!!    AUTHOR
-!!       MI
-!!
-!!    MODIFICATION HISTORY
-!!        Creation (MI)
-!!
-!!*** *************************************************************************
-
-
+!> \brief Build the pw_env and cell box for each molecule kind
+!>       Multigrids can be used
+!> \note
+!>       - The densest grid of pw_env_mol has the same dr of the densest full grid
+!>         The box size is changed to match Npt*dr
+!> \par History
+!>         Creation (MI)
+!> \author MI
+! *****************************************************************************
   SUBROUTINE pw_env_mol_rebuild(pw_mol,cell_mol,pw_global,dft_control,side,num_pe,mepos,&
        force_env_section, error)
 
@@ -490,7 +446,6 @@ CONTAINS
       fft = .TRUE.
       symmetry = .TRUE.
       blocking = .FALSE.
-
 
       CALL pw_grid_create(pw_grid_mol,MPI_COMM_SELF,error=error)
 
@@ -609,7 +564,6 @@ CONTAINS
 
       END IF  ! not spherical
 
-
       pw_grid_mol%npts(:) = pw_grid_mol%bounds(2,:)-pw_grid_mol%bounds(1,:)+1
       pw_grid_mol%dr(:) = dr_g(:)
 
@@ -635,7 +589,6 @@ CONTAINS
 
      ! reference grid for the other igrid levels
       ref_pw_grid_mol => pw_grid_mol
-
 
      ! init pw_pools
       NULLIFY(pw_pools_mol(1)%pool)
@@ -817,8 +770,6 @@ CONTAINS
 
            pw_grid_mol%orthorhombic = cell_mol%orthorhombic
 
-
-
         ! init pw_pools
            NULLIFY(pw_pools_mol(igrid_level)%pool)
            CALL pw_pool_create(pw_pools_mol(igrid_level)%pool,pw_grid=pw_grid_mol,error=error)
@@ -835,7 +786,6 @@ CONTAINS
          END DO  ! igrid_level
 
       END IF  ! ngrid_level > 1
-
 
 !    Print grid information
 !
@@ -886,34 +836,18 @@ CONTAINS
              cube_info_g(igrid_level)%max_rad_ga)
       END DO
 
-
     END IF  ! failure
 
   END SUBROUTINE pw_env_mol_rebuild
 
 ! *****************************************************************************
-!!****f* kg_gpw_pw_env_methods/update_rho_mol_blocks(
-!!
-!!    NAME
-!!       update_rho_mol_blocks(
-!!
-!!    FUNCTION
-!!      Preparation of the structures for the collocation of the molecular
-!!      densities on the corresponding grids
-!!      Multigrids can be used
-!!
-!!    NOTE
-!!
-!!    INPUTS
-!!
-!!    AUTHOR
-!!       MI
-!!
-!!    MODIFICATION HISTORY
-!!        Creation (MI)
-!!
-!!*** *************************************************************************
-
+!> \brief Preparation of the structures for the collocation of the molecular
+!>       densities on the corresponding grids
+!>       Multigrids can be used
+!> \par History
+!>         Creation (MI)
+!> \author MI
+! *****************************************************************************
   SUBROUTINE update_rho_mol_blocks(kg_sub_pw_env,particle_set,cell,nspins,use_tau,error)
 
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
@@ -1142,26 +1076,12 @@ CONTAINS
   END SUBROUTINE update_rho_mol_blocks
 
 ! *****************************************************************************
-!!****f* kg_gpw_pw_env_methods/kg_rho_update_rho_mol
-!!
-!!    NAME
-!!       kg_rho_update_rho_mol
-!!
-!!    FUNCTION
-!!      Collocation of the density of each molecule on the local
-!!      grid centered in the geometric center of the molecule itself
-!!
-!!    NOTE
-!!
-!!    INPUTS
-!!
-!!    AUTHOR
-!!       MI
-!!
-!!    MODIFICATION HISTORY
-!!        Creation (MI)
-!!
-!!*** *************************************************************************
+!> \brief Collocation of the density of each molecule on the local
+!>       grid centered in the geometric center of the molecule itself
+!> \par History
+!>         Creation (MI)
+!> \author MI
+! *****************************************************************************
   SUBROUTINE kg_rho_update_rho_mol(kg_sub_pw_env,qs_env,kg_fm_mol_set,error)
 
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
@@ -1200,7 +1120,6 @@ CONTAINS
     CALL get_qs_env(qs_env, dft_control=dft_control, rho=rho_struct,error=error)
     nspins=dft_control%nspins
 
-
     CPPrecondition(kg_sub_pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF(.NOT. failure) THEN
@@ -1218,7 +1137,6 @@ CONTAINS
         CALL get_molbox_env(molbox_env=molbox_env, &
              nmolecule_local=nmol, pw_env_mol=pw_env_mol,&
              rho_mol_blocks=rho_mol_blocks)
-
 
         DO imol = 1,nmol
           NULLIFY(mol_block)
@@ -1271,5 +1189,4 @@ CONTAINS
 
   END SUBROUTINE kg_rho_update_rho_mol
 
-! *****************************************************************************
 END MODULE kg_gpw_pw_env_methods

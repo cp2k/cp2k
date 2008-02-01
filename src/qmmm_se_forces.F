@@ -3,18 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/qmmm_se_forces [1.1] *
-!!
-!!   FUNCTION
-!!     Calculation of the derivative of the QMMM Hamiltonian integral 
-!!     matrix <a|\sum_i q_i|b> for semi-empirical methods
-!!
-!!   AUTHOR
-!!     Teodoro Laino - 04.2007 [tlaino]
-!!
-!!***
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Calculation of the derivative of the QMMM Hamiltonian integral 
+!>      matrix <a|\sum_i q_i|b> for semi-empirical methods
+!> \author Teodoro Laino - 04.2007 [tlaino]
+! *****************************************************************************
 MODULE qmmm_se_forces
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -65,21 +58,11 @@ MODULE qmmm_se_forces
 
 CONTAINS
 
-!!****f* qmmm_se_forces/deriv_se_qmmm_matrix [1.0] *
-!!
-!!   NAME
-!!     deriv_se_qmmm_matrix
-!!
-!!   FUNCTION
-!!     Constructs the derivative w.r.t. 1-el semi-empirical hamiltonian
-!!     QMMM terms
-!!
-!!   NOTES
-!!     -
-!!   AUTHOR
-!!     Teodoro Laino 04.2007 [created]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Constructs the derivative w.r.t. 1-el semi-empirical hamiltonian
+!>      QMMM terms
+!> \author Teodoro Laino 04.2007 [created]
+! *****************************************************************************
   SUBROUTINE deriv_se_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,para_env,&
        calc_force, Forces, Forces_added_charges, error)
 
@@ -236,21 +219,11 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE deriv_se_qmmm_matrix
 
-!!****f* qmmm_se_forces/deriv_se_qmmm_matrix_low [1.0] *
-!!
-!!   NAME
-!!     deriv_se_qmmm_matrix_low
-!!
-!!   FUNCTION
-!!     Low Level : Computes derivatives of the 1-el semi-empirical QMMM 
-!!                 hamiltonian block w.r.t. MM and QM coordinates
-!!
-!!   NOTES
-!!     -
-!!   AUTHOR
-!!     Teodoro Laino 04.2007 [created]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Low Level : Computes derivatives of the 1-el semi-empirical QMMM 
+!>                  hamiltonian block w.r.t. MM and QM coordinates
+!> \author Teodoro Laino 04.2007 [created]
+! *****************************************************************************
   SUBROUTINE deriv_se_qmmm_matrix_low(p_block_a, se_kind_a, se_kind_mm,&
        potentials, mm_particles, mm_charges, mm_el_pot_radius, mm_atom_index, &
        num_mm_atoms, mm_cell, IndQM, itype, para_env, forces, forces_qm, error)

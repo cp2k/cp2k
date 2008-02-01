@@ -3,27 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qmmm_gaussian_init [1.0] *
-!!
-!!   NAME
-!!     qmmm_gaussian_init
-!!
-!!   FUNCTION
-!!     Initialize the use of the gaussians to treat the QMMM 
-!!     coupling potential
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     6.2004 created [tlaino]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Initialize the use of the gaussians to treat the QMMM 
+!>      coupling potential
+!> \par History
+!>      6.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
 MODULE qmmm_gaussian_init
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -60,28 +46,14 @@ MODULE qmmm_gaussian_init
 
 CONTAINS
 
-!!****f* qmmm_gaussian_init/qmmm_gaussian_initialize [1.0] *
-!!
-!!   NAME
-!!     qmmm_gaussian_initialize
-!!
-!!   FUNCTION
-!!     Initialize the Gaussian QMMM Environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 created [tlaino]
-!!
-!!*** **********************************************************************  
+! *****************************************************************************
+!> \brief Initialize the Gaussian QMMM Environment
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      06.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_gaussian_initialize(qmmm_gaussian_fns, para_env, pw_env,&
        qm_cell_small, mm_cell, mm_el_pot_radius, mm_el_pot_radius_corr,  &
        qmmm_coupl_type, eps_mm_rspace, maxradius, maxchrg, compatibility,&

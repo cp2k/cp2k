@@ -3,27 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/cp_para_env [1.0] *
-!!
-!!   NAME
-!!     cp_para_env
-!!
-!!   FUNCTION
-!!     type to store parallelization informations (at the moment assumes 1d
-!!     position and uses mpi)
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief type to store parallelization informations (at the moment assumes 1d
+!>      position and uses mpi)
+!> \par History
+!>      07.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE cp_para_env
   USE cp_para_types,                   ONLY: cp_para_cart_type,&
                                              cp_para_env_type
@@ -48,37 +34,22 @@ MODULE cp_para_env
   PUBLIC :: cp_cart_create, cp_cart_release, cp_cart_update, cp_cart_retain,&
        cp_cart_write
 !***
-!****************************************************************************
 CONTAINS
 
-!!****f* cp_para_env/cp_para_env_create [1.0] *
-!!
-!!   NAME
-!!     cp_para_env_create
-!!
-!!   FUNCTION
-!!     creates a new para environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - para_env: the new parallel environment
-!!     - group: the id of the actual mpi_group
-!!     - source: the id of the special (master) processor (defaults to 0)
-!!     - mepos: the id of the actual processor
-!!     - num_pe: the number of processors in the group
-!!     - owns_group: if the group is owned by this object (defaults to true)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a new para environment
+!> \param para_env the new parallel environment
+!> \param group the id of the actual mpi_group
+!> \param source the id of the special (master) processor (defaults to 0)
+!> \param mepos the id of the actual processor
+!> \param num_pe the number of processors in the group
+!> \param owns_group if the group is owned by this object (defaults to true)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_para_env_create(para_env, group, source,mepos, num_pe,&
       owns_group,error)
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -114,34 +85,19 @@ CONTAINS
       para_env%ionode=para_env%mepos==para_env%source
     END IF
   END SUBROUTINE cp_para_env_create
-!***************************************************************************
 
-!!****f* cp_para_env/cp_para_env_duplicate [1.0] *
-!!
-!!   NAME
-!!     cp_para_env_duplicate
-!!
-!!   FUNCTION
-!!     creates a new para environment by duplicating an environment
-!!     (and also the undelying mpi group)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - para_env: the new group
-!!     - template: the environment to copy
-!!     - source: the source of the new para_env, defaults to template%source
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a new para environment by duplicating an environment
+!>      (and also the undelying mpi group)
+!> \param para_env the new group
+!> \param template the environment to copy
+!> \param source the source of the new para_env, defaults to template%source
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_para_env_duplicate(para_env, TEMPLATE, source,error)
     TYPE(cp_para_env_type), POINTER          :: para_env, TEMPLATE
     INTEGER, INTENT(in), OPTIONAL            :: source
@@ -173,32 +129,17 @@ CONTAINS
       para_env%ionode=para_env%mepos==para_env%source
     END IF
   END SUBROUTINE cp_para_env_duplicate
-!***************************************************************************
 
-!!****f* cp_para_env/cp_para_env_retain [1.0] *
-!!
-!!   NAME
-!!     cp_para_env_retain
-!!
-!!   FUNCTION
-!!     retains the para object (to be called when you want to keep a
-!!     shared copy of this object)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - para_env: the new group
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the para object (to be called when you want to keep a
+!>      shared copy of this object)
+!> \param para_env the new group
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_para_env_retain(para_env, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -216,33 +157,20 @@ CONTAINS
       para_env%ref_count=para_env%ref_count+1
     END IF
   END SUBROUTINE cp_para_env_retain
-!***************************************************************************
 
-!!****f* cp_para_env/cp_para_env_release [1.0] *
-!!
-!!   NAME
-!!     cp_para_env_release
-!!
-!!   FUNCTION
-!!     releases the para object (to be called when you don't want anymore
-!!     the shared copy of this object)
-!!
-!!   NOTES
-!!     to avoid circular dependencies cp_log_handling has a private copy
-!!     of this method (see cp_log_handling:my_cp_para_env_release)!
-!!
-!!   INPUTS
-!!     - para_env: the new group
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the para object (to be called when you don't want anymore
+!>      the shared copy of this object)
+!> \param para_env the new group
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> \note
+!>      to avoid circular dependencies cp_log_handling has a private copy
+!>      of this method (see cp_log_handling:my_cp_para_env_release)!
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_para_env_release(para_env, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -268,31 +196,16 @@ CONTAINS
     END IF
     NULLIFY(para_env)
   END SUBROUTINE cp_para_env_release
-!***************************************************************************
 
-!!****f* cp_para_env/cp_para_env_update [1.0] *
-!!
-!!   NAME
-!!     cp_para_env_update
-!!
-!!   FUNCTION
-!!     gets again the position and size of the group from the mpi_group
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - para_env: the new group
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief gets again the position and size of the group from the mpi_group
+!> \param para_env the new group
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_para_env_update(para_env, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -314,31 +227,17 @@ CONTAINS
       para_env%ionode=para_env%mepos==para_env%source
     END IF
   END SUBROUTINE cp_para_env_update
-!***************************************************************************
-!!****f* cp_para_env/cp_para_env_write [1.0] *
-!!
-!!   NAME
-!!     cp_para_env_write
-!!
-!!   FUNCTION
-!!     writes a description of the parallel environment to the given unit
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - para_env: the parallel environment to output
-!!     - unit_nr: the unit where to output
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief writes a description of the parallel environment to the given unit
+!> \param para_env the parallel environment to output
+!> \param unit_nr the unit where to output
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE cp_para_env_write(para_env,unit_nr,error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(in)                      :: unit_nr
@@ -375,32 +274,18 @@ SUBROUTINE cp_para_env_write(para_env,unit_nr,error)
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
   END IF
 END SUBROUTINE cp_para_env_write
-!***************************************************************************
 
-!!****f* cp_para_env/cp_cart_create *
-!!
-!!   NAME
-!!     cp_cart_create
-!!
-!!   FUNCTION
-!!     creates a cart (multidimensional parallel environment)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - cart: the cart environment to create
-!!     - group: the mpi communicator
-!!     - ndims: the number of dimensions of the cart
-!!     - owns_group: if this object owns the underlying cart (and should
-!!       free it)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a cart (multidimensional parallel environment)
+!> \param cart the cart environment to create
+!> \param group the mpi communicator
+!> \param ndims the number of dimensions of the cart
+!> \param owns_group if this object owns the underlying cart (and should
+!>        free it)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE cp_cart_create(cart, group, ndims,owns_group, error)
     TYPE(cp_para_cart_type), POINTER         :: cart
     INTEGER, INTENT(in)                      :: group, ndims
@@ -436,28 +321,14 @@ SUBROUTINE cp_cart_create(cart, group, ndims,owns_group, error)
        CALL cp_cart_update(cart,error=error)
     END IF
   END SUBROUTINE cp_cart_create
-!***************************************************************************
 
-!!****f* cp_para_env/cp_cart_update *
-!!
-!!   NAME
-!!     cp_cart_update
-!!
-!!   FUNCTION
-!!     updates the information about the given cart
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - cart: the cart to update
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief updates the information about the given cart
+!> \param cart the cart to update
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE cp_cart_update(cart,error)
     TYPE(cp_para_cart_type), POINTER         :: cart
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -477,28 +348,14 @@ SUBROUTINE cp_cart_update(cart,error)
      CALL mp_environ( numtask=cart%ntask, taskid=cart%rank, groupid=cart%group)
   END IF
 END SUBROUTINE cp_cart_update
-!***************************************************************************
 
-!!****f* cp_para_env/cp_cart_release *
-!!
-!!   NAME
-!!     cp_cart_release
-!!
-!!   FUNCTION
-!!     releases the given cart
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - cart: the cart to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given cart
+!> \param cart the cart to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE cp_cart_release(cart,error)
     TYPE(cp_para_cart_type), POINTER         :: cart
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -525,28 +382,14 @@ SUBROUTINE cp_cart_release(cart,error)
   END IF
   NULLIFY(cart)
 END SUBROUTINE cp_cart_release
-!***************************************************************************
 
-!!****f* cp_para_env/cp_cart_retain *
-!!
-!!   NAME
-!!     cp_cart_retain
-!!
-!!   FUNCTION
-!!     retains the given cart
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - cart: the cart to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given cart
+!> \param cart the cart to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE cp_cart_retain(cart,error)
     TYPE(cp_para_cart_type), POINTER         :: cart
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -564,29 +407,15 @@ SUBROUTINE cp_cart_retain(cart,error)
      cart%ref_count=cart%ref_count+1
   END IF
 END SUBROUTINE cp_cart_retain
-!***************************************************************************
 
-!!****f* cp_para_env/cp_cart_write *
-!!
-!!   NAME
-!!     cp_cart_write
-!!
-!!   FUNCTION
-!!     writes out the informations about the cart
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - cart: the parallel environment to output
-!!     - unit_nr: the unit where to output
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes out the informations about the cart
+!> \param cart the parallel environment to output
+!> \param unit_nr the unit where to output
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE cp_cart_write(cart,unit_nr,error)
     TYPE(cp_para_cart_type), POINTER         :: cart
     INTEGER, INTENT(in)                      :: unit_nr
@@ -632,6 +461,5 @@ SUBROUTINE cp_cart_write(cart,unit_nr,error)
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
   END IF
 END SUBROUTINE cp_cart_write
-!***************************************************************************
 
 END MODULE cp_para_env

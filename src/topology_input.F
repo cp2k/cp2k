@@ -3,25 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/topology_input [1.0] *
-!!
-!!   NAME
-!!     topology_input
-!!
-!!   FUNCTION
-!!     Reads the input sections "topology"
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (26-01-2002) Added read_topology_section
-!!  
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Reads the input sections "topology"
+!> \par History
+!>      JGH (26-01-2002) Added read_topology_section
+!> \author JGH
+! *****************************************************************************
 MODULE topology_input
   USE colvar_types,                    ONLY: colvar_clone,&
                                              colvar_p_type
@@ -53,39 +40,14 @@ MODULE topology_input
   PRIVATE
   PUBLIC :: read_topology_section, read_constraints_section
 
-
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-
-!!*****
-!******************************************************************************
-!!****** topology_input/read_topology_section [1.0] *
-!!
-!!   NAME
-!!     read_topology_section
-!!
-!!   SYNOPSIS
-!!     Subroutine read_topology_section(topology, globenv)
-!!       Implicit None
-!!       Type(topology_parameters_type):: topology
-!!       Type(global_environment_type), pointer:: globenv
-!!     End Subroutine read_topology_section
-!!
-!!   FUNCTION
-!!     reads the input section topology
-!!
-!!   AUTHOR
-!!     JGH (26-01-2002)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   NOTES
-!!
-!******************************************************************************
+! *****************************************************************************
+!> \brief reads the input section topology
+!> \par History
+!>      none
+!> \author JGH (26-01-2002)
+! *****************************************************************************
 SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
     TYPE(topology_parameters_type)           :: topology
     TYPE(section_vals_type), POINTER         :: topology_section
@@ -132,29 +94,15 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
   CALL timestop(handle)
 END SUBROUTINE read_topology_section
 
-!!*****
-!******************************************************************************
-!!****** topology_input/input_constraints [1.0] *
-!!
-!!   NAME
-!!     read_constraints_section
-!!
-!!   FUNCTION
-!!     Read all the distance parameters. Put them in the
-!!     constraint_distance array.
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (26-01-2002) Distance parameters are now stored in tables. The position
-!!        within the table is used as handle for the topology
-!!     teo Read the CONSTRAINT section within the new input style
-!!
-!!   NOTES
-!!
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Read all the distance parameters. Put them in the
+!>      constraint_distance array.
+!> \par History
+!>      JGH (26-01-2002) Distance parameters are now stored in tables. The position
+!>         within the table is used as handle for the topology
+!>      teo Read the CONSTRAINT section within the new input style
+!> \author teo
+! *****************************************************************************
 SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, error)
 
     TYPE(topology_parameters_type), &
@@ -625,26 +573,10 @@ CPSourceFileRef,&
   
 END SUBROUTINE read_constraints_section
 
-!!*****
-!******************************************************************************
-!!****** topology_input/check_restraint [1.0] *
-!!
-!!   NAME
-!!     check_restraint
-!!
-!!   FUNCTION
-!!     Reads input and decides if apply restraints instead of constraints
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   NOTES
-!!
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Reads input and decides if apply restraints instead of constraints
+!> \author teo
+! *****************************************************************************
 SUBROUTINE check_restraint(cons_section, is_restraint, k0, i_rep_section, label, error)
     TYPE(section_vals_type), POINTER         :: cons_section
     LOGICAL, INTENT(OUT)                     :: is_restraint
@@ -690,4 +622,3 @@ END SUBROUTINE check_restraint
 
 END MODULE topology_input
 
-!******************************************************************************

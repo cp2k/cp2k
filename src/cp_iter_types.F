@@ -3,23 +3,9 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/cp_iter_types [1.0] *
-!!
-!!   NAME
-!!     cp_iter_types
-!!
-!!   FUNCTION
-!!     Collection of routines to handle the iteration info
-!!
-!!   NOTES
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Collection of routines to handle the iteration info
+! *****************************************************************************
 MODULE cp_iter_types
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
@@ -68,26 +54,11 @@ MODULE cp_iter_types
        "Iteration level for the evaluation of the Replica Environment                  ",&
        "Iteration level for the Basis Set Superposition Error (BSSE) Calculation       "/)
 
-!!****s* cp_iter_types/cp_iteration_info_type *
-!!
-!!   NAME
-!!     cp_iteration_info
-!!
-!!   FUNCTION
-!!     contains the information about the current state of the program
-!!     to be able to decide if output is necessary
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief contains the information about the current state of the program
+!>      to be able to decide if output is necessary
+!> \author fawzi
+! *****************************************************************************
   TYPE cp_iteration_info_type
      INTEGER                              :: ref_count, id_nr
      INTEGER                              :: print_level, n_rlevel
@@ -100,25 +71,12 @@ MODULE cp_iter_types
 
 CONTAINS
 
-!!****f* cp_iter_types/cp_iteration_info_create *
-!!
-!!   NAME
-!!     cp_iteration_info_create
-!!
-!!   FUNCTION
-!!     creates an output info object
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - iteration_info: the object to create
-!!     - project_name: name of the project, used to create the filenames
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates an output info object
+!> \param iteration_info the object to create
+!> \param project_name name of the project, used to create the filenames
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE cp_iteration_info_create(iteration_info,project_name)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     CHARACTER(len=*), INTENT(in)             :: project_name
@@ -158,26 +116,12 @@ CONTAINS
     iteration_info%last_iter(iteration_info%n_rlevel)  = .FALSE.
 
   END SUBROUTINE cp_iteration_info_create
-!***************************************************************************
 
-!!****f* cp_iter_types/cp_iteration_info_retain *
-!!
-!!   NAME
-!!     cp_iteration_info_retain
-!!
-!!   FUNCTION
-!!     retains the iteration_info (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - iteration_info: the iteration_info to retain
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the iteration_info (see doc/ReferenceCounting.html)
+!> \param iteration_info the iteration_info to retain
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE cp_iteration_info_retain(iteration_info)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
 
@@ -192,26 +136,12 @@ CONTAINS
     END IF
     iteration_info%ref_count=iteration_info%ref_count+1
   END SUBROUTINE cp_iteration_info_retain
-!***************************************************************************
 
-!!****f* cp_iter_types/cp_iteration_info_release *
-!!
-!!   NAME
-!!     cp_iteration_info_release
-!!
-!!   FUNCTION
-!!     releases the iteration_info (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - iteration_info: the iteration_info to release
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the iteration_info (see doc/ReferenceCounting.html)
+!> \param iteration_info the iteration_info to release
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE cp_iteration_info_release(iteration_info)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
 
@@ -251,9 +181,6 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE cp_iteration_info_release
-!***************************************************************************
 
 END MODULE cp_iter_types
-
-!******************************************************************************
 

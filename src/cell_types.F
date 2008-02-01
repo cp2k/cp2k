@@ -2,22 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/cell_types [1.0] *
-!!
-!!   NAME
-!!     cell_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     MK (16.01.2002, based on a earlier version of CJM and JGH)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author MK (16.01.2002, based on a earlier version of CJM and JGH)
+! *****************************************************************************
 MODULE cell_types
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -47,6 +37,7 @@ MODULE cell_types
 
   INTEGER, SAVE, PRIVATE :: last_cell_id=0
 
+! *****************************************************************************
   TYPE cell_type
      !FM to rm
      CHARACTER(LEN=8)           :: unit_of_length_name
@@ -64,6 +55,7 @@ MODULE cell_types
      INTEGER                    :: ref_count, id_nr
    END TYPE cell_type
 
+! *****************************************************************************
    TYPE cell_p_type
       TYPE(cell_type),POINTER :: cell
    END TYPE cell_p_type
@@ -94,17 +86,13 @@ MODULE cell_types
   PUBLIC :: cell_type,&
             cell_p_type
 
-! *****************************************************************************
-
   INTERFACE pbc
     MODULE PROCEDURE pbc1,pbc2,pbc3
   END INTERFACE
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
+! *****************************************************************************
   FUNCTION compare_cells (cell_1, cell_2, error) RESULT(compare)
     TYPE(cell_type), POINTER                 :: cell_1, cell_2
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -134,6 +122,7 @@ CONTAINS
 
   END FUNCTION compare_cells
 
+! *****************************************************************************
   SUBROUTINE cell_clone (cell_in, cell_out, error)
     TYPE(cell_type), POINTER                 :: cell_in, cell_out
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -162,7 +151,6 @@ CONTAINS
   END SUBROUTINE cell_clone
 
 ! *****************************************************************************
-
   SUBROUTINE get_cell(cell,unit_of_length_name,alpha,beta,deth,gamma,&
                       subcells,unit_of_length,orthorhombic,scaled_coordinates,&
                       abc,periodic,h,h_inv, id_nr)
@@ -170,8 +158,6 @@ CONTAINS
 !   Purpose: Get informations about a simulation cell.
 
 !   History: - Creation (16.01.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(cell_type), POINTER                 :: cell
     CHARACTER(LEN=8), INTENT(OUT), OPTIONAL  :: unit_of_length_name
@@ -234,14 +220,11 @@ CONTAINS
   END SUBROUTINE get_cell
 
 ! *****************************************************************************
-
   SUBROUTINE get_cell_param(box,cell_length,cell_angle)
 
 !   Purpose: Compatibility routine.
 
 !   History: - Creation (04.04.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(cell_type), POINTER                 :: box
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: cell_length
@@ -265,7 +248,6 @@ CONTAINS
   END SUBROUTINE get_cell_param
 
 ! *****************************************************************************
-
   SUBROUTINE get_hinv(box)
 !   Purpose: Calculate the inverse of the h matrix.
 !   History: - Creation (16.01.2002, CJM,JGH,MK)
@@ -287,14 +269,11 @@ CONTAINS
   END SUBROUTINE get_hinv
 
 ! *****************************************************************************
-
   SUBROUTINE init_cell(cell,hmat,periodic,orthorhombic)
 
 !   Purpose: Initialise a simulation cell.
 
 !   History: - Creation (16.01.2002, CJM,JGH,MK)
-
-!   ***************************************************************************
 
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(3, 3), &
@@ -338,15 +317,12 @@ CONTAINS
   END SUBROUTINE init_cell
 
 ! *****************************************************************************
-
   FUNCTION plane_distance(h,k,l,cell) RESULT(distance)
 
 !   Purpose: Calculate the distance between two lattice planes as defined by
 !            a triple of Miller indices (hkl).
 
 !   History: - Creation (18.11.2004,MK)
-
-!   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: h, k, l
     TYPE(cell_type), POINTER                 :: cell
@@ -403,15 +379,12 @@ CONTAINS
   END FUNCTION plane_distance
 
 ! *****************************************************************************
-
   FUNCTION pbc1(r,cell) RESULT(r_pbc)
 
 !   Purpose: Apply the periodic boundary conditions defined by a simulation
 !            cell to a position vector r.
 
 !   History: - Creation (16.01.2002, Matthias Krack)
-
-!   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: r
     TYPE(cell_type), POINTER                 :: cell
@@ -440,15 +413,12 @@ CONTAINS
   END FUNCTION pbc1
 
 ! *****************************************************************************
-
   FUNCTION pbc2(r,cell,nl) RESULT(r_pbc)
 
 !   Purpose: Apply the periodic boundary conditions defined by a simulation
 !            cell to a position vector r.
 
 !   History: - Creation (16.01.2002, Matthias Krack)
-
-!   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: r
     TYPE(cell_type), POINTER                 :: cell
@@ -481,15 +451,12 @@ CONTAINS
   END FUNCTION pbc2
 
 ! *****************************************************************************
-
   FUNCTION pbc3(ra,rb,cell) RESULT(rab_pbc)
 
 !   Purpose: Apply the periodic boundary conditions defined by the simulation
 !            cell cell to the vector pointing from atom a to atom b.
 
 !   History: - Creation (11.03.2004,MK)
-
-!   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra, rb
     TYPE(cell_type), POINTER                 :: cell
@@ -528,29 +495,13 @@ CONTAINS
 
   END FUNCTION pbc3
 
-!!****f* cell_types/read_cell_new [1.0] *
-!!
-!!   NAME
-!!     read_cell_new
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     03.2005 created [teo]
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      03.2005 created [teo]
+!> \author Teodoro Laino
+! *****************************************************************************
   RECURSIVE SUBROUTINE read_cell( cell, cell_ref, use_ref_cell, error, cell_section,&
        check_for_ref)
     TYPE(cell_type), POINTER                 :: cell, cell_ref
@@ -677,14 +628,11 @@ CONTAINS
   END SUBROUTINE read_cell
 
 ! *****************************************************************************
-
   SUBROUTINE real_to_scaled(s,r,cell)
 !            s=h_inv*r
 !   Purpose: Transform real to scaled cell coordinates.
 
 !   History: - Creation (16.01.2002, Matthias Krack)
-
-!   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: s
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: r
@@ -705,14 +653,11 @@ CONTAINS
   END SUBROUTINE real_to_scaled
 
 ! *****************************************************************************
-
   SUBROUTINE scaled_to_real(r,s,cell)
 !            r=h*s
 !   Purpose: Transform scaled cell coordinates real coordinates.
 
 !   History: - Creation (16.01.2002, Matthias Krack)
-
-!   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: r
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: s
@@ -733,14 +678,11 @@ CONTAINS
   END SUBROUTINE scaled_to_real
 
 ! *****************************************************************************
-
   SUBROUTINE write_cell(cell,subsys_section,cell_ref,error)
 
 !   Purpose: Write the cell parameters to the output unit.
 
 !   History: - Creation (02.06.2000, Matthias Krack)
-
-!   ***************************************************************************
 
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: subsys_section
@@ -813,32 +755,16 @@ CONTAINS
   END SUBROUTINE write_cell
 
 ! *****************************************************************************
-
-!!****f* cell_types/cell_create [1.0] *
-!!
-!!   NAME
-!!     cell_create
-!!
-!!   FUNCTION
-!!     allocates and initializes a cell
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - cell the cell to initialize
-!!     - hmat: the h matrix that defines the cell
-!!     - periodic: periodicity of the cell
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     09.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+!> \brief allocates and initializes a cell
+!> \param cell the cell to initialize
+!> \param hmat the h matrix that defines the cell
+!> \param periodic periodicity of the cell
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cell_create(cell,hmat,periodic, orthorhombic, error)
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(3, 3), &
@@ -868,31 +794,16 @@ CONTAINS
        CALL init_cell(cell,hmat,periodic,orthorhombic)
     END IF
   END SUBROUTINE cell_create
-!***************************************************************************
 
-!!****f* cell_types/cell_retain [1.0] *
-!!
-!!   NAME
-!!     cell_retain
-!!
-!!   FUNCTION
-!!     retains the given cell (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - cell: the cell to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     09.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given cell (see doc/ReferenceCounting.html)
+!> \param cell the cell to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE cell_retain(cell,error)
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -910,31 +821,16 @@ SUBROUTINE cell_retain(cell,error)
      cell%ref_count=cell%ref_count+1
   END IF
 END SUBROUTINE cell_retain
-!***************************************************************************
 
-!!****f* cell_types/cell_release [1.0] *
-!!
-!!   NAME
-!!     cell_release
-!!
-!!   FUNCTION
-!!     releases the given cell (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - cell: the cell to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     09.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given cell (see doc/ReferenceCounting.html)
+!> \param cell the cell to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE cell_release(cell,error)
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -956,7 +852,5 @@ SUBROUTINE cell_release(cell,error)
      END IF
   END IF
 END SUBROUTINE cell_release
-
-!***************************************************************************
 
 END MODULE cell_types

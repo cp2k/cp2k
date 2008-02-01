@@ -3,25 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_cp2k_vib [1.0] *
-!!
-!!   NAME
-!!     input_cp2k_vib
-!!
-!!   FUNCTION
-!!     builds the input structure for the VIBRATIONAL_ANALYSIS module
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     01.2008 [tlaino] Teodoro Laino - University of Zurich
-!!                      Creating an own module for vibrational analysis
-!!
-!****************************************************************************
+! *****************************************************************************
+!> \brief builds the input structure for the VIBRATIONAL_ANALYSIS module
+!> \par History
+!>      01.2008 [tlaino] Teodoro Laino - University of Zurich
+!>                       Creating an own module for vibrational analysis
+!> \author [tlaino]
+! *****************************************************************************
 MODULE input_cp2k_vib
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
@@ -49,30 +37,15 @@ MODULE input_cp2k_vib
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_vib'
   
   PUBLIC :: create_vib_section
-!!***
-!****************************************************************************
 CONTAINS
 
-!!****f* input_cp2k_vib/create_vib_section [1.0] *
-!!
-!!   NAME
-!!     create_vib_section
-!!
-!!   FUNCTION
-!!     Creates the exteranal restart section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     tlaino
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the exteranal restart section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author tlaino
+! *****************************************************************************
   SUBROUTINE create_vib_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -142,28 +115,14 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_vib_section
-!***************************************************************************
 
-!!****f* input_cp2k/create_mode_selective_section [1.0] *
-!!
-!!   NAME
-!!     create_mode_selective_section
-!!
-!!   FUNCTION
-!!     Create the input section for MODE selective
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fschiff
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Create the input section for MODE selective
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fschiff
+! *****************************************************************************
   SUBROUTINE create_mode_selective_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error

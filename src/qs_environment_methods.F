@@ -3,28 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qs_environment_methods [1.0] *
-!!
-!!   NAME
-!!     qs_environment_methods
-!!
-!!   FUNCTION
-!!     qs_environement methods that use many other modules
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     09.2002 created [fawzi]
-!!     - local atom distribution (25.06.2003,MK)
-!!
-!!   SOURCE
-!****************************************************************************
-
+! *****************************************************************************
+!> \brief qs_environement methods that use many other modules
+!> \par History
+!>      09.2002 created [fawzi]
+!>      - local atom distribution (25.06.2003,MK)
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE qs_environment_methods
 
   USE atomic_kind_types,               ONLY: atomic_kind_type
@@ -89,42 +74,21 @@ MODULE qs_environment_methods
             qs_env_rebuild_rho,&
             qs_env_setup
 !***
-!****************************************************************************
 CONTAINS
 
-!!****f* qs_environment_methods/qs_env_setup [1.0] *
-!!
-!!   NAME
-!!     qs_env_setup
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_env_setup(qs_env, error)
-!!       Type(qs_environment_type), Intent (INOUT):: qs_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_env_setup
-!!
-!!   FUNCTION
-!!     initializes various components of the qs_env, that need only
-!!     atomic_kind_set, cell, dft_control, scf_control, c(i)%nmo,
-!!     c(i)%nao, and particle_set to be initialized.
-!!     The previous components of qs_env must be valid.
-!!     Initializes pools, charges and pw_env.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - qs_env: the qs_env to set up
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     10.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief initializes various components of the qs_env, that need only
+!>      atomic_kind_set, cell, dft_control, scf_control, c(i)%nmo,
+!>      c(i)%nao, and particle_set to be initialized.
+!>      The previous components of qs_env must be valid.
+!>      Initializes pools, charges and pw_env.
+!> \param qs_env the qs_env to set up
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE qs_env_setup(qs_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -227,41 +191,20 @@ SUBROUTINE qs_env_setup(qs_env,error)
     CALL timestop(handle)
 
 END SUBROUTINE qs_env_setup
-!***************************************************************************
 
-!!****f* qs_environment_types/qs_env_update_s_mstruct [1.0] *
-!!
-!!   NAME
-!!     qs_env_update_s_mstruct
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_env_update_s_mstruct(qs_env, error)
-!!       Type(qs_environment_type), Pointer:: qs_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_env_update_s_mstruct
-!!
-!!   FUNCTION
-!!     updates the s_mstruct to reflect the new overlap structure,
-!!     and also updates rho_core distribution.
-!!     Should be called after the atoms have moved and the new overlap
-!!     has been calculated.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - qs_env: the environment to update
-!!     - para_env: the mpi environment
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief updates the s_mstruct to reflect the new overlap structure,
+!>      and also updates rho_core distribution.
+!>      Should be called after the atoms have moved and the new overlap
+!>      has been calculated.
+!> \param qs_env the environment to update
+!> \param para_env the mpi environment
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      07.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -341,7 +284,6 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
        ENDIF
     ENDIF
 
-    
     ! *** environment for ddapc ***
     IF (ASSOCIATED(qs_env%cp_ddapc_env)) THEN
        CALL cp_ddapc_release(qs_env%cp_ddapc_env,error)
@@ -365,37 +307,16 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE qs_env_update_s_mstruct
-!***************************************************************************
 
-!!****f* qs_environment_methods/qs_env_rebuild_pw_env [1.0] *
-!!
-!!   NAME
-!!     qs_env_rebuild_pw_env
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_env_rebuild_pw_env(qs_env, error)
-!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_env_rebuild_pw_env
-!!
-!!   FUNCTION
-!!     rebuilds the pw_env in the given qs_env, allocating it if necessary
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - qs_env: the qs_env whose pw_env has to be rebuilt
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     10.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief rebuilds the pw_env in the given qs_env, allocating it if necessary
+!> \param qs_env the qs_env whose pw_env has to be rebuilt
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -455,47 +376,25 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
     CALL timestop(handle)
 
 END SUBROUTINE qs_env_rebuild_pw_env
-!***************************************************************************
 
-!!****f* qs_environment_methods/qs_env_rebuild_rho [1.0] *
-!!
-!!   NAME
-!!     qs_env_rebuild_rho
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_env_rebuild_rho(qs_env, &
-!!         rebuild_ao, rebuild_grids, error)
-!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
-!!       Logical, Intent (IN), Optional:: &
-!!         rebuild_grids, rebuild_ao
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_env_rebuild_rho
-!!
-!!   FUNCTION
-!!     rebuilds the rho structure, making sure that everything is allocated
-!!     and has the right size
-!!
-!!   NOTES
-!!     needs updated  pw pools, s_mstruct and h.
-!!     The use of p to keep the structure of h (needed for the forces)
-!!     is ugly and should be removed.
-!!     If necessary rho is created from scratch.
-!!
-!!   INPUTS
-!!     - qs_env: the environment in which rho should be rebuilt
-!!     - rebuild_ao: if it is necessary to rebuild rho_ao. Defaults to true.
-!!     - rebuild_grids: if it in necessary to rebuild rho_r and rho_g.
-!!       Defaults to false.
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     10.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief rebuilds the rho structure, making sure that everything is allocated
+!>      and has the right size
+!> \param qs_env the environment in which rho should be rebuilt
+!> \param rebuild_ao if it is necessary to rebuild rho_ao. Defaults to true.
+!> \param rebuild_grids if it in necessary to rebuild rho_r and rho_g.
+!>        Defaults to false.
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      needs updated  pw pools, s_mstruct and h.
+!>      The use of p to keep the structure of h (needed for the forces)
+!>      is ugly and should be removed.
+!>      If necessary rho is created from scratch.
+!> \par History
+!>      10.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: rebuild_ao, rebuild_grids
@@ -523,31 +422,16 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
     CALL timestop(handle)
 
 END SUBROUTINE qs_env_rebuild_rho
-!***************************************************************************
 
-!!****f* qs_environment_methods/qs_env_update_rho_core [1.0] *
-!!
-!!   NAME
-!!     qs_env_update_rho_core
-!!
-!!   FUNCTION
-!!     Updates rho_core (the grid with the core charge)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - qs_env: the environement whose rho core has to be updated
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     10.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Updates rho_core (the grid with the core charge)
+!> \param qs_env the environement whose rho core has to be updated
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE qs_env_update_rho_core(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -581,6 +465,5 @@ SUBROUTINE qs_env_update_rho_core(qs_env,error)
     CALL timestop(handle)
 
 END SUBROUTINE qs_env_update_rho_core
-!***************************************************************************
 
 END MODULE qs_environment_methods

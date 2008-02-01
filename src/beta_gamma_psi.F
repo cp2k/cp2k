@@ -3,6 +3,7 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
+! *****************************************************************************
 MODULE beta_gamma_psi
  ! not tested in the case where dp would stand for single precision
   USE f77_blas
@@ -16,6 +17,7 @@ MODULE beta_gamma_psi
 
 CONTAINS
 
+! *****************************************************************************
 FUNCTION ipmpar (i) RESULT(fn_val)
 !-----------------------------------------------------------------------
 
@@ -99,8 +101,7 @@ END SELECT
 RETURN
 END FUNCTION ipmpar
 
-
-
+! *****************************************************************************
 FUNCTION spmpar (i) RESULT(fn_val)
 !-----------------------------------------------------------------------
 
@@ -136,8 +137,7 @@ END SELECT
 RETURN
 END FUNCTION spmpar
 
-
-
+! *****************************************************************************
 FUNCTION dpmpar (i) RESULT(fn_val)
 !-----------------------------------------------------------------------
 
@@ -173,7 +173,7 @@ END SELECT
 RETURN
 END FUNCTION dpmpar
 
-
+! *****************************************************************************
 FUNCTION epsln () RESULT(fn_val)
 !--------------------------------------------------------------------
 !     THE EVALUATION OF LN(EPS) WHERE EPS IS THE SMALLEST NUMBER
@@ -189,7 +189,7 @@ fn_val = LOG( EPSILON(one) )
 RETURN
 END FUNCTION epsln
 
-
+! *****************************************************************************
 FUNCTION exparg (l) RESULT(fn_val)
 !--------------------------------------------------------------------
 !     IF L = 0 THEN  EXPARG(L) = THE LARGEST POSITIVE W FOR WHICH
@@ -215,7 +215,7 @@ END IF
 RETURN
 END FUNCTION exparg
 
-
+! *****************************************************************************
 FUNCTION depsln () RESULT(fn_val)
 !--------------------------------------------------------------------
 !     THE EVALUATION OF LN(EPS) WHERE EPS IS THE SMALLEST NUMBER
@@ -231,7 +231,7 @@ fn_val = LOG( EPSILON(one) )
 RETURN
 END FUNCTION depsln
 
-
+! *****************************************************************************
 FUNCTION dxparg (l) RESULT(fn_val)
 !--------------------------------------------------------------------
 !     IF L = 0 THEN  DXPARG(L) = THE LARGEST POSITIVE W FOR WHICH
@@ -257,6 +257,7 @@ END IF
 RETURN
 END FUNCTION dxparg
 
+! *****************************************************************************
 FUNCTION alnrel(a) RESULT(fn_val)
 !-----------------------------------------------------------------------
 !            EVALUATION OF THE FUNCTION LN(1 + A)
@@ -286,8 +287,7 @@ END IF
 RETURN
 END FUNCTION alnrel
 
-
-
+! *****************************************************************************
 FUNCTION erf (x) RESULT(fn_val)
 !-----------------------------------------------------------------------
 !             EVALUATION OF THE REAL ERROR FUNCTION
@@ -350,8 +350,7 @@ END IF
 RETURN
 END FUNCTION erf
 
-
-
+! *****************************************************************************
 FUNCTION erfc1 (ind, x) RESULT(fn_val)
 !-----------------------------------------------------------------------
 !         EVALUATION OF THE COMPLEMENTARY ERROR FUNCTION
@@ -444,8 +443,7 @@ RETURN
 RETURN
 END FUNCTION erfc1
 
-
-
+! *****************************************************************************
 FUNCTION gam1(a) RESULT(fn_val)
 !-----------------------------------------------------------------------
 !     COMPUTATION OF 1/GAMMA(A+1) - 1  FOR -0.5 <= A <= 1.5
@@ -500,7 +498,7 @@ END IF
 RETURN
 END FUNCTION gam1
 
-
+! *****************************************************************************
 FUNCTION algdiv (a, b) RESULT(fn_val)
 !-----------------------------------------------------------------------
 
@@ -564,8 +562,7 @@ END IF
 RETURN
 END FUNCTION algdiv
 
-
-
+! *****************************************************************************
 FUNCTION rexp (x) RESULT(fn_val)
 !-----------------------------------------------------------------------
 !            EVALUATION OF THE FUNCTION EXP(X) - 1
@@ -600,8 +597,7 @@ fn_val = -1.0e0_dp
 RETURN
 END FUNCTION rexp
 
-
-
+! *****************************************************************************
 SUBROUTINE bgrat (a, b, x, y, w, eps, ierr)
 !-----------------------------------------------------------------------
 !     ASYMPTOTIC EXPANSION FOR IX(A,B) WHEN A IS LARGER THAN B.
@@ -680,8 +676,7 @@ RETURN
 RETURN
 END SUBROUTINE bgrat
 
-
-
+! *****************************************************************************
 SUBROUTINE grat1 (a, x, r, p, q, eps)
 !-----------------------------------------------------------------------
 !           EVALUATION OF P(A,X) AND Q(A,X) WHERE A <= 1 AND
@@ -786,8 +781,7 @@ IF (PRESENT(q)) q = qq
 RETURN
 END SUBROUTINE grat1
 
-
-
+! *****************************************************************************
 FUNCTION esum (mu, x) RESULT(fn_val)
 !-----------------------------------------------------------------------
 !                    EVALUATION OF EXP(MU + X)
@@ -818,8 +812,7 @@ fn_val = EXP(w)*EXP(x)
 RETURN
 END FUNCTION esum
 
-
-
+! *****************************************************************************
 FUNCTION rlog1(x) RESULT(fn_val)
 !-----------------------------------------------------------------------
 !             EVALUATION OF THE FUNCTION X - LN(1 + X)
@@ -866,14 +859,12 @@ w = ((p2*t + p1)*t + p0)/((q2*t + q1)*t + 1.0e0_dp)
 fn_val = r*(u - 2.0e0_dp*t*w) + w1
 RETURN
 
-
 100 w = (x + 0.5e0_dp) + 0.5e0_dp
 fn_val = x - LOG(w)
 RETURN
 END FUNCTION rlog1
 
-
-
+! *****************************************************************************
 FUNCTION gamln (a) RESULT(fn_val)
 !-----------------------------------------------------------------------
 !            EVALUATION OF LN(GAMMA(A)) FOR POSITIVE A
@@ -921,8 +912,7 @@ fn_val = (d + w) + (a - 0.5e0_dp)*(LOG(a) - 1.0e0_dp)
 RETURN
 END FUNCTION gamln
 
-
-
+! *****************************************************************************
 FUNCTION gamln1 (a) RESULT(fn_val)
 !-----------------------------------------------------------------------
 !     EVALUATION OF LN(GAMMA(1 + A)) FOR -0.2 .LE. A .LE. 1.25
@@ -958,8 +948,7 @@ fn_val = x*w
 RETURN
 END FUNCTION gamln1
 
-
-
+! *****************************************************************************
 FUNCTION psi(xx) RESULT(fn_val)
 !---------------------------------------------------------------------
 
@@ -1130,8 +1119,7 @@ RETURN
 RETURN
 END FUNCTION psi
 
-
-
+! *****************************************************************************
 FUNCTION betaln (a0, b0) RESULT(fn_val)
 !-----------------------------------------------------------------------
 !     EVALUATION OF THE LOGARITHM OF THE BETA FUNCTION
@@ -1223,8 +1211,7 @@ RETURN
 RETURN
 END FUNCTION betaln
 
-
-
+! *****************************************************************************
 FUNCTION gsumln (a, b) RESULT(fn_val)
 !-----------------------------------------------------------------------
 !          EVALUATION OF THE FUNCTION LN(GAMMA(A + B))
@@ -1246,8 +1233,7 @@ RETURN
 RETURN
 END FUNCTION gsumln
 
-
-
+! *****************************************************************************
 FUNCTION bcorr (a0, b0) RESULT(fn_val)
 !-----------------------------------------------------------------------
 
@@ -1295,8 +1281,7 @@ fn_val = (((((c5*t + c4)*t + c3)*t + c2)*t + c1)*t + c0)/a + w
 RETURN
 END FUNCTION bcorr
 
-
-
+! *****************************************************************************
 SUBROUTINE bratio (a, b, x, y, w, w1, ierr)
 !-----------------------------------------------------------------------
 
@@ -1518,8 +1503,7 @@ RETURN
 RETURN
 END SUBROUTINE bratio
 
-
-
+! *****************************************************************************
 FUNCTION fpser (a, b, x, eps) RESULT(fn_val)
 !-----------------------------------------------------------------------
 
@@ -1560,8 +1544,7 @@ fn_val = fn_val*(1.0e0_dp + a*s)
 RETURN
 END FUNCTION fpser
 
-
-
+! *****************************************************************************
 FUNCTION apser (a, b, x, eps) RESULT(fn_val)
 !-----------------------------------------------------------------------
 !     APSER YIELDS THE INCOMPLETE BETA RATIO I(SUB(1-X))(B,A) FOR
@@ -1598,8 +1581,7 @@ fn_val = -a*(c + s)
 RETURN
 END FUNCTION apser
 
-
-
+! *****************************************************************************
 FUNCTION bpser (a, b, x, eps) RESULT(fn_val)
 !-----------------------------------------------------------------------
 !     POWER SERIES EXPANSION FOR EVALUATING IX(A,B) WHEN B .LE. 1
@@ -1687,8 +1669,7 @@ fn_val = fn_val*(1.0e0_dp + a*sum)
 RETURN
 END FUNCTION bpser
 
-
-
+! *****************************************************************************
 FUNCTION bup (a, b, x, y, n, eps) RESULT(fn_val)
 !-----------------------------------------------------------------------
 !     EVALUATION OF IX(A,B) - IX(A+N,B) WHERE N IS A POSITIVE INTEGER.
@@ -1760,8 +1741,7 @@ END DO
 RETURN
 END FUNCTION bup
 
-
-
+! *****************************************************************************
 FUNCTION bfrac (a, b, x, y, lambda, eps) RESULT(fn_val)
 !-----------------------------------------------------------------------
 !     CONTINUED FRACTION EXPANSION FOR IX(A,B) WHEN A,B .GT. 1.
@@ -1830,8 +1810,7 @@ GO TO 10
 RETURN
 END FUNCTION bfrac
 
-
-
+! *****************************************************************************
 FUNCTION brcomp (a, b, x, y) RESULT(fn_val)
 !-----------------------------------------------------------------------
 !               EVALUATION OF X**A*Y**B/BETA(A,B)
@@ -1952,8 +1931,7 @@ fn_val = const*SQRT(b*x0)*z*EXP(-bcorr(a,b))
 RETURN
 END FUNCTION brcomp
 
-
-
+! *****************************************************************************
 FUNCTION brcmp1 (mu, a, b, x, y) RESULT(fn_val)
 !-----------------------------------------------------------------------
 !          EVALUATION OF  EXP(MU) * (X**A*Y**B/BETA(A,B))
@@ -2073,8 +2051,7 @@ fn_val = const*SQRT(b*x0)*z*EXP(-bcorr(a,b))
 RETURN
 END FUNCTION brcmp1
 
-
-
+! *****************************************************************************
 FUNCTION basym (a, b, lambda, eps) RESULT(fn_val)
 !-----------------------------------------------------------------------
 !     ASYMPTOTIC EXPANSION FOR IX(A,B) FOR LARGE A AND B.
@@ -2178,6 +2155,5 @@ END DO
 fn_val = e0*t*u*sum
 RETURN
 END FUNCTION basym
-
 
 END MODULE beta_gamma_psi

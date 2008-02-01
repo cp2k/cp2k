@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/pair_potential_types [1.0] *
-!!
-!!   NAME
-!!     pair_potential_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     Teodoro Laino [Teo] 11.2005 : Reorganizing the structures to optimize
-!!                                   memory management
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      Teodoro Laino [Teo] 11.2005 : Reorganizing the structures to optimize
+!>                                    memory management
+!> \author CJM
+! *****************************************************************************
 MODULE pair_potential_types
 
   USE f77_blas
@@ -53,7 +43,6 @@ MODULE pair_potential_types
                                 bm_type= 9,&
                                 gp_type=10,&
                                 tersoff_type=11
-
 
   INTEGER, PUBLIC, PARAMETER, DIMENSION(12) :: list_pot = (/nn_type,&
                                                            lj_type,&
@@ -112,6 +101,7 @@ MODULE pair_potential_types
   PUBLIC :: pair_potential_lj_create
   PUBLIC :: compare_pot
 
+! *****************************************************************************
   TYPE ipbv_pot_type
      REAL (KIND=dp), DIMENSION (2:15) :: a
      REAL (KIND=dp) :: rcore
@@ -119,12 +109,14 @@ MODULE pair_potential_types
      REAL (KIND=dp) :: b
   END TYPE ipbv_pot_type
 
+! *****************************************************************************
   TYPE lj_pot_type
      REAL (KIND=dp) :: epsilon
      REAL (KIND=dp) :: sigma6
      REAL (KIND=dp) :: sigma12
   END TYPE Lj_pot_type
 
+! *****************************************************************************
   TYPE ft_pot_type
      REAL (KIND=dp) :: A
      REAL (KIND=dp) :: B
@@ -132,18 +124,21 @@ MODULE pair_potential_types
      REAL (KIND=dp) :: D
   END TYPE ft_pot_type
 
+! *****************************************************************************
   TYPE williams_pot_type
      REAL (KIND=dp) :: a
      REAL (KIND=dp) :: b
      REAL (KIND=dp) :: c
   END TYPE williams_pot_type
 
+! *****************************************************************************
   TYPE goodwin_pot_type
      REAL (KIND=dp) :: vr0
      REAL (KIND=dp) :: m, mc
      REAL (KIND=dp) :: d, dc
   END TYPE goodwin_pot_type
 
+! *****************************************************************************
   TYPE eam_pot_type
      CHARACTER ( len = default_path_length ) :: eam_file_name
      REAL ( KIND = dp )                     :: drar, drhoar, acutal
@@ -151,6 +146,7 @@ MODULE pair_potential_types
      REAL ( KIND = dp ), DIMENSION ( 5000 ) :: rhop, phip, frhop
   END TYPE eam_pot_type
 
+! *****************************************************************************
   TYPE buck4ran_pot_type
      REAL (KIND=dp) :: a
      REAL (KIND=dp) :: b
@@ -163,6 +159,7 @@ MODULE pair_potential_types
      REAL (KIND=dp), DIMENSION(0:10) :: poly2
   END TYPE buck4ran_pot_type
 
+! *****************************************************************************
   TYPE buckmorse_pot_type
      REAL (KIND=dp) :: f0
      REAL (KIND=dp) :: a1
@@ -175,6 +172,7 @@ MODULE pair_potential_types
      REAL (KIND=dp) :: beta
   END TYPE buckmorse_pot_type
 
+! *****************************************************************************
   TYPE gp_pot_type
      INTEGER                                   :: myid
      CHARACTER ( LEN = default_path_length )   :: potential
@@ -183,6 +181,7 @@ MODULE pair_potential_types
      REAL(KIND=dp), DIMENSION(:), POINTER      :: values
   END TYPE gp_pot_type
 
+! *****************************************************************************
   TYPE tersoff_pot_type
      ! Get this stuff from the PRB V38, N14 9902 (1988) by Tersoff
      REAL (KIND=dp) :: A
@@ -201,6 +200,7 @@ MODULE pair_potential_types
      REAL (KIND=dp) :: rcutsq        ! Always set to (bigR+bigD)^2
   END TYPE tersoff_pot_type
 
+! *****************************************************************************
   TYPE pot_set_type
      REAL ( KIND=dp )                      :: rmin, rmax
      TYPE ( ipbv_pot_type ),       POINTER :: ipbv
@@ -215,6 +215,7 @@ MODULE pair_potential_types
      TYPE ( tersoff_pot_type ),    POINTER :: tersoff
   END TYPE pot_set_type
 
+! *****************************************************************************
   TYPE pair_potential_single_type
      REAL (KIND=dp) :: rcutsq
      REAL (KIND=dp) :: e_fac
@@ -237,36 +238,27 @@ MODULE pair_potential_types
      TYPE ( spline_factor_type),   POINTER :: spl_sc
   END TYPE pair_potential_single_type
 
+! *****************************************************************************
   TYPE pair_potential_type
      TYPE(pair_potential_single_type),          POINTER :: pot
   END TYPE pair_potential_type
 
+! *****************************************************************************
   TYPE pair_potential_p_type
      TYPE(pair_potential_type), DIMENSION(:),   POINTER :: pot
   END TYPE pair_potential_p_type
 
+! *****************************************************************************
   TYPE pair_potential_pp_type
      TYPE(pair_potential_type), DIMENSION(:,:), POINTER :: pot
   END TYPE pair_potential_pp_type
 
 CONTAINS
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/compare_pot [1.0] *
-  !!
-  !!   NAME
-  !!     compare_pot
-  !!
-  !!   FUNCTION
-  !!     compare two different potentials
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 05.2006
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+
+! *****************************************************************************
+!> \brief compare two different potentials
+!> \author Teodoro Laino [teo] 05.2006
+! *****************************************************************************
   SUBROUTINE compare_pot(pot1, pot2, compare, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot1, pot2
@@ -353,23 +345,11 @@ CONTAINS
     END DO
 
   END SUBROUTINE compare_pot
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_single_create [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_single_create
-  !!
-  !!   FUNCTION
-  !!     Creates the potential parameter type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+
+! *****************************************************************************
+!> \brief Creates the potential parameter type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_single_create(potparm, nset, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
@@ -420,23 +400,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_single_create
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_single_clean [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_single_clean
-  !!
-  !!   FUNCTION
-  !!     Cleans the potential parameter type
-  !!
-  !!   AUTHOR
-  !!     unknown
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Cleans the potential parameter type
+!> \author unknown
+! *****************************************************************************
   SUBROUTINE pair_potential_single_clean(potparm, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
@@ -491,23 +458,10 @@ CONTAINS
     END DO
   END SUBROUTINE pair_potential_single_clean
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_single_copy [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_single_copy
-  !!
-  !!   FUNCTION
-  !!     Copy two potential parameter type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Copy two potential parameter type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_single_copy(potparm_source, potparm_dest, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm_source, potparm_dest
@@ -578,24 +532,11 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_single_copy
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_single_add [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_single_add
-  !!
-  !!   FUNCTION
-  !!     Add potential parameter type to an existing potential poarameter type
-  !!     Used in case of multiple_potential definition
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Add potential parameter type to an existing potential poarameter type
+!>      Used in case of multiple_potential definition
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_single_add(potparm_source, potparm_dest, error)
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm_source, potparm_dest
@@ -724,23 +665,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_single_add
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_copy [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_copy
-  !!
-  !!   FUNCTION
-  !!     Copy two potential parameter type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Copy two potential parameter type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_copy(potparm_source, potparm_dest, error)
     TYPE(pair_potential_type), POINTER       :: potparm_source, potparm_dest
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -762,24 +690,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_copy
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_single_release [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_single_release
-  !!
-  !!   FUNCTION
-  !!     Release Data-structure that constains potential parameters of a single pair
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [Teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Release Data-structure that constains potential parameters of a single pair
+!> \author Teodoro Laino [Teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_single_release ( potparm, error )
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm
@@ -825,23 +739,10 @@ CONTAINS
     NULLIFY ( potparm )
   END SUBROUTINE pair_potential_single_release
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_pp_create [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_pp_create
-  !!
-  !!   FUNCTION
-  !!     Data-structure that constains potential parameters
-  !!
-  !!   AUTHOR
-  !!     unknown
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Data-structure that constains potential parameters
+!> \author unknown
+! *****************************************************************************
   SUBROUTINE pair_potential_pp_create ( potparm, nkinds, error )
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     INTEGER, INTENT(IN)                      :: nkinds
@@ -875,25 +776,13 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_pp_create
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_pp_release [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_pp_release
-  !!
-  !!   FUNCTION
-  !!     Release Data-structure that constains potential parameters
-  !!
-  !!   AUTHOR
-  !!     unknown
-  !!
-  !!   MODIFICATION HISTORY
-  !!     Teodoro Laino [Teo] 11.2005 : Reorganizing the structures to optimize
-  !!                                   memory management
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Release Data-structure that constains potential parameters
+!> \par History
+!>      Teodoro Laino [Teo] 11.2005 : Reorganizing the structures to optimize
+!>                                    memory management
+!> \author unknown
+! *****************************************************************************
   SUBROUTINE pair_potential_pp_release ( potparm, error )
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -922,23 +811,10 @@ CONTAINS
     NULLIFY ( potparm )
   END SUBROUTINE pair_potential_pp_release
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_p_create [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_p_create
-  !!
-  !!   FUNCTION
-  !!     Data-structure that constains potential parameters
-  !!
-  !!   AUTHOR
-  !!     unknown
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Data-structure that constains potential parameters
+!> \author unknown
+! *****************************************************************************
   SUBROUTINE pair_potential_p_create ( potparm, ndim, ub, lb, error )
     TYPE(pair_potential_p_type), POINTER     :: potparm
     INTEGER, INTENT(IN), OPTIONAL            :: ndim, ub, lb
@@ -980,25 +856,13 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_p_create
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_p_release [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_p_release
-  !!
-  !!   FUNCTION
-  !!     Release Data-structure that constains potential parameters
-  !!
-  !!   AUTHOR
-  !!     unknown
-  !!
-  !!   MODIFICATION HISTORY
-  !!     Teodoro Laino [Teo] 11.2005 : Reorganizing the structures to optimize
-  !!                                   memory management
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Release Data-structure that constains potential parameters
+!> \par History
+!>      Teodoro Laino [Teo] 11.2005 : Reorganizing the structures to optimize
+!>                                    memory management
+!> \author unknown
+! *****************************************************************************
   SUBROUTINE pair_potential_p_release ( potparm, error )
     TYPE(pair_potential_p_type), POINTER     :: potparm
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1025,21 +889,10 @@ CONTAINS
     NULLIFY ( potparm )
   END SUBROUTINE pair_potential_p_release
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_p_copy [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_p_copy
-  !!
-  !!   FUNCTION
-  !!     Copy structures between two pair_potential_p_type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [Teo] 11.2005
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Copy structures between two pair_potential_p_type
+!> \author Teodoro Laino [Teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_p_copy(source, dest, istart, iend, error)
     TYPE(pair_potential_p_type), POINTER     :: source, dest
     INTEGER, INTENT(IN), OPTIONAL            :: istart, iend
@@ -1067,23 +920,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_p_copy
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_reallocate [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_reallocate
-  !!
-  !!   FUNCTION
-  !!     Cleans the potential parameter type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [Teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Cleans the potential parameter type
+!> \author Teodoro Laino [Teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_reallocate(p,lb1_new,ub1_new,lj,lj_charmm,williams,&
                            goodwin,eam,bmhft,ipbv,buck4r,buckmo,gp,tersoff,error)
     TYPE(pair_potential_p_type), POINTER     :: p
@@ -1248,23 +1088,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_reallocate
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_gp_create [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_gp_create
-  !!
-  !!   FUNCTION
-  !!     Creates the generic potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Creates the generic potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_gp_create(gp, error)
     TYPE(gp_pot_type), POINTER               :: gp
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1284,23 +1111,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_gp_create
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_gp_copy [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_gp_copy
-  !!
-  !!   FUNCTION
-  !!     Copy two generic potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Copy two generic potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_gp_copy(gp_source, gp_dest, error)
     TYPE(gp_pot_type), POINTER               :: gp_source, gp_dest
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1334,23 +1148,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_gp_copy
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_gp_clean [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_gp_clean
-  !!
-  !!   FUNCTION
-  !!     Cleans the generic potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Cleans the generic potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_gp_clean(gp, error)
     TYPE(gp_pot_type), POINTER               :: gp
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1371,23 +1172,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_gp_clean
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_gp_release [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_gp_release
-  !!
-  !!   FUNCTION
-  !!     Destroys the generic potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Destroys the generic potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_gp_release(gp, error)
     TYPE(gp_pot_type), POINTER               :: gp
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1416,23 +1204,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_gp_release
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_lj_create [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_lj_create
-  !!
-  !!   FUNCTION
-  !!     Cleans the LJ potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Cleans the LJ potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_lj_create(lj, error)
     TYPE(lj_pot_type), POINTER               :: lj
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1452,23 +1227,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_lj_create
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_lj_copy [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_lj_copy
-  !!
-  !!   FUNCTION
-  !!     Copy two LJ potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Copy two LJ potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_lj_copy(lj_source, lj_dest, error)
     TYPE(lj_pot_type), POINTER               :: lj_source, lj_dest
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1489,23 +1251,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_lj_copy
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_lj_clean [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_lj_clean
-  !!
-  !!   FUNCTION
-  !!     Creates the LJ potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Creates the LJ potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_lj_clean(lj, error)
     TYPE(lj_pot_type), POINTER               :: lj
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1524,23 +1273,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_lj_clean
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_lj_release [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_lj_release
-  !!
-  !!   FUNCTION
-  !!     Destroys the LJ potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Destroys the LJ potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_lj_release(lj, error)
     TYPE(lj_pot_type), POINTER               :: lj
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1561,23 +1297,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_lj_release
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_williams_create [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_williams_create
-  !!
-  !!   FUNCTION
-  !!     Creates the WILLIAMS potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Creates the WILLIAMS potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_williams_create(willis, error)
     TYPE(williams_pot_type), POINTER         :: willis
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1598,23 +1321,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_williams_create
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_williams_copy [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_williams_copy
-  !!
-  !!   FUNCTION
-  !!     Copy two WILLIAMS potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Copy two WILLIAMS potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_williams_copy(willis_source, willis_dest, error)
     TYPE(williams_pot_type), POINTER         :: willis_source, willis_dest
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1635,23 +1345,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_williams_copy
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_williams_clean [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_williams_clean
-  !!
-  !!   FUNCTION
-  !!     Creates the WILLIAMS potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Creates the WILLIAMS potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_williams_clean(willis, error)
     TYPE(williams_pot_type), POINTER         :: willis
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1671,23 +1368,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_williams_clean
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_williams_release [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_williams_release
-  !!
-  !!   FUNCTION
-  !!     Destroys the WILLIAMS potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Destroys the WILLIAMS potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_williams_release(willis, error)
     TYPE(williams_pot_type), POINTER         :: willis
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1709,23 +1393,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_williams_release
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_goodwin_create [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_goodwin_create
-  !!
-  !!   FUNCTION
-  !!     Creates the GOODWIN potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Creates the GOODWIN potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_goodwin_create(goodwin, error)
     TYPE(goodwin_pot_type), POINTER          :: goodwin
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1746,23 +1417,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_goodwin_create
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_goodwin_copy [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_goodwin_copy
-  !!
-  !!   FUNCTION
-  !!     Copy two GOODWIN potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Copy two GOODWIN potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_goodwin_copy(goodwin_source, goodwin_dest, error)
     TYPE(goodwin_pot_type), POINTER          :: goodwin_source, goodwin_dest
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1785,23 +1443,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_goodwin_copy
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_goodwin_clean [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_goodwin_clean
-  !!
-  !!   FUNCTION
-  !!     Creates the GOODWIN potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Creates the GOODWIN potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_goodwin_clean(goodwin, error)
     TYPE(goodwin_pot_type), POINTER          :: goodwin
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1822,23 +1467,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_goodwin_clean
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_goodwin_release [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_goodwin_release
-  !!
-  !!   FUNCTION
-  !!     Destroys the GOODWIN potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Destroys the GOODWIN potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_goodwin_release(goodwin, error)
     TYPE(goodwin_pot_type), POINTER          :: goodwin
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1860,23 +1492,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_goodwin_release
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_eam_create [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_eam_create
-  !!
-  !!   FUNCTION
-  !!     Creates the EAM potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Creates the EAM potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_eam_create(eam, error)
     TYPE(eam_pot_type), POINTER              :: eam
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1896,23 +1515,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_eam_create
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_eam_copy [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_eam_copy
-  !!
-  !!   FUNCTION
-  !!     Copy two EAM potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Copy two EAM potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_eam_copy(eam_source, eam_dest, error)
     TYPE(eam_pot_type), POINTER              :: eam_source, eam_dest
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1942,23 +1548,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_eam_copy
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_eam_clean [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_eam_clean
-  !!
-  !!   FUNCTION
-  !!     Creates the EAM potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Creates the EAM potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_eam_clean(eam, error)
     TYPE(eam_pot_type), POINTER              :: eam
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1987,23 +1580,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_eam_clean
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_eam_release [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_eam_release
-  !!
-  !!   FUNCTION
-  !!     Destroys the EAM potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Destroys the EAM potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_eam_release(eam, error)
     TYPE(eam_pot_type), POINTER              :: eam
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2024,23 +1604,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_eam_release
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_bmhft_create [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_bmhft_create
-  !!
-  !!   FUNCTION
-  !!     Creates the BMHFT (TOSI-FUMI) potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Creates the BMHFT (TOSI-FUMI) potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_bmhft_create(ft, error)
     TYPE(ft_pot_type), POINTER               :: ft
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2060,23 +1627,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_bmhft_create
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_bmhft_copy [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_bmhft_copy
-  !!
-  !!   FUNCTION
-  !!     Copy two BMHFT (TOSI-FUMI) potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Copy two BMHFT (TOSI-FUMI) potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_bmhft_copy(ft_source, ft_dest, error)
     TYPE(ft_pot_type), POINTER               :: ft_source, ft_dest
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2098,23 +1652,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_bmhft_copy
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_bmhft_clean [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_bmhft_clean
-  !!
-  !!   FUNCTION
-  !!     Creates the BMHFT (TOSI-FUMI) potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Creates the BMHFT (TOSI-FUMI) potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_bmhft_clean(ft, error)
     TYPE(ft_pot_type), POINTER               :: ft
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2134,23 +1675,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_bmhft_clean
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_bmhft_release [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_bmhft_release
-  !!
-  !!   FUNCTION
-  !!     Destroys the BMHFT potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Destroys the BMHFT potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_bmhft_release(ft, error)
     TYPE(ft_pot_type), POINTER               :: ft
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2171,23 +1699,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_bmhft_release
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_ipbv_create [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_ipbv_create
-  !!
-  !!   FUNCTION
-  !!     Creates the IPBV potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Creates the IPBV potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_ipbv_create(ipbv, error)
     TYPE(ipbv_pot_type), POINTER             :: ipbv
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2207,23 +1722,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_ipbv_create
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_ipbv_copy [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_ipbv_copy
-  !!
-  !!   FUNCTION
-  !!     Copy two IPBV potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Copy two IPBV potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_ipbv_copy(ipbv_source, ipbv_dest, error)
     TYPE(ipbv_pot_type), POINTER             :: ipbv_source, ipbv_dest
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2245,23 +1747,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_ipbv_copy
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_ipbv_clean [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_ipbv_clean
-  !!
-  !!   FUNCTION
-  !!     Creates the IPBV potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Creates the IPBV potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_ipbv_clean(ipbv, error)
     TYPE(ipbv_pot_type), POINTER             :: ipbv
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2281,23 +1770,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_ipbv_clean
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_ipbv_release [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_ipbv_release
-  !!
-  !!   FUNCTION
-  !!     Destroys the IPBV potential type
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [teo] 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Destroys the IPBV potential type
+!> \author Teodoro Laino [teo] 11.2005
+! *****************************************************************************
   SUBROUTINE pair_potential_ipbv_release(ipbv, error)
     TYPE(ipbv_pot_type), POINTER             :: ipbv
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2318,23 +1794,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_ipbv_release
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_buck4r_create [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_buck4r_create
-  !!
-  !!   FUNCTION
-  !!     Creates the Buckingham 4 ranges  potential type
-  !!
-  !!   AUTHOR
-  !!     MI 10.2006
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Creates the Buckingham 4 ranges  potential type
+!> \author MI 10.2006
+! *****************************************************************************
   SUBROUTINE pair_potential_buck4r_create(buck4r, error)
     TYPE(buck4ran_pot_type), POINTER         :: buck4r
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2354,23 +1817,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_buck4r_create
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_buck4r_copy [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_buck4r_copy
-  !!
-  !!   FUNCTION
-  !!     Copy two Buckingham 4 ranges  potential type
-  !!
-  !!   AUTHOR
-  !!     MI 10.2006
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Copy two Buckingham 4 ranges  potential type
+!> \author MI 10.2006
+! *****************************************************************************
   SUBROUTINE pair_potential_buck4r_copy(buck4r_source, buck4r_dest, error)
     TYPE(buck4ran_pot_type), POINTER         :: buck4r_source, buck4r_dest
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2398,23 +1848,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_buck4r_copy
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_buck4r_clean [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_buck4r_clean
-  !!
-  !!   FUNCTION
-  !!     Creates the Buckingham 4 ranges  potential type
-  !!
-  !!   AUTHOR
-  !!     MI 10.2006
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Creates the Buckingham 4 ranges  potential type
+!> \author MI 10.2006
+! *****************************************************************************
   SUBROUTINE pair_potential_buck4r_clean(buck4r, error)
     TYPE(buck4ran_pot_type), POINTER         :: buck4r
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2440,23 +1877,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_buck4r_clean
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_buck4r_release [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_buck4r_release
-  !!
-  !!   FUNCTION
-  !!     Destroys the Buckingham 4 ranges potential type
-  !!
-  !!   AUTHOR
-  !!     MI  10.2006
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Destroys the Buckingham 4 ranges potential type
+!> \author MI  10.2006
+! *****************************************************************************
   SUBROUTINE pair_potential_buck4r_release(buck4r, error)
     TYPE(buck4ran_pot_type), POINTER         :: buck4r
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2478,23 +1902,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_buck4r_release
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_buckmo_create [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_buckmo_create
-  !!
-  !!   FUNCTION
-  !!     Creates the Buckingham plus Morse potential type
-  !!
-  !!   AUTHOR
-  !!     MI 10.2006
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Creates the Buckingham plus Morse potential type
+!> \author MI 10.2006
+! *****************************************************************************
   SUBROUTINE pair_potential_buckmo_create(buckmo, error)
     TYPE(buckmorse_pot_type), POINTER        :: buckmo
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2514,23 +1925,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_buckmo_create
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_buckmo_copy [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_buckmo_copy
-  !!
-  !!   FUNCTION
-  !!     Copy two Buckingham plus Morse  potential type
-  !!
-  !!   AUTHOR
-  !!     MI 10.2006
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Copy two Buckingham plus Morse  potential type
+!> \author MI 10.2006
+! *****************************************************************************
   SUBROUTINE pair_potential_buckmo_copy(buckmo_source, buckmo_dest, error)
     TYPE(buckmorse_pot_type), POINTER        :: buckmo_source, buckmo_dest
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2557,23 +1955,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_buckmo_copy
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_buckmo_clean [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_buckmo_clean
-  !!
-  !!   FUNCTION
-  !!     Creates the Buckingham plus Morse  potential type
-  !!
-  !!   AUTHOR
-  !!     MI 10.2006
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Creates the Buckingham plus Morse  potential type
+!> \author MI 10.2006
+! *****************************************************************************
   SUBROUTINE pair_potential_buckmo_clean(buckmo, error)
     TYPE(buckmorse_pot_type), POINTER        :: buckmo
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2598,23 +1983,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_buckmo_clean
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_buckmo_release [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_buckmo_release
-  !!
-  !!   FUNCTION
-  !!     Destroys the Buckingham plus Morse potential type
-  !!
-  !!   AUTHOR
-  !!     MI  10.2006
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Destroys the Buckingham plus Morse potential type
+!> \author MI  10.2006
+! *****************************************************************************
   SUBROUTINE pair_potential_buckmo_release(buckmo, error)
     TYPE(buckmorse_pot_type), POINTER        :: buckmo
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2636,25 +2008,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_buckmo_release
 
-  !******************************************************************************
-
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_tersoff_create [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_tersoff_create
-  !!
-  !!   FUNCTION
-  !!     Creates the Tersoff potential type 
-  !!     (Tersoff, J. PRB 39(8), 5566, 1989)
-  !!
-  !!   AUTHOR
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Creates the Tersoff potential type 
+!>      (Tersoff, J. PRB 39(8), 5566, 1989)
+! *****************************************************************************
   SUBROUTINE pair_potential_tersoff_create(tersoff, error)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2675,23 +2032,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_tersoff_create
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_tersoff_copy [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_tersoff_copy
-  !!
-  !!   FUNCTION
-  !!     Copy two Tersoff potential type
-  !!     (Tersoff, J. PRB 39(8), 5566, 1989)
-  !!
-  !!   AUTHOR
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Copy two Tersoff potential type
+!>      (Tersoff, J. PRB 39(8), 5566, 1989)
+! *****************************************************************************
   SUBROUTINE pair_potential_tersoff_copy(tersoff_source, tersoff_dest, error)
     TYPE(tersoff_pot_type), POINTER          :: tersoff_source, tersoff_dest
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2723,23 +2067,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_tersoff_copy
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_tersoff_clean [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_tersoff_clean
-  !!
-  !!   FUNCTION
-  !!     Creates the Tersoff potential type
-  !!     (Tersoff, J. PRB 39(8), 5566, 1989)
-  !!
-  !!   AUTHOR
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Creates the Tersoff potential type
+!>      (Tersoff, J. PRB 39(8), 5566, 1989)
+! *****************************************************************************
   SUBROUTINE pair_potential_tersoff_clean(tersoff, error)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2769,23 +2100,10 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_tersoff_clean
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_types/pair_potential_tersoff_release [1.0] *
-  !!
-  !!   NAME
-  !!     pair_potential_tersoff_release
-  !!
-  !!   FUNCTION
-  !!     Destroys the Tersoff
-  !!     (Tersoff, J. PRB 39(8), 5566, 1989)
-  !!
-  !!   AUTHOR
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Destroys the Tersoff
+!>      (Tersoff, J. PRB 39(8), 5566, 1989)
+! *****************************************************************************
   SUBROUTINE pair_potential_tersoff_release(tersoff, error)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2807,8 +2125,5 @@ CONTAINS
     END IF
   END SUBROUTINE pair_potential_tersoff_release
 
-  !******************************************************************************
-
 END MODULE pair_potential_types
-
 

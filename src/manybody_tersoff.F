@@ -3,22 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/manybody_tersoff [1.0] *
-!!
-!!   NAME
-!!     manybody_tersoff
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM, I-Feng W. Kuo, Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     Efficient tersoff implementation 
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      Efficient tersoff implementation 
+!> \author CJM, I-Feng W. Kuo, Teodoro Laino
+! *****************************************************************************
 MODULE manybody_tersoff
 
   USE cell_types,                      ONLY: cell_type
@@ -47,28 +36,11 @@ MODULE manybody_tersoff
 
 CONTAINS
 
-!!****f* manybody_tersoff/tersoff_energy [1.0] *
-!!
-!!   NAME
-!!     tersoff_energy
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - 12.2007 - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Teodoro Laino [tlaino] - 12.2007 - University of Zurich
+! *****************************************************************************
   SUBROUTINE tersoff_energy(pot_loc, tersoff, r_last_update_pbc, atom_a, atom_b, nloc_size,&
        full_loc_list,loc_cell_v, cell_v, drij)
 
@@ -95,28 +67,11 @@ CONTAINS
 
   END SUBROUTINE tersoff_energy
 
-!!****f* manybody_tersoff/ter_f_C [1.0] *
-!!
-!!   NAME
-!!     ter_f_C
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     I-Feng W. Kuo
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author I-Feng W. Kuo
+! *****************************************************************************
   FUNCTION ter_f_C(tersoff,r)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
     REAL(KIND=dp), INTENT(IN)                :: r
@@ -139,28 +94,11 @@ CONTAINS
     END IF
   END FUNCTION ter_f_C
 
-!!****f* manybody_tersoff/ter_f_C_d [1.0] *
-!!
-!!   NAME
-!!     ter_f_C_d
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     I-Feng W. Kuo
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author I-Feng W. Kuo
+! *****************************************************************************
   FUNCTION ter_f_C_d(tersoff,r)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
     REAL(KIND=dp), INTENT(IN)                :: r
@@ -184,28 +122,11 @@ CONTAINS
 
   END FUNCTION ter_f_C_d
 
-!!****f* manybody_tersoff/ter_f_R [1.0] *
-!!
-!!   NAME
-!!     ter_f_R
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     I-Feng W. Kuo
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author I-Feng W. Kuo
+! *****************************************************************************
   FUNCTION ter_f_R(tersoff,r)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
     REAL(KIND=dp), INTENT(IN)                :: r
@@ -223,28 +144,11 @@ CONTAINS
 
   END FUNCTION ter_f_R
 
-!!****f* manybody_tersoff/ter_f_R_d [1.0] *
-!!
-!!   NAME
-!!     ter_f_R_d
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     I-Feng W. Kuo
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author I-Feng W. Kuo
+! *****************************************************************************
   FUNCTION ter_f_R_d(tersoff,r)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
     REAL(KIND=dp), INTENT(IN)                :: r
@@ -263,28 +167,11 @@ CONTAINS
 
   END FUNCTION ter_f_R_d
 
-!!****f* manybody_tersoff/ter_f_A [1.0] *
-!!
-!!   NAME
-!!     ter_f_A
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     I-Feng W. Kuo
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author I-Feng W. Kuo
+! *****************************************************************************
   FUNCTION ter_f_A(tersoff,r)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
     REAL(KIND=dp), INTENT(IN)                :: r
@@ -302,28 +189,11 @@ CONTAINS
 
   END FUNCTION ter_f_A
 
-!!****f* manybody_tersoff/ter_f_A_d [1.0] *
-!!
-!!   NAME
-!!     ter_f_A_d
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     I-Feng W. Kuo
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author I-Feng W. Kuo
+! *****************************************************************************
   FUNCTION ter_f_A_d(tersoff,r)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
     REAL(KIND=dp), INTENT(IN)                :: r
@@ -341,28 +211,11 @@ CONTAINS
 
   END FUNCTION ter_f_A_d
 
-!!****f* manybody_tersoff/ter_a_ij [1.0] *
-!!
-!!   NAME
-!!     ter_a_ij
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     I-Feng W. Kuo
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author I-Feng W. Kuo
+! *****************************************************************************
   FUNCTION ter_a_ij(tersoff,r)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
     REAL(KIND=dp), INTENT(IN)                :: r
@@ -382,28 +235,11 @@ CONTAINS
 
   END FUNCTION ter_a_ij
 
-!!****f* manybody_tersoff/ter_b_ij [1.0] *
-!!
-!!   NAME
-!!     ter_b_ij
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     I-Feng W. Kuo, Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author I-Feng W. Kuo, Teodoro Laino
+! *****************************************************************************
   FUNCTION ter_b_ij(tersoff,r_last_update_pbc,iparticle,jparticle, n_loc_size,&
        full_loc_list, loc_cell_v, cell_v,rcutsq)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
@@ -431,28 +267,11 @@ CONTAINS
 
   END FUNCTION ter_b_ij
 
-!!****f* manybody_tersoff/ter_b_ij_d [1.0] *
-!!
-!!   NAME
-!!     ter_b_ij_d
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     I-Feng W. Kuo, Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author I-Feng W. Kuo, Teodoro Laino
+! *****************************************************************************
   FUNCTION ter_b_ij_d(tersoff,r_last_update_pbc,iparticle,jparticle,n_loc_size,&
        full_loc_list, loc_cell_v, cell_v,rcutsq)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
@@ -487,28 +306,13 @@ CONTAINS
 
   END FUNCTION ter_b_ij_d
 
-!!****f* manybody_tersoff/ter_zeta_ij [1.0] *
-!!
-!!   NAME
-!!     ter_zeta_ij
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     I-Feng W. Kuo, Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     Using a local list of neighbors - [tlaino] 2007
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      Using a local list of neighbors - [tlaino] 2007
+!> \author I-Feng W. Kuo, Teodoro Laino
+! *****************************************************************************
   FUNCTION ter_zeta_ij(tersoff,r_last_update_pbc,iparticle,jparticle,n_loc_size,&
        full_loc_list, loc_cell_v, cell_v,rcutsq)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
@@ -557,28 +361,13 @@ CONTAINS
 
   END FUNCTION ter_zeta_ij
 
-!!****f* manybody_tersoff/ter_zeta_ij_d [1.0] *
-!!
-!!   NAME
-!!     ter_zeta_ij_d
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     I-Feng W. Kuo, Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!      Using a local list of neighbors - [tlaino] 2007
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>       Using a local list of neighbors - [tlaino] 2007
+!> \author I-Feng W. Kuo, Teodoro Laino
+! *****************************************************************************
   SUBROUTINE ter_zeta_ij_d(tersoff,r_last_update_pbc,iparticle,jparticle,f_nonbond,pv_nonbond,prefactor,&
        n_loc_size,full_loc_list, loc_cell_v, cell_v,rcutsq,use_virial)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
@@ -681,28 +470,11 @@ CONTAINS
     END DO
   END SUBROUTINE ter_zeta_ij_d
 
-!!****f* manybody_tersoff/ter_g [1.0] *
-!!
-!!   NAME
-!!     ter_g
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     I-Feng W. Kuo
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author I-Feng W. Kuo
+! *****************************************************************************
   FUNCTION ter_g(tersoff,costheta)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
     REAL(KIND=dp), INTENT(IN)                :: costheta
@@ -723,28 +495,11 @@ CONTAINS
 
   END FUNCTION ter_g
 
-!!****f* manybody_tersoff/ter_g_d [1.0] *
-!!
-!!   NAME
-!!     ter_g_d
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     I-Feng W. Kuo
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author I-Feng W. Kuo
+! *****************************************************************************
   FUNCTION ter_g_d(tersoff,costheta)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
     REAL(KIND=dp), INTENT(IN)                :: costheta
@@ -769,28 +524,13 @@ CONTAINS
     ter_g_d = (-2.0_dp * c2 * hc)/(d2 + hc**2)**2
   END FUNCTION ter_g_d
 
-!!****f* manybody_tersoff/tersoff_forces [1.0] *
-!!
-!!   NAME
-!!     tersoff_forces
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     I-Feng W. Kuo, Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!      Using a local list of neighbors - [tlaino] 2007
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>       Using a local list of neighbors - [tlaino] 2007
+!> \author I-Feng W. Kuo, Teodoro Laino
+! *****************************************************************************
   SUBROUTINE tersoff_forces(tersoff,r_last_update_pbc, cell_v, n_loc_size,&
        full_loc_list, loc_cell_v, iparticle,jparticle,f_nonbond,pv_nonbond,&
        use_virial, rcutsq)
@@ -920,28 +660,13 @@ CONTAINS
     CALL timestop ( handle )
   END SUBROUTINE tersoff_forces
 
-!!****f* manybody_tersoff/setup_tersoff_arrays [1.0] *
-!!
-!!   NAME
-!!     setup_tersoff_arrays
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!     Fast implementation of the tersoff potential - [tlaino] 2007
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      Fast implementation of the tersoff potential - [tlaino] 2007
+!> \author Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE setup_tersoff_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell, error)
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(pair_potential_pp_type), POINTER    :: potparm
@@ -1054,28 +779,13 @@ CONTAINS
     CALL timestop ( handle )
   END SUBROUTINE setup_tersoff_arrays
 
-!!****f* manybody_tersoff/destroy_tersoff_arrays [1.0] *
-!!
-!!   NAME
-!!     destroy_tersoff_arrays
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!     Fast implementation of the tersoff potential - [tlaino] 2007
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      Fast implementation of the tersoff potential - [tlaino] 2007
+!> \author Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE destroy_tersoff_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a, error)
     INTEGER, DIMENSION(:, :), POINTER        :: glob_loc_list
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: glob_cell_v

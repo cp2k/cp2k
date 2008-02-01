@@ -2,26 +2,16 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/force_env_types [1.0] *
-!!
-!!   NAME
-!!     force_env_types
-!!
-!!   FUNCTION
-!!     Interface for the force calculations
-!!
-!!   AUTHOR
-!!     CJM & JGH
-!!
-!!   MODIFICATION HISTORY
-!!     cjm, FEB-20-2001: pass variable box_ref
-!!     cjm, SEPT-12-2002: major reorganization
-!!     fawzi, APR-12-2003: introduced force_env
-!!     cjm, FEB-27-2006: no more box_change
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Interface for the force calculations
+!> \par History
+!>      cjm, FEB-20-2001: pass variable box_ref
+!>      cjm, SEPT-12-2002: major reorganization
+!>      fawzi, APR-12-2003: introduced force_env
+!>      cjm, FEB-27-2006: no more box_change
+!> \author CJM & JGH
+! *****************************************************************************
 MODULE force_env_types
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
@@ -117,49 +107,33 @@ MODULE force_env_types
             force_env_get_natom,&
             multiple_fe_list
 
-!!***
-!******************************************************************************
-
-!!****s* force_env_types/force_env_type [1.0] *
-!!
-!!   NAME
-!!     force_env_type
-!!
-!!   FUNCTION
-!!     wrapper to abstract the force evaluation of the various methods
-!!
-!!   NOTES
-!!     as always direct manipulation of these attributes can have very
-!!     bad effects. In this case it can be quite bad and the variables
-!!     might not be up to date. You are warned, use only the get method...
-!!
-!!   ATTRIBUTES
-!!     - id_nr: identification number
-!!     - ref_count: reference count (see doc/ReferenceCounting.html)
-!!     - in_use: which method is in use
-!!     - fist_env: the fist environment (allocated only if fist is in use)
-!!     - kg_env: the kg environment (allocated only if kg is in use)
-!!     - qs_env: qs_env (activated only if quickstep is in use)
-!!     - globenv: the globenv to have the input that generated this force_env
-!!     - para_env: the parallel environment that contains all the parallel
-!!       environment of the fragments
-!!     - meta_env: the metadynamics environment, allocated if there is
-!!       metadynamics
-!!     - fp_env: the flexible partitioning environment
-!!     read-only attributes (get them *only* through force_env_get):
-!!     - subsys: the fragments that build up the actual system.
-!!     - ep_env: environment for an ep calculation
-!!     - cell: the cell of the actual system
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!     07.2003 tried to adapt to multiple mpi groups
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief wrapper to abstract the force evaluation of the various methods
+!> \param id_nr identification number
+!> \param ref_count reference count (see doc/ReferenceCounting.html)
+!> \param in_use which method is in use
+!> \param fist_env the fist environment (allocated only if fist is in use)
+!> \param kg_env the kg environment (allocated only if kg is in use)
+!> \param qs_env qs_env (activated only if quickstep is in use)
+!> \param globenv the globenv to have the input that generated this force_env
+!> \param para_env the parallel environment that contains all the parallel
+!>        environment of the fragments
+!> \param meta_env the metadynamics environment, allocated if there is
+!>        metadynamics
+!> \param fp_env the flexible partitioning environment
+!>      read-only attributes (get them *only* through force_env_get):
+!> \param subsys the fragments that build up the actual system.
+!> \param ep_env environment for an ep calculation
+!> \param cell the cell of the actual system
+!> \note
+!>      as always direct manipulation of these attributes can have very
+!>      bad effects. In this case it can be quite bad and the variables
+!>      might not be up to date. You are warned, use only the get method...
+!> \par History
+!>      04.2003 created [fawzi]
+!>      07.2003 tried to adapt to multiple mpi groups
+!> \author fawzi
+! *****************************************************************************
   TYPE force_env_type
 !     PRIVATE
      INTEGER :: id_nr,ref_count,in_use,method_name_id
@@ -185,57 +159,30 @@ MODULE force_env_types
      TYPE ( cp_result_type), POINTER                     :: results 
   END TYPE force_env_type
 
-!!****s* force_env_types/force_env_p_type [1.0] *
-!!
-!!   NAME
-!!     force_env_p_type
-!!
-!!   FUNCTION
-!!     allows for the creation of an array of force_env
-!!
-!!   NOTES
-!!     added by MJM for MC swap moves
-!!
-!!   ATTRIBUTES
-!!     - force_env: a force environment (see above)
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!***************************************************************************
-
+! *****************************************************************************
+!> \brief allows for the creation of an array of force_env
+!> \param force_env a force environment (see above)
+!> \note
+!>      added by MJM for MC swap moves
+!> \author MJM
+! *****************************************************************************
   TYPE force_env_p_type
     TYPE ( force_env_type ), POINTER :: force_env
   END TYPE force_env_p_type
-!!***
-!****************************************************************************
 
 CONTAINS
 
-!******************************************************************************
-!!****f* force_env_types/force_env_retain [1.0] *
-!!
-!!   NAME
-!!     force_env_retain
-!!
-!!   FUNCTION
-!!     retains the given force env
-!!
-!!   NOTES
-!!     see doc/ReferenceCounting.html
-!!
-!!   ARGUMENTS
-!!     - force_env: the force environment to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given force env
+!> \param force_env the force environment to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      see doc/ReferenceCounting.html
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE force_env_retain(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -253,31 +200,18 @@ SUBROUTINE force_env_retain(force_env, error)
      force_env%ref_count=force_env%ref_count+1
   END IF
 END SUBROUTINE force_env_retain
-!***************************************************************************
 
-!!****f* force_env_types/force_env_release [1.0] *
-!!
-!!   NAME
-!!     force_env_release
-!!
-!!   FUNCTION
-!!     releases the given force env
-!!
-!!   NOTES
-!!     see doc/ReferenceCounting.html
-!!
-!!   ARGUMENTS
-!!     - force_env: the force environment to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given force env
+!> \param force_env the force environment to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      see doc/ReferenceCounting.html
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   RECURSIVE SUBROUTINE force_env_release(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -364,32 +298,17 @@ END SUBROUTINE force_env_retain
     END IF
     NULLIFY(force_env)
   END SUBROUTINE force_env_release
-!***************************************************************************
 
-!!****f* force_env_types/force_env_get [1.0] *
-!!
-!!   NAME
-!!     force_env_get
-!!
-!!   FUNCTION
-!!     returns various attributes about the force environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - force_env: the force environment you what informations about
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!     for the orther arguments see the attributes of force_env_type
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns various attributes about the force environment
+!> \param force_env the force environment you what informations about
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!>      for the orther arguments see the attributes of force_env_type
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
      fist_env, qs_env, kg_env, meta_env, fp_env, dyn_coeff_set, subsys, para_env, &
      potential_energy, kinetic_energy, harmonic_shell, kinetic_shell,&
@@ -641,32 +560,17 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
      IF (PRESENT(ep_env))        ep_env        => force_env%ep_env
   END IF
 END SUBROUTINE force_env_get
-!***************************************************************************
 
-!!****f* force_env_types/force_env_set [1.0] *
-!!
-!!   NAME
-!!     force_env_set
-!!
-!!   FUNCTION
-!!     changes some attributes of the force_env
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - force_env: the force environment where the cell should be changed
-!!     - meta_env: the new meta environment
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     09.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief changes some attributes of the force_env
+!> \param force_env the force environment where the cell should be changed
+!> \param meta_env the new meta environment
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE force_env_set(force_env, meta_env,fp_env, virial, force_env_section,&
      method_name_id, extended_energies,results, error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -738,30 +642,16 @@ SUBROUTINE force_env_set(force_env, meta_env,fp_env, virial, force_env_section,&
      END IF
   END IF
 END SUBROUTINE force_env_set
-!***************************************************************************
 
-!!****f* force_env_type/force_env_pos_get *
-!!
-!!   NAME
-!!     force_env_pos_get
-!!
-!!   FUNCTION
-!!     returns the position in a dimension(*) array
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - force_env: the force_env you want to get the positions
-!!     - pos: the array of the positions
-!!     - n_el: the number of positions (3*natom), just to check
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the position in a dimension(*) array
+!> \param force_env the force_env you want to get the positions
+!> \param pos the array of the positions
+!> \param n_el the number of positions (3*natom), just to check
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE force_env_pos_get(force_env,pos,n_el,error)
     TYPE(force_env_type), POINTER            :: force_env
     REAL(kind=dp), DIMENSION(*), INTENT(out) :: pos
@@ -812,30 +702,15 @@ SUBROUTINE force_env_pos_get(force_env,pos,n_el,error)
   END IF
   CALL timestop(handle)
 END SUBROUTINE force_env_pos_get
-!***************************************************************************
 
-
-!!****f* force_env_types/force_env_get_natom *
-!!
-!!   NAME
-!!     force_env_get_natom
-!!
-!!   FUNCTION
-!!     returns the number of atoms
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - force_env: the force_env you what information about
-!!     - natom: the numer of atoms
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the number of atoms
+!> \param force_env the force_env you what information about
+!> \param natom the numer of atoms
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 FUNCTION force_env_get_natom(force_env,error) RESULT(n_atom)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -865,29 +740,15 @@ FUNCTION force_env_get_natom(force_env,error) RESULT(n_atom)
      END IF
   END IF
 END FUNCTION force_env_get_natom
-!***************************************************************************
 
-!!****f* force_env_types/multiple_fe_list *
-!!
-!!   NAME
-!!     multiple_fe_list
-!!
-!!   FUNCTION
-!!     returns the order of the multiple force_env
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - force_env: the force_env you what information about
-!!     - natom: the numer of atoms
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the order of the multiple force_env
+!> \param force_env the force_env you what information about
+!> \param natom the numer of atoms
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author teo
+! *****************************************************************************
 SUBROUTINE multiple_fe_list(force_env_sections, root_section, i_force_eval, nforce_eval, error)
     TYPE(section_vals_type), POINTER         :: force_env_sections, &
                                                 root_section
@@ -929,4 +790,3 @@ END SUBROUTINE multiple_fe_list
 
 END MODULE force_env_types
 
-!******************************************************************************

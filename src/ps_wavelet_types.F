@@ -3,23 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/ps_wavelet_types [1.0] *
-!!
-!!   NAME
-!!     ps_wavelet_types
-!!
-!!   FUNCTION
-!!     Definition and initialisation of the ps_wavelet data type.
-!!
-!!   AUTHOR
-!!     Florian Schiffmann (09.2007,fschiff)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Definition and initialisation of the ps_wavelet data type.
+!> \author Florian Schiffmann (09.2007,fschiff)
+! *****************************************************************************
 MODULE ps_wavelet_types
 
   USE bibliography,                    ONLY: Genovese2006,&
@@ -64,29 +51,11 @@ MODULE ps_wavelet_types
             z_slices_to_cp2k_distribution,&
             ps_wavelet_solve
 
-
-
-!***************************************************************************
-!!***** ps_wavelet_types/ps_wavelet_type [1.0] *
-!!
-!!   NAME
-!!     ps_wavelet_type
-!!
-!!   FUNCTION
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!
-!!   AUTHOR
-!!     fschiff
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [Florian Schiffmann]
-!!
-!***************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      09.2007 created [Florian Schiffmann]
+!> \author fschiff
+! *****************************************************************************
   TYPE ps_wavelet_type
      CHARACTER(LEN=1)                                  :: geocode
      CHARACTER(LEN=1)                                  :: datacode
@@ -97,34 +66,17 @@ MODULE ps_wavelet_types
      INTEGER,DIMENSION(3)                              :: PS_grid
   END TYPE ps_wavelet_type
 
-!***************************************************************************
-
 CONTAINS  
 
-!!****f* ps_wavelet_types/ps_wavelet_create [1.0] *
-!!
-!!   NAME
-!!     ps_wavelet_create
-!!
-!!   FUNCTION
-!!     creates the ps_wavelet_type which is needed for the link to
-!!     the Poisson Solver of Luigi Genovese
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - wavlet : wavelet to create  
-!!     - pw_grid: the grid that is used to create the wavelet kernel
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Flroian Schiffmann
-!!
-!!   MODIFICATION HISTORY
-!!!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the ps_wavelet_type which is needed for the link to
+!>      the Poisson Solver of Luigi Genovese
+!> \param wavlet wavelet to create  
+!> \param pw_grid the grid that is used to create the wavelet kernel
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Flroian Schiffmann
+! *****************************************************************************
   SUBROUTINE ps_wavelet_create(poisson_section,wavelet,pw_grid, error)
     TYPE(section_vals_type), POINTER         :: poisson_section
     TYPE(ps_wavelet_type), POINTER           :: wavelet
@@ -198,7 +150,7 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE ps_wavelet_create
 
-  
+! *****************************************************************************
   SUBROUTINE ps_wavelet_release(wavelet,error)
 
     TYPE(ps_wavelet_type), POINTER           :: wavelet
@@ -221,8 +173,7 @@ CONTAINS
     END IF
   END SUBROUTINE ps_wavelet_release
 
-
-
+! *****************************************************************************
   SUBROUTINE RS_z_slice_distribution(wavelet,pw_grid, error)
     
     TYPE(ps_wavelet_type), POINTER           :: wavelet
@@ -251,7 +202,6 @@ CONTAINS
     hy = pw_grid % dr ( 2 )
     hz = pw_grid % dr ( 3 )
 
-
     !calculate Dimensions for the z-distributed density and for the kernel
 
     IF (geocode == 'P') THEN
@@ -273,13 +223,10 @@ CONTAINS
     CALL createKernel(geocode,nx,ny,nz,hx,hy,hz,wavelet%itype_scf,iproc,nproc,wavelet%karray,&
                        pw_grid % para % rs_group ,error)
     
-
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE RS_z_slice_distribution
 
-
-
-
+! *****************************************************************************
   SUBROUTINE cp2k_distribution_to_z_slices (density , wavelet, pw_grid, error)
 
     TYPE(pw_type), POINTER                   :: density
@@ -324,7 +271,6 @@ CONTAINS
        ALLOCATE(sbuf(PRODUCT(pw_grid % npts_local)),stat=ierr)
        ALLOCATE(rbuf(PRODUCT(wavelet%PS_grid)/nproc))
        ALLOCATE(scount(nproc),sdispl(nproc),rcount(nproc),rdispl(nproc),tmp(nproc))
-
 
        rbuf=0.0_dp
        ii=1
@@ -414,7 +360,6 @@ CPSourceFileRef,&
           rdispl(i)=rdispl(i-1)+rcount(i-1)
        END DO
        
-
        CALL mp_alltoall(sbuf,scount,sdispl,rbuf,rcount,rdispl,pw_grid%para%rs_group)
        !!!! and now, how to put the right cubes to the right position!!!!!!
 
@@ -449,7 +394,6 @@ CPSourceFileRef,&
           END DO
        END DO
 
-       
        DEALLOCATE(sbuf,rbuf,scount,sdispl,rcount,rdispl,tmp)
 
     END IF
@@ -457,8 +401,7 @@ CPSourceFileRef,&
 
   END SUBROUTINE cp2k_distribution_to_z_slices
 
-  
-
+! *****************************************************************************
   SUBROUTINE z_slices_to_cp2k_distribution(density , wavelet, pw_grid, error)
     
     TYPE(pw_type), POINTER                   :: density
@@ -509,7 +452,6 @@ CPSourceFileRef,&
           loz=MOD(m2,local_z_dim)
        END IF
 
-
        DO i=1, pw_grid % npts ( 1 )
           DO j=1, pw_grid % npts ( 2 )
              DO k=1,loz
@@ -555,9 +497,7 @@ CPSourceFileRef,&
           rdispl(i)=rdispl(i-1)+rcount(i-1)
        END DO
 
-
        CALL mp_alltoall(sbuf,scount,sdispl,rbuf,rcount,rdispl,pw_grid % para % rs_group)
-
 
        !!!! and now, how to put the right cubes to the right position!!!!!!
 
@@ -590,10 +530,7 @@ CPSourceFileRef,&
 
   END SUBROUTINE z_slices_to_cp2k_distribution
     
-
-
-
-
+! *****************************************************************************
     SUBROUTINE ps_wavelet_solve(wavelet,pw_grid,eh,error)
 
     TYPE(ps_wavelet_type), POINTER           :: wavelet
@@ -621,7 +558,6 @@ CPSourceFileRef,&
     hy = pw_grid % dr ( 2 )
     hz = pw_grid % dr ( 3 )
     
-
     CALL PSolver(geocode,datacode,iproc,nproc,nx,ny,nz,hx,hy,hz,&
          wavelet%rho_z_sliced,wavelet%karray,pw_grid,error)
     CALL timestop(0.0_dp,handle)

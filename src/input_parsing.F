@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/input_parsing [1.0] *
-!!
-!!   NAME
-!!     input_parsing
-!!
-!!   FUNCTION
-!!     routines that parse the input
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 created
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief routines that parse the input
+!> \par History
+!>      06.2004 created
+!> \author fawzi
+! *****************************************************************************
 MODULE input_parsing
   USE cp_linked_list_char,             ONLY: cp_create,&
                                              cp_dealloc,&
@@ -85,29 +71,14 @@ MODULE input_parsing
 
   PUBLIC :: section_vals_parse, val_create_parsing
 !***
-!****************************************************************************
 CONTAINS
 
-!!****f* input_parsing/section_vals_parse *
-!!
-!!   NAME
-!!     section_vals_parse
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - root_section: if the root section should be parsed (defaults to true)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param root_section if the root section should be parsed (defaults to true)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   RECURSIVE SUBROUTINE section_vals_parse(section_vals,parser, &
        default_units,root_section,error)
     TYPE(section_vals_type), POINTER         :: section_vals
@@ -408,32 +379,20 @@ CONTAINS
     CALL cp_error_dealloc_ref(suberror)
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE section_vals_parse
-!***************************************************************************
 
-!!****f* input_parsing/val_create_parsing [1.0] *
-!!
-!!   NAME
-!!     val_create_parsing
-!!
-!!   FUNCTION
-!!     creates a val_type object by parsing the values
-!!
-!!   NOTES
-!!     - no_t does not create a value
-!!
-!!   ARGUMENTS
-!!     - val: the value that will be created
-!!     - type_of_var: type of the value to be created
-!!     - n_var: number of values to be parsed (-1: undefined)
-!!     - default_value: a default value if nothing is found (can be null)
-!!     - parser: the parser from where the values should be read
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a val_type object by parsing the values
+!> \param val the value that will be created
+!> \param type_of_var type of the value to be created
+!> \param n_var number of values to be parsed (-1: undefined)
+!> \param default_value a default value if nothing is found (can be null)
+!> \param parser the parser from where the values should be read
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      - no_t does not create a value
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
        parser,unit,default_units,default_value,error)
     TYPE(val_type), POINTER                  :: val
@@ -780,27 +739,14 @@ CPSourceFileRef,&
     CALL timestop(handle)
     
   END SUBROUTINE val_create_parsing
-!***************************************************************************
 
-!!****f* input_parsing/get_r_val [1.0] *
-!!
-!!   NAME
-!!     get_r_val
-!!
-!!   FUNCTION
-!!     Reads and convert a real number from the input file
-!!
-!!   NOTES
-!!
-!!   ARGUMENTS
-!!     - parser: the parser from where the values should be read
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino - 11.2007 [tlaino] - University of Zurich
-!!
-!!*** ********************************************************************** 
+! *****************************************************************************
+!> \brief Reads and convert a real number from the input file
+!> \param parser the parser from where the values should be read
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Teodoro Laino - 11.2007 [tlaino] - University of Zurich
+! *****************************************************************************
   SUBROUTINE get_r_val(r_val, parser, unit, default_units, c_val, error)
     REAL(kind=dp), INTENT(OUT)               :: r_val
     TYPE(cp_parser_type), POINTER            :: parser

@@ -3,31 +3,18 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/neb_opt_utils [1.0] *
-!!
-!!   NAME
-!!     neb_opt_utils
-!!
-!!   FUNCTION
-!!     Module with utility to perform MD Nudged Elastic Band Calculation
-!!
-!!   NOTES
-!!     Numerical accuracy for parallel runs:
-!!      Each replica starts the SCF run from the one optimized
-!!      in a previous run. It may happen then energies and derivatives
-!!      of a serial run and a parallel run could be slightly different
-!!      'cause of a different starting density matrix.
-!!      Exact results are obtained using:
-!!         EXTRAPOLATION USE_GUESS in QS section (Teo 09.2006)
-!!
-!!   AUTHOR
-!!     Teodoro Laino 10.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Module with utility to perform MD Nudged Elastic Band Calculation
+!> \note
+!>      Numerical accuracy for parallel runs:
+!>       Each replica starts the SCF run from the one optimized
+!>       in a previous run. It may happen then energies and derivatives
+!>       of a serial run and a parallel run could be slightly different
+!>       'cause of a different starting density matrix.
+!>       Exact results are obtained using:
+!>          EXTRAPOLATION USE_GUESS in QS section (Teo 09.2006)
+!> \author Teodoro Laino 10.2006
+! *****************************************************************************
 MODULE neb_opt_utils
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
@@ -55,25 +42,10 @@ MODULE neb_opt_utils
 
 CONTAINS
 
-!!****f* neb_opt_utils/accept_diis_step [1.0] *
-!!
-!!   NAME
-!!     accept_diis_step
-!!
-!!   FUNCTION
-!!     Performes few basic operations for the NEB DIIS optimization
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino 10.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Performes few basic operations for the NEB DIIS optimization
+!> \author Teodoro Laino 10.2006
+! *****************************************************************************
   FUNCTION accept_diis_step(apply_diis, n_diis,err,crr,set_err,sline,coords,&
        output_unit,check_diis,error) RESULT(accepted)
     LOGICAL, INTENT(IN)                      :: apply_diis
@@ -267,25 +239,10 @@ CONTAINS
 
   END FUNCTION accept_diis_step
 
-!!****f* neb_opt_utils/check_diis_solution [1.0] *
-!!
-!!   NAME
-!!     check_diis_solution
-!!
-!!   FUNCTION
-!!     Check conditions for the acceptance of the DIIS step
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino 10.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Check conditions for the acceptance of the DIIS step
+!> \author Teodoro Laino 10.2006
+! *****************************************************************************
   FUNCTION check_diis_solution(nv, n_diis, cwrk, step, ref, output_unit, check_diis, error)&
    RESULT(accepted)
     INTEGER, INTENT(IN)                      :: nv, n_diis
@@ -360,25 +317,10 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END FUNCTION check_diis_solution
 
-!!****f* neb_opt_utils/neb_ls [1.0] *
-!!
-!!   NAME
-!!     neb_ls
-!!
-!!   FUNCTION
-!!     Perform a line minimization search in optimizing a NEB with DIIS
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino 10.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Perform a line minimization search in optimizing a NEB with DIIS
+!> \author Teodoro Laino 10.2006
+! *****************************************************************************
   SUBROUTINE  neb_ls(stepsize, sline, rep_env, neb_env, coords, energies, forces,&
                vels, particle_set, iw, output_unit, distances, diis_section, &
                error)

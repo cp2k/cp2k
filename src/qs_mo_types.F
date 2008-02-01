@@ -3,32 +3,20 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/qs_mo_types [1.0] *
-!!
-!!   NAME
-!!     qs_mo_types
-!!
-!!   FUNCTION
-!!     Definition and initialisation of the mo data type.
-!!
-!!   AUTHOR
-!!     Matthias Krack (09.05.2001,MK)
-!!
-!!   MODIFICATION HISTORY
-!!     - adapted to the new QS environment data structure (02.04.2002,MK)
-!!     - set_mo_occupation added (17.04.02,MK)
-!!     - correct_mo_eigenvalues added (18.04.02,MK)
-!!     - calculate_density_matrix moved from qs_scf to here (22.04.02,MK)
-!!     - mo_set_p_type added (23.04.02,MK)
-!!     - PRIVATE attribute set for TYPE mo_set_type (23.04.02,MK)
-!!     - calculate_w_matrix added for the calculation of the Pulay forces
-!!       (23.05.02,MK)
-!!     - started conversion to LSD (1.2003, Joost VandeVondele)
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Definition and initialisation of the mo data type.
+!> \par History
+!>      - adapted to the new QS environment data structure (02.04.2002,MK)
+!>      - set_mo_occupation added (17.04.02,MK)
+!>      - correct_mo_eigenvalues added (18.04.02,MK)
+!>      - calculate_density_matrix moved from qs_scf to here (22.04.02,MK)
+!>      - mo_set_p_type added (23.04.02,MK)
+!>      - PRIVATE attribute set for TYPE mo_set_type (23.04.02,MK)
+!>      - calculate_w_matrix added for the calculation of the Pulay forces
+!>        (23.05.02,MK)
+!>      - started conversion to LSD (1.2003, Joost VandeVondele)
+!> \author Matthias Krack (09.05.2001,MK)
+! *****************************************************************************
 MODULE qs_mo_types
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -83,6 +71,7 @@ MODULE qs_mo_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mo_types'
 
+! *****************************************************************************
   TYPE mo_set_type
     ! the actual MO coefficients as a matrix
     TYPE(cp_fm_type), POINTER :: mo_coeff
@@ -104,6 +93,7 @@ MODULE qs_mo_types
     LOGICAL                                   :: uniform_occupation
   END TYPE mo_set_type
 
+! *****************************************************************************
   TYPE mo_set_p_type
     TYPE(mo_set_type), POINTER :: mo_set
   END TYPE mo_set_p_type
@@ -129,8 +119,6 @@ MODULE qs_mo_types
             write_mo_set_low,&
             mo_set_restrict
 
-! *****************************************************************************
-
   INTERFACE read_mo_set
     MODULE PROCEDURE read_mo_set_from_restart
   END INTERFACE
@@ -139,57 +127,28 @@ MODULE qs_mo_types
     MODULE PROCEDURE write_mo_set_to_output_unit,write_mo_set_to_restart
   END INTERFACE
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
-!!****f* qs_mo_types/allocate_mo_set [1.0] *
-!!
-!!   NAME
-!!     allocate_mo_set
-!!
-!!   SYNOPSIS
-!!     Subroutine allocate_mo_set(mo_set, nao, nmo, nelectron, maxocc,&
-!!         error)
-!!       Type(mo_set_type), Pointer:: mo_set
-!!       Real(KIND = dp), Intent (IN):: maxocc
-!!       Integer, Intent (IN):: nao, nelectron, nmo
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine allocate_mo_set
-!!
-!!   FUNCTION
-!!     allocate a mo set and partially initializes it (nao,nmo,nelectron
-!!     are vaild).
-!!     For the full initialization you need to call init_mo_set
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - mo_set: the mo_set to allocate
-!!     - nao: number of atom orbitals
-!!     - nmo: number of molecular orbitals
-!!     - nelectrons: number of electrons
-!!     - maxocc: maximum occupation of an orbital (LDA: 2, LSD:1)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Matthias Krack
-!!
-!!   MODIFICATION HISTORY
-!!     11.2002 splitted initialization in two phases [fawzi]
-!!
-!!*** *********************************************************************
-
+! *****************************************************************************
+!> \brief allocate a mo set and partially initializes it (nao,nmo,nelectron
+!>      are vaild).
+!>      For the full initialization you need to call init_mo_set
+!> \param mo_set the mo_set to allocate
+!> \param nao number of atom orbitals
+!> \param nmo number of molecular orbitals
+!> \param nelectrons number of electrons
+!> \param maxocc maximum occupation of an orbital (LDA: 2, LSD:1)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      11.2002 splitted initialization in two phases [fawzi]
+!> \author Matthias Krack
+! *****************************************************************************
   SUBROUTINE allocate_mo_set(mo_set,nao,nmo,nelectron,maxocc, error)
 
 !   Purpose: Allocate a wavefunction data structure.
 
 !   History: - Creation (15.05.2001, MK)
-
-!   ***************************************************************************
 
     TYPE(mo_set_type), POINTER               :: mo_set
     INTEGER, INTENT(IN)                      :: nao, nmo, nelectron
@@ -221,43 +180,18 @@ CONTAINS
 
   END SUBROUTINE allocate_mo_set
 
-!****************************************************************************
-
-!!****f* qs_mo_types/init_mo_set [1.0] *
-!!
-!!   NAME
-!!     init_mo_set
-!!
-!!   SYNOPSIS
-!!     Subroutine init_mo_set(mo_set, fm_pool, name, error)
-!!       Type(mo_set_type), Pointer:: mo_set
-!!       Type(cp_fm_pool_type), Pointer:: fm_pool
-!!       Character(Len=*), Intent (IN):: name
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine init_mo_set
-!!
-!!   FUNCTION
-!!     initializes an allocated mo_set.
-!!     eigenvalues, mo_coeff, occupation_numbers are valid only
-!!     after this call.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - mo_set: the mo_set to initialize
-!!     - fm_pool: a pool out which you initialize the mo_set
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2002 rewamped [fawzi]
-!!
-!!*** *********************************************************************
-
+! *****************************************************************************
+!> \brief initializes an allocated mo_set.
+!>      eigenvalues, mo_coeff, occupation_numbers are valid only
+!>      after this call.
+!> \param mo_set the mo_set to initialize
+!> \param fm_pool a pool out which you initialize the mo_set
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      11.2002 rewamped [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE init_mo_set(mo_set, fm_pool, name, error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
@@ -297,25 +231,13 @@ CONTAINS
 
   END SUBROUTINE init_mo_set
 
-!!****f* module/mo_set_restrict *
-!!
-!!   NAME
-!!      mo_set_restrict
-!!
-!!   FUNCTION
-!!      make the beta orbitals explicitly equal to the alpha orbitals
-!!      effectively copying the orbital data
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!    - mo_set
-!!
-!!   MODIFICATION HISTORY
-!!     10.2004 created [Joost VandeVondele]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief make the beta orbitals explicitly equal to the alpha orbitals
+!>       effectively copying the orbital data
+!> \param mo_se t
+!> \par History
+!>      10.2004 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE mo_set_restrict(mo_array,error)
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -343,15 +265,11 @@ CONTAINS
   END SUBROUTINE mo_set_restrict
 
 ! *****************************************************************************
-
-
   SUBROUTINE correct_mo_eigenvalues(mo_set,level_shift)
 
 !   Purpose: Correct MO eigenvalues after MO level shifting.
 
 !   History: - Creation (19.04.2002, MK)
-
-!   ***************************************************************************
 
     TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp), INTENT(IN)                :: level_shift
@@ -370,14 +288,11 @@ CONTAINS
   END SUBROUTINE correct_mo_eigenvalues
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_mo_set(mo_set,error)
 
 !   Purpose: Deallocate a wavefunction data structure.
 
 !   History: - Creation (15.05.2001,MK)
-
-!   ***************************************************************************
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -409,7 +324,6 @@ CONTAINS
   END SUBROUTINE deallocate_mo_set
 
 ! *****************************************************************************
-
   SUBROUTINE get_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,nmo,&
                         eigenvalues,occupation_numbers,mo_coeff,&
                         uniform_occupation)
@@ -417,8 +331,6 @@ CONTAINS
 !   Purpose: Get the components of a MO set data structure.
 
 !   History: - Creation (22.04.2002, MK)
-
-!   ***************************************************************************
 
     TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: maxocc
@@ -448,15 +360,12 @@ CONTAINS
   END SUBROUTINE get_mo_set
 
 ! *****************************************************************************
-
   SUBROUTINE set_mo_occupation(occupation,eigenvalues,homo,lfomo,maxocc,nelectron,&
                                uocc,smear)
 
 !   Purpose: Smearing of the MO occupation due to the given smear value.
 
 !   History: - Creation (17.04.2002, MK)
-
-!   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation, eigenvalues
     INTEGER, INTENT(OUT)                     :: homo, lfomo
@@ -541,11 +450,9 @@ CONTAINS
       uocc = .FALSE.
     END IF perform_smear
 
-
   END SUBROUTINE set_mo_occupation
 
 ! *****************************************************************************
-
   SUBROUTINE set_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,nmo,&
                         eigenvalues,occupation_numbers,mo_coeff,&
                         uniform_occupation)
@@ -553,8 +460,6 @@ CONTAINS
 !   Purpose: Set the components of a MO set data structure.
 
 !   History: - Creation (22.04.2002, MK)
-
-!   ***************************************************************************
 
     TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: maxocc
@@ -839,6 +744,7 @@ CONTAINS
 
   END SUBROUTINE
 
+! *****************************************************************************
   SUBROUTINE read_mo_set_from_restart(mo_array,atomic_kind_set,particle_set,&
                                       para_env,id_nr,multiplicity,dft_section,error)
 
@@ -899,24 +805,12 @@ CONTAINS
 
   END SUBROUTINE read_mo_set_from_restart
 
-!!****f* qs_mo_types/read_mos_restart_low [1.0] *
-!!
-!!   NAME
-!!    read_mos_restart_low 
-!!
-!!   FUNCTION
-!!     Reading the mos from apreviously defined restart file
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     12.2007 created [MI]
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief Reading the mos from apreviously defined restart file
+!> \par History
+!>      12.2007 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE read_mos_restart_low (mos, para_env, particle_set, natom, rst_unit, multiplicity, xas, error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -985,7 +879,6 @@ CONTAINS
       ALLOCATE (offset_info(nshell_max,nset_max,natom_read),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
   
-
       IF (nao_read /= nao) THEN
         WRITE(cp_logger_get_default_unit_nr(logger),*) &
           " READ RESTART : WARNING : DIFFERENT # AOs ",nao,nao_read
@@ -1199,8 +1092,7 @@ CPSourceFileRef,&
 
   END SUBROUTINE read_mos_restart_low
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE write_mo_set_to_output_unit(mo_set,atomic_kind_set,particle_set,&
                                          before,after,dft_section,spin,last,&
                                          error)
@@ -1210,8 +1102,6 @@ CPSourceFileRef,&
 
     ! History: - Creation (15.05.2001,MK)
     !          - Optionally print Cartesian MOs (20.04.2005,MK)
-
-    ! *************************************************************************
 
     ! List of variables:
 
@@ -1580,7 +1470,5 @@ CPSourceFileRef,&
                                       error=error)
 
   END SUBROUTINE write_mo_set_to_output_unit
-
-! *****************************************************************************
 
 END MODULE qs_mo_types

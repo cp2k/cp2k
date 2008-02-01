@@ -2,22 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/et_coupling [1.0] *
-!!
-!!   NAME
-!!     et_coupling
-!!
-!!   FUNCTION
-!!     calculates the electron transfer coupling elements
-!!     Wu, Van Voorhis, JCP 125, 164105 (2006)
-!!
-!!   AUTHOR
-!!     fschiff (01.2007)
-!!
-!!
-!!***
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief calculates the electron transfer coupling elements
+!>      Wu, Van Voorhis, JCP 125, 164105 (2006)
+!> \author fschiff (01.2007)
+! *****************************************************************************
 MODULE et_coupling
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -74,10 +64,8 @@ MODULE et_coupling
 
   PUBLIC :: calc_et_coupling,becke_constraint,becke_force
 
-
-
-
 CONTAINS
+! *****************************************************************************
   SUBROUTINE calc_et_coupling(qs_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -125,7 +113,6 @@ CONTAINS
     ALLOCATE(b(qs_env%dft_control%nspins))
     ALLOCATE(S_det(qs_env%dft_control%nspins))
 
-
     CALL mpools_get(qs_env%mpools, mo_mo_fm_pools=mo_mo_fm_pools,&
          S_sm_pools=S_sm_pools,&
          error=error)
@@ -163,7 +150,6 @@ CONTAINS
             error=error)
     END DO
 
-
 !   calculate MO-overlap 
 
     CALL cp_sm_fm_multiply(qs_env%matrix_s(1)%matrix,qs_env%et_coupling%et_mo_coeff(i)%matrix,&
@@ -192,9 +178,7 @@ CONTAINS
          qs_env%et_coupling%et_mo_coeff(i)%matrix,&
          tmp2,0.0_dp,rest_MO(2)%matrix,error=error)
 
-
    CALL cp_fm_invert(SMO,inverse_mat,S_det(i),error=error)
-
 
     CALL cp_fm_get_info(inverse_mat, nrow_local=nrow_local, ncol_local=ncol_local,&
                        row_indices=row_indices,col_indices=col_indices,error=error)
@@ -221,9 +205,7 @@ CONTAINS
     END IF
     CALL mp_sum(a(i),qs_env%para_env%group)
 
-
     CALL mp_sum(b(i),qs_env%para_env%group)
-
 
        CALL cp_fm_release(tmp2,error)
        CALL cp_fm_release(rest_MO(1)%matrix,error)
@@ -249,10 +231,6 @@ CONTAINS
     strength=qs_env%dft_control%qs_control%becke_control%strength
     END IF    
 
-
-
-
-    
 !!   construct S and W   !!!
     S_mat(1,1)=1.0_dp
     S_mat(2,2)=1.0_dp
@@ -276,7 +254,6 @@ CONTAINS
     W_mat=MATMUL(U,tmp_mat)
     CALL diamat_all (W_mat,eigenv,.TRUE.)
     tmp_mat=MATMUL(U,W_mat)
-
 
     W_mat(1,1)=qs_env%energy%total
     W_mat(2,2)=qs_env%et_coupling%energy
@@ -307,26 +284,11 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE calc_et_coupling
 
-
-
-
-!!****** cp2k/becke_constraint [1.0] *
-!!
-!!   NAME
-!!     becke_constraint
-!!
-!!   ATTRIBUTES
-!!      - calc_pot: logical if potential has to be calculated or only_energy
-!!
-!!   FUNCTION
-!!     calculates a becke contraint
-!!
-!!   AUTHOR
-!!     fschiff (01.2007)
-!!
-!!
-!!***
-!******************************************************************************
+! *****************************************************************************
+!> \brief calculates a becke contraint
+!> \param calc_pot logical if potential has to be calculated or only_energy
+!> \author fschiff (01.2007)
+! *****************************************************************************
   SUBROUTINE becke_constraint(qs_env,becke_const ,calc_pot,calculate_forces,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -376,7 +338,6 @@ CONTAINS
            catom(i)=qs_env%dft_control%qs_control%becke_control%atoms(i)
         ENDDO
         
-
         bo=becke_const%pw%pw_grid%bounds_local
         np=becke_const%pw%pw_grid%npts
         dvol = becke_const%pw%pw_grid%dvol
@@ -406,11 +367,6 @@ CONTAINS
            END DO
         END DO
         
-        
-        
-        
-
-
         DO k=bo(1,1),bo(2,1)
            DO j=bo(1,2),bo(2,2)
               DO i=bo(1,3),bo(2,3)
@@ -479,32 +435,16 @@ CONTAINS
      qs_env%dft_control%qs_control%becke_control%becke_order_p=dE
      qs_env%energy%becke=(dE-target_val)*strength
 
-
      IF(calculate_forces) CALL becke_force(qs_env,becke_const,error)
         
   END IF
     CALL timestop(0.0_dp, handle)
 END SUBROUTINE becke_constraint
 
-
-!!****** cp2k/becke_constraint [1.0] *
-!!
-!!   NAME
-!!     becke_forces
-!!
-!!      calculates the forces due to the becke constraint
-!!
-!!   FUNCTION
-!!     calculates a becke contraint forces
-!!
-!!   AUTHOR
-!!     fschiff (01.2007)
-!!
-!!
-!!***
-!******************************************************************************
-
-
+! *****************************************************************************
+!> \brief calculates a becke contraint forces
+!> \author fschiff (01.2007)
+! *****************************************************************************
   SUBROUTINE becke_force(qs_env,becke_const,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -568,7 +508,6 @@ END SUBROUTINE becke_constraint
            coefficients(catom(i))= qs_env%dft_control%qs_control%becke_control%coeff(i)
         ENDDO
 
-        
         natom = SIZE(particle_set)
         ALLOCATE (atom_of_kind(natom),STAT=istat)
         IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
@@ -579,8 +518,6 @@ END SUBROUTINE becke_constraint
         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                  atom_of_kind=atom_of_kind,&
                                  kind_of=kind_of)
-        
-        
         
         bo=becke_const%pw%pw_grid%bounds_local
         np=becke_const%pw%pw_grid%npts
@@ -628,7 +565,6 @@ END SUBROUTINE becke_constraint
                  grid_p(2)=j*dr(2)+shift(2)
                  grid_p(3)=i*dr(3)+shift(3)
                  
-
                  d_sum_Pm_dR=0.0_dp
                  d_sum_const_dR=0.0_dp
                  P_i=1.0_dp
@@ -660,13 +596,11 @@ END SUBROUTINE becke_constraint
                           !derivativ w.r.t. Rj
                           dr_j_dR=dist_vec_j(:) / dist2
                           
-
                           dmy_dR_j(:)= -(dr_j_dR(:) / R12(iatom,jatom) - (dist1-dist2) * dr_ij_dR(:))
 
                           !derivativ w.r.t. Ri
                           dmy_dR_i(:)= dr_i_dR(:) / R12(iatom,jatom) - (dist1-dist2) * dr_ij_dR(:)
                           
-
                           my1= (dist1-dist2)/R12(iatom,jatom)
                           polyn= 1.5_dp * my1 - 0.5_dp * my1**3
 
@@ -675,7 +609,6 @@ END SUBROUTINE becke_constraint
                           tmp_const = (1.5_dp**2)*(dpolyn-dpolyn*(polyn**2))-&
                                        (1.5_dp)*((1.5_dp*polyn-0.5*(polyn**3))**2)*&
                                        (1.5_dp*dpolyn-1.5_dp*dpolyn*(polyn**2))
-
 
                           ds_dR(:,iatom,jatom)=- 0.5_dp * tmp_const * dmy_dR_i(:)
                           ds_dR(:,jatom,iatom)=- 0.5_dp *tmp_const  * dmy_dR_j(:)
@@ -726,7 +659,6 @@ END SUBROUTINE becke_constraint
                  sum_cell_f_constr=sum_cell_f_constr+P_i(catom(ip))* qs_env%dft_control%qs_control%becke_control%coeff(ip)
               END DO
 
-
               DO iatom=1,particles%n_els
                  IF(ABS(sum_Pm).EQ.0.0_dp)THEN
                     dw_dR(:,iatom)=0.0_dp
@@ -745,7 +677,6 @@ END SUBROUTINE becke_constraint
            END DO
         END DO
 
-        
         DEALLOCATE(catom)
         DEALLOCATE(R12)
         DEALLOCATE(s_my_ij)

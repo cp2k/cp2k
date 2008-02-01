@@ -3,17 +3,7 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/hartree_local_2centers
-!!
-!!   NAME
-!!     hartree_local_2centers
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
 MODULE  hartree_local_2centers
   USE ai_coulomb,                      ONLY: coulomb2
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -72,12 +62,9 @@ MODULE  hartree_local_2centers
 
   PUBLIC :: integrate_vhg0_g0
 
-  !******************************************************************************
-
 CONTAINS
 
-  !******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE integrate_vhg0_g0(qs_env,energy_hartree_2c,just_energy,calculate_forces, &
        tddft, p_env, error)
 
@@ -188,7 +175,6 @@ CONTAINS
        CALL timeset(routineN,"I"," ",handle)
 
     END IF
-
 
     IF (calculate_forces) THEN
        lmax_01 = lmax_0 + maxder
@@ -479,8 +465,7 @@ CONTAINS
 
   END SUBROUTINE integrate_vhg0_g0
 
-  !******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE sumup_2c_integrals(z0_h_a,z0_h_b,z0_s,ng0_h_a,ng0_h_b,ng0_s,&
        l0_a,r0_a,QN_h_a,QN_s_a,&
        l0_b,r0_b,QN_h_b,QN_s_b,&
@@ -651,7 +636,6 @@ CONTAINS
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "vab_plus,I_tmp")
 
-
     ELSE
 
        ene_2c = 0.0_dp
@@ -720,8 +704,5 @@ CONTAINS
 
   END SUBROUTINE sumup_2c_integrals
 
-  !******************************************************************************
-
 END MODULE hartree_local_2centers
 
-!******************************************************************************

@@ -3,25 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_cp2k [1.0] *
-!!
-!!   NAME
-!!     input_cp2k
-!!
-!!   FUNCTION
-!!     builds the input structure for cp2k
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief builds the input structure for cp2k
+!> \par History
+!>      06.2004 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 MODULE input_cp2k
   USE bibliography,                    ONLY: Frigo2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
@@ -63,31 +50,16 @@ MODULE input_cp2k
   
   PUBLIC :: create_cp2k_root_section, parsed_cp2k_input,&
        create_global_section, create_cp2k_input_reading
-!!***
-!****************************************************************************
 CONTAINS
 
-!!****f* input_cp2k/create_cp2k_input_reading *
-!!
-!!   NAME
-!!     create_cp2k_input_reading
-!!
-!!   FUNCTION
-!!     reads the cp2k input from the given filepath and returns a section_vals
-!!     containing the input
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - file_path: path where the input should be read
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief reads the cp2k input from the given filepath and returns a section_vals
+!>      containing the input
+!> \param file_path path where the input should be read
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
     CHARACTER(len=*), INTENT(in)             :: file_path
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -119,28 +91,14 @@ CONTAINS
     CALL parser_release(cpparser,error=error)
     CALL timestop(0.0_dp,handle)
   END FUNCTION create_cp2k_input_reading
-!***************************************************************************
 
-!!****f* input_cp2k/create_cp2k_root_section *
-!!
-!!   NAME
-!!     create_cp2k_root_section
-!!
-!!   FUNCTION
-!!     creates the input structure of the file used by cp2k
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - root_section: the input structure to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the input structure of the file used by cp2k
+!> \param root_section the input structure to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE create_cp2k_root_section(root_section,error)
     TYPE(section_type), POINTER              :: root_section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -201,29 +159,15 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE create_cp2k_root_section
-!***************************************************************************
 
-!!****f* input_cp2k/parsed_cp2k_input *
-!!
-!!   NAME
-!!     parsed_cp2k_input
-!!
-!!   FUNCTION
-!!     utility function to ease the transition to the new input.
-!!     returns true if the new input was parsed
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - input_file: the parsed input file
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief utility function to ease the transition to the new input.
+!>      returns true if the new input was parsed
+!> \param input_file the parsed input file
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   FUNCTION parsed_cp2k_input(input_file,check_this_section,error) RESULT(res)
     TYPE(section_vals_type), POINTER         :: input_file
     LOGICAL, INTENT(IN), OPTIONAL            :: check_this_section
@@ -253,28 +197,14 @@ CONTAINS
        END IF
     END IF
   END FUNCTION parsed_cp2k_input
-!***************************************************************************
 
-!!****f* input_cp2k/create_global_section [1.0] *
-!!
-!!   NAME
-!!     
-!!
-!!   FUNCTION
-!!     section to hold global settings for the whole program
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief section to hold global settings for the whole program
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE create_global_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -557,26 +487,13 @@ CONTAINS
 
  END SUBROUTINE create_global_section
 
-!!****f* input_cp2k/create_test_section [1.0] *
-!!
-!!   NAME
-!!     
-!!
-!!   FUNCTION
-!!     section with the tests of the libraries or external code that cp2k uses
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief section with the tests of the libraries or external code that cp2k uses
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE create_test_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -678,28 +595,14 @@ CONTAINS
     CALL section_release(print_key,error=error)
 
   END SUBROUTINE create_test_section
-!***************************************************************************
 
-!!****f* input_cp2k/create_debug_section [1.0] *
-!!
-!!   NAME
-!!     
-!!
-!!   FUNCTION
-!!     section to setup debugging parameter
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief section to setup debugging parameter
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_debug_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -744,28 +647,14 @@ CONTAINS
     CALL section_release(print_key,error=error)
 
   END SUBROUTINE create_debug_section
-!***************************************************************************
 
-!!****f* input_cp2k/create_multi_force_section *
-!!
-!!   NAME
-!!     create_multi_force_section
-!!
-!!   FUNCTION
-!!     creates the multiple force_eval section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the multiple force_eval section
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE create_multi_force_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -803,28 +692,14 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
 
    END SUBROUTINE create_multi_force_section
-!***************************************************************************
 
-!!****f* input_cp2k/create_ext_restart_section [1.0] *
-!!
-!!   NAME
-!!     create_ext_restart_section
-!!
-!!   FUNCTION
-!!     Creates the exteranal restart section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the exteranal restart section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE create_ext_restart_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -988,28 +863,14 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_ext_restart_section
-!***************************************************************************
 
-!!****f* input_cp2k/create_farming_section *
-!!
-!!   NAME
-!!     create_farming_section
-!!
-!!   FUNCTION
-!!     creates the farming section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the farming section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE create_farming_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1137,28 +998,14 @@ CONTAINS
     CALL section_release(print_key,error=error)
 
   END SUBROUTINE create_farming_section
-!***************************************************************************
 
-!!****f* input_cp2k/create_cpot_section *
-!!
-!!   NAME
-!!     create_cpot_section
-!!
-!!   FUNCTION
-!!     section for the chemical potential difference run
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: will contain the cpot section
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief section for the chemical potential difference run
+!> \param section will contain the cpot section
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE create_cpot_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1219,6 +1066,5 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
     END IF
   END SUBROUTINE create_cpot_section
-!***************************************************************************
 
 END MODULE input_cp2k

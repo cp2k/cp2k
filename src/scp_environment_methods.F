@@ -2,19 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/scp_environment_methods [1.0] *
-!!
-!!   NAME
-!!     scp_environment_methods
-!!
-!!   FUNCTION
-!!    to complete the setup of the scp_env
-!!   AUTHOR
-!!     CJM
-!!   HISTORY
-!!*****
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief to complete the setup of the scp_env
+!> \author CJM
+! *****************************************************************************
 MODULE scp_environment_methods
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
@@ -50,12 +42,10 @@ MODULE scp_environment_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_environment_methods'
 
 !-----------------------------------------------------------------------------!
-!***************************************************************************
 
 CONTAINS
 
-!***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE scp_qs_env_setup(scp_env,qs_env,error)
 
     TYPE(scp_environment_type), POINTER      :: scp_env
@@ -83,7 +73,6 @@ CONTAINS
   NULLIFY( rspw )
   NULLIFY( distribution_2d )
   NULLIFY( ks_scp_env )
-
 
   CALL get_qs_env ( qs_env = qs_env, blacs_env=blacs_env, & 
                                        para_env=para_env, &
@@ -116,8 +105,6 @@ CONTAINS
   CALL set_scp_env ( scp_env, ks_scp_env = ks_scp_env, error = error )
   CALL qs_ks_scp_release ( ks_scp_env, error = error )
   
-
   END SUBROUTINE scp_qs_env_setup
 
-!******************************************************************************
 END MODULE scp_environment_methods

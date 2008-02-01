@@ -3,26 +3,14 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/cp_cfm_basic_linalg [1.0] *
-!!
-!!   NAME
-!!     cp_cfm_basic_linalg
-!!
-!!   FUNCTION
-!!     basic linear algebra operations for complex full matrixes
-!!
-!!   NOTES
-!!     - not all functionality implemented
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!     Nearly literal copy of Fawzi's routines
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief basic linear algebra operations for complex full matrixes
+!> \note
+!>      - not all functionality implemented
+!> \par History
+!>      Nearly literal copy of Fawzi's routines
+!> \author Joost VandeVondele
+! *****************************************************************************
 MODULE cp_cfm_basic_linalg
   USE cp_cfm_types,                    ONLY: cp_cfm_get_element,&
                                              cp_cfm_type
@@ -39,10 +27,9 @@ MODULE cp_cfm_basic_linalg
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_basic_linalg'
 
   PUBLIC :: cp_cfm_add, cp_cfm_gemm, cp_cfm_lu_decompose, cp_cfm_column_scale, cp_cfm_schur_product
-!!***
-!****************************************************************************
 CONTAINS
 
+! *****************************************************************************
   SUBROUTINE cp_cfm_schur_product(matrix_a,matrix_b,matrix_c,error)
 
     TYPE(cp_cfm_type), POINTER               :: matrix_a, matrix_b, matrix_c
@@ -81,14 +68,12 @@ CONTAINS
 
   END SUBROUTINE cp_cfm_schur_product
 
-
+! *****************************************************************************
   SUBROUTINE cp_cfm_add(alpha,matrix_a,beta,matrix_b,error)
 
     !   Purpose: Scale and add two BLACS matrices (a <- alpha*a + beta*b).
 
     !   History: - Creation (11.06.2001, Matthias Krack)
-
-    !   ***************************************************************************
 
     COMPLEX(KIND=dp), INTENT(IN)             :: alpha
     TYPE(cp_cfm_type), POINTER               :: matrix_a
@@ -176,9 +161,6 @@ CPSourceFileRef,&
 
   END SUBROUTINE cp_cfm_add
 
-! *****************************************************************************
-
-! *****************************************************************************
 ! computes the LU decomposition of a given matrix
 ! the actual purpose right now is to compute the determinant of a given matrix
 ! which is most efficiently done this way, but, indeed, destroys the matrix
@@ -236,17 +218,13 @@ CPSourceFileRef,&
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE
 
-
 ! *****************************************************************************
-
   SUBROUTINE cp_cfm_gemm(transa,transb,m,n,k,alpha,matrix_a,matrix_b,beta,&
        matrix_c,error,b_first_col)
 
 !   Purpose: BLACS interface to the BLAS routine dgemm.
 
 !   History: - Creation (07.06.2001, Matthias Krack)
-
-!   ***************************************************************************
 
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     INTEGER, INTENT(IN)                      :: m, n, k
@@ -304,31 +282,11 @@ CPSourceFileRef,&
 
   END SUBROUTINE cp_cfm_gemm
 
-!!****f* cp_cfm_basic_linalg/cp_cfm_column_scale [1.0] *
-!!
-!!   NAME
-!!     cp_fm_column_scale
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_cfm_column_scale(matrixa, scaling)
-!!       Type(cp_cfm_type), Pointer:: matrixa
-!!       Complex(KIND = dp), Dimension(:), Intent (IN):: scaling
-!!     End Subroutine cp_fm_column_scale
-!!
-!!   FUNCTION
-!!     scales column i of matrix a with scaling(i)
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!     scaling :: an array used for scaling the columns, SIZE(scaling) determines the number of columns to be scaled
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief scales column i of matrix a with scaling(i)
+!> \param scaling : an array used for scaling the columns, SIZE(scaling) determines the number of columns to be scaled
+!> \author Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE cp_cfm_column_scale(matrixa,scaling)
     TYPE(cp_cfm_type), POINTER               :: matrixa
     COMPLEX(KIND=dp), DIMENSION(:), &

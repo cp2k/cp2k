@@ -3,34 +3,22 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/pw_pool_types [1.0] *
-!!
-!!   NAME
-!!     pw_pool_types
-!!
-!!   FUNCTION
-!!     Manages a pool of grids (to be used for example as tmp objects),
-!!     but can also be used to instantiate grids that are never given back.
-!!
-!!     Multigrid pools are just an array of pw_pools
-!!
-!!   NOTES
-!!     The pool could also work without pointers (doing = each time),
-!!     but I find it *very* ugly.
-!!
-!!     The pool could be integrated into pw_grid_type, I don't know if
-!!     it would be a good or bad idea (but would add a circular dependence
-!!     between pw and pw_grid types).
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Manages a pool of grids (to be used for example as tmp objects),
+!>      but can also be used to instantiate grids that are never given back.
+!> 
+!>      Multigrid pools are just an array of pw_pools
+!> \note
+!>      The pool could also work without pointers (doing = each time),
+!>      but I find it *very* ugly.
+!> 
+!>      The pool could be integrated into pw_grid_type, I don't know if
+!>      it would be a good or bad idea (but would add a circular dependence
+!>      between pw and pw_grid types).
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE pw_pool_types
   USE cp_linked_list_3d_r,             ONLY: cp_sll_3d_r_dealloc,&
                                              cp_sll_3d_r_get_first_el,&
@@ -77,39 +65,22 @@ MODULE pw_pool_types
        pw_pool_create_cr3d, pw_pool_give_back_cr3d
   PUBLIC :: pw_pools_copy, pw_pools_dealloc, pw_pools_flush_cache,&
        pw_pools_create_pws, pw_pools_give_back_pws
-!!***
-!****************************************************************************
 
-
-!!****s* pw_pool_types/pw_pool_type [1.0] *
-!!
-!!   NAME
-!!    pw_pool_type
-!!
-!!   FUNCTION
-!!     Manages a pool of grids (to be used for example as tmp objects),
-!!     but can also be used to intantiate grids that are never given back.
-!!
-!!
-!!   NOTES
-!!     As of now I would like replace the linked lists by arrays
-!!     (no annoying list elements that are allocated would show up when
-!!     tracking leaks) [fawzi]
-!!
-!!   ATTRIBUTES
-!!     - ref_count: reference count (see /cp2k/doc/ReferenceCounting.html)
-!!     - id_nr: number that identifies each pool
-!!     - real1d_pw, real3d_pw, complex1d_pw, complex3d_pw: liked list with
-!!       the cached grids of the corresponding type
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief Manages a pool of grids (to be used for example as tmp objects),
+!>      but can also be used to intantiate grids that are never given back.
+!> \param ref_count reference count (see /cp2k/doc/ReferenceCounting.html)
+!> \param id_nr number that identifies each pool
+!> \param real 1d_pw, real3d_pw, complex1d_pw, complex3d_pw: liked list with
+!>        the cached grids of the corresponding type
+!> \note
+!>      As of now I would like replace the linked lists by arrays
+!>      (no annoying list elements that are allocated would show up when
+!>      tracking leaks) [fawzi]
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE pw_pool_type
      INTEGER :: ref_count, id_nr, max_cache
      TYPE(pw_grid_type), POINTER :: pw_grid
@@ -117,63 +88,30 @@ MODULE pw_pool_types
           complex1d_pw, complex3d_pw
      TYPE(cp_sll_3d_r_type), POINTER :: real3d_array
   END TYPE pw_pool_type
-!!***
-!****************************************************************************
 
-!!****s* pw_pool_types/pw_pool_p_type [1.0] *
-!!
-!!   NAME
-!!     pw_pool_p_type
-!!
-!!   FUNCTION
-!!     to create arrays of pools
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - pool: the pool
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief to create arrays of pools
+!> \param pool the pool
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE pw_pool_p_type
      TYPE(pw_pool_type), POINTER :: pool
   END TYPE pw_pool_p_type
-!!***
-!****************************************************************************
 
 CONTAINS
 
-!!****f* pw_pool_types/pw_pool_create [1.0] *
-!!
-!!   NAME
-!!     pw_pool_create
-!!
-!!   FUNCTION
-!!     creates a pool for pw
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pw_pool: the pool to create
-!!     - pw_grid: the grid that is used to create the pw
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a pool for pw
+!> \param pw_pool the pool to create
+!> \param pw_grid the grid that is used to create the pw
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE pw_pool_create(pool, pw_grid, max_cache, error)
     TYPE(pw_pool_type), POINTER              :: pool
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -210,31 +148,16 @@ CONTAINS
             pool%complex1d_pw, pool%complex3d_pw, pool%real3d_array)
     END IF
   END SUBROUTINE pw_pool_create
-!***************************************************************************
 
-!!****f* pw_pool_types/pw_pool_retain [1.0] *
-!!
-!!   NAME
-!!     pw_pool_retain
-!!
-!!   FUNCTION
-!!     retains the pool (see cp2k/doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pool: the pool to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the pool (see cp2k/doc/ReferenceCounting.html)
+!> \param pool the pool to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE pw_pool_retain(pool,error)
     TYPE(pw_pool_type), POINTER              :: pool
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -261,31 +184,16 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE pw_pool_retain
-!***************************************************************************
 
-!!****f* pw_pool_types/pw_pool_flush_cache [1.0] *
-!!
-!!   NAME
-!!     pw_pool_flush_cache
-!!
-!!   FUNCTION
-!!     deallocates all the cached grids
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pool: the pool to flush
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates all the cached grids
+!> \param pool the pool to flush
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE pw_pool_flush_cache(pool, error)
     TYPE(pw_pool_type), POINTER              :: pool
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -303,7 +211,6 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: pw_el
 
     failure=.FALSE.
-
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -363,31 +270,16 @@ CONTAINS
 
     END IF
   END SUBROUTINE pw_pool_flush_cache
-!***************************************************************************
 
-!!****f* pw_pool_types/pw_pool_release [1.0] *
-!!
-!!   NAME
-!!     pw_pool_release
-!!
-!!   FUNCTION
-!!     releases the given pool (see cp2k/doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pool: the pool to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given pool (see cp2k/doc/ReferenceCounting.html)
+!> \param pool the pool to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE pw_pool_release(pool,error)
     TYPE(pw_pool_type), POINTER              :: pool
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -426,29 +318,16 @@ CONTAINS
     END IF
     NULLIFY(pool)
   END SUBROUTINE pw_pool_release
-!***************************************************************************
 
-!!****f* pw_pool_types/try_pop [1.0] *
-!!
-!!   NAME
-!!     try_pop
-!!
-!!   FUNCTION
-!!     tries to pop an element from the given list (no error on failure)
-!!
-!!   NOTES
-!!     private function
-!!
-!!   INPUTS
-!!     - list: the list to pop
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief tries to pop an element from the given list (no error on failure)
+!> \param list the list to pop
+!> \note
+!>      private function
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   FUNCTION try_pop(list,error) RESULT(res)
     TYPE(cp_sll_pw_type), POINTER            :: list
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -461,35 +340,20 @@ CONTAINS
        NULLIFY(res)
     END IF
   END FUNCTION try_pop
-!***************************************************************************
 
-!!****f* pw_pool_types/pw_pool_create_pw [1.0] *
-!!
-!!   NAME
-!!     pw_pool_create_pw
-!!
-!!   FUNCTION
-!!     returns a pw, allocating it if none is in the pool
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pool: the pool from where you get the pw
-!!     - pw: will contain the new pw
-!!     - use_data: which data it uses: REALDATA1D, COMPLEXDATA1D,
-!!       REALDATA3D, COMPLEXDATA3D
-!!     - in_space: in which space it is: REALSPACE, RECIPROCALSPACE
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns a pw, allocating it if none is in the pool
+!> \param pool the pool from where you get the pw
+!> \param pw will contain the new pw
+!> \param use_data which data it uses: REALDATA1D, COMPLEXDATA1D,
+!>        REALDATA3D, COMPLEXDATA3D
+!> \param in_space in which space it is: REALSPACE, RECIPROCALSPACE
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE pw_pool_create_pw(pool, pw, use_data, in_space, error)
     TYPE(pw_pool_type), POINTER              :: pool
     TYPE(pw_type), POINTER                   :: pw
@@ -573,35 +437,20 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE pw_pool_create_pw
-!***************************************************************************
 
-!!****f* pw_pool_types/pw_pool_give_back_pw [1.0] *
-!!
-!!   NAME
-!!     pw_pool_give_back_pw
-!!
-!!   FUNCTION
-!!     returns the pw to the pool
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pool: the pool where to reintegrate the pw
-!!     - pw: the pw to give back
-!!     - accept_non_compatible: if non compatible pw should be accepted
-!!       (they will be destroied). Defaults to false (and thus stops with
-!!       an error)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the pw to the pool
+!> \param pool the pool where to reintegrate the pw
+!> \param pw the pw to give back
+!> \param accept_non_compatible if non compatible pw should be accepted
+!>        (they will be destroied). Defaults to false (and thus stops with
+!>        an error)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE pw_pool_give_back_pw(pool, pw, accept_non_compatible, error)
     TYPE(pw_pool_type), POINTER              :: pool
     TYPE(pw_type), POINTER                   :: pw
@@ -748,33 +597,18 @@ CPSourceFileRef,&
     NULLIFY(pw)
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE pw_pool_give_back_pw
-!***************************************************************************
 
-!!****f* pw_pool_types/pw_pool_create_cr3d [1.0] *
-!!
-!!   NAME
-!!     pw_pool_create_cr3d
-!!
-!!   FUNCTION
-!!     returns a 3d real array of coefficents as the one used by pw with
-!!     REALDATA3D, allocating it if none is present in the pool
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - pw_pool: the pool that caches the cr3d
-!!     - cr3d: the pointer that will contain the array
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns a 3d real array of coefficents as the one used by pw with
+!>      REALDATA3D, allocating it if none is present in the pool
+!> \param pw_pool the pool that caches the cr3d
+!> \param cr 3d: the pointer that will contain the array
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pw_pool_create_cr3d(pw_pool,cr3d,error)
     TYPE(pw_pool_type), POINTER              :: pw_pool
     REAL(kind=dp), DIMENSION(:, :, :), &
@@ -830,34 +664,20 @@ SUBROUTINE pw_pool_create_cr3d(pw_pool,cr3d,error)
      END IF
   END IF
 END SUBROUTINE pw_pool_create_cr3d
-!***************************************************************************
-!!****f* pw_pool_types/pw_pool_give_back_cr3d [1.0] *
-!!
-!!   NAME
-!!     pw_pool_give_back_cr3d
-!!
-!!   FUNCTION
-!!     returns a 3d real array of coefficents as the one used by pw with
-!!     REALDATA3D, allocating it if none is present in the pool
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - pw_pool: the pool that caches the cr3d
-!!     - cr3d: the pointer that will contain the array
-!!     - accept_non_compatible: if true deallocates the non compatible
-!!       arrays passed in, if false (the default) stops with an error
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief returns a 3d real array of coefficents as the one used by pw with
+!>      REALDATA3D, allocating it if none is present in the pool
+!> \param pw_pool the pool that caches the cr3d
+!> \param cr 3d: the pointer that will contain the array
+!> \param accept_non_compatible if true deallocates the non compatible
+!>        arrays passed in, if false (the default) stops with an error
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible,error)
     TYPE(pw_pool_type), POINTER              :: pw_pool
     REAL(kind=dp), DIMENSION(:, :, :), &
@@ -926,34 +746,19 @@ CPSourceFileRef,&
   END IF
   NULLIFY(cr3d)
 END SUBROUTINE pw_pool_give_back_cr3d
-!***************************************************************************
 
-!!****f* pw_pool_types/pw_pools_create_pws [1.0] *
-!!
-!!   NAME
-!!     pw_pools_create_pws
-!!
-!!   FUNCTION
-!!     creates a multigrid structure
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pools: the multigrid pool (i.e. an array of pw_pool)
-!!     - pws: the multigrid of coefficent you want to initialize
-!!     - use_data: which data it uses: REALDATA1D, COMPLEXDATA1D,
-!!       REALDATA3D, COMPLEXDATA3D
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2004 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a multigrid structure
+!> \param pools the multigrid pool (i.e. an array of pw_pool)
+!> \param pws the multigrid of coefficent you want to initialize
+!> \param use_data which data it uses: REALDATA1D, COMPLEXDATA1D,
+!>        REALDATA3D, COMPLEXDATA3D
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      07.2004 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE pw_pools_create_pws(pools, pws, use_data, in_space, error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
@@ -981,32 +786,17 @@ SUBROUTINE pw_pools_create_pws(pools, pws, use_data, in_space, error)
      END DO
   END IF
 END SUBROUTINE pw_pools_create_pws
-!***************************************************************************
 
-!!****f* pw_pool_types/pw_pools_give_back_pws [1.0] *
-!!
-!!   NAME
-!!     pw_pools_give_back_pws
-!!
-!!   FUNCTION
-!!     returns the pw part of the coefficents into the pools
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pools: the pools that will cache the pws %pw
-!!     - pws: the coefficents to give back
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the pw part of the coefficents into the pools
+!> \param pools the pools that will cache the pws %pw
+!> \param pws the coefficents to give back
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE pw_pools_give_back_pws(pools, pws, error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
@@ -1033,32 +823,16 @@ SUBROUTINE pw_pools_give_back_pws(pools, pws, error)
   END IF
 END SUBROUTINE pw_pools_give_back_pws
 
-!***************************************************************************
-
-!!****f* pw_pools/pw_pools_copy [1.0] *
-!!
-!!   NAME
-!!     pw_pools_copy
-!!
-!!   FUNCTION
-!!     copies a multigrid pool, the underlying pools are shared
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - source_pool: the pool to copy
-!!     - target_pool: will hold the copy of the pool
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief copies a multigrid pool, the underlying pools are shared
+!> \param source_pool the pool to copy
+!> \param target_pool will hold the copy of the pool
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE pw_pools_copy(source_pools, target_pools, error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: source_pools, target_pools
@@ -1084,32 +858,17 @@ SUBROUTINE pw_pools_copy(source_pools, target_pools, error)
      END DO
   END IF
 END SUBROUTINE pw_pools_copy
-!***************************************************************************
 
-!!****f* pw_pools/pw_pools_dealloc [1.0] *
-!!
-!!   NAME
-!!     pw_pools_dealloc
-!!
-!!   FUNCTION
-!!     deallocates the given pools (releasing each of the underlying
-!!     pools)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pools: the pols to deallocate
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates the given pools (releasing each of the underlying
+!>      pools)
+!> \param pools the pols to deallocate
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE pw_pools_dealloc(pools,error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
@@ -1132,31 +891,16 @@ SUBROUTINE pw_pools_dealloc(pools,error)
   END IF
   NULLIFY(pools)
 END SUBROUTINE pw_pools_dealloc
-!***************************************************************************
 
-!!****f* pw_pool_types/pw_pools_flush_cache [1.0] *
-!!
-!!   NAME
-!!     pw_pools_flush_cache
-!!
-!!   FUNCTION
-!!     deallocates all the cached grids
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pools: the pools to flush
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates all the cached grids
+!> \param pools the pools to flush
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE pw_pools_flush_cache(pools,error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
@@ -1177,30 +921,15 @@ SUBROUTINE pw_pools_flush_cache(pools,error)
      END DO
   END IF
 END SUBROUTINE pw_pools_flush_cache
-!***************************************************************************
 
-!!****f* pw_pool_types/pw_pool_write [1.0] *
-!!
-!!   NAME
-!!     pw_pool_write
-!!
-!!   FUNCTION
-!!     writes the actual contents of the pw_pool
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes the actual contents of the pw_pool
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pw_pool_write(pw_pool,unit_nr,error)
     TYPE(pw_pool_type), POINTER              :: pw_pool
     INTEGER                                  :: unit_nr
@@ -1253,6 +982,5 @@ SUBROUTINE pw_pool_write(pw_pool,unit_nr,error)
      WRITE (unit=unit_nr, fmt="('<pw_pool *null*>')")
   END IF
 END SUBROUTINE pw_pool_write
-!***************************************************************************
 
 END MODULE pw_pool_types

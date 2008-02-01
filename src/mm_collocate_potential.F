@@ -3,27 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/mm_collocate_potential [1.0] *
-!!
-!!   NAME
-!!     mm_collocate_potential
-!!
-!!   FUNCTION
-!!     Calculate the MM potential by collocating the primitive Gaussian
-!!     functions (pgf)
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     7.2004 created [tlaino]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Calculate the MM potential by collocating the primitive Gaussian
+!>      functions (pgf)
+!> \par History
+!>      7.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
 MODULE mm_collocate_potential
   USE cell_types,                      ONLY: cell_type
   USE cube_utils,                      ONLY: cube_info_type,&
@@ -45,31 +31,17 @@ MODULE mm_collocate_potential
   PUBLIC :: collocate_gf_rspace_NoPBC,&
             integrate_gf_rspace_NoPBC
 !***
-!****************************************************************************
 CONTAINS
-!!****f* mm_collocate_potential/collocate_gf_rspace_NoPBC [1.0] *
-!!
-!!   NAME
-!!     collocate_gf_rspace_NoPBC
-!!
-!!   FUNCTION
-!!     Main driver to collocate gaussian functions on grid 
-!!     without using periodic boundary conditions (NoPBC)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     07.2004 created [tlaino]
-!!
-!!**************************************************************************
+
+! *****************************************************************************
+!> \brief Main driver to collocate gaussian functions on grid 
+!>      without using periodic boundary conditions (NoPBC)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      07.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE collocate_gf_rspace_NoPBC(zetp,rp,scale,W,pwgrid,cube_info,&
        eps_mm_rspace,xdat,ydat,zdat,bo2, n_rep_real, mm_cell)
     REAL(KIND=dp), INTENT(IN)                :: zetp
@@ -172,30 +144,16 @@ CONTAINS
 
   END SUBROUTINE collocate_gf_rspace_NoPBC
 
-!!****f* mm_collocate_potential/integrate_gf_rspace_NoPBC [1.0] *
-!!
-!!   NAME
-!!     integrate_gf_rspace_NoPBC
-!!
-!!   FUNCTION
-!!     Main driver to integrate gaussian functions on a grid function   
-!!     without using periodic boundary conditions (NoPBC)
-!!     Computes Forces.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     07.2004 created [tlaino]
-!!
-!!**************************************************************************
+! *****************************************************************************
+!> \brief Main driver to integrate gaussian functions on a grid function   
+!>      without using periodic boundary conditions (NoPBC)
+!>      Computes Forces.
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      07.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE integrate_gf_rspace_NoPBC(zetp,rp,scale,W,pwgrid,cube_info,&
        eps_mm_rspace,xdat,ydat,zdat,bo,force,n_rep_real, mm_cell)
     REAL(KIND=dp), INTENT(IN)                :: zetp
@@ -307,6 +265,5 @@ CONTAINS
        END DO
     END IF
   END SUBROUTINE integrate_gf_rspace_NoPBC
-
 
 END MODULE mm_collocate_potential

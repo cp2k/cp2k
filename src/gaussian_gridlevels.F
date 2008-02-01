@@ -3,20 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/gaussian_gridlevels [1.0] *
-!!
-!!   NAME
-!!     gaussian_gridlevels
-!!
-!!   AUTHOR
-!!    Joost VandeVondele (27.02.02)
-!!
-!!   MODIFICATION HISTORY
-!!     Code to return a gridlevel associated with a given gaussian exponent
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \par History
+!>      Code to return a gridlevel associated with a given gaussian exponent
+!> \author Joost VandeVondele (27.02.02)
+! *****************************************************************************
 MODULE gaussian_gridlevels
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -35,6 +26,7 @@ MODULE gaussian_gridlevels
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gaussian_gridlevels'
 
+! *****************************************************************************
   TYPE gridlevel_info_type
      INTEGER                         :: ngrid_levels
      REAL(KIND = dp), POINTER, DIMENSION(:) :: cutoff
@@ -51,6 +43,7 @@ MODULE gaussian_gridlevels
 
 CONTAINS
 
+! *****************************************************************************
   SUBROUTINE init_gaussian_gridlevel(gridlevel_info,ngrid_levels,cutoff,rel_cutoff, print_section, error)
     TYPE(gridlevel_info_type)                :: gridlevel_info
     INTEGER                                  :: ngrid_levels
@@ -74,6 +67,7 @@ CONTAINS
     CALL section_vals_retain(print_section,error=error)
   END SUBROUTINE init_gaussian_gridlevel
 
+! *****************************************************************************
   SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,para_env,error)
     TYPE(gridlevel_info_type)                :: gridlevel_info
     TYPE(cp_para_env_type), OPTIONAL, &
@@ -129,7 +123,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineP,"gridlevel_info%count")
   END SUBROUTINE destroy_gaussian_gridlevel
 
-  ! ***************************************************************
+! *****************************************************************************
   FUNCTION gaussian_gridlevel(gridlevel_info,exponent) RESULT(gridlevel)
     TYPE(gridlevel_info_type), INTENT(INOUT) :: gridlevel_info
     REAL(KIND=dp)                            :: exponent
@@ -149,6 +143,5 @@ CONTAINS
     gridlevel_info%count(gridlevel)= gridlevel_info%count(gridlevel)+1
 
   END FUNCTION gaussian_gridlevel
-  ! ***************************************************************
 
 END MODULE gaussian_gridlevels

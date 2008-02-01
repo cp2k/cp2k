@@ -3,25 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/kg_gpw_wf_history [1.0] *
-!!
-!!   NAME
-!!     kg_gpw_wf_history
-!!
-!!   FUNCTION
-!!     Routines to store the history of optimized wfn when the KG_GPW method is used.
-!!     The method requires that the wfn are stored in molecular blocks and not as full matrix
-!!
-!!   AUTHOR
-!!     MI (01.04.2005)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Routines to store the history of optimized wfn when the KG_GPW method is used.
+!>      The method requires that the wfn are stored in molecular blocks and not as full matrix
+!> \par History
+!>      none
+!> \author MI (01.04.2005)
+! *****************************************************************************
 MODULE kg_gpw_wf_history
 
   USE kg_gpw_fm_mol_methods,           ONLY: calculate_mol_density_matrix,&
@@ -52,42 +40,25 @@ MODULE kg_gpw_wf_history
 
   PUBLIC :: kg_gpw_fm_mol_linear, kg_gpw_fm_mol_ps, kg_gpw_prev_wf
 
-!***************************************************************************
-
 CONTAINS
 
-!***************************************************************************
-!!****f* kg_gpw_wf_history/kg_gpw_fm_mol_linear
-!!
-!!   NAME
-!!    kg_gpw_fm_mol_linear
-!!
-!!   FUNCTION
-!!     The linear extrapolation of the mos is calculated by using the two
-!!     previous steps.
-!!      set_a%...%mos =  alpha*set_a%...%mos + beta*set_b%...%mos
-!!     If required the density is also calculated
-!!
-!!   NOTE
-!!     matrix_p and matrix_s are given as input only if the density has to be calculated
-!!     i.e. when all the terms have been added to the final mos
-!!
-!!   INPUTS
-!!     - alpha : first multiplicative constant
-!!     - set_a : contains the initial mos and the output mos (inout)
-!!     - beta : second multiplicative constant
-!!     - set_b : contains the mos of a previous step that will be added (in)
-!!     - matrix_p: density matrix in real sparse matrix format, optional
-!!     - matrix_s: overlapmatrix in real sparse matrix format, optional
-!!     - error
-!!
-!!   AURHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief The linear extrapolation of the mos is calculated by using the two
+!>      previous steps.
+!>       set_a%...%mos =  alpha*set_a%...%mos + beta*set_b%...%mos
+!>      If required the density is also calculated
+!> \param alpha first multiplicative constant
+!> \param set_a contains the initial mos and the output mos (inout)
+!> \param beta second multiplicative constant
+!> \param set_b contains the mos of a previous step that will be added (in)
+!> \param matrix_p density matrix in real sparse matrix format, optional
+!> \param matrix_s overlapmatrix in real sparse matrix format, optional
+!> \param erro r
+!> \note
+!>      matrix_p and matrix_s are given as input only if the density has to be calculated
+!>      i.e. when all the terms have been added to the final mos
+!> \author MI
+! *****************************************************************************
   SUBROUTINE kg_gpw_fm_mol_linear(alpha,set_a,beta,set_b,matrix_p,matrix_s,error)
 
     REAL(dp), INTENT(IN), OPTIONAL           :: alpha
@@ -193,7 +164,6 @@ CONTAINS
               ! orthogonalize the molecular orbitals
               CALL mol_make_basis(mo_coeff_a, nmo_a, matrix_ortho=s_mo, otype="SV",error=error)
 
-
               CALL calculate_mol_density_matrix(mo_set_a, mol_block_a, &
                    natom, matrix_p(ispin)%matrix, error=error)
             END IF
@@ -209,44 +179,28 @@ CONTAINS
       END IF  ! nmol
     END DO  ! imolecule_kind
 
-
   END SUBROUTINE  kg_gpw_fm_mol_linear
 
-!***************************************************************************
-!!****f* kg_gpw_wf_history/kg_gpw_fm_mol_ps
-!!
-!!   NAME
-!!    kg_gpw_fm_mol_ps
-!!
-!!   FUNCTION
-!!     The ps extrapolation of the mos is calculated by using a
-!!     number of previous steps given by the order of the extrapolation (nvec)
-!!     At each i-th step in the loop to compose the final mos, the very last
-!!     wfn are multiplied by the wfn of the (nlast - i)th step
-!!     C(next) = C(next) - beta *  C(i)[C(i)S(i)C(last)]
-!!     If required the density is also calculated
-!!
-!!   NOTE
-!!     matrix_p and matrix_s are given as input only if the density has to be calculated
-!!     i.e. when all the terms have been added to the final mos
-!!
-!!   INPUTS
-!!     - set_a : contains the output mos that wiill be used as guess in the next step
-!!     - beta : second multiplicative constant
-!!     - set_b : contains the mos of the (nlast - i)th step, to be multiplied by the last mos
-!!     - ov_b    : contains the overlap matrix of the (nlast - i)th
-!!     - set_last : contains the mos of the step
-!!     - matrix_p: density matrix in real sparse matrix format, optional
-!!     - matrix_s: overlapmatrix in real sparse matrix format, optional
-!!     - error
-!!
-!!   AURHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief The ps extrapolation of the mos is calculated by using a
+!>      number of previous steps given by the order of the extrapolation (nvec)
+!>      At each i-th step in the loop to compose the final mos, the very last
+!>      wfn are multiplied by the wfn of the (nlast - i)th step
+!>      C(next) = C(next) - beta *  C(i)[C(i)S(i)C(last)]
+!>      If required the density is also calculated
+!> \param set_a contains the output mos that wiill be used as guess in the next step
+!> \param beta second multiplicative constant
+!> \param set_b contains the mos of the (nlast - i)th step, to be multiplied by the last mos
+!> \param ov_b contains the overlap matrix of the (nlast - i)th
+!> \param set_last contains the mos of the step
+!> \param matrix_p density matrix in real sparse matrix format, optional
+!> \param matrix_s overlapmatrix in real sparse matrix format, optional
+!> \param erro r
+!> \note
+!>      matrix_p and matrix_s are given as input only if the density has to be calculated
+!>      i.e. when all the terms have been added to the final mos
+!> \author MI
+! *****************************************************************************
   SUBROUTINE kg_gpw_fm_mol_ps(set_a, beta, set_b, ov_b, set_last, &
                               matrix_p, matrix_s, error )
 
@@ -347,7 +301,6 @@ CONTAINS
           CALL copy_sparse2mol_block(matrix=ov_b, mol_block=mol_block_b,&
                matrix_mol_block=ov_b_mol, natom=natom, nrow=n_ao, ncol=n_ao, error=error)
 
-
           DO ispin=1,nspins
             NULLIFY(mo_set_a, mo_set_b, mo_set_l)
             NULLIFY(mo_coeff_a, mo_coeff_b, mo_coeff_l)
@@ -407,33 +360,16 @@ CONTAINS
       END IF  ! nmol
     END DO  ! imolecule_kind
 
-
   END SUBROUTINE  kg_gpw_fm_mol_ps
 
-!***************************************************************************
-!!****f* kg_gpw_wf_history/kg_gpw_prev_wf
-!!
-!!   NAME
-!!    kg_gpw_prev_wf
-!!
-!!   FUNCTION
-!!     Calculate the density from the previous wfn given in molecular blocks
-!!
-!!   NOTE
-!!
-!!   INPUTS
-!!     - kg_fm_mol : containes the blocks of mos
-!!     - matrix_p: density matrix in real sparse matrix format
-!!     - matrix_s: overlapmatrix in real sparse matrix format
-!!     - error
-!!
-!!   AURHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief Calculate the density from the previous wfn given in molecular blocks
+!> \param kg_fm_mol containes the blocks of mos
+!> \param matrix_p density matrix in real sparse matrix format
+!> \param matrix_s overlapmatrix in real sparse matrix format
+!> \param erro r
+!> \author MI
+! *****************************************************************************
   SUBROUTINE kg_gpw_prev_wf(kg_fm_mol_set,matrix_p,matrix_s,error)
 
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
@@ -509,7 +445,5 @@ CONTAINS
     END DO  ! imolecule_kind
 
   END SUBROUTINE  kg_gpw_prev_wf
-
-!!*** **********************************************************************
 
 END MODULE kg_gpw_wf_history

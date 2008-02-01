@@ -2,25 +2,16 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****m* cp2k/xc_perdew_wang *
-!!
-!!   NAME
-!!     xc_perdew_wang
-!!
-!!   FUNCTION
-!!     Calculate the Perdew-Wang correlation potential and 
-!!     energy density and ist derivatives with respect to
-!!     the spin-up and spin-down densities up to 3rd order.
-!!
-!!   MODIFICATION HISTORY
-!!     18-MAR-2002, TCH, working version
-!!     fawzi (04.2004)  : adapted to the new xc interface
-!!
-!!   SEE ALSO
-!!     functionals_utilities
-!!
-!!****
 
+! *****************************************************************************
+!> \brief Calculate the Perdew-Wang correlation potential and 
+!>      energy density and ist derivatives with respect to
+!>      the spin-up and spin-down densities up to 3rd order.
+!> \par History
+!>      18-MAR-2002, TCH, working version
+!>      fawzi (04.2004)  : adapted to the new xc interface
+!> \see functionals_utilities
+! *****************************************************************************
 MODULE xc_perdew_wang
   USE f77_blas
   USE input_constants,                 ONLY: pw_dmc,&
@@ -56,26 +47,15 @@ MODULE xc_perdew_wang
   REAL(KIND=dp) :: eps_rho
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_perdew_wang'
 
-
   PUBLIC :: perdew_wang_info, perdew_wang_lda_eval, perdew_wang_lsd_eval
 
 CONTAINS
 
 ! *****************************************************************************
-
-!!****f* cp2k/xc_perdew_wang/perdew_wang_info *
-!!
-!!   NAME
-!!     perdew_wang_info
-!!
-!!   FUNCTION
-!!     Return some info on the functionals.
-!!
-!!   ARGUMENTS
-!!     - reference : full reference
-!!     - shortform : short reference
-!!
-!!****
+!> \brief Return some info on the functionals.
+!> \param reference full reference
+!> \param shortform short reference
+! *****************************************************************************
   SUBROUTINE perdew_wang_info ( method, lsd, reference, shortform, needs, &
        max_deriv, scale, error)
     INTEGER, INTENT(in)                      :: method
@@ -142,23 +122,12 @@ CONTAINS
   END SUBROUTINE perdew_wang_info
 
 ! *****************************************************************************
-
-!!****f* cp2k/xc_perdew_wang/perdew_wang_init *
-!!
-!!   NAME
-!!     perdew_wang
-!!
-!!   FUNCTION
-!!     Initializes the functionals
-!!
-!!   ARGUMENTS
-!!     - method : name of the method used for parameters
-!!     - cutoff : the cutoff density
-!!
-!!****
+!> \brief Initializes the functionals
+!> \param method name of the method used for parameters
+!> \param cutoff the cutoff density
+! *****************************************************************************
   SUBROUTINE perdew_wang_init(method, cutoff)
     
-
     INTEGER, INTENT(IN)                      :: method
     REAL(KIND=dp), INTENT(IN)                :: cutoff
 
@@ -224,26 +193,16 @@ CONTAINS
   END SUBROUTINE perdew_wang_init
   
 ! *****************************************************************************
-
-!!****f* cp2k/xc_perdew_wang/perdew_wang_lda_eval *
-!!
-!!   NAME
-!!     perdew_wang_lda_eval
-!!
-!!   FUNCTION
-!!     Calculate the correlation energy and its derivatives
-!!     wrt to rho (the electron density) up to 3rd order. This
-!!     is the LDA version of the Perdew-Wang correlation energy
-!!     If no order argument is given, then the routine calculates
-!!     just the energy.
-!!
-!!   ARGUMENTS
-!!     - order : order of derivatives to calculate
-!!     order must lie between -3 and 3. If it is negative then only
-!!     that order will be calculated, otherwise all derivatives up to
-!!     that order will be calculated.
-!!
-!!****
+!> \brief Calculate the correlation energy and its derivatives
+!>      wrt to rho (the electron density) up to 3rd order. This
+!>      is the LDA version of the Perdew-Wang correlation energy
+!>      If no order argument is given, then the routine calculates
+!>      just the energy.
+!> \param order order of derivatives to calculate
+!>      order must lie between -3 and 3. If it is negative then only
+!>      that order will be calculated, otherwise all derivatives up to
+!>      that order will be calculated.
+! *****************************************************************************
   SUBROUTINE perdew_wang_lda_eval( method, rho_set, deriv_set, order, scale, error )
     
     INTEGER, INTENT(in)                      :: method
@@ -335,7 +294,6 @@ CONTAINS
   END SUBROUTINE perdew_wang_lda_eval
 
 ! *****************************************************************************
-
 SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order,scale)
   !FM low level calc routine
     REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: rho
@@ -380,26 +338,16 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
   END SUBROUTINE perdew_wang_lda_calc
   
 ! *****************************************************************************
-
-!!****f* cp2k/xc_perdew_wang/perdew_wang_lsd_eval *
-!!
-!!   NAME
-!!     perdew_wang_lsd_eval
-!!
-!!   FUNCTION
-!!     Calculate the correlation energy and its derivatives
-!!     wrt to rho (the electron density) up to 3rd order. This
-!!     is the LSD version of the Perdew-Wang correlation energy
-!!     If no order argument is given, then the routine calculates
-!!     just the energy.
-!!
-!!   ARGUMENTS
-!!     - order : order of derivatives to calculate
-!!     order must lie between -3 and 3. If it is negative then only
-!!     that order will be calculated, otherwise all derivatives up to
-!!     that order will be calculated.
-!!
-!!****
+!> \brief Calculate the correlation energy and its derivatives
+!>      wrt to rho (the electron density) up to 3rd order. This
+!>      is the LSD version of the Perdew-Wang correlation energy
+!>      If no order argument is given, then the routine calculates
+!>      just the energy.
+!> \param order order of derivatives to calculate
+!>      order must lie between -3 and 3. If it is negative then only
+!>      that order will be calculated, otherwise all derivatives up to
+!>      that order will be calculated.
+! *****************************************************************************
   SUBROUTINE perdew_wang_lsd_eval( method, rho_set, deriv_set, order, scale, error )
     INTEGER, INTENT(in)                      :: method
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -507,7 +455,7 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
 
   END SUBROUTINE perdew_wang_lsd_eval
 
-  
+! *****************************************************************************
   SUBROUTINE perdew_wang_lsd_calc(rhoa,rhob,e_0,ea,eb,eaa,eab,ebb,eaaa,eaab,eabb,&
        ebbb, npoints, order,scale)
       !FM low-level computation routine
@@ -558,7 +506,6 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
   END SUBROUTINE perdew_wang_lsd_calc
 
 ! *****************************************************************************
-
   SUBROUTINE calc_g(r, z, g, order)
 
 !   ---------------------------------------------------------------------------
@@ -568,7 +515,6 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
 !   g = .... for r > 100 and everywhere else
 !   g = 2A(1+a1*r)ln(1+1/(2A(b1*r^1/2 + b2*r + b3*r^(3/2) + b4*r^2))).
 !   ---------------------------------------------------------------------------
-
 
     REAL(KIND=dp), INTENT(IN)                :: r
     INTEGER, INTENT(IN)                      :: z
@@ -663,9 +609,7 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
   END SUBROUTINE calc_g
 
 ! *****************************************************************************
-
 SUBROUTINE pw_lda_ed_loc(rho, ed, order)
-
 
     REAL(KIND=dp), INTENT(IN)                :: rho
     REAL(KIND=dp), DIMENSION(0:), &
@@ -712,9 +656,7 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
   END SUBROUTINE  pw_lda_ed_loc
 
 ! *****************************************************************************
-
   SUBROUTINE pw_lsd_ed_loc(a, b, ed, order)
-
 
     REAL(KIND=dp), INTENT(IN)                :: a, b
     REAL(KIND=dp), DIMENSION(0:), &
@@ -869,7 +811,5 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
     END IF
        
   END SUBROUTINE pw_lsd_ed_loc
-
-! *****************************************************************************
 
 END MODULE xc_perdew_wang

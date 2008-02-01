@@ -2,27 +2,17 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/library_tests [1.0] *
-!!
-!!   NAME
-!!     library_tests
-!!
-!!   FUNCTION
-!!     Performance tests for basic tasks like matrix multiplies, copy, fft.
-!!
-!!   AUTHOR
-!!     JGH  6-NOV-2000
-!!
-!!   MODIFICATION HISTORY
-!!     30-Nov-2000 (JGH) added input
-!!     02-Jan-2001 (JGH) Parallel FFT
-!!     28-Feb-2002 (JGH) Clebsch-Gordon Coefficients
-!!     06-Jun-2003 (JGH) Real space grid test
-!!     Eigensolver test (29.08.05,MK)
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Performance tests for basic tasks like matrix multiplies, copy, fft.
+!> \par History
+!>      30-Nov-2000 (JGH) added input
+!>      02-Jan-2001 (JGH) Parallel FFT
+!>      28-Feb-2002 (JGH) Clebsch-Gordon Coefficients
+!>      06-Jun-2003 (JGH) Real space grid test
+!>      Eigensolver test (29.08.05,MK)
+!> \author JGH  6-NOV-2000
+! *****************************************************************************
 MODULE library_tests
 
   USE cell_types,                      ONLY: cell_create,&
@@ -96,28 +86,15 @@ MODULE library_tests
   REAL (KIND=dp)           :: max_memory
   REAL(KIND=dp), PARAMETER :: threshold=1.0E-8_dp
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'library_tests'
-!!***
-!******************************************************************************
 
 CONTAINS
 
-!******************************************************************************
-!!****** library_tests/lib_test [1.0] *
-!!
-!!   NAME
-!!     lib_test
-!!
-!!   FUNCTION
-!!     Master routine for tests
-!!
-!!   AUTHOR
-!!     JGH  6-NOV-2000
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Master routine for tests
+!> \par History
+!>      none
+!> \author JGH  6-NOV-2000
+! *****************************************************************************
   SUBROUTINE lib_test ( root_section, para_env, globenv, error )
 
     TYPE(section_vals_type), POINTER         :: root_section
@@ -164,44 +141,30 @@ CONTAINS
 
   END SUBROUTINE lib_test
 
-!******************************************************************************
-!!****** library_tests/test_input [1.0] *
-!!
-!!   NAME
-!!     test_input
-!!
-!!   FUNCTION
-!!     Reads input section &TEST ... &END
-!!
-!!   AUTHOR
-!!     JGH 30-NOV-2000
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   NOTES
-!!I---------------------------------------------------------------------------I
-!!I SECTION: &TEST ... &END                                                   I
-!!I                                                                           I
-!!I    MEMORY   max_memory                                                    I
-!!I    COPY     n                                                             I
-!!I    MATMUL   n                                                             I
-!!I    FFT      n                                                             I
-!!I    PW_FFT   n                                                             I
-!!I    Clebsch-Gordon n                                                       I
-!!I    RS_GRIDS n                                                             I
-!!I    MPI      n                                                             I
-!!I    RNG      n             -> Parallel random number generator             I
-!!I    EIGENSOLVER n m        -> ABS(n) is the matrix dimension:              I
-!!I                              n > 0: the matrix will be filled with random I
-!!I                                     numbers                               I
-!!I                              n < 0: the matrix is read from the formatted I
-!!I                                     file named MATRIX                     I
-!!I                              m > 0: eigenvalues will be calculated        I
-!!I---------------------------------------------------------------------------I
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Reads input section &TEST ... &END
+!> \note
+!> I---------------------------------------------------------------------------I
+!> I SECTION: &TEST ... &END                                                   I
+!> I                                                                           I
+!> I    MEMORY   max_memory                                                    I
+!> I    COPY     n                                                             I
+!> I    MATMUL   n                                                             I
+!> I    FFT      n                                                             I
+!> I    PW_FFT   n                                                             I
+!> I    Clebsch-Gordon n                                                       I
+!> I    RS_GRIDS n                                                             I
+!> I    MPI      n                                                             I
+!> I    RNG      n             -> Parallel random number generator             I
+!> I    EIGENSOLVER n m        -> ABS(n) is the matrix dimension:              I
+!> I                              n > 0: the matrix will be filled with random I
+!> I                                     numbers                               I
+!> I                              n < 0: the matrix is read from the formatted I
+!> I                                     file named MATRIX                     I
+!> I                              m > 0: eigenvalues will be calculated        I
+!> I---------------------------------------------------------------------------I
+!> \author JGH 30-NOV-2000
+! *****************************************************************************
   SUBROUTINE test_input ( root_section, para_env, iw,globenv , error)
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -235,28 +198,16 @@ CONTAINS
     CALL mp_sync(para_env%group)
   END SUBROUTINE test_input
 
-!******************************************************************************
-!!****** library_tests/copy_test [1.0] *
-!!
-!!   NAME
-!!     copy_test
-!!
-!!   FUNCTION
-!!     Tests the performance to copy two vectors.
-!!
-!!   AUTHOR
-!!     JGH  6-NOV-2000
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   NOTES
-!!     The results of these tests allow to determine the size of the cache
-!!     of the CPU. This can be used to optimize the performance of the
-!!     FFTSG library.
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Tests the performance to copy two vectors.
+!> \note
+!>      The results of these tests allow to determine the size of the cache
+!>      of the CPU. This can be used to optimize the performance of the
+!>      FFTSG library.
+!> \par History
+!>      none
+!> \author JGH  6-NOV-2000
+! *****************************************************************************
   SUBROUTINE copy_test ( para_env, iw, globenv )
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw
@@ -312,24 +263,13 @@ CONTAINS
     CALL mp_sync(para_env%group)
   END SUBROUTINE copy_test
 
-!******************************************************************************
-!!****** library_tests/matmul_test [1.0] *
-!!
-!!   NAME
-!!     matmul_test
-!!
-!!   FUNCTION
-!!     Tests the performance of different kinds of matrix matrix multiply
-!!     kernels for the BLAS and F95 intrinsic matmul.
-!!
-!!   AUTHOR
-!!     JGH  6-NOV-2000
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Tests the performance of different kinds of matrix matrix multiply
+!>      kernels for the BLAS and F95 intrinsic matmul.
+!> \par History
+!>      none
+!> \author JGH  6-NOV-2000
+! *****************************************************************************
   SUBROUTINE matmul_test ( para_env, iw, globenv )
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw
@@ -536,23 +476,12 @@ CONTAINS
     CALL mp_sync(para_env%group)
   END SUBROUTINE matmul_test
 
-!******************************************************************************
-!!****** library_tests/fft_test [1.0] *
-!!
-!!   NAME
-!!     fft_test
-!!
-!!   FUNCTION
-!!     Tests the performance of all available FFT libraries for 3D FFTs
-!!
-!!   AUTHOR
-!!     JGH  6-NOV-2000
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Tests the performance of all available FFT libraries for 3D FFTs
+!> \par History
+!>      none
+!> \author JGH  6-NOV-2000
+! *****************************************************************************
   SUBROUTINE fft_test ( para_env, iw, globenv )
 
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -708,23 +637,12 @@ CONTAINS
 
   END SUBROUTINE fft_test
 
-!******************************************************************************
-!!****** library_tests/pw_fft_test [1.0] *
-!!
-!!   NAME
-!!     pw_fft_test
-!!
-!!   FUNCTION
-!!     Tests the performance of PW calls to FFT routines
-!!
-!!   AUTHOR
-!!     JGH  1-JAN-2001
-!!
-!!   MODIFICATION HISTORY
-!!     JGH  6-Feb-2001 : Test and performance code
-!!
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Tests the performance of PW calls to FFT routines
+!> \par History
+!>      JGH  6-Feb-2001 : Test and performance code
+!> \author JGH  1-JAN-2001
+! *****************************************************************************
   SUBROUTINE pw_fft_test ( para_env, iw, globenv, error )
 
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1003,27 +921,16 @@ CONTAINS
     CALL cell_release(box,error=error)
   END SUBROUTINE pw_fft_test
 
-!******************************************************************************
-!!****** library_tests/mpi_test [1.0] *
-!!
-!!   NAME
-!!     mpi_test
-!!
-!!   FUNCTION
-!!     Tests the MPI library
-!!
-!!   AUTHOR
-!!     JGH  1-JAN-2001
-!!
-!!   MODIFICATION HISTORY
-!!     JGH  6-Feb-2001 : Test and performance code
-!!
-!!   NOTES
-!!     quickly adapted benchmark code, will only work on an even number of CPUs.
-!!     comm is the relevant, initialized communicator
-!!     runtest(8) will produce messages of the size 8*10**runtest(8)
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Tests the MPI library
+!> \note
+!>      quickly adapted benchmark code, will only work on an even number of CPUs.
+!>      comm is the relevant, initialized communicator
+!>      runtest(8) will produce messages of the size 8*10**runtest(8)
+!> \par History
+!>      JGH  6-Feb-2001 : Test and performance code
+!> \author JGH  1-JAN-2001
+! *****************************************************************************
   SUBROUTINE mpi_test(comm)
 
     INTEGER                                  :: comm
@@ -1390,20 +1297,9 @@ CONTAINS
 #endif
   END SUBROUTINE mpi_test
 
-!!****** library_tests/simple_copy [1.0] *
-!!
-!!   NAME
-!!    simple_copy 
-!!
-!!   FUNCTION
-!!     just a trivial copy routine
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief just a trivial copy routine
+! *****************************************************************************
   SUBROUTINE simple_copy(buf1,buf2,N)
     REAL(KIND=KIND(0.0E0_dp))                :: buf1(*), buf2(*)
     INTEGER                                  :: N
@@ -1418,21 +1314,12 @@ CONTAINS
     ENDDO
   END SUBROUTINE simple_copy
 
-!!****** library_tests/rng_test [1.0] *
-!!
-!!   NAME
-!!     rng_test
-!!
-!!   FUNCTION
-!!     Test the parallel (pseudo)random number generator (RNG).
-!!
-!!   AUTHOR
-!!     JGH  1-JAN-2001
-!!
-!!   MODIFICATION HISTORY
-!!     JGH  6-Feb-2001 : Test and performance code
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Test the parallel (pseudo)random number generator (RNG).
+!> \par History
+!>      JGH  6-Feb-2001 : Test and performance code
+!> \author JGH  1-JAN-2001
+! *****************************************************************************
   SUBROUTINE rng_test(para_env,output_unit, globenv,error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: output_unit
@@ -1536,24 +1423,12 @@ CONTAINS
 
   END SUBROUTINE rng_test
 
-!!****** library_tests/eigensolver_test [1.0] *
-!!
-!!   NAME
-!!     eigensolver_test
-!!
-!!   FUNCTION
-!!     Tests the eigensolver library routines
-!!
-!!   AUTHOR
-!!     JGH  1-JAN-2001
-!!
-!!   MODIFICATION HISTORY
-!!     JGH  6-Feb-2001 : Test and performance code
-!!
-!!   NOTES
-!!     
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Tests the eigensolver library routines
+!> \par History
+!>      JGH  6-Feb-2001 : Test and performance code
+!> \author JGH  1-JAN-2001
+! *****************************************************************************
   SUBROUTINE eigensolver_test(para_env,output_unit,globenv,error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: output_unit
@@ -1767,7 +1642,5 @@ CONTAINS
     CALL cp_blacs_env_release(blacs_env=blacs_env,error=error)
 
   END SUBROUTINE eigensolver_test
-
-  ! ***************************************************************************
 
 END MODULE library_tests

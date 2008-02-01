@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qs_matrix_pools [1.0] *
-!!
-!!   NAME
-!!     qs_matrix_pools
-!!
-!!   FUNCTION
-!!     wrapper for the pools of matrixes
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     05.2003 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief wrapper for the pools of matrixes
+!> \par History
+!>      05.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 MODULE qs_matrix_pools
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
@@ -70,50 +56,32 @@ MODULE qs_matrix_pools
        mpools_create, mpools_rebuild_fm_pools, &
        mpools_rebuild_s_sm_pools
 
-!!***
-!****************************************************************************
-
-!!****s* m/qs_matrix_pools_type [1.0] *
-!!
-!!   NAME
-!!     qs_matrix_pools_type
-!!
-!!   FUNCTION
-!!     container for the pools of matrixes used by qs
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - id_nr: identification number
-!!     - ref_count: reference count (see doc/ReferenceCounting.html)
-!!     - S_sm_pools: pools of sparse matrixes with the structure of S
-!!     - ao_mo_fm_pools: pools with (ao x mo) full matrixes (same order as
-!!       c).
-!!     - ao_ao_fm_pools: pools with (ao x ao) full matrixes (same order as
-!!       c).
-!!     - mo_mo_fm_pools: pools with (mo x mo) full matrixes (same
-!!       order as c).
-!!     - ao_mosub_fm_pools: pools with (ao x mosub) full matrixes, where mosub
-!!       are a subset of the mos
-!!     - mosub_mosub_fm_pools: pools with (mosub x mosub) full matrixes, where mosub
-!!       are a subset of the mos
-!!
-!!     - maxao_maxao_fm_pools: pool of matrixes big enough to accomodate any
-!!       aoxao matrix (useful for temp matrixes)
-!!     - maxao_maxmo_fm_pools: pool of matrixes big enough to accomodate any
-!!       aoxmo matrix (useful for temp matrixes)
-!!     - maxmo_maxmo_fm_pools: pool of matrixes big enough to accomodate any
-!!       moxmo matrix (useful for temp matrixes)
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief container for the pools of matrixes used by qs
+!> \param id_nr identification number
+!> \param ref_count reference count (see doc/ReferenceCounting.html)
+!> \param S_sm_pools pools of sparse matrixes with the structure of S
+!> \param ao_mo_fm_pools pools with (ao x mo) full matrixes (same order as
+!>        c).
+!> \param ao_ao_fm_pools pools with (ao x ao) full matrixes (same order as
+!>        c).
+!> \param mo_mo_fm_pools pools with (mo x mo) full matrixes (same
+!>        order as c).
+!> \param ao_mosub_fm_pools pools with (ao x mosub) full matrixes, where mosub
+!>        are a subset of the mos
+!> \param mosub_mosub_fm_pools pools with (mosub x mosub) full matrixes, where mosub
+!>        are a subset of the mos
+!> 
+!> \param maxao_maxao_fm_pools pool of matrixes big enough to accomodate any
+!>        aoxao matrix (useful for temp matrixes)
+!> \param maxao_maxmo_fm_pools pool of matrixes big enough to accomodate any
+!>        aoxmo matrix (useful for temp matrixes)
+!> \param maxmo_maxmo_fm_pools pool of matrixes big enough to accomodate any
+!>        moxmo matrix (useful for temp matrixes)
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   TYPE qs_matrix_pools_type
      INTEGER :: id_nr, ref_count
      TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER        :: S_sm_pools
@@ -122,40 +90,18 @@ MODULE qs_matrix_pools
      TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER        :: ao_mosub_fm_pools,&
                                                               mosub_mosub_fm_pools
   END TYPE qs_matrix_pools_type
-!!***
-!****************************************************************************
 
 CONTAINS
 
-!!****f* qs_matrix_pools/mpools_retain [1.0] *
-!!
-!!   NAME
-!!     mpools_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine mpools_retain(mpools, error)
-!!       Type(qs_matrix_pools_type), Pointer:: mpools
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine mpools_retain
-!!
-!!   FUNCTION
-!!     retains the given qs_matrix_pools_type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - mpools: the matrix pools type to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given qs_matrix_pools_type
+!> \param mpools the matrix pools type to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE mpools_retain(mpools, error)
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -173,37 +119,16 @@ SUBROUTINE mpools_retain(mpools, error)
      mpools%ref_count=mpools%ref_count+1
   END IF
 END SUBROUTINE mpools_retain
-!***************************************************************************
 
-!!****f* qs_matrix_pools/mpools_release [1.0] *
-!!
-!!   NAME
-!!     mpools_release
-!!
-!!   SYNOPSIS
-!!     Subroutine mpools_release(mpools, error)
-!!       Type(qs_matrix_pools_type), Pointer:: mpools
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine mpools_release
-!!
-!!   FUNCTION
-!!     releases the given mpools
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - mpools: the matrix pools type to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given mpools
+!> \param mpools the matrix pools type to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE mpools_release(mpools,error)
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -236,41 +161,15 @@ SUBROUTINE mpools_release(mpools,error)
   END IF
   NULLIFY(mpools)
 END SUBROUTINE mpools_release
-!***************************************************************************
 
-!!****f* qs_matrix_pools/mpools_set [1.0] *
-!!
-!!   NAME
-!!     mpools_set
-!!
-!!   SYNOPSIS
-!!     Subroutine mpools_set(mpools, ao_mo_fm_pools, ao_ao_fm_pools,&
-!!         mo_mo_fm_pools, s_sm_pools, error)
-!!       Type(qs_matrix_pools_type), Pointer:: mpools
-!!       Type(cp_sm_pool_p_type), Dimension(:), Optional, Pointer::&
-!!         s_sm_pools
-!!       Type(cp_fm_pool_p_type), Dimension(:), Optional, Pointer::&
-!!         ao_mo_fm_pools, ao_ao_fm_pools, mo_mo_fm_pools
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine mpools_set
-!!
-!!   FUNCTION
-!!     sets various attributes of the mpools
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief sets various attributes of the mpools
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE mpools_set(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
      mo_mo_fm_pools,ao_mosub_fm_pools,mosub_mosub_fm_pools,&
      S_sm_pools,error)
@@ -333,47 +232,18 @@ SUBROUTINE mpools_set(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
 
  END IF
 END SUBROUTINE mpools_set
-!***************************************************************************
 
-!!****f* qs_matrix_pools/mpools_get [1.0] *
-!!
-!!   NAME
-!!     mpools_get
-!!
-!!   SYNOPSIS
-!!     Subroutine mpools_get(mpools, ao_mo_fm_pools, ao_ao_fm_pools,&
-!!         mo_mo_fm_pools, maxao_maxmo_fm_pool, maxao_maxao_fm_pool,&
-!!         maxmo_maxmo_fm_pool, s_sm_pools, error)
-!!       Type(qs_matrix_pools_type), Pointer:: mpools
-!!       Type(cp_sm_pool_p_type), Dimension(:), Optional, Pointer::&
-!!         s_sm_pools
-!!       Type(cp_fm_pool_p_type), Dimension(:), Optional, Pointer::&
-!!         ao_mo_fm_pools, ao_ao_fm_pools, mo_mo_fm_pools
-!!       Type(cp_fm_pool_type), Optional, Pointer:: maxao_maxmo_fm_pool,&
-!!         maxao_maxao_fm_pool, maxmo_maxmo_fm_pool
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine mpools_get
-!!
-!!   FUNCTION
-!!     returns various attributes of the mpools (notably the pools
-!!     contained in it)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - mpools: the matrix pools object you want info about
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!     see qs_matrix_pools_type attributes
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns various attributes of the mpools (notably the pools
+!>      contained in it)
+!> \param mpools the matrix pools object you want info about
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!>      see qs_matrix_pools_type attributes
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE mpools_get(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
      mo_mo_fm_pools, ao_mosub_fm_pools, mosub_mosub_fm_pools,&
      maxao_maxmo_fm_pool, maxao_maxao_fm_pool, maxmo_maxmo_fm_pool,&
@@ -427,37 +297,16 @@ SUBROUTINE mpools_get(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
 
  END IF
 END SUBROUTINE mpools_get
-!***************************************************************************
 
-!!****f* qs_matrix_pools/mpools_create [1.0] *
-!!
-!!   NAME
-!!     mpools_create
-!!
-!!   SYNOPSIS
-!!     Subroutine mpools_create(mpools, error)
-!!       Type(qs_matrix_pools_type), Pointer:: mpools
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine mpools_create
-!!
-!!   FUNCTION
-!!     creates a mpools
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - mpools: the mpools to create
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a mpools
+!> \param mpools the mpools to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE mpools_create(mpools,error)
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -481,53 +330,27 @@ SUBROUTINE mpools_create(mpools,error)
      mpools%id_nr=last_mpools_id
   END IF
 END SUBROUTINE mpools_create
-!***************************************************************************
 
-!!****f* qs_matrix_pools/mpools_rebuild_fm_pools [1.0] *
-!!
-!!   NAME
-!!     mpools_rebuild_fm_pools
-!!
-!!   SYNOPSIS
-!!     Subroutine mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
-!!         nrow_block, ncol_block, error)
-!!       Type(qs_matrix_pools_type), Pointer:: mpools
-!!       Type(mo_set_p_type), Dimension(:), Pointer:: mos
-!!       Type(cp_blacs_env_type), Pointer:: blacs_env
-!!       Type(cp_para_env_type), Pointer:: para_env
-!!       Integer, Intent (IN):: nrow_block, ncol_block
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine mpools_rebuild_fm_pools
-!!
-!!   FUNCTION
-!!     rebuilds the pools of the (ao x mo, ao x ao , mo x mo) full matrixes
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - mpools: the environement where the pools should be rebuilt
-!!     - mos: the molecular orbitals (qs_env%c), must contain up to
-!!       date nmo and nao
-!!     - blacs_env: the blacs environment of the full matrixes
-!!     - para_env: the parallel environment of the matrixes
-!!     - nrow_block: number of rows of a block for for the block cyclic
-!!       distribution of the elements in parallel
-!!     - ncol_block: number of cols of a block for for the block cyclic
-!!       distribution of the elements in parallel
-!!     - nmosub: number of the orbitals for the creation
-!!       of the pools containing only a subset of mos (OPTIONAL)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!     04.2005 added pools for a subset of mos [MI]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief rebuilds the pools of the (ao x mo, ao x ao , mo x mo) full matrixes
+!> \param mpools the environement where the pools should be rebuilt
+!> \param mos the molecular orbitals (qs_env%c), must contain up to
+!>        date nmo and nao
+!> \param blacs_env the blacs environment of the full matrixes
+!> \param para_env the parallel environment of the matrixes
+!> \param nrow_block number of rows of a block for for the block cyclic
+!>        distribution of the elements in parallel
+!> \param ncol_block number of cols of a block for for the block cyclic
+!>        distribution of the elements in parallel
+!> \param nmosub number of the orbitals for the creation
+!>        of the pools containing only a subset of mos (OPTIONAL)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2002 created [fawzi]
+!>      04.2005 added pools for a subset of mos [MI]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
      nrow_block,ncol_block,nmosub,error)
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
@@ -878,45 +701,18 @@ CPSourceFileRef,&
 
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE mpools_rebuild_fm_pools
-!***************************************************************************
 
-
-!!****f* qs_matrix_pools/mpools_rebuild_s_sm_pools [1.0] *
-!!
-!!   NAME
-!!     mpools_rebuild_s_sm_pools
-!!
-!!   SYNOPSIS
-!!     Subroutine mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set,&
-!!         para_env, error)
-!!       Type(qs_matrix_pools_type), Pointer:: mpools
-!!       Type(real_matrix_p_type), Dimension(:), Pointer:: s
-!!       Integer, Intent (IN):: nspins
-!!       Type(particle_type), Pointer, Dimension(:):: particle_set
-!!       Type(cp_para_env_type), Pointer:: para_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine mpools_rebuild_s_sm_pools
-!!
-!!   FUNCTION
-!!     rebuilds mpools%S_sm_pools
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - mpools: the pools to rebuild
-!!     - s: a matrix vector with the structure of the s matrix
-!!     - nspins: the number of spins
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief rebuilds mpools%S_sm_pools
+!> \param mpools the pools to rebuild
+!> \param s a matrix vector with the structure of the s matrix
+!> \param nspins the number of spins
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
      para_env, error)
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
@@ -1019,8 +815,6 @@ CPSourceFileRef,&
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE mpools_rebuild_s_sm_pools
-!***************************************************************************
 
 END MODULE qs_matrix_pools
-
 

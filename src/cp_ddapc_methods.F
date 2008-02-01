@@ -3,25 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/cp_ddapc_methods [1.0] *
-!!
-!!   NAME
-!!     cp_ddapc_methods
-!!
-!!   FUNCTION
-!!     contains information regarding the decoupling/recoupling method of Bloechl
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!*****************************************************************************
+! *****************************************************************************
+!> \brief contains information regarding the decoupling/recoupling method of Bloechl
+!> \author Teodoro Laino
+! *****************************************************************************
 MODULE cp_ddapc_methods
   USE cell_types,                      ONLY: cell_type
   USE cp2k_units,                      ONLY: get_cp2k_units,&
@@ -63,26 +48,7 @@ MODULE cp_ddapc_methods
 
 CONTAINS
 
-!!****f* cp_ddapc_methods/ddapc_eval_gfunc [1.0] *
-!!
-!!   NAME
-!!     ddapc_eval_gfunc
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+! *****************************************************************************
   SUBROUTINE ddapc_eval_gfunc(gfunc, w, gcut, rho_tot_g, radii, error)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: gfunc
     REAL(kind=dp), DIMENSION(:), POINTER     :: w
@@ -130,26 +96,12 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE ddapc_eval_gfunc
 
-!!****f* cp_ddapc/build_b_vector [1.0] *
-!!
-!!   NAME
-!!     build_b_vector
-!!
-!!   FUNCTION
-!!     Computes the B vector for the solution of the linear system
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Computes the B vector for the solution of the linear system
+!> \par History
+!>      08.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE build_b_vector(bv, gfunc, w, particle_set, radii, rho_tot_g, gcut, error)
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: bv
@@ -217,26 +169,12 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE build_b_vector
     
-!!****f* cp_ddapc/build_A_matrix [1.0] *
-!!
-!!   NAME
-!!     build_A_matrix
-!!
-!!   FUNCTION
-!!     Computes the A matrix for the solution of the linear system
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Computes the A matrix for the solution of the linear system
+!> \par History
+!>      08.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE build_A_matrix(Am, gfunc, w, particle_set, radii, rho_tot_g, gcut, error)
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: Am
@@ -311,26 +249,12 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE build_A_matrix
 
-!!****f* cp_ddapc/build_der_b_vector [1.0] *
-!!
-!!   NAME
-!!     build_der_b_vector
-!!
-!!   FUNCTION
-!!     Computes the derivative of B vector for the evaluation of the Pulay forces
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Computes the derivative of B vector for the evaluation of the Pulay forces
+!> \par History
+!>      08.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE build_der_b_vector(dbv, gfunc, w, particle_set, radii, rho_tot_g, gcut, iparticle0, error)
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: dbv
@@ -407,27 +331,13 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE build_der_b_vector
     
-!!****f* cp_ddapc/build_der_A_matrix [1.0] *
-!!
-!!   NAME
-!!     build_der_A_matrix
-!!
-!!   FUNCTION
-!!     Computes the derivative of the A matrix for the evaluation of the 
-!!     Pulay forces
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Computes the derivative of the A matrix for the evaluation of the 
+!>      Pulay forces
+!> \par History
+!>      08.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE build_der_A_matrix(dAm, gfunc, w, particle_set, radii,&
        rho_tot_g, gcut, iparticle0, error)
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -526,26 +436,12 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE build_der_A_matrix
 
-!!****f* cp_ddapc/ddapc_eval_AmI [1.0] *
-!!
-!!   NAME
-!!     ddapc_eval_AmI
-!!
-!!   FUNCTION
-!!     Computes the inverse AmI of the Am matrix 
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     12.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Computes the inverse AmI of the Am matrix 
+!> \par History
+!>      12.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE  ddapc_eval_AmI(GAmI, c0,  gfunc, w, particle_set, gcut,&
        rho_tot_g, radii, iw, Vol, error)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: GAmI
@@ -625,27 +521,13 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE ddapc_eval_AmI
 
-!!****f* cp_ddapc_methods/ewald_ddapc_pot [1.0] *
-!!
-!!   NAME
-!!     ewald_ddapc_pot
-!!
-!!   FUNCTION
-!!     Evaluates the Ewald term E2 and E3 energy term for the decoupling/coupling
-!!     of periodic images
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Evaluates the Ewald term E2 and E3 energy term for the decoupling/coupling
+!>      of periodic images
+!> \par History
+!>      08.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   RECURSIVE SUBROUTINE ewald_ddapc_pot(coeff, factor, cell, multipole_section,&
        particle_set, M, radii, error)
     TYPE(pw_type), POINTER                   :: coeff
@@ -824,27 +706,13 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE ewald_ddapc_pot
 
-!!****f* cp_ddapc_methods/solvation_ddapc_pot [1.0] *
-!!
-!!   NAME
-!!     solvation_ddapc_pot
-!!
-!!   FUNCTION
-!!     Evaluates the electrostatic potential due to a simple solvation model
-!!     Spherical cavity in a dieletric medium
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2006 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Evaluates the electrostatic potential due to a simple solvation model
+!>      Spherical cavity in a dieletric medium
+!> \par History
+!>      08.2006 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE solvation_ddapc_pot(coeff, cell, solvation_section, particle_set, M,  radii, error)
     TYPE(pw_type), POINTER                   :: coeff
     TYPE(cell_type), POINTER                 :: cell

@@ -3,51 +3,40 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/qs_scf [1.0] *
-!!
-!!   NAME
-!!     qs_scf
-!!
-!!   FUNCTION
-!!     Routines for the Quickstep SCF run.
-!!
-!!   AUTHOR
-!!     Matthias Krack (30.04.2001)
-!!
-!!   MODIFICATION HISTORY
-!!     - Joost VandeVondele (02.2002)
-!!          added code for: incremental (pab and gvg) update
-!!                           initialisation (init_cube, l_info)
-!!     - Joost VandeVondele (02.2002)
-!!          called the poisson code of the classical part
-!!          this takes into account the spherical cutoff and allows for
-!!          isolated systems
-!!     - Joost VandeVondele (02.2002)
-!!          added multiple grid feature
-!!          changed to spherical cutoff consistently (?)
-!!          therefore removed the gradient correct functionals
-!!     - updated with the new QS data structures (10.04.02,MK)
-!!     - copy_matrix replaced by transfer_matrix (11.04.02,MK)
-!!     - nrebuild_rho and nrebuild_gvg unified (12.04.02,MK)
-!!     - set_mo_occupation for smearing of the MO occupation numbers
-!!       (17.04.02,MK)
-!!     - MO level shifting added (22.04.02,MK)
-!!     - Usage of TYPE mo_set_p_type
-!!     - Joost VandeVondele (05.2002)
-!!           added cholesky based diagonalisation
-!!     - 05.2002 added pao method [fawzi]
-!!     - parallel FFT (JGH 22.05.2002)
-!!     - 06.2002 moved KS matrix construction to qs_build_KS_matrix.F [fawzi]
-!!     - started to include more LSD (01.2003,Joost VandeVondele)
-!!     - 02.2003 scf_env [fawzi]
-!!     - got rid of nrebuild (01.2004, Joost VandeVondele)
-!!     - 10.2004 removed pao [fawzi]
-!!     - 03.2006 large cleaning action [Joost VandeVondele]
-!!     - High-spin ROKS added (05.04.06,MK)
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Routines for the Quickstep SCF run.
+!> \par History
+!>      - Joost VandeVondele (02.2002)
+!>           added code for: incremental (pab and gvg) update
+!>                            initialisation (init_cube, l_info)
+!>      - Joost VandeVondele (02.2002)
+!>           called the poisson code of the classical part
+!>           this takes into account the spherical cutoff and allows for
+!>           isolated systems
+!>      - Joost VandeVondele (02.2002)
+!>           added multiple grid feature
+!>           changed to spherical cutoff consistently (?)
+!>           therefore removed the gradient correct functionals
+!>      - updated with the new QS data structures (10.04.02,MK)
+!>      - copy_matrix replaced by transfer_matrix (11.04.02,MK)
+!>      - nrebuild_rho and nrebuild_gvg unified (12.04.02,MK)
+!>      - set_mo_occupation for smearing of the MO occupation numbers
+!>        (17.04.02,MK)
+!>      - MO level shifting added (22.04.02,MK)
+!>      - Usage of TYPE mo_set_p_type
+!>      - Joost VandeVondele (05.2002)
+!>            added cholesky based diagonalisation
+!>      - 05.2002 added pao method [fawzi]
+!>      - parallel FFT (JGH 22.05.2002)
+!>      - 06.2002 moved KS matrix construction to qs_build_KS_matrix.F [fawzi]
+!>      - started to include more LSD (01.2003,Joost VandeVondele)
+!>      - 02.2003 scf_env [fawzi]
+!>      - got rid of nrebuild (01.2004, Joost VandeVondele)
+!>      - 10.2004 removed pao [fawzi]
+!>      - 03.2006 large cleaning action [Joost VandeVondele]
+!>      - High-spin ROKS added (05.04.06,MK)
+!> \author Matthias Krack (30.04.2001)
+! *****************************************************************************
 MODULE qs_scf
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
@@ -206,40 +195,19 @@ MODULE qs_scf
             init_scf_run, init_scf_loop, qs_scf_loop_do_ot,&
             qs_scf_print_summary
 
-! *****************************************************************************
-
 CONTAINS
 
-!!****f* qs_scf/scf [1.0] *
-!!
-!!   NAME
-!!     scf
-!!
-!!   SYNOPSIS
-!!     Subroutine scf(qs_env, globenv, error)
-!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
-!!       Type(global_environment_type), pointer:: globenv
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine scf
-!!
-!!   FUNCTION
-!!     perform an scf procedure in the given qs_env
-!!
-!!   NOTES
-!!     globenv should be removed
-!!
-!!   ARGUMENTS
-!!     - qs_env: the qs_environment where to perform the scf procedure
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 introduced scf_env, moved real work to scf_env_do_scf [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief perform an scf procedure in the given qs_env
+!> \param qs_env the qs_environment where to perform the scf procedure
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      globenv should be removed
+!> \par History
+!>      02.2003 introduced scf_env, moved real work to scf_env_do_scf [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE scf(qs_env,globenv,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -335,44 +303,23 @@ CONTAINS
     END IF
 
   END SUBROUTINE scf
-!***************************************************************************
 
-!!****f* qs_scf/scf_env_do_scf [1.0] *
-!!
-!!   NAME
-!!     scf_env_do_scf
-!!
-!!   SYNOPSIS
-!!     Subroutine scf_env_do_scf(scf_env, qs_env, globenv, error)
-!!       Type(qs_scf_env_type), Pointer:: scf_env
-!!       Type(global_environment_type), pointer:: globenv
-!!       Type(qs_environment_type), Pointer:: qs_env
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine scf_env_do_scf
-!!
-!!   FUNCTION
-!!     perform an scf loop
-!!
-!!   NOTES
-!!     globenv should be removed
-!!
-!!   ARGUMENTS
-!!     - scf_env: the scf_env where to perform the scf procedure
-!!     - qs_env: the qs_env, the scf_env lives in
-!!     - converged: will be true / false if converged is reached
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Matthias Krack
-!!
-!!   MODIFICATION HISTORY
-!!     long history, see cvs and qs_scf module history
-!!     02.2003 introduced scf_env [fawzi]
-!!     09.2005 Frozen density approximation [TdK]
-!!     06.2007 Check for SCF iteration count early [jgh]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief perform an scf loop
+!> \param scf_env the scf_env where to perform the scf procedure
+!> \param qs_env the qs_env, the scf_env lives in
+!> \param converged will be true / false if converged is reached
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      globenv should be removed
+!> \par History
+!>      long history, see cvs and qs_scf module history
+!>      02.2003 introduced scf_env [fawzi]
+!>      09.2005 Frozen density approximation [TdK]
+!>      06.2007 Check for SCF iteration count early [jgh]
+!> \author Matthias Krack
+! *****************************************************************************
   SUBROUTINE scf_env_do_scf(scf_env,qs_env,globenv,converged,should_stop,error)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -460,8 +407,6 @@ CONTAINS
     IF (output_unit>0) WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") &
             "SCF WAVEFUNCTION OPTIMIZATION"
      
-
-
     ! short cut flags setting the different methods
     gapw = dft_control%qs_control%gapw
     gapw_xc = dft_control%qs_control%gapw_xc
@@ -791,23 +736,12 @@ CONTAINS
 
   END SUBROUTINE scf_env_do_scf
 
-!!****f* qs_scf/qs_scf_loop_do_general_diag *
-!!
-!!   NAME
-!!      qs_scf_loop_do_general_diag
-!!
-!!   FUNCTION
-!!      the inner loop of scf, specific to diagonalization with S matrix
-!!      basically, in goes the ks matrix out goes a new p matrix
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief the inner loop of scf, specific to diagonalization with S matrix
+!>       basically, in goes the ks matrix out goes a new p matrix
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
 SUBROUTINE qs_scf_loop_do_general_diag(scf_env,mos,rho,matrix_ks,&
               matrix_s,scf_control,scf_section, diis_step,use_jacobi,error)
 
@@ -883,23 +817,12 @@ SUBROUTINE qs_scf_loop_do_general_diag(scf_env,mos,rho,matrix_ks,&
 
 END SUBROUTINE qs_scf_loop_do_general_diag
 
-!!****f* qs_scf/qs_scf_loop_do_special_diag *
-!!
-!!   NAME
-!!      qs_scf_loop_do_special_diag
-!!
-!!   FUNCTION
-!!      the inner loop of scf, specific to diagonalization without S matrix
-!!      basically, in goes the ks matrix out goes a new p matrix
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief the inner loop of scf, specific to diagonalization without S matrix
+!>       basically, in goes the ks matrix out goes a new p matrix
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
 SUBROUTINE qs_scf_loop_do_special_diag(scf_env,mos,rho,matrix_ks,scf_control,scf_section, &
                                        diis_step,error)
 
@@ -948,23 +871,12 @@ SUBROUTINE qs_scf_loop_do_special_diag(scf_env,mos,rho,matrix_ks,scf_control,scf
 
 END SUBROUTINE qs_scf_loop_do_special_diag
 
-!!****f* qs_scf/qs_scf_loop_do_ot *
-!!
-!!   NAME
-!!      qs_scf_loop_do_ot
-!!
-!!   FUNCTION
-!!      the inner loop of scf, specific to using to the orbital transformation method
-!!      basically, in goes the ks matrix out goes a new p matrix
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief the inner loop of scf, specific to using to the orbital transformation method
+!>       basically, in goes the ks matrix out goes a new p matrix
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
 SUBROUTINE qs_scf_loop_do_ot(scf_env,mos,rho,mo_derivs,total_energy,&
                              matrix_s,aux_coeff_set,energy_only,has_unit_metric,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -1009,22 +921,12 @@ SUBROUTINE qs_scf_loop_do_ot(scf_env,mos,rho,mo_derivs,total_energy,&
 
 END SUBROUTINE qs_scf_loop_do_ot
 
-!!****f* qs_scf/qs_scf_print_summary *
-!!
-!!   NAME
-!!     qs_scf_print_summary
-!!   FUNCTION
-!!     writes rather detailed summary of densities and energies
-!!     after the SCF
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes rather detailed summary of densities and energies
+!>      after the SCF
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
 SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
                                 scf_env,dft_control,qmmm,gapw,gapw_xc)
 
@@ -1139,22 +1041,11 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,&
 
 END SUBROUTINE qs_scf_print_summary
 
-!!****f* qs_scf/qs_scf_loop_print *
-!!
-!!   NAME
-!!      qs_scf_loop_print
-!!
-!!   FUNCTION
-!!      collects the 'heavy duty' printing tasks out of the SCF loop
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief collects the 'heavy duty' printing tasks out of the SCF loop
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE qs_scf_loop_print(qs_env,scf_env,para_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -1185,7 +1076,6 @@ END SUBROUTINE qs_scf_print_summary
 
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
-
 
     CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, &
                     matrix_ks=matrix_ks,rho=rho,mos=mos, &
@@ -1256,24 +1146,13 @@ END SUBROUTINE qs_scf_print_summary
 
   END SUBROUTINE qs_scf_loop_print
 
-!!****f* qs_scf/init_scf_loop *
-!!
-!!   NAME
-!!       init_scf_loop
-!!
-!!   FUNCTION
-!!       inits those objects needed if you want to restart the scf with, say
-!!       only a new initial guess, or different density functional or ...
-!!       this will happen just before the scf loop starts
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief inits those objects needed if you want to restart the scf with, say
+!>        only a new initial guess, or different density functional or ...
+!>        this will happen just before the scf loop starts
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE init_scf_loop(scf_env,qs_env,scf_section,error)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -1585,24 +1464,13 @@ END SUBROUTINE qs_scf_print_summary
 
   END SUBROUTINE init_scf_loop
 
-!!****f* qs_scf/init_scf_run *
-!!
-!!   NAME
-!!      init_scf_run
-!!
-!!   FUNCTION
-!!      performs those initialisations that need to be done only once
-!!      (e.g. that only depend on the atomic positions)
-!!      this will be called in scf
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief performs those initialisations that need to be done only once
+!>       (e.g. that only depend on the atomic positions)
+!>       this will be called in scf
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE init_scf_run(scf_env, qs_env, scf_section,error)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -1656,7 +1524,6 @@ END SUBROUTINE qs_scf_print_summary
          mos=mos,matrix_ks=matrix_ks, rho=rho, &
          matrix_h=matrix_h,matrix_s=matrix_s, error=error)
 
-
     ! some special checks to eliminate the first problems with restricted
     ! should move earlier I think
     IF (dft_control%restricted) THEN
@@ -1666,7 +1533,6 @@ END SUBROUTINE qs_scf_print_summary
        ENDIF
        CPPrecondition(dft_control%nspins.EQ.2,cp_failure_level,routineP,error,failure)
     ENDIF
-
 
     ! do some assertions here on these matrices having the same structure
     id_equal=ALL((/((matrix_s(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(matrix_s))/))
@@ -1768,31 +1634,17 @@ END SUBROUTINE qs_scf_print_summary
 
   END SUBROUTINE init_scf_run
 
-!!****f* qs_scf/scf_env_check_i_alloc [1.0] *
-!!
-!!   NAME
-!!     scf_env_check_i_alloc
-!!
-!!   FUNCTION
-!!     checks the allocation status of the needed matrixes, and if necessary
-!!     allocate them
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - scf_env: the scf_env to be checked
-!!     - qs_env: the qs_env, the scf_env lives in
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief checks the allocation status of the needed matrixes, and if necessary
+!>      allocate them
+!> \param scf_env the scf_env to be checked
+!> \param qs_env the qs_env, the scf_env lives in
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE scf_env_check_i_alloc(scf_env,qs_env,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1906,7 +1758,6 @@ END SUBROUTINE qs_scf_print_summary
        ! nothing should be done
     ENDIF
 
-
 !   *** Allocate the distributed SCF matrices ***
 
     IF ((.NOT.ASSOCIATED(scf_env%scf_work1)).OR.&
@@ -1922,7 +1773,6 @@ END SUBROUTINE qs_scf_print_summary
             nrow_block=nrow_block,ncol_block=nrow_block,&
             nrow_global=nao, ncol_global=nao,&
             template_fmstruct=ao_mo_fmstruct, error=error)
-
 
        IF (.NOT.ASSOCIATED(scf_env%scf_work1)) THEN
           IF (scf_env%method/=ot_method_nr) THEN
@@ -2008,30 +1858,16 @@ END SUBROUTINE qs_scf_print_summary
 
   END SUBROUTINE scf_env_check_i_alloc
 
-!!****f* qs_scf/scf_env_initial_rho_setup [1.0] *
-!!
-!!   NAME
-!!     scf_env_initial_rho_setup
-!!
-!!   FUNCTION
-!!     Initializes rho and the mos, so that an scf cycle can start
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - scf_env: the scf env in which to do the scf
-!!     - qs_env: the qs env the scf_env lives in
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Initializes rho and the mos, so that an scf cycle can start
+!> \param scf_env the scf env in which to do the scf
+!> \param qs_env the qs env the scf_env lives in
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE scf_env_initial_rho_setup(scf_env, qs_env, scf_section, error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -2118,31 +1954,15 @@ END SUBROUTINE qs_scf_print_summary
 
   END SUBROUTINE scf_env_initial_rho_setup
 
-!***************************************************************************
-
-!!****f* qs_scf/scf_env_cleanup [1.0] *
-!!
-!!   NAME
-!!     scf_env_cleanup
-!!
-!!   FUNCTION
-!!     perform cleanup operations (like releasing temporary storage)
-!!     at the end of the scf
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief perform cleanup operations (like releasing temporary storage)
+!>      at the end of the scf
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE scf_env_cleanup(scf_env,qs_env,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -2220,30 +2040,16 @@ END SUBROUTINE qs_scf_print_summary
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        ENDIF
 
-
     END IF
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE scf_env_cleanup
 
-!!****f* qs_scf/cleanup_scf_loop [1.0] *
-!!
-!!   NAME
-!!     cleanup_scf_loop
-!!
-!!   FUNCTION
-!!     perform cleanup operations at the end of an scf loop
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief perform cleanup operations at the end of an scf loop
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE cleanup_scf_loop(scf_env,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2285,8 +2091,7 @@ END SUBROUTINE qs_scf_print_summary
 
   END SUBROUTINE cleanup_scf_loop
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE qs_scf_loop_do_roks_diag(scf_env,mos,matrix_ks,matrix_s,&
                                       scf_control,scf_section,diis_step,&
                                       orthogonal_basis,error)
@@ -2540,7 +2345,5 @@ END SUBROUTINE qs_scf_print_summary
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qs_scf_loop_do_roks_diag
-
-  ! ***************************************************************************
 
 END MODULE qs_scf

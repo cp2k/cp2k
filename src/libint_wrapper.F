@@ -2,26 +2,16 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!***** cp2k/libint_wrapper [1.0] *
-!!
-!!   NAME
-!!     libint_wrapper
-!!
-!!   FUNCTION
-!!     Interface to the Libint-Library or a c++ wrapper. 
-!!
-!!   NOTES
-!!     IMPORTANT NOTE : this file currently is for a libint configured for
-!!                      LIBINT_MAX_AM 5 and LIBINT_MAX_AM1 4
-!!
-!!   AUTHOR
-!!     Manuel Guidon 
-!!
-!!   MODIFICATION HISTORY
-!!     11.2007 created [Manuel Guidon]
-!!
-!****************************************************************************
 
+! *****************************************************************************
+!> \brief Interface to the Libint-Library or a c++ wrapper. 
+!> \note
+!>      IMPORTANT NOTE : this file currently is for a libint configured for
+!>                       LIBINT_MAX_AM 5 and LIBINT_MAX_AM1 4
+!> \par History
+!>      11.2007 created [Manuel Guidon]
+!> \author Manuel Guidon 
+! *****************************************************************************
 MODULE libint_wrapper
 
 #if defined (__LIBINT)
@@ -113,8 +103,8 @@ MODULE libint_wrapper
   TYPE(C_FUNPTR), DIMENSION(0:build_deriv1_eri_size,0:build_deriv1_eri_size,&
                             0:build_deriv1_eri_size,0:build_deriv1_eri_size), BIND(C) :: build_deriv1_eri
 
-
   INTERFACE
+! *****************************************************************************
     FUNCTION build(lib, np) BIND(C)
       IMPORT
       TYPE(C_PTR)                    :: build
@@ -122,6 +112,7 @@ MODULE libint_wrapper
       INTEGER(KIND=C_INT), VALUE     :: np
     END FUNCTION build
   
+! *****************************************************************************
     FUNCTION init_lib(lib, max_am, np) BIND(C, name="init_libint")
       IMPORT
       INTEGER(KIND=C_INT)            :: init_lib
@@ -130,17 +121,21 @@ MODULE libint_wrapper
       INTEGER(KIND=C_INT), VALUE     :: np
     END FUNCTION init_lib
     
+! *****************************************************************************
     SUBROUTINE init_base() BIND(C, name="init_libint_base")
     END SUBROUTINE init_base
 
+! *****************************************************************************
     SUBROUTINE free_lib_int(lib) BIND(C, name="free_libint")
       IMPORT
       TYPE(lib_int)                  :: lib
     END SUBROUTINE free_lib_int
 
+! *****************************************************************************
     SUBROUTINE init_deriv_base() BIND(C, name="init_libderiv_base")
     END SUBROUTINE init_deriv_base
 
+! *****************************************************************************
     FUNCTION init_deriv1(deriv, max_am, np, ccs) BIND(C, name="init_libderiv1")
       IMPORT
       INTEGER(KIND=C_INT)            :: init_deriv1
@@ -150,12 +145,14 @@ MODULE libint_wrapper
       INTEGER(KIND=C_INT), VALUE     :: ccs
     END FUNCTION init_deriv1
 
+! *****************************************************************************
     SUBROUTINE build_deriv1(deriv, np) BIND(C)
       IMPORT
       TYPE(lib_deriv)                :: deriv
       INTEGER(KIND=C_INT),VALUE      :: np
     END SUBROUTINE build_deriv1
 
+! *****************************************************************************
     SUBROUTINE free_lib_deriv(deriv) BIND(C, name="free_libderiv")
       IMPORT
       TYPE(lib_deriv)                  :: deriv
@@ -164,10 +161,10 @@ MODULE libint_wrapper
   END INTERFACE
 
 !***
-!****************************************************************************
 
   CONTAINS
 
+! *****************************************************************************
   SUBROUTINE initialize_libint(lib,max_am,error)
     TYPE(lib_int)                            :: lib
     INTEGER                                  :: max_am
@@ -192,8 +189,8 @@ MODULE libint_wrapper
                         error,failure)
     ENDIF
   END SUBROUTINE initialize_libint
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE initialize_libderiv(deriv,max_am,error)
     TYPE(lib_deriv)                          :: deriv
     INTEGER                                  :: max_am
@@ -221,22 +218,22 @@ MODULE libint_wrapper
                         error,failure)
     ENDIF
   END SUBROUTINE initialize_libderiv
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE terminate_libint(lib)
     TYPE(lib_int)                            :: lib
 
       CALL free_lib_int(lib)
   END SUBROUTINE terminate_libint
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE terminate_libderiv(deriv)
     TYPE(lib_deriv)                          :: deriv
 
       CALL free_lib_deriv(deriv)
   END SUBROUTINE terminate_libderiv
-!***************************************************************************
  
+! *****************************************************************************
   SUBROUTINE get_eris(n_d, n_c, n_b, n_a, lib, prim, p_work, a_mysize)
     INTEGER, INTENT(IN)                      :: n_d, n_c, n_b, n_a
     TYPE(lib_int)                            :: lib
@@ -254,8 +251,8 @@ MODULE libint_wrapper
     CALL C_F_POINTER(pc_result, p_tmp, a_mysize)
     p_work => p_tmp
   END SUBROUTINE get_eris 
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE get_derivs(n_d, n_c, n_b, n_a, deriv, prim, work_forces, a_mysize)
     INTEGER, INTENT(IN)                      :: n_d, n_c, n_b, n_a
     TYPE(lib_deriv)                          :: deriv
@@ -281,8 +278,6 @@ MODULE libint_wrapper
       ENDDO
     END DO
   END SUBROUTINE get_derivs 
-!***************************************************************************
-
 
 !****************************************************************************!
 !****************************************************************************!
@@ -342,6 +337,7 @@ MODULE libint_wrapper
                             0:build_deriv1_eri_size,0:build_deriv1_eri_size), BIND(C) :: build_deriv1_eri
   
   INTERFACE
+! *****************************************************************************
     FUNCTION wrapper_build_eri(na, nb, nc, nd, lib) BIND(C, name="wrap_to_build_eri")
      IMPORT
      TYPE(C_PTR)                    :: wrapper_build_eri
@@ -349,6 +345,7 @@ MODULE libint_wrapper
      TYPE(lib_int)                  :: lib
    END FUNCTION wrapper_build_eri
   
+! *****************************************************************************
     FUNCTION init_lib(lib, max_am, np) BIND(C, name="init_libint")
       IMPORT
       INTEGER(KIND=C_INT)            :: init_lib
@@ -357,17 +354,21 @@ MODULE libint_wrapper
       INTEGER(KIND=C_INT), VALUE     :: np
     END FUNCTION init_lib
     
+! *****************************************************************************
     SUBROUTINE init_base() BIND(C, name="init_libint_base")
     END SUBROUTINE init_base
 
+! *****************************************************************************
     SUBROUTINE free_lib_int(lib) BIND(C, name="free_libint")
       IMPORT
       TYPE(lib_int)                  :: lib
     END SUBROUTINE free_lib_int
 
+! *****************************************************************************
     SUBROUTINE init_deriv_base() BIND(C, name="init_libderiv_base")
     END SUBROUTINE init_deriv_base
 
+! *****************************************************************************
     FUNCTION init_deriv1(deriv, max_am, np, ccs) BIND(C, name="init_libderiv1")
       IMPORT
       INTEGER(KIND=C_INT)            :: init_deriv1
@@ -377,12 +378,14 @@ MODULE libint_wrapper
       INTEGER(KIND=C_INT), VALUE     :: ccs
     END FUNCTION init_deriv1
 
+! *****************************************************************************
     SUBROUTINE wrapper_build_deriv1_eri(na, nb, nc, nd, deriv) BIND(C, name="wrap_to_build_deriv1_eri")
       IMPORT
       INTEGER(KIND=C_INT)            :: na, nb, nc, nd
       TYPE(lib_deriv)                :: deriv
     END SUBROUTINE wrapper_build_deriv1_eri
 
+! *****************************************************************************
     SUBROUTINE free_lib_deriv(deriv) BIND(C, name="free_libderiv")
       IMPORT
       TYPE(lib_deriv)                  :: deriv
@@ -391,10 +394,10 @@ MODULE libint_wrapper
   END INTERFACE
 
 !***
-!****************************************************************************
 
   CONTAINS
 
+! *****************************************************************************
   SUBROUTINE initialize_libint(lib,max_am,error)
     TYPE(lib_int)                            :: lib
     INTEGER                                  :: max_am
@@ -418,8 +421,8 @@ MODULE libint_wrapper
                         error,failure)
     ENDIF
   END SUBROUTINE initialize_libint
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE initialize_libderiv(deriv,max_am,error)
     TYPE(lib_deriv)                          :: deriv
     INTEGER                                  :: max_am
@@ -447,22 +450,22 @@ MODULE libint_wrapper
                         error,failure)
     ENDIF
   END SUBROUTINE initialize_libderiv
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE terminate_libint(lib)
     TYPE(lib_int)                            :: lib
 
       CALL free_lib_int(lib)
   END SUBROUTINE terminate_libint
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE terminate_libderiv(deriv)
     TYPE(lib_deriv)                          :: deriv
 
       CALL free_lib_deriv(deriv)
   END SUBROUTINE terminate_libderiv
-!***************************************************************************
  
+! *****************************************************************************
   SUBROUTINE get_eris(n_d, n_c, n_b, n_a, lib, prim, p_work, a_mysize)
     INTEGER, INTENT(IN)                      :: n_d, n_c, n_b, n_a
     TYPE(lib_int)                            :: lib
@@ -478,8 +481,8 @@ MODULE libint_wrapper
     CALL C_F_POINTER(pc_result, p_tmp, a_mysize)
     p_work => p_tmp 
   END SUBROUTINE get_eris 
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE get_derivs(n_d, n_c, n_b, n_a, deriv, prim, work_forces, a_mysize)
     INTEGER, INTENT(IN)                      :: n_d, n_c, n_b, n_a
     TYPE(lib_deriv)                          :: deriv
@@ -503,8 +506,6 @@ MODULE libint_wrapper
       ENDDO
     END DO
   END SUBROUTINE get_derivs 
-!***************************************************************************
-
 
 !****************************************************************************!
 !****************************************************************************!
@@ -564,6 +565,7 @@ MODULE libint_wrapper
                             0:build_deriv1_eri_size,0:build_deriv1_eri_size), BIND(C) :: build_deriv1_eri
   
   INTERFACE
+! *****************************************************************************
     FUNCTION wrapper_build_eri(na, nb, nc, nd, lib) BIND(C, name="wrap_to_build_eri")
      IMPORT
      TYPE(C_PTR)                    :: wrapper_build_eri
@@ -571,6 +573,7 @@ MODULE libint_wrapper
      TYPE(lib_int)                  :: lib
    END FUNCTION wrapper_build_eri
   
+! *****************************************************************************
     FUNCTION init_lib(lib, max_am, np) BIND(C, name="init_libint")
       IMPORT
       INTEGER(KIND=C_INT)            :: init_lib
@@ -579,17 +582,21 @@ MODULE libint_wrapper
       INTEGER(KIND=C_INT), VALUE     :: np
     END FUNCTION init_lib
     
+! *****************************************************************************
     SUBROUTINE init_base() BIND(C, name="init_libint_base")
     END SUBROUTINE init_base
 
+! *****************************************************************************
     SUBROUTINE free_lib_int(lib) BIND(C, name="free_libint")
       IMPORT
       TYPE(lib_int)                  :: lib
     END SUBROUTINE free_lib_int
 
+! *****************************************************************************
     SUBROUTINE init_deriv_base() BIND(C, name="init_libderiv_base")
     END SUBROUTINE init_deriv_base
 
+! *****************************************************************************
     FUNCTION init_deriv1(deriv, max_am, np, ccs) BIND(C, name="init_libderiv1")
       IMPORT
       INTEGER(KIND=C_INT)            :: init_deriv1
@@ -599,12 +606,14 @@ MODULE libint_wrapper
       INTEGER(KIND=C_INT), VALUE     :: ccs
     END FUNCTION init_deriv1
 
+! *****************************************************************************
     SUBROUTINE wrapper_build_deriv1_eri(na, nb, nc, nd, deriv) BIND(C, name="wrap_to_build_deriv1_eri")
       IMPORT
       INTEGER(KIND=C_INT)            :: na, nb, nc, nd
       TYPE(lib_deriv)                :: deriv
     END SUBROUTINE wrapper_build_deriv1_eri
 
+! *****************************************************************************
     SUBROUTINE free_lib_deriv(deriv) BIND(C, name="free_libderiv")
       IMPORT
       TYPE(lib_deriv)                  :: deriv
@@ -613,10 +622,10 @@ MODULE libint_wrapper
   END INTERFACE
 
 !***
-!****************************************************************************
 
   CONTAINS
 
+! *****************************************************************************
   SUBROUTINE initialize_libint(lib,max_am,error)
     TYPE(lib_int)                            :: lib
     INTEGER                                  :: max_am
@@ -640,8 +649,8 @@ MODULE libint_wrapper
                         error,failure)
     ENDIF
   END SUBROUTINE initialize_libint
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE initialize_libderiv(deriv,max_am,error)
     TYPE(lib_deriv)                          :: deriv
     INTEGER                                  :: max_am
@@ -669,22 +678,22 @@ MODULE libint_wrapper
                         error,failure)
     ENDIF
   END SUBROUTINE initialize_libderiv
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE terminate_libint(lib)
     TYPE(lib_int)                            :: lib
 
       CALL free_lib_int(lib)
   END SUBROUTINE terminate_libint
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE terminate_libderiv(deriv)
     TYPE(lib_deriv)                          :: deriv
 
       CALL free_lib_deriv(deriv)
   END SUBROUTINE terminate_libderiv
-!***************************************************************************
  
+! *****************************************************************************
   SUBROUTINE get_eris(n_d, n_c, n_b, n_a, lib, prim, p_work, a_mysize)
     INTEGER, INTENT(IN)                      :: n_d, n_c, n_b, n_a
     TYPE(lib_int)                            :: lib
@@ -700,8 +709,8 @@ MODULE libint_wrapper
     CALL C_F_POINTER(pc_result, p_tmp, a_mysize)
     p_work => p_tmp 
   END SUBROUTINE get_eris 
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE get_derivs(n_d, n_c, n_b, n_a, deriv, prim, work_forces, a_mysize)
     INTEGER, INTENT(IN)                      :: n_d, n_c, n_b, n_a
     TYPE(lib_deriv)                          :: deriv
@@ -725,7 +734,6 @@ MODULE libint_wrapper
       ENDDO
     END DO
   END SUBROUTINE get_derivs 
-!***************************************************************************
 
 !****************************************************************************!
 !****************************************************************************!
@@ -748,6 +756,7 @@ MODULE libint_wrapper
 !****************************************************************************!
 
 #elif defined (__XT3)
+! *****************************************************************************
   TYPE prim_data
     REAL(dp)        :: F(prim_data_f_size)
     REAL(dp)        :: U(3,6)
@@ -764,6 +773,7 @@ MODULE libint_wrapper
     REAL(dp)        :: ss_r12_ss
   END TYPE prim_data
         
+! *****************************************************************************
   TYPE lib_int
     INTEGER(int_8)  :: int_stack
     INTEGER(int_8)  :: PrimQuartet
@@ -773,6 +783,7 @@ MODULE libint_wrapper
     INTEGER(int_8)  :: vrr_stack
   END TYPE lib_int
 
+! *****************************************************************************
   TYPE lib_deriv
     INTEGER(int_8)  :: int_stack
     INTEGER(int_8)  :: PrimQuartet
@@ -786,10 +797,10 @@ MODULE libint_wrapper
     INTEGER(int_8)  :: dvtt_stack
   END TYPE lib_deriv
 !***
-!****************************************************************************
   
   CONTAINS
   
+! *****************************************************************************
   SUBROUTINE initialize_libint(lib,max_am,error)
     TYPE(lib_int)                            :: lib
     INTEGER                                  :: max_am
@@ -815,8 +826,8 @@ MODULE libint_wrapper
     ENDIF
 
   END SUBROUTINE initialize_libint
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE initialize_libderiv(deriv,max_am,error)
     TYPE(lib_deriv)                          :: deriv
     INTEGER                                  :: max_am
@@ -845,8 +856,8 @@ MODULE libint_wrapper
                         error,failure)
     ENDIF
   END SUBROUTINE initialize_libderiv
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE terminate_libint(lib)
     TYPE(lib_int)                            :: lib
 
@@ -854,8 +865,8 @@ MODULE libint_wrapper
 
     CALL wrapper_free_libint(lib)
   END SUBROUTINE terminate_libint
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE terminate_libderiv(deriv)
     TYPE(lib_deriv)                          :: deriv
 
@@ -863,8 +874,8 @@ MODULE libint_wrapper
 
     CALL wrapper_free_libderiv(deriv)
   END SUBROUTINE terminate_libderiv
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE get_eris(n_d, n_c, n_b, n_a, lib, prim, p_work, a_mysize)
     INTEGER , INTENT(IN)                    :: n_d, n_c, n_b, n_a
     TYPE(lib_int)                           :: lib
@@ -886,8 +897,8 @@ MODULE libint_wrapper
 #endif
     
   END SUBROUTINE get_eris
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE get_derivs(n_d, n_c, n_b, n_a, deriv, prim, work_forces, a_mysize)
     INTEGER, INTENT(IN)                      :: n_d, n_c, n_b, n_a
     TYPE(lib_deriv)                          :: deriv
@@ -901,9 +912,9 @@ MODULE libint_wrapper
     CALL wrapper_build_deriv1_eri(n_a, n_b, n_c, n_d, deriv, a_mysize(1), work_forces(1,1),prim)
 
   END SUBROUTINE get_derivs
-!***************************************************************************
 
 #elif defined (__PGI) || defined (__AIX)
+! *****************************************************************************
   TYPE prim_data
     REAL(dp)        :: F(prim_data_f_size)
     REAL(dp)        :: U(3,6)
@@ -920,6 +931,7 @@ MODULE libint_wrapper
     REAL(dp)        :: ss_r12_ss
   END TYPE prim_data
         
+! *****************************************************************************
   TYPE lib_int
     INTEGER(int_8)  :: int_stack
     INTEGER(int_8)  :: PrimQuartet
@@ -929,6 +941,7 @@ MODULE libint_wrapper
     INTEGER(int_8)  :: vrr_stack
   END TYPE lib_int
 
+! *****************************************************************************
   TYPE lib_deriv
     INTEGER(int_8)  :: int_stack
     INTEGER(int_8)  :: PrimQuartet
@@ -942,10 +955,10 @@ MODULE libint_wrapper
     INTEGER(int_8)  :: dvtt_stack
   END TYPE lib_deriv
 !***
-!****************************************************************************
   
   CONTAINS
   
+! *****************************************************************************
   SUBROUTINE initialize_libint(lib,max_am,error)
     TYPE(lib_int)                            :: lib
     INTEGER                                  :: max_am
@@ -971,8 +984,8 @@ MODULE libint_wrapper
     ENDIF
 
   END SUBROUTINE initialize_libint
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE initialize_libderiv(deriv,max_am,error)
     TYPE(lib_deriv)                          :: deriv
     INTEGER                                  :: max_am
@@ -1001,8 +1014,8 @@ MODULE libint_wrapper
                         error,failure)
     ENDIF
   END SUBROUTINE initialize_libderiv
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE terminate_libint(lib)
     TYPE(lib_int)                            :: lib
 
@@ -1010,8 +1023,8 @@ MODULE libint_wrapper
 
     CALL wrapper_free_libint(lib)
   END SUBROUTINE terminate_libint
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE terminate_libderiv(deriv)
     TYPE(lib_deriv)                          :: deriv
 
@@ -1019,8 +1032,8 @@ MODULE libint_wrapper
 
     CALL wrapper_free_libderiv(deriv)
   END SUBROUTINE terminate_libderiv
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE get_eris(n_d, n_c, n_b, n_a, lib, prim, p_work, a_mysize)
     INTEGER , INTENT(IN)                    :: n_d, n_c, n_b, n_a
     TYPE(lib_int)                           :: lib
@@ -1041,8 +1054,8 @@ MODULE libint_wrapper
 #endif
     
   END SUBROUTINE get_eris
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE get_derivs(n_d, n_c, n_b, n_a, deriv, prim, work_forces, a_mysize)
     INTEGER, INTENT(IN)                      :: n_d, n_c, n_b, n_a
     TYPE(lib_deriv)                          :: deriv
@@ -1056,8 +1069,6 @@ MODULE libint_wrapper
     CALL wrapper_build_deriv1_eri(n_a, n_b, n_c, n_d, deriv, a_mysize(1), work_forces(1,1),prim)
 
   END SUBROUTINE get_derivs
-!***************************************************************************
-
 
 !COMPILERS
 #endif 
@@ -1073,6 +1084,7 @@ MODULE libint_wrapper
 !LIBINT
 #else
   ! some bogus types to be able to compile without libint being present
+! *****************************************************************************
   TYPE prim_data
     REAL(dp)        :: F(prim_data_f_size)
     REAL(dp)        :: U(3,6)
@@ -1089,6 +1101,7 @@ MODULE libint_wrapper
     REAL(dp)        :: ss_r12_ss
   END TYPE prim_data
         
+! *****************************************************************************
   TYPE lib_int
     REAL(dp)        :: int_stack
     TYPE(prim_data) :: PrimQuartet
@@ -1098,6 +1111,7 @@ MODULE libint_wrapper
     REAL(dp)        :: vrr_stack
   END TYPE lib_int
 
+! *****************************************************************************
   TYPE lib_deriv
     REAL(dp)        :: int_stack
     TYPE(prim_data) :: PrimQuartet
@@ -1111,10 +1125,10 @@ MODULE libint_wrapper
     REAL(dp)        :: dvtt_stack
   END TYPE lib_deriv
 !***
-!****************************************************************************
 
   CONTAINS
 
+! *****************************************************************************
   SUBROUTINE initialize_libint(lib,max_am,error)
     TYPE(lib_int)                            :: lib
     INTEGER                                  :: max_am
@@ -1129,10 +1143,9 @@ MODULE libint_wrapper
     CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
                            " This compiler does not support interfacing to libint." ,error,failure)
 
-
   END SUBROUTINE initialize_libint
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE initialize_libderiv(deriv,max_am,error)
     TYPE(lib_deriv)                          :: deriv
     INTEGER                                  :: max_am
@@ -1147,22 +1160,21 @@ MODULE libint_wrapper
     CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
                            " This compiler does not support interfacing to libint." ,error,failure)
 
-
   END SUBROUTINE initialize_libderiv
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE terminate_libint(lib)
     TYPE(lib_int)                            :: lib
 
   END SUBROUTINE terminate_libint
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE terminate_libderiv(deriv)
     TYPE(lib_deriv)                          :: deriv
 
   END SUBROUTINE terminate_libderiv
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE get_eris(n_d, n_c, n_b, n_a, lib, prim, p_work, a_mysize)
     INTEGER, INTENT(IN)                      :: n_d, n_c, n_b, n_a
     TYPE(lib_int)                            :: lib
@@ -1171,8 +1183,8 @@ MODULE libint_wrapper
     INTEGER                                  :: a_mysize(1)
 
   END SUBROUTINE get_eris
-!***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE get_derivs(n_d, n_c, n_b, n_a, deriv, prim, work_forces, a_mysize)
     INTEGER, INTENT(IN)                      :: n_d, n_c, n_b, n_a
     TYPE(lib_deriv)                          :: deriv
@@ -1182,7 +1194,6 @@ MODULE libint_wrapper
     INTEGER                                  :: a_mysize(1)
 
   END SUBROUTINE get_derivs
-!***************************************************************************
 !LIBINT
 #endif 
 

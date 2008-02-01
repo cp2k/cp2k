@@ -3,25 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_cp2k_poisson *
-!!
-!!   NAME
-!!     input_cp2k_poisson
-!!
-!!   FUNCTION
-!!     function that build the poisson section of the input
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 fusing of poisson_dft and poisson_mm
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief function that build the poisson section of the input
+!> \par History
+!>      03.2006 fusing of poisson_dft and poisson_mm
+!> \author fawzi
+! *****************************************************************************
 MODULE input_cp2k_poisson
   USE bibliography,                    ONLY: Darden1993,&
                                              Essmann1995,&
@@ -63,29 +50,15 @@ MODULE input_cp2k_poisson
             create_multipole_section,&
             create_ewald_section
 !***
-!****************************************************************************
 CONTAINS
 
-!!****f* input_cp2k_poisson/create_poisson_section [1.0] *
-!!
-!!   NAME
-!!     create_poisson_section
-!!
-!!   FUNCTION
-!!     Creates the Poisson section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the Poisson section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_poisson_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -150,29 +123,14 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_poisson_section
-!***************************************************************************
 
-!***************************************************************************
-!!****f* input_cp2k_poisson/create_multipole_section [1.0] *
-!!
-!!   NAME
-!!     create_multipole_section
-!!
-!!   FUNCTION
-!!     Section to set-up parameters for decoupling using the Bloechl scheme
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** ********************************************************************** 
+! *****************************************************************************
+!> \brief Section to set-up parameters for decoupling using the Bloechl scheme
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_multipole_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -247,26 +205,13 @@ CONTAINS
 
   END SUBROUTINE create_multipole_section
 
-!!****f* input_cp2k_dft/create_mt_section [1.0] *
-!!
-!!   NAME
-!!     create_mt_section
-!!
-!!   FUNCTION
-!!     Creates the Martyna-Tuckerman section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the Martyna-Tuckerman section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_mt_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -310,29 +255,13 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_mt_section
-!***************************************************************************
 
-!!****f* input_cp2k_mm/create_ewald_section *
-!!
-!!   NAME
-!!     create_ewald_section
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: will contain the ewald section 
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \param section will contain the ewald section 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE create_ewald_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -471,26 +400,13 @@ SUBROUTINE create_ewald_section(section,error)
 
   END IF
 END SUBROUTINE create_ewald_section
-!**************************************************************************
-!!****f* input_cp2k_qmmm/create_gspace_interp_section *
-!!
-!!   NAME
-!!     create_gspace_interp_section
-!!
-!!   FUNCTION
-!!     creates the interpolation section for the periodic QM/MM 
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     tlaino
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief creates the interpolation section for the periodic QM/MM 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author tlaino
+! *****************************************************************************
   SUBROUTINE create_gspace_interp_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -571,28 +487,15 @@ END SUBROUTINE create_ewald_section
     END IF
   END SUBROUTINE create_gspace_interp_section
 
-!***************************************************************************
-
-!!****f* input_cp2k_poisson/create_wavelet_section [1.0] *
-!!
-!!   NAME
-!!     create_wavelet_section
-!!
-!!   FUNCTION
-!!     Creates the wavelet section
-!!
-!!   NOTES
-!!     this approach is based on the development of T. Deutsch and S. Goedecker
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fschiff
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the wavelet section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      this approach is based on the development of T. Deutsch and S. Goedecker
+!> \author fschiff
+! *****************************************************************************
   SUBROUTINE create_wavelet_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -630,6 +533,5 @@ END SUBROUTINE create_ewald_section
 
     END IF
   END SUBROUTINE create_wavelet_section
-!**************************************************************************
 
 END MODULE input_cp2k_poisson

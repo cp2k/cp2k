@@ -2,22 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****s* cp2k/fist_nonbond_env_types [1.0] *
-!!
-!!   NAME
-!!     fist_nonbond_env_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     HAF
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author HAF
+! *****************************************************************************
 MODULE fist_nonbond_env_types
   USE cell_types,                      ONLY: cell_release,&
                                              cell_type
@@ -43,10 +33,12 @@ MODULE fist_nonbond_env_types
             fist_nonbond_env_get, fist_nonbond_env_create, &
             fist_nonbond_env_retain, fist_nonbond_env_release, pos_type
 
+! *****************************************************************************
   TYPE pos_type
     REAL (KIND=dp) :: r(3)
   END TYPE
 
+! *****************************************************************************
   TYPE fist_nonbond_env_type
     INTEGER :: ref_count, id_nr, natom_types
     INTEGER :: counter, last_update, num_update
@@ -63,36 +55,17 @@ MODULE fist_nonbond_env_types
     TYPE(pos_type), DIMENSION(:), POINTER       :: rcore_last_update_pbc
   END TYPE fist_nonbond_env_type
 
-!!***
-!******************************************************************************
 CONTAINS
 
-!!****f* fist_nonbond_env_types/fist_nonbond_env_get [1.0] *
-!!
-!!   NAME
-!!     fist_nonbond_env_get
-!!
-!!   SYNOPSIS
-!!     Subroutine fist_nonbond_env_set (fist_nonbond_env )
-!!       Type(fist_nonbond_env_type), Pointer:: fist_nonbond_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine fist_nonbond_env_create
-!!
-!!   FUNCTION
-!!     sets a fist_nonbond_env
-!!
-!!   ARGUMENTS
-!!     - fist_nonbond_env: the object to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief sets a fist_nonbond_env
+!> \param fist_nonbond_env the object to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE fist_nonbond_env_get (fist_nonbond_env, potparm, nonbonded,&
        rlist_cutsq, rlist_lowsq, aup, lup, r_last_update, r_last_update_pbc,&
        rshell_last_update_pbc, rcore_last_update_pbc,cell_last_update,num_update,&
@@ -145,32 +118,15 @@ CONTAINS
          long_range_correction = fist_nonbond_env % long_range_correction 
   END SUBROUTINE fist_nonbond_env_get
 
-!!****f* fist_nonbond_env_types/fist_nonbond_env_set [1.0] *
-!!
-!!   NAME
-!!     fist_nonbond_env_set
-!!
-!!   SYNOPSIS
-!!     Subroutine fist_nonbond_env_set (fist_nonbond_env )
-!!       Type(fist_nonbond_env_type), Pointer:: fist_nonbond_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine fist_nonbond_env_create
-!!
-!!   FUNCTION
-!!     sets a fist_nonbond_env
-!!
-!!   ARGUMENTS
-!!     - fist_nonbond_env: the object to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief sets a fist_nonbond_env
+!> \param fist_nonbond_env the object to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE fist_nonbond_env_set ( fist_nonbond_env,  potparm, rlist_cutsq,&
        rlist_lowsq, nonbonded, aup, lup, r_last_update, r_last_update_pbc,&
        rshell_last_update_pbc, rcore_last_update_pbc, cell_last_update, num_update,&
@@ -221,32 +177,15 @@ CONTAINS
          fist_nonbond_env % long_range_correction = long_range_correction
   END SUBROUTINE fist_nonbond_env_set
 
-!!****f* fist_nonbond_env_types/fist_nonbond_env_create [1.0] *
-!!
-!!   NAME
-!!     fist_nonbond_env_create
-!!
-!!   SYNOPSIS
-!!     Subroutine fist_nonbond_env_creat (fist_nonbond_env )
-!!       Type(fist_nonbond_env_type), Pointer:: fist_nonbond_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine fist_nonbond_env_create
-!!
-!!   FUNCTION
-!!     allocates and intitializes a fist_nonbond_env
-!!
-!!   ARGUMENTS
-!!     - fist_nonbond_env: the object to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief allocates and intitializes a fist_nonbond_env
+!> \param fist_nonbond_env the object to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE fist_nonbond_env_create(fist_nonbond_env, potparm, nonbonded14,&
        nonbonded, mm_section, ewald_env, error)
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
@@ -272,27 +211,12 @@ CONTAINS
     END IF
   END SUBROUTINE fist_nonbond_env_create
 
-!!****f* fist_nonbond_env_types/init_fist_nonbond_env [1.0] *
-!!
-!!   NAME
-!!     init_fist_nonbond_env
-!!
-!!
-!!   FUNCTION
-!!     Purpose: Initialise the FIST nonbond environment.
-!!
-!!   ARGUMENTS
-!!     - fist_nonbond_env: the object to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!    
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Purpose: Initialise the FIST nonbond environment.
+!> \param fist_nonbond_env the object to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+! *****************************************************************************
   SUBROUTINE init_fist_nonbond_env ( fist_nonbond_env, potparm, nonbonded14,&
      nonbonded, mm_section, ewald_env, error)
 
@@ -369,35 +293,15 @@ CONTAINS
     END IF
   END SUBROUTINE init_fist_nonbond_env
 
-!!****f* fist_nonbond_env_types/fist_nonbond_env_retain [1.0] *
-!!
-!!   NAME
-!!     fist_nonbond_env_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine fist_nonbond_env_retain(fist_nonbond_env, error)
-!!       Type(fist_nonbond_env_type), Pointer:: fist_nonbond_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine fist_nonbond_env_retain
-!!
-!!   FUNCTION
-!!     retains the given fist_nonbond_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - fist_nonbond_env: the object to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given fist_nonbond_env (see doc/ReferenceCounting.html)
+!> \param fist_nonbond_env the object to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE fist_nonbond_env_retain(fist_nonbond_env,error)
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -415,35 +319,15 @@ CONTAINS
     END IF
   END SUBROUTINE fist_nonbond_env_retain
 
-!!****f* fist_nonbond_env_types/fist_nonbond_env_release [1.0] *
-!!
-!!   NAME
-!!     fist_nonbond_env_release
-!!
-!!   SYNOPSIS
-!!     Subroutine fist_nonbond_env_release(fist_nonbond_env, error)
-!!       Type(fist_nonbond_env_type), Pointer:: fist_nonbond_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine fist_nonbond_env_release
-!!
-!!   FUNCTION
-!!     releases the given fist_nonbond_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - fist_nonbond_env: the object to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given fist_nonbond_env (see doc/ReferenceCounting.html)
+!> \param fist_nonbond_env the object to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE fist_nonbond_env_release(fist_nonbond_env,error)
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -502,4 +386,3 @@ CONTAINS
   END SUBROUTINE fist_nonbond_env_release
 
 END MODULE fist_nonbond_env_types
-!***************************************************************************

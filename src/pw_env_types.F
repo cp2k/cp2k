@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/pw_env_types [1.0] *
-!!
-!!   NAME
-!!     pw_env_types
-!!
-!!   FUNCTION
-!!     container for various plainwaves related things
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     10.2002 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief container for various plainwaves related things
+!> \par History
+!>      10.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE pw_env_types
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              cp_rs_pool_type,&
@@ -55,43 +41,29 @@ MODULE pw_env_types
   PUBLIC :: pw_env_type
   PUBLIC :: pw_env_retain, pw_env_release, pw_env_get, pw_env_flush_cache
 !***
-!****************************************************************************
 
-!!****s* m/pw_env_types [1.0] *
-!!
-!!   NAME
-!!     pw_env_types
-!!
-!!   FUNCTION
-!!     contained for different pw related things
-!!
-!!   NOTES
-!!     be careful in parallel nsmax for the rs_grids is choosen with
-!!     multigrid in mind! (well not as of this writing but...)
-!!
-!!   ATTRIBUTES
-!!     - pw_pools: pools for multigrids
-!!     - rs_pools: pools for the realspace grids
-!!     - xc_pw_pool: the pool used for xc calculation on grid (might be the
-!!       same as the finest, or finer still).
-!!     - gridlevel_info: gaussian gridlevel info
-!!     - cube_info: info on cube and max sphere size for multigrids
-!!     - aux_bas: which multigrid is the auxiliar basis
-!!
-!!     readonly attributes
-!!     - auxbas_pw_pool: a pool that allocates grids in the auxiliary basis
-!!     - auxbas_rs_pool: real space grid in the auxiliary basis, be careful
-!!       in parallel nsmax is choosen with multigrid in mind!
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     10.2002 created [fawzi]
-!!     04.2003 added rs grid pools [fawzi]
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief contained for different pw related things
+!> \param pw_pools pools for multigrids
+!> \param rs_pools pools for the realspace grids
+!> \param xc_pw_pool the pool used for xc calculation on grid (might be the
+!>        same as the finest, or finer still).
+!> \param gridlevel_info gaussian gridlevel info
+!> \param cube_info info on cube and max sphere size for multigrids
+!> \param aux_bas which multigrid is the auxiliar basis
+!> 
+!>      readonly attributes
+!> \param auxbas_pw_pool a pool that allocates grids in the auxiliary basis
+!> \param auxbas_rs_pool real space grid in the auxiliary basis, be careful
+!>        in parallel nsmax is choosen with multigrid in mind!
+!> \note
+!>      be careful in parallel nsmax for the rs_grids is choosen with
+!>      multigrid in mind! (well not as of this writing but...)
+!> \par History
+!>      10.2002 created [fawzi]
+!>      04.2003 added rs grid pools [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE pw_env_type
      INTEGER :: ref_count
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
@@ -102,52 +74,19 @@ MODULE pw_env_types
      INTEGER :: auxbas_grid
      TYPE(pw_poisson_type), POINTER :: poisson_env
   END TYPE pw_env_type
-!!***
-  !****************************************************************************
 
 CONTAINS
 
-!!****f* pw_env_types/pw_env_get [1.0] *
-!!
-!!   NAME
-!!     pw_env_get
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_env_get(pw_env, pw_pools, cube_info,&
-!!         gridlevel_info, auxbas_pw_pool, auxbas_cube_info, auxbas_grid,&
-!!         rs_pools, auxbas_rs_pool, error)
-!!       Type(pw_env_type), Pointer:: pw_env
-!!       Type(pw_pool_p_type), Dimension(:), Pointer, Optional:: pw_pools
-!!       Type(cube_info_type), Dimension(:), Pointer, Optional:: cube_info
-!!       Type(gridlevel_info_type), Pointer, Optional:: gridlevel_info
-!!       Type(pw_pool_type), Pointer, Optional:: auxbas_pw_pool
-!!       Type(cube_info_type), Pointer, Optional:: auxbas_cube_info
-!!       Integer, Intent (OUT), Optional:: auxbas_grid
-!!       Type(cp_rs_pool_p_type), Dimension(:), Pointer, Optional::&
-!!         rs_pools
-!!       Type(cp_rs_pool_type), Pointer, Optional:: auxbas_rs_pool
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pw_env_get
-!!
-!!   FUNCTION
-!!     returns the various attributes of the pw env
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pw_env: the einvironment you want info about
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!     For the other see the attributes of pw_env_type
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     10.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the various attributes of the pw env
+!> \param pw_env the einvironment you want info about
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!>      For the other see the attributes of pw_env_type
+!> \par History
+!>      10.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
      auxbas_pw_pool,auxbas_cube_info,auxbas_grid,rs_pools,auxbas_rs_pool,&
      xc_pw_pool, poisson_env,error)
@@ -193,37 +132,16 @@ SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
      IF (PRESENT(poisson_env)) poisson_env => pw_env%poisson_env
   END IF
 END SUBROUTINE pw_env_get
-!***************************************************************************
 
-!!****f* pw_env_types/pw_env_retain [1.0] *
-!!
-!!   NAME
-!!     pw_env_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_env_retain(pw_env, error)
-!!       Type(pw_env_type), Pointer:: pw_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pw_env_retain
-!!
-!!   FUNCTION
-!!     retains the pw_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pw_env: the pw_env to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     10.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the pw_env (see doc/ReferenceCounting.html)
+!> \param pw_env the pw_env to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE pw_env_retain(pw_env,error)
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -241,37 +159,16 @@ SUBROUTINE pw_env_retain(pw_env,error)
      pw_env%ref_count=pw_env%ref_count+1
   END IF
 END SUBROUTINE pw_env_retain
-!***************************************************************************
 
-!!****f* pw_env_types/pw_env_release [1.0] *
-!!
-!!   NAME
-!!     pw_env_release
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_env_release(pw_env, error)
-!!       Type(pw_env_type), Pointer:: pw_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pw_env_release
-!!
-!!   FUNCTION
-!!     releases the given pw_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pw_env: the pw_env to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     10.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given pw_env (see doc/ReferenceCounting.html)
+!> \param pw_env the pw_env to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE pw_env_release(pw_env, kg, error)
     TYPE(pw_env_type), POINTER               :: pw_env
     LOGICAL, OPTIONAL                        :: kg
@@ -320,37 +217,16 @@ SUBROUTINE pw_env_release(pw_env, kg, error)
   END IF
   NULLIFY(pw_env)
 END SUBROUTINE pw_env_release
-!***************************************************************************
 
-!!****f* pw_env_types/pw_env_flush_cache [1.0] *
-!!
-!!   NAME
-!!     pw_env_flush_cache
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_env_flush_cache(pw_env, error)
-!!       Type(pw_env_type), Pointer:: pw_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pw_env_flush_cache
-!!
-!!   FUNCTION
-!!     flushes the cached pws
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pw_env: the pw_env to be flushed
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief flushes the cached pws
+!> \param pw_env the pw_env to be flushed
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      11.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE pw_env_flush_cache(pw_env,error)
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -372,6 +248,5 @@ SUBROUTINE pw_env_flush_cache(pw_env,error)
      END IF
   END IF
 END SUBROUTINE pw_env_flush_cache
-!***************************************************************************
 
 END MODULE

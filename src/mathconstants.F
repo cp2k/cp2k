@@ -2,25 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/mathconstants [1.0] *
-!!
-!!   NAME
-!!     mathconstants
-!!
-!!   FUNCTION
-!!     Definition of mathematical constants and functions.
-!!
-!!   AUTHOR
-!!     Matthias Krack
-!!
-!!   MODIFICATION HISTORY
-!!     Adapted for use in CP2K (JGH)
-!!     JGH (16-06-2002) : Added Gamma functions
-!!     JGH (10-08-2004) : Added Euler constant (gamma)
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Definition of mathematical constants and functions.
+!> \par History
+!>      Adapted for use in CP2K (JGH)
+!>      JGH (16-06-2002) : Added Gamma functions
+!>      JGH (10-08-2004) : Added Euler constant (gamma)
+!> \author Matthias Krack
+! *****************************************************************************
 MODULE mathconstants
 
   USE kinds,                           ONLY: dp

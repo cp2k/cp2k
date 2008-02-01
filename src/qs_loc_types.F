@@ -3,35 +3,23 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/qs_loc_types [1.0] *
-!!
-!!   NAME
-!!     qs_loc_types
-!!
-!!   FUNCTION
-!!     New version of the module for the localization of the molecular orbitals
-!!     This should be able to use different definition of the spread functional
-!!     It should also calculate the integrals analytically so that it can be
-!!     used irrespective of the pw_env and the collocation of wfn on the grids
-!!     It should also work with a selected set of states, instead than all of them,
-!!     in this case one should check that the selected states have the same occupation number
-!!     The spread functional can be only estimated, or also optimized by minimization
-!!     and in principle also maximization should be available.
-!!     This operations can be required irrespective of the printing requirements
-!!     It would be highly desirable to do all this along a MD run every N steps,
-!!     and have a trajectory of the centeroids of the localized wfn
-!!     In addition these functions can be used for properties calculations
-!!     like NMR and XAS. Therefore it is necessary that the rotated wfn are then copied
-!!     in the mos fm matrix to be available for next use.
-!!
-!!   AUTHORS
-!!     MI (05-2005)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief New version of the module for the localization of the molecular orbitals
+!>      This should be able to use different definition of the spread functional
+!>      It should also calculate the integrals analytically so that it can be
+!>      used irrespective of the pw_env and the collocation of wfn on the grids
+!>      It should also work with a selected set of states, instead than all of them,
+!>      in this case one should check that the selected states have the same occupation number
+!>      The spread functional can be only estimated, or also optimized by minimization
+!>      and in principle also maximization should be available.
+!>      This operations can be required irrespective of the printing requirements
+!>      It would be highly desirable to do all this along a MD run every N steps,
+!>      and have a trajectory of the centeroids of the localized wfn
+!>      In addition these functions can be used for properties calculations
+!>      like NMR and XAS. Therefore it is necessary that the rotated wfn are then copied
+!>      in the mos fm matrix to be available for next use.
+!> \author MI (05-2005)
+! *****************************************************************************
 MODULE qs_loc_types
 
   USE cell_types,                      ONLY: cell_release,&
@@ -66,7 +54,6 @@ MODULE qs_loc_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_types'
 
-
 ! *** Public ***
   PUBLIC :: qs_loc_env_create, qs_loc_env_destroy, &
             qs_loc_env_release, qs_loc_env_retain, &
@@ -74,47 +61,34 @@ MODULE qs_loc_types
   PUBLIC :: qs_loc_env_new_type
 
 !****t* qs_loc_types/qs_loc_env_new_type [1.0] *
-!!
-!!   NAME
-!!     qs_loc_env_new_type
-!!
-!!   FUNCTION
-!!     contains all the info needed by quickstep to calculate
-!!     the spread of a selectedset of orbitals and if required
-!!     to minimize or mazimize the spread by rotation of the orbitals
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     para_env: info for the distribution of the calculations
-!!     mo_coeff: full matrix containing only the selected subset of orbitals
-!!     local_molecules: molecules distributed
-!!     cell : box that contains the system
-!!     localized_wfn_control: variables and parameter that define the spread
-!!                            functional and the optimization algorithm
-!!     particle_set: position, type, ao_indexes etc for each atom
-!!     op_sm_set: set of sparse matrices used to define the spread operator
-!!                 when the functional is defined by the use operator acting on the
-!!                 basis functions, e.g. the Berry phase definition
-!!                 The matrix element of the type <a|O|b> are computed in initialization
-!!                 of qs_loc_env
-!!     op_fm_set: set of full matrices used to define the spread operator
-!!                when the functional has to be defined directly using the products of MOS
-!!                as in the case of the Pipek-Mezek definition.
-!!     weights: for a spread defined as extension of the orbitral in the box, these
-!!              factors renormilize with respect to the box size 
-!!
-!!   NOTE
-!!     this type should replace the previous set up for the localization of the wfn
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     04-05 created
-!!
-!!*** *********************************************************************
+
+! *****************************************************************************
+!> \brief contains all the info needed by quickstep to calculate
+!>      the spread of a selectedset of orbitals and if required
+!>      to minimize or mazimize the spread by rotation of the orbitals
+!> \param para_env info for the distribution of the calculations
+!> \param mo_coeff full matrix containing only the selected subset of orbitals
+!> \param local_molecules molecules distributed
+!> \param cell box that contains the system
+!> \param localized_wfn_control variables and parameter that define the spread
+!>                             functional and the optimization algorithm
+!> \param particle_set position, type, ao_indexes etc for each atom
+!> \param op_sm_set set of sparse matrices used to define the spread operator
+!>                  when the functional is defined by the use operator acting on the
+!>                  basis functions, e.g. the Berry phase definition
+!>                  The matrix element of the type <a|O|b> are computed in initialization
+!>                  of qs_loc_env
+!> \param op_fm_set set of full matrices used to define the spread operator
+!>                 when the functional has to be defined directly using the products of MOS
+!>                 as in the case of the Pipek-Mezek definition.
+!> \param weights for a spread defined as extension of the orbitral in the box, these
+!>               factors renormilize with respect to the box size 
+!> \note
+!>      this type should replace the previous set up for the localization of the wfn
+!> \par History
+!>      04-05 created
+!> \author MI
+! *****************************************************************************
   TYPE qs_loc_env_new_type
      INTEGER :: ref_count
      LOGICAL :: molecular_states, do_localize
@@ -139,19 +113,12 @@ MODULE qs_loc_types
 CONTAINS
 
 !****f* qs_loc_types/qs_loc_env_create [1.0] *
-!!
-!!   NAME
-!!     qs_loc_env_create
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     04-05 created
-!!
-!!*** *********************************************************************
+
+! *****************************************************************************
+!> \par History
+!>      04-05 created
+!> \author MI
+! *****************************************************************************
   SUBROUTINE qs_loc_env_create(qs_loc_env,error)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
@@ -188,19 +155,12 @@ CONTAINS
   END SUBROUTINE qs_loc_env_create
 
 !****f* qs_loc_types/qs_loc_env_destroy [1.0] *
-!!
-!!   NAME
-!!    qs_loc_env_destroy 
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     04-05 created
-!!
-!!*** *********************************************************************
+
+! *****************************************************************************
+!> \par History
+!>      04-05 created
+!> \author MI
+! *****************************************************************************
   SUBROUTINE qs_loc_env_destroy(qs_loc_env,error)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
@@ -261,19 +221,12 @@ CONTAINS
   END SUBROUTINE qs_loc_env_destroy
 
 !****f* qs_loc_types/qs_loc_env_release [1.0] *
-!!
-!!   NAME
-!!    qs_loc_env_release 
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     04-05 created
-!!
-!!*** *********************************************************************
+
+! *****************************************************************************
+!> \par History
+!>      04-05 created
+!> \author MI
+! *****************************************************************************
   SUBROUTINE qs_loc_env_release(qs_loc_env,error)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
@@ -296,19 +249,12 @@ CONTAINS
   END SUBROUTINE qs_loc_env_release
 
 !****f* qs_loc_types/qs_loc_env_retain [1.0] *
-!!
-!!   NAME
-!!    qs_loc_env_retain 
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     04-05 created
-!!
-!!*** *********************************************************************
+
+! *****************************************************************************
+!> \par History
+!>      04-05 created
+!> \author MI
+! *****************************************************************************
   SUBROUTINE qs_loc_env_retain(qs_loc_env,error)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
@@ -329,19 +275,12 @@ CONTAINS
   END SUBROUTINE qs_loc_env_retain
 
 !****f* qs_loc_types/get_qs_loc_env [1.0] *
-!!
-!!   NAME
-!!    get_qs_loc_env 
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     04-05 created
-!!
-!!*** *********************************************************************
+
+! *****************************************************************************
+!> \par History
+!>      04-05 created
+!> \author MI
+! *****************************************************************************
   SUBROUTINE get_qs_loc_env(qs_loc_env,cell,local_molecules,localized_wfn_control,&
        moloc_coeff,op_sm_set,op_fm_set,para_env,particle_set,weights,error)
 
@@ -388,19 +327,12 @@ CONTAINS
   END SUBROUTINE get_qs_loc_env
 
 !****f* qs_loc_types/set_qs_loc_env [1.0] *
-!!
-!!   NAME
-!!    set_qs_loc_env 
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     04-05 created
-!!
-!!*** *********************************************************************
+
+! *****************************************************************************
+!> \par History
+!>      04-05 created
+!> \author MI
+! *****************************************************************************
   SUBROUTINE set_qs_loc_env(qs_loc_env,cell,local_molecules,localized_wfn_control,&
        moloc_coeff,op_sm_set,op_fm_set,para_env,particle_set,weights,error)
 

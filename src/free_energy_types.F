@@ -3,27 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/free_energy_types *
-!!
-!!   NAME
-!!     free_energy_types
-!!
-!!   FUNCTION
-!!    defines types for metadynamics calculation
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!     01.2007 created [tlaino] Teodoro Laino
-!!
-!!   SOURCE
-!!
-!****************************************************************************
+! *****************************************************************************
+!> \brief defines types for metadynamics calculation
+!> \par History
+!>      01.2007 created [tlaino] Teodoro Laino
+! *****************************************************************************
 MODULE free_energy_types
   USE f77_blas
   USE input_constants,                 ONLY: do_fe_ac,&
@@ -43,12 +27,13 @@ MODULE free_energy_types
 
   PUBLIC :: free_energy_type, fe_env_release, fe_env_create, ui_var_type
 
-
+! *****************************************************************************
   TYPE ui_var_type
      REAL(KIND=dp), DIMENSION(:), POINTER  :: ss 
      INTEGER       :: icolvar
   END TYPE ui_var_type
 
+! *****************************************************************************
   TYPE free_energy_type
      INTEGER       :: ncolvar, TYPE
      REAL(KIND=dp) :: eps_conv
@@ -58,25 +43,12 @@ MODULE free_energy_types
 
 CONTAINS
 
-!!****f* free_energy_types/fe_env_create *
-!!
-!!   NAME
-!!     fe_env_create
-!!
-!!   FUNCTION
-!!     creates the fe_env
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino 01.2007
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the fe_env
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Teodoro Laino 01.2007
+! *****************************************************************************
   SUBROUTINE fe_env_create(fe_env,motion_section,error)
     TYPE(free_energy_type), POINTER          :: fe_env
     TYPE(section_vals_type), POINTER         :: motion_section
@@ -132,25 +104,12 @@ CONTAINS
     END IF
   END SUBROUTINE fe_env_create
 
-!!****f* free_energy_types/fe_env_release *
-!!
-!!   NAME
-!!     fe_env_release
-!!
-!!   FUNCTION
-!!     releases the fe_env
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Laino Teodoro 01.2007
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the fe_env
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Laino Teodoro 01.2007
+! *****************************************************************************
   SUBROUTINE fe_env_release(fe_env,error)
     TYPE(free_energy_type), POINTER          :: fe_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -182,6 +141,5 @@ CONTAINS
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     END IF
   END SUBROUTINE fe_env_release
-  !***************************************************************************
 
 END MODULE free_energy_types

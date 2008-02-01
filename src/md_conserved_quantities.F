@@ -2,23 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/md_conserved_quantities [1.0] *
-!!
-!!   NAME
-!!     conserved_quantities
-!!
-!!   FUNCTION
-!!     computes the conserved quantities for a given md ensemble
-!!     and also kinetic energies, thermo/barostat stuff
-!!
-!!   AUTHOR
-!!     gtb, 05.02.2003
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief computes the conserved quantities for a given md ensemble
+!>      and also kinetic energies, thermo/barostat stuff
+!> \author gtb, 05.02.2003
+! *****************************************************************************
 MODULE md_conserved_quantities
 
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
@@ -66,38 +55,26 @@ MODULE md_conserved_quantities
   PUBLIC :: compute_conserved_quantity
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_conserved_quantities'
 
-  !******************************************************************************
 CONTAINS
 
-  !!*****************************************************************************
-  !!******
-  !!
-  !!   NAME
-  !!     compute_conserved_quantity
-  !!
-  !!   FUNCTION
-  !!     calculates conserved quantity.
-  !!
-  !!   INPUT ARGUMENTS
-  !!    md_env is the md_environment
-  !!    epot is the total potential energy
-  !!   OUTPUT ARGUMENTS
-  !!    cons is the conserved quantity
-  !!   OUTPUT OPTIONAL ARGUMENTS
-  !!    cons_rel : relative cons. quantity (to the first md step)
-  !!    ekin : kinetic energy of particles
-  !!    temp : temperature
-  !!    temp_qm : temperature of the QM system in a QM/MM calculation
-  !!    ekin_coefs : ke of the coefficients (KG code)
-  !!    temp_coefs : temperature of the coefficients (KG code)
-  !!
-  !!   AUTHOR
-  !!    gloria
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** *************************************************************************
+! *****************************************************************************
+!> \brief calculates conserved quantity.
+!> \par Input Arguments
+!>     md_env is the md_environment
+!>     epot is the total potential energy
+!> \par Output Arguments
+!>     cons is the conserved quantity
+!> \par Output Optional Arguments
+!>     cons_rel : relative cons. quantity (to the first md step)
+!>     ekin : kinetic energy of particles
+!>     temp : temperature
+!>     temp_qm : temperature of the QM system in a QM/MM calculation
+!>     ekin_coefs : ke of the coefficients (KG code)
+!>     temp_coefs : temperature of the coefficients (KG code)
+!> \par History
+!>      none
+!> \author gloria
+! *****************************************************************************
   SUBROUTINE compute_conserved_quantity (md_env, md_ener, tkind, tcoeff, tshell, natom, error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), POINTER              :: md_ener
@@ -120,7 +97,6 @@ CONTAINS
 
     NULLIFY(itimes, para_env, simpar)
     
-
     CALL zero_md_ener(md_ener, tkind, tshell, error=error)
 
     myqmmm = .FALSE.
@@ -205,22 +181,12 @@ CONTAINS
 
   END SUBROUTINE compute_conserved_quantity
 
-  !******************************************************************************
-  !!******
-  !!
-  !!   NAME
-  !!     get_econs_nve
-  !!
-  !!   FUNCTION
-  !!     calculates conserved quantity for nvt ensemble
-  !!
-  !!   AUTHOR
-  !!    gloria
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** *************************************************************************
+! *****************************************************************************
+!> \brief calculates conserved quantity for nvt ensemble
+!> \par History
+!>      none
+!> \author gloria
+! *****************************************************************************
   SUBROUTINE get_econs_nve ( md_env, md_ener, para_env, error )
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), INTENT(inout)        :: md_ener
@@ -258,25 +224,14 @@ CONTAINS
          md_ener%thermostat_shell_kin, para_env, error=error )
     md_ener%constant = md_ener%constant + md_ener%thermostat_shell_kin + md_ener%thermostat_shell_pot
 
-
   END SUBROUTINE get_econs_nve
 
-  !******************************************************************************
-  !!******
-  !!
-  !!   NAME
-  !!     get_econs_nvt
-  !!
-  !!   FUNCTION
-  !!     calculates conserved quantity for nvt ensemble
-  !!
-  !!   AUTHOR
-  !!    gloria
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** *************************************************************************
+! *****************************************************************************
+!> \brief calculates conserved quantity for nvt ensemble
+!> \par History
+!>      none
+!> \author gloria
+! *****************************************************************************
   SUBROUTINE get_econs_nvt ( md_env, md_ener,  para_env, error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), INTENT(inout)        :: md_ener
@@ -314,22 +269,12 @@ CONTAINS
 
   END SUBROUTINE get_econs_nvt
 
-  !******************************************************************************
-  !!******
-  !!
-  !!   NAME
-  !!     get_econs_npt
-  !!
-  !!   FUNCTION
-  !!     calculates conserved quantity for npt ensemble
-  !!
-  !!   AUTHOR
-  !!     gloria
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*****************************************************************************
+! *****************************************************************************
+!> \brief calculates conserved quantity for npt ensemble
+!> \par History
+!>      none
+!> \author gloria
+! *****************************************************************************
   SUBROUTINE get_econs_npt ( md_env, md_ener, para_env, error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), INTENT(inout)        :: md_ener
@@ -370,22 +315,12 @@ CONTAINS
 
   END SUBROUTINE get_econs_npt
 
-  !******************************************************************************
-  !!******
-  !!
-  !!   NAME
-  !!     get_econs_nph_uniaxial
-  !!
-  !!   FUNCTION
-  !!     calculates conserved quantity for nph_uniaxial
-  !!
-  !!   AUTHOR
-  !!     cjm
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*****************************************************************************
+! *****************************************************************************
+!> \brief calculates conserved quantity for nph_uniaxial
+!> \par History
+!>      none
+!> \author cjm
+! *****************************************************************************
   SUBROUTINE get_econs_nph_uniaxial ( md_env, md_ener,  error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), INTENT(inout)        :: md_ener
@@ -406,22 +341,12 @@ CONTAINS
     md_ener%constant = md_ener%ekin + md_ener%epot + md_ener%baro_kin + md_ener%baro_pot
   END SUBROUTINE get_econs_nph_uniaxial
 
-  !******************************************************************************
-  !!****** md_conserved_quantity/get_baro_energies [1.0] *
-  !!
-  !!   NAME
-  !!     get_baro_energies
-  !!
-  !!   FUNCTION
-  !!     Calculates kinetic energy and potential of barostat
-  !!
-  !!   AUTHOR
-  !!     CJM
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** *************************************************************************
+! *****************************************************************************
+!> \brief Calculates kinetic energy and potential of barostat
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE get_baro_energies ( box, simpar, npt, baro_kin, baro_pot, error )
 
     TYPE(cell_type), INTENT(IN)              :: box
@@ -468,22 +393,12 @@ CONTAINS
 
   END SUBROUTINE get_baro_energies
 
-  !******************************************************************************
-  !!****** md_conserved_quantity/get_part_ke [1.0] *
-  !!
-  !!   NAME
-  !!     get_part_ke
-  !!
-  !!   FUNCTION
-  !!     Calculates kinetic energy of particles
-  !!
-  !!   AUTHOR
-  !!     CJM
-  !!
-  !!   MODIFICATION HISTORY
-  !!     none
-  !!
-  !!*** *************************************************************************
+! *****************************************************************************
+!> \brief Calculates kinetic energy of particles
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE get_part_ke ( md_env, md_ener, tkind, tshell, group, error) 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), POINTER              :: md_ener
@@ -595,7 +510,6 @@ CONTAINS
                 md_ener%vcom(3) = md_ener%vcom(3) + particle_set(iparticle)%v(3)*mass
                 md_ener%total_mass = md_ener%total_mass + mass
 
-
                 md_ener%ekin = md_ener%ekin +  ekin_com
       IF(tkind) THEN
                 md_ener%ekin_kind(iparticle_kind) = md_ener%ekin_kind(iparticle_kind) + ekin_com
@@ -663,22 +577,12 @@ CONTAINS
     END IF
   END SUBROUTINE get_part_ke
 
-  !******************************************************************************
-  !!****** md_conserved_quantity/get_coef_ke [1.0] *
-  !!
-  !!   NAME
-  !!     get_coef_ke
-  !!
-  !!   FUNCTION
-  !!     Calculates kinetic energy of coefs
-  !!
-  !!   AUTHOR
-  !!     CJM
-  !!
-  !!   MODIFICATION HISTORY
-  !!     gt 06-02-04 adapted to new dynamical coeffs type
-  !!
-  !!*****************************************************************************
+! *****************************************************************************
+!> \brief Calculates kinetic energy of coefs
+!> \par History
+!>      gt 06-02-04 adapted to new dynamical coeffs type
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE get_coef_ke ( dyn_coeff_set, ekinc, ctemp, group, error )
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
@@ -725,7 +629,5 @@ CONTAINS
     ctemp=2.0_dp*ekinc/REAL(ncoefs,dp)
 
   END SUBROUTINE get_coef_ke
-  !******************************************************************************
 
 END MODULE md_conserved_quantities
-!******************************************************************************

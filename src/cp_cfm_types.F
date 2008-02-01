@@ -3,25 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/cp_cfm_types [1.0] *
-!!
-!!   NAME
-!!     cp_cfm_types
-!!
-!!   FUNCTION
-!!     represent a complex full matrix distribued on many processors
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Joost VandeVondele, based on Fawzi's cp_fm_* routines
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief represent a complex full matrix distribued on many processors
+!> \author Joost VandeVondele, based on Fawzi's cp_fm_* routines
+! *****************************************************************************
 MODULE cp_cfm_types
 
   USE cp_blacs_calls,                  ONLY: cp_blacs_zgebr2d,&
@@ -46,39 +31,24 @@ MODULE cp_cfm_types
 
   INTEGER,SAVE,PRIVATE :: last_cfm_id_nr=0
 
-
   PUBLIC :: cp_cfm_type, cp_cfm_p_type
   PUBLIC :: cp_cfm_create, cp_cfm_retain, cp_cfm_release,&
        cp_cfm_init_random, cp_cfm_set_element, cp_cfm_set_all,&
        cp_cfm_get_info, cp_cfm_get_element, cp_cfm_to_cfm
 !***
-!****************************************************************************
 
-!!****s* cp_fm_types/cp_cfm_type [1.0] *
-!!
-!!   NAME
-!!     cp_cfm_type
-!!
-!!   FUNCTION
-!!     represent a complex full matrix
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - name: the name of the matrix, used for printing
-!!     - id_nr: identification number that makes this matrix unique
-!!     - ref_cont: reference count (see doc/ReferenceCounting.html)
-!!     - print_count: sequential number to make the printed files unique
-!!     - matrix_struct: structure of this matrix
-!!     - local_data: array with the data of the matrix (its contents
-!!       depend on the matrix type used: in parallel runs it will be
-!!       in scalapack format, in sequential, it will simply contain
-!!       the matrix)
-!!
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief represent a complex full matrix
+!> \param name the name of the matrix, used for printing
+!> \param id_nr identification number that makes this matrix unique
+!> \param ref_cont reference count (see doc/ReferenceCounting.html)
+!> \param print_count sequential number to make the printed files unique
+!> \param matrix_struct structure of this matrix
+!> \param local_data array with the data of the matrix (its contents
+!>        depend on the matrix type used: in parallel runs it will be
+!>        in scalapack format, in sequential, it will simply contain
+!>        the matrix)
+! *****************************************************************************
   TYPE cp_cfm_type
 !    PRIVATE
      CHARACTER(LEN=60) :: name
@@ -86,60 +56,26 @@ MODULE cp_cfm_types
      TYPE(cp_fm_struct_type), POINTER :: matrix_struct
      COMPLEX(KIND = dp), DIMENSION(:,:), POINTER :: local_data
   END TYPE cp_cfm_type
-!!***
-  !****************************************************************************
 
-!!****s* cp_cfm_types/cp_cfm_p_type [1.0] *
-!!
-!!   NAME
-!!     cp_cfm_p_type
-!!
-!!   FUNCTION
-!!     just to build arrays of pointers to matrixes
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - matrix: the pointer to the matrix
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief just to build arrays of pointers to matrixes
+!> \param matrix the pointer to the matrix
+! *****************************************************************************
   TYPE cp_cfm_p_type
      TYPE(cp_cfm_type), POINTER :: matrix
   END TYPE cp_cfm_p_type
-!!***
-  !****************************************************************************
 
 CONTAINS
 
-!!****f* cp_fm_types/cp_cfm_create [1.0] *
-!!
-!!   NAME
-!!     cp_cfm_create
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_cfm_create(matrix, matrix_struct, name, error)
-!!       Type(cp_cfm_type), Pointer:: matrix
-!!       Type(cp_fm_struct_type), Pointer:: matrix_struct
-!!       Character(Len=*), Intent (IN), Optional:: name
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_cfm_create
-!!
-!!   FUNCTION
-!!     creates a new full matrix with the given structure
-!!
-!!   NOTES
-!!     preferred allocation routine
-!!
-!!   INPUTS
-!!     - matrix: the matrix to be created
-!!     - matrix_struct: the structure of matrix
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a new full matrix with the given structure
+!> \param matrix the matrix to be created
+!> \param matrix_struct the structure of matrix
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      preferred allocation routine
+! *****************************************************************************
   SUBROUTINE cp_cfm_create(matrix,matrix_struct,name,error)
     TYPE(cp_cfm_type), POINTER               :: matrix
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
@@ -195,31 +131,13 @@ CPSourceFileRef,&
        END IF
     END IF
   END SUBROUTINE cp_cfm_create
-!***************************************************************************
 
-!!****f* cp_fm_types/cp_cfm_retain [1.0] *
-!!
-!!   NAME
-!!     cp_cfm_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_cfm_retain(matrix, error)
-!!       Type(cp_cfm_type), Pointer:: matrix
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_cfm_retain
-!!
-!!   FUNCTION
-!!     retains a full matrix
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - matrix: the matrix to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains a full matrix
+!> \param matrix the matrix to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE cp_cfm_retain(matrix,error)
     TYPE(cp_cfm_type), POINTER               :: matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -237,32 +155,13 @@ CPSourceFileRef,&
        matrix%ref_count=matrix%ref_count+1
     END IF
   END SUBROUTINE cp_cfm_retain
-!***************************************************************************
 
-!!****f* cp_cfm_types/cp_cfm_release [1.0] *
-!!
-!!   NAME
-!!     cp_fm_release
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_cfm_release(matrix, error)
-!!       Type(cp_fm_type), Pointer:: matrix
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_fm_release
-!!
-!!   FUNCTION
-!!     releases a full matrix
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - matrix: the matrix to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases a full matrix
+!> \param matrix the matrix to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE cp_cfm_release(matrix,error)
     TYPE(cp_cfm_type), POINTER               :: matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -291,9 +190,7 @@ CPSourceFileRef,&
     END IF
     NULLIFY(matrix)
   END SUBROUTINE cp_cfm_release
-!***************************************************************************
 
-! *****************************************************************************
 ! init ncol vectors of a full matrix with random numbers
 ! *****************************************************************************
   SUBROUTINE cp_cfm_init_random(matrix,ncol,error)
@@ -356,15 +253,13 @@ CPSourceFileRef,&
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE CP_cFM_INIT_RANDOM
-! *****************************************************************************
 
+! *****************************************************************************
   SUBROUTINE cp_cfm_set_all(matrix,alpha,beta,error)
 
 !   Purpose: Set the FULL matrix elements to alpha.
 
 !   History: - Creation (12.06.2001, Matthias Krack)
-
-!   ***************************************************************************
 
     TYPE(cp_cfm_type), POINTER               :: matrix
     COMPLEX(KIND=dp), INTENT(IN)             :: alpha
@@ -385,30 +280,11 @@ CPSourceFileRef,&
   END SUBROUTINE cp_cfm_set_all
 
 ! *****************************************************************************
-
-!!****f* cp2k/m/s *
-!!
-!!   NAME
-!!     s
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   ARGUMENTS
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   MODIFICATION HISTORY
-!!     , TCH, created
-!!     always return the answer
-!!   SEE ALSO
-!!
-!!
-!!****
+!> \par History
+!>      , TCH, created
+!>      always return the answer
+! *****************************************************************************
   SUBROUTINE cp_cfm_get_element(matrix,irow_global,icol_global,alpha)
-
 
     TYPE(cp_cfm_type), POINTER               :: matrix
     INTEGER, INTENT(IN)                      :: irow_global, icol_global
@@ -450,13 +326,9 @@ CPSourceFileRef,&
   END SUBROUTINE cp_cfm_get_element
 
 ! *****************************************************************************
-
   SUBROUTINE cp_cfm_set_element(matrix,irow_global,icol_global,alpha,error)
 
 !   Purpose: Set the FULL matrix element (irow_global,icol_global) to alpha.
-
-
-!   ***************************************************************************
 
     TYPE(cp_cfm_type), POINTER               :: matrix
     INTEGER, INTENT(IN)                      :: irow_global, icol_global
@@ -499,6 +371,7 @@ CPSourceFileRef,&
 #endif
   END SUBROUTINE cp_cfm_set_element
 
+! *****************************************************************************
   SUBROUTINE cp_cfm_get_info(matrix,name,nrow_global,ncol_global,&
        nrow_block,ncol_block,nrow_local,ncol_local,&
        row_indices,col_indices,local_data,context,&
@@ -509,7 +382,6 @@ CPSourceFileRef,&
 !   indices is an array that maps the local indices to the global ones
 !   local data is a little hole to access the blacs block, needed in some rare cases
 !   for efficient use
-!   ***************************************************************************
 
     TYPE(cp_cfm_type), POINTER        :: matrix
     CHARACTER(LEN=*), OPTIONAL, INTENT(OUT) :: name
@@ -604,30 +476,9 @@ CPSourceFileRef,&
   END SUBROUTINE cp_cfm_get_info
 
 ! *****************************************************************************
-
-!!****f* cp_cfm_types/cp_cfm_to_cfm [1.0] *
-!!
-!!   NAME
-!!     cp_cfm_to_cfm
-!!
-!!   SYNOPSIS
-!!     SUBROUTINE cp_cfm_to_cfm(source,destination,error)
-!!       TYPE(cp_cfm_type), POINTER :: source,destination
-!!       TYPE(cp_error_type), INTENT(inout)  :: error
-!!     END SUBROUTINE
-!!
-!!   FUNCTION
-!!     copy one identically sized matrix in the other
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
+!> \brief copy one identically sized matrix in the other
+!> \author Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE cp_cfm_to_cfm(source,destination,error)
     TYPE(cp_cfm_type), POINTER               :: source, destination
     TYPE(cp_error_type), INTENT(inout)       :: error

@@ -2,21 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/convert_units [1.0] *
-!!
-!!   NAME
-!!     convert_units
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (26-01-2002) : force field parameters are now stored in tables
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      JGH (26-01-2002) : force field parameters are now stored in tables
+! *****************************************************************************
 MODULE convert_units
 
   USE cell_types,                      ONLY: cell_type
@@ -32,32 +22,19 @@ MODULE convert_units
   PRIVATE
   PUBLIC :: convert_to_cp2k_units
 
-!!*****
 !-----------------------------------------------------------------------------!
 
 CONTAINS
 
-!******************************************************************************
-!!****** convert_units/convert_to_cp2k_units [1.0] *
-!!
-!!   NAME
-!!     convert_to_cp2k_units
-!!
-!!   FUNCTION
-!!     Converts user defined input into AU
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Converts user defined input into AU
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
 SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, length,  &
                                    tau_nhc, mass, angle, eps0, l_power, t_power, part, box, &
                                    energy )
-
 
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: unit_char
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: time, temperature, pressure, &
@@ -164,11 +141,7 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
      ENDIF
   END IF
 
-
 END SUBROUTINE convert_to_cp2k_units
-
-!******************************************************************************
 
 END MODULE convert_units
 
-!******************************************************************************

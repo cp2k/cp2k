@@ -2,26 +2,16 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/kg_rho_types [1.0] *
-!!
-!!   NAME
-!!     kg_rho_types
-!!
-!!   FUNCTION
-!!     rho_types
-!!
-!!   AUTHOR
-!!     gloria,30.09.2002, previously in kg_force
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (22-Feb-03) PW grid options added
-!!     gt 16-nov-03 moved initialization in this new module
-!!     12-10-04 contains only the various rho: pw and rs stuff
-!!     has moved in pwrs types
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief rho_types
+!> \par History
+!>      JGH (22-Feb-03) PW grid options added
+!>      gt 16-nov-03 moved initialization in this new module
+!>      12-10-04 contains only the various rho: pw and rs stuff
+!>      has moved in pwrs types
+!> \author gloria,30.09.2002, previously in kg_force
+! *****************************************************************************
 MODULE kg_rho_types
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -38,6 +28,7 @@ MODULE kg_rho_types
   PUBLIC :: kg_rho_type, kg_rho_release, kg_rho_get, &
             kg_rho_retain
 
+! *****************************************************************************
   TYPE kg_rho_type
      INTEGER :: ref_count, id_nr
      REAL(KIND=dp) :: total_rho_gspace, total_rho_core_rspace, &
@@ -53,8 +44,7 @@ MODULE kg_rho_types
 CONTAINS
 
 !-----------------------------------------------------------------------------!
-!!***
-!******************************************************************************
+! *****************************************************************************
 SUBROUTINE kg_rho_get(kg_rho, rho_r, rho_g, rhop_r, rhop_g, &
                       rho_core, error)
     TYPE(kg_rho_type), POINTER               :: kg_rho
@@ -80,7 +70,7 @@ SUBROUTINE kg_rho_get(kg_rho, rho_r, rho_g, rhop_r, rhop_g, &
     IF (PRESENT(rho_core)) rho_core => kg_rho%rho_core
   END IF
 END SUBROUTINE kg_rho_get
-!!**************************************************************************
+! *****************************************************************************
 SUBROUTINE kg_rho_retain(kg_rho,error)
     TYPE(kg_rho_type), POINTER               :: kg_rho
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -98,20 +88,11 @@ SUBROUTINE kg_rho_retain(kg_rho,error)
      kg_rho%ref_count=kg_rho%ref_count+1
   END IF
 END SUBROUTINE kg_rho_retain
-!***************************************************************************
-!!****f* kg_force/release_kg_rho [1.0] *
-!!
-!!   NAME
-!!     release_kg_rho
-!!
-!!   FUNCTION
-!!     releases the memory used by the kg_rho and kg_rho
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*************************************************************************
-  SUBROUTINE kg_rho_release(kg_rho,error)
 
+! *****************************************************************************
+!> \brief releases the memory used by the kg_rho and kg_rho
+! *****************************************************************************
+  SUBROUTINE kg_rho_release(kg_rho,error)
 
     TYPE(kg_rho_type), POINTER               :: kg_rho
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -163,6 +144,4 @@ END SUBROUTINE kg_rho_retain
   CALL timestop(0.0_dp,handle)
   END SUBROUTINE kg_rho_release
 
-!***************************************************************************
 END MODULE kg_rho_types
-!******************************************************************************

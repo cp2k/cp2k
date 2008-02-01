@@ -3,25 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/qs_linres_epr_ownutils *
-!!
-!!   NAME
-!!     qs_linres_epr_ownutils
-!!
-!!   FUNCTION
-!!
-!!   NOTE
-!!
-!!   AUTHOR
-!!      RD
-!!
-!!   MODIFICATION HISTORY
-!!      created 06-2006 [RD]
-!!
-!!   SOURCE
-!!****
-
+! *****************************************************************************
+!> \par History
+!>       created 06-2006 [RD]
+!> \author RD
+! *****************************************************************************
 MODULE qs_linres_epr_ownutils
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -86,24 +72,11 @@ MODULE qs_linres_epr_ownutils
 CONTAINS
 
 ! *****************************************************************************
-!!****** cp2k/qs_linres_epr_utils/epr_g_print
-!!
-!!   NAME
-!!     epr_g_print
-!!
-!!   FUNCTION
-!!     Prints the g tensor
-!!
-!!   NOTES
-!!
-!!   AUTHOR
-!!     RD
-!!
-!!   MODIFICATION HISTORY
-!!     06.2006 created [RD]
-!!
-!****************************************************************************
-
+!> \brief Prints the g tensor
+!> \par History
+!>      06.2006 created [RD]
+!> \author RD
+! *****************************************************************************
   SUBROUTINE epr_g_print(epr_env,qs_env,error)
 
     TYPE(epr_env_type)                       :: epr_env
@@ -225,24 +198,11 @@ CONTAINS
   END SUBROUTINE epr_g_print
 
 ! *****************************************************************************
-!!****** cp2k/qs_linres_epr_utils/epr_g_zke
-!!
-!!   NAME
-!!     epr_g_zke
-!!
-!!   FUNCTION
-!!     Calculate zke part of the g tensor
-!!
-!!   NOTES
-!!
-!!   AUTHOR
-!!     RD
-!!
-!!   MODIFICATION HISTORY
-!!     06.2006 created [RD]
-!!
-!****************************************************************************
-
+!> \brief Calculate zke part of the g tensor
+!> \par History
+!>      06.2006 created [RD]
+!> \author RD
+! *****************************************************************************
   SUBROUTINE epr_g_zke(epr_env,qs_env,error)
 
     TYPE(epr_env_type)                       :: epr_env
@@ -297,24 +257,11 @@ CONTAINS
   END SUBROUTINE epr_g_zke
 
 ! *****************************************************************************
-!!****** cp2k/qs_linres_epr_utils/calculate_jrho_atom
-!!
-!!   NAME
-!!     calculate_jrho_atom
-!!
-!!   FUNCTION
-!!     Calculates atomic currents
-!!
-!!   NOTES
-!!
-!!   AUTHOR
-!!     RD
-!!
-!!   MODIFICATION HISTORY
-!!     06.2006 created [RD]
-!!
-!****************************************************************************
-
+!> \brief Calculates atomic currents
+!> \par History
+!>      06.2006 created [RD]
+!> \author RD
+! *****************************************************************************
   SUBROUTINE calculate_jrho_atom(epr_env,qs_env,iB,idir,error)
 
     TYPE(epr_env_type)                       :: epr_env
@@ -401,24 +348,11 @@ CONTAINS
   END SUBROUTINE calculate_jrho_atom 
 
 ! *****************************************************************************
-!!****** cp2k/qs_linres_epr_utils/epr_g_so
-!!
-!!   NAME
-!!     epr_g_so
-!!
-!!   FUNCTION
-!!     Calculates g_so
-!!
-!!   NOTES
-!!
-!!   AUTHOR
-!!     RD
-!!
-!!   MODIFICATION HISTORY
-!!     06.2006 created [RD]
-!!
-!****************************************************************************
-
+!> \brief Calculates g_so
+!> \par History
+!>      06.2006 created [RD]
+!> \author RD
+! *****************************************************************************
   SUBROUTINE epr_g_so(epr_env,qs_env,error)
 
     TYPE(epr_env_type)                       :: epr_env
@@ -690,24 +624,11 @@ CONTAINS
   END SUBROUTINE epr_g_so
 
 ! *****************************************************************************
-!!****** cp2k/qs_linres_epr_utils/epr_g_soo
-!!
-!!   NAME
-!!     epr_g_soo
-!!
-!!   FUNCTION
-!!     Calculates g_soo (soft part only for now)
-!!
-!!   NOTES
-!!
-!!   AUTHOR
-!!     RD
-!!
-!!   MODIFICATION HISTORY
-!!     06.2006 created [RD]
-!!
-!****************************************************************************
-
+!> \brief Calculates g_soo (soft part only for now)
+!> \par History
+!>      06.2006 created [RD]
+!> \author RD
+! *****************************************************************************
   SUBROUTINE epr_g_soo(epr_env,qs_env,error)
 
     TYPE(epr_env_type)                       :: epr_env

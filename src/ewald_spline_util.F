@@ -2,27 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+! *****************************************************************************
 MODULE ewald_spline_util
-!!****h* cp2k/ewald_spline_util *
-!!
-!!   NAME
-!!    ewald_spline_util
-!!
-!!   FUNCTION
-!!     Setting up the Spline coefficients used to Interpolate the G-Term
-!!     in Ewald sums
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     12.2005 created [tlaino]
-!!
-!!   SOURCE
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief Setting up the Spline coefficients used to Interpolate the G-Term
+!>      in Ewald sums
+!> \par History
+!>      12.2005 created [tlaino]
+!> \author Teodoro Laino
   USE cell_types,                      ONLY: cell_create,&
                                              cell_release,&
                                              cell_type
@@ -64,28 +52,14 @@ MODULE ewald_spline_util
 
 CONTAINS
 
-!!****f* ewald_spline_util/Setup_Ewald_Spline [1.0] *
-!!
-!!   NAME
-!!     Setup_Ewald_Spline
-!!
-!!   FUNCTION
-!!     Setup of the G-space Ewald Term Spline Coefficients
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     12.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Setup of the G-space Ewald Term Spline Coefficients
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE Setup_Ewald_Spline(pw_grid, pw_pool, coeff, LG, gx, gy, gz, hmat, npts,&
        param_section, tag, print_section, para_env, error)
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -145,30 +119,15 @@ CONTAINS
 
   END SUBROUTINE Setup_Ewald_Spline
 
-
-!!****f* ewald_spline_util/eval_pw_TabLR [1.0] *
-!!
-!!   NAME
-!!     eval_pw_TabLR
-!!
-!!   FUNCTION
-!!     Evaluates the function G-Term in reciprocal space on the grid
-!!     and find the coefficients of the Splines
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     12.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Evaluates the function G-Term in reciprocal space on the grid
+!>      and find the coefficients of the Splines
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE eval_pw_TabLR( grid, pw_pool, TabLR, Lg, gx, gy, gz, hmat_mm,&
        param_section, tag, error)
     TYPE(pw_type), POINTER                   :: grid
@@ -277,28 +236,14 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE eval_pw_TabLR
 
-!!****f* ewald_spline_util/check_spline_interp_TabLR [1.0] *
-!!
-!!   NAME
-!!     check_spline_interp_TabLR
-!!
-!!   FUNCTION
-!!     Routine to check the accuracy for the Spline Interpolation
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     12.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Routine to check the accuracy for the Spline Interpolation
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE check_spline_interp_TabLR(hmat_mm, Lg, gx, gy, gz, TabLR,&
        param_section, tag, error)
     REAL(KIND=dp), DIMENSION(3, 3)           :: hmat_mm
@@ -374,8 +319,5 @@ CONTAINS
 
   END SUBROUTINE check_spline_interp_TabLR
 
-
 END MODULE ewald_spline_util
-
-
 

@@ -3,30 +3,16 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/mm_mapping_library [1.0] *
-!!
-!!   NAME
-!!     mm_mapping_library
-!!
-!!   FUNCTION
-!!     Contains the mapping ATOM_KIND -> ELEMENT for the most
-!!     common cases in CHARMM and AMBER
-!!     This should avoid in most cases the need to provide the element
-!!     column in the PDB if in the atom_name column of the PDB is provided
-!!     instead the atom kind
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2006 created [tlaino]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Contains the mapping ATOM_KIND -> ELEMENT for the most
+!>      common cases in CHARMM and AMBER
+!>      This should avoid in most cases the need to provide the element
+!>      column in the PDB if in the atom_name column of the PDB is provided
+!>      instead the atom kind
+!> \par History
+!>      10.2006 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
 MODULE mm_mapping_library
   USE f77_blas
   USE kinds,                           ONLY: default_string_length
@@ -37,11 +23,11 @@ MODULE mm_mapping_library
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mm_mapping_library'
 
+! *****************************************************************************
   TYPE ff_map_type
      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: kind
      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: element
   END TYPE ff_map_type
-
 
   TYPE(ff_map_type), POINTER, PUBLIC :: amber_map,&
                                         charmm_map,&
@@ -51,30 +37,15 @@ MODULE mm_mapping_library
             ff_map_type
 CONTAINS
 
-!!****f* mm_mapping_library/create_ff_map [1.0] *
-!!
-!!   NAME
-!!     create_ff_map
-!!
-!!   FUNCTION
-!!     Initialize arrays for mapping KINDS <-> ELEMENTS
-!!     for major elements in AMBER and CHARMM
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2006 created [tlaino]
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief Initialize arrays for mapping KINDS <-> ELEMENTS
+!>      for major elements in AMBER and CHARMM
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2006 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE create_ff_map(ff_type, error)
     CHARACTER(LEN=*), INTENT(IN)             :: ff_type
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -169,29 +140,14 @@ CONTAINS
 
   END SUBROUTINE create_ff_map
 
-!!****f* mm_mapping_library/destroy_ff_map [1.0] *
-!!
-!!   NAME
-!!     destroy_ff_map
-!!
-!!   FUNCTION
-!!     Deallocates the arrays used for mapping
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2006 created [tlaino]
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief Deallocates the arrays used for mapping
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2006 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE destroy_ff_map(ff_type, error)
     CHARACTER(LEN=*), INTENT(IN)             :: ff_type
     TYPE(cp_error_type), INTENT(inout)       :: error

@@ -2,29 +2,17 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/cube_utils *
-!!
-!!   NAME
-!!     cube_utils
-!!
-!!   FUNCTION
-!!     for a given dr()/dh(r) this will provide the bounds to be used if
-!!     one wants to go over a sphere-subregion of given radius
-!!
-!!   NOTES
-!!     the computation of the exact sphere radius is sensitive to roundoff (e.g.
-!!     compiler optimization level) and hence this small roundoff can result in
-!!     energy difference of about EPS_DEFAULT in QS energies (one gridpoint more or
-!!     less in the density mapping)
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!
-!*** ************************************************************************
 
+! *****************************************************************************
+!> \brief for a given dr()/dh(r) this will provide the bounds to be used if
+!>      one wants to go over a sphere-subregion of given radius
+!> \note
+!>      the computation of the exact sphere radius is sensitive to roundoff (e.g.
+!>      compiler optimization level) and hence this small roundoff can result in
+!>      energy difference of about EPS_DEFAULT in QS energies (one gridpoint more or
+!>      less in the density mapping)
+!> \author Joost VandeVondele
+! *****************************************************************************
 MODULE cube_utils
 
   USE f77_blas
@@ -66,6 +54,7 @@ MODULE cube_utils
 
 CONTAINS
  
+! *****************************************************************************
   SUBROUTINE return_cube_nonortho(info,radius,lb,ub,rp)
 
     TYPE(cube_info_type)                     :: info
@@ -108,6 +97,7 @@ CONTAINS
   END SUBROUTINE return_cube_nonortho
 
 !------------------------------------------------------------------------------
+! *****************************************************************************
   SUBROUTINE return_cube(info,radius,lb_cube,ub_cube,sphere_bounds)
     TYPE(cube_info_type)                     :: info
     REAL(KIND=dp)                            :: radius
@@ -144,6 +134,7 @@ CONTAINS
 
 !------------------------------------------------------------------------------
 
+! *****************************************************************************
   SUBROUTINE destroy_cube_info(info)
     TYPE(cube_info_type)                     :: info
 
@@ -172,6 +163,7 @@ CONTAINS
 
 !------------------------------------------------------------------------------
 
+! *****************************************************************************
   SUBROUTINE init_cube_info(info,dr,dh,dh_inv,ortho,max_radius)
     TYPE(cube_info_type), INTENT(OUT)        :: info
     REAL(KIND=dp), INTENT(IN)                :: dr(3), dh(3,3), dh_inv(3,3)
@@ -288,6 +280,7 @@ CONTAINS
   ! always (this solves the optimisation problems with the intel and nag compiler
   ! in which the counting loops and execution loops above are executed a different
   ! number of times, even at -O1
+! *****************************************************************************
   FUNCTION do_and_hide_it_1(prefactor,i,drmin,dz2,dy2,kg2,jg2) RESULT(res)
     REAL(KIND=dp)                            :: prefactor
     INTEGER                                  :: i
@@ -304,6 +297,7 @@ CONTAINS
     res=do_and_hide_it_2(buf,i,jg2,kg2)
     DEALLOCATE(buf)
   END FUNCTION do_and_hide_it_1
+! *****************************************************************************
   FUNCTION do_and_hide_it_2(buf,i,jg2,kg2) RESULT(res)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buf
     INTEGER                                  :: i, jg2, kg2, res
@@ -311,8 +305,6 @@ CONTAINS
     buf(2)=(i*buf(2))**2
     res = CEILING(-0.1E-7_dp-buf(1)*SQRT(MAX(buf(2)-kg2*buf(3)-jg2*buf(4),0.0_dp)))
   END FUNCTION do_and_hide_it_2
-! *****************************************************************************
 
 END MODULE
 
-! *****************************************************************************

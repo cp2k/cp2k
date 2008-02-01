@@ -2,19 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_rho0_ggrid
-!!
-!!   NAME
-!!     qs_rho0_ggrid
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   SOURCE
-!******************************************************************************
-
-
+! *****************************************************************************
 MODULE qs_rho0_ggrid
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -87,12 +75,9 @@ MODULE qs_rho0_ggrid
 
   PUBLIC :: put_rho0_s_on_grid,rho0_s_grid_create,integrate_vhg0_rspace
 
-!******************************************************************************
-
  CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE put_rho0_s_on_grid(qs_env, atom_set, rho0, tot_rs_int, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -157,7 +142,6 @@ MODULE qs_rho0_ggrid
                         zet0_s=zet0_s,igrid_zet0_s=igrid,&
                         rho0_s_gs=rho0_s_gs, &
                         rho0_s_rs=rho0_s_rs)
-
 
     ! *** set up the rs grid at level igrid
     NULLIFY(rs_grid,pool,pw_pool,coeff_rspace,coeff_gspace)
@@ -258,7 +242,6 @@ MODULE qs_rho0_ggrid
     DEALLOCATE(pab,STAT=istat)
     IF( istat/= 0 ) CALL stop_memory ("put_rho0_s_on_grid","pab")
 
-
     IF(igrid /= auxbas_grid) THEN
       CALL rs_pw_transfer(rs_grid,coeff_rspace%pw,rs2pw)
       CALL rs_pool_give_back_rs(pool,rs_grid,error=error)
@@ -289,7 +272,6 @@ MODULE qs_rho0_ggrid
   END SUBROUTINE  put_rho0_s_on_grid
 
 ! *****************************************************************************
-
   SUBROUTINE rho0_s_grid_create(qs_env, rho0_mpole, tddft, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -363,8 +345,7 @@ MODULE qs_rho0_ggrid
 
   END SUBROUTINE rho0_s_grid_create
 
-!******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE integrate_vhg0_rspace(qs_env, v_rspace, calculate_forces, &
                                    tddft, p_env, error)
 
@@ -774,7 +755,6 @@ MODULE qs_rho0_ggrid
                                   Qlm_gg(ig1,ig2,iso)*hab_sph(iso)
                       END DO
 
-
                     END DO  ! icg
                   END DO  ! iso
 
@@ -803,6 +783,4 @@ MODULE qs_rho0_ggrid
 
   END SUBROUTINE integrate_vhg0_rspace
 
-!******************************************************************************
 END MODULE qs_rho0_ggrid
-!******************************************************************************

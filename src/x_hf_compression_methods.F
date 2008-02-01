@@ -2,25 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!***** cp2k/x_hf_compression_methods [1.0] *
-!!
-!!   NAME
-!!     x_hf_compression_methods
-!!
-!!   FUNCTION
-!!     Contains routines for data compression. PLEASE DO NOT MODIFY. 
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [Manuel Guidon]
-!!
-!****************************************************************************
 
+! *****************************************************************************
+!> \brief Contains routines for data compression. PLEASE DO NOT MODIFY. 
+!> \par History
+!>      10.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
 MODULE x_hf_compression_methods
   
   USE f77_blas
@@ -66,6 +54,7 @@ MODULE x_hf_compression_methods
 
   CONTAINS
 
+! *****************************************************************************
   SUBROUTINE ints2ints(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -78,6 +67,7 @@ MODULE x_hf_compression_methods
   ! Ndata         : number of ints that need to be extracted from the bit stream
   ! packed_data   : the stream of bits
   ! full_data     : the extracted ints
+! *****************************************************************************
   SUBROUTINE bits2ints_generic(Nbits,Ndata,packed_data,full_data)
 
     INTEGER, INTENT(IN)                      :: Nbits, Ndata
@@ -123,6 +113,7 @@ MODULE x_hf_compression_methods
 
   END SUBROUTINE bits2ints_generic
 
+! *****************************************************************************
   SUBROUTINE ints2bits_generic(Nbits,Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Nbits, Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -176,6 +167,7 @@ MODULE x_hf_compression_methods
 
   END SUBROUTINE ints2bits_generic
 
+! *****************************************************************************
   SUBROUTINE ints2bits_1(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -520,6 +512,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_1
 
+! *****************************************************************************
   SUBROUTINE bits2ints_1(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -799,6 +792,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_1
 
+! *****************************************************************************
   SUBROUTINE ints2bits_2(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -1148,6 +1142,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_2
 
+! *****************************************************************************
   SUBROUTINE bits2ints_2(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -1429,6 +1424,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_2
 
+! *****************************************************************************
   SUBROUTINE ints2bits_3(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -1783,6 +1779,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_3
 
+! *****************************************************************************
   SUBROUTINE bits2ints_3(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -2066,6 +2063,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_3
 
+! *****************************************************************************
   SUBROUTINE ints2bits_4(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -2425,6 +2423,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_4
 
+! *****************************************************************************
   SUBROUTINE bits2ints_4(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -2710,6 +2709,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_4
 
+! *****************************************************************************
   SUBROUTINE ints2bits_5(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -3074,6 +3074,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_5
 
+! *****************************************************************************
   SUBROUTINE bits2ints_5(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -3361,6 +3362,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_5
 
+! *****************************************************************************
   SUBROUTINE ints2bits_6(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -3730,6 +3732,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_6
 
+! *****************************************************************************
   SUBROUTINE bits2ints_6(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -4019,6 +4022,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_6
 
+! *****************************************************************************
   SUBROUTINE ints2bits_7(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -4393,6 +4397,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_7
 
+! *****************************************************************************
   SUBROUTINE bits2ints_7(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -4684,6 +4689,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_7
 
+! *****************************************************************************
   SUBROUTINE ints2bits_8(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -5063,6 +5069,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_8
 
+! *****************************************************************************
   SUBROUTINE bits2ints_8(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -5356,6 +5363,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_8
 
+! *****************************************************************************
   SUBROUTINE ints2bits_9(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -5740,6 +5748,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_9
 
+! *****************************************************************************
   SUBROUTINE bits2ints_9(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -6035,6 +6044,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_9
 
+! *****************************************************************************
   SUBROUTINE ints2bits_10(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -6424,6 +6434,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_10
 
+! *****************************************************************************
   SUBROUTINE bits2ints_10(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -6721,6 +6732,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_10
 
+! *****************************************************************************
   SUBROUTINE ints2bits_11(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -7115,6 +7127,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_11
 
+! *****************************************************************************
   SUBROUTINE bits2ints_11(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -7414,6 +7427,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_11
 
+! *****************************************************************************
   SUBROUTINE ints2bits_12(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -7813,6 +7827,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_12
 
+! *****************************************************************************
   SUBROUTINE bits2ints_12(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -8114,6 +8129,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_12
 
+! *****************************************************************************
   SUBROUTINE ints2bits_13(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -8518,6 +8534,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_13
 
+! *****************************************************************************
   SUBROUTINE bits2ints_13(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -8821,6 +8838,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_13
 
+! *****************************************************************************
   SUBROUTINE ints2bits_14(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -9230,6 +9248,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_14
 
+! *****************************************************************************
   SUBROUTINE bits2ints_14(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -9535,6 +9554,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_14
 
+! *****************************************************************************
   SUBROUTINE ints2bits_15(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -9949,6 +9969,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_15
 
+! *****************************************************************************
   SUBROUTINE bits2ints_15(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -10256,6 +10277,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_15
 
+! *****************************************************************************
   SUBROUTINE ints2bits_16(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -10675,6 +10697,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_16
 
+! *****************************************************************************
   SUBROUTINE bits2ints_16(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -10984,6 +11007,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_16
 
+! *****************************************************************************
   SUBROUTINE ints2bits_17(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -11408,6 +11432,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_17
 
+! *****************************************************************************
   SUBROUTINE bits2ints_17(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -11719,6 +11744,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_17
 
+! *****************************************************************************
   SUBROUTINE ints2bits_18(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -12148,6 +12174,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_18
 
+! *****************************************************************************
   SUBROUTINE bits2ints_18(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -12461,6 +12488,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_18
 
+! *****************************************************************************
   SUBROUTINE ints2bits_19(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -12895,6 +12923,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_19
 
+! *****************************************************************************
   SUBROUTINE bits2ints_19(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -13210,6 +13239,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_19
 
+! *****************************************************************************
   SUBROUTINE ints2bits_20(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -13649,6 +13679,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_20
 
+! *****************************************************************************
   SUBROUTINE bits2ints_20(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -13966,6 +13997,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_20
 
+! *****************************************************************************
   SUBROUTINE ints2bits_21(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -14410,6 +14442,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_21
 
+! *****************************************************************************
   SUBROUTINE bits2ints_21(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -14729,6 +14762,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_21
 
+! *****************************************************************************
   SUBROUTINE ints2bits_22(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -15178,6 +15212,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_22
 
+! *****************************************************************************
   SUBROUTINE bits2ints_22(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -15499,6 +15534,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_22
 
+! *****************************************************************************
   SUBROUTINE ints2bits_23(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -15953,6 +15989,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_23
 
+! *****************************************************************************
   SUBROUTINE bits2ints_23(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -16276,6 +16313,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_23
 
+! *****************************************************************************
   SUBROUTINE ints2bits_24(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -16735,6 +16773,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_24
 
+! *****************************************************************************
   SUBROUTINE bits2ints_24(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -17060,6 +17099,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_24
 
+! *****************************************************************************
   SUBROUTINE ints2bits_25(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -17524,6 +17564,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_25
 
+! *****************************************************************************
   SUBROUTINE bits2ints_25(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -17851,6 +17892,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_25
 
+! *****************************************************************************
   SUBROUTINE ints2bits_26(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -18320,6 +18362,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_26
 
+! *****************************************************************************
   SUBROUTINE bits2ints_26(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -18649,6 +18692,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_26
 
+! *****************************************************************************
   SUBROUTINE ints2bits_27(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -19123,6 +19167,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_27
 
+! *****************************************************************************
   SUBROUTINE bits2ints_27(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -19454,6 +19499,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_27
 
+! *****************************************************************************
   SUBROUTINE ints2bits_28(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -19933,6 +19979,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_28
 
+! *****************************************************************************
   SUBROUTINE bits2ints_28(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -20266,6 +20313,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_28
 
+! *****************************************************************************
   SUBROUTINE ints2bits_29(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -20750,6 +20798,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_29
 
+! *****************************************************************************
   SUBROUTINE bits2ints_29(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -21085,6 +21134,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_29
 
+! *****************************************************************************
   SUBROUTINE ints2bits_30(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -21574,6 +21624,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_30
 
+! *****************************************************************************
   SUBROUTINE bits2ints_30(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -21911,6 +21962,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_30
 
+! *****************************************************************************
   SUBROUTINE ints2bits_31(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -22405,6 +22457,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_31
 
+! *****************************************************************************
   SUBROUTINE bits2ints_31(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -22744,6 +22797,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_31
 
+! *****************************************************************************
   SUBROUTINE ints2bits_32(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -23243,6 +23297,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_32
 
+! *****************************************************************************
   SUBROUTINE bits2ints_32(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -23584,6 +23639,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_32
 
+! *****************************************************************************
   SUBROUTINE ints2bits_33(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -24088,6 +24144,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_33
 
+! *****************************************************************************
   SUBROUTINE bits2ints_33(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -24431,6 +24488,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_33
 
+! *****************************************************************************
   SUBROUTINE ints2bits_34(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -24940,6 +24998,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_34
 
+! *****************************************************************************
   SUBROUTINE bits2ints_34(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -25285,6 +25344,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_34
 
+! *****************************************************************************
   SUBROUTINE ints2bits_35(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -25799,6 +25859,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_35
 
+! *****************************************************************************
   SUBROUTINE bits2ints_35(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -26146,6 +26207,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_35
 
+! *****************************************************************************
   SUBROUTINE ints2bits_36(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -26665,6 +26727,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_36
 
+! *****************************************************************************
   SUBROUTINE bits2ints_36(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -27014,6 +27077,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_36
 
+! *****************************************************************************
   SUBROUTINE ints2bits_37(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -27538,6 +27602,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_37
 
+! *****************************************************************************
   SUBROUTINE bits2ints_37(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -27889,6 +27954,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_37
 
+! *****************************************************************************
   SUBROUTINE ints2bits_38(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -28418,6 +28484,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_38
 
+! *****************************************************************************
   SUBROUTINE bits2ints_38(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -28771,6 +28838,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_38
 
+! *****************************************************************************
   SUBROUTINE ints2bits_39(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -29305,6 +29373,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_39
 
+! *****************************************************************************
   SUBROUTINE bits2ints_39(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -29660,6 +29729,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_39
 
+! *****************************************************************************
   SUBROUTINE ints2bits_40(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -30199,6 +30269,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_40
 
+! *****************************************************************************
   SUBROUTINE bits2ints_40(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -30556,6 +30627,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_40
 
+! *****************************************************************************
   SUBROUTINE ints2bits_41(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -31100,6 +31172,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_41
 
+! *****************************************************************************
   SUBROUTINE bits2ints_41(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -31459,6 +31532,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_41
 
+! *****************************************************************************
   SUBROUTINE ints2bits_42(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -32008,6 +32082,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_42
 
+! *****************************************************************************
   SUBROUTINE bits2ints_42(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -32369,6 +32444,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_42
 
+! *****************************************************************************
   SUBROUTINE ints2bits_43(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -32923,6 +32999,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_43
 
+! *****************************************************************************
   SUBROUTINE bits2ints_43(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -33286,6 +33363,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_43
 
+! *****************************************************************************
   SUBROUTINE ints2bits_44(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -33845,6 +33923,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_44
 
+! *****************************************************************************
   SUBROUTINE bits2ints_44(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -34210,6 +34289,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_44
 
+! *****************************************************************************
   SUBROUTINE ints2bits_45(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -34774,6 +34854,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_45
 
+! *****************************************************************************
   SUBROUTINE bits2ints_45(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -35141,6 +35222,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_45
 
+! *****************************************************************************
   SUBROUTINE ints2bits_46(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -35710,6 +35792,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_46
 
+! *****************************************************************************
   SUBROUTINE bits2ints_46(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -36079,6 +36162,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_46
 
+! *****************************************************************************
   SUBROUTINE ints2bits_47(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -36653,6 +36737,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_47
 
+! *****************************************************************************
   SUBROUTINE bits2ints_47(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -37024,6 +37109,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_47
 
+! *****************************************************************************
   SUBROUTINE ints2bits_48(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -37603,6 +37689,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_48
 
+! *****************************************************************************
   SUBROUTINE bits2ints_48(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -37976,6 +38063,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_48
 
+! *****************************************************************************
   SUBROUTINE ints2bits_49(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -38560,6 +38648,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_49
 
+! *****************************************************************************
   SUBROUTINE bits2ints_49(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -38935,6 +39024,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_49
 
+! *****************************************************************************
   SUBROUTINE ints2bits_50(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -39524,6 +39614,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_50
 
+! *****************************************************************************
   SUBROUTINE bits2ints_50(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -39901,6 +39992,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_50
 
+! *****************************************************************************
   SUBROUTINE ints2bits_51(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -40495,6 +40587,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_51
 
+! *****************************************************************************
   SUBROUTINE bits2ints_51(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -40874,6 +40967,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_51
 
+! *****************************************************************************
   SUBROUTINE ints2bits_52(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -41473,6 +41567,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_52
 
+! *****************************************************************************
   SUBROUTINE bits2ints_52(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -41854,6 +41949,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_52
 
+! *****************************************************************************
   SUBROUTINE ints2bits_53(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -42458,6 +42554,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_53
 
+! *****************************************************************************
   SUBROUTINE bits2ints_53(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -42841,6 +42938,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_53
 
+! *****************************************************************************
   SUBROUTINE ints2bits_54(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -43450,6 +43548,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_54
 
+! *****************************************************************************
   SUBROUTINE bits2ints_54(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -43835,6 +43934,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_54
 
+! *****************************************************************************
   SUBROUTINE ints2bits_55(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -44449,6 +44549,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_55
 
+! *****************************************************************************
   SUBROUTINE bits2ints_55(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -44836,6 +44937,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_55
 
+! *****************************************************************************
   SUBROUTINE ints2bits_56(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -45455,6 +45557,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_56
 
+! *****************************************************************************
   SUBROUTINE bits2ints_56(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -45844,6 +45947,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_56
 
+! *****************************************************************************
   SUBROUTINE ints2bits_57(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -46468,6 +46572,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_57
 
+! *****************************************************************************
   SUBROUTINE bits2ints_57(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -46859,6 +46964,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_57
 
+! *****************************************************************************
   SUBROUTINE ints2bits_58(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -47488,6 +47594,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_58
 
+! *****************************************************************************
   SUBROUTINE bits2ints_58(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -47881,6 +47988,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_58
 
+! *****************************************************************************
   SUBROUTINE ints2bits_59(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -48515,6 +48623,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_59
 
+! *****************************************************************************
   SUBROUTINE bits2ints_59(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -48910,6 +49019,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_59
 
+! *****************************************************************************
   SUBROUTINE ints2bits_60(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -49549,6 +49659,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_60
 
+! *****************************************************************************
   SUBROUTINE bits2ints_60(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -49946,6 +50057,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_60
 
+! *****************************************************************************
   SUBROUTINE ints2bits_61(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -50590,6 +50702,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_61
 
+! *****************************************************************************
   SUBROUTINE bits2ints_61(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -50989,6 +51102,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_61
 
+! *****************************************************************************
   SUBROUTINE ints2bits_62(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -51638,6 +51752,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_62
 
+! *****************************************************************************
   SUBROUTINE bits2ints_62(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -52039,6 +52154,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_62
 
+! *****************************************************************************
   SUBROUTINE ints2bits_63(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -52693,6 +52809,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE ints2bits_63
 
+! *****************************************************************************
   SUBROUTINE bits2ints_63(Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)
@@ -53096,6 +53213,7 @@ MODULE x_hf_compression_methods
    ENDIF
   END SUBROUTINE bits2ints_63
 
+! *****************************************************************************
   SUBROUTINE ints2bits_specific(Nbits,Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Nbits, Ndata
     INTEGER(KIND=int_8), INTENT(OUT)         :: packed_data(*)
@@ -53231,6 +53349,7 @@ MODULE x_hf_compression_methods
    END SELECT
   END SUBROUTINE ints2bits_specific
 
+! *****************************************************************************
   SUBROUTINE bits2ints_specific(Nbits,Ndata,packed_data,full_data)
     INTEGER, INTENT(IN)                      :: Nbits, Ndata
     INTEGER(KIND=int_8), INTENT(IN)          :: packed_data(*)

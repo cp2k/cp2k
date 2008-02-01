@@ -3,23 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/kg_environment_types [1.0] *
-!!
-!!   NAME
-!!     kg_environment_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     gt  SEPT-24-02
-!!
-!!   MODIFICATION HISTORY
-!!      gt 13-11-03 rewritten
-!!      JGH 20-05-04 use QS as polarization method
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>       gt 13-11-03 rewritten
+!>       JGH 20-05-04 use QS as polarization method
+!> \author gt  SEPT-24-02
+! *****************************************************************************
 MODULE kg_environment_types
 
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
@@ -103,21 +92,7 @@ MODULE kg_environment_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_environment_types'
   INTEGER, PRIVATE, SAVE :: last_kg_env_id_nr=0
 
-!!****f* kg_environment_types/kg_environment_type [1.0] *
-!!
-!!   NAME
-!!    kg_environment_type 
-!!
-!!   SYNOPSIS
-!!     
-!!
-!!   FUNCTION
-!!     
-!!
-!!   ARGUMENTS
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
   TYPE kg_environment_type
     INTEGER :: id_nr, ref_count
     LOGICAL :: use_ref_cell
@@ -158,21 +133,9 @@ MODULE kg_environment_types
 
 CONTAINS
 
-!!****f* kg_environment_types/get_kg_env [1.0] *
-!!
-!!   NAME
-!!     get_kg_env
-!!
-!!   SYNOPSIS
-!!     
-!!
-!!   FUNCTION
-!!     Get the KG environment.
-!!
-!!   ARGUMENTS
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Get the KG environment.
+! *****************************************************************************
   SUBROUTINE get_kg_env( kg_env,atomic_kind_set,cell,cell_ref, &
                          use_ref_cell,sub_qs_env,&
                          dft_control,distribution_2d,&
@@ -295,21 +258,9 @@ CONTAINS
 
   END SUBROUTINE get_kg_env
 
-!!****f* kg_environment_types/init_kg_env [1.0] *
-!!
-!!   NAME
-!!     init_kg_env
-!!
-!!   SYNOPSIS
-!!     
-!!
-!!   FUNCTION
-!!     Initialise the KG environment.
-!!
-!!   ARGUMENTS
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Initialise the KG environment.
+! *****************************************************************************
   SUBROUTINE init_kg_env ( kg_env, para_env, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
@@ -348,21 +299,9 @@ CONTAINS
 
   END SUBROUTINE init_kg_env
 
-!!****f* kg_environment_types/set_kg_env [1.0] *
-!!
-!!   NAME
-!!     set_kg_env
-!!
-!!   SYNOPSIS
-!!     
-!!
-!!   FUNCTION
-!!     set the KG environment.
-!!
-!!   ARGUMENTS
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief set the KG environment.
+! *****************************************************************************
   SUBROUTINE set_kg_env( kg_env,atomic_kind_set,cell,cell_ref,use_ref_cell,  &
                          dft_control,distribution_2d,dyn_coeff_set,energy,input,force, &
                          kg_fm_set,local_particles,local_molecules,&
@@ -549,28 +488,13 @@ CONTAINS
 
   END SUBROUTINE set_kg_env
 
-!!****f* kg_environment_types/kg_env_create [1.0] *
-!!
-!!   NAME
-!!     kg_env_create
-!!
-!!   SYNOPSIS
-!!     Subroutine kg_env_create(kg_env, para_env,  error)
-!!       Type(kg_environment_type), Pointer:: kg_env
-!!       Type(cp_para_env_type), Pointer:: para_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine kg_env_create
-!!
-!!   FUNCTION
-!!     allocates and intitializes a kg_env
-!!
-!!   ARGUMENTS
-!!     - kg_env: the object to create
-!!     - para_env: the parallel environement for the kg_env
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief allocates and intitializes a kg_env
+!> \param kg_env the object to create
+!> \param para_env the parallel environement for the kg_env
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
 SUBROUTINE kg_env_create(kg_env,para_env,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -590,29 +514,13 @@ SUBROUTINE kg_env_create(kg_env,para_env,error)
      CALL init_kg_env(kg_env,para_env=para_env,error=error)
   END IF
 END SUBROUTINE kg_env_create
-!***************************************************************************
-!!****f* kg_environment_types/kg_env_retain [1.0] *
-!!
-!!   NAME
-!!     kg_env_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine kg_env_retain(kg_env, error)
-!!       Type(kg_environment_type), Pointer:: kg_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine kg_env_retain
-!!
-!!   FUNCTION
-!!     retains the given kg_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - kg_env: the object to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!***************************************************************************
+
+! *****************************************************************************
+!> \brief retains the given kg_env (see doc/ReferenceCounting.html)
+!> \param kg_env the object to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
 SUBROUTINE kg_env_retain(kg_env,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -630,30 +538,13 @@ SUBROUTINE kg_env_retain(kg_env,error)
      kg_env%ref_count=kg_env%ref_count+1
   END IF
 END SUBROUTINE kg_env_retain
-!***************************************************************************
-!!****f* kg_environment_types/kg_env_release [1.0] *
-!!
-!!   NAME
-!!     kg_env_release
-!!
-!!   SYNOPSIS
-!!     Subroutine kg_env_release(kg_env, error)
-!!       Type(kg_environment_type), Pointer:: kg_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine kg_env_release
-!!
-!!   FUNCTION
-!!     releases the given kg_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - kg_env: the object to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief releases the given kg_env (see doc/ReferenceCounting.html)
+!> \param kg_env the object to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
 SUBROUTINE kg_env_release(kg_env,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -723,7 +614,5 @@ SUBROUTINE kg_env_release(kg_env,error)
   END IF
      NULLIFY(kg_env)
 END SUBROUTINE kg_env_release
-
-!***************************************************************************
 
 END MODULE kg_environment_types

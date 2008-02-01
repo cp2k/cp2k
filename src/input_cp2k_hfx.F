@@ -3,25 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_cp2k_hfx
-!!
-!!   NAME
-!!     input_cp2k_hfx
-!!
-!!   FUNCTION
-!!     function that builds the hartree fock exchange section of the input
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief function that builds the hartree fock exchange section of the input
+!> \par History
+!>      09.2007 created
+!> \author Manuel Guidon
+! *****************************************************************************
 MODULE input_cp2k_hfx
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
@@ -46,29 +33,15 @@ MODULE input_cp2k_hfx
 
   PUBLIC :: create_hf_section
 
-!****************************************************************************
 CONTAINS
 
-!!****f* input_cp2k_dft/create_hf_section [1.0] *
-!!
-!!   NAME
-!!     create_hf_section
-!!
-!!   FUNCTION
-!!     creates the input section for the hf part
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the input section for the hf part
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE create_hf_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -144,28 +117,16 @@ CONTAINS
     END IF
  
   END SUBROUTINE create_hf_section
-  !***************************************************************************
 
-!!!****f* input_cp2k_dft/create_hf_load_balance_section [1.0] *
-!!
-!!   NAME
-!!     create_hf_potential_section
-!!
-!!   FUNCTION
-!!     creates the input section for the hf potential part
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief !****f* input_cp2k_dft/create_hf_load_balance_section [1.0] *
+!> 
+!>      creates the input section for the hf potential part
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE create_hf_load_balance_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -199,7 +160,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       
        CALL keyword_create(keyword, name="MOVES",&
             description="Total number of Monte Carlo moves to use in the optimization",&
             usage="MOVES 1000000 ",&
@@ -254,28 +214,16 @@ CONTAINS
     END IF
  
   END SUBROUTINE create_hf_load_balance_section
-  !***************************************************************************
 
-!!!****f* input_cp2k_dft/create_hf_potential_section [1.0] *
-!!
-!!   NAME
-!!     create_hf_potential_section
-!!
-!!   FUNCTION
-!!     creates the input section for the hf potential part
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief !****f* input_cp2k_dft/create_hf_potential_section [1.0] *
+!> 
+!>      creates the input section for the hf potential part
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE create_hf_potential_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -348,32 +296,19 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-
     END IF
  
   END SUBROUTINE create_hf_potential_section
 
-!***************************************************************************
 !****f* input_cp2k_dft/create_hf_screening_section [1.0] *
-!!
-!!   NAME
-!!     create_hf_screening_section
-!!
-!!   FUNCTION
-!!     creates the input section for the hf screening part
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief creates the input section for the hf screening part
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE create_hf_screening_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -480,28 +415,14 @@ CONTAINS
     END IF
  
   END SUBROUTINE create_hf_screening_section
-!***************************************************************************
 
-!!****f* input_cp2k_dft/create_hf_pbc_section [1.0] *
-!!
-!!   NAME
-!!     create_hf_pbc_section
-!!
-!!   FUNCTION
-!!     creates the input section for the hf-pbc part
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the input section for the hf-pbc part
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE create_hf_pbc_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -542,28 +463,14 @@ CONTAINS
     END IF
  
   END SUBROUTINE create_hf_pbc_section
-!***************************************************************************
 
-!!****f* input_cp2k_dft/create_hf_memory_section [1.0] *
-!!
-!!   NAME
-!!     create_hf_memory_section
-!!
-!!   FUNCTION
-!!     creates the input section for the hf-memory part
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the input section for the hf-memory part
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE create_hf_memory_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error

@@ -3,23 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/xc_optx [1.0] *
-!!
-!!   NAME
-!!     xc_optx
-!!
-!!   FUNCTION
-!!     calculate optx
-!!
-!!   NOTES
-!!     will need proper testing / review
-!!
-!!   AUTHOR
-!!     Joost VandeVondele [03.2004]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief calculate optx
+!> \note
+!>      will need proper testing / review
+!> \author Joost VandeVondele [03.2004]
+! *****************************************************************************
 MODULE xc_optx
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE f77_blas
@@ -43,33 +32,19 @@ MODULE xc_optx
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_optx'
 
   PUBLIC :: optx_lda_info, optx_lda_eval, optx_lsd_info, optx_lsd_eval
-  !!***
-  !****************************************************************************
 CONTAINS
-  !!****f* xc_optx/optx_lda_info [1.0] *
-  !!
-  !!   NAME
-  !!     optx_lda_info
-  !!
-  !!   FUNCTION
-  !!     info about the optx functional
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - reference: string with the reference of the actual functional
-  !!     - shortform: string with the shortform of the functional name
-  !!     - needs: the components needed by this functional are set to
-  !!       true (does not set the unneeded components to false)
-  !!     - maximum implemented derivative of the xc functional
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Joost
-  !!
-  !!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief info about the optx functional
+!> \param reference string with the reference of the actual functional
+!> \param shortform string with the shortform of the functional name
+!> \param needs the components needed by this functional are set to
+!>        true (does not set the unneeded components to false)
+!> \param maximum implemented derivative of the xc functional
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Joost
+! *****************************************************************************
   SUBROUTINE optx_lda_info(reference,shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
@@ -93,30 +68,17 @@ CONTAINS
     IF (PRESENT(max_deriv)) max_deriv=1
   END SUBROUTINE optx_lda_info
 
-  !!****f* xc_optx/optx_lsd_info [1.0] *
-  !!
-  !!   NAME
-  !!     optx_lsd_info
-  !!
-  !!   FUNCTION
-  !!     info about the optx functional (LSD)
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - reference: string with the reference of the actual functional
-  !!     - shortform: string with the shortform of the functional name
-  !!     - needs: the components needed by this functional are set to
-  !!       true (does not set the unneeded components to false)
-  !!     - maximum implemented derivative of the xc functional
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Joost
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief info about the optx functional (LSD)
+!> \param reference string with the reference of the actual functional
+!> \param shortform string with the shortform of the functional name
+!> \param needs the components needed by this functional are set to
+!>        true (does not set the unneeded components to false)
+!> \param maximum implemented derivative of the xc functional
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Joost
+! *****************************************************************************
   SUBROUTINE optx_lsd_info(reference,shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
@@ -139,36 +101,22 @@ CONTAINS
     END IF
     IF (PRESENT(max_deriv)) max_deriv=1
   END SUBROUTINE optx_lsd_info
-  !***************************************************************************
-  !!****f* xc_optx/optx_lda_eval [1.0] *
-  !!
-  !!   NAME
-  !!     optx_lda_eval
-  !!
-  !!   FUNCTION
-  !!     evaluates the optx functional for lda
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - rho_set: the density where you want to evaluate the functional
-  !!     - deriv_set: place where to store the functional derivatives (they are
-  !!       added to the derivatives)
-  !!     - grad_deriv: degree of the derivative that should be evalated,
-  !!       if positive all the derivatives up to the given degree are evaluated,
-  !!       if negative only the given degree is calculated
-  !!     - optx_params: input parameter (scaling)
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Joost 
-  !!
-  !!   MODIFICATION HISTORY
-  !!     01.2007 added scaling [Manuel Guidon]
-  !!
-  !!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief evaluates the optx functional for lda
+!> \param rho_set the density where you want to evaluate the functional
+!> \param deriv_set place where to store the functional derivatives (they are
+!>        added to the derivatives)
+!> \param grad_deriv degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param optx_params input parameter (scaling)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      01.2007 added scaling [Manuel Guidon]
+!> \author Joost 
+! *****************************************************************************
   SUBROUTINE optx_lda_eval(rho_set,deriv_set,grad_deriv,optx_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -224,36 +172,22 @@ CONTAINS
                epsilon_drho=epsilon_drho,sx=sx,error=error)
     END IF
   END SUBROUTINE optx_lda_eval
-  !***************************************************************************
-  !!****f* xc_optx/optx_lsd_eval [1.0] *
-  !!
-  !!   NAME
-  !!     optx_lsd_eval
-  !!
-  !!   FUNCTION
-  !!     evaluates the optx functional for lsd
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - rho_set: the density where you want to evaluate the functional
-  !!     - deriv_set: place where to store the functional derivatives (they are
-  !!       added to the derivatives)
-  !!     - grad_deriv: degree of the derivative that should be evalated,
-  !!       if positive all the derivatives up to the given degree are evaluated,
-  !!       if negative only the given degree is calculated
-  !!     - optx_params: input parameter (scaling)
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Joost
-  !!
-  !!   MODIFICATION HISTORY
-  !!     01.2007 added scaling [Manuel Guidon]
-  !!
-  !!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief evaluates the optx functional for lsd
+!> \param rho_set the density where you want to evaluate the functional
+!> \param deriv_set place where to store the functional derivatives (they are
+!>        added to the derivatives)
+!> \param grad_deriv degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param optx_params input parameter (scaling)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      01.2007 added scaling [Manuel Guidon]
+!> \author Joost
+! *****************************************************************************
   SUBROUTINE optx_lsd_eval(rho_set,deriv_set,grad_deriv,optx_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -325,35 +259,22 @@ CONTAINS
        ENDDO
     END IF
   END SUBROUTINE optx_lsd_eval
-  !***************************************************************************
-  !!****f* xc_optx/optx_lda_calc *
-  !!
-  !!   NAME
-  !!     optx_lda_calc
-  !!
-  !!   FUNCTION
-  !!     optx exchange functional
-  !!
-  !!   NOTES
-  !!
-  !!   ARGUMENTS
-  !!     - rho: the full density
-  !!     - norm_drho: the norm of the gradient of the full density
-  !!     - e_0: the value of the functional in that point
-  !!     - e_rho: the derivative of the functional wrt. rho
-  !!     - e_ndrho: the derivative of the functional wrt. norm_drho
-  !!     - epsilon_rho: the cutoff on rho
-  !!     - sx: scaling-parameter for exchange
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Joost VandeVondele
-  !!
-  !!   MODIFICATION HISTORY
-  !!     01.2007 added scaling [Manuel Guidon]
-  !!
-  !!*** *********************************************************************
+
+! *****************************************************************************
+!> \brief optx exchange functional
+!> \param rho the full density
+!> \param norm_drho the norm of the gradient of the full density
+!> \param e_ 0: the value of the functional in that point
+!> \param e_rho the derivative of the functional wrt. rho
+!> \param e_ndrho the derivative of the functional wrt. norm_drho
+!> \param epsilon_rho the cutoff on rho
+!> \param sx scaling-parameter for exchange
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      01.2007 added scaling [Manuel Guidon]
+!> \author Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE optx_lda_calc(rho,norm_drho,e_0,e_rho,e_ndrho,&
        epsilon_rho,epsilon_drho,npoints,sx,error)
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, norm_drho
@@ -391,36 +312,22 @@ CONTAINS
     END DO
 
   END SUBROUTINE optx_lda_calc
-  !***************************************************************************
- !***************************************************************************
-  !!****f* xc_optx/optx_lsd_calc *
-  !!
-  !!   NAME
-  !!     optx_lsd_calc
-  !!
-  !!   FUNCTION
-  !!     optx exchange functional
-  !!
-  !!   NOTES
-  !!
-  !!   ARGUMENTS
-  !!     - rho: the *spin* density
-  !!     - norm_drho: the norm of the gradient of the *spin* density
-  !!     - e_0: the value of the functional in that point
-  !!     - e_rho: the derivative of the functional wrt. rho
-  !!     - e_ndrho: the derivative of the functional wrt. norm_drho
-  !!     - epsilon_rho: the cutoff on rho
-  !!     - sx: scaling parameter for exchange
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Joost VandeVondele
-  !!
-  !!   MODIFICATION HISTORY
-  !!     01.2007 added scaling [Manuel Guidon]
-  !!
-  !!*** *********************************************************************
+
+! *****************************************************************************
+!> \brief optx exchange functional
+!> \param rho the *spin* density
+!> \param norm_drho the norm of the gradient of the *spin* density
+!> \param e_ 0: the value of the functional in that point
+!> \param e_rho the derivative of the functional wrt. rho
+!> \param e_ndrho the derivative of the functional wrt. norm_drho
+!> \param epsilon_rho the cutoff on rho
+!> \param sx scaling parameter for exchange
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      01.2007 added scaling [Manuel Guidon]
+!> \author Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE optx_lsd_calc(rho,norm_drho,e_0,e_rho,e_ndrho,&
        epsilon_rho,epsilon_drho,npoints,sx,error)
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, norm_drho
@@ -458,6 +365,5 @@ CONTAINS
     END DO
 
   END SUBROUTINE optx_lsd_calc
-  !***************************************************************************
 
 END MODULE xc_optx

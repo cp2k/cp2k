@@ -3,26 +3,14 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****s* cp2k/topology_types [1.0] *
-!!
-!!   NAME
-!!     topology_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM & JGH
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (30.11.2001) : new entries in setup_parameters_type
-!!                        change name from input_file_name to coord_...
-!!                        added topology file
-!!                        added atom_names
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      JGH (30.11.2001) : new entries in setup_parameters_type
+!>                         change name from input_file_name to coord_...
+!>                         added topology file
+!>                         added atom_names
+!> \author CJM & JGH
+! *****************************************************************************
 MODULE topology_types
   USE cell_types,                      ONLY: cell_release,&
                                              cell_type
@@ -40,6 +28,7 @@ MODULE topology_types
 
   IMPLICIT NONE
 
+! *****************************************************************************
   TYPE atom_info_type
      CHARACTER (LEN=default_string_length), POINTER :: label_molname(:)
      CHARACTER (LEN=default_string_length), POINTER :: label_resname(:)
@@ -57,6 +46,7 @@ MODULE topology_types
      CHARACTER (LEN=default_string_length), POINTER :: element(:)
   END TYPE atom_info_type
 
+! *****************************************************************************
   TYPE connectivity_info_type
      INTEGER, POINTER :: bond_a(:),bond_b(:),bond_type(:)
      INTEGER, POINTER :: ub_a(:),ub_b(:),ub_c(:)
@@ -67,6 +57,7 @@ MODULE topology_types
      INTEGER, POINTER :: c_bond_a(:),c_bond_b(:),c_bond_type(:)
   END TYPE connectivity_info_type
 
+! *****************************************************************************
   TYPE constraint_info_type
      ! Bonds involving Hydrogens
      LOGICAL                                       :: hbonds_restraint                        ! Restraints control
@@ -129,6 +120,7 @@ MODULE topology_types
      LOGICAL, POINTER, DIMENSION(:)                :: g46_exclude_qm, g46_exclude_mm
   END TYPE constraint_info_type
 
+! *****************************************************************************
   TYPE topology_parameters_type
      TYPE (atom_info_type),POINTER             :: atom_info
      TYPE (connectivity_info_type),POINTER     :: conn_info
@@ -163,6 +155,7 @@ MODULE topology_types
      LOGICAL                                   :: para_res
   END TYPE topology_parameters_type
 
+! *****************************************************************************
   TYPE constr_list_type
      INTEGER, DIMENSION(:), POINTER :: constr
   END TYPE constr_list_type
@@ -179,25 +172,13 @@ MODULE topology_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_types'
   PRIVATE
 
-
 CONTAINS
 
-!******************************************************************************
-!!****** topology_types/init_topology [1.0] *
-!!
-!!   NAME
-!!     init_topology
-!!
-!!   FUNCTION
-!!     1. Just NULLIFY and zero all the stuff
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief 1. Just NULLIFY and zero all the stuff
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE init_topology (topology, error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
@@ -302,22 +283,11 @@ CONTAINS
     CALL init_constraint(topology%cons_info, error)
   END SUBROUTINE init_topology
 
-!******************************************************************************
-!!****** topology_types/init_constraint [1.0] *
-!!
-!!   NAME
-!!     init_topology
-!!
-!!   FUNCTION
-!!     1. Just NULLIFY and zero all the stuff
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief 1. Just NULLIFY and zero all the stuff
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE init_constraint(constraint_info, error)
     TYPE(constraint_info_type), POINTER      :: constraint_info
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -389,22 +359,11 @@ CONTAINS
 
   END SUBROUTINE init_constraint
 
-!******************************************************************************
-!!****** topology_types/deallocate_topology [1.0] *
-!!
-!!   NAME
-!!     deallocate_topology
-!!
-!!   FUNCTION
-!!     1. Just DEALLOCATE all the stuff
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief 1. Just DEALLOCATE all the stuff
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE deallocate_topology (topology, error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
@@ -608,22 +567,11 @@ CONTAINS
 
   END SUBROUTINE deallocate_topology
 
-!******************************************************************************
-!!****** topology_types/deallocate_constraint [1.0] *
-!!
-!!   NAME
-!!     deallocate_constraint
-!!
-!!   FUNCTION
-!!     1. Just DEALLOCATE all the stuff
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief 1. Just DEALLOCATE all the stuff
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE deallocate_constraint(constraint_info, error)
     TYPE(constraint_info_type), POINTER      :: constraint_info
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -846,4 +794,3 @@ CONTAINS
   END SUBROUTINE deallocate_constraint
 
 END MODULE topology_types
-!******************************************************************************

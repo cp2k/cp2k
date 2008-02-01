@@ -2,22 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_dftb_types [1.0] *
-!!
-!!   NAME
-!!     qs_dftb_types
-!!
-!!   FUNCTION
-!!     Definition of the DFTB parameter types.
-!!
-!!   AUTHOR
-!!     JGH (24.02.2007)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Definition of the DFTB parameter types.
+!> \author JGH (24.02.2007)
+! *****************************************************************************
 MODULE qs_dftb_types
 
   USE f77_blas
@@ -33,6 +22,7 @@ MODULE qs_dftb_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dftb_types'
 
+! *****************************************************************************
   TYPE qs_dftb_atom_type
     ! PRIVATE
     CHARACTER(LEN=default_string_length)   :: typ
@@ -51,6 +41,7 @@ MODULE qs_dftb_types
     REAL(KIND=dp)                          :: rcdisp     !cutoff radius for vdW
   END TYPE qs_dftb_atom_type
 
+! *****************************************************************************
   TYPE qs_dftb_pairpot_type
     REAL(KIND=dp)                          :: dgrd       ! grid spacing
     INTEGER                                :: ngrd       ! number of grid points
@@ -80,9 +71,6 @@ MODULE qs_dftb_types
   PUBLIC :: qs_dftb_atom_type, qs_dftb_pairpot_type,&
             qs_dftb_pairpot_init, qs_dftb_pairpot_create, qs_dftb_pairpot_release
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
@@ -107,6 +95,7 @@ CONTAINS
 
   END SUBROUTINE qs_dftb_pairpot_init
 
+! *****************************************************************************
   SUBROUTINE qs_dftb_pairpot_create(pairpot,ngrd,llm,spdim,error)
     TYPE(qs_dftb_pairpot_type)               :: pairpot
     INTEGER, INTENT(IN)                      :: ngrd, llm, spdim
@@ -137,6 +126,7 @@ CONTAINS
 
   END SUBROUTINE qs_dftb_pairpot_create
 
+! *****************************************************************************
   SUBROUTINE qs_dftb_pairpot_release(pairpot,error)
     TYPE(qs_dftb_pairpot_type), &
       DIMENSION(:, :), POINTER               :: pairpot
@@ -178,8 +168,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE qs_dftb_pairpot_release
-! *****************************************************************************
 
 END MODULE qs_dftb_types
 
-! *****************************************************************************

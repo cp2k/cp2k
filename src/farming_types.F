@@ -3,6 +3,7 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
+! *****************************************************************************
 MODULE farming_types
   USE f77_blas
   USE kinds,                           ONLY: default_path_length,&
@@ -16,6 +17,7 @@ MODULE farming_types
 
   INTEGER, PUBLIC, PARAMETER :: job_pending=1,job_running=2,job_finished=3
 
+! *****************************************************************************
   TYPE job_type
        CHARACTER(LEN=default_path_length) :: cwd                   ! the directory to go to
        CHARACTER(LEN=default_path_length) :: input                 ! the input file to use
@@ -24,6 +26,7 @@ MODULE farming_types
        INTEGER                            :: status ! pending,running,finished
   END TYPE job_type
 
+! *****************************************************************************
   TYPE farming_env_type
      INTEGER :: group_size_wish      
      LOGICAL :: group_size_wish_set  
@@ -44,27 +47,13 @@ MODULE farming_types
 
 CONTAINS
 
-!!****f* farming_types/init_farming_env *
-!!
-!!   NAME
-!!      init_farming_env
-!!   SYNOPSIS
-!!     Subroutine init_farming_env(farming_env)
-!!       Type(farming_env_type), Pointer:: farming_env
-!!     End Subroutine init_farming_env
-!!
-!!   FUNCTION
-!!      help poor compilers do their job
-!!      i.e. provide a default initialization
-!!   NOTES
-!!
-!!   INPUTS
-!!      an associated farming env pointer
-!!
-!!   MODIFICATION HISTORY
-!!     03.2004 created [Joost VandeVondele ]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief help poor compilers do their job
+!>       i.e. provide a default initialization
+!> \param an associated farming env pointer
+!> \par History
+!>      03.2004 created [Joost VandeVondele ]
+! *****************************************************************************
 SUBROUTINE init_farming_env(farming_env)
     TYPE(farming_env_type), POINTER          :: farming_env
 
@@ -86,22 +75,11 @@ SUBROUTINE init_farming_env(farming_env)
     ENDIF
 END SUBROUTINE
 
-!!****f* farming_types/init_job_type *
-!!
-!!   NAME
-!!      init_job_type
-!!
-!!   FUNCTION
-!!      provide a default initialization
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [Joost VandeVondele ]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief provide a default initialization
+!> \par History
+!>      09.2007 created [Joost VandeVondele ]
+! *****************************************************************************
 ELEMENTAL SUBROUTINE init_job_type(job)
     TYPE(job_type), INTENT(OUT)              :: job
 
@@ -113,22 +91,11 @@ ELEMENTAL SUBROUTINE init_job_type(job)
 
 END SUBROUTINE init_job_type
 
-!!****f* farming_types/deallocate_job_type *
-!!
-!!   NAME
-!!      deallocate_job_type
-!!
-!!   FUNCTION
-!!      deallocates all memory associated with this job
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [Joost VandeVondele ]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates all memory associated with this job
+!> \par History
+!>      09.2007 created [Joost VandeVondele ]
+! *****************************************************************************
 SUBROUTINE deallocate_job_type(job)
     TYPE(job_type)                           :: job
 
@@ -136,28 +103,12 @@ SUBROUTINE deallocate_job_type(job)
 
 END SUBROUTINE deallocate_job_type
 
-!!****f* farming_types/deallocate_farming_env *
-!!
-!!   NAME
-!!     deallocate_farming_env
-!!
-!!   SYNOPSIS
-!!     Subroutine deallocate_farming_env(farming_env)
-!!       Type(farming_env_type), Pointer:: farming_env
-!!     End Subroutine deallocate_farming_env
-!!
-!!   FUNCTION
-!!     deallocates all associated fields of the farming_env type
-!!     and the type itself
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     03.2004 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates all associated fields of the farming_env type
+!>      and the type itself
+!> \par History
+!>      03.2004 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE deallocate_farming_env(farming_env)
     TYPE(farming_env_type), POINTER          :: farming_env
 
@@ -175,4 +126,3 @@ END SUBROUTINE deallocate_job_type
     ENDIF 
   END SUBROUTINE deallocate_farming_env
 END MODULE farming_types
-!!*****

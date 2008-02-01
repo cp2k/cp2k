@@ -2,21 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/mixed_environment_types [1.0] *
-!!
-!!   NAME
-!!     mixed_environment_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     fschiff SEPT-11-06
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \author fschiff SEPT-11-06
+! *****************************************************************************
 MODULE mixed_environment_types
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
@@ -64,25 +53,12 @@ MODULE mixed_environment_types
   IMPLICIT NONE
   PRIVATE
 
-!!****s* mixed_environment_types/mixed_environment_type [1.0] *
-!!
-!!   NAME
-!!     mixed_environment_type
-!!
-!!   FUNCTION
-!!     
-!!
-!!   ATTRIBUTES
-!!     - mixed_env: the pointer to the mixed_env
-!!
-!!   AUTHOR
-!!     fschiff
-!!
-!!   MODIFICATION HISTORY
-!!     11/06
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \param mixed_env the pointer to the mixed_env
+!> \par History
+!>      11/06
+!> \author fschiff
+! *****************************************************************************
   TYPE mixed_environment_type
      INTEGER :: id_nr, ref_count
      TYPE ( cell_type ), POINTER                      :: cell
@@ -104,25 +80,13 @@ MODULE mixed_environment_types
      CHARACTER(default_path_length)                   :: coupling_function
   END TYPE mixed_environment_type
 
-!!****s* mixed_environment_types/mixed_environment_p_type [1.0] *
-!!
-!!   NAME
-!!     mixed_environment_p_type
-!!
-!!   FUNCTION
-!!     to build arrays of pointers
-!!
-!!   ATTRIBUTES
-!!     - mixed_env: the pointer to the mixed_env
-!!
-!!   AUTHOR
-!!     fschiff
-!!
-!!   MODIFICATION HISTORY
-!!     11/06
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief to build arrays of pointers
+!> \param mixed_env the pointer to the mixed_env
+!> \par History
+!>      11/06
+!> \author fschiff
+! *****************************************************************************
   TYPE mixed_environment_p_type
      TYPE(mixed_environment_type), POINTER :: mixed_env
   END TYPE mixed_environment_p_type
@@ -146,25 +110,10 @@ MODULE mixed_environment_types
 
 CONTAINS
 
-!!****s* mixed_environment_types/get_mixed_env [1.0] *
-!!
-!!   NAME
-!!     get_mixed_env 
-!!
-!!   FUNCTION
-!!     Get the MIXED environment.
-!!
-!!   ATTRIBUTES
-!!     - mixed_env: the pointer to the mixed_env
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief Get the MIXED environment.
+!> \param mixed_env the pointer to the mixed_env
+! *****************************************************************************
   SUBROUTINE get_mixed_env( mixed_env, atomic_kind_set, particle_set,  &
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, &
@@ -228,25 +177,10 @@ CONTAINS
 
   END SUBROUTINE get_mixed_env
 
-!!****s* mixed_environment_types/init_mixed_env [1.0] *
-!!
-!!   NAME
-!!     init_mixed_env 
-!!
-!!   FUNCTION
-!!     Initialise the MIXED environment.
-!!
-!!   ATTRIBUTES
-!!     - mixed_env: the pointer to the mixed_env
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief Initialise the MIXED environment.
+!> \param mixed_env the pointer to the mixed_env
+! *****************************************************************************
   SUBROUTINE init_mixed_env ( mixed_env, para_env, error )
 
     TYPE(mixed_environment_type), &
@@ -273,25 +207,10 @@ CONTAINS
 
   END SUBROUTINE init_mixed_env
 
-!!****s* mixed_environment_types/set_mixed_env [1.0] *
-!!
-!!   NAME
-!!     set_mixed_env 
-!!
-!!   FUNCTION
-!!     Set the MIXED environment.
-!!
-!!   ATTRIBUTES
-!!     - mixed_env: the pointer to the mixed_env
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief Set the MIXED environment.
+!> \param mixed_env the pointer to the mixed_env
+! *****************************************************************************
   SUBROUTINE set_mixed_env( mixed_env, atomic_kind_set, particle_set, &
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, mixed_energy, subsys, &
@@ -403,32 +322,14 @@ CONTAINS
 
   END SUBROUTINE set_mixed_env
 
-!!****f* mixed_environment_types/mixed_env_create [1.0] *
-!!
-!!   NAME
-!!     mixed_env_create
-!!
-!!   SYNOPSIS
-!!     Subroutine mixed_env_create(mixed_env, para_env, error)
-!!       Type(mixed_environment_type), Pointer:: mixed_env
-!!       Type(cp_para_env_type), Pointer:: para_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine mixed_env_create
-!!
-!!   FUNCTION
-!!     allocates and intitializes a mixed_env
-!!
-!!   ARGUMENTS
-!!     - mixed_env: the object to create
-!!     - para_env: the parallel environement for the qs_env
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fschiff 11.06
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief allocates and intitializes a mixed_env
+!> \param mixed_env the object to create
+!> \param para_env the parallel environement for the qs_env
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fschiff 11.06
+! *****************************************************************************
   SUBROUTINE mixed_env_create(mixed_env,para_env,error)
     TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -449,33 +350,13 @@ CONTAINS
     END IF
   END SUBROUTINE mixed_env_create
   
-!!****f* mixed_environment_types/mixed_env_retain [1.0] *
-!!
-!!   NAME
-!!     mixed_env_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine mixed_env_retain(mixed_env, error)
-!!       Type(mixed_environment_type), Pointer:: mixed_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine mixed_env_retain
-!!
-!!   FUNCTION
-!!     retains the given mixed_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - mixed_env: the object to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fschiff 11.06
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given mixed_env (see doc/ReferenceCounting.html)
+!> \param mixed_env the object to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fschiff 11.06
+! *****************************************************************************
   SUBROUTINE mixed_env_retain(mixed_env,error)
     TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -494,33 +375,13 @@ CONTAINS
     END IF
   END SUBROUTINE mixed_env_retain
 
-!!****f* mixed_environment_types/mixed_env_release [1.0] *
-!!
-!!   NAME
-!!     mixed_env_release
-!!
-!!   SYNOPSIS
-!!     Subroutine mixed_env_release(mixed_env, error)
-!!       Type(mixed_environment_type), Pointer:: mixed_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine mixed_env_release
-!!
-!!   FUNCTION
-!!     releases the given mixed_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - mixed_env: the object to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fschiff 11.06
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given mixed_env (see doc/ReferenceCounting.html)
+!> \param mixed_env the object to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fschiff 11.06
+! *****************************************************************************
   SUBROUTINE mixed_env_release(mixed_env,error)
     TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(cp_error_type), INTENT(inout)       :: error

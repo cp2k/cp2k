@@ -2,26 +2,8 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2007 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/ps_wavelet_fft3d *
-!!
-!!   NAME
-!!     ps_wavelet_fft3d
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
 MODULE ps_wavelet_fft3d
-
 
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -35,17 +17,11 @@ MODULE ps_wavelet_fft3d
             ctrig,&
             fftstp
 
-
 CONTAINS
-!!****h* BigDFT/fourier_dim
-!! NAME
-!!   fourier_dim
-!!
-!! FUNCTION
-!!   Give a number n_next > n compatible for the FFT
-!!
-!! SOURCE
-!!
+
+! *****************************************************************************
+!> \brief Give a number n_next > n compatible for the FFT
+! *****************************************************************************
   SUBROUTINE fourier_dim(n,n_next)
     INTEGER, INTENT(in)                      :: n
     INTEGER, INTENT(out)                     :: n_next
@@ -78,13 +54,10 @@ CONTAINS
     WRITE(unit=*,fmt=*) "fourier_dim: ",n," is bigger than ",idata(ndata1024)
     STOP
   END SUBROUTINE fourier_dim
-!!***
-
 
 !  Copyright (C) Stefan Goedecker, CEA Grenoble, 2002
 !  This file is distributed under the terms of the
 !  GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
-
 
 ! --------------------------------------------------------------
 !   3-dimensional complex-complex FFT routine: 
@@ -101,7 +74,6 @@ CONTAINS
 ! Citing of this reference is greatly appreciated if the routines are used 
 ! for scientific work.
 
-
 ! Presumably good compiler flags:
 ! IBM, serial power 2: xlf -qarch=pwr2 -O2 -qmaxmem=-1
 ! with OpenMP: IBM: xlf_r -qfree -O4 -qarch=pwr3 -qtune=pwr3 -qsmp=omp -qmaxmem=-1 ; 
@@ -110,12 +82,11 @@ CONTAINS
 ! with OpenMP: DEC: f90 -O3 -arch ev67 -pipeline -omp -lelan ; 
 !                   prun -N1 -c4 a.out
 
-
 !-----------------------------------------------------------
 
 ! FFT PART -----------------------------------------------------------------
 
-
+! *****************************************************************************
   SUBROUTINE ctrig(n,trig,after,before,now,isign,ic)
 !  Copyright (C) Stefan Goedecker, Lausanne, Switzerland, August 1, 1991
 !  Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
@@ -271,13 +242,11 @@ CONTAINS
 20      CONTINUE
         ENDIF
 
-
-        
       END SUBROUTINE ctrig
-
 
 !ccccccccccccccccccccccccccccccccccccccccccccccc
 
+! *****************************************************************************
       SUBROUTINE fftstp(mm,nfft,m,nn,n,zin,zout,trig,after,now,before,isign)
 !  Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
 !  Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1995, 1999

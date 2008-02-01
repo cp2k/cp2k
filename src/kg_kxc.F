@@ -3,23 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/kg_force [1.0] *
-!!
-!!   NAME
-!!     kg_kxc
-!!
-!!   FUNCTION
-!!     calculation of the Kinetic + Exchange correlation
-!!
-!!   AUTHOR
-!!     gloria,30.09.2002
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief calculation of the Kinetic + Exchange correlation
+!> \author gloria,30.09.2002
+! *****************************************************************************
 MODULE kg_kxc
   USE cell_types,                      ONLY: cell_type
   USE cp_linked_list_xc_deriv,         ONLY: cp_sll_xc_deriv_next,&
@@ -53,35 +40,19 @@ MODULE kg_kxc
   PUBLIC :: calculate_kxc_derivatives
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_kxc'
 
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** kgkxc/calculate_kxc_derivatives [1.1] *
-!!
-!!   NAME
-!!     calculate_kxc_derivatives
-!!
-!!   FUNCTION
-!!     Calculates the K-XC energy  and potential, and potentials associated
-!!     to  second and third derivatives of the KXC kernel
-!!     V1_r = dvol* rhop_r * (partial^2  (E_kxc) / partial^2 rho0)
-!!     V2_r = dvol**2 * rhop_r**2 * (partial ^3 (E_kxc) /partial^3 rho0 )
-!!     Full gradient functional for Exc and Vxc, only lda functional
-!!     for higher order derivatives.
-!!
-!!   AUTHOR
-!!     gt
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Calculates the K-XC energy  and potential, and potentials associated
+!>      to  second and third derivatives of the KXC kernel
+!>      V1_r = dvol* rhop_r * (partial^2  (E_kxc) / partial^2 rho0)
+!>      V2_r = dvol**2 * rhop_r**2 * (partial ^3 (E_kxc) /partial^3 rho0 )
+!>      Full gradient functional for Exc and Vxc, only lda functional
+!>      for higher order derivatives.
+!> \author gt
+! *****************************************************************************
  SUBROUTINE calculate_kxc_derivatives ( pw_pool,rho_r, rho_g, rhop_r, v_r, v1_r, &
                            v2_r, e1_xc, e2_xc, xc_section,calculate_forces,error)
-
 
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(pw_p_type), INTENT(in)              :: rho_r, rho_g, rhop_r, v_r
@@ -127,20 +98,12 @@ CONTAINS
   END IF
   CALL timestop(0.0_dp,handle)
  END SUBROUTINE calculate_kxc_derivatives
-!******************************************************************************
-!!****** xc/xc_calculate_derivatives [1.0] *
-!!
-!!   NAME
-!!     xc_calculate_derivatives
-!!
-!!   FUNCTION
-!!     Exchange and Correlation functional derivatices
-!!
-!!   SOURCE
-!******************************************************************************
+
+! *****************************************************************************
+!> \brief Exchange and Correlation functional derivatices
+! *****************************************************************************
  SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,order,&
       xc_section, pw_pool, error)
-
 
     TYPE(pw_type), POINTER                   :: rho_r, rhop_r, v
     TYPE(pw_type), INTENT(INOUT)             :: v1, v2
@@ -249,8 +212,5 @@ CONTAINS
 
  END SUBROUTINE xc_calculate_derivatives
 
-!******************************************************************************
-
 END MODULE kg_kxc
 
-!******************************************************************************

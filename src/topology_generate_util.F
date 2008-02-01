@@ -3,24 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/topology_generate_util [1.0] *
-!!
-!!   NAME
-!!     topology_generate_util
-!!
-!!   FUNCTION
-!!     Collection of subroutine needed for topology related things
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!    Teodor Laino 09.2006 - Major rewriting with linear scaling routines
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Collection of subroutine needed for topology related things
+!> \par History
+!>     Teodor Laino 09.2006 - Major rewriting with linear scaling routines
+! *****************************************************************************
 MODULE topology_generate_util
   USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
                                              atomic_kind_type,&
@@ -86,29 +73,11 @@ MODULE topology_generate_util
             topology_generate_ub,&
             topology_generate_molecule
   
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** topology_generate_util [1.0] *
-!!
-!!   NAME
-!!     topology_generate_molecule
-!!
-!!
-!!   FUNCTION
-!!     Use information from bond list to generate molecule. (ie clustering)
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Use information from bond list to generate molecule. (ie clustering)
+! *****************************************************************************
   SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,para_env,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
@@ -422,25 +391,10 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE topology_generate_molecule
   
-!******************************************************************************
-!!****** topology_generate_util [1.0] *
-!!
-!!   NAME
-!!     topology_generate_bond
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Use info from periodic table and assumptions to generate bonds
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Use info from periodic table and assumptions to generate bonds
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE topology_generate_bond(topology,para_env,subsys_section,&
        force_env_section,error)
     TYPE(topology_parameters_type), &
@@ -848,25 +802,10 @@ CONTAINS
          "PRINT%TOPOLOGY_INFO/GENERATE_INFO",error=error)
   END SUBROUTINE topology_generate_bond
 
-!******************************************************************************
-!!****** check_generate_mol [1.0] *
-!!
-!!   NAME
-!!     check_generate_mol
-!!
-!!   SYNOPSIS
-!!
-!!
-!!   FUNCTION
-!!     Performs a check on the generated connectivity
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Performs a check on the generated connectivity
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   FUNCTION check_generate_mol(bond_a,bond_b,atom_info,bondparm_factor,output_unit,error) &
        RESULT(conn_ok)
     INTEGER, DIMENSION(:), POINTER           :: bond_a, bond_b
@@ -1009,25 +948,11 @@ CONTAINS
     END IF
   END FUNCTION check_generate_mol
 
-!******************************************************************************
-!!****** topology_generate_util [1.0] *
-!!
-!!   NAME
-!!     connectivity_external_control
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Add/Remove a bond to the generated list 
-!!     Particularly useful for system with complex connectivity
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Add/Remove a bond to the generated list 
+!>      Particularly useful for system with complex connectivity
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE connectivity_external_control(section, Iarray1, Iarray2, Iarray3, Iarray4, nvar,&
        topology, output_unit, is_impr, error)
     TYPE(section_vals_type), POINTER         :: section
@@ -1202,25 +1127,11 @@ CONTAINS
     END IF
   END SUBROUTINE connectivity_external_control
 
-!******************************************************************************
-!!****** topology_generate_util [1.0] *
-!!
-!!   NAME
-!!     list_canonical_order
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Orders list in the canonical order: the extrema of the list are such
-!!     that the first extrema is always smaller or equal to the last extrema.
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Orders list in the canonical order: the extrema of the list are such
+!>      that the first extrema is always smaller or equal to the last extrema.
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE list_canonical_order(Ilist1, Ilist2, Ilist3, Ilist4, nsize, is_impr)
     INTEGER, DIMENSION(:), POINTER           :: Ilist1, Ilist2
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: Ilist3, Ilist4
@@ -1274,24 +1185,10 @@ CONTAINS
 
   END SUBROUTINE list_canonical_order
 
-!******************************************************************************
-!!****** topology_generate_util [1.0] *
-!!
-!!   NAME
-!!     check_element_list
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     finds an element in the ordered list
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief finds an element in the ordered list
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE check_element_list(do_it,do_action,atlist,Ilist1,Ilist2,Ilist3,Ilist4,&
        is_impr)
     INTEGER, INTENT(OUT)                     :: do_it
@@ -1446,24 +1343,10 @@ CONTAINS
     END SELECT
   END SUBROUTINE check_element_list
 
-!******************************************************************************
-!!****** topology_generate_util [1.0] *
-!!
-!!   NAME
-!!     add_bonds_list
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Adds a bond to the generated bond list 
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Adds a bond to the generated bond list 
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE add_bonds_list(conn_info, atm1, atm2, n_bonds)
     TYPE(connectivity_info_type), POINTER    :: conn_info
     INTEGER, INTENT(IN)                      :: atm1, atm2, n_bonds
@@ -1480,24 +1363,10 @@ CONTAINS
     conn_info%bond_b(n_bonds) = atm2
   END SUBROUTINE add_bonds_list
 
-!******************************************************************************
-!!****** topology_generate_util [1.0] *
-!!
-!!   NAME
-!!     topology_generate_bend
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Using a list of bonds, generate a list of bends
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Using a list of bonds, generate a list of bends
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE topology_generate_bend(topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
@@ -1601,24 +1470,11 @@ CONTAINS
   END SUBROUTINE topology_generate_bend
 
 !
-!******************************************************************************
-!!****** topology_generate_util [1.0] *
-!!
-!!   NAME
-!!     match_iterative_path
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Routine matching iteratively along a graph 
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+
+! *****************************************************************************
+!> \brief Routine matching iteratively along a graph 
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   RECURSIVE SUBROUTINE match_iterative_path(Iarray1, Iarray2, Iarray3,&
        max_levl, Oarray1, Oarray2, Oarray3, Oarray4, Ilist, it_levl, nvar,&
        error)
@@ -1767,23 +1623,10 @@ CONTAINS
   END SUBROUTINE match_iterative_path
     
 !
-!******************************************************************************
-!!****** topology_generate_util [1.0] *
-!!
-!!   NAME
-!!     topology_generate_ub
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     The list of Urey-Bradley is equal to the list of bends
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+
+! *****************************************************************************
+!> \brief The list of Urey-Bradley is equal to the list of bends
+! *****************************************************************************
   SUBROUTINE topology_generate_ub(topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
@@ -1833,24 +1676,10 @@ CONTAINS
 
   END SUBROUTINE topology_generate_ub
 
-!******************************************************************************
-!!****** topology_generate_util [1.0] *
-!!
-!!   NAME
-!!     topology_generate_dihe
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Generate a list of torsions from bonds    
-!! 
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Generate a list of torsions from bonds    
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE topology_generate_dihe(topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
@@ -1949,24 +1778,10 @@ CONTAINS
     
   END SUBROUTINE topology_generate_dihe
 
-!******************************************************************************
-!!****** topology_generate_util [1.0] *
-!!
-!!   NAME
-!!     topology_generate_impr
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Using a list of bends, generate a list of impr
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Using a list of bends, generate a list of impr
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE topology_generate_impr(topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
@@ -2087,23 +1902,9 @@ CONTAINS
 
   END SUBROUTINE topology_generate_impr
 
-!******************************************************************************
-!!****** topology_generate_util [1.0] *
-!!
-!!   NAME
-!!     topology_generate_onfo
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Using a list of torsion, generate a list of onfo
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Using a list of torsion, generate a list of onfo
+! *****************************************************************************
   SUBROUTINE topology_generate_onfo(topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
@@ -2151,6 +1952,5 @@ CONTAINS
          "PRINT%TOPOLOGY_INFO/GENERATE_INFO",error=error)
     
   END SUBROUTINE topology_generate_onfo    
-
 
 END MODULE topology_generate_util

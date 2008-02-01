@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/util [1.0] *
-!!
-!!   NAME
-!!     util
-!!
-!!   FUNCTION
-!!     All kind of helpfull little routines
-!!
-!!   AUTHOR
-!!     CJM & JGH
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief All kind of helpfull little routines
+!> \par History
+!>      none
+!> \author CJM & JGH
+! *****************************************************************************
 MODULE util
 
   USE kinds,                           ONLY: dp,&
@@ -48,28 +38,17 @@ MODULE util
 
 CONTAINS
 
-  !!****** util/locate [1.0] *
-  !!
-  !!   NAME
-  !!     locate
-  !!
-  !!   FUNCTION
-  !!   Purpose: Given an array array(1:n), and given a value x, a value x_index
-  !!            is returned which is the index value of the array element equal
-  !!            to the value x: x = array(x_index)
-  !!            The array must be monotonic increasing.
-  !!            x_index = 0 is returned, if no array element equal to the value
-  !!            of x was found.
-  !!
-  !!   AUTHOR
-  !!     
-  !!
-  !!   MODIFICATION HISTORY
-  !!     Derived from the locate function described in
-  !!     Numerical Recipes in Fortran 90 (09.01.2004,MK)
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Purpose: Given an array array(1:n), and given a value x, a value x_index
+!>             is returned which is the index value of the array element equal
+!>             to the value x: x = array(x_index)
+!>             The array must be monotonic increasing.
+!>             x_index = 0 is returned, if no array element equal to the value
+!>             of x was found.
+!> \par History
+!>      Derived from the locate function described in
+!>      Numerical Recipes in Fortran 90 (09.01.2004,MK)
+! *****************************************************************************
   FUNCTION locate(array,x) RESULT(x_index)
     INTEGER, DIMENSION(:), INTENT(IN)        :: array
     INTEGER, INTENT(IN)                      :: x
@@ -98,22 +77,11 @@ CONTAINS
     IF (x == array(jl)) x_index = jl
   END FUNCTION locate
 
-  !!****** util/sort_unique1 [1.0] *
-  !!
-  !!   NAME
-  !!     sort_unique1
-  !!
-  !!   FUNCTION
-  !!     Sorts and returns a logical that checks if all elements are unique
-  !!
-  !!   AUTHOR
-  !!     
-  !!
-  !!   MODIFICATION HISTORY
-  !!     Teodoro Laino - Zurich University [tlaino] 04.2007
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Sorts and returns a logical that checks if all elements are unique
+!> \par History
+!>      Teodoro Laino - Zurich University [tlaino] 04.2007
+! *****************************************************************************
   SUBROUTINE sort_unique1( arr, unique)
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: arr
     LOGICAL, INTENT(OUT)                     :: unique
@@ -137,22 +105,11 @@ CONTAINS
     DEALLOCATE(wrk,stat=stat)
   END SUBROUTINE sort_unique1
 
-  !!****** util/sort_unique2 [1.0] *
-  !!
-  !!   NAME
-  !!     sort_unique2
-  !!
-  !!   FUNCTION
-  !!     Sorts and returns a logical that checks if all elements are unique
-  !!
-  !!   AUTHOR
-  !!     
-  !!
-  !!   MODIFICATION HISTORY
-  !!     Teodoro Laino - Zurich University [tlaino] 04.2007
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Sorts and returns a logical that checks if all elements are unique
+!> \par History
+!>      Teodoro Laino - Zurich University [tlaino] 04.2007
+! *****************************************************************************
   SUBROUTINE sort_unique2( arr, unique)
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: arr
@@ -177,22 +134,9 @@ CONTAINS
     DEALLOCATE(wrk,stat=stat)
   END SUBROUTINE sort_unique2
 
-  !!****** util/sort2 [1.0] *
-  !!
-  !!   NAME
-  !!     sort2
-  !!
-  !!   FUNCTION
-  !!     Sorts an array of reals
-  !!
-  !!   AUTHOR
-  !!     
-  !!
-  !!   MODIFICATION HISTORY
-  !!     
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Sorts an array of reals
+! *****************************************************************************
   SUBROUTINE sort2 ( arr, n, index )
     INTEGER, INTENT(IN)                      :: n
     REAL(KIND=dp), INTENT(INOUT)             :: arr(1:n)
@@ -208,22 +152,9 @@ CONTAINS
 #include "sort.f90"
   END SUBROUTINE sort2
 
-  !!****** util/sort2i [1.0] *
-  !!
-  !!   NAME
-  !!     sort2i
-  !!
-  !!   FUNCTION
-  !!     Sorts an array of integers
-  !!
-  !!   AUTHOR
-  !!     
-  !!
-  !!   MODIFICATION HISTORY
-  !!     
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Sorts an array of integers
+! *****************************************************************************
   SUBROUTINE sort2i ( arr, n, index )
     INTEGER, INTENT(IN)                      :: n
     INTEGER, INTENT(INOUT)                   :: arr(1:n)
@@ -239,22 +170,9 @@ CONTAINS
 #include "sort.f90"
   END SUBROUTINE sort2i
 
-  !!****** util/sort2i_int_8 [1.0] *
-  !!
-  !!   NAME
-  !!     sort2i_int_8
-  !!
-  !!   FUNCTION
-  !!     Sorts an array of int_8 integers
-  !!
-  !!   AUTHOR
-  !!     
-  !!
-  !!   MODIFICATION HISTORY
-  !!     
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Sorts an array of int_8 integers
+! *****************************************************************************
   SUBROUTINE sort2i_int_8 ( arr, n, index )
     INTEGER, INTENT(IN)                      :: n
     INTEGER(kind=int_8), INTENT(INOUT)       :: arr(1:n)
@@ -271,22 +189,9 @@ CONTAINS
 #include "sort.f90"
   END SUBROUTINE sort2i_int_8
 
-  !!****** util/get_limit [1.0] *
-  !!
-  !!   NAME
-  !!     get_limit
-  !!
-  !!   FUNCTION
-  !!     divide m entries into n parts, return size of part me
-  !!
-  !!   AUTHOR
-  !!     
-  !!
-  !!   MODIFICATION HISTORY
-  !!     
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief divide m entries into n parts, return size of part me
+! *****************************************************************************
   FUNCTION get_limit(m,n,me) RESULT (nlim)
     INTEGER, INTENT(IN)                      :: m, n, me
     INTEGER                                  :: nlim( 2 )
@@ -305,24 +210,12 @@ CONTAINS
 
   END FUNCTION get_limit
 
-  !!****** util/find_boundary1 [1.0] *
-  !!
-  !!   NAME
-  !!     find_boundary1
-  !!
-  !!   FUNCTION
-  !!     finds boundary where element search starts and ends in a 1D array
-  !!     array1:      XXXXXAAAAAAAAAXXDGFSFGWDDDDDDDAAAWE
-  !!                       |       |
-  !!                    start     end  (searching for A)
-  !!   AUTHOR
-  !!     
-  !!
-  !!   MODIFICATION HISTORY
-  !!     
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief finds boundary where element search starts and ends in a 1D array
+!>      array1:      XXXXXAAAAAAAAAXXDGFSFGWDDDDDDDAAAWE
+!>                        |       |
+!>                     start     end  (searching for A)
+! *****************************************************************************
   SUBROUTINE find_boundary1(num_array,ntot,first,last,search)
     INTEGER, POINTER                         :: num_array(:)
     INTEGER                                  :: ntot, first, last, search
@@ -354,27 +247,14 @@ CONTAINS
 
   END SUBROUTINE find_boundary1
 
-  !!****** util/find_boundary2 [1.0] *
-  !!
-  !!   NAME
-  !!     find_boundary2
-  !!
-  !!   FUNCTION
-  !!     finds boundary where element search1 starts and ends in array1 checking
-  !!     at the same time search2 in array2
-  !!     array1:      XXXXXAAAAAAAAAXXDGFSFGWDDDDDDDAAAWE
-  !!     array2:      XXXXASDEYYYYASDEFAAAARGASGASRGAWRRR
-  !!                          |  |
-  !!                      start  end  (searching for A and Y)
-  !!
-  !!   AUTHOR
-  !!     
-  !!
-  !!   MODIFICATION HISTORY
-  !!     
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief finds boundary where element search1 starts and ends in array1 checking
+!>      at the same time search2 in array2
+!>      array1:      XXXXXAAAAAAAAAXXDGFSFGWDDDDDDDAAAWE
+!>      array2:      XXXXASDEYYYYASDEFAAAARGASGASRGAWRRR
+!>                           |  |
+!>                       start  end  (searching for A and Y)
+! *****************************************************************************
   SUBROUTINE find_boundary2(num_array1,num_array2,ntot,first,last,search1,search2)
     INTEGER, POINTER                         :: num_array1(:), num_array2(:)
     INTEGER                                  :: ntot, first, last, search1, &
@@ -409,28 +289,15 @@ CONTAINS
 
   END SUBROUTINE find_boundary2
 
-  !!****** util/find_boundary3 [1.0] *
-  !!
-  !!   NAME
-  !!     find_boundary3
-  !!
-  !!   FUNCTION
-  !!     finds boundary where element search1 starts and ends in array1 checking
-  !!     at the same time search2 in array2 and search3 in array3
-  !!     array1:      XXXXXAAAAAAAAAXXDGFSFGWDDDDDDDAAAWE
-  !!     array2:      XXXXASDEYYYYASDEFAAAARGASGASRGAWRRR
-  !!     array3:      ADFAWRESCXXSQWQWFQGEQGEQRQEHQEHQEHEQ
-  !!                           ||
-  !!                      start  end  (searching for A and Y and X)
-  !!
-  !!   AUTHOR
-  !!     
-  !!
-  !!   MODIFICATION HISTORY
-  !!     
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief finds boundary where element search1 starts and ends in array1 checking
+!>      at the same time search2 in array2 and search3 in array3
+!>      array1:      XXXXXAAAAAAAAAXXDGFSFGWDDDDDDDAAAWE
+!>      array2:      XXXXASDEYYYYASDEFAAAARGASGASRGAWRRR
+!>      array3:      ADFAWRESCXXSQWQWFQGEQGEQRQEHQEHQEHEQ
+!>                            ||
+!>                       start  end  (searching for A and Y and X)
+! *****************************************************************************
   SUBROUTINE find_boundary3(num_array1,num_array2,num_array3,ntot,first,last,&
        search1,search2,search3)
     INTEGER, POINTER                         :: num_array1(:), num_array2(:), &

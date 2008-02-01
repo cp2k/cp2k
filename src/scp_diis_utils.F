@@ -3,6 +3,7 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
+! *****************************************************************************
 MODULE scp_diis_utils
 
   USE atomic_kind_types,               ONLY: atomic_kind_type
@@ -24,6 +25,7 @@ MODULE scp_diis_utils
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_diis_utils'
+! *****************************************************************************
   TYPE diis_info_type
     INTEGER :: nhist, ihist
     REAL (KIND=dp), DIMENSION(:,:), POINTER :: e_hist
@@ -35,7 +37,7 @@ MODULE scp_diis_utils
 
 CONTAINS
 
-!******************************************************************************
+! *****************************************************************************
   SUBROUTINE diis_info_create(diis_info,nhist,aux_coeff_set)
 
     TYPE(diis_info_type), POINTER            :: diis_info
@@ -84,7 +86,7 @@ CONTAINS
 
   END SUBROUTINE diis_info_create
 
-!***************************************************************************
+! *****************************************************************************
   SUBROUTINE diis_info_destroy(diis_info)
 
     TYPE(diis_info_type), POINTER            :: diis_info
@@ -115,6 +117,7 @@ CONTAINS
   END SUBROUTINE diis_info_destroy
 
 !------------------------------------------------------------------------------!
+! *****************************************************************************
   SUBROUTINE do_diis_step ( scp_env, atomic_kind_set, local_particles, diis_info, maxerr, error)
 
     TYPE(scp_environment_type), POINTER      :: scp_env
@@ -247,6 +250,7 @@ CONTAINS
   RETURN
   END SUBROUTINE do_diis_step
 !------------------------------------------------------------------------------!
+! *****************************************************************************
   SUBROUTINE STORE_HIST(c_forces,cg,e_hist,c_hist,hess,nhist,ihist)
 !------------------------------------------------------------------------------!
 
@@ -286,6 +290,7 @@ CONTAINS
   RETURN
   END SUBROUTINE store_hist
 !------------------------------------------------------------------------------!
+! *****************************************************************************
   SUBROUTINE SOLVE(dcg,e_hist,ihist,ncoef)
 !------------------------------------------------------------------------------!
     REAL(KIND=dp), INTENT(INOUT)             :: dcg(:)
@@ -346,8 +351,6 @@ CONTAINS
   IF ( stat /= 0 )  CALL stop_memory (routineP, 'deall eigenvec' )
   RETURN
   END SUBROUTINE solve
-!******************************************************************************
 
 END MODULE scp_diis_utils
 
-!******************************************************************************

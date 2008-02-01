@@ -3,24 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/qs_scf_post [1.0] *
-!!
-!!   NAME
-!!     qs_scf_post
-!!
-!!   FUNCTION
-!!     Does all kind of post scf calculations
-!!
-!!   AUTHOR
-!!     Joost VandeVondele (10.2003)
-!!
-!!   MODIFICATION HISTORY
-!!     Started as a copy from the relevant part of qs_scf
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Does all kind of post scf calculations
+!> \par History
+!>      Started as a copy from the relevant part of qs_scf
+!> \author Joost VandeVondele (10.2003)
+! *****************************************************************************
 MODULE qs_scf_post
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -129,6 +117,7 @@ MODULE qs_scf_post
   PRIVATE
 
   ! Local type
+! *****************************************************************************
   TYPE evals_p_type
      REAL(KIND = dp), DIMENSION(:), POINTER :: evals
   END TYPE evals_p_type
@@ -137,40 +126,26 @@ MODULE qs_scf_post
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_post'
   PUBLIC :: scf_post_calculation
 
-! *****************************************************************************
-
 CONTAINS
 
-!!****f* qs_scf_post/scf_post_calculation [1.0] *
-!!
-!!   NAME
-!!     scf_post_calculation
-!!
-!!   FUNCTION
-!!     collects possible post - scf calculations and prints info / computes properties.
-!!
-!!   NOTES
-!!     this function changes mo_eigenvectors and mo_eigenvalues, depending on the print keys.
-!!     In particular, MO_CUBES causes the MOs to be rotated to make them eigenstates of the KS
-!!     matrix, and mo_eigenvalues is updated accordingly. This can, for unconverged wavefunctions,
-!!     change afterwards slightly the forces (hence small numerical differences between MD
-!!     with and without the debug print level). Ideally this should not happen...
-!!
-!!   ARGUMENTS
-!!     - scf_env: the scf_env whose info should be written out
-!!     - qs_env: the qs_env in which the qs_env lives
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!     10.2004 moved here from qs_scf [Joost VandeVondele]
-!!             started splitting out different subroutines
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief collects possible post - scf calculations and prints info / computes properties.
+!> \param scf_env the scf_env whose info should be written out
+!> \param qs_env the qs_env in which the qs_env lives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      this function changes mo_eigenvectors and mo_eigenvalues, depending on the print keys.
+!>      In particular, MO_CUBES causes the MOs to be rotated to make them eigenstates of the KS
+!>      matrix, and mo_eigenvalues is updated accordingly. This can, for unconverged wavefunctions,
+!>      change afterwards slightly the forces (hence small numerical differences between MD
+!>      with and without the debug print level). Ideally this should not happen...
+!> \par History
+!>      02.2003 created [fawzi]
+!>      10.2004 moved here from qs_scf [Joost VandeVondele]
+!>              started splitting out different subroutines
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE scf_post_calculation(dft_section, scf_env,qs_env,error)
 
     TYPE(section_vals_type), POINTER         :: dft_section
@@ -548,28 +523,12 @@ CPSourceFileRef,&
 
   END SUBROUTINE scf_post_calculation
 
-!!****f* qs_scf_post/qs_scf_post_charges [1.0] *
-!!
-!!   NAME
-!!     qs_scf_post_charges
-!!
-!!   FUNCTION
-!!     Computes and Prints Atomic Charges with several methods
-!!
-!!   NOTES
-!!     
-!!   ARGUMENTS
-!!     - qs_env: the qs_env in which the qs_env lives
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Computes and Prints Atomic Charges with several methods
+!> \param qs_env the qs_env in which the qs_env lives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE qs_scf_post_charges(input, logger, qs_env, rho, matrix_s, mos, para_env, error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_logger_type), POINTER            :: logger
@@ -632,29 +591,12 @@ CPSourceFileRef,&
 
   END SUBROUTINE qs_scf_post_charges
 
-
-!!****f* qs_scf_post/qs_scf_post_loc_dip [1.0] *
-!!
-!!   NAME
-!!     qs_scf_post_loc_dip
-!!
-!!   FUNCTION
-!!     Computes and prints the Dipole (using localized charges)
-!!
-!!   NOTES
-!!     
-!!   ARGUMENTS
-!!     - qs_env: the qs_env in which the qs_env lives
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Computes and prints the Dipole (using localized charges)
+!> \param qs_env the qs_env in which the qs_env lives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE qs_scf_post_loc_dip(input, dft_control, qs_loc_env, logger, qs_env, error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -739,28 +681,12 @@ CPSourceFileRef,&
 
   END SUBROUTINE qs_scf_post_loc_dip
 
-!!****f* qs_scf_post/qs_scf_post_occ_cubes [1.0] *
-!!
-!!   NAME
-!!     qs_scf_post_occ_cubes
-!!
-!!   FUNCTION
-!!     Computes and prints the Cube Files for MO
-!!
-!!   NOTES
-!!     
-!!   ARGUMENTS
-!!     - qs_env: the qs_env in which the qs_env lives
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Computes and prints the Cube Files for MO
+!> \param qs_env the qs_env in which the qs_env lives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE qs_scf_post_occ_cubes(input, dft_section, dft_control, logger, qs_env,&
        mo_coeff, wf_g, wf_r, particles, homo, ispin, ionode, error)
     TYPE(section_vals_type), POINTER         :: input, dft_section
@@ -812,28 +738,12 @@ CPSourceFileRef,&
 
   END SUBROUTINE qs_scf_post_occ_cubes
 
-!!****f* qs_scf_post/qs_scf_post_unocc_cubes [1.0] *
-!!
-!!   NAME
-!!     qs_scf_post_unocc_cubes
-!!
-!!   FUNCTION
-!!     Computes and prints the Cube Files for MO
-!!
-!!   NOTES
-!!     
-!!   ARGUMENTS
-!!     - qs_env: the qs_env in which the qs_env lives
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Computes and prints the Cube Files for MO
+!> \param qs_env the qs_env in which the qs_env lives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE qs_scf_post_unocc_cubes(input, dft_section, dft_control, logger, qs_env,&
        unoccupied_orbs, wf_g, wf_r, particles, nlumos, homo, ispin, ionode, error)
     TYPE(section_vals_type), POINTER         :: input, dft_section
@@ -885,28 +795,12 @@ CPSourceFileRef,&
 
   END SUBROUTINE qs_scf_post_unocc_cubes
 
-!!****f* qs_scf_post/qs_scf_post_optc [1.0] *
-!!
-!!   NAME
-!!     qs_scf_post_optc
-!!
-!!   FUNCTION
-!!     Computes and prints the optical conductivity
-!!
-!!   NOTES
-!!     
-!!   ARGUMENTS
-!!     - qs_env: the qs_env in which the qs_env lives
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Computes and prints the optical conductivity
+!> \param qs_env the qs_env in which the qs_env lives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE qs_scf_post_optc(input, dft_section, dft_control, logger, qs_env,&
        unoccupied_orbs, unoccupied_evals, ionode, output_unit, error)
     TYPE(section_vals_type), POINTER         :: input, dft_section
@@ -973,28 +867,12 @@ CPSourceFileRef,&
     ENDIF
   END SUBROUTINE qs_scf_post_optc
 
-!!****f* qs_scf_post/qs_scf_post_moments [1.0] *
-!!
-!!   NAME
-!!     qs_scf_post_moments
-!!
-!!   FUNCTION
-!!     Computes and prints electric moments
-!!
-!!   NOTES
-!!     
-!!   ARGUMENTS
-!!     - qs_env: the qs_env in which the qs_env lives
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Computes and prints electric moments
+!> \param qs_env the qs_env in which the qs_env lives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE qs_scf_post_moments(input, logger, qs_env, ionode, output_unit, error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1053,28 +931,12 @@ CPSourceFileRef,&
 
   END SUBROUTINE qs_scf_post_moments
 
-!!****f* qs_scf_post/qs_scf_post_xray [1.0] *
-!!
-!!   NAME
-!!     qs_scf_post_xray
-!!
-!!   FUNCTION
-!!     Computes and prints X-RAY spectra
-!!
-!!   NOTES
-!!     
-!!   ARGUMENTS
-!!     - qs_env: the qs_env in which the qs_env lives
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Computes and prints X-RAY spectra
+!> \param qs_env the qs_env in which the qs_env lives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE qs_scf_post_xray(input, dft_section, logger, qs_env, ionode, output_unit, error)
     TYPE(section_vals_type), POINTER         :: input, dft_section
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1116,28 +978,12 @@ CPSourceFileRef,&
 
   END SUBROUTINE qs_scf_post_xray
 
-!!****f* qs_scf_post/qs_scf_post_efg [1.0] *
-!!
-!!   NAME
-!!     qs_scf_post_efg
-!!
-!!   FUNCTION
-!!     Computes and prints Electric Field Gradient
-!!
-!!   NOTES
-!!     
-!!   ARGUMENTS
-!!     - qs_env: the qs_env in which the qs_env lives
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Computes and prints Electric Field Gradient
+!> \param qs_env the qs_env in which the qs_env lives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE qs_scf_post_efg(input, logger, qs_env, dft_control, error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1187,30 +1033,16 @@ CPSourceFileRef,&
 
   END SUBROUTINE qs_scf_post_efg
 
-!!****f* qs_scf_post/qs_scf_post_molopt [1.0] *
-!!
-!!   NAME
-!!     qs_scf_post_molopt
-!!
-!!   FUNCTION
-!!     computes the condition number of the overlap matrix and 
-!!     prints the value of the total energy. This is needed
-!!     for BASIS_MOLOPT optimizations
-!!
-!!   NOTES
-!!
-!!   ARGUMENTS
-!!     - qs_env: the qs_env in which the qs_env lives
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!
-!!
-!!   MODIFICATION HISTORY
-!!     2007-07 Created [Joost VandeVondele]
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief computes the condition number of the overlap matrix and 
+!>      prints the value of the total energy. This is needed
+!>      for BASIS_MOLOPT optimizations
+!> \param qs_env the qs_env in which the qs_env lives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      2007-07 Created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE qs_scf_post_molopt(input, logger, qs_env, error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1237,7 +1069,6 @@ CPSourceFileRef,&
                    error=error)
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),&
               cp_p_file)) THEN
-
 
        CALL get_qs_env(qs_env,energy=energy,matrix_s=matrix_s,mos=mos,error=error)
      
@@ -1277,28 +1108,12 @@ CPSourceFileRef,&
 
   END SUBROUTINE qs_scf_post_molopt
 
-!!****f* qs_scf_post/qs_scf_post_epr [1.0] *
-!!
-!!   NAME
-!!     qs_scf_post_epr
-!!
-!!   FUNCTION
-!!     Dumps EPR 
-!!
-!!   NOTES
-!!     
-!!   ARGUMENTS
-!!     - qs_env: the qs_env in which the qs_env lives
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Dumps EPR 
+!> \param qs_env the qs_env in which the qs_env lives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE qs_scf_post_epr(input, logger, qs_env, error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1320,28 +1135,12 @@ CPSourceFileRef,&
 
   END SUBROUTINE qs_scf_post_epr
 
-!!****f* qs_scf_post/write_available_results [1.0] *
-!!
-!!   NAME
-!!     write_available_results
-!!
-!!   FUNCTION
-!!     Write QS results always available (if switched on through the print_keys)
-!!
-!!   NOTES
-!!     
-!!   ARGUMENTS
-!!     - qs_env: the qs_env in which the qs_env lives
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Write QS results always available (if switched on through the print_keys)
+!> \param qs_env the qs_env in which the qs_env lives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE write_available_results(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error

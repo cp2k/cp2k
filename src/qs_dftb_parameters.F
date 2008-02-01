@@ -2,21 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_dftb_parameters [1.0] *
-!!
-!!   NAME
-!!     qs_dftb_parameters
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     JGH (27.02.2007)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \author JGH (27.02.2007)
+! *****************************************************************************
 MODULE qs_dftb_parameters
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -68,9 +57,6 @@ MODULE qs_dftb_parameters
 ! *** Public subroutines ***
 
   PUBLIC :: qs_dftb_param_init
-
-!!***
-! *****************************************************************************
 
 CONTAINS
 
@@ -762,8 +748,5 @@ CONTAINS
       !
    END SUBROUTINE skreorder
 
-! *****************************************************************************
-  
 END MODULE qs_dftb_parameters
 
-! *****************************************************************************

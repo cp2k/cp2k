@@ -2,25 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/fist_force [1.0]
-!!
-!!   NAME
-!!     fist_force
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM & JGH
-!!
-!!   MODIFICATION HISTORY
-!!     Torsions added (DG) 05-Dec-2000
-!!     Variable names changed (DG) 05-Dec-2000
-!!     CJM SEPT-12-2002: int_env is now passed
-!!     CJM NOV-30-2003: only uses fist_env
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      Torsions added (DG) 05-Dec-2000
+!>      Variable names changed (DG) 05-Dec-2000
+!>      CJM SEPT-12-2002: int_env is now passed
+!>      CJM NOV-30-2003: only uses fist_env
+!> \author CJM & JGH
+! *****************************************************************************
 MODULE fist_force
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -87,6 +77,7 @@ MODULE fist_force
   PUBLIC :: fist_force_control, debug_variables_type
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_force'
 
+! *****************************************************************************
   TYPE debug_variables_type
      REAL (KIND=dp)                           :: pot_manybody, pot_bend, pot_torsion
      REAL (KIND=dp)                           :: pot_nonbond, pot_g, pot_bond
@@ -97,35 +88,21 @@ MODULE fist_force
                                                  pv_bend, pv_torsion, pv_imptors
   END TYPE debug_variables_type
 
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** fist_force/fist_force_control [1.1] *
-!!
-!!   NAME
-!!    fist_force_control
-!!
-!!   FUNCTION
-!!     Calculates the total potential energy, total force, and the
-!!     total pressure tensor from the potentials
-!!
-!!   AUTHOR
-!!     CJM & JGH
-!!
-!!   MODIFICATION HISTORY
-!!     Harald Forbert (Dec-2000): Changes for multiple linked lists
-!!     cjm, 20-Feb-2001: box_ref used to initialize ewald.  Now
-!!                       have consistent restarts with npt and ewald
-!!     JGH (15-Mar-2001) : box_change replaces ensemble parameter
-!!                         Call ewald_setup if box has changed
-!!                         Consistent setup for PME and SPME
-!!     cjm, 28-Feb-2006: box_change is gone
-!!
-!!   SOURCE
-!!******************************************************************************
-
+! *****************************************************************************
+!> \brief Calculates the total potential energy, total force, and the
+!>      total pressure tensor from the potentials
+!> \par History
+!>      Harald Forbert (Dec-2000): Changes for multiple linked lists
+!>      cjm, 20-Feb-2001: box_ref used to initialize ewald.  Now
+!>                        have consistent restarts with npt and ewald
+!>      JGH (15-Mar-2001) : box_change replaces ensemble parameter
+!>                          Call ewald_setup if box has changed
+!>                          Consistent setup for PME and SPME
+!>      cjm, 28-Feb-2006: box_change is gone
+!> \author CJM & JGH
+! *****************************************************************************
   SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_section, error)
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(virial_type), POINTER               :: virial
@@ -819,23 +796,12 @@ CONTAINS
 
 END SUBROUTINE fist_force_control
 
-!******************************************************************************
-!!****** fist_force/print_fist [1.1] *
-!!
-!!   NAME
-!!    print_fist
-!!
-!!   FUNCTION
-!!     Print properties number according the requests in input file
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     [01.2006] created
-!!
-!!   SOURCE
-!!******************************************************************************
+! *****************************************************************************
+!> \brief Print properties number according the requests in input file
+!> \par History
+!>      [01.2006] created
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE print_fist(fist_env, print_section, atomic_kind_set, particle_set, cell, error)
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(section_vals_type), POINTER         :: print_section
@@ -863,25 +829,14 @@ END SUBROUTINE fist_force_control
 
   END SUBROUTINE print_fist
 
-!******************************************************************************
-!!****** fist_force/fist_dipole [1.1] *
-!!
-!!   NAME
-!!    fist_dipole
-!!
-!!   FUNCTION
-!!     Evaluates the Dipole of a classical charge distribution (point-like)
-!!     possibly using the berry phase formalism
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     [01.2006] created
-!!     [12.2007] tlaino - University of Zurich - debug and extended 
-!!
-!!   SOURCE
-!!******************************************************************************
+! *****************************************************************************
+!> \brief Evaluates the Dipole of a classical charge distribution (point-like)
+!>      possibly using the berry phase formalism
+!> \par History
+!>      [01.2006] created
+!>      [12.2007] tlaino - University of Zurich - debug and extended 
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE fist_dipole(fist_env, print_section, atomic_kind_set, particle_set, cell, unit_nr, error)
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(section_vals_type), POINTER         :: print_section
@@ -997,6 +952,4 @@ END SUBROUTINE fist_force_control
 
   END SUBROUTINE fist_dipole
 
-!******************************************************************************
 END MODULE fist_force
-!******************************************************************************

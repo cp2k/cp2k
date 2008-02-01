@@ -3,23 +3,9 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/qs_loc_molecules [1.0] *
-!!
-!!   NAME
-!!     qs_loc_molecules
-!!
-!!   FUNCTION
-!!     Set of routines handling the localization for molecular properties
-!!    
-!!
-!!   AUTHORS
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Set of routines handling the localization for molecular properties
+! *****************************************************************************
 MODULE qs_loc_molecules
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -55,34 +41,16 @@ MODULE qs_loc_molecules
   ! *** Public ***
   PUBLIC :: wfc_to_molecule
 
-
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_molecules'
-  ! *****************************************************************************
 
 CONTAINS
 
-!!****f* qs_loc_molecules/wfc_to_molecule [1.0] *
-!!
-!!   NAME
-!!     wfc_to_molecule
-!!
-!!   FUNCTION
-!!     maps wfc's to molecules
-!!
-!!   NOTES
-!!
-!!   ARGUMENTS
-!!     - qs_env: the qs_env in which the qs_env lives
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief maps wfc's to molecules
+!> \param qs_env the qs_env in which the qs_env lives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE wfc_to_molecule ( qs_loc_env, loc_print_key, center, molecule_set, error )
     TYPE(qs_loc_env_new_type), INTENT(IN)    :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: loc_print_key

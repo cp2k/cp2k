@@ -3,23 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/splines_types [1.0] *
-!!
-!!   NAME
-!!     splines_types
-!!
-!!   FUNCTION
-!!     routines for handling splines_types
-!!
-!!   AUTHOR
-!!     various
-!!
-!!   MODIFICATION HISTORY
-!!     2001-09-21-HAF added this doc entry and changed formatting
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief routines for handling splines_types
+!> \par History
+!>      2001-09-21-HAF added this doc entry and changed formatting
+!> \author various
+! *****************************************************************************
 MODULE splines_types
 
   USE f77_blas
@@ -42,26 +31,13 @@ MODULE splines_types
   PUBLIC :: spline_data_type    ! the data structure for spline table
   PUBLIC :: spline_factor_type  ! the multiplicative factors for splines
 
-  !******************************************************************************
-  !!****
-  !!****s* splines_types/spline_data [1.0] *
-  !!
-  !!   NAME
-  !!     spline_data
-  !!
-  !!   FUNCTION
-  !!     Data-structure that holds all needed information about
-  !!     a specific spline interpolation.
-  !!
-  !!   AUTHOR
-  !!     unknown
-  !!
-  !!   MODIFICATION HISTORY
-  !!     2001-09-19-HAF added this doc entry and changed formatting
-  !!
-  !!   SOURCE
-  !******************************************************************************
-
+! *****************************************************************************
+!> \brief Data-structure that holds all needed information about
+!>      a specific spline interpolation.
+!> \par History
+!>      2001-09-19-HAF added this doc entry and changed formatting
+!> \author unknown
+! *****************************************************************************
   TYPE spline_data_type
      INTEGER :: ref_count, id_nr
      LOGICAL                 :: dual
@@ -81,47 +57,37 @@ MODULE splines_types
      REAL (KIND=dp)          :: ei_scale14, ei_cutoff14
   END TYPE spline_data_type
 
+! *****************************************************************************
   TYPE spline_data_p_type
      TYPE ( spline_data_type ), POINTER :: spline_data
   END TYPE spline_data_p_type
 
+! *****************************************************************************
   TYPE spline_data_pp_type
      TYPE ( spline_data_p_type ), POINTER, DIMENSION(:)  :: spl_p
   END TYPE spline_data_pp_type
 
+! *****************************************************************************
   TYPE spline_environment_type
      INTEGER :: ref_count, id_nr
      TYPE ( spline_data_pp_type ), POINTER, DIMENSION ( : ) :: spl_pp
      INTEGER, POINTER, DIMENSION ( :, : ) :: spltab
   END TYPE spline_environment_type
 
+! *****************************************************************************
   TYPE spline_factor_type
      REAL(KIND=dp) :: rcutsq_f, cutoff_e, cutoff_n, cutoff
      REAL(KIND=dp), DIMENSION(:), POINTER :: rscale
      REAL(KIND=dp), DIMENSION(:), POINTER :: fscale
      REAL(KIND=dp), DIMENSION(:), POINTER :: dscale
   END TYPE spline_factor_type
-  !******************************************************************************
-  !!*****
 
 CONTAINS
 
-  !******************************************************************************
-  !!****
-  !!****s* splines_types/spline_env_release [1.0] *
-  !!
-  !!   NAME
-  !!     spline_env_release
-  !!
-  !!   FUNCTION
-  !!     releases spline_env
-  !!   AUTHOR
-  !!     unknown
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief releases spline_env
+!> \author unknown
+! *****************************************************************************
   SUBROUTINE spline_env_release(spline_env,error)
     TYPE(spline_environment_type), POINTER   :: spline_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -157,25 +123,10 @@ CONTAINS
 
   END SUBROUTINE spline_env_release
 
-  !***************************************************************************
-  !******************************************************************************
-  !!****
-  !!****s* splines_types/spline_data_release [1.0] *
-  !!
-  !!   NAME
-  !!     spline_data_release
-  !!
-  !!   FUNCTION
-  !!     releases spline_data
-  !!
-  !!
-  !!   AUTHOR
-  !!     CJM
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief releases spline_data
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE spline_data_release (spline_data,error)
     TYPE(spline_data_type), POINTER          :: spline_data
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -213,24 +164,10 @@ CONTAINS
     END IF
   END SUBROUTINE spline_data_release
 
-  !******************************************************************************
-  !!****
-  !!****s* splines_types/spline_data_p_release [1.0] *
-  !!
-  !!   NAME
-  !!     spline_data_p_release
-  !!
-  !!   FUNCTION
-  !!     releases spline_data_p
-  !!
-  !!
-  !!   AUTHOR
-  !!     CJM
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief releases spline_data_p
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE spline_data_p_release (spl_p,error)
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p
@@ -258,24 +195,10 @@ CONTAINS
 
   END SUBROUTINE spline_data_p_release
 
-  !******************************************************************************
-  !!****
-  !!****s* splines_types/spline_data_retain [1.0] *
-  !!
-  !!   NAME
-  !!     spline_env_retain
-  !!
-  !!   FUNCTION
-  !!     retains spline_env
-  !!
-  !!
-  !!   AUTHOR
-  !!     CJM
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief retains spline_env
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE spline_data_retain(spline_data,error)
     TYPE(spline_data_type), POINTER          :: spline_data
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -286,7 +209,6 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    !!
     CPPrecondition(ASSOCIATED(spline_data),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CPPrecondition(spline_data%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -294,24 +216,10 @@ CONTAINS
     END IF
   END SUBROUTINE spline_data_retain
 
-  !******************************************************************************
-  !!****
-  !!****s* splines_types/spline_data_p_retain [1.0] *
-  !!
-  !!   NAME
-  !!     spline_env_p_retain
-  !!
-  !!   FUNCTION
-  !!     retains spline_data_p_type
-  !!
-  !!
-  !!   AUTHOR
-  !!     CJM
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief retains spline_data_p_type
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE spline_data_p_retain(spl_p,error)
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p
@@ -324,7 +232,6 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    !!
     CPPrecondition(ASSOCIATED(spl_p),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        DO i = 1, SIZE(spl_p)
@@ -333,25 +240,12 @@ CONTAINS
     END IF
   END SUBROUTINE spline_data_p_retain
 
-  !******************************************************************************
-  !!****
-  !!****s* splines_types/spline_env_retain [1.0] *
-  !!
-  !!   NAME
-  !!     spline_env_retain
-  !!
-  !!   FUNCTION
-  !!     retains spline_env
-  !!
-  !!
-  !!   AUTHOR
-  !!     unknown
-  !!
-  !!   MODIFICATION HISTORY
-  !!     2001-09-19-HAF added this doc entry and changed formatting
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief retains spline_env
+!> \par History
+!>      2001-09-19-HAF added this doc entry and changed formatting
+!> \author unknown
+! *****************************************************************************
   SUBROUTINE spline_env_retain(spline_env,error)
     TYPE(spline_environment_type), POINTER   :: spline_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -362,7 +256,6 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    !!
     CPPrecondition(ASSOCIATED(spline_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CPPrecondition(spline_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -370,25 +263,13 @@ CONTAINS
     END IF
   END SUBROUTINE spline_env_retain
 
-  !******************************************************************************
-  !!****
-  !!****s* splines_types/spline_env_create [1.0] *
-  !!
-  !!   NAME
-  !!     spline_env_create
-  !!
-  !!   FUNCTION
-  !!     Data-structure that holds all needed information about
-  !!     a specific spline interpolation.
-  !!
-  !!   AUTHOR
-  !!     unknown
-  !!
-  !!   MODIFICATION HISTORY
-  !!     2001-09-19-HAF added this doc entry and changed formatting
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Data-structure that holds all needed information about
+!>      a specific spline interpolation.
+!> \par History
+!>      2001-09-19-HAF added this doc entry and changed formatting
+!> \author unknown
+! *****************************************************************************
   SUBROUTINE spline_env_create ( spline_env, ntype, ntab_in, array_double_allocation, error )
     TYPE(spline_environment_type), POINTER   :: spline_env
     INTEGER, INTENT(IN)                      :: ntype
@@ -440,23 +321,10 @@ CONTAINS
     END IF
   END SUBROUTINE spline_env_create
 
-  !******************************************************************************
-  !!****
-  !!****s* splines_types/spline_data_p_copy [1.0] *
-  !!
-  !!   NAME
-  !!     spline_data_p_copy
-  !!
-  !!   FUNCTION
-  !!     Copy Data-structure of spline_data_p_type
-  !!
-  !!   AUTHOR
-  !!     teo 06.2007
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Copy Data-structure of spline_data_p_type
+!> \author teo 06.2007
+! *****************************************************************************
   SUBROUTINE spline_data_p_copy ( spl_p_source, spl_p_dest, error )
     TYPE(spline_data_p_type), DIMENSION(:), &
       POINTER                                :: spl_p_source, spl_p_dest
@@ -491,23 +359,10 @@ CONTAINS
     END IF
   END SUBROUTINE spline_data_p_copy
 
-  !******************************************************************************
-  !!****
-  !!****s* splines_types/spline_data_copy [1.0] *
-  !!
-  !!   NAME
-  !!     spline_data_copy
-  !!
-  !!   FUNCTION
-  !!     Copy Data-structure that constains spline table
-  !!
-  !!   AUTHOR
-  !!     teo 11.2005
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Copy Data-structure that constains spline table
+!> \author teo 11.2005
+! *****************************************************************************
   SUBROUTINE spline_data_copy ( spline_data_source, spline_data_dest, error )
     TYPE(spline_data_type), POINTER          :: spline_data_source, &
                                                 spline_data_dest
@@ -554,23 +409,10 @@ CONTAINS
     END IF
   END SUBROUTINE spline_data_copy
 
-  !******************************************************************************
-  !!****
-  !!****s* splines_types/spline_data_create [1.0] *
-  !!
-  !!   NAME
-  !!     spline_data_create
-  !!
-  !!   FUNCTION
-  !!     Data-structure that constains spline table
-  !!
-  !!   AUTHOR
-  !!     unknown
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Data-structure that constains spline table
+!> \author unknown
+! *****************************************************************************
   SUBROUTINE spline_data_create ( spline_data, error )
     TYPE(spline_data_type), POINTER          :: spline_data
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -596,24 +438,10 @@ CONTAINS
     END IF
   END SUBROUTINE spline_data_create
 
-  !******************************************************************************
-  !!****
-  !!****s* splines_types/spline_factor_release [1.0] *
-  !!
-  !!   NAME
-  !!     spline_factor_release
-  !!
-  !!   FUNCTION
-  !!     releases spline_factor
-  !!
-  !!
-  !!   AUTHOR
-  !!     teo
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief releases spline_factor
+!> \author teo
+! *****************************************************************************
   SUBROUTINE spline_factor_release (spline_factor,error)
     TYPE(spline_factor_type), POINTER        :: spline_factor
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -644,24 +472,10 @@ CONTAINS
     END IF
   END SUBROUTINE spline_factor_release 
 
-  !******************************************************************************
-  !!****
-  !!****s* splines_types/spline_factor_create [1.0] *
-  !!
-  !!   NAME
-  !!     spline_factor_create
-  !!
-  !!   FUNCTION
-  !!     releases spline_factor
-  !!
-  !!
-  !!   AUTHOR
-  !!     teo
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief releases spline_factor
+!> \author teo
+! *****************************************************************************
   SUBROUTINE spline_factor_create (spline_factor, error)
     TYPE(spline_factor_type), POINTER        :: spline_factor
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -691,24 +505,10 @@ CONTAINS
     spline_factor%cutoff   = 0.0_dp
   END SUBROUTINE spline_factor_create 
 
-  !******************************************************************************
-  !!****
-  !!****s* splines_types/spline_factor_copy [1.0] *
-  !!
-  !!   NAME
-  !!     spline_factor_copy
-  !!
-  !!   FUNCTION
-  !!     releases spline_factor
-  !!
-  !!
-  !!   AUTHOR
-  !!     teo
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief releases spline_factor
+!> \author teo
+! *****************************************************************************
   SUBROUTINE spline_factor_copy (spline_factor_source,spline_factor_dest, error)
     TYPE(spline_factor_type), POINTER        :: spline_factor_source, &
                                                 spline_factor_dest

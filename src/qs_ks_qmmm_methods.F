@@ -1,23 +1,11 @@
-
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_ks_qmmm_methods [1.0] *
-!!
-!!   NAME
-!!     qs_ks_qmmm_methods
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     T.Laino
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \author T.Laino
+! *****************************************************************************
 MODULE qs_ks_qmmm_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE cube_utils,                      ONLY: cube_info_type,&
@@ -56,28 +44,15 @@ MODULE qs_ks_qmmm_methods
             qmmm_modify_hartree_pot
 
 CONTAINS
-  !!****f* force_env_methods/ks_qmmm_env_rebuild [1.0] *
-  !!
-  !!   NAME
-  !!     ks_qmmm_env_rebuild
-  !!
-  !!   FUNCTION
-  !!     Initialize the ks_qmmm_env
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     05.2004 created [tlaino]
-  !!
-  !!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief Initialize the ks_qmmm_env
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      05.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE ks_qmmm_env_rebuild(qs_env,qmmm_env,error)
     TYPE(qs_environment_type), OPTIONAL, &
       POINTER                                :: qs_env
@@ -99,32 +74,17 @@ CONTAINS
             error=error)
     END IF
   END SUBROUTINE ks_qmmm_env_rebuild
-  !***************************************************************************
 
-!!****f* qs_ks_methods/qs_ks_qmmm_create [1.0] *
-!!
-!!   NAME
-!!     qs_ks_qmmm_create
-!!
-!!   FUNCTION
-!!     allocates and initializes the given ks_qmmm_env.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - ks_qmmm_env: the ks_qmmm env to be initialized
-!!     - qs_env: the qs environment
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief allocates and initializes the given ks_qmmm_env.
+!> \param ks_qmmm_env the ks_qmmm env to be initialized
+!> \param qs_env the qs environment
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      05.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qs_ks_qmmm_create(ks_qmmm_env, qs_env, qmmm_env, error)
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -187,28 +147,14 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qs_ks_qmmm_create
-!***************************************************************************
-!!****f* qmmm_gpw_forces/qmmm_calculate_energy [1.0] *
-!!
-!!   NAME
-!!     qmmm_calculate_energy
-!!
-!!   FUNCTION
-!!     Computes the contribution to the total energy of the QM/MM
-!!     electrostatic coupling
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created [tlaino]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief Computes the contribution to the total energy of the QM/MM
+!>      electrostatic coupling
+!> \par History
+!>      05.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_calculate_energy(qs_env, rho, v_qmmm, qmmm_energy, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho
@@ -248,26 +194,12 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_calculate_energy
 
-!!****f* qmmm_gpw_forces/qmmm_modify_hartree_pot [1.0] *
-!!
-!!   NAME
-!!     qmmm_modify_hartree_pot
-!!
-!!   FUNCTION
-!!     Modify the hartree potential in order to include the QM/MM correction
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Modify the hartree potential in order to include the QM/MM correction
+!> \par History
+!>      05.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_modify_hartree_pot(v_hartree,v_qmmm, error)
     TYPE(pw_p_type), INTENT(INOUT)           :: v_hartree
     TYPE(pw_p_type), INTENT(IN)              :: v_qmmm

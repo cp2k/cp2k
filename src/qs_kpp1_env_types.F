@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qs_kpp1_env_types [1.0] *
-!!
-!!   NAME
-!!     qs_kpp1_env_types
-!!
-!!   FUNCTION
-!!     basis types for the calculation of the perturbation of density theory.
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     4.2002 created [fawzi]
-!!
-!!   SOURCE
-! ****************************************************************************
+! *****************************************************************************
+!> \brief basis types for the calculation of the perturbation of density theory.
+!> \par History
+!>      4.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE qs_kpp1_env_types
   USE cp_array_i_utils,                ONLY: cp_2d_i_write
   USE cp_array_logical_utils,          ONLY: cp_1d_logical_write,&
@@ -55,47 +41,31 @@ MODULE qs_kpp1_env_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_kpp1_env_types'
 
-!!***
-!****************************************************************************
-
-!!****s* qs_p_build_kernel/qs_kpp1_env_type [1.0] *
-!!
-!!   NAME
-!!     qs_kpp1_env_type
-!!
-!!   FUNCTION
-!!     environement that keeps the informations and temporary
-!!     val to build the kpp1 kernel matrix
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - ref_count: reference count (how may objects are sharing this one)
-!!     - v_rspace: potential in r space. This is used to do an update only
-!!       of what has changed. Useful if P1 converges to some density
-!!       (you spare in the grid-ao conversion).
-!!       With LSD contains the various orbitals.
-!!     - v_ao: the potential in the ao basis (used togheter with v_rspace
-!!       to update only what changed
-!!     - id_nr: identification number, unique for each kpp1 env
-!!     - print_count: counter to create unique filename
-!!     - iter: number of iterations
-!!     - drho_r(idir,ispin): the derivative of rho wrt. x,y,z in the real space
-!!     - deriv_xc(ii,ipot): the second derivative of the xc potential at psi0
-!!       (qs_env%c), if grad pot is true it should already be divised
-!!       by the gradient
-!!     - spin_pot(1:2,ipot): information about wrt. to which spins the
-!!        corresponding component of deriv_xc was derived (see
-!!        xc_create_2nd_deriv_info)
-!!     - grad_pot(1:2,ipot): if the derivative spin_pot was wrt. to
-!!       the gradient (see xc_create_2nd_deriv_info)
-!!     - ndiag_term(ipot): it the term is an off diagonal term (see
-!!       xc_create_2nd_deriv_info)
-!!
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief environement that keeps the informations and temporary
+!>      val to build the kpp1 kernel matrix
+!> \param ref_count reference count (how may objects are sharing this one)
+!> \param v_rspace potential in r space. This is used to do an update only
+!>        of what has changed. Useful if P1 converges to some density
+!>        (you spare in the grid-ao conversion).
+!>        With LSD contains the various orbitals.
+!> \param v_ao the potential in the ao basis (used togheter with v_rspace
+!>        to update only what changed
+!> \param id_nr identification number, unique for each kpp1 env
+!> \param print_count counter to create unique filename
+!> \param iter number of iterations
+!> \param drho_r (idir,ispin): the derivative of rho wrt. x,y,z in the real space
+!> \param deriv_xc (ii,ipot): the second derivative of the xc potential at psi0
+!>        (qs_env%c), if grad pot is true it should already be divised
+!>        by the gradient
+!> \param spin_pot (1:2,ipot): information about wrt. to which spins the
+!>         corresponding component of deriv_xc was derived (see
+!>         xc_create_2nd_deriv_info)
+!> \param grad_pot (1:2,ipot): if the derivative spin_pot was wrt. to
+!>        the gradient (see xc_create_2nd_deriv_info)
+!> \param ndiag_term (ipot): it the term is an off diagonal term (see
+!>        xc_create_2nd_deriv_info)
+! *****************************************************************************
   TYPE qs_kpp1_env_type
      INTEGER :: ref_count, id_nr, print_count, iter
      TYPE(pw_p_type), DIMENSION(:), POINTER :: v_rspace
@@ -107,68 +77,29 @@ MODULE qs_kpp1_env_types
      LOGICAL, DIMENSION(:,:), POINTER :: grad_pot
      LOGICAL, DIMENSION(:), POINTER :: ndiag_term
   END TYPE qs_kpp1_env_type
-!!***
-  !****************************************************************************
 
-!!****s* qs_p_build_kernel/qs_kpp1_env_p_type [1.0] *
-!!
-!!   NAME
-!!     qs_kpp1_env_p_type
-!!
-!!   FUNCTION
-!!     just to build array of pointers
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     kpp1_env: the pointer to the kpp1_env
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief just to build array of pointers
+!> \param kpp1_env: the pointer to the kpp1_env
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE qs_kpp1_env_p_type
      TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
   END TYPE qs_kpp1_env_p_type
-!!***
-  !****************************************************************************
 
 CONTAINS
 
-!!****f* qs_kpp1_env_types/kpp1_release [1.0] *
-!!
-!!   NAME
-!!     kpp1_release
-!!
-!!   SYNOPSIS
-!!     Subroutine kpp1_release(kpp1_env, error)
-!!       Type(qs_kpp1_env_type), Pointer:: kpp1_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine kpp1_release
-!!
-!!   FUNCTION
-!!     releases a kpp1_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - kpp1_env: the environement to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases a kpp1_env (see doc/ReferenceCounting.html)
+!> \param kpp 1_env: the environement to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      07.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE kpp1_release(kpp1_env,error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -228,37 +159,16 @@ CONTAINS
     END IF
     NULLIFY(kpp1_env)
   END SUBROUTINE kpp1_release
-!***************************************************************************
 
-!!****f* qs_kpp1_env_types/kpp1_retain [1.0] *
-!!
-!!   NAME
-!!     kpp1_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine kpp1_retain(kpp1_env, error)
-!!       Type(qs_kpp1_env_type), Pointer:: kpp1_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine kpp1_retain
-!!
-!!   FUNCTION
-!!     retains a kpp1_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - kpp1_env: the environement to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains a kpp1_env (see doc/ReferenceCounting.html)
+!> \param kpp 1_env: the environement to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      11.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE kpp1_retain(kpp1_env,error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -276,36 +186,21 @@ CONTAINS
        kpp1_env%ref_count=kpp1_env%ref_count+1
     END IF
   END SUBROUTINE kpp1_retain
-!***************************************************************************
 
-!!****f* qs_kpp1_env_types/kpp1_write [1.0] *
-!!
-!!   NAME
-!!     kpp1_write
-!!
-!!   FUNCTION
-!!     writes the content of the kpp1_env to the given output unit
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - kpp1_env: the kpp1_env to output
-!!     - unit_nr: the unit where to output
-!!     - long_description: if a long description should be written
-!!       (defaults to false)
-!!     - local: if the unit is a local unit or a global unit
-!!       (defaults to false, i.e. global)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes the content of the kpp1_env to the given output unit
+!> \param kpp 1_env: the kpp1_env to output
+!> \param unit_nr the unit where to output
+!> \param long_description if a long description should be written
+!>        (defaults to false)
+!> \param local if the unit is a local unit or a global unit
+!>        (defaults to false, i.e. global)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE kpp1_write(kpp1_env, unit_nr, long_description, local,&
        error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
@@ -493,6 +388,5 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE kpp1_write
-!***************************************************************************
 
 END MODULE qs_kpp1_env_types

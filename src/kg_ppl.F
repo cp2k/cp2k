@@ -2,25 +2,18 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/kg_ppl [1.1] *
-!!
-!!     b) Pseudopotential calculation (Goedecker, Teter and Hutter; GTH):
-!!
-!!        <a|V|b> = <a|(V(local) b>
-!!
-!!        <a|V(local)|b> = <a|-Z(eff)*erf(SQRT(2)*alpha*r)/r +
-!!                            (C1 + C2*(alpha*r)**2 + C3*(alpha*r)**4 +
-!!                             C4*(alpha*r)**6)*exp(-(alpha*r)**2/2))|b>
-!!
-!!        <a|V(non-local)|b> = O
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief b) Pseudopotential calculation (Goedecker, Teter and Hutter; GTH):
+!> 
+!>         <a|V|b> = <a|(V(local) b>
+!> 
+!>         <a|V(local)|b> = <a|-Z(eff)*erf(SQRT(2)*alpha*r)/r +
+!>                             (C1 + C2*(alpha*r)**2 + C3*(alpha*r)**4 +
+!>                              C4*(alpha*r)**6)*exp(-(alpha*r)**2/2))|b>
+!> 
+!>         <a|V(non-local)|b> = O
+! *****************************************************************************
 MODULE kg_ppl
   USE ai_overlap_ppl,                  ONLY: overlap_ppl
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -69,22 +62,14 @@ MODULE kg_ppl
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_ppl'
 
-
-
 ! *** Public subroutines ***
 
   PUBLIC :: calculate_rho0_ppl, calculate_drho_ppl
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE calculate_rho0_ppl(kg_env,calculate_forces,error)
-
-!   ***************************************************************************
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
@@ -131,10 +116,12 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
+! *****************************************************************************
     TYPE cexp_ppl_type
       REAL(KIND=dp), DIMENSION(:,:), POINTER :: c
     END TYPE cexp_ppl_type
 
+! *****************************************************************************
     TYPE alpha_ppl_type
       REAL(KIND=dp), DIMENSION(:), POINTER :: alpha
     END TYPE alpha_ppl_type
@@ -142,6 +129,7 @@ CONTAINS
     TYPE(cexp_ppl_type), DIMENSION(:), ALLOCATABLE :: cexp_ppl
     TYPE(alpha_ppl_type), DIMENSION(:), ALLOCATABLE :: alpha_ppl
 
+! *****************************************************************************
     TYPE vppl_type
       REAL(KIND=dp), DIMENSION(:), POINTER   :: r2
       INTEGER, DIMENSION(:), POINTER    :: neighbor
@@ -210,7 +198,6 @@ CONTAINS
 
     maxder = ncoset(nder)
     maxder = MAX(1,nder)
-
 
 !   *** Allocate work storage ***
 
@@ -420,14 +407,12 @@ CONTAINS
               work(i,1)=1.0E0_dp
             ENDDO
 
-
             CALL dgemm("N","N",ncoa,1,nsgfa(iset),&
                       1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                       work(1,1),SIZE(work,1),&
                       0.0_dp,pab(1,1),SIZE(pab,1))
 
           END IF
-
 
 !      *** Loop over the GTH pseudo potential atoms (local part) ***
 
@@ -469,7 +454,6 @@ CONTAINS
                     rab,dab,rac,dac,rbc,dbc,&
                     hab,nder,0,.FALSE.,ai_work,&
                     pab,force_a)
-
 
 !               *** The derivatives w.r.t. atomic center c are    ***
 !               *** calculated using the translational invariance ***
@@ -593,11 +577,9 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_rho0_ppl
+
 ! *****************************************************************************
-
   SUBROUTINE calculate_drho_ppl(kg_env,calculate_forces,error)
-
-!   ***************************************************************************
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
@@ -646,10 +628,12 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
+! *****************************************************************************
     TYPE cexp_ppl_type
       REAL(KIND=dp), DIMENSION(:,:), POINTER :: c
     END TYPE cexp_ppl_type
 
+! *****************************************************************************
     TYPE alpha_ppl_type
       REAL(KIND=dp), DIMENSION(:), POINTER :: alpha
     END TYPE alpha_ppl_type
@@ -657,6 +641,7 @@ CONTAINS
     TYPE(cexp_ppl_type), DIMENSION(:), ALLOCATABLE :: cexp_ppl
     TYPE(alpha_ppl_type), DIMENSION(:), ALLOCATABLE :: alpha_ppl
 
+! *****************************************************************************
     TYPE vppl_type
       REAL(KIND=dp), DIMENSION(:), POINTER   :: r2
       INTEGER, DIMENSION(:), POINTER    :: neighbor
@@ -684,7 +669,6 @@ CONTAINS
     logger=>cp_error_get_logger(error)
     output_unit = cp_logger_get_default_unit_nr(logger)
 
-
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
                     dyn_coeff_set=dyn_coeff_set,&
@@ -693,7 +677,6 @@ CONTAINS
                     sac_ppl_aux=sac_ppl_aux,&
                     energy=energy,&
                     force=force,error=error)
-
 
     IF(dyn_coeff_set%distribution_method/=dyn_coeff_distributed) THEN
       CALL stop_program ( 'kg_ppl','replicated coefs not yet implemented')
@@ -732,7 +715,6 @@ CONTAINS
 
     maxder = ncoset(nder)
     maxder = MAX(1,nder)
-
 
 !   *** Allocate work storage ***
 
@@ -936,14 +918,12 @@ CONTAINS
               work(i,1)=local_coeffs%pos(iparticle_local,i+offset)
             ENDDO
 
-
             CALL dgemm("N","N",ncoa,1,nsgfa(iset),&
                       1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                       work(1,1),SIZE(work,1),&
                       0.0_dp,pab(1,1),SIZE(pab,1))
 
           END IF
-
 
 !      *** Loop over the GTH pseudo potential atoms (local part) ***
 
@@ -1017,7 +997,6 @@ CONTAINS
                           1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                           hab(1,1),SIZE(hab,1),&
                           0.0_dp,work(1,1),SIZE(work,1))
-
 
                 DO i=1,nsgfa(iset)
                   coef=local_coeffs%pos(iparticle_local,i+offset)
@@ -1111,6 +1090,5 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_drho_ppl
-!*****************************************************************************
 
 END MODULE kg_ppl

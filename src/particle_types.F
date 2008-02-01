@@ -2,28 +2,18 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****s* cp2k/particle_types [1.0] *
-!!
-!!   NAME
-!!     particle_types
-!!
-!!   FUNCTION
-!!     Define the data structure for the particle information.
-!!
-!!   AUTHOR
-!!     CJM, MK
-!!
-!!   MODIFICATION HISTORY
-!!     - Atomic kind added in particle_type (MK,08.01.2002)
-!!     - Functionality for particle_type added (MK,14.01.2002)
-!!     - Allow for general coordinate input (MK,13.09.2003)
-!!     - Molecule concept introduced (MK,26.09.2003)
-!!     - Last atom information added (jgh,23.05.2004)
-!!     - particle_type cleaned (MK,03.02.2005)
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Define the data structure for the particle information.
+!> \par History
+!>      - Atomic kind added in particle_type (MK,08.01.2002)
+!>      - Functionality for particle_type added (MK,14.01.2002)
+!>      - Allow for general coordinate input (MK,13.09.2003)
+!>      - Molecule concept introduced (MK,26.09.2003)
+!>      - Last atom information added (jgh,23.05.2004)
+!>      - particle_type cleaned (MK,03.02.2005)
+!> \author CJM, MK
+! *****************************************************************************
 MODULE particle_types
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -71,6 +61,7 @@ MODULE particle_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'particle_types'
 
   ! Data types
+! *****************************************************************************
   TYPE particle_type
      INTEGER, POINTER, DIMENSION(:)        :: list_exclude_vdw
      INTEGER, POINTER, DIMENSION(:)        :: list_exclude_ei
@@ -102,38 +93,21 @@ MODULE particle_types
             write_particle_matrix,&
             update_particle_set
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
-!!****f* particle_types/clone_particle [1.0] *
-!!
-!!   NAME
-!!     clone_particle
-!!
-!!   FUNCTION
-!!     copies all the attributes of a particle to another
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - p_in: the particle to copy
-!!     - p_out: the place where to copy
-!!     - nullify_non_owned_pointers: if the pointers to shared structures
-!!       should be nullified. If false, copies the pointer (but does not
-!!       try to perform any memory handling).
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief copies all the attributes of a particle to another
+!> \param p_in the particle to copy
+!> \param p_out the place where to copy
+!> \param nullify_non_owned_pointers if the pointers to shared structures
+!>        should be nullified. If false, copies the pointer (but does not
+!>        try to perform any memory handling).
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      05.2004 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE clone_particle(p_in,p_out,nullify_non_owned_pointers,error)
     TYPE(particle_type), INTENT(in)          :: p_in
     TYPE(particle_type), INTENT(out)         :: p_out
@@ -157,17 +131,13 @@ SUBROUTINE clone_particle(p_in,p_out,nullify_non_owned_pointers,error)
   p_out%shell_index=p_in%shell_index
   p_out%atom_index=p_in%atom_index
 END SUBROUTINE clone_particle
-!***************************************************************************
 
 ! *****************************************************************************
-
   SUBROUTINE allocate_particle_set(particle_set,nparticle,error)
 
 !   Purpose: Allocate a particle set.
 
 !   History: - Creation (14.01.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -201,14 +171,11 @@ END SUBROUTINE clone_particle
   END SUBROUTINE allocate_particle_set
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_particle_set(particle_set,error)
 
 !   Purpose: Deallocate a particle set.
 
 !   History: - Creation (14.01.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -259,7 +226,6 @@ END SUBROUTINE clone_particle
   END SUBROUTINE deallocate_particle_set
 
 ! *****************************************************************************
-
   SUBROUTINE get_particle_set(particle_set,first_cgf,first_nco,first_nso,&
                               first_sgf,last_cgf,last_nco,last_nso,&
                               last_sgf,ncgf,ncotot,nsotot,nsgf,r)
@@ -268,8 +234,6 @@ END SUBROUTINE clone_particle
 
 !   History: - Creation (14.01.2002,MK)
 !            - particle type cleaned (13.10.2003,MK)
-
-!   ***************************************************************************
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -321,7 +285,6 @@ END SUBROUTINE clone_particle
                             "for argument <first_nso>")
         END IF
       END IF
-
 
       IF (PRESENT(first_sgf)) THEN
         IF (SIZE(first_sgf) < nparticle) THEN
@@ -448,15 +411,14 @@ END SUBROUTINE clone_particle
 
   END SUBROUTINE get_particle_set
 
-! *****************************************************************************
 !  should be able to write a few formats e.g. xmol, and some binary format (dcd)
 !  some format can be used for x,v,f
 !  should work for fist, qs, kg
 !  still needs some rethinking of the units
 !  FORMAT   CONTENT                                    UNITS x,v,f
 !  XMOL     POS, VEL, FORCE, POS_VEL, POS_VEL_FORCE    Angstrom, a.u., a.u. !hmmmm
-! *****************************************************************************
 
+! *****************************************************************************
   SUBROUTINE write_particle_coordinates(particle_set,iunit,FORMAT,&
        content,title,cell,array)
 
@@ -637,7 +599,6 @@ END SUBROUTINE clone_particle
   END SUBROUTINE write_particle_coordinates
 
 ! *****************************************************************************
-
   SUBROUTINE write_fist_particle_coordinates(particle_set,cell,subsys_section,error)
 
 !   Purpose: Write the atomic coordinates to the output unit.
@@ -692,6 +653,7 @@ END SUBROUTINE clone_particle
 
   END SUBROUTINE write_fist_particle_coordinates
 
+! *****************************************************************************
   SUBROUTINE write_qs_particle_coordinates(particle_set,cell,subsys_section,label,error)
 
 !   Purpose: Write the atomic coordinates to the output unit.
@@ -748,14 +710,12 @@ END SUBROUTINE clone_particle
 
   END SUBROUTINE write_qs_particle_coordinates
 
-
+! *****************************************************************************
   SUBROUTINE write_particle_distances(particle_set,cell,subsys_section,error)
 
 !   Purpose: Write the matrix of the particle distances to the output unit.
 
 !   History: - Creation (06.10.2000, Matthias Krack)
-
-!   ***************************************************************************
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -786,7 +746,6 @@ END SUBROUTINE clone_particle
                     periodic=periodic,&
                     unit_of_length=unit_of_length,&
                     unit_of_length_name=unit_of_length_name)
-
 
       natom = SIZE(particle_set)
 
@@ -820,7 +779,6 @@ END SUBROUTINE clone_particle
   END SUBROUTINE write_particle_distances
 
 ! *****************************************************************************
-
   SUBROUTINE write_particle_matrix(matrix,particle_set,iw,el_per_part,Ilist,error)
     REAL(KIND=dp), DIMENSION(:, :)           :: matrix
     TYPE(particle_type), DIMENSION(:), &
@@ -871,7 +829,6 @@ END SUBROUTINE clone_particle
   END SUBROUTINE write_particle_matrix
 
 ! *****************************************************************************
-
   SUBROUTINE write_structure_data(particle_set,cell,input_section,error)
 
     ! Write structure data requested by a separate structure data input
@@ -1073,7 +1030,7 @@ END SUBROUTINE clone_particle
 
   END SUBROUTINE write_structure_data
 
-  !******************************************************************************
+! *****************************************************************************
   SUBROUTINE update_particle_set ( particle_set, int_group,  pos, vel, for, add )
     
     TYPE(particle_type), POINTER             :: particle_set( : )

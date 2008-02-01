@@ -3,25 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/eip_environment [1.0] *
-!!
-!!   NAME
-!!     eip_environment
-!!
-!!   FUNCTION
-!!     Methods and functions on the EIP environment
-!!
-!!   NOTES
-!!     -
-!!     
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Methods and functions on the EIP environment
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
 MODULE eip_environment
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
@@ -85,35 +72,18 @@ MODULE eip_environment
 
   PUBLIC :: eip_init
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
-!!****f* eip_environment/eip_init [1.0] *
-!!
-!!   NAME
-!!     eip_init
-!!
-!!   FUNCTION
-!!     Initialize the eip environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - eip_env: The eip environment to retain
-!!     - globenv: The global environment
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Initialize the eip environment
+!> \param eip_env The eip environment to retain
+!> \param globenv The global environment
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE eip_init(eip_env, root_section, para_env, globenv, force_env_section,&
        subsys_section, use_motion_section, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
@@ -211,35 +181,20 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE eip_init
-!***************************************************************************
 
-!!****f* eip_environment/eip_init_subsys [1.0] *
-!!
-!!   NAME
-!!     eip_init_subsys
-!!
-!!   FUNCTION
-!!     Initialize the eip environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - eip_env: The eip environment of matter
-!!     - subsys: the subsys
-!!     - cell: Pointer to the actual simulation cell
-!!     - cell_ref: Pointer to the reference cell, used e.g. in NPT simulations
-!!     - use_ref_cell: Logical which indicates if cell_ref is in use
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Initialize the eip environment
+!> \param eip_env The eip environment of matter
+!> \param subsys the subsys
+!> \param cell Pointer to the actual simulation cell
+!> \param cell_ref Pointer to the reference cell, used e.g. in NPT simulations
+!> \param use_ref_cell Logical which indicates if cell_ref is in use
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE eip_init_subsys(eip_env, subsys, cell, cell_ref, use_ref_cell, subsys_section, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -327,31 +282,16 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE eip_init_subsys
-!***************************************************************************
 
-!!****f* eip_environment/eip_init_model [1.0] *
-!!
-!!   NAME
-!!     eip_init_model
-!!
-!!   FUNCTION
-!!     Initialize the empirical interatomic potnetial (force field) model 
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - eip_env: The eip environment to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Initialize the empirical interatomic potnetial (force field) model 
+!> \param eip_env The eip environment to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE eip_init_model(eip_env, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -399,6 +339,5 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE eip_init_model
-!***************************************************************************
 
 END MODULE eip_environment

@@ -2,26 +2,16 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/cp_fm_diag [1.0] *
-!!
-!!   NAME
-!!     cp_fm_diag
-!!
-!!   FUNCTION
-!!     used for collecting some of the diagonalization shemes available for
-!!     cp_fm_type. cp_fm_power also moved here as it is very related
-!!
-!!   NOTES
-!!     first version : most routines imported
-!!
-!!   AUTHOR
-!!     Joost VandeVondele (2003-08)
-!!
-!!   MODIFICATION HISTORY
-!!     - unused Jacobi routines removed, cosmetics (05.04.06,MK)
-!!
-!!******************************************************************************
 
+! *****************************************************************************
+!> \brief used for collecting some of the diagonalization shemes available for
+!>      cp_fm_type. cp_fm_power also moved here as it is very related
+!> \note
+!>      first version : most routines imported
+!> \par History
+!>      - unused Jacobi routines removed, cosmetics (05.04.06,MK)
+!> \author Joost VandeVondele (2003-08)
+! *****************************************************************************
 MODULE cp_fm_diag
 
   USE cp_blacs_calls,                  ONLY: cp_blacs_gridexit,&
@@ -54,12 +44,9 @@ MODULE cp_fm_diag
             cp_fm_syevd, &
             cp_fm_syevx
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE cp_fm_syevd(matrix,eigenvectors,eigenvalues,error)
 
     ! Computes all eigenvalues and vectors of a real symmetric matrix
@@ -176,8 +163,7 @@ CONTAINS
 
   END SUBROUTINE cp_fm_syevd
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE cp_fm_syevx(matrix,eigenvectors,eigenvalues,neig,work_syevx,error)
 
     ! Diagonalise the symmetric n by n matrix using the LAPACK library.
@@ -186,8 +172,6 @@ CONTAINS
 
     ! - Creation (06.06.2001, Matthias Krack)
     ! - Mod      (05.2001, Joost VandeVondele)
-
-    ! *************************************************************************
 
     TYPE(cp_fm_type), POINTER                    :: eigenvectors,matrix
     REAL(KIND = dp), INTENT(IN)                  :: work_syevx
@@ -291,7 +275,6 @@ CONTAINS
 
     CALL pdsyevx("V","I","U",n,a(1,1),1,1,desca,vl,vu,1,neig,abstol,m,nz,w(1),orfac,&
                  z(1,1),1,1,descz,work(1),lwork,iwork(1),liwork,ifail(1),iclustr(1),gap,info)
-
 
     ! Error handling
 
@@ -401,8 +384,7 @@ CONTAINS
 
   END SUBROUTINE cp_fm_syevx
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE cp_fm_power(matrix,work,exponent,threshold,n_dependent,error)
 
    ! Raise the real symmetric n by n matrix to the power given by
@@ -412,8 +394,6 @@ CONTAINS
    ! - Creation (29.03.1999, Matthias Krack)
    ! - Parallelised using BLACS and ScaLAPACK (06.06.2001,MK)
 
-   ! **************************************************************************
-
    TYPE(cp_fm_type), POINTER                 :: matrix,work
    REAL(KIND = dp), INTENT(IN)               :: exponent,threshold
    INTEGER, INTENT(OUT)                      :: n_dependent
@@ -421,7 +401,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_power', &
       routineP = moduleN//':'//routineN
-
 
    REAL(KIND = dp) :: condition_number,f,p
    INTEGER         :: handle,icol_global,icol_local,ipcol,iprow,irow_global,&
@@ -574,8 +553,7 @@ CONTAINS
 
   END SUBROUTINE cp_fm_power
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE cp_fm_block_jacobi(matrix,eigenvectors,eigval,thresh,&
                                 start_sec_block)
 
@@ -588,8 +566,6 @@ CONTAINS
     ! - Creation (07.10.2002, Martin Fengler)
     ! - Cosmetics (05.04.06,MK)
 
-    ! *************************************************************************
-
     TYPE(cp_fm_type), POINTER                 :: eigenvectors,matrix
     REAL(KIND = dp), DIMENSION(:), INTENT(IN) :: eigval
     INTEGER, INTENT(IN)                       :: start_sec_block
@@ -597,7 +573,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_lu_decompose', &
       routineP = moduleN//':'//routineN
-
 
     INTEGER :: handle
     REAL(KIND = dp), DIMENSION(:,:), POINTER  :: a,ev
@@ -792,7 +767,5 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_fm_block_jacobi
-
-  ! ***************************************************************************
 
 END MODULE cp_fm_diag

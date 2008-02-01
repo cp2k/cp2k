@@ -2,22 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!***** cp2k/csvr_system_types [1.0] *
-!!
-!!   NAME
-!!     csvr_system_types
-!!
-!!   FUNCTION
-!!     Type for the canonical sampling through velocity rescaling     
-!!
-!!   AUTHOR
-!!     Teodoro Laino - 09.2007 University of Zurich [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Type for the canonical sampling through velocity rescaling     
+!> \author Teodoro Laino - 09.2007 University of Zurich [tlaino]
+! *****************************************************************************
 MODULE csvr_system_types
   USE bibliography,                    ONLY: Bussi2007,&
                                              cite_reference
@@ -47,6 +36,7 @@ MODULE csvr_system_types
             csvr_dealloc,&
             csvr_thermo_create
 
+! *****************************************************************************
   TYPE csvr_thermo_type
      INTEGER                                 :: degrees_of_freedom
      REAL(KIND=dp)                           :: nkt
@@ -55,6 +45,7 @@ MODULE csvr_system_types
      TYPE(rng_stream_type), POINTER          :: gaussian_rng_stream
   END TYPE csvr_thermo_type
 
+! *****************************************************************************
   TYPE csvr_system_type
      INTEGER                                 :: region, glob_num_csvr, loc_num_csvr
      REAL(KIND=dp)                           :: tau_csvr
@@ -68,28 +59,11 @@ MODULE csvr_system_types
 CONTAINS
 
 ! *****************************************************************************
-!!****f* csvr_system_types/csvr_init [1.0] *
-!!
-!!   NAME
-!!    csvr_init
-!!
-!!   FUNCTION
-!!     Initialize type for Canonical Sampling through Velocity Rescaling (CSVR)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
+!> \brief Initialize type for Canonical Sampling through Velocity Rescaling (CSVR)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
+! *****************************************************************************
   SUBROUTINE csvr_init(csvr, simpar, section, error)
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(simulation_parameters_type), &
@@ -115,28 +89,11 @@ CONTAINS
   END SUBROUTINE csvr_init
 
 ! *****************************************************************************
-!!****f* csvr_system_types/csvr_info_create [1.0] *
-!!
-!!   NAME
-!!    csvr_info_create
-!!
-!!   FUNCTION
-!!     Initialize NVT type for CSVR thermostat
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
+!> \brief Initialize NVT type for CSVR thermostat
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
+! *****************************************************************************
   SUBROUTINE csvr_thermo_create(csvr, para_env, error)
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -188,28 +145,11 @@ CONTAINS
   END SUBROUTINE csvr_thermo_create
 
 ! *****************************************************************************
-!!****f* csvr_system_types/csvr_dealloc [1.0] *
-!!
-!!   NAME
-!!     csvr_dealloc
-!!
-!!   FUNCTION
-!!     Deallocate type for CSVR thermostat
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
+!> \brief Deallocate type for CSVR thermostat
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
+! *****************************************************************************
   SUBROUTINE csvr_dealloc ( csvr, error )
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -231,28 +171,11 @@ CONTAINS
   END SUBROUTINE csvr_dealloc
 
 ! *****************************************************************************
-!!****f* csvr_system_types/csvr_info_dealloc [1.0] *
-!!
-!!   NAME
-!!     csvr_info_dealloc
-!!
-!!   FUNCTION
-!!     Deallocate NVT type for CSVR thermostat
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
+!> \brief Deallocate NVT type for CSVR thermostat
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
+! *****************************************************************************
   SUBROUTINE csvr_thermo_dealloc ( nvt, error )
     TYPE(csvr_thermo_type), DIMENSION(:), &
       POINTER                                :: nvt

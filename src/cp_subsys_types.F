@@ -3,26 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/cp_subsys_types [1.0] *
-!!
-!!   NAME
-!!     cp_subsys_types
-!!
-!!   FUNCTION
-!!     types that represent a subsys, i.e. a part of the system
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2003 created [fawzi]
-!!     09.2007 cleaned [tlaino] - University of Zurich
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief types that represent a subsys, i.e. a part of the system
+!> \par History
+!>      07.2003 created [fawzi]
+!>      09.2007 cleaned [tlaino] - University of Zurich
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE cp_subsys_types
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_release,&
                                              atomic_kind_list_retain,&
@@ -65,36 +52,21 @@ MODULE cp_subsys_types
   PUBLIC :: cp_subsys_create, cp_subsys_retain, cp_subsys_release,&
             cp_subsys_get, cp_subsys_set
 
-!!****s* cp_subsys_types/cp_subsys_type [1.0] *
-!!
-!!   NAME
-!!     cp_subsys_type
-!!
-!!   FUNCTION
-!!     represents a system: atoms, molecules, their pos,vel,...
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - atomic_kinds: list with all the kinds in the actual subsys
-!!     - particles: list with the particles of the actual subsys
-!!     - local_particles: the particles that are local to the actual processor
-!!     - molecule_kinds: list with the molecule kinds
-!!     - local_molecules: the molecule structures of the actual subsys
-!!       that are local to this processor
-!!     - para_env: the parallel environment of the actual subsys
-!!     - shell_particles: list with the shells of the actual subsys if shell-model is used
-!!     - core_particles: list with the shells of the actual subsys if shell-model is used
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2003 created [fawzi]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief represents a system: atoms, molecules, their pos,vel,...
+!> \param atomic_kinds list with all the kinds in the actual subsys
+!> \param particles list with the particles of the actual subsys
+!> \param local_particles the particles that are local to the actual processor
+!> \param molecule_kinds list with the molecule kinds
+!> \param local_molecules the molecule structures of the actual subsys
+!>        that are local to this processor
+!> \param para_env the parallel environment of the actual subsys
+!> \param shell_particles list with the shells of the actual subsys if shell-model is used
+!> \param core_particles list with the shells of the actual subsys if shell-model is used
+!> \par History
+!>      07.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE cp_subsys_type
      INTEGER :: ref_count, id_nr
      TYPE (atomic_kind_list_type), POINTER       :: atomic_kinds
@@ -115,66 +87,30 @@ MODULE cp_subsys_types
      TYPE (multipole_type), POINTER              :: multipoles
   END TYPE cp_subsys_type
 
-!!****s* cp_subsys_types/cp_subsys_p_type [1.0] *
-!!
-!!   NAME
-!!     cp_subsys_p_type
-!!
-!!   FUNCTION
-!!     represent a pointer to a subsys, to be able to create arrays
-!!     of pointers
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - subsys: the pointer to the subsys
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2003 created [fawzi]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief represent a pointer to a subsys, to be able to create arrays
+!>      of pointers
+!> \param subsys the pointer to the subsys
+!> \par History
+!>      07.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE cp_subsys_p_type
      TYPE(cp_subsys_type), POINTER :: subsys
   END TYPE cp_subsys_p_type
 
 CONTAINS
 
-!!****f* cp_subsys_types/cp_subsys_create [1.0] *
-!!
-!!   NAME
-!!     cp_subsys_create
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_subsys_create(subsys, para_env, error)
-!!       Type(cp_subsys_type), Pointer:: subsys
-!!       Type(cp_para_env_type), Pointer:: para_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_subsys_create
-!!
-!!   FUNCTION
-!!     creates a subsys
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - subsys: the subsys to allocate and initialize
-!!     - para_env: the parallel environment of this subsys
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a subsys
+!> \param subsys the subsys to allocate and initialize
+!> \param para_env the parallel environment of this subsys
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      07.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_subsys_create(subsys, para_env, error)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -205,35 +141,15 @@ CONTAINS
     END IF
   END SUBROUTINE cp_subsys_create
 
-!!****f* cp_subsys_types/cp_subsys_retain [1.0] *
-!!
-!!   NAME
-!!     cp_subsys_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_subsys_retain(subsys, error)
-!!       Type(cp_subsys_type), Pointer:: subsys
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_subsys_retain
-!!
-!!   FUNCTION
-!!     retains a subsys (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - subsys: the subsys to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains a subsys (see doc/ReferenceCounting.html)
+!> \param subsys the subsys to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      07.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_subsys_retain(subsys, error)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -252,35 +168,15 @@ CONTAINS
     END IF
   END SUBROUTINE cp_subsys_retain
 
-!!****f* cp_subsys_types/cp_subsys_release [1.0] *
-!!
-!!   NAME
-!!     cp_subsys_release
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_subsys_release(subsys, error)
-!!       Type(cp_subsys_type), Pointer:: subsys
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_subsys_release
-!!
-!!   FUNCTION
-!!     releases a subsys (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - subsys: the subsys to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases a subsys (see doc/ReferenceCounting.html)
+!> \param subsys the subsys to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      07.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_subsys_release(subsys, error)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -372,48 +268,17 @@ CONTAINS
     NULLIFY(subsys)
   END SUBROUTINE cp_subsys_release
 
-!!****f* cp_subsys_types/cp_subsys_set [1.0] *
-!!
-!!   NAME
-!!     cp_subsys_set
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_subsys_set(subsys, atomic_kinds, particles,&
-!!         local_particles, molecule_kinds, local_molecules, molecules_new,&
-!!         molecule_kinds_new, local_molecules_new, pnode, para_env, error)
-!!       Type(cp_subsys_type), Pointer:: subsys
-!!       Type(atomic_kind_list_type), Pointer, Optional:: atomic_kinds
-!!       Type(particle_list_type), Pointer, Optional:: particles
-!!       Type(distribution_1d_type), Pointer, Optional:: local_particles
-!!       Type(cp_para_env_type), Pointer, Optional:: para_env
-!!       Type(mol_new_list_type), Pointer, Optional:: molecules_new
-!!       Type(mol_kind_new_list_type), Pointer, Optional::&
-!!         molecule_kinds_new
-!!       Type(distribution_1d_type), Pointer, Optional::&
-!!         local_molecules_new
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_subsys_set
-!!
-!!   FUNCTION
-!!     sets various propreties of the subsys
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - subsys: the subsys you want to modify
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!     For the description of the other arguments see cp_subsys_type
-!!     attributes.
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief sets various propreties of the subsys
+!> \param subsys the subsys you want to modify
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!>      For the description of the other arguments see cp_subsys_type
+!>      attributes.
+!> \par History
+!>      08.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_subsys_set(subsys, atomic_kinds, particles, local_particles,&
        molecules_new, molecule_kinds_new, local_molecules_new, para_env,&
        colvar_p, shell_particles, core_particles, gci, multipoles, error)
@@ -517,50 +382,17 @@ CONTAINS
     END IF
   END SUBROUTINE cp_subsys_set
   
-!!****f* cp_subsys_types/cp_subsys_get [1.0] *
-!!
-!!   NAME
-!!     cp_subsys_get
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_subsys_get(subsys, id_nr, ref_count, atomic_kinds,&
-!!         particles, local_particles, &
-!!         molecules_new, molecule_kinds_new, local_molecules_new, para_env,&
-!!         error)
-!!       Type(cp_subsys_type), Pointer:: subsys
-!!       Integer, Intent (OUT), Optional:: id_nr, ref_count
-!!       Type(atomic_kind_list_type), Pointer, Optional:: atomic_kinds
-!!       Type(particle_list_type), Pointer, Optional:: particles
-!!       Type(distribution_1d_type), Pointer, Optional:: local_particles
-!!       Type(mol_new_list_type), Pointer, Optional:: molecules_new
-!!       Type(mol_kind_new_list_type), Pointer, Optional::&
-!!         molecule_kinds_new
-!!       Type(distribution_1d_type), Pointer, Optional::&
-!!         local_molecules_new
-!!       Type(cp_para_env_type), Pointer, Optional:: para_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_subsys_get
-!!
-!!   FUNCTION
-!!     returns information about various attributes of the given subsys
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - subsys: the subsys you want info about
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!     For the description of the other arguments see cp_subsys_type
-!!     attributes.
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns information about various attributes of the given subsys
+!> \param subsys the subsys you want info about
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!>      For the description of the other arguments see cp_subsys_type
+!>      attributes.
+!> \par History
+!>      08.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_subsys_get(subsys, id_nr, ref_count, atomic_kinds, particles,&
        local_particles, molecules_new, molecule_kinds_new, local_molecules_new, &
        para_env, colvar_p, shell_particles, core_particles, gci, multipoles,error)

@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/cp2k_info [1.0] *
-!!
-!!   NAME
-!!     cp2k_info
-!!
-!!   FUNCTION
-!!     some minimal info about CP2K, including its version and license
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!     - created (2007-09, Joost VandeVondele)
-!!
-!!******
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief some minimal info about CP2K, including its version and license
+!> \par History
+!>      - created (2007-09, Joost VandeVondele)
+!> \author Joost VandeVondele
+! *****************************************************************************
 MODULE cp2k_info
   USE input_constants,                 ONLY: id_development_version,&
                                              id_release_version
@@ -69,10 +59,9 @@ MODULE cp2k_info
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_info'
 
-!******************************************************************************
-
 CONTAINS
 
+! *****************************************************************************
   SUBROUTINE print_cp2k_license(iunit)
     INTEGER                                  :: iunit
 

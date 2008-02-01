@@ -3,33 +3,20 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-
-!!****** cp2k/kg_gpw_pw_env_types [1.0] *
-!!
-!!   NAME
-!!     kg_gpw_pw_env_types
-!!
-!!   FUNCTION
-!!     Define the  PW environment for each molecule kind
-!!     A cubic box is given for each molecule kind, the box should
-!!     be smaller than the box containing the whole system. The size
-!!     of the box is determined by the typical size of the molecule,
-!!     assuming that intra-molecular bonds are not broken during this
-!!     kind of simulations. The local grids are defined in order to be consistent
-!!     with the global grid for the entire system.
-!!     For each molecule a rho structure is defined, which is dimensioned on
-!!     the size of the local grid in the molecular-box
-!!
-!!   AUTHOR
-!!     MI (20.12.2004)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Define the  PW environment for each molecule kind
+!>      A cubic box is given for each molecule kind, the box should
+!>      be smaller than the box containing the whole system. The size
+!>      of the box is determined by the typical size of the molecule,
+!>      assuming that intra-molecular bonds are not broken during this
+!>      kind of simulations. The local grids are defined in order to be consistent
+!>      with the global grid for the entire system.
+!>      For each molecule a rho structure is defined, which is dimensioned on
+!>      the size of the local grid in the molecular-box
+!> \par History
+!>      none
+!> \author MI (20.12.2004)
+! *****************************************************************************
 MODULE kg_gpw_pw_env_types
 
   USE cell_types,                      ONLY: cell_release,&
@@ -59,6 +46,7 @@ MODULE kg_gpw_pw_env_types
 
 ! *** Define the derived structure types ***
 
+! *****************************************************************************
   TYPE rho_mol_blocks_type
     INTEGER, DIMENSION(:), POINTER              :: index_atom
     REAL(dp), DIMENSION(3)                      :: r0_molecule
@@ -67,6 +55,7 @@ MODULE kg_gpw_pw_env_types
     TYPE(qs_rho_type), POINTER                  :: rho_mol
   END TYPE rho_mol_blocks_type
 
+! *****************************************************************************
   TYPE kg_molbox_env_type
     INTEGER :: natom, nmolecule_local
     REAL(dp) :: rab_max, rad_max
@@ -77,11 +66,11 @@ MODULE kg_gpw_pw_env_types
       POINTER                                   :: rho_mol_blocks
   END TYPE kg_molbox_env_type
 
+! *****************************************************************************
   TYPE kg_sub_pw_env_type
     TYPE(kg_molbox_env_type), DIMENSION(:), POINTER :: molbox_env_set
     INTEGER                                     :: ref_count
   END TYPE kg_sub_pw_env_type
-
 
 ! *** Public data types ***
   PUBLIC :: kg_molbox_env_type, kg_sub_pw_env_type, rho_mol_blocks_type
@@ -92,13 +81,9 @@ MODULE kg_gpw_pw_env_types
             kg_sub_pw_env_retain, rho_mol_blocks_create, &
             set_molbox_env, set_rho_mol_block
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_rho_mol_blocks(rho_mol_blocks,error)
 
     TYPE(rho_mol_blocks_type), &
@@ -135,7 +120,6 @@ CONTAINS
   END SUBROUTINE deallocate_rho_mol_blocks
 
 ! *****************************************************************************
-
   SUBROUTINE get_molbox_env(molbox_env, natom, nmolecule_local,&
                  cell_mol,poisson_env,pw_env_mol,rho_mol_blocks)
 
@@ -157,7 +141,6 @@ CONTAINS
   END SUBROUTINE get_molbox_env
 
 ! *****************************************************************************
-
   SUBROUTINE get_rho_mol_block(rho_block,rho_mol,index_atom,r_in_molbox,r_in_totbox)
 
     TYPE(rho_mol_blocks_type), POINTER       :: rho_block
@@ -174,7 +157,6 @@ CONTAINS
   END SUBROUTINE get_rho_mol_block
 
 ! *****************************************************************************
-
   SUBROUTINE set_rho_mol_block(rho_block,r0_molecule,rho_mol,error)
 
     TYPE(rho_mol_blocks_type), POINTER       :: rho_block
@@ -192,7 +174,6 @@ CONTAINS
   END SUBROUTINE set_rho_mol_block
 
 ! *****************************************************************************
-
   SUBROUTINE kg_sub_pw_env_create(kg_sub_pw_env,nmolecule_kind,error)
 
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
@@ -229,7 +210,6 @@ CONTAINS
   END SUBROUTINE kg_sub_pw_env_create
 
 ! *****************************************************************************
-
   SUBROUTINE kg_sub_pw_env_destroy(molbox_env_set, force_env_section, error)
 
     TYPE(kg_molbox_env_type), DIMENSION(:), &
@@ -283,7 +263,6 @@ CONTAINS
   END SUBROUTINE kg_sub_pw_env_destroy
 
 ! *****************************************************************************
-
   SUBROUTINE kg_sub_pw_env_release(kg_sub_pw_env,force_env_section,error)
 
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
@@ -315,7 +294,6 @@ CONTAINS
   END SUBROUTINE kg_sub_pw_env_release
 
 ! *****************************************************************************
-
   SUBROUTINE kg_sub_pw_env_retain(kg_sub_pw_env,error)
 
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
@@ -337,7 +315,6 @@ CONTAINS
   END SUBROUTINE kg_sub_pw_env_retain
 
 ! *****************************************************************************
-
   SUBROUTINE rho_mol_blocks_create(rho_mol_blocks,nmol,natom,fm_mol_blocks,error)
 
     TYPE(rho_mol_blocks_type), &
@@ -377,7 +354,6 @@ CONTAINS
   END SUBROUTINE rho_mol_blocks_create
 
 ! *****************************************************************************
-
   SUBROUTINE set_molbox_env(molbox_env,cell_mol,poisson_env,force_env_section,&
        pw_env_mol,rho_mol_blocks,error)
 
@@ -419,7 +395,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE set_molbox_env
-
-! *****************************************************************************
 
 END MODULE kg_gpw_pw_env_types

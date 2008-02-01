@@ -3,31 +3,18 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/neb_methods [1.0] *
-!!
-!!   NAME
-!!     neb_methods
-!!
-!!   FUNCTION
-!!     Module performing a Nudged Elastic Band Calculation
-!!
-!!   NOTES
-!!     Numerical accuracy for parallel runs:
-!!      Each replica starts the SCF run from the one optimized
-!!      in a previous run. It may happen then energies and derivatives
-!!      of a serial run and a parallel run could be slightly different
-!!      'cause of a different starting density matrix.
-!!      Exact results are obtained using:
-!!         EXTRAPOLATION USE_GUESS in QS section (Teo 09.2006)
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Module performing a Nudged Elastic Band Calculation
+!> \note
+!>      Numerical accuracy for parallel runs:
+!>       Each replica starts the SCF run from the one optimized
+!>       in a previous run. It may happen then energies and derivatives
+!>       of a serial run and a parallel run could be slightly different
+!>       'cause of a different starting density matrix.
+!>       Exact results are obtained using:
+!>          EXTRAPOLATION USE_GUESS in QS section (Teo 09.2006)
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
 MODULE neb_methods
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
@@ -77,25 +64,12 @@ MODULE neb_methods
 
 CONTAINS
 
-!!****f* neb_methods/neb [1.0] *
-!!
-!!   NAME
-!!     neb
-!!
-!!   FUNCTION
-!!     Real subroutine for NEB calculations
-!!
-!!   NOTES
-!!     Based on the use of replica_env
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Real subroutine for NEB calculations
+!> \note
+!>      Based on the use of replica_env
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE neb(input, para_env, globenv, error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -212,25 +186,10 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE neb
 
-!!****f* neb_methods/neb_md [1.0] *
-!!
-!!   NAME
-!!     neb_md
-!!
-!!   FUNCTION
-!!     MD type optimization NEB
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief MD type optimization NEB
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE neb_md(rep_env, neb_env, coords, vels, particle_set, output_unit,&
        md_section, logger, globenv, error)
     TYPE(replica_env_type), POINTER          :: rep_env
@@ -367,25 +326,10 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE neb_md
 
-!!****f* neb_methods/neb_diis [1.0] *
-!!
-!!   NAME
-!!     neb_diis
-!!
-!!   FUNCTION
-!!     DIIS type optimization NEB
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief DIIS type optimization NEB
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE neb_diis(rep_env, neb_env, coords, vels, particle_set, output_unit,&
        diis_section, logger, globenv, error)
     TYPE(replica_env_type), POINTER          :: rep_env

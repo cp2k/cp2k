@@ -3,25 +3,14 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/qs_ot [1.0] *
-!!
-!!   NAME
-!!     qs_ot
-!!
-!!   FUNCTION
-!!     orbital transformations
-!!
-!!   AUTHOR
-!!     Joost VandeVondele (06.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     Added Taylor expansion based computation of the matrix functions (01.2004)
-!!     added additional rotation variables for non-equivalent occupied orbs (08.2004)
-!!
-!!   SOURCE
-!!
+! *****************************************************************************
+!> \brief orbital transformations
+!> \par History
+!>      Added Taylor expansion based computation of the matrix functions (01.2004)
+!>      added additional rotation variables for non-equivalent occupied orbs (08.2004)
+!> \author Joost VandeVondele (06.2002)
+! *****************************************************************************
 MODULE qs_ot
-  ! *****************************************************************************
   USE bibliography,                    ONLY: VandeVondele2003,&
                                              cite_reference
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
@@ -102,6 +91,7 @@ MODULE qs_ot
 
   ! notice, this variable needs to be copyable !
   ! needed for spins as e.g. in qs_ot_scf      !
+! *****************************************************************************
   TYPE qs_ot_settings_type
      LOGICAL           :: do_rotation
      ! **** SCP
@@ -128,6 +118,7 @@ MODULE qs_ot
      CHARACTER(LEN=4)  :: ortho_irac
   END TYPE qs_ot_settings_type
 
+! *****************************************************************************
   TYPE qs_ot_type
      ! this sets the method to be used
      TYPE(qs_ot_settings_type) :: settings
@@ -164,7 +155,6 @@ MODULE qs_ot
      INTEGER, DIMENSION(:), POINTER :: col_indices
      INTEGER :: nrow_local,ncol_local
 
-
      ! mo-like vectors
      TYPE(cp_fm_type), POINTER :: matrix_c0,matrix_sc0,matrix_psc0
 
@@ -172,7 +162,6 @@ MODULE qs_ot
      ! explicitly at all times
      TYPE(cp_fm_type), POINTER :: matrix_x,matrix_sx, matrix_gx
      TYPE(cp_fm_type), POINTER :: matrix_dx, matrix_gx_old
-
 
      LOGICAL :: use_gx_old, use_dx
 
@@ -229,24 +218,11 @@ MODULE qs_ot
 
 CONTAINS
 
-
-  !!****f* qs_ot/qs_ot_settings_init *
-  !!
-  !!   NAME
-  !!       qs_ot_settings_init
-  !!   FUNCTION
-  !!       sets default values for the settings type
-  !!   NOTES
-  !!
-  !!   INPUTS
-  !!    -
-  !!    -
-  !!
-  !!   MODIFICATION HISTORY
-  !!     10.2004 created [Joost VandeVondele]
-  !!
-  !!   SOURCE
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief sets default values for the settings type
+!> \par History
+!>      10.2004 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE qs_ot_settings_init(settings)
     TYPE(qs_ot_settings_type)                :: settings
 
@@ -273,13 +249,12 @@ CONTAINS
     settings%scp=.FALSE.
   END SUBROUTINE qs_ot_settings_init
 
-  !*******************************************************************************
   ! gets ready to use the preconditioner/ or renew the preconditioner
   ! only keeps a pointer to the preconditioner.
   ! If you change the preconditioner, you have to call this routine
   ! you remain responsible of proper deallocate of your preconditioner
   ! (or you can reuse it on the next step of the computation)
-  !*******************************************************************************
+! *****************************************************************************
   SUBROUTINE qs_ot_new_preconditioner(qs_ot_env,preconditioner,error)
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(preconditioner_type), POINTER       :: preconditioner
@@ -315,11 +290,10 @@ CONTAINS
 
   END SUBROUTINE qs_ot_new_preconditioner
 
-  !*******************************************************************************
   ! allocates the data in qs_ot_env, for a calculation with fm_struct_ref
   ! ortho_k allows for specifying an additional orthogonal subspace (i.e. c will
   ! be kept orthogonal provided c0 was, used in qs_ot_eigensolver)
-  !*******************************************************************************
+! *****************************************************************************
   SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref, aux_coeff_set, ortho_k,error)
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_ref
@@ -512,9 +486,8 @@ CONTAINS
 
   END SUBROUTINE qs_ot_allocate
 
-  !******************************************************************************
   ! init matrices, needs c0 and sc0 so that c0*sc0=1
-  !******************************************************************************
+! *****************************************************************************
   SUBROUTINE qs_ot_init(qs_ot_env,error)
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -555,9 +528,8 @@ CONTAINS
 
   END SUBROUTINE qs_ot_init
 
-  !******************************************************************************
   ! deallocates data
-  !******************************************************************************
+! *****************************************************************************
   SUBROUTINE qs_ot_destroy(qs_ot_env,error)
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -663,6 +635,7 @@ CONTAINS
 
   END SUBROUTINE qs_ot_destroy
 
+! *****************************************************************************
   SUBROUTINE qs_ot_on_the_fly_localize(qs_ot_env, C_NEW, SC, G_OLD, D, error)
     !
     TYPE(qs_ot_type)                         :: qs_ot_env
@@ -759,6 +732,7 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qs_ot_on_the_fly_localize
 
+! *****************************************************************************
   SUBROUTINE qs_ot_ref_chol(qs_ot_env, C_OLD, C_TMP, C_NEW, P, SC, update, error)
     !
     TYPE(qs_ot_type)                         :: qs_ot_env
@@ -792,6 +766,7 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qs_ot_ref_chol
 
+! *****************************************************************************
   SUBROUTINE qs_ot_ref_lwdn(qs_ot_env, C_OLD, C_TMP, C_NEW, P, SC, update, error)
     !
     TYPE(qs_ot_type)                         :: qs_ot_env
@@ -845,6 +820,7 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qs_ot_ref_lwdn
 
+! *****************************************************************************
   SUBROUTINE qs_ot_ref_poly(qs_ot_env,S,C_OLD,C_TMP,C_NEW,P,SC,norm_in,update,error)
     !
     TYPE(qs_ot_type)                         :: qs_ot_env
@@ -957,6 +933,7 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qs_ot_ref_poly
 
+! *****************************************************************************
   FUNCTION qs_ot_ref_update(qs_ot_env1) RESULT(update)
     !
     TYPE(qs_ot_type)                         :: qs_ot_env1
@@ -978,6 +955,7 @@ CONTAINS
     END SELECT
   END FUNCTION qs_ot_ref_update
 
+! *****************************************************************************
   SUBROUTINE qs_ot_ref_decide(qs_ot_env1, norm_in, ortho_irac)
     !
     TYPE(qs_ot_type)                         :: qs_ot_env1
@@ -988,6 +966,7 @@ CONTAINS
     IF(norm_in.LT.qs_ot_env1%settings%eps_irac_switch) ortho_irac = "POLY"
   END SUBROUTINE qs_ot_ref_decide
 
+! *****************************************************************************
   SUBROUTINE qs_ot_get_orbitals_ref(matrix_c, matrix_s, matrix_x, matrix_sx, &
        &                            matrix_gx_old, matrix_dx, qs_ot_env, &
        &                            qs_ot_env1, error)
@@ -1083,6 +1062,7 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qs_ot_get_orbitals_ref
 
+! *****************************************************************************
   SUBROUTINE qs_ot_refine(qs_ot_env,P,FY,error)
     !----------------------------------------------------------------------
     ! refinement polynomial of degree 2,3 and 4 (PRB 70, 193102 (2004))
@@ -1147,6 +1127,7 @@ CONTAINS
     END SELECT
   END SUBROUTINE qs_ot_refine
 
+! *****************************************************************************
   SUBROUTINE qs_ot_get_derivative_ref(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
        &                              qs_ot_env,error)
     TYPE(cp_fm_type), POINTER                :: matrix_hc, matrix_x, &
@@ -1179,9 +1160,8 @@ CONTAINS
     !
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qs_ot_get_derivative_ref
-  !*******************************************************************************
   ! computes p=x*S*x and the matrix functionals related matrices
-  !*******************************************************************************
+! *****************************************************************************
   SUBROUTINE qs_ot_get_p(matrix_x,matrix_sx,qs_ot_env,error)
 
     TYPE(cp_fm_type), POINTER                :: matrix_x, matrix_sx
@@ -1221,25 +1201,13 @@ CONTAINS
 
   END SUBROUTINE qs_ot_get_p
 
-  !!****f* qs_ot/qs_ot_generate_rotation *
-  !!
-  !!   NAME
-  !!     qs_ot_generate_rotation
-  !!
-  !!   FUNCTION
-  !!     computes the rotation matrix rot_mat_u that is associated to a given
-  !!     rot_mat_x using rot_mat_u=exp(rot_mat_x)
-  !!
-  !!   NOTES
-  !!
-  !!   INPUTS
-  !!    - a valid qs_ot_env
-  !!
-  !!   MODIFICATION HISTORY
-  !!     08.2004 created [Joost VandeVondele]
-  !!
-  !!   SOURCE
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief computes the rotation matrix rot_mat_u that is associated to a given
+!>      rot_mat_x using rot_mat_u=exp(rot_mat_x)
+!> \param a valid qs_ot_env
+!> \par History
+!>      08.2004 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE qs_ot_generate_rotation(qs_ot_env,error)
 
     TYPE(qs_ot_type)                         :: qs_ot_env
@@ -1287,23 +1255,13 @@ CONTAINS
 
   END SUBROUTINE qs_ot_generate_rotation
 
-  !!****f* qs_ot/qs_ot_rot_mat_derivative *
-  !!
-  !!   NAME
-  !!      qs_ot_rot_mat_derivative
-  !!   FUNCTION
-  !!      computes the derivative fields with respect to rot_mat_x
-  !!   NOTES
-  !!
-  !!   INPUTS
-  !!    - valid qs_ot_env. In particular qs_ot_generate_rotation has to be called before
-  !!                       and the chcf matrix has to be up to date
-  !!
-  !!   MODIFICATION HISTORY
-  !!     08.2004 created [ Joost VandeVondele ]
-  !!
-  !!   SOURCE
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief computes the derivative fields with respect to rot_mat_x
+!> \param valid qs_ot_env. In particular qs_ot_generate_rotation has to be called before
+!>                        and the chcf matrix has to be up to date
+!> \par History
+!>      08.2004 created [ Joost VandeVondele ]
+! *****************************************************************************
   SUBROUTINE qs_ot_rot_mat_derivative(qs_ot_env,error)
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1367,6 +1325,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
   CONTAINS
+! *****************************************************************************
     FUNCTION cint(e1,e2)
     REAL(KIND=dp)                            :: e1, e2
     COMPLEX(KIND=dp)                         :: cint
@@ -1390,7 +1349,6 @@ CONTAINS
     END FUNCTION cint
   END SUBROUTINE qs_ot_rot_mat_derivative
 
-  !*******************************************************************************
   !
   ! decide strategy
   ! tries to decide if the taylor expansion of cos(sqrt(xsx)) converges rapidly enough
@@ -1399,7 +1357,7 @@ CONTAINS
   ! since xsx can be very small, especially during dynamics, only a few terms might indeed be needed
   ! we find the necessary order N to have largest_eval_upper_bound**(N+1)/(2(N+1))! < eps_taylor
   !
-  !*******************************************************************************
+! *****************************************************************************
   SUBROUTINE decide_strategy(qs_ot_env)
     TYPE(qs_ot_type)                         :: qs_ot_env
 
@@ -1420,11 +1378,10 @@ CONTAINS
 
   END SUBROUTINE decide_strategy
 
-  !*******************************************************************************
   ! c=(c0*cos(p^0.5)+x*sin(p^0.5)*p^(-0.5)) x rot_mat_u
   ! this assumes that x is already ortho to S*C0, and that p is x*S*x
   ! rot_mat_u is an optional rotation matrix
-  !*******************************************************************************
+! *****************************************************************************
   SUBROUTINE qs_ot_get_orbitals(matrix_c, matrix_x, qs_ot_env, error)
 
     TYPE(cp_fm_type), POINTER                :: matrix_c, matrix_x
@@ -1469,6 +1426,7 @@ CONTAINS
 
   END SUBROUTINE qs_ot_get_orbitals
 
+! *****************************************************************************
   SUBROUTINE qs_ot_get_scp_coeffs ( qs_ot_env, aux_coeff_set, error )
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
@@ -1500,10 +1458,9 @@ CONTAINS
        END IF
     END DO
   END SUBROUTINE qs_ot_get_scp_coeffs
-  !*******************************************************************************
   ! this routines sets the SCP derivative to the appropriate 
   ! qs_ot_env subtype
-  !*******************************************************************************
+! *****************************************************************************
   SUBROUTINE qs_ot_get_scp_derivative ( qs_ot_env, aux_coeff_set, error )
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
@@ -1533,12 +1490,11 @@ CONTAINS
     END DO
   END SUBROUTINE qs_ot_get_scp_derivative
 
-  !*******************************************************************************
   ! this routines computes dE/dx=dx, with dx ortho to sc0
   ! needs dE/dC=hc,C0,X,SX,p
   ! if preconditioned it will not be the derivative, but the lagrangian multiplier
   ! is changed so that P*dE/dx is the right derivative (i.e. in the allowed subspace)
-  !*******************************************************************************
+! *****************************************************************************
   SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
        qs_ot_env,error)
     TYPE(cp_fm_type), POINTER                :: matrix_hc, matrix_x, &
@@ -1624,6 +1580,7 @@ CONTAINS
 
   END SUBROUTINE qs_ot_get_derivative
 
+! *****************************************************************************
   SUBROUTINE qs_ot_get_derivative_diag(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
        qs_ot_env,error)
 
@@ -1679,7 +1636,6 @@ CONTAINS
     CALL cp_fm_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
          rzero,qs_ot_env%matrix_buf3,error=error)
 
-
     CALL cp_fm_transpose(qs_ot_env%matrix_buf3,qs_ot_env%matrix_buf1,error=error)
     CALL cp_fm_scale_and_add(1.0_dp,qs_ot_env%matrix_buf3,1.0_dp,qs_ot_env%matrix_buf1,error=error)
 
@@ -1692,9 +1648,8 @@ CONTAINS
 
   END SUBROUTINE qs_ot_get_derivative_diag
 
-  !*******************************************************************************
   ! compute the derivative of the taylor expansion below
-  !*******************************************************************************
+! *****************************************************************************
   SUBROUTINE qs_ot_get_derivative_taylor(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
        qs_ot_env, error)
 
@@ -1784,9 +1739,8 @@ CONTAINS
 
   END SUBROUTINE qs_ot_get_derivative_taylor
 
-  !*******************************************************************************
   ! computes a taylor expansion.
-  !*******************************************************************************
+! *****************************************************************************
   SUBROUTINE qs_ot_p2m_taylor(qs_ot_env,error)
     TYPE(qs_ot_type)                         :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1837,13 +1791,12 @@ CONTAINS
 
   END SUBROUTINE qs_ot_p2m_taylor
 
-  !*******************************************************************************
   ! given p, computes  - eigenstuff (matrix_r,evals)
   !                    - cos(p^0.5),p^(-0.5)*sin(p^0.5)
   !                    - the real b matrices, needed for the derivatives of these guys
   !                    cosp_b_ij=(1/(2pii) * int(cos(z^1/2)/((z-eval(i))*(z-eval(j))))
   !                    sinp_b_ij=(1/(2pii) * int(z^(-1/2)*sin(z^1/2)/((z-eval(i))*(z-eval(j))))
-  !*******************************************************************************
+! *****************************************************************************
   SUBROUTINE qs_ot_p2m_diag(qs_ot_env,error)
 
     TYPE(qs_ot_type)                         :: qs_ot_env
@@ -1908,9 +1861,8 @@ CONTAINS
 
   END SUBROUTINE qs_ot_p2m_diag
 
-  !*******************************************************************************
   ! computes sin(x)/x for all values of the argument
-  !*******************************************************************************
+! *****************************************************************************
   FUNCTION qs_ot_sinc(x)
 
     REAL(KIND=dp), INTENT(IN)                :: x
@@ -1931,9 +1883,8 @@ CONTAINS
        qs_ot_sinc=q1+y*(q2+y*(q3+y*(q4+y*(q5+y*(q6+y*(q7+y*(q8+y*(q9+y*(q10)))))))))
     ENDIF
   END FUNCTION qs_ot_sinc
-  !*******************************************************************************
   ! computes (1/(x^2-y^2))*(sinc(x)-sinc(y)) for all positive values of the arguments
-  !*******************************************************************************
+! *****************************************************************************
   FUNCTION qs_ot_sincf(xa,ya)
 
     REAL(KIND=dp), INTENT(IN)                :: xa, ya
@@ -1992,4 +1943,3 @@ CONTAINS
   END FUNCTION qs_ot_sincf
 
 END MODULE qs_ot
-!!*****

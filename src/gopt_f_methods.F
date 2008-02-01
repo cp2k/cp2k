@@ -3,27 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/gopt_f_methods [1.0] *
-!!
-!!   NAME
-!!     gopt_f_methods
-!!
-!!   FUNCTION
-!!     contains a functional that calculates the energy and its derivatives
-!!     for the geometry optimizer
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     -
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!*****************************************************************************
+! *****************************************************************************
+!> \brief contains a functional that calculates the energy and its derivatives
+!>      for the geometry optimizer
+!> \par History
+!>      none
+! *****************************************************************************
 MODULE gopt_f_methods
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -71,29 +56,15 @@ MODULE gopt_f_methods
 
 CONTAINS
 
-!!****f* gopt_f_methods/gopt_f_create_x0 [1.0] *
-!!
-!!   NAME
-!!     gopt_f_create_x0
-!!
-!!   FUNCTION
-!!     returns the value of the parameters for the actual configuration
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     gopt_env: the geometry optimization environment you want the info about
-!!     x0: the parameter vector (is allocated by this routine)
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the value of the parameters for the actual configuration
+!> \param gopt_env the geometry optimization environment you want the info about
+!>      x0: the parameter vector (is allocated by this routine)
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE gopt_f_create_x0(gopt_env, x0, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
@@ -131,23 +102,8 @@ CONTAINS
     END DO
 
   END SUBROUTINE gopt_f_create_x0
-!***************************************************************************
 
-!!****** gopt_f_methods/write_cycle_infos [1.0] *
-!!
-!!   NAME
-!!    write_cycle_infos
-!!
-!!   FUNCTION
-!!
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
   SUBROUTINE write_cycle_infos(output_unit,it,etot,ediff,pred,rat,step,rad,emin,wildcard)
 
     INTEGER, INTENT(IN)                      :: output_unit, it
@@ -201,22 +157,9 @@ CONTAINS
     END IF
   END SUBROUTINE write_cycle_infos
 
-
-!!****** gopt_f_methods/write_rot_cycle_infos [1.0] *
-!!
-!!   NAME
-!!    write_rot_cycle_infos
-!!
-!!   FUNCTION
-!!
-!!
-!!   AUTHOR
-!!    Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+! *****************************************************************************
   SUBROUTINE write_rot_cycle_infos(output_unit,it,etot,ediff,emin,dimer_env,wildcard)
 
     INTEGER, INTENT(IN)                      :: output_unit, it
@@ -256,21 +199,7 @@ CONTAINS
     END IF
   END SUBROUTINE write_rot_cycle_infos
 
-!!****** gopt_f_methods/check_converg [1.0] *
-!!
-!!   NAME
-!!    check_converg  
-!!
-!!   FUNCTION
-!!    
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
   SUBROUTINE check_converg(ndf,dr,g,output_unit,conv,gopt_param)
 
     INTEGER, INTENT(IN)                      :: ndf
@@ -389,21 +318,9 @@ CONTAINS
 
   END SUBROUTINE check_converg
 
-!!****** gopt_f_methods/check_rot_conv [1.0] *
-!!
-!!   NAME
-!!    check_rot_conv  
-!!
-!!   FUNCTION
-!!    
-!!
-!!   AUTHOR
-!!    Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+! *****************************************************************************
   SUBROUTINE check_rot_conv(dimer_env, output_unit, conv, error)
 
     TYPE(dimer_env_type), POINTER            :: dimer_env
@@ -444,22 +361,9 @@ CONTAINS
 
   END SUBROUTINE check_rot_conv
 
-
-!!****** gopt_f_methods/write_final_info [1.0] *
-!!
-!!   NAME
-!!    write_final_info
-!!
-!!   FUNCTION
-!!    
-!!
-!!   AUTHOR
-!!    Teodoro Laino [tlaino] - University of Zurich - 11.2007
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \author Teodoro Laino [tlaino] - University of Zurich - 11.2007
+! *****************************************************************************
   SUBROUTINE write_final_info(conv, it, gopt_env, x0, master, para_env, force_env,&
     motion_section, root_section, force_env_section, error)
     LOGICAL, INTENT(IN)                      :: conv
@@ -508,21 +412,9 @@ CONTAINS
 
   END SUBROUTINE write_final_info
 
-!!****** gopt_f_methods/write_geo_traj [1.0] *
-!!
-!!   NAME
-!!    write_geo_traj
-!!
-!!   FUNCTION
-!!    
-!!
-!!   AUTHOR
-!!    Teodoro Laino [tlaino] - University of Zurich - 11.2007
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \author Teodoro Laino [tlaino] - University of Zurich - 11.2007
+! *****************************************************************************
   SUBROUTINE write_geo_traj(force_env,  root_section, it, etot, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
@@ -589,21 +481,9 @@ CONTAINS
     CALL cp_print_key_finished_output(traj_unit,logger,root_section,"MOTION%PRINT%TRAJECTORY",error=error)
   END SUBROUTINE write_geo_traj
 
-!!****** gopt_f_methods/print_geo_opt_header [1.0] *
-!!
-!!   NAME
-!!    print_geo_opt_header
-!!
-!!   FUNCTION
-!!    
-!!
-!!   AUTHOR
-!!    Teodoro Laino [tlaino] - University of Zurich - 01.2008
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
+! *****************************************************************************
   SUBROUTINE print_geo_opt_header(gopt_env, output_unit, label)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     INTEGER, INTENT(IN)                      :: output_unit
@@ -638,21 +518,9 @@ CONTAINS
     END IF
   END SUBROUTINE print_geo_opt_header
 
-!!****** gopt_f_methods/print_geo_opt_nc [1.0] *
-!!
-!!   NAME
-!!    print_geo_opt_nc
-!!
-!!   FUNCTION
-!!    
-!!
-!!   AUTHOR
-!!    Teodoro Laino [tlaino] - University of Zurich - 01.2008
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
+! *****************************************************************************
   SUBROUTINE print_geo_opt_nc(gopt_env,output_unit)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     INTEGER, INTENT(IN)                      :: output_unit

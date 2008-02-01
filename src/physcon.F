@@ -2,62 +2,51 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/physcon [1.0] *
-!!
-!!   NAME
-!!     physcon
-!!
-!!   FUNCTION
-!!     Definition of physical constants:
-!!
-!!     a_bohr      : Bohr radius [m]
-!!     a_fine      : Fine-structure constant
-!!     a_mass      : Atomic mass unit [kg]; conversion factor [u] -> [kg]
-!!     angstrom    : Conversion factor [Bohr] -> [Angstrom]
-!!     bohr        : Conversion factor [Angstrom] -> [Bohr]
-!!     boltzmann   : Boltzmann constant [J/K]
-!!     c_light     : Speed of light in vacuum [m/s]
-!!     e_charge    : Elementary charge [C]
-!!     e_mass      : Electron mass [kg]
-!!     e_gfactor   : Electron g factor [ ]
-!!     esu         : Conversion factors [a.u.] -> [esu]
-!!     evolt       : Conversion factor [a.u.] -> [eV]
-!!     femtoseconds: Conversion factor [a.u.] -> [fs]
-!!     h_bar       : Planck constant [J*s]
-!!     h_planck    : Planck constant [J*s]
-!!     hz          : Conversion factor [a.u.] -> [Hz]
-!!     joule       : Conversion factor [a.u.] -> [J]
-!!     kcalmol     : Conversion factor [a.u.] -> [kcal/mol]
-!!     kelvin      : Conversion factor [a.u.] -> [K]
-!!     kjmol       : Conversion factor [a.u.] -> [kJ/mol]
-!!     massunit    : Conversion factor [u] -> [a.u.]
-!!     mhz         : Conversion factor [a.u.] -> [MHz]
-!!     mu_perm     : Magnetic constant or permeability of vacuum [N/A**2]
-!!     n_avogadro  : Avogrado constant [1/mol]
-!!     permittivity: Electric constant or permittivity of vacuum [F/m]
-!!     picoseconds : Conversion factor [a.u.] -> [ps]
-!!     rydberg     : Rydberg constant [1/m]
-!!     seconds     : Conversion factor [a.u.] -> [s]
-!!     vibfac      : Conversion factor [a.u./Bohr**2] -> [1/cm]
-!!     wavenum     : Conversion factor [a.u.] -> [1/cm] (wave numbers)
-!!     debye       : Conversion factor [a.u.] -> Debye
-!!
-!!   AUTHOR
-!!     Matthias Krack
-!!
-!!   MODIFICATION HISTORY
-!!     - Adapted for use in CP2K (JGH)
-!!     - Updated to CODATA 1998 and cleaned (05.09.2003,MK)
-!!
-!!   NOTES
-!!     Fundamental physical constants (SI units)
-!!     Literature: - B. J. Mohr and B. N. Taylor,
-!!                   "CODATA recommended values of the fundamental physical
-!!                    constants: 1998", Rev. Mod. Phys. 72(2), 351 (2000).
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Definition of physical constants:
+!> 
+!>      a_bohr      : Bohr radius [m]
+!>      a_fine      : Fine-structure constant
+!>      a_mass      : Atomic mass unit [kg]; conversion factor [u] -> [kg]
+!>      angstrom    : Conversion factor [Bohr] -> [Angstrom]
+!>      bohr        : Conversion factor [Angstrom] -> [Bohr]
+!>      boltzmann   : Boltzmann constant [J/K]
+!>      c_light     : Speed of light in vacuum [m/s]
+!>      e_charge    : Elementary charge [C]
+!>      e_mass      : Electron mass [kg]
+!>      e_gfactor   : Electron g factor [ ]
+!>      esu         : Conversion factors [a.u.] -> [esu]
+!>      evolt       : Conversion factor [a.u.] -> [eV]
+!>      femtoseconds: Conversion factor [a.u.] -> [fs]
+!>      h_bar       : Planck constant [J*s]
+!>      h_planck    : Planck constant [J*s]
+!>      hz          : Conversion factor [a.u.] -> [Hz]
+!>      joule       : Conversion factor [a.u.] -> [J]
+!>      kcalmol     : Conversion factor [a.u.] -> [kcal/mol]
+!>      kelvin      : Conversion factor [a.u.] -> [K]
+!>      kjmol       : Conversion factor [a.u.] -> [kJ/mol]
+!>      massunit    : Conversion factor [u] -> [a.u.]
+!>      mhz         : Conversion factor [a.u.] -> [MHz]
+!>      mu_perm     : Magnetic constant or permeability of vacuum [N/A**2]
+!>      n_avogadro  : Avogrado constant [1/mol]
+!>      permittivity: Electric constant or permittivity of vacuum [F/m]
+!>      picoseconds : Conversion factor [a.u.] -> [ps]
+!>      rydberg     : Rydberg constant [1/m]
+!>      seconds     : Conversion factor [a.u.] -> [s]
+!>      vibfac      : Conversion factor [a.u./Bohr**2] -> [1/cm]
+!>      wavenum     : Conversion factor [a.u.] -> [1/cm] (wave numbers)
+!>      debye       : Conversion factor [a.u.] -> Debye
+!> \note
+!>      Fundamental physical constants (SI units)
+!>      Literature: - B. J. Mohr and B. N. Taylor,
+!>                    "CODATA recommended values of the fundamental physical
+!>                     constants: 1998", Rev. Mod. Phys. 72(2), 351 (2000).
+!> \par History
+!>      - Adapted for use in CP2K (JGH)
+!>      - Updated to CODATA 1998 and cleaned (05.09.2003,MK)
+!> \author Matthias Krack
+! *****************************************************************************
 MODULE physcon
 
   USE kinds,                           ONLY: dp
@@ -91,12 +80,9 @@ MODULE physcon
   PUBLIC :: init_physcon,&
             write_physcon
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE init_physcon()
 
 !   Purpose: Initialize all basic physical constants used by CP2K using
@@ -105,9 +91,6 @@ CONTAINS
                                                         
 !   History: - Creation (14.11.2000,JGH)
 !            - Updated to CODATA 1998 and cleaned (05.09.2003,MK)
-
-!   ***************************************************************************
-
 
     INTEGER                                  :: i
 
@@ -256,7 +239,6 @@ CONTAINS
   END SUBROUTINE init_physcon
 
 ! *****************************************************************************
-
   SUBROUTINE write_physcon(output_unit)
 
 !   Purpose: Write all basic physical constants used by CP2K to a logical
@@ -264,8 +246,6 @@ CONTAINS
 
 !   History: - Creation (14.11.2000,JGH)
 !            - Updated to CODATA 1998 and cleaned (05.09.2003,MK)
-
-!   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: output_unit
 
@@ -328,9 +308,6 @@ CONTAINS
       "[a.u./Bohr**2] -> [1/cm]",vibfac
     WRITE (UNIT=output_unit,FMT="(T2,A)") ""
 
-
   END SUBROUTINE write_physcon
-
-! *****************************************************************************
 
 END MODULE physcon

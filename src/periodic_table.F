@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/periodic_table [1.0] *
-!!
-!!   NAME
-!!     periodic_table
-!!
-!!   FUNCTION
-!!     Periodic Table related data definitions
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Periodic Table related data definitions
+!> \par History
+!>      none
+!> \author JGH
+! *****************************************************************************
 MODULE periodic_table
 
   USE kinds,                           ONLY: dp
@@ -28,6 +18,7 @@ MODULE periodic_table
   PRIVATE
   PUBLIC :: init_periodic_table, ptable, atom, nelem
 
+! *****************************************************************************
   TYPE atom
      CHARACTER ( LEN = 2 ) :: symbol
      CHARACTER ( LEN = 14 ) :: name
@@ -48,29 +39,14 @@ MODULE periodic_table
 
   REAL(KIND=dp), PARAMETER                     :: z = 0.0_dp
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** periodic_table/init_periodic_table [1.0] *
-!!
-!!   NAME
-!!     init_periodic_table
-!!
-!!   FUNCTION
-!!     Initialization of Periodic Table related data
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*****
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Initialization of Periodic Table related data
+!> \par History
+!>      none
+!> \author JGH
+! *****************************************************************************
 SUBROUTINE init_periodic_table()
 
 ! Dummy
@@ -1265,6 +1241,7 @@ SUBROUTINE init_periodic_table()
 
 END SUBROUTINE init_periodic_table
 
+! *****************************************************************************
 SUBROUTINE init_eheat 
 ! All values in kcal/mol
 ! Dummy
@@ -1485,6 +1462,7 @@ SUBROUTINE init_eheat
 
 END SUBROUTINE init_eheat 
 
+! *****************************************************************************
 SUBROUTINE init_gratio
 ! D. M. Granty and R. K. Harris, Encyclopedia of Nuclear 
 ! Magnetic Resonance vol. 5 (Wiley, Chichester UK, 1996)
@@ -1814,8 +1792,6 @@ SUBROUTINE init_gratio
   ptable(106) % gyrom_ratio_isotope = 0
 
 END SUBROUTINE init_gratio
-!******************************************************************************
 
 END MODULE periodic_table
 
-!******************************************************************************

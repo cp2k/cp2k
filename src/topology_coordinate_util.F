@@ -3,24 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/topology_coordinate_util [1.0] *
-!!
-!!   NAME
-!!     topology_coordinate_util
-!!
-!!   FUNCTION
-!!     Collection of subroutine needed for topology related things
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!    jgh (23-05-2004) Last atom of molecule information added
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Collection of subroutine needed for topology related things
+!> \par History
+!>     jgh (23-05-2004) Last atom of molecule information added
+! *****************************************************************************
 MODULE topology_coordinate_util
   USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
                                              atomic_kind_type,&
@@ -71,34 +58,15 @@ MODULE topology_coordinate_util
   PRIVATE
   PUBLIC :: topology_coordinate_pack
   
-!!*****
-!******************************************************************************
-
 CONTAINS
     
-!******************************************************************************
-!!****** topology_coordinate_util/topology_coordinate_pack [1.0] *
-!!
-!!   NAME
-!!     topology_coordinate_pack
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Take info readin from different file format and stuff it into
-!!     compatible data structure in cp2k
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     Teodoro Laino - modified in order to optimize the list of molecules 
-!!                     to build the exclusion lists
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*** *************************************************************************
-
+! *****************************************************************************
+!> \brief Take info readin from different file format and stuff it into
+!>      compatible data structure in cp2k
+!> \par History
+!>      Teodoro Laino - modified in order to optimize the list of molecules 
+!>                      to build the exclusion lists
+! *****************************************************************************
   SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
        molecule_kind_set,molecule_set,topology,para_env,qmmm,qmmm_env,&
        subsys_section,force_env_section,error)

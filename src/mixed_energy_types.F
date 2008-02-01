@@ -2,20 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/mixed_energy_types [1.0] *
-!!
-!!   NAME
-!!     mixed_energy_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     fschiff 11.06
-!!
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \author fschiff 11.06
+! *****************************************************************************
 MODULE mixed_energy_types
 
   USE f77_blas
@@ -29,12 +19,13 @@ MODULE mixed_energy_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mixed_energy_types'
   PRIVATE
 
+! *****************************************************************************
   TYPE mixed_energy_type
      REAL ( kind = dp ) :: pot
      REAL ( kind = dp ) :: kin     
   END TYPE mixed_energy_type
 
-
+! *****************************************************************************
   TYPE mixed_force_type
      REAL(KIND=dp), DIMENSION(:,:), POINTER         :: forces
   END TYPE mixed_force_type
@@ -50,20 +41,14 @@ MODULE mixed_energy_types
             deallocate_mixed_energy,&
             init_mixed_energy
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE allocate_mixed_energy(mixed_energy)
 
 !   Purpose: Allocate and/or initialise a mixed energy data structure.
 
 !   History: - Creation (11.06,fschiff)
-
-!   ***************************************************************************
 
     TYPE(mixed_energy_type), POINTER         :: mixed_energy
 
@@ -84,14 +69,11 @@ CONTAINS
   END SUBROUTINE allocate_mixed_energy
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_mixed_energy(mixed_energy)
 
 !   Purpose: Deallocate a mixed energy data structure.
 
 !   History: - Creation (11.06,fschiff)
-
-!   ***************************************************************************
 
     TYPE(mixed_energy_type), POINTER         :: mixed_energy
 
@@ -113,14 +95,11 @@ CONTAINS
   END SUBROUTINE deallocate_mixed_energy
 
 ! *****************************************************************************
-
   SUBROUTINE init_mixed_energy(mixed_energy)
 
 !   Purpose: Initialise a mixed energy data structure.
 
 !   History: - Creation (13.06.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(mixed_energy_type), POINTER         :: mixed_energy
 
@@ -137,7 +116,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE init_mixed_energy
-
-! *****************************************************************************
 
 END MODULE mixed_energy_types

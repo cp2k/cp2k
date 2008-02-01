@@ -3,24 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/mulliken [1.0] *
-!!
-!!   NAME
-!!     mulliken
-!!
-!!   FUNCTION
-!!     compute mulliken charges
-!!     we (currently) define them as c_i = 1/2 [ (PS)_{ii} + (SP)_{ii} ]
-!!
-!!   AUTHOR
-!!     Joost VandeVondele March 2003
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief compute mulliken charges
+!>      we (currently) define them as c_i = 1/2 [ (PS)_{ii} + (SP)_{ii} ]
+!> \author Joost VandeVondele March 2003
+! *****************************************************************************
 MODULE mulliken
   USE atomic_charges,                  ONLY: print_atomic_charges
   USE cp_control_types,                ONLY: mulliken_restraint_type
@@ -55,39 +42,26 @@ MODULE mulliken
      MODULE PROCEDURE mulliken_charges_a, mulliken_charges_b
   END INTERFACE
 
-! *****************************************************************************
-
 CONTAINS
 
-!!****f* mulliken/mulliken_restraint *
-!!
-!!   NAME
-!!     mulliken_restraint
-!!
-!!   FUNCTION
-!!     computes the energy and density matrix derivate of a constraint on the 
-!!     mulliken charges
-!!
-!!     optional outputs:
-!!     computes energy (added)
-!!     contribution to KS matrix (added)
-!!     contribution to W  matrix (added)
-!!
-!!   NOTES
-!!     contribution to the KS matrix is derivative wrt P
-!!     contribution to the W matrix is derivate wrt S (sign?)
-!!     needed for orbital and ionic forces respectively
-!!
-!!   INPUTS
-!!    - mulliken_restraint_control  : additional parameters needed to control the restraint
-!!    - para_env                    : para_env of the matrices 
-!!    - s_matrix,p_matrix : containing the respective quantities
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 created [Joost VandeVondele]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief computes the energy and density matrix derivate of a constraint on the 
+!>      mulliken charges
+!> 
+!>      optional outputs:
+!>      computes energy (added)
+!>      contribution to KS matrix (added)
+!>      contribution to W  matrix (added)
+!> \param mulliken_restraint_control additional parameters needed to control the restraint
+!> \param para_env para_env of the matrices 
+!> \param s_matrix ,p_matrix : containing the respective quantities
+!> \note
+!>      contribution to the KS matrix is derivative wrt P
+!>      contribution to the W matrix is derivate wrt S (sign?)
+!>      needed for orbital and ionic forces respectively
+!> \par History
+!>      06.2004 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE mulliken_restraint(mulliken_restraint_control,para_env, &
                                 s_matrix,p_matrix,energy,order_p,ks_matrix,w_matrix)
     TYPE(mulliken_restraint_type), &
@@ -189,30 +163,20 @@ CONTAINS
     DEALLOCATE(charges_deriv)
   END SUBROUTINE mulliken_restraint
 
-!!****f* mulliken/restraint_functional *
-!!
-!!   NAME
-!!      restraint_functional
-!!   FUNCTION
-!!      computes energy and derivatives given a set of charges
-!!      this implementation uses the spin density on a number of atoms 
-!!      as a penalty function
-!!     
-!!   NOTES
-!!      should be easy to adapt for other specialized cases
-!!
-!!   INPUTS
-!!    - charges(nblock,nspin)
-!!    - output :
-!!        - energy
-!!        - charges_deriv : derivate wrt the corresponding charge entry
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 created [Joost VandeVondele]
-!!     02.2005 added more general form [Joost VandeVondele]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief computes energy and derivatives given a set of charges
+!>       this implementation uses the spin density on a number of atoms 
+!>       as a penalty function
+!> \param charges (nblock,nspin)
+!> \param output :
+!> \param energ y
+!> \param charges_deriv derivate wrt the corresponding charge entry
+!> \note
+!>       should be easy to adapt for other specialized cases
+!> \par History
+!>      06.2004 created [Joost VandeVondele]
+!>      02.2005 added more general form [Joost VandeVondele]
+! *****************************************************************************
 SUBROUTINE restraint_functional(mulliken_restraint_control,charges, &
                                 charges_deriv,energy,order_p)
     TYPE(mulliken_restraint_type), &
@@ -240,24 +204,14 @@ SUBROUTINE restraint_functional(mulliken_restraint_control,charges, &
     ENDDO
 END SUBROUTINE restraint_functional
 
-!!****f* mulliken/rf_deriv_check *
-!!
-!!   NAME
-!!      rf_deriv_check
-!!   FUNCTION
-!!      checks numerically the analytic derivative in restraint_functional
-!!
-!!   NOTES
-!!      for testing only, uncomment the call in mulliken restraint
-!!
-!!   INPUTS
-!!    - charges(nblock,nspin)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 created [Joost VandeVondele]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief checks numerically the analytic derivative in restraint_functional
+!> \param charges (nblock,nspin)
+!> \note
+!>       for testing only, uncomment the call in mulliken restraint
+!> \par History
+!>      06.2004 created [Joost VandeVondele]
+! *****************************************************************************
 SUBROUTINE rf_deriv_check(mulliken_restraint_control,charges)
     TYPE(mulliken_restraint_type), &
       INTENT(IN)                             :: mulliken_restraint_control
@@ -302,26 +256,15 @@ SUBROUTINE rf_deriv_check(mulliken_restraint_control,charges)
 
 END SUBROUTINE rf_deriv_check
 
-!!****f* mulliken/compute_charges *
-!!
-!!   NAME
-!!     compute_charges
-!!
-!!   FUNCTION
-!!     compute the mulliken charges
-!!
-!!   NOTES
-!!     charges are computed per spin in the LSD case
-!!
-!!   INPUTS
-!!    - p_matrix, s_matrix, para_env
-!!    - charges : previously allocated with the right size (natom,nspin)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 created [Joost VandeVondele]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief compute the mulliken charges
+!> \param p_matrix , s_matrix, para_env
+!> \param charges previously allocated with the right size (natom,nspin)
+!> \note
+!>      charges are computed per spin in the LSD case
+!> \par History
+!>      06.2004 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE compute_charges(p_matrix,s_matrix,charges,para_env)
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: p_matrix
@@ -375,28 +318,15 @@ END SUBROUTINE rf_deriv_check
 
   END SUBROUTINE compute_charges
 
-
-!!****f* mulliken/mulliken_charges *
-!!
-!!   NAME
-!!     mulliken_charges
-!!
-!!   FUNCTION
-!!     print the mulliken charges to scr on ionode
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!    - p_matrix, s_matrix, para_env
-!!    - particle_set (needed for Z)
-!!    - scr : unit for output
-!!    - ionode : true if scr is connected, and output is needed
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 adapted to remove explicit matrix multiply [Joost VandeVondele]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief print the mulliken charges to scr on ionode
+!> \param p_matrix , s_matrix, para_env
+!> \param particle_set (needed for Z)
+!> \param scr unit for output
+!> \param ionode true if scr is connected, and output is needed
+!> \par History
+!>      06.2004 adapted to remove explicit matrix multiply [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE mulliken_charges_a(p_matrix,s_matrix,para_env,particle_set, &
                                 scr,title)
 
@@ -432,6 +362,7 @@ END SUBROUTINE rf_deriv_check
 
   END SUBROUTINE mulliken_charges_a
 
+! *****************************************************************************
   SUBROUTINE mulliken_charges_b(p_matrix,s_matrix,para_env,mcharge)
 
     TYPE(real_matrix_p_type), DIMENSION(:), &

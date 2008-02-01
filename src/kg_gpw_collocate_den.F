@@ -3,32 +3,16 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/kg_gpw_collocate_den [1.0] *
-!!
-!!   NAME
-!!     kg_gpw_collocate_den
-!!
-!!   FUNCTION
-!!     Calculate the plane wave density for each molecule independently
-!!     by collocating the primitive Gaussian functions on the grids
-!!     constructed in the molecolar box. The molecule is centered in the
-!!     small box and no PBC are used.
-!!     Each molecule is handled by one processor entirely, therefore
-!!     no further distribution is allowed, unless OMP is used (if it works)
-!!
-!!   AUTHOR
-!!     MI (05.01.2005)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
-
-MODULE kg_gpw_collocate_den
-
 ! *****************************************************************************
+!> \brief Calculate the plane wave density for each molecule independently
+!>      by collocating the primitive Gaussian functions on the grids
+!>      constructed in the molecolar box. The molecule is centered in the
+!>      small box and no PBC are used.
+!>      Each molecule is handled by one processor entirely, therefore
+!>      no further distribution is allowed, unless OMP is used (if it works)
+!> \author MI (05.01.2005)
+! *****************************************************************************
+MODULE kg_gpw_collocate_den
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -83,51 +67,36 @@ MODULE kg_gpw_collocate_den
 
   PUBLIC :: calculate_rho_mol, integrate_mol_potential
 
-! *****************************************************************************
-
 CONTAINS
 
 !****f* kg_gpw_collocate_den/calculate_rho_mol
-!!
-!!   NAME
-!!     calculate_rho_mol
-!!
-!!   FUNCTION
-!!     This function is called within a loop over all the molecules
-!!     to calculate the molecular density on the molecular grid only.
-!!     The molecular densities are used by KG_GPW to calculate the Kinetic energy
-!!     correction by subtracting the sum of the kinetic energies calculated
-!!     for each molecule independently
-!!
-!!   NOTES
-!!     In KG_GPW a molecular pw environment is created for each molecule kind
-!!     which is based on a molecular cell box that does not use PBC
-!!     The molecule is located in the center of the bos and the coordinates passed
-!!     to this routine are internal coordinates.
-!!     At this level, it should not be necessary to have the atomic positions
-!!     in the global box
-!!
-!!   INPUTS
-!!     - qs_env: the qs environment
-!!     - matrix_p: global density matrix
-!!     - rho_r: molecular density on the molecular real space mesh
-!!     - rho_g: molecular density on the molecular reciprocal space mesh
-!!     - total_rho: integral of the molecular density (output)
-!!     - atom: global index of the atoms in the molecule (input)
-!!     - kind: index of the kind of the atoms in the molecule (input)
-!!     - ratom: internal coordinates of the atoms in the box of the molecule (input)
-!!     - compute_tau: logical to control if tau is required
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **************************************************************************
 
+! *****************************************************************************
+!> \brief This function is called within a loop over all the molecules
+!>      to calculate the molecular density on the molecular grid only.
+!>      The molecular densities are used by KG_GPW to calculate the Kinetic energy
+!>      correction by subtracting the sum of the kinetic energies calculated
+!>      for each molecule independently
+!> \param qs_env the qs environment
+!> \param matrix_p global density matrix
+!> \param rho_r molecular density on the molecular real space mesh
+!> \param rho_g molecular density on the molecular reciprocal space mesh
+!> \param total_rho integral of the molecular density (output)
+!> \param atom global index of the atoms in the molecule (input)
+!> \param kind index of the kind of the atoms in the molecule (input)
+!> \param ratom internal coordinates of the atoms in the box of the molecule (input)
+!> \param compute_tau logical to control if tau is required
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      In KG_GPW a molecular pw environment is created for each molecule kind
+!>      which is based on a molecular cell box that does not use PBC
+!>      The molecule is located in the center of the bos and the coordinates passed
+!>      to this routine are internal coordinates.
+!>      At this level, it should not be necessary to have the atomic positions
+!>      in the global box
+!> \author MI
+! *****************************************************************************
   SUBROUTINE calculate_rho_mol(qs_env,matrix_p,rho_r,rho_g,total_rho,pw_env,&
                                atom,kind,ratom,compute_tau,error)
 
@@ -605,57 +574,42 @@ CONTAINS
     DEALLOCATE (pabt,workt,ntasks,tasks,tasks_local,ival,latom,STAT=istat)
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
 
-
     CALL density_rs2pw(pw_env,rs_rho,rho_r,rho_g,interp_section=interp_section,error=error)
 
     total_rho = pw_integrate_function(rho_r%pw,isign=-1)
 
     CALL timestop(0.0_dp,handle)
 
-
   END SUBROUTINE calculate_rho_mol
 
 !****f* kg_gpw_collocate_den/integrate_mol_potential
-!!
-!!   NAME
-!!     integrate_mol_potential
-!!
-!!   FUNCTION
-!!     This function is called within a loop over all the molecules
-!!     to calculate  integrate a given potential defined on the molecular grid only.
-!!     This is used by KG_GPW to calculate the Kinetic energy
-!!     correction as sum over the molecular contributions to the kinetic energy calculated
-!!     through the kinetic energy functional of the single molecular density,
-!!     for each molecule independently.
-!!
-!!   NOTES
-!!     In KG_GPW a molecular pw environment is created for each molecule kind
-!!     The corresponding molecular cell box  does not use PBC and is smaller than the global box.
-!!     The molecule is located in the center of the box and the coordinates passed
-!!     to this routine are internal coordinates.
-!!     At this level, it should not be necessary to have the atomic positions in the global box
-!!
-!!   INPUTS
-!!     - qs_env: the qs environment
-!!     - vxc_mol: potential on the radial grid as calculated from the molecular density
-!!     - matrix_p: global density matrix
-!!     - matrix_h: global ks matrix
-!!     - pw_env: pw environment for this molecule kind
-!!     - atom: global index of the atoms in the molecule (input)
-!!     - kind: index of the kind of the atoms in the molecule (input)
-!!     - ratom: internal coordinates of the atoms in the box of the molecule (input)
-!!     - forces_mol: forces on the atoms of the molecule, coming from this additional potential
-!!     - compute_tau: logical to control if tau is required
-!!     - error: variable to control error logging, stopping, see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **************************************************************************
 
+! *****************************************************************************
+!> \brief This function is called within a loop over all the molecules
+!>      to calculate  integrate a given potential defined on the molecular grid only.
+!>      This is used by KG_GPW to calculate the Kinetic energy
+!>      correction as sum over the molecular contributions to the kinetic energy calculated
+!>      through the kinetic energy functional of the single molecular density,
+!>      for each molecule independently.
+!> \param qs_env the qs environment
+!> \param vxc_mol potential on the radial grid as calculated from the molecular density
+!> \param matrix_p global density matrix
+!> \param matrix_h global ks matrix
+!> \param pw_env pw environment for this molecule kind
+!> \param atom global index of the atoms in the molecule (input)
+!> \param kind index of the kind of the atoms in the molecule (input)
+!> \param ratom internal coordinates of the atoms in the box of the molecule (input)
+!> \param forces_mol forces on the atoms of the molecule, coming from this additional potential
+!> \param compute_tau logical to control if tau is required
+!> \param error variable to control error logging, stopping, see module cp_error_handling
+!> \note
+!>      In KG_GPW a molecular pw environment is created for each molecule kind
+!>      The corresponding molecular cell box  does not use PBC and is smaller than the global box.
+!>      The molecule is located in the center of the box and the coordinates passed
+!>      to this routine are internal coordinates.
+!>      At this level, it should not be necessary to have the atomic positions in the global box
+!> \author MI
+! *****************************************************************************
   SUBROUTINE integrate_mol_potential(qs_env,vxc_mol,matrix_p,&
                                     matrix_h,pw_env,atom, kind, ratom,&
                                     forces_mol,compute_tau,error)
@@ -752,11 +706,9 @@ CONTAINS
     gridlevel_info=>pw_env%gridlevel_info
     cube_info=>pw_env%cube_info
 
-
     interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
          error=error)
     CALL potential_pw2rs(rs_v,vxc_mol,pw_env,interp_section,error)
-
 
     map_consistent=dft_control%qs_control%map_consistent
     IF (map_consistent) THEN
@@ -890,7 +842,6 @@ CONTAINS
 
             IF (set_radius_a(iset) + kind_radius_b < dab) CYCLE
 
-
             DO jset=1,nsetb
 
               IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
@@ -898,7 +849,6 @@ CONTAINS
               DO ipgf=1,npgfa(iset)
 
                 IF (rpgfa(ipgf,iset) + set_radius_b(jset) < dab) CYCLE
-
 
                 DO jpgf=1,npgfb(jset)
 
@@ -1133,8 +1083,7 @@ CONTAINS
 
   END SUBROUTINE integrate_mol_potential
 
-!***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE pair_get_loop_vars ( npme, ival, nset_pairs, atasks )
 
     INTEGER, INTENT(IN)                      :: npme
@@ -1165,5 +1114,4 @@ CONTAINS
 
   END SUBROUTINE pair_get_loop_vars
 
-!***************************************************************************
 END MODULE kg_gpw_collocate_den

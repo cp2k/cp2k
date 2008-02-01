@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qs_p_env_types [1.0] *
-!!
-!!   NAME
-!!     qs_p_env_types
-!!
-!!   FUNCTION
-!!     basis types for the calculation of the perturbation of density theory.
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     4.2002 created [fawzi]
-!!
-!!   SOURCE
-! ****************************************************************************
+! *****************************************************************************
+!> \brief basis types for the calculation of the perturbation of density theory.
+!> \par History
+!>      4.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE qs_p_env_types
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_type
@@ -55,42 +41,27 @@ MODULE qs_p_env_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_p_env_types'
 
-!!***
-!****************************************************************************
-
-
-!!****s* qs_p_env_types/qs_p_env_type [1.0] *
-!!
-!!   NAME
-!!     qs_p_env_type
-!!
-!!   FUNCTION
-!!     Represent a qs system that is perturbed.
-!!     Can calculate the linear operator and the rhs of the system
-!!     of equations that needs to be solved for the perturbation.
-!!
-!!   NOTES
-!!     for the moment no smearing of the orbitals.
-!!
-!!   ATTRIBUTES
-!!     - orthogonal_orbitals: if the orbitals are orthogonal
-!!     - id_nr: identification number (unique between p_env_types)
-!!     - ref_count: reference count (see doc/ReferenceCounting.html)
-!!     - iter: number of iterations
-!!     - kpp1: the kpp1 matrix (make it temporary?)
-!!     - m_epsilon: minus epsilon: -<psi0d|H_rho|psi0d>
-!!     - psi0d: the dual basis of psi0: psi0 (psi0^T S psi0)^-1
-!!     - S_psi0: S times psi0, cached for performace reasons
-!!     - Smo_inv: inverse of the mo overlap: (psi0^T S psi0)^-1
-!!     - kpp1_env: environment for the calculation of kpp1
-!!     - rho1: the density rho1
-!!     - rho1: the soft density rho1 for gapw_xc
-!!     - n_mo: cached number of mo: n_mo(i)=qs_env%c(i)%nmo
-!!     - n_ao: cached number of ao: n_ao(i)=qs_env%c(i)%nao
-!!
-!!   SOURCE
-!***************************************************************************
-
+! *****************************************************************************
+!> \brief Represent a qs system that is perturbed.
+!>      Can calculate the linear operator and the rhs of the system
+!>      of equations that needs to be solved for the perturbation.
+!> \param orthogonal_orbitals if the orbitals are orthogonal
+!> \param id_nr identification number (unique between p_env_types)
+!> \param ref_count reference count (see doc/ReferenceCounting.html)
+!> \param iter number of iterations
+!> \param kpp 1: the kpp1 matrix (make it temporary?)
+!> \param m_epsilon minus epsilon: -<psi0d|H_rho|psi0d>
+!> \param psi 0d: the dual basis of psi0: psi0 (psi0^T S psi0)^-1
+!> \param S_psi 0: S times psi0, cached for performace reasons
+!> \param Smo_inv inverse of the mo overlap: (psi0^T S psi0)^-1
+!> \param kpp 1_env: environment for the calculation of kpp1
+!> \param rho 1: the density rho1
+!> \param rho 1: the soft density rho1 for gapw_xc
+!> \param n_mo cached number of mo: n_mo(i)=qs_env%c(i)%nmo
+!> \param n_ao cached number of ao: n_ao(i)=qs_env%c(i)%nao
+!> \note
+!>      for the moment no smearing of the orbitals.
+! *****************************************************************************
   TYPE qs_p_env_type
 
      LOGICAL :: orthogonal_orbitals
@@ -128,68 +99,28 @@ MODULE qs_p_env_types
 
   END TYPE qs_p_env_type
 
-!!***
-!****************************************************************************
-
-!!****s* qs_p_env_types/qs_p_env_p_type [1.0] *
-!!
-!!   NAME
-!!     qs_p_env_p_type
-!!
-!!   FUNCTION
-!!     to have arrays of pointers
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     p_env: the pointer to the p_env
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief to have arrays of pointers
+!> \param p_env the pointer to the p_env
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE qs_p_env_p_type
      TYPE(qs_p_env_type), POINTER :: p_env
   END TYPE qs_p_env_p_type
-!!***
-  !****************************************************************************
 
 CONTAINS
 
-!!****f* qs_p_env_types/p_env_retain [1.0] *
-!!
-!!   NAME
-!!     p_env_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine p_env_retain(p_env, error)
-!!       Type(qs_p_env_type), Pointer:: p_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine p_env_retain
-!!
-!!   FUNCTION
-!!     retains the given p_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - p_env: the p_env to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given p_env (see doc/ReferenceCounting.html)
+!> \param p_env the p_env to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE p_env_retain(p_env,error)
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -207,37 +138,16 @@ SUBROUTINE p_env_retain(p_env,error)
      p_env%ref_count=p_env%ref_count+1
   END IF
 END SUBROUTINE p_env_retain
-!***************************************************************************
 
-!!****f* qs_p_env_types/p_env_release [1.0] *
-!!
-!!   NAME
-!!     p_env_release
-!!
-!!   SYNOPSIS
-!!     Subroutine p_env_release(p_env, error)
-!!       Type(qs_p_env_type), Pointer:: p_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine p_env_release
-!!
-!!   FUNCTION
-!!     relases the given p_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - p_env: the environment to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief relases the given p_env (see doc/ReferenceCounting.html)
+!> \param p_env the environment to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      07.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE p_env_release(p_env, error)
 
     TYPE(qs_p_env_type), POINTER             :: p_env
@@ -315,45 +225,23 @@ END SUBROUTINE p_env_retain
     END IF
     NULLIFY(p_env)
   END SUBROUTINE p_env_release
-!***************************************************************************
 
- !!****f* qs_p_env_types/p_env_write [1.0] *
- !!
- !!   NAME
- !!     p_env_write
- !!
- !!   SYNOPSIS
- !!     Subroutine p_env_write(p_env, unit_nr, long_description, local,&
- !!         error)
- !!       Type(qs_p_env_type), Pointer:: p_env
- !!       Integer, Intent (IN):: unit_nr
- !!       Logical, Optional, Intent (IN):: long_description, local
- !!       Type(cp_error_type), Optional, Intent (INOUT):: error
- !!     End Subroutine p_env_write
- !!
- !!   FUNCTION
- !!     writes the content of the p_env to the given output unit
- !!
- !!   NOTES
- !!     remove all iostat checks??
- !!
- !!   ARGUMENTS
- !!     - p_env: the p_env to output
- !!     - unit_nr: the unit where to output
- !!     - long_description: if a long description should be written
- !!       (defaults to false)
- !!     - local: if the unit is a local unit or a global unit
- !!       (defaults to false, i.e. global)
- !!     - error: variable to control error logging, stopping,...
- !!       see module cp_error_handling
- !!
- !!   AUTHOR
- !!     fawzi
- !!
- !!   MODIFICATION HISTORY
- !!     12.2002 created [fawzi]
- !!
- !!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes the content of the p_env to the given output unit
+!> \param p_env the p_env to output
+!> \param unit_nr the unit where to output
+!> \param long_description if a long description should be written
+!>        (defaults to false)
+!> \param local if the unit is a local unit or a global unit
+!>        (defaults to false, i.e. global)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      remove all iostat checks??
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
    SUBROUTINE p_env_write(p_env, unit_nr, long_description, local, error)
     TYPE(qs_p_env_type), POINTER             :: p_env
     INTEGER, INTENT(in)                      :: unit_nr
@@ -464,6 +352,5 @@ END SUBROUTINE p_env_retain
         END IF
      END IF
    END SUBROUTINE p_env_write
- !***************************************************************************
 
 END MODULE qs_p_env_types

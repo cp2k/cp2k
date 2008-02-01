@@ -3,26 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/cp_ddapc_forces *
-!!
-!!   NAME
-!!    cp_ddapc_forces
-!!
-!!   FUNCTION
-!!     Density Derived atomic point charges from a QM calculation
-!!     (see J. Chem. Phys. Vol. 103 pp. 7422-7428)
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Density Derived atomic point charges from a QM calculation
+!>      (see J. Chem. Phys. Vol. 103 pp. 7422-7428)
+!> \par History
+!>      08.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
 MODULE cp_ddapc_forces
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
@@ -66,27 +53,13 @@ MODULE cp_ddapc_forces
 
 CONTAINS
 
-!!****f* cp_ddapc_forces/ewald_ddapc_force [1.0] *
-!!
-!!   NAME
-!!     ewald_ddapc_force
-!!
-!!   FUNCTION
-!!     Evaluates the Ewald term E2 and E3 energy term for the decoupling/coupling
-!!     of periodic images
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Evaluates the Ewald term E2 and E3 energy term for the decoupling/coupling
+!>      of periodic images
+!> \par History
+!>      08.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   RECURSIVE SUBROUTINE ewald_ddapc_force(qs_env, coeff, apply_qmmm_periodic,&
        factor, multipole_section, cell, particle_set, radii, dq, charges, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -246,27 +219,12 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE ewald_ddapc_force
 
-
-!!****f* cp_ddapc_forces/cp_decpl_ddapc_forces [1.0] *
-!!
-!!   NAME
-!!     cp_decpl_ddapc_forces
-!!
-!!   FUNCTION
-!!     Evaluation of the pulay forces due to the fitted charge density
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Evaluation of the pulay forces due to the fitted charge density
+!> \par History
+!>      08.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE cp_decpl_ddapc_forces(qs_env, M, charges, dq, d_el, particle_set, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: M
@@ -335,26 +293,12 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE cp_decpl_ddapc_forces
 
-!!****f* cp_ddapc_forces/reset_ch_pulay [1.0] *
-!!
-!!   NAME
-!!     reset_ch_pulay
-!!
-!!   FUNCTION
-!!     Evaluation of the pulay forces due to the fitted charge density
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Evaluation of the pulay forces due to the fitted charge density
+!> \par History
+!>      08.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE reset_ch_pulay(qs_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -380,29 +324,19 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE reset_ch_pulay
 
-!!****f* cp_ddapc_forces/evaluate_restraint_functional *
-!!
-!!   NAME
-!!      evaluate_restraint_functional
-!!   FUNCTION
-!!      computes energy and derivatives given a set of charges
-!!
-!!   NOTES
-!!      should be easy to adapt for other specialized cases
-!!
-!!   INPUTS
-!!        - charges : current value of the charges (one number for each gaussian used)
-!!
-!!        - order_p : value of the restraint (i.e. charge of the group)
-!!        - energy  : energy due to the restraint
-!!        - uv : derivate of energy wrt the corresponding charge entry
-!!
-!!   MODIFICATION HISTORY
-!!     02.2006 [Joost VandeVondele]
-!!              modified [Teo]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief computes energy and derivatives given a set of charges
+!> \param charges current value of the charges (one number for each gaussian used)
+!> 
+!> \param order_p value of the restraint (i.e. charge of the group)
+!> \param energy energy due to the restraint
+!> \param uv derivate of energy wrt the corresponding charge entry
+!> \note
+!>       should be easy to adapt for other specialized cases
+!> \par History
+!>      02.2006 [Joost VandeVondele]
+!>               modified [Teo]
+! *****************************************************************************
   SUBROUTINE evaluate_restraint_functional(ddapc_restraint_control, n_gauss, uv,&
        charges, energy_res, error)
     TYPE(ddapc_restraint_type), &
@@ -457,25 +391,14 @@ CONTAINS
 
   END SUBROUTINE evaluate_restraint_functional
 
-!!****f* cp_ddapc/restraint_functional_force *
-!!
-!!   NAME
-!!      restraint_functional_force
-!!
-!!   FUNCTION
-!!      computes derivatives for DDAPC restraint
-!!
-!!   NOTES
-!!      should be easy to adapt for other specialized cases
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     02.2006 [Joost VandeVondele]
-!!             modified [Teo]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief computes derivatives for DDAPC restraint
+!> \note
+!>       should be easy to adapt for other specialized cases
+!> \par History
+!>      02.2006 [Joost VandeVondele]
+!>              modified [Teo]
+! *****************************************************************************
   SUBROUTINE restraint_functional_force(qs_env, ddapc_restraint_control, dq, charges,&
        n_gauss, particle_set, error)
 
@@ -551,28 +474,13 @@ CONTAINS
 
   END SUBROUTINE restraint_functional_force
 
-
-!!****f* cp_ddapc_methods/solvation_ddapc_force [1.0] *
-!!
-!!   NAME
-!!     solvation_ddapc_force
-!!
-!!   FUNCTION
-!!     Evaluates the electrostatic potential due to a simple solvation model
-!!     Spherical cavity in a dieletric medium
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2006 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Evaluates the electrostatic potential due to a simple solvation model
+!>      Spherical cavity in a dieletric medium
+!> \par History
+!>      08.2006 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE solvation_ddapc_force(qs_env, cell, solvation_section, particle_set,&
        radii, dq, charges, error)
     TYPE(qs_environment_type), POINTER       :: qs_env

@@ -2,24 +2,14 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_overlap [1.0] *
-!!
-!!   NAME
-!!     qs_overlap
-!!
-!!   FUNCTION
-!!     Distribution of the overlap integral matrix. The calculation of the
-!!     overlap integral matrix is performed in MODULE core_hamiltonian.
-!!
-!!   AUTHOR
-!!     Matthias Krack (03.09.2001,25.06.2003)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH: removed printing routines
-!!
-!!***
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Distribution of the overlap integral matrix. The calculation of the
+!>      overlap integral matrix is performed in MODULE core_hamiltonian.
+!> \par History
+!>      JGH: removed printing routines
+!> \author Matthias Krack (03.09.2001,25.06.2003)
+! *****************************************************************************
 MODULE qs_overlap
 
   USE ai_overlap_new,                  ONLY: overlap
@@ -78,20 +68,15 @@ MODULE qs_overlap
   PUBLIC :: build_overlap_matrix, &
             atom_overlap_matrix
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE build_overlap_matrix(qs_env,para_env,nderivative,error)
 
 !   Purpose: Calculation of the overlap matrix over Cartesian Gaussian
 !            functions.
 
 !   History: - Creation (11.03.2002, MK)
-
-!   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -144,7 +129,6 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-
 
     NULLIFY ( atomic_kind_set,particle_set,matrix_s,sab_orb,distribution_2d)
     CALL get_qs_env(qs_env=qs_env,&
@@ -470,7 +454,6 @@ CONTAINS
   END SUBROUTINE build_overlap_matrix
 
 ! *****************************************************************************
-
   SUBROUTINE atom_overlap_matrix(iatom,nseta,set_radius_a,npgfa,nsgfa,la_max,&
                                  la_min,first_sgfa,rpgfa,zeta,sphi_a,&
                                  jatom,nsetb,set_radius_b,npgfb,nsgfb,lb_max,&
@@ -552,8 +535,5 @@ CONTAINS
 
   END SUBROUTINE atom_overlap_matrix
 
-! *****************************************************************************
-
 END MODULE qs_overlap
 
-! *****************************************************************************

@@ -2,26 +2,16 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/force_env_types *
-!!
-!!   NAME
-!!     force_env_types
-!!
-!!   FUNCTION
-!!     Interface for the force calculations
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     cjm, FEB-20-2001: pass variable box_ref
-!!     cjm, SEPT-12-2002: major reorganization
-!!     fawzi, APR-12-2003: introduced force_env (based on the work by CJM&JGH)
-!!     fawzi, NOV-3-2004: reorganized interface for f77 interface
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Interface for the force calculations
+!> \par History
+!>      cjm, FEB-20-2001: pass variable box_ref
+!>      cjm, SEPT-12-2002: major reorganization
+!>      fawzi, APR-12-2003: introduced force_env (based on the work by CJM&JGH)
+!>      fawzi, NOV-3-2004: reorganized interface for f77 interface
+!> \author fawzi
+! *****************************************************************************
 MODULE force_env_methods
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE cell_types,                      ONLY: cell_type,&
@@ -177,32 +167,18 @@ MODULE force_env_methods
 
   INTEGER, SAVE, PRIVATE :: last_force_env_id=0
 
-!!***
-!******************************************************************************
-
 CONTAINS
 
-!!****** force_env_types/force_env_calc_energy_force [1.0] *
-!!
-!!   NAME
-!!     force_env_calc_energy_force
-!!
-!!   FUNCTION
-!!     Interface routine for force and energy calculations
-!!
-!!   ARGUMENTS
-!!     - force_env: the force_env of which you want the energy and forces
-!!     - calc_force: if false the forces *might* be left unchanged
-!!       or be unvalid, no guarantee on them is done.Defaults to true
-!!     - consistent_energies: Performs an additional qs_ks_update_qs_env, so
-!!         that the energies are appropriate to the forces, they are in the
-!!         non-selfconsistent case not consistent to each other! [08.2005, TdK]
-!!
-!!   AUTHOR
-!!     CJM & fawzi
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Interface routine for force and energy calculations
+!> \param force_env the force_env of which you want the energy and forces
+!> \param calc_force if false the forces *might* be left unchanged
+!>        or be unvalid, no guarantee on them is done.Defaults to true
+!> \param consistent_energies Performs an additional qs_ks_update_qs_env, so
+!>          that the energies are appropriate to the forces, they are in the
+!>          non-selfconsistent case not consistent to each other! [08.2005, TdK]
+!> \author CJM & fawzi
+! *****************************************************************************
   RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, calc_force, &
        consistent_energies, skip_external_control, eval_energy_forces, error)
 
@@ -351,33 +327,18 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE force_env_calc_energy_force
-!******************************************************************************
 
-!!****f* force_env_types/force_env_create [1.0] *
-!!
-!!   NAME
-!!     force_env_create
-!!
-!!   FUNCTION
-!!     creates and initializes a force environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - force_env: the force env to create
-!!     - fist_env, kg_env, qs_env: exactly one of these should be
-!!       associated, the one that is active
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates and initializes a force environment
+!> \param force_env the force env to create
+!> \param fist_env , kg_env, qs_env: exactly one of these should be
+!>        associated, the one that is active
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_env,kg_env,&
      meta_env,sub_force_env,qmmm_env,eip_env,ep_env,force_env_section,mixed_env,error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -609,30 +570,14 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
 
 END SUBROUTINE force_env_create
 
-!***************************************************************************
-
-
-!!****f* qs_ep_methods/ep_create_force_env *
-!!
-!!   NAME
-!!     ep_create_force_env
-!!
-!!   FUNCTION
-!!     creates a force environment that does an ep calculation
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - force_env: the force environment to be created
-!!     - globenv: the global environment with input,...
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a force environment that does an ep calculation
+!> \param force_env the force environment to be created
+!> \param globenv the global environment with input,...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE ep_create_force_env(force_env, root_section, para_env, globenv,&
      force_env_section, error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -659,33 +604,20 @@ SUBROUTINE ep_create_force_env(force_env, root_section, para_env, globenv,&
      CALL ep_env_release(ep_env,error=error)
   END IF
 END SUBROUTINE ep_create_force_env
-!***************************************************************************
 
-!!****f* force_env_types/force_env_set_cell [1.0] *
-!!
-!!   NAME
-!!     force_env_set_cell
-!!
-!!   FUNCTION
-!!     changes the cell of the system
-!!
-!!   NOTES
-!!     for future use, each method should make the changes that it needs
-!!     to cope with the new cell
-!!
-!!   INPUTS
-!!     - force_env: the force environment where the cell should be changed
-!!     - cell: the new cell
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     09.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief changes the cell of the system
+!> \param force_env the force environment where the cell should be changed
+!> \param cell the new cell
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      for future use, each method should make the changes that it needs
+!>      to cope with the new cell
+!> \par History
+!>      09.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cell_type), POINTER                 :: cell
@@ -775,31 +707,16 @@ CPSourceFileRef,&
      END SELECT
   END IF
 END SUBROUTINE force_env_set_cell
-!***************************************************************************
 
-!!****f* force_env_methods/qmmm_energy_and_forces [1.0] *
-!!
-!!   NAME
-!!     qmmm_energy_and_forces
-!!
-!!   FUNCTION
-!!     calculates the qm/mm energy and forces
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - calc_force: if also the forces should be calculated
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates the qm/mm energy and forces
+!> \param calc_force if also the forces should be calculated
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      05.2004 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(IN), OPTIONAL            :: calc_force
@@ -935,30 +852,17 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
        "QMMM%PRINT%DERIVATIVES",error=error)
 END SUBROUTINE qmmm_energy_and_forces
 
-!! ****f* force_env_methods/mixed_energy_forces  [1.0] 
-!!
-!!   NAME
-!!    mixed_energy_forces
-!!
-!!   FUNCTION
-!!    Computes energy and forces for a mixed force_env type
-!!
-!!   NOTES
-!!    -
-!!
-!!   INPUTS
-!!
-!!
-!!   AUTHOR
-!!     Florian Schiffmann
-!!
-!!   MODIFICATION HISTORY
-!!      11.06  created [fschiff]
-!!      04.07  generalization to an illimited number of force_eval [tlaino]
-!!      04.07  further generalization to force_eval with different geometrical
-!!             structures
-!!
-!!***************************************************************************
+! *****************************************************************************
+!> \brief ****f* force_env_methods/mixed_energy_forces  [1.0] 
+!> 
+!>     Computes energy and forces for a mixed force_env type
+!> \par History
+!>       11.06  created [fschiff]
+!>       04.07  generalization to an illimited number of force_eval [tlaino]
+!>       04.07  further generalization to force_eval with different geometrical
+!>              structures
+!> \author Florian Schiffmann
+! *****************************************************************************
 SUBROUTINE mixed_energy_forces(force_env, need_f, error)
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(IN)                      :: need_f
@@ -1276,26 +1180,13 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 END SUBROUTINE mixed_energy_forces
 
-!!****f* force_env_types/mixed_map_forces *
-!!
-!!   NAME
-!!     mixed_map_forces
-!!
-!!   FUNCTION
-!!     Maps forces between the different force_eval sections/environments
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - force_env: the force env to shake
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino - University of Zurich [tlaino] - 05.2007
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Maps forces between the different force_eval sections/environments
+!> \param force_env the force env to shake
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Teodoro Laino - University of Zurich [tlaino] - 05.2007
+! *****************************************************************************
   SUBROUTINE mixed_map_forces(particles_mix, virial_mix, global_forces, virials, factor, iforce_eval,&
      nforce_eval, map_index, mapping_section, overwrite, error)
     TYPE(particle_list_type), POINTER        :: particles_mix
@@ -1348,26 +1239,13 @@ END SUBROUTINE mixed_energy_forces
     
   END SUBROUTINE mixed_map_forces
 
-!!****f* force_env_types/get_subsys_map_index *
-!!
-!!   NAME
-!!     get_subsys_map_index
-!!
-!!   FUNCTION
-!!     performs mapping of the subsystems of different force_eval
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - force_env: the force env to shake
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino - University of Zurich [tlaino] - 05.2007
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief performs mapping of the subsystems of different force_eval
+!> \param force_env the force env to shake
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Teodoro Laino - University of Zurich [tlaino] - 05.2007
+! *****************************************************************************
   SUBROUTINE get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, map_index, error)
     TYPE(section_vals_type), POINTER         :: mapping_section
     INTEGER, INTENT(IN)                      :: natom, iforce_eval, &
@@ -1469,31 +1347,18 @@ END SUBROUTINE mixed_energy_forces
     
   END SUBROUTINE get_subsys_map_index
      
-!!****f* force_env_types/force_env_shake *
-!!
-!!   NAME
-!!     force_env_shake
-!!
-!!   FUNCTION
-!!     perform shake (enforcing of constraints)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - force_env: the force env to shake
-!!     - dt: the dt for shake (if you are not interested in the velocities
-!!       it can be any positive number)
-!!     - shake_tol: the tolerance for shake
-!!     - log_unit: if >0 then some information on the shake is printed,
-!!       defaults to -1
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief perform shake (enforcing of constraints)
+!> \param force_env the force env to shake
+!> \param dt the dt for shake (if you are not interested in the velocities
+!>        it can be any positive number)
+!> \param shake_tol the tolerance for shake
+!> \param log_unit if >0 then some information on the shake is printed,
+!>        defaults to -1
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE force_env_shake(force_env,dt,shake_tol,log_unit,lagrange_mult,dump_lm,&
        pos,vel,compold,reset,error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -1657,35 +1522,21 @@ END SUBROUTINE mixed_energy_forces
     END IF
     CALL timestop(handle)
   END SUBROUTINE force_env_shake
-!***************************************************************************
 
-!!****f* force_env_types/force_env_rattle *
-!!
-!!   NAME
-!!     force_env_rattle
-!!
-!!   FUNCTION
-!!     perform rattle (enforcing of constraints on velocities)
-!!     This routine can be easily adapted to performe rattle on whatever
-!!     other vector different from forces..
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - force_env: the force env to shake
-!!     - dt: the dt for shake (if you are not interested in the velocities
-!!       it can be any positive number)
-!!     - shake_tol: the tolerance for shake
-!!     - log_unit: if >0 then some information on the shake is printed,
-!!       defaults to -1
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     tlaino
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief perform rattle (enforcing of constraints on velocities)
+!>      This routine can be easily adapted to performe rattle on whatever
+!>      other vector different from forces..
+!> \param force_env the force env to shake
+!> \param dt the dt for shake (if you are not interested in the velocities
+!>        it can be any positive number)
+!> \param shake_tol the tolerance for shake
+!> \param log_unit if >0 then some information on the shake is printed,
+!>        defaults to -1
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author tlaino
+! *****************************************************************************
   SUBROUTINE force_env_rattle(force_env,dt,shake_tol,log_unit,lagrange_mult,dump_lm,&
        vel,reset,error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -1822,28 +1673,14 @@ END SUBROUTINE mixed_energy_forces
     END IF
     CALL timestop(handle)
   END SUBROUTINE force_env_rattle
-!***************************************************************************
 
-!!****f* force_env_types/rescale_forces *
-!!
-!!   NAME
-!!     rescale_forces
-!!
-!!   FUNCTION
-!!     Rescale forces if requested
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - force_env: the force env to shake
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     tlaino
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Rescale forces if requested
+!> \param force_env the force env to shake
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author tlaino
+! *****************************************************************************
   SUBROUTINE rescale_forces (force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout)       :: error

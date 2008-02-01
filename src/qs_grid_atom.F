@@ -2,19 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_grid_atom [1.0] *
-!!
-!!   NAME
-!!     qs_grid_atom
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
 MODULE qs_grid_atom
 
   USE f77_blas
@@ -35,6 +23,7 @@ MODULE qs_grid_atom
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_grid_atom'
 
+! *****************************************************************************
   TYPE grid_atom_type
 
      INTEGER                         :: nr, ng_sphere
@@ -48,27 +37,19 @@ MODULE qs_grid_atom
 
   END TYPE grid_atom_type
 
-
   ! *** Public subroutines ***
 
   PUBLIC :: allocate_grid_atom, &
        create_grid_atom, &
        deallocate_grid_atom
 
-
   ! *** Public data types ***
 
   PUBLIC :: grid_atom_type
 
-
-  !!***
-  ! *****************************************************************************
-
 CONTAINS
 
-  ! *****************************************************************************
-
-
+! *****************************************************************************
   SUBROUTINE allocate_grid_atom(grid_atom,error)
 
     TYPE(grid_atom_type), POINTER            :: grid_atom
@@ -81,7 +62,6 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-
 
     IF (ASSOCIATED(grid_atom)) CALL deallocate_grid_atom(grid_atom,error)
 
@@ -106,15 +86,12 @@ CONTAINS
 
   END SUBROUTINE allocate_grid_atom
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE deallocate_grid_atom(grid_atom,error)
 
     !   Purpose: Deallocate a Gaussian-type orbital (GTO) basis set data set.
 
     !   History: - Creation (03.11.2000,MK)
-
-    !   ***************************************************************************
 
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -212,8 +189,7 @@ CONTAINS
     END IF
   END SUBROUTINE deallocate_grid_atom
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE create_grid_atom(grid_atom,nr,na,llmax,quadrature)
 
     TYPE(grid_atom_type), POINTER            :: grid_atom
@@ -224,8 +200,6 @@ CONTAINS
 
     INTEGER                                  :: l
     REAL(dp), DIMENSION(:), POINTER          :: rad, rad2, wr
-
-! *****************************************************************************
 
     NULLIFY (rad,rad2,wr)
 
@@ -268,8 +242,7 @@ CONTAINS
     END IF
   END SUBROUTINE create_grid_atom
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE radial_grid(n,r,r2,wr,radial_quadrature)
 
     !   Purpose: Generate a radial grid with n points by a quadrature rule.
@@ -280,8 +253,6 @@ CONTAINS
     !               - M. Krack and A. M. Koester, J. Chem. Phys. 108, 3226 (1998)
 
     !   History: - Creation (20.09.1999, Matthias Krack)
-
-    !   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: n
     REAL(dp), DIMENSION(:), POINTER          :: r, r2, wr
@@ -357,8 +328,6 @@ CONTAINS
     END SELECT
 
   END SUBROUTINE radial_grid
-
-  ! *****************************************************************************
 
 END MODULE qs_grid_atom
 

@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/xc_rho_cflags_types [1.0] *
-!!
-!!   NAME
-!!     xc_rho_set_types
-!!
-!!   FUNCTION
-!!     contains the structure 
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief contains the structure 
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 MODULE xc_rho_cflags_types
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -39,71 +25,44 @@ MODULE xc_rho_cflags_types
   PUBLIC :: xc_rho_cflags_setall, xc_rho_cflags_or, xc_rho_cflags_and,&
        xc_rho_cflags_equal, xc_rho_cflags_contain, xc_rho_cflags_write
 
-!!***
-  !****************************************************************************
-
-!!****s* xc_rho_set_types/xc_rho_cflags_type [1.0] *
-!!
-!!   NAME
-!!     xc_rho_cflags_type
-!!
-!!   FUNCTION
-!!     contains a flag for each component of xc_rho_set, so that you can
-!!     use it to tell which components you need, which ones you need,....
-!!
-!!   NOTES
-!!     low_level type without retain/release
-!!
-!!   ATTRIBUTES
-!!     - rho: flags for rho (the total density)
-!!     - rho_spin: flag for rhoa and rhob (the spin density with LSD)
-!!     - drho: flag for drho (the gradient of rho)
-!!     - drho_spin: flag for drhoa and drhob (the gradient of the spin
-!!       density)
-!!     - norm_drho: flag for norm_drho (the norm of the gradient of rho)
-!!     - norm_drho_spin: flag for norm_drhoa, norm_drhob (the norm of the
-!!       gradient of the spin density)
-!!     - drhoa_drhob: flag for drhoa_drhob (the scalar product of the
-!!       gradient of the two spin densities)
-!!     - rho_1_3: flag for rho**(1.0_dp/3.0_dp)
-!!     - rho_spin_1_3: flag for rhoa**(1.0_dp/3.0_dp) and rhob**(1.0_dp/3.0_dp)
-!!     - tau: flags for the kinetic (KS) part of rho 
-!!     - tau_spin: flags for the kinetic (KS) part of rhoa and rhob
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief contains a flag for each component of xc_rho_set, so that you can
+!>      use it to tell which components you need, which ones you need,....
+!> \param rho flags for rho (the total density)
+!> \param rho_spin flag for rhoa and rhob (the spin density with LSD)
+!> \param drho flag for drho (the gradient of rho)
+!> \param drho_spin flag for drhoa and drhob (the gradient of the spin
+!>        density)
+!> \param norm_drho flag for norm_drho (the norm of the gradient of rho)
+!> \param norm_drho_spin flag for norm_drhoa, norm_drhob (the norm of the
+!>        gradient of the spin density)
+!> \param drhoa_drhob flag for drhoa_drhob (the scalar product of the
+!>        gradient of the two spin densities)
+!> \param rho_ 1_3: flag for rho**(1.0_dp/3.0_dp)
+!> \param rho_spin_ 1_3: flag for rhoa**(1.0_dp/3.0_dp) and rhob**(1.0_dp/3.0_dp)
+!> \param tau flags for the kinetic (KS) part of rho 
+!> \param tau_spin flags for the kinetic (KS) part of rhoa and rhob
+!> \note
+!>      low_level type without retain/release
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   TYPE xc_rho_cflags_type
      LOGICAL :: rho, rho_spin, drho, drho_spin,&
           norm_drho, norm_drho_spin, drhoa_drhob,&
           rho_1_3,rho_spin_1_3, tau, tau_spin
   END TYPE xc_rho_cflags_type
-!!***
-  !****************************************************************************
-
 
 CONTAINS
 
-!!****f* xc_rho_set_types/xc_rho_cflags_setall [1.0] *
-!!
-!!   NAME
-!!     xc_rho_cflags_setall
-!!
-!!   FUNCTION
-!!     sets all the flags to the given value
-!!
-!!   ARGUMENTS
-!!     - cflags: the flags to set
-!!     - value: the value to set
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief sets all the flags to the given value
+!> \param cflags the flags to set
+!> \param value the value to set
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+! *****************************************************************************
   SUBROUTINE xc_rho_cflags_setall(cflags, value, error)
     TYPE(xc_rho_cflags_type), INTENT(out)    :: cflags
     LOGICAL, INTENT(in)                      :: value
@@ -127,23 +86,14 @@ CONTAINS
     cflags%tau=value
     cflags%tau_spin=value
   END SUBROUTINE xc_rho_cflags_setall
-  !***************************************************************************
 
-!!****f* xc_rho_set_types/xc_rho_cflags_or [1.0] *
-!!
-!!   NAME
-!!     xc_rho_cflags_or
-!!
-!!   FUNCTION
-!!     performs an OR on all the flags (cflags1=cflag1.or.cflags2)
-!!
-!!   ARGUMENTS
-!!     - cflags1: the flags to change
-!!     - cflags2: the flags to OR with
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief performs an OR on all the flags (cflags1=cflag1.or.cflags2)
+!> \param cflags 1: the flags to change
+!> \param cflags 2: the flags to OR with
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+! *****************************************************************************
   SUBROUTINE xc_rho_cflags_or(cflags1, cflags2, error)
     TYPE(xc_rho_cflags_type), INTENT(inout)  :: cflags1
     TYPE(xc_rho_cflags_type), INTENT(in)     :: cflags2
@@ -169,23 +119,14 @@ CONTAINS
     cflags1%tau_spin=cflags1%tau_spin.OR.cflags2%tau_spin
 
   END SUBROUTINE xc_rho_cflags_or
-  !***************************************************************************
 
-!!****f* xc_rho_set_types/xc_rho_cflags_and [1.0] *
-!!
-!!   NAME
-!!     xc_rho_cflags_and
-!!
-!!   FUNCTION
-!!     performs an AND on all the flags (cflags1=cflag1.and.cflags2)
-!!
-!!   ARGUMENTS
-!!     - cflags1: the flags to change
-!!     - cflags2: the flags to and with
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief performs an AND on all the flags (cflags1=cflag1.and.cflags2)
+!> \param cflags 1: the flags to change
+!> \param cflags 2: the flags to and with
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+! *****************************************************************************
   SUBROUTINE xc_rho_cflags_and(cflags1, cflags2, error)
     TYPE(xc_rho_cflags_type), INTENT(inout)  :: cflags1
     TYPE(xc_rho_cflags_type), INTENT(in)     :: cflags2
@@ -211,22 +152,13 @@ CONTAINS
     cflags1%tau_spin=cflags1%tau_spin.AND.cflags2%tau_spin
 
   END SUBROUTINE xc_rho_cflags_and
-  !***************************************************************************
 
-!!****f* xc_rho_set_types/xc_rho_cflags_equal [1.0] *
-!!
-!!   NAME
-!!     xc_rho_cflags_equal
-!!
-!!   FUNCTION
-!!     return true if the two cflags are equal
-!!
-!!   ARGUMENTS
-!!     - cflags1, cflags2: the flags to compare
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief return true if the two cflags are equal
+!> \param cflags 1, cflags2: the flags to compare
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+! *****************************************************************************
   FUNCTION xc_rho_cflags_equal(cflags1, cflags2, error) RESULT(equal)
     TYPE(xc_rho_cflags_type), INTENT(inout)  :: cflags1
     TYPE(xc_rho_cflags_type), INTENT(in)     :: cflags2
@@ -253,25 +185,15 @@ CONTAINS
          (cflags1%tau_spin.EQV.cflags2%tau_spin))
 
   END FUNCTION xc_rho_cflags_equal
-  !***************************************************************************
 
-!!****f* xc_rho_set_types/xc_rho_cflags_contain [1.0] *
-!!
-!!   NAME
-!!     xc_rho_cflags_contain
-!!
-!!   FUNCTION
-!!     return true if all the true flags in cflags2 are also true in cflags1
-!!
-!!   NOTES
-!!     defines a partial ordering on the cflags (cflags1>cflags2)
-!!
-!!   ARGUMENTS
-!!     - cflags1, cflags2: the flags to compare
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief return true if all the true flags in cflags2 are also true in cflags1
+!> \param cflags 1, cflags2: the flags to compare
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      defines a partial ordering on the cflags (cflags1>cflags2)
+! *****************************************************************************
   FUNCTION xc_rho_cflags_contain(cflags1, cflags2, error) RESULT(contain)
     TYPE(xc_rho_cflags_type), INTENT(inout)  :: cflags1
     TYPE(xc_rho_cflags_type), INTENT(in)     :: cflags2
@@ -298,32 +220,17 @@ CONTAINS
          (cflags1%tau_spin.OR..NOT.cflags2%tau_spin))
 
   END FUNCTION xc_rho_cflags_contain
-  !***************************************************************************
 
-!!****f* xc_rho_set_types/xc_rho_cflags_write *
-!!
-!!   NAME
-!!     xc_rho_cflags_write
-!!
-!!   FUNCTION
-!!     writes out the values of the cflags
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - cflags: the flags to be written out
-!!     - unit_nr: the unit to write to
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes out the values of the cflags
+!> \param cflags the flags to be written out
+!> \param unit_nr the unit to write to
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE xc_rho_cflags_write(cflags,unit_nr,error)
     TYPE(xc_rho_cflags_type), INTENT(in)     :: cflags
     INTEGER, INTENT(in)                      :: unit_nr
@@ -347,6 +254,5 @@ CONTAINS
     WRITE(unit=unit_nr,fmt="(' }')")
 
   END SUBROUTINE xc_rho_cflags_write
-  !***************************************************************************
 
 END MODULE xc_rho_cflags_types

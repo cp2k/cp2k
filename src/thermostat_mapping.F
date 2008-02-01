@@ -2,21 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/thermostat_mapping [1.0] *
-!!
-!!   NAME
-!!     thermostat_mapping
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - 10.2007 - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \author Teodoro Laino [tlaino] - 10.2007 - University of Zurich
+! *****************************************************************************
 MODULE thermostat_mapping
 
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -56,28 +45,12 @@ MODULE thermostat_mapping
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermostat_mapping'
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** thermostat_mapping/thermostat_mapping_region [1.0] *
-!!
-!!   NAME
-!!     thermostat_mapping_region
-!!
-!!   FUNCTION
-!!     Main general setup thermostat regions (thermostat independent)
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - University of Zurich - 10.2007
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Main general setup thermostat regions (thermostat independent)
+!> \author Teodoro Laino [tlaino] - University of Zurich - 10.2007
+! *****************************************************************************
   SUBROUTINE thermostat_mapping_region ( map_info, deg_of_freedom, massive_atom_list,&
        molecule_kind_set, local_molecules, molecule_set, para_env, natoms_local, simpar, &
        number, region, gci, shell, map_loc_thermo_gen, sum_of_thermostats, error)
@@ -161,23 +134,10 @@ CONTAINS
 
   END SUBROUTINE thermostat_mapping_region
 
-!******************************************************************************
-!!****** thermostat_mapping/thermostat_mapping_region_low [1.0] *
-!!
-!!   NAME
-!!     thermostat_mapping_region_low
-!!
-!!   FUNCTION
-!!     Performs the real mapping for the thermostat region
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - University of Zurich - 10.2007
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Performs the real mapping for the thermostat region
+!> \author Teodoro Laino [tlaino] - University of Zurich - 10.2007
+! *****************************************************************************
   SUBROUTINE  thermostat_mapping_region_low(region, map_info, nkind, point,&
        deg_of_freedom, local_molecules, const_mol, massive_atom_list, tot_const,&
        molecule_set, number, shell, gci, map_loc_thermo_gen,error)
@@ -360,23 +320,10 @@ CONTAINS
 
   END SUBROUTINE thermostat_mapping_region_low
 
-!******************************************************************************
-!!****** thermostat_mapping/mapping_region_evaluate [1.0] *
-!!
-!!   NAME
-!!     mapping_region_evaluate
-!!
-!!   FUNCTION
-!!     creates the mapping between the system and the thermostats
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - 10.2007 - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief creates the mapping between the system and the thermostats
+!> \author Teodoro Laino [tlaino] - 10.2007 - University of Zurich
+! *****************************************************************************
   SUBROUTINE mapping_region_evaluate(dis_type, natoms_local, nmol_local, const_mol,&
        tot_const, point, local_molecules, molecule_kind_set, molecule_set, region,&
        simpar, shell, map_loc_thermo_gen, sum_of_thermostats, para_env, error)
@@ -651,23 +598,7 @@ CONTAINS
 
   END SUBROUTINE mapping_region_evaluate
 
-!******************************************************************************
-!!****** thermostat_mapping/massive_list_generate [1.0] *
-!!
-!!   NAME
-!!    massive_list_generate 
-!!
-!!   FUNCTION
-!!     
-!!
-!!   AUTHOR
-!!  
-!!
-!!   MODIFICATION HISTORY
-!!   
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
   SUBROUTINE massive_list_generate ( molecule_set, molecule_kind_set, &
        local_molecules, para_env, massive_atom_list, region, shell, error )
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -767,23 +698,10 @@ CONTAINS
 
   END SUBROUTINE massive_list_generate
 
-!******************************************************************************
-!!****** thermostat_mapping/init_baro_map_info [1.0] *
-!!
-!!   NAME
-!!     init_baro_map_info
-!!
-!!   FUNCTION
-!!     Initialize the map_info for barostat thermostat
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - 10.2007 - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Initialize the map_info for barostat thermostat
+!> \author Teodoro Laino [tlaino] - 10.2007 - University of Zurich
+! *****************************************************************************
   SUBROUTINE  init_baro_map_info(map_info, ndeg, num_thermo, error)
     TYPE(map_info_type), POINTER             :: map_info
     INTEGER, INTENT(IN)                      :: ndeg, num_thermo
@@ -819,24 +737,10 @@ CONTAINS
 
   END SUBROUTINE init_baro_map_info
 
-
-!******************************************************************************
-!!****** thermostat_mapping/init_coeff_map_info [1.0] *
-!!
-!!   NAME
-!!     init_coeff_map_info
-!!
-!!   FUNCTION
-!!     Initialize the map_info for coefficients thermostat
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - 10.2007 - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Initialize the map_info for coefficients thermostat
+!> \author Teodoro Laino [tlaino] - 10.2007 - University of Zurich
+! *****************************************************************************
   SUBROUTINE  init_coeff_map_info(map_info, number, region, ncoef_local, error)
     TYPE(map_info_type), POINTER             :: map_info
     INTEGER, INTENT(IN)                      :: number, region, ncoef_local
@@ -887,4 +791,3 @@ CONTAINS
 
 END MODULE thermostat_mapping
 
-!******************************************************************************

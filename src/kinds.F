@@ -2,33 +2,22 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/kinds [1.0] *
-!!
-!!   NAME
-!!     kinds
-!!
-!!   FUNCTION
-!!     Defines the basic variable types
-!!
-!!   AUTHOR
-!!     Matthias Krack
-!!
-!!   MODIFICATION HISTORY
-!!     Adapted for CP2K by JGH
-!!
-!!   NOTES
-!!     Data type definitions; tested on:
-!!         - IBM AIX xlf90
-!!         - SGI IRIX  f90
-!!         - CRAY T3E  f90
-!!         - DEC ALPHA f90
-!!         - NAG_F90
-!!         - SUN
-!!         - HITACHI
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Defines the basic variable types
+!> \note
+!>      Data type definitions; tested on:
+!>          - IBM AIX xlf90
+!>          - SGI IRIX  f90
+!>          - CRAY T3E  f90
+!>          - DEC ALPHA f90
+!>          - NAG_F90
+!>          - SUN
+!>          - HITACHI
+!> \par History
+!>      Adapted for CP2K by JGH
+!> \author Matthias Krack
+! *****************************************************************************
 MODULE kinds
   
   IMPLICIT NONE
@@ -61,36 +50,15 @@ MODULE kinds
   INTEGER, PARAMETER :: default_string_length=80
   INTEGER, PARAMETER :: default_path_length=250
 
-!!*****
-!******************************************************************************
-  
 CONTAINS
 
-!******************************************************************************
-!!****** kinds/print_kind_info [1.0] *
-!!
-!!   NAME
-!!     print_kind_info
-!!
-!!   SYNOPSIS
-!!     Subroutine print_kind_info(iw)
-!!       Integer, Intent (IN):: iw
-!!     End Subroutine print_kind_info
-!!
-!!   FUNCTION
-!!     Print informations about the used data types.
-!!
-!!   AUTHOR
-!!     Matthias Krack
-!!
-!!   MODIFICATION HISTORY
-!!     Adapted by JGH for Cp2k
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Print informations about the used data types.
+!> \par History
+!>      Adapted by JGH for Cp2k
+!> \author Matthias Krack
+! *****************************************************************************
 SUBROUTINE print_kind_info ( iw )
-  
   
     INTEGER, INTENT(IN)                      :: iw
 
@@ -126,9 +94,5 @@ SUBROUTINE print_kind_info ( iw )
   
 END SUBROUTINE print_kind_info
 
-!!*****
-!******************************************************************************
-
 END MODULE kinds
 
-!******************************************************************************

@@ -2,26 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/fp_methods *
-!!
-!!   NAME
-!!     fp_methods
-!!
-!!   FUNCTION
-!!     methods used in the flexible partitioning scheme
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!
-!!   MODIFICATION HISTORY
-!!     04.2006 [Joost VandeVondele]
-!!
-!!   SOURCE
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief methods used in the flexible partitioning scheme
+!> \par History
+!>      04.2006 [Joost VandeVondele]
+!> \author Joost VandeVondele
+! *****************************************************************************
 MODULE fp_methods
 
   USE beta_gamma_psi,                  ONLY: erf,&
@@ -55,24 +42,12 @@ MODULE fp_methods
 
 CONTAINS
 
-!!****f* fp_methods/fp_eval *
-!!
-!!   NAME
-!!    fp_eval
-!!
-!!   FUNCTION
-!!    computest the forces and the energy due to the flexible potential & bias,
-!!    and writes the weights file
-!!
-!!   NOTES
-!!    
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     04.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief computest the forces and the energy due to the flexible potential & bias,
+!>     and writes the weights file
+!> \par History
+!>      04.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE fp_eval(fp_env, subsys, cell, error)
     TYPE(fp_type), POINTER                   :: fp_env
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -237,24 +212,13 @@ CONTAINS
 
   END SUBROUTINE fp_eval
 
-!!****f* fp_methods/smooth_count *
-!!
-!!   NAME
-!!     smooth_count
-!!
-!!   FUNCTION
-!!     counts in a smooth way (error function with width=width)
-!!     if r is closer than r1. Returns 1.0 for the count=c if r<<r1
-!!     and the derivative wrt r dcdr
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     04.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief counts in a smooth way (error function with width=width)
+!>      if r is closer than r1. Returns 1.0 for the count=c if r<<r1
+!>      and the derivative wrt r dcdr
+!> \par History
+!>      04.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE smooth_count(r,r1,width,c,dcdr)
     REAL(KIND=dp), INTENT(IN)                :: r, r1, width
     REAL(KIND=dp), INTENT(OUT)               :: c, dcdr

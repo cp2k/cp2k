@@ -3,25 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/dimer_methods [1.0] *
-!!
-!!   NAME
-!!     dimer_methods
-!!
-!!   FUNCTION
-!!     Contains types used for a Dimer Method calculations
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!*****************************************************************************
+! *****************************************************************************
+!> \brief Contains types used for a Dimer Method calculations
+!> \par History
+!>      none
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+! *****************************************************************************
 MODULE dimer_methods
   USE cg_optimizer
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -52,27 +39,12 @@ MODULE dimer_methods
 
 CONTAINS
 
-!!****f* dimer_methods/cp_eval_at_ts [1.0] *
-!!
-!!   NAME
-!!     cp_eval_at_ts
-!!
-!!   FUNCTION
-!!     Computes the dimer energy/gradients (including the rotation of the dimer)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     -
-!!
-!!   AUTHOR
-!!     Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Computes the dimer energy/gradients (including the rotation of the dimer)
+!> \par History
+!>      none
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+! *****************************************************************************
   RECURSIVE SUBROUTINE  cp_eval_at_ts (gopt_env, x, f, gradient, calc_force, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x
@@ -176,29 +148,13 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE cp_eval_at_ts
-!***************************************************************************
 
-!!****f* dimer_methods/remove_translation_component
-!!
-!!   NAME
-!!     remove_translation_component
-!!
-!!   FUNCTION
-!!     This function removes translational forces after project of the gradient
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     -
-!!
-!!   AUTHOR
-!!     Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!**************************************************************************
+! *****************************************************************************
+!> \brief This function removes translational forces after project of the gradient
+!> \par History
+!>      none
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+! *****************************************************************************
   SUBROUTINE  remove_translation_component (gopt_env,x,gradient,error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x
@@ -245,28 +201,11 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE remove_translation_component
 
-!***************************************************************************
-!!****f* dimer_methods/cp_eval_at_ts_low [1.0] *
-!!
-!!   NAME
-!!     cp_eval_at_ts_low
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     -
-!!
-!!   AUTHOR
-!!     Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+! *****************************************************************************
   SUBROUTINE  cp_eval_at_ts_low (gopt_env, x,  dimer_index, dimer_env, calc_force,&
        f, gradient, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env

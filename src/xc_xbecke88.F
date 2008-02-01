@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/xc_xbecke88 [1.0] *
-!!
-!!   NAME
-!!     xc_xbecke88
-!!
-!!   FUNCTION
-!!     calculates the Becke 88 exchange functional
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief calculates the Becke 88 exchange functional
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 MODULE xc_xbecke88
   USE bibliography,                    ONLY: Becke1988,&
                                              cite_reference
@@ -51,36 +37,20 @@ MODULE xc_xbecke88
   REAL(kind=dp), PARAMETER :: beta=0.0042_dp
 
   PUBLIC :: xb88_lda_info, xb88_lsd_info, xb88_lda_eval, xb88_lsd_eval
-  !!***
-  !****************************************************************************
 CONTAINS
 
-  !!****f* xc_xbecke88/xb88_lda_info [1.0] *
-  !!
-  !!   NAME
-  !!     xb88_lda_info
-  !!
-  !!   FUNCTION
-  !!     return various information on the functional
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - reference: string with the reference of the actual functional
-  !!     - shortform: string with the shortform of the functional name
-  !!     - needs: the components needed by this functional are set to
-  !!       true (does not set the unneeded components to false)
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   MODIFICATION HISTORY
-  !!     11.2003 created [fawzi]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief return various information on the functional
+!> \param reference string with the reference of the actual functional
+!> \param shortform string with the shortform of the functional name
+!> \param needs the components needed by this functional are set to
+!>        true (does not set the unneeded components to false)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE xb88_lda_info(reference,shortform, needs, max_deriv,error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
@@ -105,34 +75,19 @@ CONTAINS
     IF (PRESENT(max_deriv)) max_deriv=3
 
   END SUBROUTINE xb88_lda_info
-  !***************************************************************************
 
-  !!****f* xc_xbecke88/xb88_lsd_info [1.0] *
-  !!
-  !!   NAME
-  !!     xb88_lsd_info
-  !!
-  !!   FUNCTION
-  !!     return various information on the functional
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - reference: string with the reference of the actual functional
-  !!     - shortform: string with the shortform of the functional name
-  !!     - needs: the components needed by this functional are set to
-  !!       true (does not set the unneeded components to false)
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   MODIFICATION HISTORY
-  !!     11.2003 created [fawzi]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief return various information on the functional
+!> \param reference string with the reference of the actual functional
+!> \param shortform string with the shortform of the functional name
+!> \param needs the components needed by this functional are set to
+!>        true (does not set the unneeded components to false)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE xb88_lsd_info(reference,shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
@@ -157,38 +112,23 @@ CONTAINS
     IF (PRESENT(max_deriv)) max_deriv=3
 
   END SUBROUTINE xb88_lsd_info
-  !***************************************************************************
 
-  !!****f* xc_xbecke88/xb88_lda_eval [1.0] *
-  !!
-  !!   NAME
-  !!     xb88_lda_eval
-  !!
-  !!   FUNCTION
-  !!     evaluates the becke 88 exchange functional for lda
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - rho_set: the density where you want to evaluate the functional
-  !!     - deriv_set: place where to store the functional derivatives (they are
-  !!       added to the derivatives)
-  !!     - grad_deriv: degree of the derivative that should be evalated,
-  !!       if positive all the derivatives up to the given degree are evaluated,
-  !!       if negative only the given degree is calculated
-  !!     - xb88_params: input parameters (scaling)
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   MODIFICATION HISTORY
-  !!     11.2003 created [fawzi]
-  !!     01.2007 added scaling [Manuel Guidon]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief evaluates the becke 88 exchange functional for lda
+!> \param rho_set the density where you want to evaluate the functional
+!> \param deriv_set place where to store the functional derivatives (they are
+!>        added to the derivatives)
+!> \param grad_deriv degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param xb 88_params: input parameters (scaling)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      11.2003 created [fawzi]
+!>      01.2007 added scaling [Manuel Guidon]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE xb88_lda_eval(rho_set,deriv_set,grad_deriv,xb88_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -311,38 +251,23 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE xb88_lda_eval
-  !***************************************************************************
 
-  !!****f* xc_xbecke88/xb88_lda_calc [1.0] *
-  !!
-  !!   NAME
-  !!     xb88_lda_eval
-  !!
-  !!   FUNCTION
-  !!     evaluates the becke 88 exchange functional for lda
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - rho_set: the density where you want to evaluate the functional
-  !!     - deriv_set: place where to store the functional derivatives (they are
-  !!       added to the derivatives)
-  !!     - grad_deriv: degree of the derivative that should be evalated,
-  !!       if positive all the derivatives up to the given degree are evaluated,
-  !!       if negative only the given degree is calculated
-  !!     - sx: scaling-parameter for exchange
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   MODIFICATION HISTORY
-  !!     11.2003 created [fawzi]
-  !!     01.2007 added scaling [Manuel Guidon]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief evaluates the becke 88 exchange functional for lda
+!> \param rho_set the density where you want to evaluate the functional
+!> \param deriv_set place where to store the functional derivatives (they are
+!>        added to the derivatives)
+!> \param grad_deriv degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param sx scaling-parameter for exchange
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      11.2003 created [fawzi]
+!>      01.2007 added scaling [Manuel Guidon]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE xb88_lda_calc(rho, rho_1_3, norm_drho,&
        e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
        e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
@@ -443,7 +368,6 @@ CONTAINS
              t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
              t44 = t43 * x
 
-
              e_rho(ii) = e_rho(ii)&
                   - ( 0.2e1_dp / 0.3e1_dp * t23 * t44 - 0.2e1_dp / 0.3e1_dp *&
                   t23 * t21 ) * sx
@@ -486,7 +410,6 @@ CONTAINS
              t40 = 0.1e1_dp / t39
              t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
              t44 = t43 * x
-
 
              e_rho(ii) = e_rho(ii)&
                   - ( 0.2e1_dp / 0.3e1_dp * t23 * t44 - 0.2e1_dp / 0.3e1_dp *&
@@ -674,7 +597,6 @@ CONTAINS
              t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
              t44 = t43 * x
 
-
              IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
                 e_rho(ii) = e_rho(ii)&
                      - ( 0.2e1_dp / 0.3e1_dp * t23 * t44 - 0.2e1_dp / 0.3e1_dp *&
@@ -702,7 +624,6 @@ CONTAINS
              t99 = t2 * t98
              t100 = t90 * x
              t104 = 0.1e1_dp / t3
-
 
              IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
                 e_rho_rho(ii) = e_rho_rho(ii)&
@@ -746,32 +667,17 @@ CONTAINS
     END SELECT
 
   END SUBROUTINE xb88_lda_calc
-  !***************************************************************************
 
-  !!****f* xc_xbecke88/xb88_lsd_eval [1.0] *
-  !!
-  !!   NAME
-  !!     xb88_lsd_eval
-  !!
-  !!   FUNCTION
-  !!     evaluates the becke 88 exchange functional for lsd
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - sx: scaling-parameter for exchange
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   MODIFICATION HISTORY
-  !!     11.2003 created [fawzi]
-  !!     01.2007 added scaling [Manuel Guidon]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief evaluates the becke 88 exchange functional for lsd
+!> \param sx scaling-parameter for exchange
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      11.2003 created [fawzi]
+!>      01.2007 added scaling [Manuel Guidon]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE xb88_lsd_eval(rho_set,deriv_set,grad_deriv,xb88_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -912,7 +818,6 @@ CONTAINS
                error=error, error_level=cp_failure_level)
        END IF
 
-
        DO ispin=1,2
           CALL xb88_lsd_calc(&
                rho_spin=rho(ispin)%array,&
@@ -944,38 +849,23 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
     
   END SUBROUTINE xb88_lsd_eval
-  !***************************************************************************
 
-  !!****f* xc_xbecke88/xb88_lsd_calc [1.0] *
-  !!
-  !!   NAME
-  !!     xb88_lsd_calc
-  !!
-  !!   FUNCTION
-  !!     low level calculation of the becke 88 exchange functional for lsd
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - rho_spin: alpha or beta spin density
-  !!     - rho_1_3_spin: rho_spin**(1./3.)
-  !!     - norm_drho_spin: || grad rho_spin ||
-  !!     - e_0: adds to it the local value of the functional
-  !!     - e_*_spin: derivative of the functional wrt. to the variables
-  !!       named where the * is. Everything wrt. to the spin of the arguments.
-  !!     - sx: scaling-parameter for exchange
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   MODIFICATION HISTORY
-  !!     01.2004 created [fawzi]
-  !!     01.2007 added scaling [Manuel Guidon]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief low level calculation of the becke 88 exchange functional for lsd
+!> \param rho_spin alpha or beta spin density
+!> \param rho_ 1_3_spin: rho_spin**(1./3.)
+!> \param norm_drho_spin || grad rho_spin ||
+!> \param e_ 0: adds to it the local value of the functional
+!> \param e_ *_spin: derivative of the functional wrt. to the variables
+!>        named where the * is. Everything wrt. to the spin of the arguments.
+!> \param sx scaling-parameter for exchange
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      01.2004 created [fawzi]
+!>      01.2007 added scaling [Manuel Guidon]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE xb88_lsd_calc(rho_spin, rho_1_3_spin, norm_drho_spin,e_0,&
        e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
        e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
@@ -1194,6 +1084,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE xb88_lsd_calc
-  !***************************************************************************
 
 END MODULE xc_xbecke88

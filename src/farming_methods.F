@@ -3,6 +3,7 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
+! *****************************************************************************
 MODULE farming_methods
   USE cp_files,                        ONLY: get_unit_number
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -34,6 +35,7 @@ MODULE farming_methods
 
 CONTAINS
 
+! *****************************************************************************
   SUBROUTINE get_next_job(farming_env,start,END,current,todo)
     TYPE(farming_env_type), POINTER          :: farming_env
     INTEGER, INTENT(IN)                      :: start, END
@@ -97,6 +99,7 @@ CONTAINS
     ENDIF
   END SUBROUTINE get_next_job
 
+! *****************************************************************************
   SUBROUTINE farming_parse_input(farming_env,root_section,para_env,error)
     TYPE(farming_env_type), POINTER          :: farming_env
     TYPE(section_vals_type), POINTER         :: root_section
@@ -164,7 +167,6 @@ CONTAINS
 
    CALL section_vals_val_get(farming_section,"MASTER_SLAVE",&
         l_val=farming_env%master_slave,error=error)      
-
 
    jobs_section => section_vals_get_subs_vals(farming_section,"JOB",error=error)
    CALL section_vals_get(jobs_section,n_repetition=farming_env % njobs,error=error)
@@ -294,4 +296,3 @@ CONTAINS
   END SUBROUTINE
 
 END MODULE farming_methods
-!!*****

@@ -2,22 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****s* cp2k/realspace_grid_cube [1.0] *
-!!
-!!   NAME
-!!     realspace_grid_cube
-!!
-!!   FUNCTION
-!!     Generate Gaussian cube files
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!***
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Generate Gaussian cube files
+! *****************************************************************************
 MODULE realspace_grid_cube
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE f77_blas
@@ -41,6 +29,7 @@ MODULE realspace_grid_cube
 
 CONTAINS
 
+! *****************************************************************************
   SUBROUTINE pw_to_cube ( pw, iunit, ionode, title, particles, stride, error )
     TYPE(pw_type), POINTER                   :: pw
     INTEGER, INTENT(IN)                      :: iunit

@@ -3,23 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/s_square_methods [1.0] *
-!!
-!!   NAME
-!!     s_square_methods
-!!
-!!   FUNCTION
-!!     methods related to S**2 (ie. spin)
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006, copied compute_s_square from qs_scf_post  [Joost VandeVondele]
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief methods related to S**2 (ie. spin)
+!> \par History
+!>      03.2006, copied compute_s_square from qs_scf_post  [Joost VandeVondele]
+!> \author Joost VandeVondele
+! *****************************************************************************
 MODULE s_square_methods
 
   USE cp_control_types,                ONLY: s2_restraint_type
@@ -58,35 +47,20 @@ MODULE s_square_methods
 
   PUBLIC :: compute_s_square,s2_restraint
 
-! *****************************************************************************
-
 CONTAINS
 
-!!****f* s_square_methods/compute_s_square *
-!!
-!!   NAME
-!!      compute_s_square
-!!
-!!   FUNCTION
-!!      compute s square of the single determinant defined by the
-!!      by the spin up and spin down orbitals
-!!
-!!   NOTES
-!!      see Eq. 2.271 in Modern Quantum Chemistry
-!!      Szabo and Ostlund
-!!
-!!
-!!   INPUTS
-!!      - mos, matrix_s : input
-!!      - s_square, s_square_ideal : out
-!!      - mo_derivs     : inout if present, add the derivative of s_square wrt mos to mo_derivs
-!!
-!!
-!!   MODIFICATION HISTORY
-!!     07.2004 created [ Joost VandeVondele ]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief compute s square of the single determinant defined by the
+!>       by the spin up and spin down orbitals
+!> \param mos , matrix_s : input
+!> \param s_square , s_square_ideal : out
+!> \param mo_derivs inout if present, add the derivative of s_square wrt mos to mo_derivs
+!> \note
+!>       see Eq. 2.271 in Modern Quantum Chemistry
+!>       Szabo and Ostlund
+!> \par History
+!>      07.2004 created [ Joost VandeVondele ]
+! *****************************************************************************
    SUBROUTINE compute_s_square(mos, matrix_s, s_square, s_square_ideal,&
                                mo_derivs,strength,error)
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -179,27 +153,14 @@ CONTAINS
 
   END SUBROUTINE compute_s_square
 
-!!****f* s_square_methods/s2_restraint *
-!!
-!!   NAME
-!!      s2_restraint
-!!
-!!   FUNCTION
-!!      restrains/constrains the value of s2 in a calculation
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!      mos, matrix_s : input
-!!      s_square, s_square_ideal : out
-!!      mo_derivs     : inout if present, add the derivative of s_square wrt mos to mo_derivs
-!!
-!!
-!!   MODIFICATION HISTORY
-!!     07.2004 created [ Joost VandeVondele ]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief restrains/constrains the value of s2 in a calculation
+!> \param mos, matrix_s : input
+!>       s_square, s_square_ideal : out
+!> \param mo_derivs inout if present, add the derivative of s_square wrt mos to mo_derivs
+!> \par History
+!>      07.2004 created [ Joost VandeVondele ]
+! *****************************************************************************
    SUBROUTINE s2_restraint(mos, matrix_s, mo_derivs, energy, &
                              s2_restraint_control, just_energy, error)
 

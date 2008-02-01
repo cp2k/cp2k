@@ -2,22 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/qs_mo_methods [1.0] *
-!!
-!!   NAME
-!!     qs_mo_methods
-!!
-!!   FUNCTION
-!!     collects routines that perform operations directly related to MOs
-!!
-!!   NOTES
-!!     first version : most routines imported
-!!
-!!   AUTHOR
-!!     Joost VandeVondele (2003-08)
-!!
-! ************************************************************************************
 
+! *****************************************************************************
+!> \brief collects routines that perform operations directly related to MOs
+!> \note
+!>      first version : most routines imported
+!> \author Joost VandeVondele (2003-08)
+! *****************************************************************************
 MODULE qs_mo_methods
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
@@ -68,23 +59,13 @@ MODULE qs_mo_methods
             calculate_orthonormality, calculate_magnitude
 
 CONTAINS
-!!****f* qs_mo_methods/make_basis_sm*
-!!
-!!   NAME
-!!     make_basis_sm
-!!
-!!   FUNCTION
-!!     returns an S-orthonormal basis v (v^T S v ==1)
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!     v and S
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief returns an S-orthonormal basis v (v^T S v ==1)
+!> \param v and S
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE make_basis_sm(vmatrix,ncol,matrix_s,error)
     TYPE(cp_fm_type), POINTER                :: vmatrix
     INTEGER, INTENT(IN)                      :: ncol
@@ -105,7 +86,6 @@ CONTAINS
     IF (ncol.EQ.0) RETURN
 
     CALL timeset(routineN,"I","",handle)
-
 
     CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global,error=error)
     IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
@@ -131,23 +111,12 @@ CONTAINS
 
     END SUBROUTINE make_basis_sm
 
-!!****f* qs_mo_methods/make_basis_sv*
-!!
-!!   NAME
-!!     make_basis_sv
-!!
-!!   FUNCTION
-!!     returns an S-orthonormal basis v and the corresponding matrix S*v as well
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!     v and S*v
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns an S-orthonormal basis v and the corresponding matrix S*v as well
+!> \param v and S*v
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE make_basis_sv(vmatrix,ncol,svmatrix,error)
 
     TYPE(cp_fm_type), POINTER                :: vmatrix
@@ -191,27 +160,17 @@ CONTAINS
 
     END SUBROUTINE make_basis_sv
 
-!!****f* qs_mo_methods/make_basis_cholesky *
-!!
-!!   NAME
-!!     make_basis_cholesky
-!!
-!!   FUNCTION
-!!     return a set of S orthonormal vectors (C^T S C == 1) where
-!!     the cholesky decomposed form of S is passed as an argument
-!!
-!!   NOTES
-!!     if the cholesky decomposed S matrix is not available
-!!     use make_basis_sm since this is much faster than computing the
-!!     cholesky decomposition of S
-!!
-!!   INPUTS
-!!    - ortho : cholesky decomposed S matrix
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief return a set of S orthonormal vectors (C^T S C == 1) where
+!>      the cholesky decomposed form of S is passed as an argument
+!> \param ortho cholesky decomposed S matrix
+!> \note
+!>      if the cholesky decomposed S matrix is not available
+!>      use make_basis_sm since this is much faster than computing the
+!>      cholesky decomposition of S
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE make_basis_cholesky(vmatrix,ncol,ortho,error)
 
     TYPE(cp_fm_type), POINTER                :: vmatrix
@@ -256,23 +215,12 @@ CONTAINS
 
     END SUBROUTINE make_basis_cholesky
 
-!!****f* qs_mo_methods/make_basis_simple *
-!!
-!!   NAME
-!!     make_basis_simple
-!!
-!!   FUNCTION
-!!     given a set of vectors, return an orthogonal (C^T C == 1) set
-!!     spanning the same space (notice, only for cases where S==1)
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief given a set of vectors, return an orthogonal (C^T C == 1) set
+!>      spanning the same space (notice, only for cases where S==1)
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE make_basis_simple(vmatrix,ncol,error)
 
     TYPE(cp_fm_type), POINTER                :: vmatrix
@@ -316,15 +264,12 @@ CONTAINS
   END SUBROUTINE make_basis_simple
 
 ! *****************************************************************************
-
   SUBROUTINE calculate_density_matrix_blacs(mo_set,density_matrix,error)
 
 !   Purpose: Calculate the density matrix from the MO coeff and the
 !            MO occupation numbers.
 
 !   History: - Creation (01.05.2001,MK)
-
-!   ***************************************************************************
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: density_matrix
@@ -356,15 +301,12 @@ CONTAINS
   END SUBROUTINE calculate_density_matrix_blacs
 
 ! *****************************************************************************
-
   SUBROUTINE calculate_density_matrix_sparse(mo_set,density_matrix,error)
 
 !   Purpose: Calculate the density matrix
 
 !   History: - Creation (06.2002, Joost VandeVondele)
 !            - Fractional occupied orbitals (MK)
-
-!   ***************************************************************************
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(real_matrix_type), POINTER          :: density_matrix
@@ -409,42 +351,26 @@ CONTAINS
 
   END SUBROUTINE calculate_density_matrix_sparse
 
-!!****f* qs_mo_methods/subspace_eigenvalues_ks *
-!!
-!!   NAME
-!!     subspace_eigenvalues_ks
-!!
-!!   FUNCTION
-!!     computes ritz values of a set of orbitals given a ks_matrix
-!!     rotates the orbitals into eigenstates depending on do_rotation
-!!     writes the evals to the screen depending on ionode/scr
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!    - orbitals    : S-orthonormal orbitals
-!!    - ks_matrix   : Kohn-Sham matrix
-!!    - para_env    : of the Kohn-Sham matrix
-!!    - evals_arg   : optional, filled with the evals
-!!    - ionode/scr  : if present write to unit scr where ionode
-!!    - do_rotation : optional rotate orbitals if .TRUE. (default)
-!!    - co_rotate   : an optional set of orbitals rotated by the same amout
-!!
-!!   MODIFICATION HISTORY
-!!     08.2004 documented and added do_rotation [Joost VandeVondele]
-!!
-!!   SOURCE
-!!*** **********************************************************************
 ! *****************************************************************************
-
+!> \brief computes ritz values of a set of orbitals given a ks_matrix
+!>      rotates the orbitals into eigenstates depending on do_rotation
+!>      writes the evals to the screen depending on ionode/scr
+!> \param orbitals S-orthonormal orbitals
+!> \param ks_matrix Kohn-Sham matrix
+!> \param para_env of the Kohn-Sham matrix
+!> \param evals_arg optional, filled with the evals
+!> \param ionode /scr  : if present write to unit scr where ionode
+!> \param do_rotation optional rotate orbitals if .TRUE. (default)
+!> \param co_rotate an optional set of orbitals rotated by the same amout
+!> \par History
+!>      08.2004 documented and added do_rotation [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE subspace_eigenvalues_ks(orbitals,ks_matrix,evals_arg,para_env,ionode,scr,do_rotation,co_rotate,error)
 
 !   Purpose: Calculates the eigenvalues (ritz values) for a set of orbitals
 !            and rotates them to make them eigenvectors
 !            if evals_arg is present its filled
 !            if scr and ionode are present they go to the screen as well.
-
-!   ***************************************************************************
 
     TYPE(cp_fm_type), POINTER                :: orbitals
     TYPE(real_matrix_type), POINTER          :: ks_matrix
@@ -494,7 +420,6 @@ CONTAINS
 
         ! h subblock and diag
         CALL cp_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, ncol_global,error=error)
-
 
         CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_dp, &
                         orbitals,weighted_vectors,0.0_dp,h_block,error=error)
@@ -552,7 +477,6 @@ CONTAINS
 
   END SUBROUTINE subspace_eigenvalues_ks
 
-! *****************************************************************************
 ! computes the effective orthonormality of a set of mos given an s-matrix
 ! orthonormality is the max deviation from unity of the C^T S C
 ! *****************************************************************************
@@ -629,7 +553,6 @@ CONTAINS
 
   END SUBROUTINE calculate_orthonormality
 
-! *****************************************************************************
 ! computes the minimum/maximum magnitudes of C^T C. This could be useful
 ! to detect problems in the case of nearly singular overlap matrices.
 ! in this case, we expect the ratio of min/max to be large

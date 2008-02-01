@@ -3,23 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****m* cp2k/qs_tddfpt_utils *
-!!
-!!   NAME
-!!     qs_tddfpt_utils
-!!
-!!   FUNCTION
-!!
-!!   SYNOPSIS
-!!
-!!   MODIFICATION HISTORY
-!!     09-JUL-2002, TCH, development started
-!!
-!!   SEE ALSO
-!!
-!!****
-
+! *****************************************************************************
+!> \par History
+!>      09-JUL-2002, TCH, development started
+! *****************************************************************************
 MODULE qs_tddfpt_utils
 
   USE cp_control_types,                ONLY: tddfpt_control_type
@@ -61,6 +48,7 @@ MODULE qs_tddfpt_utils
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tddfpt_utils'
   LOGICAL, PARAMETER          :: DEBUG_THIS_MODULE = .TRUE.
 
+! *****************************************************************************
   TYPE simple_solution_sorter
      INTEGER                               :: orbit
      INTEGER                               :: lumo
@@ -84,37 +72,14 @@ MODULE qs_tddfpt_utils
 CONTAINS
 
 ! *****************************************************************************
-
-!!****f* cp2k/qs_tddfpt_utils/tddfpt_init *
-!!
-!!   NAME
-!!     tddfpt_init
-!!
-!!   SYNOPSIS
-!!     Subroutine tddfpt_init(p_env, t_env, qs_env, n_ev, glob_env)
-!!       Implicit None
-!!       Type(qs_p_env_type), Pointer:: p_env
-!!       Type(tddfpt_env_type), Intent (OUT):: t_env
-!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
-!!       Type(global_environment_type), pointer:: glob_env
-!!     End Subroutine tddfpt_init
-!!
-!!   FUNCTION
-!!     Initialize some necessary structures for a tddfpt calculation.
-!!
-!!   ARGUMENTS
-!!     - p_env    : perturbation environment to be initialized
-!!     - t_env    : tddfpt environment to be initialized
-!!     - qs_env   : Quickstep environment with the results of a
-!!                  ground state calcualtion
-!!     - glob_env : global environment
-!!
-!!   NOTES
-!!     -
-!!
-!!****
+!> \brief Initialize some necessary structures for a tddfpt calculation.
+!> \param p_env perturbation environment to be initialized
+!> \param t_env tddfpt environment to be initialized
+!> \param qs_env Quickstep environment with the results of a
+!>                   ground state calcualtion
+!> \param glob_env global environment
+! *****************************************************************************
   SUBROUTINE tddfpt_init(p_env, t_env, qs_env,error)
-
 
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(tddfpt_env_type), INTENT(out)       :: t_env
@@ -141,15 +106,9 @@ CONTAINS
   END SUBROUTINE tddfpt_init
 
 ! *****************************************************************************
-
-!!****f* cp2k/qs_tddfpt_types/tddfpt_env_init *
-!!
-!!   FUNCTION
-!!     Initialize t_env with meaningfull values.
-!!
-!!***
+!> \brief Initialize t_env with meaningfull values.
+! *****************************************************************************
   SUBROUTINE tddfpt_env_init(t_env, p_env, qs_env,error)
-
 
     TYPE(tddfpt_env_type), INTENT(inout)     :: t_env
     TYPE(qs_p_env_type), POINTER             :: p_env
@@ -175,10 +134,7 @@ CONTAINS
   END SUBROUTINE tddfpt_env_init
 
 ! *****************************************************************************
-
-
   SUBROUTINE tddfpt_cleanup(t_env, p_env, error)
-
 
     TYPE(tddfpt_env_type), INTENT(inout)     :: t_env
     TYPE(qs_p_env_type), POINTER             :: p_env
@@ -195,9 +151,7 @@ CONTAINS
   END SUBROUTINE tddfpt_cleanup
 
 ! *****************************************************************************
-
   SUBROUTINE co_initial_guess(matrices, energies, n_v, qs_env, p_env, error)
-
 
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: matrices
@@ -222,7 +176,6 @@ CONTAINS
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
 ! number of vectors to initialize
-! *************************
 
     tddfpt_control => qs_env%dft_control%tddfpt_control
     n_spins = qs_env%dft_control%nspins
@@ -308,7 +261,6 @@ CONTAINS
           END DO
        END IF
 
-
        !--------------!
        ! some cleanup !
        !--------------!
@@ -325,7 +277,6 @@ CONTAINS
   END SUBROUTINE co_initial_guess
 
 ! *****************************************************************************
-
   SUBROUTINE find_contributions(qs_env, t_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -423,7 +374,6 @@ CONTAINS
   END SUBROUTINE find_contributions
 
 ! *****************************************************************************
-
   SUBROUTINE normalize(X, tmp_vec, metric, error)
 
     TYPE(cp_fm_p_type), DIMENSION(:)         :: x, tmp_vec
@@ -454,14 +404,12 @@ CONTAINS
 
   END SUBROUTINE normalize
 
-! *****************************************************************************
-
   !---------------------------------------!
   ! x must not be changed in this routine !
   ! tmp_vec may be changed                !
   !---------------------------------------!
+! *****************************************************************************
   SUBROUTINE calc_norm(norm, X, metric, tmp_vec,error)
-
 
     REAL(KIND=dp), INTENT(OUT)               :: norm
     TYPE(cp_fm_p_type), DIMENSION(:)         :: x
@@ -476,7 +424,6 @@ CONTAINS
   END SUBROUTINE calc_norm
 
 ! *****************************************************************************
-
   SUBROUTINE reorthogonalize(X, V_set, SV_set, work, n, error)
 
     TYPE(cp_fm_p_type), DIMENSION(:)         :: X
@@ -519,7 +466,6 @@ CONTAINS
   END SUBROUTINE reorthogonalize
 
 ! *****************************************************************************
-
   SUBROUTINE dot_prod(res, X, Y, metric, tmp_vec, error)
 
     REAL(KIND=dp), INTENT(OUT)               :: res
@@ -548,7 +494,5 @@ CONTAINS
     END DO
 
   END SUBROUTINE dot_prod
-
-! *****************************************************************************
 
 END MODULE qs_tddfpt_utils

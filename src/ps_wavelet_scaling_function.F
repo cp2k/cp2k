@@ -2,23 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2007 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/ps_wavelet_kernel *
-!!
-!!   NAME
-!!     ps_wavelet_kernel
-!!
-!!   FUNCTION
-!!     Creates the wavelet kernel for the wavelet based poisson solver.
-!!
-!!   AUTHOR
-!!     Florian Schiffmann (09.2007,fschiff)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
 
-
+! *****************************************************************************
+!> \brief Creates the wavelet kernel for the wavelet based poisson solver.
+!> \author Florian Schiffmann (09.2007,fschiff)
+! *****************************************************************************
 MODULE ps_wavelet_scaling_function
   USE kinds,                           ONLY: dp
   USE lazy,                            ONLY: lazy_arrays
@@ -29,15 +17,9 @@ PUBLIC :: scaling_function,&
 
 CONTAINS
 
-!!****h* BigDFT/scaling_function
-!! NAME
-!!   scaling_function
-!!
-!! FUNCTION
-!!   Calculate the values of a scaling function in real uniform grid
-!!
-!! SOURCE
-!!
+! *****************************************************************************
+!> \brief Calculate the values of a scaling function in real uniform grid
+! *****************************************************************************
 SUBROUTINE scaling_function(itype,nd,nrange,a,x)
 
   !Type of interpolating functions
@@ -93,18 +75,10 @@ SUBROUTINE scaling_function(itype,nd,nrange,a,x)
      STOP
   END IF
 END SUBROUTINE scaling_function
-!!***
 
-
-!!****h* BigDFT/wavelet_function
-!! NAME
-!!   wavelet_function
-!!
-!! FUNCTION
-!!   Calculate the values of the wavelet function in a real uniform mesh.
-!!
-!! SOURCE
-!!
+! *****************************************************************************
+!> \brief Calculate the values of the wavelet function in a real uniform mesh.
+! *****************************************************************************
 SUBROUTINE wavelet_function(itype,nd,a,x)
   
   !Type of the interpolating scaling function
@@ -158,19 +132,11 @@ SUBROUTINE wavelet_function(itype,nd,a,x)
   END IF
   
 END SUBROUTINE wavelet_function
-!!***
 
-
-!!****h* BigDFT/scf_recursion
-!! NAME
-!!   scf_recursion
-!!
-!! FUNCTION
-!!   Do iterations to go from p0gauss to pgauss
-!!   order interpolating scaling function
-!!
-!! SOURCE
-!!
+! *****************************************************************************
+!> \brief Do iterations to go from p0gauss to pgauss
+!>    order interpolating scaling function
+! *****************************************************************************
 SUBROUTINE scf_recursion(itype,n_iter,n_range,kernel_scf,kern_1_scf)
     INTEGER, INTENT(in)                      :: itype, n_iter, n_range
     REAL(KIND=dp), INTENT(inout)             :: kernel_scf(-n_range:n_range)
@@ -186,18 +152,10 @@ SUBROUTINE scf_recursion(itype,n_iter,n_range,kernel_scf,kern_1_scf)
   DEALLOCATE(ch,cg,cgt,cht)  
 
 END SUBROUTINE scf_recursion
-!!***
 
-
-!!****h* BigDFT/zero
-!! NAME
-!!   zero
-!!
-!! FUNCTION
-!!   Set to zero an array x(n)
-!!
-!! SOURCE
-!!
+! *****************************************************************************
+!> \brief Set to zero an array x(n)
+! *****************************************************************************
 SUBROUTINE zero(n,x)
     INTEGER, INTENT(in)                      :: n
     REAL(KIND=dp), INTENT(out)               :: x(n)
@@ -208,22 +166,14 @@ SUBROUTINE zero(n,x)
      x(i)=0._dp
   END DO
 END SUBROUTINE zero
-!!***
 
-
-!!****h* BigDFT/for_trans_8
-!! NAME
-!!   for_trans_8
-!!
-!! FUNCTION
-!!   forward wavelet transform
-!!   nd: length of data set
-!!   nt length of data in data set to be transformed
-!!   m filter length (m has to be even!)
-!!   x input data, y output data
-!!
-!! SOURCE
-!!
+! *****************************************************************************
+!> \brief forward wavelet transform
+!>    nd: length of data set
+!>    nt length of data in data set to be transformed
+!>    m filter length (m has to be even!)
+!>    x input data, y output data
+! *****************************************************************************
 SUBROUTINE for_trans(nd,nt,x,y,m,ch,cg,cgt,cht)
     INTEGER, INTENT(in)                      :: nd, nt
     REAL(KIND=dp), INTENT(in)                :: x(0:nd-1)
@@ -261,17 +211,8 @@ SUBROUTINE for_trans(nd,nt,x,y,m,ch,cg,cgt,cht)
   END DO
 
 END SUBROUTINE for_trans
-!!***
 
-
-!!****h* BigDFT/back_trans
-!! NAME
-!!   back_trans_8
-!!
-!! FUNCTION
-!!
-!! SOURCE
-!!
+! *****************************************************************************
 SUBROUTINE back_trans(nd,nt,x,y,m,ch,cg,cgt,cht)
   ! backward wavelet transform
   ! nd: length of data set
@@ -315,18 +256,10 @@ SUBROUTINE back_trans(nd,nt,x,y,m,ch,cg,cgt,cht)
   END DO
         
 END SUBROUTINE back_trans
-!!***
 
-
-!!****h* BigDFT/ftest
-!! NAME
-!!   ftest_8
-!!
-!! FUNCTION
-!!   Tests the 4 orthogonality relations of the filters
-!!
-!! SOURCE
-!!
+! *****************************************************************************
+!> \brief Tests the 4 orthogonality relations of the filters
+! *****************************************************************************
 SUBROUTINE ftest(m,ch,cg,cgt,cht)
     INTEGER                                  :: m
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ch, cg, cgt, cht
@@ -373,19 +306,11 @@ SUBROUTINE ftest(m,ch,cg,cgt,cht)
   WRITE(6,*) 'FILTER TEST PASSED'
   
 END SUBROUTINE ftest
-!!***
 
-
-!!****h* BigDFT/scf_recursion_8
-!! NAME
-!!   scf_recursion_8
-!!
-!! FUNCTION
-!!   Do iterations to go from p0gauss to pgauss
-!!   8th-order interpolating scaling function
-!!
-!! SOURCE
-!!
+! *****************************************************************************
+!> \brief Do iterations to go from p0gauss to pgauss
+!>    8th-order interpolating scaling function
+! *****************************************************************************
 SUBROUTINE scf_recurs(n_iter,n_range,kernel_scf,kern_1_scf,m,ch,cg,cgt,cht)
     INTEGER, INTENT(in)                      :: n_iter, n_range
     REAL(KIND=dp), INTENT(inout)             :: kernel_scf(-n_range:n_range)
@@ -422,8 +347,5 @@ SUBROUTINE scf_recurs(n_iter,n_range,kernel_scf,kern_1_scf,m,ch,cg,cgt,cht)
      END DO loop_iter_i
   END DO loop_iter_scf
 END SUBROUTINE scf_recurs
-!!***
-
-
 
 END MODULE ps_wavelet_scaling_function

@@ -3,24 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/atomic_charges [1.0] *
-!!
-!!   NAME
-!!     atomic_charges 
-!!
-!!   FUNCTION
-!!     simple routine to print charges for all atomic charge methods
-!!     (currently mulliken, lowdin and ddapc)
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     Joost VandeVondele [2006.03]         
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief simple routine to print charges for all atomic charge methods
+!>      (currently mulliken, lowdin and ddapc)
+!> \par History
+!>      Joost VandeVondele [2006.03]         
+! *****************************************************************************
 MODULE atomic_charges
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE f77_blas
@@ -41,31 +29,18 @@ MODULE atomic_charges
 
   PUBLIC :: print_atomic_charges
 
-! *****************************************************************************
-
 CONTAINS
 
-!!****f* atomic_charges/print_atomic_charges*
-!!
-!!   NAME
-!!     print_atomic_charges
-!!
-!!   FUNCTION
-!!     generates a unified output format for atomic charges
-!!
-!!   NOTES
-!!     charges are computed per spin in the LSD case
-!!
-!!   INPUTS
-!!    - electronic_charges : (natom,nspin), the number of electrons of (so positive) per spin 
-!!                           if (nspin==1) it is the sum of alpha and beta electrons
-!!    - atomic_charges     : truely the atomic charge (taking Z into account, atoms negative, no spin)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief generates a unified output format for atomic charges
+!> \param electronic_charges (natom,nspin), the number of electrons of (so positive) per spin 
+!>                            if (nspin==1) it is the sum of alpha and beta electrons
+!> \param atomic_charges truely the atomic charge (taking Z into account, atoms negative, no spin)
+!> \note
+!>      charges are computed per spin in the LSD case
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE print_atomic_charges(particle_set, scr, title, electronic_charges, atomic_charges)
 
     TYPE(particle_type), DIMENSION(:), &

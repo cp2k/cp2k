@@ -3,25 +3,14 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_cp2k_qmmm *
-!!
-!!   NAME
-!!     input_cp2k_qmmm
-!!
-!!   FUNCTION
-!!     creates the qmmm section of the input
-!!
-!!   NOTES
-!!     moved out of input_cp2k
-!!
-!!   AUTHOR
-!!     teo & fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 split out of input_cp2k
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief creates the qmmm section of the input
+!> \note
+!>      moved out of input_cp2k
+!> \par History
+!>      10.2005 split out of input_cp2k
+!> \author teo & fawzi
+! *****************************************************************************
 MODULE input_cp2k_qmmm
   USE bibliography,                    ONLY: Laino2005,&
                                              Laino2006
@@ -63,28 +52,15 @@ MODULE input_cp2k_qmmm
   PUBLIC :: create_qmmm_section
 
 !***
-!****************************************************************************
 CONTAINS
-!!****f* input_cp2k_qmmm/create_qmmm_section [1.0] *
-!!
-!!   NAME
-!!     create_qmmm_section
-!!
-!!   FUNCTION
-!!     Creates the QM/MM section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief Creates the QM/MM section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_qmmm_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -286,25 +262,12 @@ CONTAINS
 
   END SUBROUTINE create_qmmm_section
 
-!!****f* input_cp2k_qmmm/create_qmmm_walls_section *
-!!
-!!   NAME
-!!     create_qmmm_walls_section
-!!
-!!   FUNCTION
-!!     Input section to set QM/MM periodic boundary conditions
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     tlaino
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Input section to set QM/MM periodic boundary conditions
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author tlaino
+! *****************************************************************************
   SUBROUTINE create_qmmm_walls_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -338,25 +301,12 @@ CONTAINS
     END IF
   END SUBROUTINE create_qmmm_walls_section
 
-!!****f* input_cp2k_qmmm/create_qmmm_periodic_section *
-!!
-!!   NAME
-!!     create_qmmm_periodic_section
-!!
-!!   FUNCTION
-!!     Input section to set QM/MM periodic boundary conditions
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     tlaino
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Input section to set QM/MM periodic boundary conditions
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author tlaino
+! *****************************************************************************
   SUBROUTINE create_qmmm_periodic_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -419,26 +369,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_qmmm_periodic_section
 
-!!****f* input_cp2k_qmmm/create_qmmm_forcefield_section *
-!!
-!!   NAME
-!!     create_qmmm_forcefield_section
-!!
-!!   FUNCTION
-!!     creates the qm/mm forcefield section to override to the FF specification
-!!     given in the FIST input
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     tlaino
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the qm/mm forcefield section to override to the FF specification
+!>      given in the FIST input
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author tlaino
+! *****************************************************************************
   SUBROUTINE create_qmmm_forcefield_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -480,26 +417,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_qmmm_forcefield_section
 
-!!****f* input_cp2k_qmmm/create_qmmm_ff_nb_section *
-!!
-!!   NAME
-!!     create_qmmm_ff_nb_section
-!!
-!!   FUNCTION
-!!     creates the qm/mm forcefield section to override to the FF specification
-!!     given in the FIST input - NONBONDED PART
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     tlaino
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the qm/mm forcefield section to override to the FF specification
+!>      given in the FIST input - NONBONDED PART
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author tlaino
+! *****************************************************************************
   SUBROUTINE create_qmmm_ff_nb_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -539,25 +463,12 @@ CONTAINS
     END IF
   END SUBROUTINE create_qmmm_ff_nb_section
 
-!!****f* input_cp2k_qmmm/create_qmmm_link_section *
-!!
-!!   NAME
-!!     create_qmmm_link_section
-!!
-!!   FUNCTION
-!!     creates the qm/mm link section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     tlaino
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the qm/mm link section
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author tlaino
+! *****************************************************************************
   SUBROUTINE create_qmmm_link_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -704,7 +615,6 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-
        CALL section_create(subsection,name="ADD_MM_CHARGE",&
             description="Specify information to add a classical charge before the"//&
             " QM/MM energies and forces evaluation",&
@@ -758,25 +668,12 @@ CONTAINS
     END IF
   END SUBROUTINE create_qmmm_link_section
 
-!!****f* input_cp2k_qmmm/create_qmmm_interp_section *
-!!
-!!   NAME
-!!     create_qmmm_interp_section
-!!
-!!   FUNCTION
-!!     creates the interpolation section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     tlaino
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the interpolation section
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author tlaino
+! *****************************************************************************
   SUBROUTINE create_qmmm_interp_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -882,27 +779,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_qmmm_interp_section
 
-!***************************************************************************
-!!****f* input_cp2k_qmmm/create_print_qmmm_section [1.0] *
-!!
-!!   NAME
-!!     create_print_qmmm_section
-!!
-!!   FUNCTION
-!!     Create the print qmmm section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Create the print qmmm section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_print_qmmm_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1013,6 +896,5 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_print_qmmm_section
-!***************************************************************************
 
 END MODULE input_cp2k_qmmm

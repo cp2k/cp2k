@@ -3,30 +3,18 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/force_fields_input [1.0] *
-!!
-!!   NAME
-!!     force_fields_input
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     Subroutine input_torsions changed (DG) 05-Dec-2000
-!!     Output formats changed (DG) 05-Dec-2000
-!!     JGH (26-01-2002) : force field parameters stored in tables, not in
-!!       matrices. Input changed to have parameters labeled by the position
-!!       and not atom pairs (triples etc)
-!!     Teo (11.2005) : Moved all information on force field  pair_potential to
-!!                     a much lighter memory structure
-!!     Teo 09.2006   : Splitted all routines force_field I/O in a separate file
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      Subroutine input_torsions changed (DG) 05-Dec-2000
+!>      Output formats changed (DG) 05-Dec-2000
+!>      JGH (26-01-2002) : force field parameters stored in tables, not in
+!>        matrices. Input changed to have parameters labeled by the position
+!>        and not atom pairs (triples etc)
+!>      Teo (11.2005) : Moved all information on force field  pair_potential to
+!>                      a much lighter memory structure
+!>      Teo 09.2006   : Splitted all routines force_field I/O in a separate file
+!> \author CJM
+! *****************************************************************************
 MODULE force_fields_input
 
   USE bibliography,                    ONLY: Tersoff1988,&
@@ -94,27 +82,12 @@ MODULE force_fields_input
             read_gp_section,&
             read_chrg_section
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** force_fields_input/read_force_field_section1 [1.0] *
-!!
-!!   NAME
-!!     read_force_field_section1
-!!
-!!   FUNCTION
-!!     Reads the force_field input section
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Reads the force_field input section
+!> \author teo
+! *****************************************************************************
   SUBROUTINE read_force_field_section1 ( ff_section, mm_section, ff_type, para_env, globenv, error )
     TYPE(section_vals_type), POINTER         :: ff_section, mm_section
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
@@ -376,22 +349,10 @@ CPSourceFileRef,&
 
   END SUBROUTINE read_force_field_section1
 
-!******************************************************************************
-!!****** force_fields_input/set_IPBV_ff [1.0] *
-!!
-!!   NAME
-!!     set_IPBV_ff
-!!
-!!   FUNCTION
-!!     Set up of the IPBV force fields
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Set up of the IPBV force fields
+!> \author teo
+! *****************************************************************************
   SUBROUTINE set_IPBV_ff(at1, at2, ipbv )
     CHARACTER(LEN=*), INTENT(IN)             :: at1, at2
     TYPE(ipbv_pot_type), POINTER             :: ipbv
@@ -461,23 +422,10 @@ CPSourceFileRef,&
     ENDIF
   END SUBROUTINE set_IPBV_ff
 
-
-!******************************************************************************
-!!****** force_fields_input/set_BMHFT_ff [1.0] *
-!!
-!!   NAME
-!!     set_BMHFT_ff
-!!
-!!   FUNCTION
-!!     Set up of the BMHFT force fields
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Set up of the BMHFT force fields
+!> \author teo
+! *****************************************************************************
   SUBROUTINE set_BMHFT_ff(at1, at2, ft )
     CHARACTER(LEN=*), INTENT(IN)             :: at1, at2
     TYPE(ft_pot_type), POINTER               :: ft
@@ -518,22 +466,10 @@ CPSourceFileRef,&
 
   END SUBROUTINE set_BMHFT_ff
 
-!******************************************************************************
-!!****** force_fields_input/read_eam_section [1.0] *
-!!
-!!   NAME
-!!     read_eam_section
-!!
-!!   FUNCTION
-!!     Reads the EAM section
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Reads the EAM section
+!> \author teo
+! *****************************************************************************
   SUBROUTINE read_eam_section(nonbonded, section, start, para_env, mm_section, error)
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
@@ -565,22 +501,10 @@ CPSourceFileRef,&
     END DO
   END SUBROUTINE read_eam_section
 
-!******************************************************************************
-!!****** force_fields_input/read_lj_section [1.0] *
-!!
-!!   NAME
-!!     read_lj_section
-!!
-!!   FUNCTION
-!!     Reads the LJ section
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Reads the LJ section
+!> \author teo
+! *****************************************************************************
   SUBROUTINE read_lj_section(nonbonded, section, start, error)
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
@@ -621,22 +545,10 @@ CPSourceFileRef,&
     END DO
   END SUBROUTINE read_lj_section
 
-!******************************************************************************
-!!****** force_fields_input/read_wl_section [1.0] *
-!!
-!!   NAME
-!!     read_wl_section
-!!
-!!   FUNCTION
-!!     Reads the WILLIAMS section
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Reads the WILLIAMS section
+!> \author teo
+! *****************************************************************************
   SUBROUTINE read_wl_section(nonbonded, section, start, error)
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
@@ -678,22 +590,10 @@ CPSourceFileRef,&
     END DO
   END SUBROUTINE read_wl_section
 
-!******************************************************************************
-!!****** force_fields_input/read_gd_section [1.0] *
-!!
-!!   NAME
-!!     read_gd_section
-!!
-!!   FUNCTION
-!!     Reads the GOODWIN section
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Reads the GOODWIN section
+!> \author teo
+! *****************************************************************************
   SUBROUTINE read_gd_section(nonbonded, section, start, error)
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
@@ -739,22 +639,10 @@ CPSourceFileRef,&
     END DO
   END SUBROUTINE read_gd_section
 
-!******************************************************************************
-!!****** force_fields_input/read_ipbv_section [1.0] *
-!!
-!!   NAME
-!!     read_ipbv_section
-!!
-!!   FUNCTION
-!!     Reads the IPBV section
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Reads the IPBV section
+!> \author teo
+! *****************************************************************************
   SUBROUTINE read_ipbv_section(nonbonded, section, start, error)
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
@@ -791,22 +679,10 @@ CPSourceFileRef,&
     END DO
   END SUBROUTINE read_ipbv_section
 
-!******************************************************************************
-!!****** force_fields_input/read_bmhft_section [1.0] *
-!!
-!!   NAME
-!!     read_bmhft_section
-!!
-!!   FUNCTION
-!!     Reads the BMHFT section
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Reads the BMHFT section
+!> \author teo
+! *****************************************************************************
   SUBROUTINE read_bmhft_section(nonbonded, section, start, error)
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
@@ -863,22 +739,10 @@ CPSourceFileRef,&
     END DO
   END SUBROUTINE read_bmhft_section
 
-!******************************************************************************
-!!****** force_fields_input/read_b4_section [1.0] *
-!!
-!!   NAME
-!!     read_b4_section
-!!
-!!   FUNCTION
-!!     Reads the Buckingham 4 Ranges potential section
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Reads the Buckingham 4 Ranges potential section
+!> \author MI
+! *****************************************************************************
   SUBROUTINE read_b4_section(nonbonded, section, start, error)
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
@@ -969,22 +833,10 @@ CPSourceFileRef,&
     END DO
   END SUBROUTINE read_b4_section
 
-!******************************************************************************
-!!****** force_fields_input/read_gp_section [1.0] *
-!!
-!!   NAME
-!!     read_gp_section
-!!
-!!   FUNCTION
-!!     Reads the GENPOT - generic potential section
-!!
-!!   AUTHOR
-!!     Teodoro Laino - 10.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Reads the GENPOT - generic potential section
+!> \author Teodoro Laino - 10.2006
+! *****************************************************************************
   SUBROUTINE read_gp_section(nonbonded, section, start, error)
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
@@ -1067,23 +919,10 @@ CPSourceFileRef,&
     END DO
   END SUBROUTINE read_gp_section
 
-
-!******************************************************************************
-!!****** force_fields_input/read_tersoff_section [1.0] *
-!!
-!!   NAME
-!!     read_tersoff_section
-!!
-!!   FUNCTION
-!!     Reads the tersoff section
-!!
-!!   AUTHOR
-!!     ikuo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Reads the tersoff section
+!> \author ikuo
+! *****************************************************************************
   SUBROUTINE read_tersoff_section(nonbonded, section, start, tersoff_section,error)
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
@@ -1138,22 +977,10 @@ CPSourceFileRef,&
     END DO
   END SUBROUTINE read_tersoff_section
 
-!******************************************************************************
-!!****** force_fields_input/read_bm_section [1.0] *
-!!
-!!   NAME
-!!     read_bm_section
-!!
-!!   FUNCTION
-!!     Reads the Buckingham plus Morse potential section
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Reads the Buckingham plus Morse potential section
+!> \author MI
+! *****************************************************************************
   SUBROUTINE read_bm_section(nonbonded, section, start, error)
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
@@ -1211,22 +1038,10 @@ CPSourceFileRef,&
     END DO
   END SUBROUTINE read_bm_section
 
-!******************************************************************************
-!!****** force_fields_input/read_chrg_section [1.0] *
-!!
-!!   NAME
-!!     read_chrg_section
-!!
-!!   FUNCTION
-!!     Reads the CHARGE section
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Reads the CHARGE section
+!> \author teo
+! *****************************************************************************
   SUBROUTINE read_chrg_section(charge_atm, charge, section, start, error)
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: charge_atm
@@ -1252,22 +1067,10 @@ CPSourceFileRef,&
     END DO
   END SUBROUTINE read_chrg_section
 
-!******************************************************************************
-!!****** force_fields_input/read_shell_section [1.0] *
-!!
-!!   NAME
-!!     read_shell_section
-!!
-!!   FUNCTION
-!!     Reads the SHELL section
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Reads the SHELL section
+!> \author MI
+! *****************************************************************************
   SUBROUTINE read_shell_section(shell_list, section, start, error)
     TYPE(shell_p_type), DIMENSION(:), &
       POINTER                                :: shell_list
@@ -1313,22 +1116,10 @@ CPSourceFileRef,&
 
   END SUBROUTINE read_shell_section
 
-!******************************************************************************
-!!****** force_fields_input/read_bonds_section [1.0] *
-!!
-!!   NAME
-!!     read_bonds_section
-!!
-!!   FUNCTION
-!!     Reads the BONDS section
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Reads the BONDS section
+!> \author teo
+! *****************************************************************************
   SUBROUTINE read_bonds_section(bond_kind,bond_a, bond_b, bond_k, bond_r0, section, start, error)
     INTEGER, DIMENSION(:), POINTER           :: bond_kind
     CHARACTER(LEN=default_string_length), &
@@ -1368,22 +1159,10 @@ CPSourceFileRef,&
     END DO
   END SUBROUTINE read_bonds_section
 
-!******************************************************************************
-!!****** force_fields_input/read_bends_section [1.0] *
-!!
-!!   NAME
-!!     read_bends_section
-!!
-!!   FUNCTION
-!!     Reads the BENDS section
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Reads the BENDS section
+!> \author teo
+! *****************************************************************************
   SUBROUTINE read_bends_section(bend_kind,bend_a, bend_b, bend_c, bend_k, bend_theta0, section, start, error)
     INTEGER, DIMENSION(:), POINTER           :: bend_kind
     CHARACTER(LEN=default_string_length), &
@@ -1421,23 +1200,7 @@ CPSourceFileRef,&
     END DO
   END SUBROUTINE read_bends_section
 
-
-!******************************************************************************
-!!****** force_fields_input/read_ubs_section [1.0] *
-!!
-!!   NAME
-!!
-!!
-!!   FUNCTION
-!!
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
   SUBROUTINE read_ubs_section(ub_kind,ub_a, ub_b, ub_c, ub_k, ub_r0, section, start, error)
     INTEGER, DIMENSION(:), POINTER           :: ub_kind
     CHARACTER(LEN=default_string_length), &
@@ -1484,22 +1247,10 @@ CPSourceFileRef,&
     END DO
   END SUBROUTINE read_ubs_section
 
-!******************************************************************************
-!!****** force_fields_input/read_torsions_section [1.0] *
-!!
-!!   NAME
-!!     read_torsions_section
-!!
-!!   FUNCTION
-!!     Reads the TORSIONS section
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Reads the TORSIONS section
+!> \author teo
+! *****************************************************************************
   SUBROUTINE read_torsions_section(torsion_kind,torsion_a, torsion_b, torsion_c, torsion_d, torsion_k,&
        torsion_cosphi0, torsion_m, section, start, error )
     INTEGER, DIMENSION(:), POINTER           :: torsion_kind
@@ -1540,24 +1291,13 @@ CPSourceFileRef,&
     END DO
   END SUBROUTINE read_torsions_section
 
-!******************************************************************************
-!!****** force_fields_input/read_force_field_section [1.0] *
-!!
-!!   NAME
-!!     read_force_field_section
-!!
-!!   FUNCTION
-!!     Reads the force_field input section
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (30.11.2001) : moved determination of setup variables to
-!!                        molecule_input
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Reads the force_field input section
+!> \par History
+!>      JGH (30.11.2001) : moved determination of setup variables to
+!>                         molecule_input
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE read_force_field_section ( ff_type , para_env, globenv,  mm_section, error )
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1573,25 +1313,11 @@ CPSourceFileRef,&
     CALL read_force_field_section1(ff_section, mm_section, ff_type, para_env, globenv, error)
   END SUBROUTINE read_force_field_section
 
-!******************************************************************************
-!!****** force_fields_input/read_force_field_gromos [1.0] *
-!!
-!!   NAME
-!!     read_force_field_gromos
-!!
-!!   FUNCTION
-!!     Reads the GROMOS force_field
-!!
-!!   AUTHOR
-!!     ikuo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Reads the GROMOS force_field
+!> \author ikuo
+! *****************************************************************************
   SUBROUTINE read_force_field_gromos ( ff_type , para_env,  mm_section, error )
-
 
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1825,7 +1551,6 @@ CPSourceFileRef,&
        gro_info%nonbond_c12_14 = 0._dp
        gro_info%nonbond_c6_14  = 0._dp
 
-
        DO itype=1,ntype*(ntype+1)/2
           CALL parser_get_next_line(parser,1,error=error)
           CALL parser_get_object(parser,iatom,error=error)
@@ -1863,26 +1588,11 @@ CPSourceFileRef,&
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE read_force_field_gromos
 
-
-!******************************************************************************
-!!****** force_fields_input/read_force_field_charmm [1.0] *
-!!
-!!   NAME
-!!     read_force_field_charmm
-!!
-!!   FUNCTION
-!!     Reads the charmm force_field
-!!
-!!   AUTHOR
-!!     ikuo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Reads the charmm force_field
+!> \author ikuo
+! *****************************************************************************
   SUBROUTINE read_force_field_charmm ( ff_type, para_env, mm_section, error )
-
 
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1915,7 +1625,6 @@ CPSourceFileRef,&
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
-
 
     avail_section(1) = "BOND"     ; bond_section(1) = avail_section(1)
     avail_section(11)= "BONDS"
@@ -2255,30 +1964,14 @@ CPSourceFileRef,&
 
   END SUBROUTINE read_force_field_charmm
 
-!******************************************************************************
-!!****** force_fields/charmm_get_next_line [1.0] *
-!!
-!!   NAME
-!!     charmm_get_next_line
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     This function is simply a wrap to the parser_get_next_line..
-!!     Comments: This routine would not be necessary if the continuation
-!!               char for CHARMM would not be the "-".. How can you choose this
-!!               character in a file of numbers as a continuation char????
-!!               This sounds simply crazy....
-!!
-!!   AUTHOR
-!!     Teodoro Laino - Zurich University - 06.2007
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
+! *****************************************************************************
+!> \brief This function is simply a wrap to the parser_get_next_line..
+!>      Comments: This routine would not be necessary if the continuation
+!>                char for CHARMM would not be the "-".. How can you choose this
+!>                character in a file of numbers as a continuation char????
+!>                This sounds simply crazy....
+!> \author Teodoro Laino - Zurich University - 06.2007
+! *****************************************************************************
   SUBROUTINE charmm_get_next_line(parser, nline, error)
     TYPE(cp_parser_type), POINTER            :: parser
     INTEGER, INTENT(IN)                      :: nline
@@ -2301,25 +1994,9 @@ CPSourceFileRef,&
 
   END SUBROUTINE charmm_get_next_line
 
-!******************************************************************************
-!!****** force_fields/read_eam_data [1.0] *
-!!
-!!   NAME
-!!     read_eam_data
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     reads EAM potential from library
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!   INPUTS
-!!*****************************************************************************
+! *****************************************************************************
+!> \brief reads EAM potential from library
+! *****************************************************************************
   SUBROUTINE read_eam_data ( eam, para_env, mm_section, error)
     TYPE(eam_pot_type), POINTER              :: eam
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -2474,4 +2151,3 @@ CPSourceFileRef,&
   END SUBROUTINE read_eam_data
 
 END MODULE force_fields_input
-!******************************************************************************

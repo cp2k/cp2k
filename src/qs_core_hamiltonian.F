@@ -2,81 +2,72 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_core_hamiltonian [1.1] *
-!!
-!!   FUNCTION
-!!     Calculation of the core Hamiltonian integral matrix <a|H|b> over
-!!     Cartesian Gaussian-type functions.
-!!
-!!     <a|H|b> = <a|T|b> + <a|V|b>
-!!
-!!
-!!     Kinetic energy:
-!!
-!!     <a|T|b> = <a|-nabla**2/2|b>
-!!               \_______________/
-!!                       |
-!!                    kinetic
-!!
-!!     Nuclear potential energy:
-!!
-!!     a) Allelectron calculation:
-!!
-!!                         erfc(r)
-!!        <a|V|b> = -Z*<a|---------|b>
-!!                            r
-!!
-!!                         1 - erf(r)
-!!                = -Z*<a|------------|b>
-!!                             r
-!!
-!!                          1           erf(r)
-!!                = -Z*(<a|---|b> - <a|--------|b>)
-!!                          r             r
-!!
-!!                          1
-!!                = -Z*(<a|---|b> - N*<ab||c>)
-!!                          r
-!!
-!!                     -Z
-!!                = <a|---|b> + Z*N*<ab||c>
-!!                      r
-!!                  \_______/       \_____/
-!!                      |              |
-!!                   nuclear        coulomb
-!!
-!!     b) Pseudopotential calculation (Goedecker, Teter and Hutter; GTH):
-!!
-!!        <a|V|b> = <a|(V(local) + V(non-local))|b>
-!!
-!!                = <a|(V(local)|b> + <a|V(non-local))|b>
-!!
-!!        <a|V(local)|b> = <a|-Z(eff)*erf(SQRT(2)*alpha*r)/r +
-!!                            (C1 + C2*(alpha*r)**2 + C3*(alpha*r)**4 +
-!!                             C4*(alpha*r)**6)*exp(-(alpha*r)**2/2))|b>
-!!
-!!        <a|V(non-local)|b> = <a|p(l,i)>*h(i,j)*<p(l,j)|b>
-!!
-!!   AUTHOR
-!!     Matthias Krack (14.09.2000,21.03.02)
-!!
-!!   LITERATURE
-!!     S. Goedecker, M. Teter and J. Hutter, Phys. Rev. B 54, 1703 (1996)
-!!     C. Hartwigsen, S. Goedecker and J. Hutter, Phys. Rev. B 58, 3641 (1998)
-!!     M. Krack and M. Parrinello, Phys. Chem. Chem. Phys. 2, 2105 (2000)
-!!     S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
-!!
-!!   MODIFICATION HISTORY
-!!     - Joost VandeVondele (April 2003) : added LSD forces
-!!     - Non-redundant calculation of the non-local part of the GTH PP
-!!       (22.05.2003,MK)
-!!     - New parallelization scheme (27.06.2003,MK)
-!!     - OpenMP version (07.12.2003,JGH)
-!!     - Binary search loop for VPPNL operators (09.01.2004,JGH,MK)
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Calculation of the core Hamiltonian integral matrix <a|H|b> over
+!>      Cartesian Gaussian-type functions.
+!> 
+!>      <a|H|b> = <a|T|b> + <a|V|b>
+!> 
+!>      Kinetic energy:
+!> 
+!>      <a|T|b> = <a|-nabla**2/2|b>
+!>                \_______________/
+!>                        |
+!>                     kinetic
+!> 
+!>      Nuclear potential energy:
+!> 
+!>      a) Allelectron calculation:
+!> 
+!>                          erfc(r)
+!>         <a|V|b> = -Z*<a|---------|b>
+!>                             r
+!> 
+!>                          1 - erf(r)
+!>                 = -Z*<a|------------|b>
+!>                              r
+!> 
+!>                           1           erf(r)
+!>                 = -Z*(<a|---|b> - <a|--------|b>)
+!>                           r             r
+!> 
+!>                           1
+!>                 = -Z*(<a|---|b> - N*<ab||c>)
+!>                           r
+!> 
+!>                      -Z
+!>                 = <a|---|b> + Z*N*<ab||c>
+!>                       r
+!>                   \_______/       \_____/
+!>                       |              |
+!>                    nuclear        coulomb
+!> 
+!>      b) Pseudopotential calculation (Goedecker, Teter and Hutter; GTH):
+!> 
+!>         <a|V|b> = <a|(V(local) + V(non-local))|b>
+!> 
+!>                 = <a|(V(local)|b> + <a|V(non-local))|b>
+!> 
+!>         <a|V(local)|b> = <a|-Z(eff)*erf(SQRT(2)*alpha*r)/r +
+!>                             (C1 + C2*(alpha*r)**2 + C3*(alpha*r)**4 +
+!>                              C4*(alpha*r)**6)*exp(-(alpha*r)**2/2))|b>
+!> 
+!>         <a|V(non-local)|b> = <a|p(l,i)>*h(i,j)*<p(l,j)|b>
+!> \par Literature
+!>      S. Goedecker, M. Teter and J. Hutter, Phys. Rev. B 54, 1703 (1996)
+!>      C. Hartwigsen, S. Goedecker and J. Hutter, Phys. Rev. B 58, 3641 (1998)
+!>      M. Krack and M. Parrinello, Phys. Chem. Chem. Phys. 2, 2105 (2000)
+!>      S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
+!> \par History
+!>      - Joost VandeVondele (April 2003) : added LSD forces
+!>      - Non-redundant calculation of the non-local part of the GTH PP
+!>        (22.05.2003,MK)
+!>      - New parallelization scheme (27.06.2003,MK)
+!>      - OpenMP version (07.12.2003,JGH)
+!>      - Binary search loop for VPPNL operators (09.01.2004,JGH,MK)
+!> \author Matthias Krack (14.09.2000,21.03.02)
+! *****************************************************************************
 MODULE qs_core_hamiltonian
 
   USE ai_kinetic,                      ONLY: kinetic
@@ -156,6 +147,7 @@ MODULE qs_core_hamiltonian
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_core_hamiltonian'
 
   ! *** Local types ***
+! *****************************************************************************
   TYPE vppl_type
      REAL(KIND = dp)                          :: alpha_ppl,ppl_radius
      REAL(KIND = dp), DIMENSION(:), POINTER   :: cexp_ppl,r2
@@ -163,6 +155,7 @@ MODULE qs_core_hamiltonian
      INTEGER, DIMENSION(:), POINTER           :: neighbor
   END TYPE vppl_type
   
+! *****************************************************************************
   TYPE vppnl_type
      TYPE(qlist_type), DIMENSION(:,:,:), POINTER :: neighbor
       REAL(KIND = dp)                            :: ppnl_radius
@@ -174,31 +167,14 @@ MODULE qs_core_hamiltonian
 
   PUBLIC :: build_core_hamiltonian_matrix
 
-!!***
-! *****************************************************************************
-
 CONTAINS
-!!****f* qs_core_hamiltonian/build_core_hamiltonian_matrix [1.0] *
-!!
-!!   NAME
-!!    build_core_hamiltonian_matrix
-!!
-!!   FUNCTION
-!!    Cosntruction of the QS Core Hamiltonian Matrix
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Creation (11.03.2002,MK)
-!!     Non-redundant calculation of the non-local part of the GTH PP (22.05.2003,MK)
-!!     New parallelization scheme (27.06.2003,MK) 
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief Cosntruction of the QS Core Hamiltonian Matrix
+!> \author Creation (11.03.2002,MK)
+!>      Non-redundant calculation of the non-local part of the GTH PP (22.05.2003,MK)
+!>      New parallelization scheme (27.06.2003,MK) 
+! *****************************************************************************
   SUBROUTINE build_core_hamiltonian_matrix(qs_env,globenv,calculate_forces,harris,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -345,7 +321,6 @@ CONTAINS
     NULLIFY (harris_env)
     NULLIFY (para_env)
     NULLIFY (atom_list)
-
 
     ! Default
     oce_present = .FALSE.
@@ -1749,25 +1724,10 @@ CONTAINS
     
   END SUBROUTINE build_core_hamiltonian_matrix
   
-  
-!!****f* qs_core_hamiltonian/dump_info_core_hamiltonian/ [1.0] *
-!!
-!!   NAME
-!!    dump_info_core_hamiltonian
-!!
-!!   FUNCTION
-!!    Possibly prints matrices after the construction of the Core 
-!!    Hamiltonian Matrix
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Possibly prints matrices after the construction of the Core 
+!>     Hamiltonian Matrix
+! *****************************************************************************
   SUBROUTINE dump_info_core_hamiltonian(matrix_s, matrix_t, matrix_h, oce, qs_env, para_env, error)
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s, matrix_t, matrix_h

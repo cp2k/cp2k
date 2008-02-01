@@ -3,25 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_cp2k_constraints *
-!!
-!!   NAME
-!!     input_cp2k_constraints
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     teo & fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 split input_cp2k into smaller modules [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \par History
+!>      10.2005 split input_cp2k into smaller modules [fawzi]
+!> \author teo & fawzi
+! *****************************************************************************
 MODULE input_cp2k_constraints
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
@@ -52,30 +38,16 @@ MODULE input_cp2k_constraints
 PUBLIC :: create_constraint_section
 
 !***
-!****************************************************************************
 CONTAINS
 
-!!****f* input_cp2k_constraints/create_constraint_section [1.0] *
-!!
-!!   NAME
-!!     create_constraint_section
-!!
-!!   FUNCTION
-!!     Create the constraint section. This section is useful to impose
-!!     constraints
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Create the constraint section. This section is useful to impose
+!>      constraints
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_constraint_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -161,30 +133,16 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_constraint_section
-!***************************************************************************
 
-!!****f* input_cp2k_constraints/create_clv_rest_section [1.0] *
-!!
-!!   NAME
-!!     create_clv_rest_section
-!!
-!!   FUNCTION
-!!     Create the restart section for colvar restraints
-!!     This section will be only used for restraint restarts. 
-!!     Constraints are handled automatically
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino 08.2006
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Create the restart section for colvar restraints
+!>      This section will be only used for restraint restarts. 
+!>      Constraints are handled automatically
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino 08.2006
+! *****************************************************************************
   SUBROUTINE create_clv_rest_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -216,28 +174,15 @@ CONTAINS
 
   END SUBROUTINE create_clv_rest_section
 
-!!****f* input_cp2k_constraints/create_f_a_rest_section [1.0] *
-!!
-!!   NAME
-!!     create_f_a_rest_section
-!!
-!!   FUNCTION
-!!     Create the restart section for fixed atoms restraints
-!!     This section will be only used for restraint restarts. 
-!!     Constraints are handled automatically
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino 08.2006
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Create the restart section for fixed atoms restraints
+!>      This section will be only used for restraint restarts. 
+!>      Constraints are handled automatically
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino 08.2006
+! *****************************************************************************
   SUBROUTINE create_f_a_rest_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -269,26 +214,13 @@ CONTAINS
 
   END SUBROUTINE create_f_a_rest_section
 
-!!****f* input_cp2k_constraints/restraint_info_section [1.0] *
-!!
-!!   NAME
-!!     restraint_info_section
-!!
-!!   FUNCTION
-!!     Create the restraint info section in the constraint section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino 08.2006
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Create the restraint info section in the constraint section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino 08.2006
+! *****************************************************************************
   SUBROUTINE restraint_info_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -323,26 +255,13 @@ CONTAINS
 
   END SUBROUTINE restraint_info_section
 
-!!****f* input_cp2k_constraints/create_collective_section [1.0] *
-!!
-!!   NAME
-!!     create_collecive_section
-!!
-!!   FUNCTION
-!!     Create the constraint section for collective constraints
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Joost VandeVondele [01.2006]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Create the constraint section for collective constraints
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Joost VandeVondele [01.2006]
+! *****************************************************************************
   SUBROUTINE create_collective_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -419,27 +338,13 @@ CONTAINS
 
   END SUBROUTINE create_collective_section
 
-!***************************************************************************
-!!****f* input_cp2k_constraints/create_fixed_atom_section [1.0] *
-!!
-!!   NAME
-!!     create_fixed_atom_section
-!!
-!!   FUNCTION
-!!     Create the constraint section that fixes atoms
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Create the constraint section that fixes atoms
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_fixed_atom_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -549,27 +454,13 @@ CONTAINS
 
   END SUBROUTINE create_fixed_atom_section
 
-!***************************************************************************
-!!****f* input_cp2k_constraints/create_g3x3_section [1.0] *
-!!
-!!   NAME
-!!     create_g3x3_section
-!!
-!!   FUNCTION
-!!     Create the constraint section specialized on g3x3 constraints
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Create the constraint section specialized on g3x3 constraints
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_g3x3_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -646,27 +537,13 @@ CONTAINS
 
   END SUBROUTINE create_g3x3_section
 
-!***************************************************************************
-!!****f* input_cp2k_constraints/create_hbonds_section [1.0] *
-!!
-!!   NAME
-!!     create_hbonds_section
-!!
-!!   FUNCTION
-!!     Create the constraint section specialized on H BONDS constraints
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Create the constraint section specialized on H BONDS constraints
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_hbonds_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -739,28 +616,13 @@ CONTAINS
 
   END SUBROUTINE create_hbonds_section
 
-
-!***************************************************************************
-!!****f* input_cp2k_constraints/create_g4x6_section [1.0] *
-!!
-!!   NAME
-!!     create_g4x6_section
-!!
-!!   FUNCTION
-!!     Create the constraint section specialized on g4x6 constraints
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Create the constraint section specialized on g4x6 constraints
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_g4x6_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error

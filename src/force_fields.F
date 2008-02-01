@@ -3,29 +3,17 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/force_fields [1.0] *
-!!
-!!   NAME
-!!     force_fields
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     Subroutine input_torsions changed (DG) 05-Dec-2000
-!!     Output formats changed (DG) 05-Dec-2000
-!!     JGH (26-01-2002) : force field parameters stored in tables, not in
-!!       matrices. Input changed to have parameters labeled by the position
-!!       and not atom pairs (triples etc)
-!!     Teo (11.2005) : Moved all information on force field  pair_potential to
-!!                     a much lighter memory structure
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      Subroutine input_torsions changed (DG) 05-Dec-2000
+!>      Output formats changed (DG) 05-Dec-2000
+!>      JGH (26-01-2002) : force field parameters stored in tables, not in
+!>        matrices. Input changed to have parameters labeled by the position
+!>        and not atom pairs (triples etc)
+!>      Teo (11.2005) : Moved all information on force field  pair_potential to
+!>                      a much lighter memory structure
+!> \author CJM
+! *****************************************************************************
 MODULE force_fields
 
   USE atomic_kind_types,               ONLY: atomic_kind_type
@@ -68,27 +56,12 @@ MODULE force_fields
   PRIVATE
   PUBLIC :: force_field_control
 
-!!*****
-!******************************************************************************
-
 CONTAINS
   
-!******************************************************************************
-!!****** force_fields/force_field_control [1.0] *
-!!
-!!   NAME
-!!     force_field_control
-!!
-!!   FUNCTION
-!!     1. If reading in from external file, make sure its there first
-!!     2. Read in the force_field from the corresponding locations
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief 1. If reading in from external file, make sure its there first
+!>      2. Read in the force_field from the corresponding locations
+! *****************************************************************************
   SUBROUTINE force_field_control (atomic_kind_set,particle_set,&
        molecule_kind_set,molecule_set,&
        ewald_env,fist_nonbond_env,&
@@ -129,7 +102,6 @@ CONTAINS
     CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
     logger => cp_error_get_logger(error)
-
 
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
@@ -207,4 +179,3 @@ CONTAINS
   END SUBROUTINE force_field_control
 
 END MODULE force_fields
-!******************************************************************************

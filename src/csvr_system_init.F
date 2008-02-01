@@ -3,21 +3,9 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/csvr_system_init [1.0] *
-!!
-!!   NAME
-!!     csvr_system_init
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
+! *****************************************************************************
 MODULE csvr_system_init
 
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -55,23 +43,10 @@ MODULE csvr_system_init
 
 CONTAINS
 
-!******************************************************************************
-!!****** csvr_system_init/initialize_csvr_baro [1.0] *
-!!
-!!   NAME
-!!     initialize_csvr_baro
-!!
-!!   FUNCTION
-!!     fire up the thermostats, if NPT
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief fire up the thermostats, if NPT
+!> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
+! *****************************************************************************
   SUBROUTINE initialize_csvr_baro ( simpar, para_env, globenv, csvr, csvr_section, error )
 
     TYPE(simulation_parameters_type), &
@@ -93,21 +68,9 @@ CONTAINS
 
   END SUBROUTINE initialize_csvr_baro
 
-!******************************************************************************
-!!****** csvr_system_init/initialize_csvr_part [1.0] *
-!!
-!!   NAME
-!!     initialize_csvr_part
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
+! *****************************************************************************
   SUBROUTINE initialize_csvr_part ( thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, para_env, globenv, csvr, csvr_section,&
        gci, error)
@@ -137,22 +100,9 @@ CONTAINS
 
   END SUBROUTINE initialize_csvr_part
 
-!******************************************************************************
-!!****** csvr_system_init/initialize_csvr_coef [1.0] *
-!!
-!!   NAME
-!!     initialize_csvr_coef
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!! 
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
+! *****************************************************************************
   SUBROUTINE initialize_csvr_coef ( dyn_coeff_set, para_env, globenv, csvr, &
              coeff_section, dt, csvr_section, error )
 
@@ -180,21 +130,9 @@ CONTAINS
 
   END SUBROUTINE initialize_csvr_coef
 
-!******************************************************************************
-!!****** csvr_system_init/initialize_csvr_shell [1.0] *
-!!
-!!   NAME
-!!     initialize_csvr_shell
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
+! *****************************************************************************
   SUBROUTINE initialize_csvr_shell( thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, para_env, globenv, csvr, csvr_section,&
        gci, error)
@@ -224,21 +162,9 @@ CONTAINS
 
   END SUBROUTINE  initialize_csvr_shell
 
-!******************************************************************************
-!!****** csvr_system_init/restart_csvr [1.0] *
-!!
-!!   NAME
-!!     restart_csvr
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
+! *****************************************************************************
   SUBROUTINE restart_csvr(csvr, csvr_section, error)
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(section_vals_type), POINTER         :: csvr_section

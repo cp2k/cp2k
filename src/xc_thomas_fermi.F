@@ -2,29 +2,18 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/xc_thomas_fermi [1.0] *
-!!
-!!   NAME
-!!     xc_thomas_fermi
-!!
-!!   FUNCTION
-!!     Calculate the Thomas-Fermi kinetic energy functional
-!!
-!!   NOTES
-!!     Order of derivatives is: LDA 0; 1; 2; 3;
-!!                              LSD 0; a  b; aa bb; aaa bbb;
-!!
-!!   AUTHOR
-!!     JGH (18.02.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (26.02.2003) : OpenMP enabled
-!!     fawzi (04.2004)  : adapted to the new xc interface
-!!
-!!*** *************************************************************************
 
-MODULE xc_thomas_fermi
 ! *****************************************************************************
+!> \brief Calculate the Thomas-Fermi kinetic energy functional
+!> \note
+!>      Order of derivatives is: LDA 0; 1; 2; 3;
+!>                               LSD 0; a  b; aa bb; aaa bbb;
+!> \par History
+!>      JGH (26.02.2003) : OpenMP enabled
+!>      fawzi (04.2004)  : adapted to the new xc interface
+!> \author JGH (18.02.2002)
+! *****************************************************************************
+MODULE xc_thomas_fermi
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -59,12 +48,9 @@ MODULE xc_thomas_fermi
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_thomas_fermi'
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE thomas_fermi_init ( cutoff )
 
     REAL(KIND=dp), INTENT(IN)                :: cutoff
@@ -79,7 +65,6 @@ CONTAINS
   END SUBROUTINE thomas_fermi_init
 
 ! *****************************************************************************
-
   SUBROUTINE thomas_fermi_info ( lsd, reference, shortform, needs, max_deriv, error)
     LOGICAL, INTENT(in)                      :: lsd
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
@@ -118,7 +103,6 @@ CONTAINS
   END SUBROUTINE thomas_fermi_info
 
 ! *****************************************************************************
-
   SUBROUTINE thomas_fermi_lda_eval(rho_set,deriv_set,order,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -191,7 +175,6 @@ CONTAINS
   END SUBROUTINE thomas_fermi_lda_eval
 
 ! *****************************************************************************
-
   SUBROUTINE thomas_fermi_lsd_eval(rho_set,deriv_set,order,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -278,7 +261,6 @@ CONTAINS
   END SUBROUTINE thomas_fermi_lsd_eval
 
 ! *****************************************************************************
-
   SUBROUTINE thomas_fermi_lda_0 ( rho, r13, e_0, npoints, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13
@@ -305,7 +287,6 @@ CONTAINS
   END SUBROUTINE thomas_fermi_lda_0
 
 ! *****************************************************************************
-
   SUBROUTINE thomas_fermi_lda_1 ( rho, r13, e_rho, npoints, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13
@@ -335,7 +316,6 @@ CONTAINS
   END SUBROUTINE thomas_fermi_lda_1
 
 ! *****************************************************************************
-
   SUBROUTINE thomas_fermi_lda_2 ( rho, r13, e_rho_rho, npoints, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13
@@ -365,7 +345,6 @@ CONTAINS
   END SUBROUTINE thomas_fermi_lda_2
 
 ! *****************************************************************************
-
   SUBROUTINE thomas_fermi_lda_3 ( rho, r13, e_rho_rho_rho, npoints, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13
@@ -395,7 +374,6 @@ CONTAINS
   END SUBROUTINE thomas_fermi_lda_3
 
 ! *****************************************************************************
-
   SUBROUTINE thomas_fermi_lsd_0 ( rhoa, r13a, e_0, npoints, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, r13a
@@ -420,7 +398,6 @@ CONTAINS
   END SUBROUTINE thomas_fermi_lsd_0
 
 ! *****************************************************************************
-
   SUBROUTINE thomas_fermi_lsd_1 ( rhoa, r13a, e_rho, npoints, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, r13a
@@ -448,7 +425,6 @@ CONTAINS
   END SUBROUTINE thomas_fermi_lsd_1
 
 ! *****************************************************************************
-
   SUBROUTINE thomas_fermi_lsd_2 ( rhoa, r13a, e_rho_rho, npoints, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, r13a
@@ -476,7 +452,6 @@ CONTAINS
   END SUBROUTINE thomas_fermi_lsd_2
 
 ! *****************************************************************************
-
   SUBROUTINE thomas_fermi_lsd_3 ( rhoa, r13a, e_rho_rho_rho, npoints, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, r13a
@@ -503,8 +478,5 @@ CONTAINS
 
   END SUBROUTINE thomas_fermi_lsd_3
 
-! *****************************************************************************
-
 END MODULE xc_thomas_fermi
 
-! *****************************************************************************

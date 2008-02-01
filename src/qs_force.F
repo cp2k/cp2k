@@ -2,22 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_force [1.0] *
-!!
-!!   NAME
-!!     qs_force
-!!
-!!   FUNCTION
-!!     Quickstep force driver routine
-!!
-!!   AUTHOR
-!!     MK (12.06.2002)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Quickstep force driver routine
+!> \author MK (12.06.2002)
+! *****************************************************************************
 MODULE qs_force
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -96,20 +85,14 @@ MODULE qs_force
 
   PUBLIC :: qs_forces, write_forces
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE qs_forces(qs_env,globenv,error)
 
 !   Purpose: Calculate the Quickstep forces.
 
 !   History: - Creation (29.10.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -181,7 +164,6 @@ CONTAINS
                     scf_control=scf_control,&
                     virial=virial,&
                     energy=energy,error=error)
-
 
     natom = SIZE(particle_set)
 
@@ -349,7 +331,6 @@ CONTAINS
       END IF
 !**** SCP
 
-
       !  *** replicate forces ***
       DO ikind=1,SIZE(force)
         CALL mp_sum(force(ikind)%overlap,para_env%group)
@@ -391,7 +372,6 @@ CONTAINS
         END IF
 ! **** SCP
       END DO
-
 
       DO iatom=1,natom
         ikind = kind_of(iatom)
@@ -466,15 +446,12 @@ CONTAINS
   END SUBROUTINE qs_forces
 
 ! *****************************************************************************
-
   SUBROUTINE write_forces(qs_force,atomic_kind_set,ftype,virial,output_unit,&
        print_section, error)
 
 !   Purpose: Write a Quickstep force data structure to
 
 !   History: - Creation (05.06.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: qs_force
@@ -527,7 +504,6 @@ CONTAINS
           virial_present=.FALSE.
        END IF
 
-
        !   *** Variable precision output of the forces ***
        CALL section_vals_val_get(print_section,"NDIGITS",&
             i_val=ndigits,error=error)
@@ -548,7 +524,6 @@ CONTAINS
        WRITE (UNIT=fmtstr4(9:10),FMT="(I2)") ndigits + 6
 
        fmtstr5 = "(/T2,A//T3,A)"
-
 
        WRITE (UNIT=output_unit,FMT=fmtstr1)&
             "FORCES","Atom","Kind","Component","X","Y","Z"
@@ -663,7 +638,5 @@ CONTAINS
        IF (istat /= 0) CALL stop_memory(routineP,"kind_of")
     END IF
   END SUBROUTINE write_forces
-
-! *****************************************************************************
 
 END MODULE qs_force

@@ -3,24 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/pme_tools [1.0] *
-!!
-!!   NAME
-!!     pme_tools
-!!
-!!   FUNCTION
-!!     Tools common both to PME and SPME
-!!
-!!   AUTHOR
-!!     JGH (21-Mar-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (03-May-2001) : first correctly working version
-!!     teo (Feb-2007)    : Merging common routines to spme and pme
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Tools common both to PME and SPME
+!> \par History
+!>      JGH (03-May-2001) : first correctly working version
+!>      teo (Feb-2007)    : Merging common routines to spme and pme
+!> \author JGH (21-Mar-2001)
+! *****************************************************************************
 MODULE pme_tools
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -42,12 +31,9 @@ MODULE pme_tools
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pme_tools'
 
-
-  !!***
-  !******************************************************************************
-
 CONTAINS
 
+! *****************************************************************************
   SUBROUTINE set_list ( part, npart, center, p1, rs, ipart, core_center )
 
     TYPE(particle_type), DIMENSION(:), &
@@ -106,8 +92,7 @@ CONTAINS
 
   END SUBROUTINE set_list
 
-  !******************************************************************************
-
+! *****************************************************************************
   FUNCTION in_slice ( pos, lb, ub ) RESULT ( internal )
 
     INTEGER, DIMENSION(3), INTENT(IN)        :: pos, lb, ub
@@ -121,10 +106,8 @@ CONTAINS
 
   END FUNCTION in_slice
 
-  !******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE get_center ( part, box, center, npts, n )
-
 
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: part

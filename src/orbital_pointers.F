@@ -2,27 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/orbital_pointers [1.0] *
-!!
-!!   NAME
-!!     orbital_pointers
-!!
-!!   FUNCTION
-!!      Provides Cartesian and spherical orbital pointers and indices
-!!
-!!   AUTHOR
-!!     Matthias Krack (07.06.2000)
-!!
-!!   MODIFICATION HISTORY
-!!     - reallocate eliminated (17.07.2002,MK)
-!!     - restructured and cleaned (20.05.2004,MK)
-!!
-!!   SOURCE
-!******************************************************************************
-
-MODULE orbital_pointers
 
 ! *****************************************************************************
+!> \brief Provides Cartesian and spherical orbital pointers and indices
+!> \par History
+!>      - reallocate eliminated (17.07.2002,MK)
+!>      - restructured and cleaned (20.05.2004,MK)
+!> \author Matthias Krack (07.06.2000)
+! *****************************************************************************
+MODULE orbital_pointers
 
 ! co    : Cartesian orbital pointer for a orbital shell.
 ! coset : Cartesian orbital pointer for a set of orbitals.
@@ -34,8 +22,6 @@ MODULE orbital_pointers
 !         number l.
 ! nsoset: Number of spherical orbitals up to the angular momentum quantum
 !         number l.
-
-! *****************************************************************************
 
   USE f77_blas
   USE kinds,                           ONLY: int_size
@@ -77,20 +63,14 @@ MODULE orbital_pointers
             so,&
             soset
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE create_orbital_pointers(maxl)
 
 !   Purpose: Allocate and initialize the orbital pointers.
 
 !   History: - Creation (20.05.2004,MK)
-
-!   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: maxl
 
@@ -256,14 +236,11 @@ CONTAINS
   END SUBROUTINE create_orbital_pointers
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_orbital_pointers()
 
 !   Purpose: Deallocate the orbital pointers.
 
 !   History: - Creation (20.05.2005,MK)
-
-!   ***************************************************************************
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_orbital_pointers', &
       routineP = moduleN//':'//routineN
@@ -331,14 +308,11 @@ CONTAINS
   END SUBROUTINE deallocate_orbital_pointers
 
 ! *****************************************************************************
-
   SUBROUTINE init_orbital_pointers(maxl)
 
 !   Purpose: Initialize or update the orbital pointers.
 
 !   History: - Creation (07.06.2000,MK)
-
-!   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: maxl
 
@@ -361,7 +335,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE init_orbital_pointers
-
-! *****************************************************************************
 
 END MODULE orbital_pointers

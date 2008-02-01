@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qmmm_gaussian_types [1.0] *
-!!
-!!   NAME
-!!     qmmm_gaussian_types
-!!
-!!   FUNCTION
-!!     Sets the typo for the gaussian treatment of the qm/mm interaction
-!!
-!!   NOTES
-!!     
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 created
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Sets the typo for the gaussian treatment of the qm/mm interaction
+!> \par History
+!>      06.2004 created
+!> \author Teodoro Laino
+! *****************************************************************************
 MODULE qmmm_gaussian_types
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -30,29 +16,12 @@ MODULE qmmm_gaussian_types
 
   IMPLICIT NONE
   PRIVATE
-!!****s* qmmm_gaussian_types/qmmm_gaussian_type [1.0] *
-!!
-!!   NAME
-!!     qmmm_gaussian_types
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     -
-!!
-!!   AUTHOR
-!!     Laino Teodoro
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 created [tlaino]
-!!
-!!   SOURCE
-  !***************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      06.2004 created [tlaino]
+!> \author Laino Teodoro
+! *****************************************************************************
   TYPE qmmm_gaussian_type
      INTEGER                               :: number_of_gaussians
      REAL(KIND=dp)                         :: Elp_Radius, Elp_Radius_Corr
@@ -60,30 +29,14 @@ MODULE qmmm_gaussian_types
      REAL(KIND=dp), DIMENSION(:), POINTER  :: Ak, Gk
   END TYPE qmmm_gaussian_type
 
-!!****s* qmmm_gaussian_types/qmmm_gaussian_p_type [1.0] *
-!!
-!!   NAME
-!!     qmmm_gaussian_p_type
-!!
-!!   FUNCTION
-!!     represent a pointer to a qmmm_gaussian_type, to be able to create arrays
-!!     of pointers
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - qmmm_gaussian_type: the pointer to the qmmm_gaussian_type
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 created [tlaino]
-!!
-!!   SOURCE
-  !***************************************************************************
-
+! *****************************************************************************
+!> \brief represent a pointer to a qmmm_gaussian_type, to be able to create arrays
+!>      of pointers
+!> \param qmmm_gaussian_type the pointer to the qmmm_gaussian_type
+!> \par History
+!>      06.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   TYPE qmmm_gaussian_p_type
      TYPE(qmmm_gaussian_type), POINTER :: pgf
   END TYPE qmmm_gaussian_p_type

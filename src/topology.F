@@ -2,22 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/topology [1.0] *
-!!
-!!   NAME
-!!     topology
-!!
-!!   FUNCTION
-!!     Control for reading in different topologies and coordinates
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Control for reading in different topologies and coordinates
+!> \par History
+!>      none
+! *****************************************************************************
 MODULE topology
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atoms_input,                     ONLY: read_atoms_input
@@ -95,28 +85,9 @@ MODULE topology
             connectivity_control, &
             coordinate_control
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** topology/topology_control [1.0] *
-!!
-!!   NAME
-!!     topology_control
-!!
-!!   FUNCTION
-!!
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
   SUBROUTINE topology_control(atomic_kind_set, particle_set, molecule_kind_set,&
        molecule_set, colvar_p, gci, root_section, para_env, globenv, qmmm, qmmm_env,&
        force_env_section, subsys_section, use_motion_section, error)
@@ -292,24 +263,13 @@ CONTAINS
          "PRINT%TOPOLOGY_INFO",error=error)  
   END SUBROUTINE topology_control
 
-!******************************************************************************
-!!****** topology/connectivity_control [1.0] *
-!!
-!!   NAME
-!!     connectivity_control
-!!
-!!   FUNCTION
-!!     1. If reading in from external file, make sure its there first
-!!     2. Generate the connectivity if no information to be read in
-!!
-!!   AUTHOR
-!!     IKUO 08.01.2003
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief 1. If reading in from external file, make sure its there first
+!>      2. Generate the connectivity if no information to be read in
+!> \par History
+!>      none
+!> \author IKUO 08.01.2003
+! *****************************************************************************
   SUBROUTINE connectivity_control(topology,para_env,qmmm,qmmm_env,subsys_section,&
        force_env_section, error)
 
@@ -492,25 +452,13 @@ CONTAINS
 
   END SUBROUTINE connectivity_control
 
-
-!******************************************************************************
-!!****** topology/coordinate_control [1.0] *
-!!
-!!   NAME
-!!     coordinate_control
-!!
-!!   FUNCTION
-!!     1. If reading in from external file, make sure its there first
-!!     2. Read in the coordinates from the corresponding locations
-!!
-!!   AUTHOR
-!!     IKUO 08.11.2003
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief 1. If reading in from external file, make sure its there first
+!>      2. Read in the coordinates from the corresponding locations
+!> \par History
+!>      none
+!> \author IKUO 08.11.2003
+! *****************************************************************************
   SUBROUTINE coordinate_control(topology,root_section,para_env,subsys_section,error)
 
     TYPE(topology_parameters_type), &
@@ -583,23 +531,11 @@ CONTAINS
          "PRINT%TOPOLOGY_INFO",error=error)
   END SUBROUTINE coordinate_control
 
-!******************************************************************************
-!!****** topology/topology_post_proc_colvar [1.0] *
-!!
-!!   NAME
-!!     topology_post_proc_colvar
-!!
-!!   FUNCTION
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - 07.2007
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author Teodoro Laino [tlaino] - 07.2007
+! *****************************************************************************
   SUBROUTINE topology_post_proc_colvar(colvar_p, particle_set, error)
 
     TYPE(colvar_p_type), DIMENSION(:), &
@@ -622,4 +558,3 @@ CONTAINS
 
 END MODULE topology
 
-!******************************************************************************

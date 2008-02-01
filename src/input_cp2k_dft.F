@@ -3,25 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_cp2k_dft *
-!!
-!!   NAME
-!!     input_cp2k_dft
-!!
-!!   FUNCTION
-!!     function that build the dft section of the input
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 moved out of input_cp2k [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief function that build the dft section of the input
+!> \par History
+!>      10.2005 moved out of input_cp2k [fawzi]
+!> \author fawzi
+! *****************************************************************************
 MODULE input_cp2k_dft
   USE bibliography,                    ONLY: &
        Avezac2005, Becke1988, Elstner1998, Goedecker1996, Heyd2004, &
@@ -66,29 +53,15 @@ MODULE input_cp2k_dft
   PUBLIC :: create_bsse_section, create_qs_section
   PUBLIC :: create_properties_section, create_scf_section, create_ep_section
   !***
-  !****************************************************************************
 CONTAINS
 
-!!****f* input_cp2k_dft/create_ep_section *
-!!
-!!   NAME
-!!     create_ep_section
-!!
-!!   FUNCTION
-!!     creates an ep section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates an ep section
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE create_ep_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -250,28 +223,14 @@ CONTAINS
     CALL section_release(print_section,error=error)       
 
   END SUBROUTINE create_ep_section
-  !**************************************************************************
 
-!!****f* input_cp2k_dft/create_dft_section *
-!!
-!!   NAME
-!!     create_dft_section
-!!
-!!   FUNCTION
-!!     creates the dft section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the dft section
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE create_dft_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -421,27 +380,13 @@ CONTAINS
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
   END SUBROUTINE create_dft_section
-  !***************************************************************************
 
-!!****f* input_cp2k_dft/create_implicit_solv_section *
-!!
-!!   NAME
-!!     create_implicit_solv_section
-!!
-!!   FUNCTION
-!!     Implicit Solvation Model
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     tlaino
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Implicit Solvation Model
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author tlaino
+! *****************************************************************************
   SUBROUTINE create_implicit_solv_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -492,25 +437,12 @@ CONTAINS
     END IF
   END SUBROUTINE create_implicit_solv_section
 
-!!****f* input_cp2k_dft/create_sphere_section *
-!!
-!!   NAME
-!!     create_sphere_section
-!!
-!!   FUNCTION
-!!     Create Sphere cavity
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     tlaino
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Create Sphere cavity
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author tlaino
+! *****************************************************************************
   SUBROUTINE create_sphere_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -547,25 +479,11 @@ CONTAINS
     END IF
   END SUBROUTINE create_sphere_section
 
-!!****f* input_cp2k_dft/create_center_section *
-!!
-!!   NAME
-!!     create_center_section
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     tlaino
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author tlaino
+! *****************************************************************************
   SUBROUTINE create_center_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -622,20 +540,12 @@ CONTAINS
   END SUBROUTINE create_center_section
 
 !****f* input_cp2k_dft/create_localize_section *
-!!
-!!   NAME
-!!     create_localize_section
-!!   FUNCTION
-!!     parameters fo the localization of wavefunctions
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     03.2005 created [MI]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief parameters fo the localization of wavefunctions
+!> \par History
+!>      03.2005 created [MI]
+! *****************************************************************************
   SUBROUTINE create_localize_section(section, error)
 
     TYPE(section_type), POINTER              :: section
@@ -719,14 +629,12 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       
        CALL keyword_create(keyword, name="RANGE",&
             description="The lower and upper index of the orbitals to be localized",&
             usage="RANGE {integer} {integer}",&
             n_var=2,default_i_vals=(/0,0/),type_of_var=integer_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
 
        CALL keyword_create(keyword,name="LIST",&
             description="Indexes of the wfn to be localized"//&
@@ -818,27 +726,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_localize_section
 
-  !***************************************************************************
-  !!****f* input_cp2k_dft/create_print_dft_section [1.0] *
-  !!
-  !!   NAME
-  !!     create_print_dft_section
-  !!
-  !!   FUNCTION
-  !!     Create the print dft section
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - section: the section to create
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     teo
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief Create the print dft section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_print_dft_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1120,7 +1014,6 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
-
 
        CALL cp_print_key_section_create(print_key,"gapw",&
             description="Controls the printing of some gapw related information (debug).", &
@@ -1435,26 +1328,13 @@ CONTAINS
 
   END SUBROUTINE create_print_dft_section
 
-  !!****f* input_cp2k_dft/create_qs_section [1.0] *
-  !!
-  !!   NAME
-  !!     create_qs_section
-  !!
-  !!   FUNCTION
-  !!     creates the input section for the qs part
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - section: the section to create
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     teo
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the input section for the qs part
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_qs_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1616,7 +1496,6 @@ CONTAINS
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
 
        CALL keyword_create(keyword, name="MAX_RAD_LOCAL",&
             description="GAPW : maximum radius of gaussian functions"//&
@@ -1805,6 +1684,7 @@ CONTAINS
 
   END SUBROUTINE create_qs_section
 
+! *****************************************************************************
   SUBROUTINE create_dftb_control_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1868,6 +1748,7 @@ CONTAINS
 
   END SUBROUTINE create_dftb_control_section
 
+! *****************************************************************************
   SUBROUTINE create_dftb_parameter_section(section, error)
 
     TYPE(section_type), POINTER              :: section
@@ -1922,6 +1803,7 @@ CONTAINS
     END IF
   END SUBROUTINE create_dftb_parameter_section
 
+! *****************************************************************************
   SUBROUTINE create_se_control_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1990,6 +1872,7 @@ CONTAINS
 
   END SUBROUTINE create_se_control_section
 
+! *****************************************************************************
   SUBROUTINE create_mulliken_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2032,6 +1915,7 @@ CONTAINS
 
   END SUBROUTINE create_mulliken_section
 
+! *****************************************************************************
   SUBROUTINE create_density_fitting_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2119,7 +2003,7 @@ CONTAINS
 
   END SUBROUTINE create_density_fitting_section
 
-
+! *****************************************************************************
   SUBROUTINE create_ddapc_restraint_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2188,6 +2072,7 @@ CONTAINS
 
   END SUBROUTINE create_ddapc_restraint_section
 
+! *****************************************************************************
   SUBROUTINE create_becke_constraint_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2256,6 +2141,7 @@ CONTAINS
 
   END SUBROUTINE create_becke_constraint_section
 
+! *****************************************************************************
   SUBROUTINE create_s2_restraint_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2302,25 +2188,13 @@ CONTAINS
 
   END SUBROUTINE create_s2_restraint_section
 
-  !!****f* xc_derivatives/create_xc_fun_section [1.0] *
-  !!   NAME
-  !!     create_xc_fun_section
-  !!
-  !!   FUNCTION
-  !!     creates the structure of the section needed to select the xc functional
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - section: the section that will be created
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the structure of the section needed to select the xc functional
+!> \param section the section that will be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE create_xc_fun_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2808,25 +2682,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_xc_fun_section
 
-  !!****f* xc_derivatives/create_xc_potential_section [1.0] *
-  !!   NAME
-  !!     create_xc_potential_section
-  !!
-  !!   FUNCTION
-  !!     creates the structure of the section needed to select an xc potential
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - section: the section that will be created
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     thomas chassaing
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the structure of the section needed to select an xc potential
+!> \param section the section that will be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author thomas chassaing
+! *****************************************************************************
   SUBROUTINE create_xc_potential_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2890,27 +2752,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_xc_potential_section
 
-  !***************************************************************************
-  !!****f* input_cp2k_dft/create_tddfpt_section [1.0] *
-  !!
-  !!   NAME
-  !!     create_tddfpt_section
-  !!
-  !!   FUNCTION
-  !!     creates the input section for the tddfpt part
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - section: the section to create
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     teo
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the input section for the tddfpt part
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_tddfpt_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -3055,29 +2903,15 @@ CONTAINS
        CALL section_release(subsection,error=error)
     END IF
 
-
   END SUBROUTINE create_tddfpt_section
 
-  !!****f* input_cp2k_dft/create_xc_section [1.0] *
-  !!
-  !!   NAME
-  !!     create_xc_section
-  !!
-  !!   FUNCTION
-  !!     creates the input section for the xc part
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - section: the section to create
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the input section for the xc part
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE create_xc_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -3119,7 +2953,6 @@ CONTAINS
             usage="gradient_cutoff {real}", default_r_val=0.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
 
        CALL keyword_create(keyword, name="tau_cutoff",&
             description="The cutoff on tau used by the xc calculation",&
@@ -3191,28 +3024,14 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_xc_section
-  !***************************************************************************
 
-  !!****f* input_cp2k_dft/create_scf_section *
-  !!
-  !!   NAME
-  !!     create_scf_section
-  !!
-  !!   FUNCTION
-  !!     creates the structure of the section with the dft scf parameters
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - section: will contain the scf section
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the structure of the section with the dft scf parameters
+!> \param section will contain the scf section
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE create_scf_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -3542,29 +3361,15 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_scf_section
-  !***************************************************************************
 
-  !!****f* input_cp2k_dft/create_outer_scf_section *
-  !!
-  !!   NAME
-  !!     create_outer_scf_section
-  !!
-  !!   FUNCTION
-  !!     creates the structure of the section with scf parameters
-  !!     controlling an other loop
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - section: will contain the scf section
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Joost VandeVondele [2006.03]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the structure of the section with scf parameters
+!>      controlling an other loop
+!> \param section will contain the scf section
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Joost VandeVondele [2006.03]
+! *****************************************************************************
   SUBROUTINE create_outer_scf_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -3669,26 +3474,13 @@ CONTAINS
 
   END SUBROUTINE create_outer_scf_section
 
-  !!****f* input_cp2k_dft/create_properties_section [1.0] *
-  !!
-  !!   NAME
-  !!     create_properties_section
-  !!
-  !!   FUNCTION
-  !!     Create the PROPERTIES section 
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - section: the section to create
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     teo
-  !!
-  !!*** ********************************************************************** 
+! *****************************************************************************
+!> \brief Create the PROPERTIES section 
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_properties_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -3733,27 +3525,13 @@ CONTAINS
 
   END SUBROUTINE create_properties_section
 
-  !***************************************************************************
-  !!****f* input_cp2k_dft/create_bsse_section [1.0] *
-  !!
-  !!   NAME
-  !!     create_bsse_section
-  !!
-  !!   FUNCTION
-  !!     Create the BSSE section for counterpoise correction
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - section: the section to create
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     teo
-  !!
-  !!*** ********************************************************************** 
+! *****************************************************************************
+!> \brief Create the BSSE section for counterpoise correction
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_bsse_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -3861,27 +3639,13 @@ CONTAINS
 
   END SUBROUTINE create_bsse_section
 
-  !***************************************************************************
-  !!****f* input_cp2k_dft/create_print_bsse_section [1.0] *
-  !!
-  !!   NAME
-  !!     create_print_bsse_section
-  !!
-  !!   FUNCTION
-  !!     Create the print bsse section
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - section: the section to create
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     teo
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief Create the print bsse section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_print_bsse_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -3918,29 +3682,15 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-
     END IF
   END SUBROUTINE create_print_bsse_section
 
-  !!****f* input_cp2k_qmmm/create_gspace_interp_section *
-  !!
-  !!   NAME
-  !!     create_gspace_interp_section
-  !!
-  !!   FUNCTION
-  !!     creates the interpolation section for the periodic QM/MM 
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     tlaino
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the interpolation section for the periodic QM/MM 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author tlaino
+! *****************************************************************************
   SUBROUTINE create_gspace_interp_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -4020,28 +3770,14 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_gspace_interp_section
-  !***************************************************************************
 
-  !!****f* input_cp2k_dft/create_harris_section [1.0] *
-  !!
-  !!   NAME
-  !!     create_harris_section
-  !!
-  !!   FUNCTION
-  !!     This section specifies the flags for the harris functional
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - section: the section to create
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief This section specifies the flags for the harris functional
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE create_harris_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -4082,27 +3818,12 @@ CONTAINS
     END IF
   END SUBROUTINE create_harris_section
 
-  !***************************************************************************
-
-  !!****f* input_cp2k_dft/create_mgrid_section *
-  !!
-  !!   NAME
-  !!     create_mgrid_section
-  !!
-  !!   FUNCTION
-  !!     creates the multigrid
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the multigrid
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE create_mgrid_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -4200,28 +3921,13 @@ CONTAINS
        CALL section_release(subsection,error=error)
     END IF
   END SUBROUTINE create_mgrid_section
-  !***************************************************************************
 
-
-  !!****f* input_cp2k_dft/create_interp_section *
-  !!
-  !!   NAME
-  !!     create_interp_section
-  !!
-  !!   FUNCTION
-  !!     creates the interpolation section
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     tlaino
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the interpolation section
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author tlaino
+! *****************************************************************************
   SUBROUTINE create_interp_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -4321,25 +4027,12 @@ CONTAINS
     END IF
   END SUBROUTINE create_interp_section
 
-  !!****f* input_cp2k_dft/create_sic_section *
-  !!
-  !!   NAME
-  !!     create_sic_section
-  !!
-  !!   FUNCTION
-  !!     creates the sic (self interaction correction) section
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the sic (self interaction correction) section
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE create_sic_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -4408,29 +4101,15 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
  
-
     END IF
   END SUBROUTINE create_sic_section
 
-  !!****f* input_cp2k_dft/create_adiabatic_section *
-  !!
-  !!   NAME
-  !!     create_adiabatic_section
-  !!
-  !!   FUNCTION
-  !!     creates the section for adiabatic hybrid functionals
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Manuel Guidon
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the section for adiabatic hybrid functionals
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE create_adiabatic_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -4499,25 +4178,12 @@ CONTAINS
     END IF
   END SUBROUTINE create_adiabatic_section
 
-  !!****f* input_cp2k_dft/create_field_section *
-  !!
-  !!   NAME
-  !!     create_field_section
-  !!
-  !!   FUNCTION
-  !!     creates the section for finite fields
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     JGH
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the section for finite fields
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author JGH
+! *****************************************************************************
   SUBROUTINE create_field_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -4563,25 +4229,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-
     END IF
   END SUBROUTINE create_field_section
 
-  !!****f* input_cp2k_dft/create_ot_section *
-  !!
-  !!   NAME
-  !!     create_ot_section
-  !!   FUNCTION
-  !!     makes the orbital transformation section
-  !!   NOTES
-  !!
-  !!   INPUTS
-  !!
-  !!   MODIFICATION HISTORY
-  !!     11.2004 created [Joost VandeVondele]
-  !!
-  !!   SOURCE
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief makes the orbital transformation section
+!> \par History
+!>      11.2004 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE create_ot_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -4821,22 +4476,11 @@ CONTAINS
     END IF
   END SUBROUTINE create_ot_section
 
-  !!****f* input_cp2k_dft/create_xas_section *
-  !!
-  !!   NAME
-  !!     create_xas_section
-  !!   FUNCTION
-  !!     makes the input section for core-level spectroscopy simulations
-  !!
-  !!   NOTES
-  !!
-  !!   INPUTS
-  !!
-  !!   MODIFICATION HISTORY
-  !!     03.2005 created [MI]
-  !!
-  !!   SOURCE
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief makes the input section for core-level spectroscopy simulations
+!> \par History
+!>      03.2005 created [MI]
+! *****************************************************************************
   SUBROUTINE create_xas_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -4871,7 +4515,6 @@ CONTAINS
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
 
        CALL keyword_create(keyword, name="METHOD",&
             variants=(/"XAS_METHOD"/),&
@@ -5015,7 +4658,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-
        CALL keyword_create(keyword, name="NGAUSS",&
             description="Number of gto's for the expansion of the sto"//&
             "of the type given by STATE_TYPE",&
@@ -5071,7 +4713,6 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-
        CALL cp_print_key_section_create(print_key,"RESTART",&
             description="Controls the dumping of MO restart file during the scf"//&
             "of a Core-Level-Spectroscopy calculation. For each new excited atom,"//&
@@ -5119,30 +4760,15 @@ CONTAINS
     END IF
   END SUBROUTINE create_xas_section
 
-  !!*** **********************************************************************
-
-  !!****f* input_cp2k_dft/create_linres_section [1.0] *
-  !!
-  !!   NAME
-  !!     create_linres_section
-  !!
-  !!   FUNCTION
-  !!     creates the input structure used to activate
-  !!     a linear response calculation 
-  !!     Available properties : none
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - section: the section to create
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     MI
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the input structure used to activate
+!>      a linear response calculation 
+!>      Available properties : none
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author MI
+! *****************************************************************************
   SUBROUTINE create_linres_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -5253,7 +4879,6 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-
        NULLIFY(subsection)
        CALL create_nmr_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -5279,6 +4904,7 @@ CONTAINS
     END IF
   END SUBROUTINE create_linres_section
 
+! *****************************************************************************
   SUBROUTINE create_nmr_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -5342,7 +4968,6 @@ CONTAINS
             default_lc_val="nics_file",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
 
        CALL keyword_create(keyword, name="RESTART_NMR",&
             description="Restart the NMR calculation from a previous run",&
@@ -5441,6 +5066,7 @@ CONTAINS
 
   END SUBROUTINE create_nmr_section
 
+! *****************************************************************************
   SUBROUTINE create_epr_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout), &
@@ -5600,27 +5226,13 @@ CONTAINS
 
   END SUBROUTINE create_epr_section
 
-
-  !!****f* input_cp2k_dft/create_kg_section *
-  !!
-  !!   NAME
-  !!     create_kg_section
-  !!
-  !!   FUNCTION
-  !!     creates a section with the parameters specific to the kg method
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - section:the section to create
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a section with the parameters specific to the kg method
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE create_kg_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -5707,26 +5319,12 @@ CONTAINS
 
   END SUBROUTINE create_kg_section
 
-
-  !!****f* input_cp2k_dft/create_et_coupling_section
-  !!
-  !!   NAME
-  !!     create_et_coupling_section
-  !!
-  !!   FUNCTION
-  !!     creates the section for electron transfer coupling
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fschiff
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the section for electron transfer coupling
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fschiff
+! *****************************************************************************
   SUBROUTINE create_et_coupling_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -5788,6 +5386,7 @@ CONTAINS
     END IF
   END SUBROUTINE create_et_coupling_section 
 
+! *****************************************************************************
   SUBROUTINE create_restraint_A(section,section_name,error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(len=*), INTENT(in)             :: section_name
@@ -5856,8 +5455,5 @@ CONTAINS
 
   END SUBROUTINE create_restraint_A
 
-  !***************************************************************************
-
 END MODULE input_cp2k_dft
 
-!***************************************************************************

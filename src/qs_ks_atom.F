@@ -3,24 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/qs_ks_atom [1.0] *
-!!
-!!   NAME
-!!     qs_ks_atom
-!!
-!!   FUNCTION
-!!     routines that build the Kohn-Sham matrix  contributions
-!!     coming from local atomic densities
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!
-!!
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief routines that build the Kohn-Sham matrix  contributions
+!>      coming from local atomic densities
+! *****************************************************************************
 MODULE qs_ks_atom
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -63,39 +49,26 @@ MODULE qs_ks_atom
 
   PUBLIC :: update_ks_atom
 
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!! NAME
-!! update_ks_atom
-!!
-!!   FUNCTION
-!!     The correction to the KS matrix due to the GAPW local terms to the hartree and
-!!     XC contributions is here added. The correspondig forces contribution are also calculated
-!!     if required. Each sparse-matrix block A-B is corrected by all the atomic contributions
-!!     centered on atoms C for which the triplet A-C-B exists (they are close enough)
-!!     To this end special lists are used
-!!
-!!   INPUTS
-!!     qs_env : qs enviroment, for the lists, the contraction coefficients and the
-!!              pre calculated integrals of the potential with the atomic orbitals
-!!      ks : KS matrix, sparse matrix
-!!      p : density matrix, sparse matrix, needed only for the forces
-!!      forces : switch for the calculation of the forces on atoms
-!!      tddft : switch for TDDFT linear response
-!!      p_env : perturbation theory environment
-!!      error : cp_error_type
-!!
-!!   HISTORY
-!!     created [MI]
-!!     the loop over the spins is done internally [03-05,MI]
-!!
-!!
-!!
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief The correction to the KS matrix due to the GAPW local terms to the hartree and
+!>      XC contributions is here added. The correspondig forces contribution are also calculated
+!>      if required. Each sparse-matrix block A-B is corrected by all the atomic contributions
+!>      centered on atoms C for which the triplet A-C-B exists (they are close enough)
+!>      To this end special lists are used
+!> \param qs_env qs enviroment, for the lists, the contraction coefficients and the
+!>               pre calculated integrals of the potential with the atomic orbitals
+!> \param ks KS matrix, sparse matrix
+!> \param p density matrix, sparse matrix, needed only for the forces
+!> \param forces switch for the calculation of the forces on atoms
+!> \param tddft switch for TDDFT linear response
+!> \param p_env perturbation theory environment
+!> \param error cp_error_type
+!> \par History
+!>      created [MI]
+!>      the loop over the spins is done internally [03-05,MI]
+! *****************************************************************************
   SUBROUTINE update_ks_atom(qs_env,ks,p,forces,tddft,p_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -150,8 +123,6 @@ CONTAINS
     TYPE(rho_atom_type), POINTER             :: rho_at
     TYPE(virial_type), POINTER               :: virial
 
-!******************************************************************************
-
     CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY(atomic_kind_set,force,oce,para_env,rho_atom,sab_orb)
@@ -195,7 +166,6 @@ CONTAINS
       NULLIFY(mat_h(ispin)%array,mat_p(ispin)%array)
     END DO
 
-
     IF(forces) THEN
       ALLOCATE (atom_of_kind(natom),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
@@ -234,7 +204,6 @@ CONTAINS
          END DO
        END IF
     END DO
-
 
     DO ikind=1,nkind
 
@@ -443,8 +412,8 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE update_ks_atom
-!******************************************************************************
 
+! *****************************************************************************
   SUBROUTINE add_vhxca_to_ks(mat_h,oce,rho_atom,nspins,ia,na,ja,nb,&
                              ka,nsp,factor,C_int_h,C_int_s)
 
@@ -466,12 +435,9 @@ CONTAINS
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: int_local_h, int_local_s
 
-!******************************************************************************
-
     NULLIFY(int_local_h,int_local_s,int_hard,int_soft)
     CALL get_rho_atom(rho_atom=rho_atom,&
                       ga_Vlocal_gb_h=int_local_h,ga_Vlocal_gb_s=int_local_s)
-
 
     IF (ia <= ja) THEN
       NULLIFY(C_hh)
@@ -584,11 +550,8 @@ CONTAINS
   END SUBROUTINE add_vhxca_to_ks
 
 ! *****************************************************************************
-
   SUBROUTINE add_vhxca_forces(mat_p,oce,rho_atom,force,nspins,&
                             ia,na,ja,nb,ka,nsp,dCPC_h,dCPC_s,ldCPC,PC_h,PC_s,lPC)
-
-! *****************************************************************************
 
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: mat_p
@@ -612,7 +575,6 @@ CONTAINS
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: int_local_h, int_local_s
 
-! *****************************************************************************
 !   *** factor 2 because only half of the pairs with ia =/ ja are  considered
 
     ieqj = 2.0_dp
@@ -621,8 +583,6 @@ CONTAINS
     NULLIFY(int_local_h,int_local_s,int_hard,int_soft)
     CALL get_rho_atom(rho_atom=rho_atom,&
                      ga_Vlocal_gb_h=int_local_h,ga_Vlocal_gb_s=int_local_s)
-
-
 
     NULLIFY(C_hh)
     CALL get_block_node(matrix=oce%hardo(1)%matrix,&
@@ -662,7 +622,6 @@ CONTAINS
                         block_col=ia,&
                         BLOCK=C_ss)
 
-
        DO ispin = 1,nspins
          int_hard => int_local_h(ispin)%r_coef
          int_soft => int_local_s(ispin)%r_coef
@@ -672,12 +631,10 @@ CONTAINS
                     PC_h(1,1,ispin),na,C_hh,SIZE(C_hh,1),0.0_dp,&
                     dCPC_h,ldCPC)
 
-
          trace = trace_r_AxB(dCPC_h,ldCPC,int_hard,nsp,nsp,nsp)
 
          force(dir-1,3) = force(dir-1,3) + ieqj * trace
          force(dir-1,1) = force(dir-1,1) - ieqj * trace
-
 
          CALL dgemm("T","T",nsp,nsp,na,&
                     1.0_dp,PC_s(1,1,ispin),lPC,&
@@ -693,7 +650,6 @@ CONTAINS
     END DO
 
 ! j-k contributions
-
 
     NULLIFY(C_hh)
     CALL get_block_node(matrix=oce%hardo(1)%matrix,&
@@ -742,12 +698,10 @@ CONTAINS
                     C_hh,SIZE(C_hh,1),0.0_dp,&
                     dCPC_h,ldCPC)
 
-
          trace = trace_r_AxB(dCPC_h,ldCPC,int_hard,nsp,nsp,nsp)
 
          force(dir-1,3) = force(dir-1,3) +  ieqj * trace
          force(dir-1,2) = force(dir-1,2) -  ieqj * trace
-
 
          CALL dgemm("T","T",nsp,nsp,nb,&
                     1.0_dp,PC_s(1,1,ispin),lPC,&
@@ -763,7 +717,5 @@ CONTAINS
     END DO
 
   END SUBROUTINE add_vhxca_forces
-
-! *****************************************************************************
 
 END MODULE qs_ks_atom

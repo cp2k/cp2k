@@ -3,25 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_cp2k_subsys *
-!!
-!!   NAME
-!!     input_cp2k_subsys
-!!
-!!   FUNCTION
-!!     builds the subsystem section of the input
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     teo & fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 split input_cp2k [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief builds the subsystem section of the input
+!> \par History
+!>      10.2005 split input_cp2k [fawzi]
+!> \author teo & fawzi
+! *****************************************************************************
 MODULE input_cp2k_subsys
   USE bibliography,                    ONLY: Goedecker1996,&
                                              Hartwigsen1998,&
@@ -63,28 +50,14 @@ PUBLIC :: create_subsys_section,&
           create_structure_data_section,&
           create_rng_section
 !***
-!****************************************************************************
 CONTAINS
 
-!!****f* input_cp2k_subsys/create_cell_section *
-!!
-!!   NAME
-!!     create_cell_section
-!!
-!!   FUNCTION
-!!     creates the cell section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the cell section
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_cell_section(section,periodic,error)
     TYPE(section_type), POINTER              :: section
     INTEGER, INTENT(IN), OPTIONAL            :: periodic
@@ -156,7 +129,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)     
 
-
        CALL keyword_create(keyword, name="PERIODIC",&
             description="Specify the directions on wich apply PBC. Important notice, "//&
                         " this only applies to the generation of the pair lists."//&
@@ -178,27 +150,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_cell_section
 
-!***************************************************************************
-!!****f* input_cp2k/create_rng_section [1.0] *
-!!
-!!   NAME
-!!     create_rng_section
-!!
-!!   FUNCTION
-!!     Creates the random number restart section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the random number restart section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_rng_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -227,27 +185,13 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_rng_section
-!***************************************************************************
 
-!!****f* input_cp2k_subsys/create_cell_ref_section *
-!!
-!!   NAME
-!!     create_cell_ref_section
-!!
-!!   FUNCTION
-!!     creates the cell section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the cell section
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_cell_ref_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -327,27 +271,14 @@ CONTAINS
     END IF
   END SUBROUTINE create_cell_ref_section
 
-!!****f* input_cp2k_subsys/create_subsys_section [1.0] *
-!!
-!!   NAME
-!!     create_subsys_section
-!!
-!!   FUNCTION
-!!     creates the structure of a subsys, i.e. a full set of 
-!!     atoms+mol+bounds+cell
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the structure of a subsys, i.e. a full set of 
+!>      atoms+mol+bounds+cell
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE create_subsys_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -424,27 +355,13 @@ CONTAINS
 
   END SUBROUTINE create_subsys_section
 
-!***************************************************************************
-!!****f* input_cp2k_subsys/create_subsys_print_section [1.0] *
-!!
-!!   NAME
-!!     create_subsys_print_section
-!!
-!!   FUNCTION
-!!     Creates the subsys print section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the subsys print section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_subsys_print_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -611,27 +528,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_subsys_print_section
 
-!***************************************************************************
-!!****f* input_cp2k_subsys/create_multipole_section [1.0] *
-!!
-!!   NAME
-!!     create_multipole_section
-!!
-!!   FUNCTION
-!!     Creates the multipole section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the multipole section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_multipole_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -680,27 +583,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_multipole_section
 
-!!****f* input_cp2k_subsys/create_structure_data_section [1.0] *
-!!
-!!   NAME
-!!     create_structure_data_section
-!!
-!!   FUNCTION
-!!     creates structure data section for output.. both subsys  (for initialization)
-!!     and motion section..
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates structure data section for output.. both subsys  (for initialization)
+!>      and motion section..
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+! *****************************************************************************
   SUBROUTINE create_structure_data_section(print_key,error)
     TYPE(section_type), POINTER              :: print_key
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -756,27 +645,13 @@ CONTAINS
 
   END SUBROUTINE create_structure_data_section
 
-!***************************************************************************
-!!****f* input_cp2k_subsys/create_velocity_section [1.0] *
-!!
-!!   NAME
-!!     create_velocity_section
-!!
-!!   FUNCTION
-!!     Creates the velocity section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the velocity section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_velocity_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -807,27 +682,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_velocity_section
 
-!***************************************************************************
-!!****f* input_cp2k_subsys/create_shell_vel_section [1.0] *
-!!
-!!   NAME
-!!     create_shell_vel_section
-!!
-!!   FUNCTION
-!!     Creates the shell velocity section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the shell velocity section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_shell_vel_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -859,27 +720,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_shell_vel_section
 
-!***************************************************************************
-!!****f* input_cp2k_subsys/create_core_vel_section [1.0] *
-!!
-!!   NAME
-!!     create_core_vel_section
-!!
-!!   FUNCTION
-!!     Creates the shell velocity section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the shell velocity section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_core_vel_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -911,27 +758,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_core_vel_section
 
-!***************************************************************************
-!!****f* input_cp2k_subsys/create_potential_section [1.0] *
-!!
-!!   NAME
-!!     create_potential_section
-!!
-!!   FUNCTION
-!!     Creates the &POTENTIAL section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the &POTENTIAL section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_potential_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -958,27 +791,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_potential_section
 
-!***************************************************************************
-!!****f* input_cp2k_subsys/create_basis_section [1.0] *
-!!
-!!   NAME
-!!     create_basis_section
-!!
-!!   FUNCTION
-!!     Creates the &BASIS section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the &BASIS section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_basis_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1005,27 +824,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_basis_section
 
-!***************************************************************************
-!!****f* input_cp2k_subsys/create_coord_section [1.0] *
-!!
-!!   NAME
-!!     create_coord_section
-!!
-!!   FUNCTION
-!!     Creates the &COORD section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the &COORD section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_coord_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1056,27 +861,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_coord_section
 
-!***************************************************************************
-!!****f* input_cp2k_subsys/create_shell_coord_section [1.0] *
-!!
-!!   NAME
-!!     create_shell_coord_section
-!!
-!!   FUNCTION
-!!     Creates the &SHELL_COORD section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the &SHELL_COORD section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_shell_coord_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1106,27 +897,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_shell_coord_section
 
-!***************************************************************************
-!!****f* input_cp2k_subsys/create_core_coord_section [1.0] *
-!!
-!!   NAME
-!!     create_core_coord_section
-!!
-!!   FUNCTION
-!!     Creates the &core_COORD section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the &core_COORD section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_core_coord_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1156,28 +933,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_core_coord_section
 
-
-!***************************************************************************
-!!****f* input_cp2k_subsys/create_kind_section [1.0] *
-!!
-!!   NAME
-!!     create_kind_section
-!!
-!!   FUNCTION
-!!     Creates the QM/MM section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the QM/MM section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_kind_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1376,28 +1138,14 @@ CONTAINS
 
   END SUBROUTINE create_kind_section
 
-!***************************************************************************
-!!****f* input_cp2k_subsys/create_topology_section [1.0] *
-!!
-!!   NAME
-!!     create_topology_section
-!!
-!!   FUNCTION
-!!     Create the topology section for FIST.. and the base is running running...
-!!     Contains all information regarding topology to be read in input file..
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Create the topology section for FIST.. and the base is running running...
+!>      Contains all information regarding topology to be read in input file..
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_topology_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1701,7 +1449,6 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-
        NULLIFY(subsection, subsubsection, subsubsubsection)
        CALL section_create(subsection,name="MOL_SET",&
             description="Specify the connectivity of a full system specifyin the connectivity"//&
@@ -1794,27 +1541,13 @@ CONTAINS
 
   END SUBROUTINE create_topology_section
 
-!***************************************************************************
-!!****f* input_cp2k_subsys/connectivity_framework [1.0] *
-!!
-!!   NAME
-!!     connectivity_framework
-!!
-!!   FUNCTION
-!!     Specify keywords used to define connectivity 
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Specify keywords used to define connectivity 
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE connectivity_framework(section,default,error)
     TYPE(section_type), POINTER              :: section
     INTEGER, INTENT(IN)                      :: default
@@ -1866,6 +1599,7 @@ CONTAINS
   !> \author     Matthias Krack (MK)
   !> \date       01.11.2007
   !> \version    1.0
+! *****************************************************************************
   SUBROUTINE create_dft_plus_u_section(section,error)
 
     TYPE(section_type), POINTER              :: section

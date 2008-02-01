@@ -3,22 +3,7 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/qs_gapw_densities [1.0] *
-!!
-!!   NAME
-!!     qs_gapw_densities
-!!
-!!   FUNCTION
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!
-!!
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
 MODULE qs_gapw_densities
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -51,14 +36,9 @@ MODULE qs_gapw_densities
 
   PUBLIC :: prepare_gapw_den
 
-
-!******************************************************************************
-
-
 CONTAINS
 
-!******************************************************************************
-
+! *****************************************************************************
  SUBROUTINE prepare_gapw_den(qs_env,local_rho_set,do_rho0,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -90,8 +70,6 @@ CONTAINS
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
-
-!******************************************************************************
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -191,14 +169,10 @@ CONTAINS
        qs_charges%total_rho0_hard_lebedev = 0.0_dp
     END IF
 
-
    DEALLOCATE(rho1_h_tot,rho1_s_tot)
 
    CALL timestop(0.0_dp,handle)
 
  END SUBROUTINE  prepare_gapw_den
-!******************************************************************************
 
-!******************************************************************************
  END MODULE  qs_gapw_densities
-!******************************************************************************

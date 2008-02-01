@@ -2,22 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/basis_set_types [1.0] *
-!!
-!!   NAME
-!!     basis_set_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     Matthias Krack (04.07.2000)
-!!
-!!   MODIFICATION HISTORY
-!!     - 02.2004 flexible normalization of basis sets [jgh]
-!!
-!!***
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      - 02.2004 flexible normalization of basis sets [jgh]
+!> \author Matthias Krack (04.07.2000)
+! *****************************************************************************
 MODULE basis_set_types
 
   USE ai_coulomb,                      ONLY: coulomb2
@@ -71,6 +61,7 @@ MODULE basis_set_types
 
   ! Define the Gaussian-type orbital basis set type
 
+! *****************************************************************************
   TYPE gto_basis_set_type
      !MK PRIVATE
      CHARACTER(LEN=default_string_length)       :: name
@@ -90,12 +81,14 @@ MODULE basis_set_types
      REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: gcc
   END TYPE gto_basis_set_type
 
+! *****************************************************************************
   TYPE gto_basis_set_p_type
      TYPE(gto_basis_set_type), POINTER :: gto_basis_set
   END TYPE gto_basis_set_p_type
 
   ! Define the Slater-type orbital basis set type
 
+! *****************************************************************************
   TYPE sto_basis_set_type
      !MK PRIVATE
      CHARACTER(LEN=default_string_length)       :: name
@@ -131,12 +124,9 @@ MODULE basis_set_types
        gto_basis_set_type,&
        sto_basis_set_type
 
-  ! *****************************************************************************
-
 CONTAINS
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE allocate_gto_basis_set(gto_basis_set, error)
 
     ! Allocate a Gaussian-type orbital (GTO) basis set data set.
@@ -188,8 +178,7 @@ CONTAINS
 
   END SUBROUTINE allocate_gto_basis_set
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE deallocate_gto_basis_set(gto_basis_set, error)
 
     ! Deallocate a Gaussian-type orbital (GTO) basis set data set.
@@ -262,8 +251,7 @@ CONTAINS
     END IF
   END SUBROUTINE deallocate_gto_basis_set
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE get_gto_basis_set(gto_basis_set,name,norm_type,kind_radius,ncgf,&
        nset,nsgf,cgf_symbol,sgf_symbol,norm_cgf,set_radius,lmax,lmin,lx,ly,lz,&
        m,ncgf_set,npgf,nsgf_set,nshell,cphi,pgf_radius,sphi,zet,first_cgf,first_sgf,l,&
@@ -408,8 +396,7 @@ CONTAINS
 
   END SUBROUTINE get_gto_basis_set
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE init_aux_basis_set(gto_basis_set,error)
 
     ! Initialise a Gaussian-type orbital (GTO) basis set data set.
@@ -444,8 +431,7 @@ CONTAINS
 
   END SUBROUTINE init_aux_basis_set
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE init_cphi_and_sphi(gto_basis_set,error)
 
     ! Initialise the matrices for the transformation of primitive Cartesian
@@ -503,8 +489,7 @@ CONTAINS
 
   END SUBROUTINE init_cphi_and_sphi
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE init_norm_cgf_aux(gto_basis_set,error)
 
     ! Initialise the normalization factors of the contracted Cartesian Gaussian
@@ -588,8 +573,7 @@ CONTAINS
 
   END SUBROUTINE init_norm_cgf_aux
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE init_norm_cgf_aux_2(gto_basis_set,error)
 
     ! Initialise the normalization factors of the auxiliary Cartesian Gaussian
@@ -615,8 +599,7 @@ CONTAINS
 
   END SUBROUTINE init_norm_cgf_aux_2
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE init_norm_cgf_orb(gto_basis_set,error)
 
     ! Initialise the normalization factors of the contracted Cartesian Gaussian
@@ -669,8 +652,7 @@ CONTAINS
 
   END SUBROUTINE init_norm_cgf_orb
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE init_norm_cgf_orb_den(gto_basis_set,error)
 
     ! Initialise the normalization factors of the contracted Cartesian Gaussian
@@ -705,8 +687,7 @@ CONTAINS
 
   END SUBROUTINE init_norm_cgf_orb_den
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE init_orb_basis_set(gto_basis_set,error)
 
     ! Initialise a Gaussian-type orbital (GTO) basis set data set.
@@ -745,8 +726,7 @@ CONTAINS
 
   END SUBROUTINE init_orb_basis_set
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE normalise_gcc_orb(gto_basis_set,error)
 
     ! Normalise the primitive Cartesian Gaussian functions. The normalization
@@ -777,8 +757,7 @@ CONTAINS
 
   END SUBROUTINE normalise_gcc_orb
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE read_gto_basis_set(element_symbol,basis_set_name,gto_basis_set,&
        para_env,dft_section,basis_section,error)
 
@@ -1139,8 +1118,7 @@ CONTAINS
 
   END SUBROUTINE read_gto_basis_set
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE set_gto_basis_set(gto_basis_set,name,norm_type,kind_radius,ncgf,&
        nset,nsgf,cgf_symbol,sgf_symbol,norm_cgf,set_radius,lmax,&
        lmin,lx,ly,lz,m,ncgf_set,npgf,nsgf_set,nshell,&
@@ -1223,8 +1201,7 @@ CONTAINS
 
   END SUBROUTINE set_gto_basis_set
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE write_aux_basis_set(aux_basis_set,output_unit,error)
 
     ! Write an auxiliary Gaussian-type orbital (GTO) basis set data set to the
@@ -1290,8 +1267,7 @@ CONTAINS
 
   END SUBROUTINE write_aux_basis_set
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE write_gto_basis_set(gto_basis_set,output_unit,error)
 
     ! Write a Gaussian-type orbital (GTO) basis set data set to the output
@@ -1330,8 +1306,7 @@ CONTAINS
 
   END SUBROUTINE write_gto_basis_set
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE write_orb_basis_set(orb_basis_set,output_unit,error)
 
     ! Write a Gaussian-type orbital (GTO) basis set data set to the output
@@ -1389,8 +1364,7 @@ CONTAINS
 
   END SUBROUTINE write_orb_basis_set
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE allocate_sto_basis_set(sto_basis_set, error)
 
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
@@ -1418,8 +1392,7 @@ CONTAINS
 
   END SUBROUTINE allocate_sto_basis_set
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE deallocate_sto_basis_set(sto_basis_set, error)
 
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
@@ -1457,8 +1430,7 @@ CONTAINS
     END IF
   END SUBROUTINE deallocate_sto_basis_set
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE get_sto_basis_set(sto_basis_set,name,nshell,symbol,nq,lq,zet,maxlq,numsto)
 
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
@@ -1502,8 +1474,7 @@ CONTAINS
 
   END SUBROUTINE get_sto_basis_set
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE set_sto_basis_set(sto_basis_set,name,nshell,symbol,nq,lq,zet)
 
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
@@ -1554,8 +1525,7 @@ CONTAINS
 
   END SUBROUTINE set_sto_basis_set
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE create_gto_from_sto_basis(sto_basis_set,gto_basis_set,ngauss,error)
 
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
@@ -1690,7 +1660,5 @@ CONTAINS
     gto_basis_set%norm_type = -1
 
   END SUBROUTINE create_gto_from_sto_basis
-
-  ! ***************************************************************************
 
 END MODULE basis_set_types

@@ -3,20 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/constraint_4x6 [1.0] *
-!!
-!!   NAME
-!!     constraint_4x6
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
 MODULE constraint_4x6
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -56,21 +46,11 @@ MODULE constraint_4x6
 
 CONTAINS
 
-!!****** constraint_4x6/shake_4x6_int [1.0] *
-!!
-!!   NAME
-!!     shake_4x6_int
-!!
-!!   FUNCTION
-!!     Intramolecular shake_4x6
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Intramolecular shake_4x6
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE shake_4x6_int( molecule, particle_set, pos, vel, dt, ishake,&
     max_sigma, error)
     TYPE(molecule_type), POINTER             :: molecule
@@ -100,21 +80,11 @@ CONTAINS
 
   END SUBROUTINE shake_4x6_int
 
-!!****** constraint_4x6/shake_roll_4x6_int [1.0] *
-!!
-!!   NAME
-!!     shake_roll_4x6_int
-!!
-!!   FUNCTION
-!!     Intramolecular shake_4x6_roll
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Intramolecular shake_4x6_roll
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE shake_roll_4x6_int( molecule, particle_set, pos, vel, r_shake,  &
        v_shake, dt, ishake, max_sigma, error)
     TYPE(molecule_type), POINTER             :: molecule
@@ -147,21 +117,11 @@ CONTAINS
 
   END SUBROUTINE shake_roll_4x6_int
 
-!!****** constraint_4x6/rattle_4x6_int [1.0] *
-!!
-!!   NAME
-!!     rattle_4x6_int
-!!
-!!   FUNCTION
-!!     Intramolecular rattle_4x6
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Intramolecular rattle_4x6
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE rattle_4x6_int( molecule, particle_set, vel, dt, error)
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -188,21 +148,11 @@ CONTAINS
 
   END SUBROUTINE rattle_4x6_int
 
-!!****** constraint_4x6/rattle_roll_4x6_int [1.0] *
-!!
-!!   NAME
-!!     rattle_roll_4x6_int
-!!
-!!   FUNCTION
-!!     Intramolecular rattle_4x6_roll
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Intramolecular rattle_4x6_roll
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE rattle_roll_4x6_int( molecule, particle_set, vel, r_rattle, dt, veps, error )
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -233,21 +183,11 @@ CONTAINS
 
   END SUBROUTINE rattle_roll_4x6_int
 
-!!****** constraint_4x6/shake_4x6_ext [1.0] *
-!!
-!!   NAME
-!!     shake_4x6_ext
-!!
-!!   FUNCTION
-!!     Intramolecular shake_4x6
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Intramolecular shake_4x6
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE shake_4x6_ext( gci, particle_set, pos, vel, dt, ishake,&
     max_sigma, error)
 
@@ -277,21 +217,11 @@ CONTAINS
 
   END SUBROUTINE shake_4x6_ext
 
-!!****** constraint_4x6/shake_roll_4x6_ext [1.0] *
-!!
-!!   NAME
-!!     shake_roll_4x6_ext
-!!
-!!   FUNCTION
-!!     Intramolecular shake_4x6_roll
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Intramolecular shake_4x6_roll
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE shake_roll_4x6_ext( gci, particle_set, pos, vel, r_shake,  &
        v_shake, dt, ishake, max_sigma, error)
 
@@ -324,21 +254,11 @@ CONTAINS
 
   END SUBROUTINE shake_roll_4x6_ext
 
-!!****** constraint_4x6/rattle_4x6_ext [1.0] *
-!!
-!!   NAME
-!!     rattle_4x6_ext
-!!
-!!   FUNCTION
-!!     Intramolecular rattle_4x6
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Intramolecular rattle_4x6
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE rattle_4x6_ext( gci, particle_set, vel, dt, error)
 
     TYPE(global_constraint_type), POINTER    :: gci
@@ -365,21 +285,11 @@ CONTAINS
 
   END SUBROUTINE rattle_4x6_ext
 
-!!****** constraint_4x6/rattle_roll_4x6_ext [1.0] *
-!!
-!!   NAME
-!!     rattle_roll_4x6_ext
-!!
-!!   FUNCTION
-!!     Intramolecular rattle_4x6_roll
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Intramolecular rattle_4x6_roll
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE rattle_roll_4x6_ext( gci, particle_set, vel, r_rattle, dt, veps, error )
 
     TYPE(global_constraint_type), POINTER    :: gci
@@ -410,20 +320,10 @@ CONTAINS
 
   END SUBROUTINE rattle_roll_4x6_ext
 
-!!****** constraint_4x6/shake_4x6_low [1.0] *
-!!
-!!   NAME
-!!     shake_4x6_low
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE shake_4x6_low( fixd_list, g4x6_list, lg4x6, ng4x6, first_atom, &
        particle_set, pos, vel, dt, ishake, max_sigma, error)
     TYPE(fixd_constraint_type), &
@@ -674,20 +574,10 @@ CONTAINS
     END DO
   END SUBROUTINE shake_4x6_low
 
-!!****** constraint_4x6/shake_roll_4x6_low [1.0] *
-!!
-!!   NAME
-!!     shake_roll_4x6_low
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE shake_roll_4x6_low(fixd_list, g4x6_list, lg4x6, ng4x6, first_atom, &
        particle_set, pos, vel, r_shake, v_shake, dt, ishake, max_sigma,&
        error)
@@ -971,20 +861,10 @@ CONTAINS
     END DO
   END SUBROUTINE shake_roll_4x6_low
 
-!!****** constraint_4x6/rattle_4x6_low [1.0] *
-!!
-!!   NAME
-!!     rattle_4x6_low
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE rattle_4x6_low( fixd_list, g4x6_list, lg4x6, ng4x6, first_atom, &
        particle_set, vel, dt, error)
 
@@ -1127,20 +1007,10 @@ CONTAINS
     END DO
   END SUBROUTINE rattle_4x6_low
 
-!!****** constraint_4x6/rattle_roll_4x6_low [1.0] *
-!!
-!!   NAME
-!!     rattle_roll_4x6_low
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
   SUBROUTINE rattle_roll_4x6_low( fixd_list, g4x6_list, lg4x6, ng4x6, first_atom, &
        particle_set, vel, r_rattle, dt, veps, error )
 
@@ -1277,7 +1147,6 @@ CONTAINS
        CALL  matvec_3x3 (vec, veps, r34 )
        bvec ( 6, 1 ) = DOTPROD_3D ( r34, v34 + vec )
        bvec=-bvec*2.0_dp*idt
-
 
        ! get lambda
        CALL solve_system ( amat, 6, bvec )

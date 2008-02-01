@@ -2,25 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_ot_eigensolver [1.0] *
-!!
-!!   NAME
-!!     qs_ot_eigensolver
-!!
-!!   FUNCTION
-!!     an eigen-space solver for the generalised symmetric eigenvalue problem
-!!     for sparse matrices, needing only multiplications
-!!
-!!   AUTHOR
-!!     Joost VandeVondele (25.08.2002)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
 
-MODULE qs_ot_eigensolver
 ! *****************************************************************************
+!> \brief an eigen-space solver for the generalised symmetric eigenvalue problem
+!>      for sparse matrices, needing only multiplications
+!> \author Joost VandeVondele (25.08.2002)
+! *****************************************************************************
+MODULE qs_ot_eigensolver
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
@@ -59,7 +47,6 @@ MODULE qs_ot_eigensolver
 
   IMPLICIT NONE
 
-
 ! *** Global parameters ***
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_eigensolver'
@@ -68,11 +55,8 @@ MODULE qs_ot_eigensolver
 
   PUBLIC :: ot_eigensolver
 
-! *****************************************************************************
-
 CONTAINS
 
-! *****************************************************************************
 ! on input c contains the initial guess (should not be zero !)
 ! on output c spans the subspace
 ! *****************************************************************************
@@ -288,4 +272,3 @@ CONTAINS
   END SUBROUTINE ot_eigensolver
 
 END MODULE qs_ot_eigensolver
-!!*****

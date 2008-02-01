@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****s* cp2k/molecule_types_new [1.0] *
-!!
-!!   NAME
-!!     molecule_types_new
-!!
-!!   FUNCTION
-!!     Define the data structure for the molecule information.
-!!
-!!   AUTHOR
-!!     MK (29.08.2003)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (22.05.2004) add last_atom information
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Define the data structure for the molecule information.
+!> \par History
+!>      JGH (22.05.2004) add last_atom information
+!> \author MK (29.08.2003)
+! *****************************************************************************
 MODULE molecule_types_new
 
   USE colvar_types,                    ONLY: colvar_counters,&
@@ -45,6 +35,7 @@ MODULE molecule_types_new
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'molecule_types_new'
 
 ! *** Data types ***
+! *****************************************************************************
   TYPE local_colvar_constraint_type
      LOGICAL                       :: init
      TYPE(colvar_type),POINTER     :: colvar
@@ -52,6 +43,7 @@ MODULE molecule_types_new
      REAL(KIND = dp)               :: lambda, sigma
   END TYPE local_colvar_constraint_type
 
+! *****************************************************************************
   TYPE local_g3x3_constraint_type
     LOGICAL                       :: init
     REAL(KIND = dp)               :: scale,scale_old, imass1, imass2, imass3
@@ -62,6 +54,7 @@ MODULE molecule_types_new
     REAL(KIND = dp), DIMENSION(3,3) :: amat
   END TYPE local_g3x3_constraint_type
 
+! *****************************************************************************
   TYPE local_g4x6_constraint_type
     LOGICAL                       :: init
     REAL(KIND = dp)               :: scale,scale_old, imass1, imass2, imass3, imass4
@@ -74,17 +67,20 @@ MODULE molecule_types_new
     REAL(KIND = dp), DIMENSION(6,6) :: amat
   END TYPE local_g4x6_constraint_type
 
+! *****************************************************************************
   TYPE local_molecule_type
     INTEGER, DIMENSION(:), POINTER :: states  ! indices of Kohn-Sham states for molecule
     INTEGER                        :: nstates ! Kohn-Sham states for molecule
   END TYPE local_molecule_type
 
+! *****************************************************************************
   TYPE local_constraint_type
      TYPE(local_colvar_constraint_type), DIMENSION ( : ) , POINTER :: lcolv
      TYPE(local_g3x3_constraint_type), DIMENSION ( : ) ,   POINTER :: lg3x3
      TYPE(local_g4x6_constraint_type), DIMENSION ( : ) ,   POINTER :: lg4x6
   END TYPE local_constraint_type
 
+! *****************************************************************************
   TYPE global_constraint_type
      TYPE(colvar_counters)                    :: ncolv
      INTEGER                                  :: ntot,  nrestraint
@@ -99,6 +95,7 @@ MODULE molecule_types_new
      TYPE(local_g4x6_constraint_type),   DIMENSION ( : ) , POINTER :: lg4x6
   END TYPE global_constraint_type
 
+! *****************************************************************************
   TYPE molecule_type
     TYPE(molecule_kind_type), POINTER    :: molecule_kind ! pointer to molecule kind information
     TYPE(local_molecule_type), POINTER   :: lmi         ! local molecule information
@@ -127,19 +124,14 @@ MODULE molecule_types_new
             set_molecule,&
             set_molecule_set
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE allocate_molecule_set(molecule_set,nmolecule,error)
 
 !   Purpose: Allocate a molecule set.
 
 !   History: - Creation (29.08.2003,MK)
-
-!   ***************************************************************************
 
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
@@ -173,14 +165,11 @@ CONTAINS
   END SUBROUTINE allocate_molecule_set
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_molecule_set(molecule_set,error)
 
 !   Purpose: Deallocate a molecule set.
 
 !   History: - Creation (29.08.2003,MK)
-
-!   ***************************************************************************
 
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
@@ -248,15 +237,12 @@ CONTAINS
   END SUBROUTINE deallocate_molecule_set
 
 ! *****************************************************************************
-
   SUBROUTINE get_molecule(molecule,molecule_kind,lmi,lg3x3,lg4x6,lcolv,&
        first_atom,last_atom,first_shell,last_shell)
 
 !   Purpose: Get components from a molecule data set.
 
 !   History: - Creation (29.08.2003,MK)
-
-!   ***************************************************************************
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(molecule_kind_type), OPTIONAL, &
@@ -320,14 +306,11 @@ CONTAINS
   END SUBROUTINE get_molecule
 
 ! *****************************************************************************
-
   SUBROUTINE set_molecule(molecule,molecule_kind,lmi,lci,lcolv,lg3x3,lg4x6)
 
 !   Purpose: Set a molecule data set.
 
 !   History: - Creation (29.08.2003,MK)
-
-!   ***************************************************************************
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(molecule_kind_type), OPTIONAL, &
@@ -387,14 +370,11 @@ CONTAINS
   END SUBROUTINE set_molecule
 
 ! *****************************************************************************
-
   SUBROUTINE set_molecule_set(molecule_set,first_atom,last_atom)
 
 !   Purpose: Set a molecule data set.
 
 !   History: - Creation (29.08.2003,MK)
-
-!   ***************************************************************************
 
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
@@ -446,7 +426,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE set_molecule_set
-
-! *****************************************************************************
 
 END MODULE molecule_types_new

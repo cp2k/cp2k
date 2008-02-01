@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/kg_rspw_types [1.0] *
-!!
-!!   NAME
-!!     kg_rspw_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     gloria,30.10.2004, previously in kg_rho_types
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (22-Feb-03) PW grid options added
-!!     gt 16-nov-03 moved initialization in this new module
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      JGH (22-Feb-03) PW grid options added
+!>      gt 16-nov-03 moved initialization in this new module
+!> \author gloria,30.10.2004, previously in kg_rho_types
+! *****************************************************************************
 MODULE kg_rspw_types
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              cp_rs_pool_type,&
@@ -46,6 +36,7 @@ MODULE kg_rspw_types
   PUBLIC :: kg_rspw_type, kg_rspw_release, kg_rspw_get, &
             kg_rspw_retain
 
+! *****************************************************************************
   TYPE kg_rspw_type
      INTEGER :: auxbas_grid
      INTEGER :: ref_count
@@ -60,8 +51,7 @@ MODULE kg_rspw_types
 CONTAINS
 
 !-----------------------------------------------------------------------------!
-!!***
-!******************************************************************************
+! *****************************************************************************
 SUBROUTINE kg_rspw_get(kg_rspw, cube_info, gridlevel_info,&
      auxbas_pw_pool,auxbas_grid,rs_pools,pw_pools,auxbas_rs_pool,&
      poisson_env,error)
@@ -105,7 +95,7 @@ SUBROUTINE kg_rspw_get(kg_rspw, cube_info, gridlevel_info,&
      IF (PRESENT(poisson_env)) poisson_env => kg_rspw%poisson_env
   END IF
 END SUBROUTINE kg_rspw_get
-!***************************************************************************
+! *****************************************************************************
 SUBROUTINE kg_rspw_retain(kg_rspw,error)
     TYPE(kg_rspw_type), POINTER              :: kg_rspw
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -123,21 +113,11 @@ SUBROUTINE kg_rspw_retain(kg_rspw,error)
      kg_rspw%ref_count=kg_rspw%ref_count+1
   END IF
 END SUBROUTINE kg_rspw_retain
-!***************************************************************************
 
-!!****f* kg_force/release_kg_rspw [1.0] *
-!!
-!!   NAME
-!!     release_kg_rspw
-!!
-!!   FUNCTION
-!!     releases the memory used by the kg_rspw and kg_rspw
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the memory used by the kg_rspw and kg_rspw
+! *****************************************************************************
   SUBROUTINE kg_rspw_release(kg_rspw,error)
-
 
     TYPE(kg_rspw_type), POINTER              :: kg_rspw
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -179,8 +159,5 @@ END SUBROUTINE kg_rspw_retain
   CALL timestop(0.0_dp,handle)
   END SUBROUTINE kg_rspw_release
 
-!***************************************************************************
-
 END MODULE kg_rspw_types
 
-!******************************************************************************

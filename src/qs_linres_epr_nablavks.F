@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/qs_linres_epr_nablavks *
-!!
-!!   NAME
-!!     qs_linres_epr_nablavks
-!!
-!!   FUNCTION
-!!     Calculates Nabla V_KS (local part if PSP) on the different grids
-!!
-!!   NOTE
-!!
-!!   AUTHOR
-!!      RD
-!!
-!!   MODIFICATION HISTORY
-!!      created 06-2007 [RD]
-!!
-!!   SOURCE
-!!****
-
+! *****************************************************************************
+!> \brief Calculates Nabla V_KS (local part if PSP) on the different grids
+!> \par History
+!>       created 06-2007 [RD]
+!> \author RD
+! *****************************************************************************
 MODULE qs_linres_epr_nablavks
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -96,24 +82,11 @@ MODULE qs_linres_epr_nablavks
 CONTAINS
 
 ! *****************************************************************************
-!!****** cp2k/qs_linres_epr_nablavks/epr_nablavks
-!!
-!!   NAME
-!!     epr_nablavks
-!!
-!!   FUNCTION
-!!     Evaluates Nabla V_KS on the grids
-!!
-!!   NOTES
-!!
-!!   AUTHOR
-!!     RD
-!!
-!!   MODIFICATION HISTORY
-!!     06.2006 created [RD]
-!!
-!****************************************************************************
-
+!> \brief Evaluates Nabla V_KS on the grids
+!> \par History
+!>      06.2006 created [RD]
+!> \author RD
+! *****************************************************************************
   SUBROUTINE epr_nablavks(epr_env,qs_env,error)
 
     TYPE(epr_env_type)                       :: epr_env

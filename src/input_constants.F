@@ -2,25 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/input_constants [1.0] *
-!!
-!!   NAME
-!!     input_constants
-!!
-!!   FUNCTION
-!!     collects all constants needed in input so that they can be used without
-!!     circular dependencies
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     02.2005 created [fawzi&Joost]
-!!
-!!   SOURCE
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief collects all constants needed in input so that they can be used without
+!>      circular dependencies
+!> \par History
+!>      02.2005 created [fawzi&Joost]
+! *****************************************************************************
 MODULE input_constants
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -92,7 +80,6 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC, DIMENSION(10) :: method_name_index=&
        (/do_qs, do_fist, do_kg, do_qmmm, do_eip, &
          do_qs, do_kg, do_kg, do_ep, do_mixed/)
-
 
   REAL(KIND=dp), PARAMETER, PUBLIC :: RADIUS_QMMM_DEFAULT = 0.80_dp,&
                                       ALPHA_IMOMM_DEFAULT = 1.38_dp,&
@@ -597,7 +584,6 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: model_block_count=453, &
                                 model_block_surface=454, &
                                 model_block_lmax=455
-
 
   ! HFX potential type
   INTEGER, PARAMETER, PUBLIC :: do_hf_potential_coulomb=1,&

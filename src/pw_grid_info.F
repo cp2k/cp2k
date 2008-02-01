@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/pw_grid_info [1.1] *
-!!
-!!   NAME
-!!     pw_grid_info
-!!
-!!   FUNCTION
-!!     This module returns additional info on PW grids
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (09-06-2007) : Created from pw_grids
-!!
-!!***
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief This module returns additional info on PW grids
+!> \par History
+!>      JGH (09-06-2007) : Created from pw_grids
+!> \author JGH
+! *****************************************************************************
 MODULE pw_grid_info
   USE fft_tools,                       ONLY: FFT_RADIX_NEXT,&
                                              FFT_RADIX_NEXT_ODD,&
@@ -35,25 +25,9 @@ MODULE pw_grid_info
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_grid_info'
 
-  !******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-
-!!****** pw_grid_info/pw_grid_init_setup [1.1] *
-!!
-!!   NAME
-!!     pw_grid_init_setup
-!!
-!!   FUNCTION
-!!     
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *************************************************************************
+! *****************************************************************************
   FUNCTION pw_grid_init_setup ( hmat, cutoff, spherical, odd, fft_usage, ncommensurate,&
        icommensurate, ref_grid, n_orig, error) RESULT(n)
 
@@ -93,26 +67,12 @@ CONTAINS
 
   END FUNCTION pw_grid_init_setup
 
-!******************************************************************************
-!!****f* pw_grids/pw_grid_find_n *
-!!
-!!   NAME
-!!     pw_grid_find_n
-!!
-!!   FUNCTION
-!!     returns the n needed for the grid with all the given constraints
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief returns the n needed for the grid with all the given constraints
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   FUNCTION pw_grid_find_n ( hmat, cutoff, fft_usage, spherical, odd, ncommensurate,&
        n_orig, error) RESULT(n)
 
@@ -194,30 +154,18 @@ CONTAINS
     ENDIF
 
   END FUNCTION pw_grid_find_n
-  !****************************************************************************
 
-!!****f* pw_grids/pw_grid_n_for_fft *
-!!
-!!   NAME
-!!     pw_grid_n_for_fft
-!!
-!!   FUNCTION
-!!     returns the closest number of points >= n, on which you can perform
-!!     ffts
-!!
-!!   NOTES
-!!     result<=n
-!!
-!!   ARGUMENTS
-!!     - n: the minimum number of points you want
-!!     - odd: if the number has to be odd
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the closest number of points >= n, on which you can perform
+!>      ffts
+!> \param n the minimum number of points you want
+!> \param odd if the number has to be odd
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      result<=n
+!> \author fawzi
+! *****************************************************************************
   FUNCTION pw_grid_n_for_fft(n,odd,error) RESULT(nout)
     INTEGER, DIMENSION(3), INTENT(in)        :: n
     LOGICAL, INTENT(in), OPTIONAL            :: odd
@@ -246,30 +194,20 @@ CONTAINS
     END IF
 
   END FUNCTION pw_grid_n_for_fft
-  !***************************************************************************
 
-!!****** pw_grids/pw_grid_n_from_cutoff [1.1] *
-!!
-!!   NAME
-!!     pw_grid_n_from_cutoff
-!!
-!!   FUNCTION
-!!     Find the number of points that give at least the requested cutoff
-!!
-!!   AUTHOR
-!!     apsi
-!!     Christopher Mundy
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (21-12-2000) : Simplify parameter list, bounds will be global
-!!     JGH ( 8-01-2001) : Add check to FFT allowd grids (this now depends
-!!                        on the FFT library.
-!!                        Should the pw_grid_type have a reference to the FFT
-!!                        library ?
-!!     JGH (28-02-2001) : Only do conditional check for FFT
-!!     JGH (21-05-2002) : Optimise code, remove orthorhombic special case
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Find the number of points that give at least the requested cutoff
+!> \par History
+!>      JGH (21-12-2000) : Simplify parameter list, bounds will be global
+!>      JGH ( 8-01-2001) : Add check to FFT allowd grids (this now depends
+!>                         on the FFT library.
+!>                         Should the pw_grid_type have a reference to the FFT
+!>                         library ?
+!>      JGH (28-02-2001) : Only do conditional check for FFT
+!>      JGH (21-05-2002) : Optimise code, remove orthorhombic special case
+!> \author apsi
+!>      Christopher Mundy
+! *****************************************************************************
   FUNCTION pw_grid_n_from_cutoff ( hmat, cutoff, error ) RESULT(n)
 
     REAL(KIND=dp), DIMENSION(3, 3), &
@@ -300,28 +238,14 @@ CONTAINS
     END IF
 
   END FUNCTION pw_grid_n_from_cutoff
-  !****************************************************************************
 
-!!****f* pw_grids/pw_grid_bounds_from_n *
-!!
-!!   NAME
-!!     pw_grid_bounds_from_n
-!!
-!!   FUNCTION
-!!     returns the bounds that distribute n points evenly around 0
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - npts: the number of points in each direction
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the bounds that distribute n points evenly around 0
+!> \param npts the number of points in each direction
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   FUNCTION pw_grid_bounds_from_n(npts,error) RESULT(bounds)
     INTEGER, DIMENSION(3), INTENT(in)        :: npts
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -335,29 +259,18 @@ CONTAINS
 
   END FUNCTION pw_grid_bounds_from_n
 
-!****************************************************************************
-!!****** pw_grids/pw_find_cutoff [1.1] *
-!!
-!!   NAME
-!!     pw_find_cutoff
-!!
-!!   FUNCTION
-!!     Given a grid and a box, calculate the corresponding cutoff
-!!     *** This routine calculates the cutoff in MOMENTUM UNITS! ***
-!!
-!!   AUTHOR
-!!     apsi
-!!     Christopher Mundy
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (20-12-2000) : Deleted some strange comments
-!!
-!!   NOTES
-!!     This routine is local. It works independent from the distribution
-!!     of PW on processors.
-!!     npts is the grid size for the full box.
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Given a grid and a box, calculate the corresponding cutoff
+!>      *** This routine calculates the cutoff in MOMENTUM UNITS! ***
+!> \note
+!>      This routine is local. It works independent from the distribution
+!>      of PW on processors.
+!>      npts is the grid size for the full box.
+!> \par History
+!>      JGH (20-12-2000) : Deleted some strange comments
+!> \author apsi
+!>      Christopher Mundy
+! *****************************************************************************
   FUNCTION pw_find_cutoff ( npts, h_inv, error ) RESULT(cutoff)
 
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
@@ -392,8 +305,5 @@ CONTAINS
 
   END FUNCTION pw_find_cutoff
 
-  !******************************************************************************
-
 END MODULE pw_grid_info
 
-!******************************************************************************

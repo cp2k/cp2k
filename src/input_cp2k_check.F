@@ -3,25 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_cp2k_check *
-!!
-!!   NAME
-!!     input_cp2k_check
-!!
-!!   FUNCTION
-!!     checks the input and perform some automatic "magic" on it
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     01.2006 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief checks the input and perform some automatic "magic" on it
+!> \par History
+!>      01.2006 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 MODULE input_cp2k_check
   USE cp2k_info,                       ONLY: id_cp2k_version
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -64,30 +51,17 @@ MODULE input_cp2k_check
 
   PUBLIC :: check_cp2k_input, xc_functionals_expand, remove_restart_info
 
-!!***
-!****************************************************************************
 CONTAINS
 
-!!****f* input_cp2k_check/check_cp2k_input *
-!!
-!!   NAME
-!!     check_cp2k_input
-!!
-!!   FUNCTION
-!!     performs further checks on an input that parsed successfully
-!!
-!!   NOTES
-!!     at the moment does nothing
-!!
-!!   ARGUMENTS
-!!     - input_file: the parsed input
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief performs further checks on an input that parsed successfully
+!> \param input_file the parsed input
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      at the moment does nothing
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE check_cp2k_input(input_file,para_env,error)
     TYPE(section_vals_type), POINTER         :: input_file
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -161,28 +135,14 @@ CONTAINS
     END IF
     CALL timestop(handle)
   END SUBROUTINE check_cp2k_input
-!***************************************************************************
 
-!!****f* input_cp2k_check/xc_functionals_expand *
-!!
-!!   NAME
-!!     xc_functionals_expand
-!!
-!!   FUNCTION
-!!     expand a shortcutted functional section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - functionals: the functional section to expand
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief expand a shortcutted functional section
+!> \param functionals the functional section to expand
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE xc_functionals_expand(functionals,xc_section,error)
     TYPE(section_vals_type), POINTER         :: functionals, xc_section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -292,29 +252,15 @@ CONTAINS
        END SELECT
     END IF
   END SUBROUTINE xc_functionals_expand
-!***************************************************************************
 
-!!****f* input_cp2k_check/handle_ext_restart *
-!!
-!!   NAME
-!!     handle_ext_restart
-!!
-!!   FUNCTION
-!!     Replaces the requested sections in the input with those found
-!!     in the external restart (EXT_RESTART%RESTART_FILE_NAME).
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - input_file: the input file to initialize
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Replaces the requested sections in the input with those found
+!>      in the external restart (EXT_RESTART%RESTART_FILE_NAME).
+!> \param input_file the input file to initialize
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE handle_ext_restart(input_file,para_env,error)
     TYPE(section_vals_type), POINTER         :: input_file
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -607,26 +553,13 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE handle_ext_restart
 
-!!****f* input_cp2k_check/restart_thermostat *
-!!
-!!   NAME
-!!     restart_thermostat
-!!
-!!   FUNCTION
-!!     Possibly restart thermostats information
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - input_file: the input file to initialize
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] 10.2007- University of Zurich
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Possibly restart thermostats information
+!> \param input_file the input file to initialize
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
+! *****************************************************************************
   SUBROUTINE restart_thermostat(flag, input_file, restart_file, path, check, error)
     LOGICAL, INTENT(IN)                      :: flag
     TYPE(section_vals_type), POINTER         :: input_file, restart_file
@@ -705,26 +638,13 @@ CPSourceFileRef,&
     END IF
   END SUBROUTINE restart_thermostat
 
-!!****f* input_cp2k_check/check_restart *
-!!
-!!   NAME
-!!     check_restart
-!!
-!!   FUNCTION
-!!     Checks if there are the proper conditions to do a restart
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - input_file: the input file to initialize
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Checks if there are the proper conditions to do a restart
+!> \param input_file the input file to initialize
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   FUNCTION check_restart(input_file, restart_file, tag_section, error) RESULT(do_restart)
     TYPE(section_vals_type), POINTER         :: input_file, restart_file
     CHARACTER(LEN=*), INTENT(IN)             :: tag_section
@@ -752,27 +672,14 @@ CPSourceFileRef,&
     CALL timestop(handle)
   END FUNCTION check_restart
 
-!!****f* input_cp2k_check/remove_restart_info *
-!!
-!!   NAME
-!!     remove_restart_info
-!!
-!!   FUNCTION
-!!     Removes section used to restart a calculation from an
-!!     input file in memory
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - input_file: the input file to initialize
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Removes section used to restart a calculation from an
+!>      input file in memory
+!> \param input_file the input file to initialize
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE remove_restart_info(input_file,error)
     TYPE(section_vals_type), POINTER         :: input_file
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -908,26 +815,13 @@ CPSourceFileRef,&
     CALL timestop(handle)
   END SUBROUTINE remove_restart_info
 
-!!****f* input_cp2k_check/handle_defaults_restart *
-!!
-!!   NAME
-!!     handle_defaults_restart
-!!
-!!   FUNCTION
-!!     This subroutine controls the defaults for the restartable quantities..
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - input_file: the input file to initialize
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo - University of Zurich - 09.2007 [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief This subroutine controls the defaults for the restartable quantities..
+!> \param input_file the input file to initialize
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo - University of Zurich - 09.2007 [tlaino]
+! *****************************************************************************
   SUBROUTINE handle_defaults_restart(r_section,error)
     TYPE(section_vals_type), POINTER         :: r_section
     TYPE(cp_error_type), INTENT(inout)       :: error

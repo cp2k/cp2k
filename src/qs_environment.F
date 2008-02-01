@@ -3,27 +3,17 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/qs_environment [1.0] *
-!!
-!!   NAME
-!!     qs_environment
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     MK (18.05.2000)
-!!
-!!   MODIFICATION HISTORY
-!!     - Merged with the Quickstep MODULE method_specification (17.01.2002,MK)
-!!     - USE statements cleaned, added
-!!       (25.09.2002,MK)
-!!     - Added more LSD structure (01.2003,Joost VandeVondele)
-!!     - New molecule data types introduced (Sep. 2003,MK)
-!!     - Cleaning; getting rid of pnode (02.10.2003,MK)
-!!     - Sub-system setup added (08.10.2003,MK)
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      - Merged with the Quickstep MODULE method_specification (17.01.2002,MK)
+!>      - USE statements cleaned, added
+!>        (25.09.2002,MK)
+!>      - Added more LSD structure (01.2003,Joost VandeVondele)
+!>      - New molecule data types introduced (Sep. 2003,MK)
+!>      - Cleaning; getting rid of pnode (02.10.2003,MK)
+!>      - Sub-system setup added (08.10.2003,MK)
+!> \author MK (18.05.2000)
+! *****************************************************************************
 MODULE qs_environment
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
@@ -175,31 +165,15 @@ MODULE qs_environment
 
   PUBLIC :: qs_init, qs_init_subsys
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 !****f* qs_environment/qs_init [1.0] *
-!!
-!!   NAME
-!!    qs_init 
-!!
-!!   FUNCTION
-!!     Read the input and the database files for the setup of the
-!!     QUICKSTEP environment.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Creation (22.05.2000,MK)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief Read the input and the database files for the setup of the
+!>      QUICKSTEP environment.
+!> \author Creation (22.05.2000,MK)
+! *****************************************************************************
   SUBROUTINE qs_init(qs_env,root_section,globenv,subsys,cell,cell_ref,qmmm,&
        qmmm_periodic,force_env_section,subsys_section,use_motion_section,error)
 
@@ -346,24 +320,11 @@ CONTAINS
   END SUBROUTINE qs_init
 
 !****f* qs_environment/qs_init_subsys [1.0] *
-!!
-!!   NAME
-!!     qs_init_subsys
-!!
-!!   FUNCTION
-!!     Initialize the qs environment (subsys)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Creation (22.05.2000,MK)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief Initialize the qs environment (subsys)
+!> \author Creation (22.05.2000,MK)
+! *****************************************************************************
   SUBROUTINE qs_init_subsys(qs_env,subsys,cell,cell_ref,use_ref_cell,&
        root_section,subsys_section,globenv,qmmm,harris,error)
 
@@ -924,25 +885,12 @@ CPSourceFileRef,&
   END SUBROUTINE qs_init_subsys
 
 !****f* qs_environment/write_total_numbers [1.0] *
-!!
-!!   NAME
-!!     write_total_numbers
-!!
-!!   FUNCTION
-!!     Write the total number of kinds, atoms, etc. to the logical unit
-!!     number lunit.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Creation (06.10.2000)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief Write the total number of kinds, atoms, etc. to the logical unit
+!>      number lunit.
+!> \author Creation (06.10.2000)
+! *****************************************************************************
   SUBROUTINE write_total_numbers(atomic_kind_set,particle_set,force_env_section,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1023,7 +971,5 @@ CPSourceFileRef,&
          "PRINT%TOTAL_NUMBERS",error=error)
 
   END SUBROUTINE write_total_numbers
-
-! *****************************************************************************
 
 END MODULE qs_environment

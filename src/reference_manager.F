@@ -2,35 +2,23 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2007 - 2008  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/reference_manager *
-!!
-!!   NAME
-!!     reference_manager
-!!
-!!   FUNCTION
-!!     provides a uniform framework to add references to CP2K
-!!     cite and output these
-!!
-!!   NOTES
-!!     references need to be input using the ISI citation format, because it is
-!!     uniform, easy to parse, and can be exported for example from web of science
-!!     furthermore, it can be easily converted to and from using the bibutils tools
-!!     a collection of easy to use conversion programs that can be found at
-!!     http://www.scripps.edu/~cdputnam/software/bibutils/
-!!     by Chris Putnam
-!!
-!!     see thebibliography.F on how to add references easily
-!!     
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     08.2007 [Joost VandeVondele]
-!!
-!!   SOURCE
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief provides a uniform framework to add references to CP2K
+!>      cite and output these
+!> \note
+!>      references need to be input using the ISI citation format, because it is
+!>      uniform, easy to parse, and can be exported for example from web of science
+!>      furthermore, it can be easily converted to and from using the bibutils tools
+!>      a collection of easy to use conversion programs that can be found at
+!>      http://www.scripps.edu/~cdputnam/software/bibutils/
+!>      by Chris Putnam
+!> 
+!>      see thebibliography.F on how to add references easily
+!> \par History
+!>      08.2007 [Joost VandeVondele]
+!> \author Joost VandeVondele
+! *****************************************************************************
 MODULE reference_manager
   USE kinds,                           ONLY: default_string_length
   USE util,                            ONLY: sort
@@ -53,6 +41,7 @@ MODULE reference_manager
   INTEGER, PARAMETER :: ISI_length=128
 
   ! the way we store a reference, should remain fully private
+! *****************************************************************************
   TYPE reference_type
        PRIVATE
        ! the reference in a format as returned by the web of science
@@ -66,6 +55,7 @@ MODULE reference_manager
   END TYPE reference_type
 
   ! useful to build arrays
+! *****************************************************************************
   TYPE reference_p_type
      TYPE(reference_type), POINTER :: ref
   END TYPE
@@ -79,23 +69,13 @@ MODULE reference_manager
             get_citation_key         ! a string key describing the reference (e.g. Kohn1965b) 
 
 CONTAINS
-!!****f* reference_manager/cite_reference *
-!!
-!!   NAME
-!!     cite_reference
-!!
-!!   FUNCTION
-!!     marks a given reference as cited. 
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!    - citation key as returned from add_reference
-!!
-!!   MODIFICATION HISTORY
-!!     XX.2007 created [ ]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief marks a given reference as cited. 
+!> \param citation key as returned from add_reference
+!> \par History
+!>      XX.2007 created [ ]
+! *****************************************************************************
   SUBROUTINE cite_reference(key) 
     INTEGER, INTENT(IN)                      :: key
 
@@ -106,28 +86,18 @@ CONTAINS
 
   END SUBROUTINE
 
-!!****f* reference_manager/add_reference *
-!!
-!!   NAME
-!!     add_reference
-!!
-!!   FUNCTION
-!!     add a reference to the bibliography
-!!
-!!   NOTES
-!!     - see bibliography.F for it use.
-!!     - the ISI record is space sensitive, in particular the first three characters need to be blank
-!!       or contain a key indicating the record type. See the header of this file for tools
-!!       that can convert e.g. bibtex or endnote files to the ISI format
-!!     - DOI: provide the DOI without a link. The link will be automatically created as needed.
-!!
-!!   INPUTS
-!!    - key : output, this handle is needed to cite this reference later
-!!
-!!   MODIFICATION HISTORY
-!!     08.2007 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief add a reference to the bibliography
+!> \param key output, this handle is needed to cite this reference later
+!> \note
+!>      - see bibliography.F for it use.
+!>      - the ISI record is space sensitive, in particular the first three characters need to be blank
+!>        or contain a key indicating the record type. See the header of this file for tools
+!>        that can convert e.g. bibtex or endnote files to the ISI format
+!>      - DOI: provide the DOI without a link. The link will be automatically created as needed.
+!> \par History
+!>      08.2007 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE add_reference(key,ISI_record,DOI)
     INTEGER, INTENT(OUT)                     :: key
     CHARACTER(LEN=*), DIMENSION(:)           :: ISI_record
@@ -188,22 +158,11 @@ CONTAINS
 
   END SUBROUTINE add_reference
 
-!!****f* reference_manager/remove_all_references *
-!!
-!!   NAME
-!!     remove_all_references
-!!
-!!   FUNCTION
-!!     deallocate the bibliography
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     08.2007 Joost VandeVondele [ ]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocate the bibliography
+!> \par History
+!>      08.2007 Joost VandeVondele [ ]
+! *****************************************************************************
   SUBROUTINE remove_all_references()
     INTEGER                                  :: i
 
@@ -215,28 +174,19 @@ CONTAINS
     ENDDO
   END SUBROUTINE remove_all_references
 !****f* reference_manager/print_all_references *
-!!
-!!   NAME
-!!     print_all_references
-!!
-!!   FUNCTION
-!!     printout of all references in a specific format
-!!     optionally printing only those that are actually cited
-!!     during program execution
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!     cited_only: print only those marked as cited
-!!     sorted: sort entries most recent first according to the date, 
-!!             otherways sort with respect to key
-!!     format: see module parameters print_format_XXXXXXXXX
-!!     list: optionally, output a sub-list only
-!!
-!!   MODIFICATION HISTORY
-!!     08.2007 Joost VandeVondele [ ]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief printout of all references in a specific format
+!>      optionally printing only those that are actually cited
+!>      during program execution
+!> \param cited_only print only those marked as cited
+!> \param sorted sort entries most recent first according to the date, 
+!>              otherways sort with respect to key
+!> \param format see module parameters print_format_XXXXXXXXX
+!> \param list optionally, output a sub-list only
+!> \par History
+!>      08.2007 Joost VandeVondele [ ]
+! *****************************************************************************
   SUBROUTINE print_all_references(cited_only,sorted,FORMAT,unit,list)
     LOGICAL, INTENT(IN)                      :: cited_only, sorted
     INTEGER, INTENT(IN)                      :: FORMAT, unit
@@ -317,23 +267,14 @@ CONTAINS
 
   END SUBROUTINE print_all_references
 !****f* reference_manager/print_reference *
-!!
-!!   NAME
-!!     print_reference
-!!
-!!   FUNCTION
-!!     printout of a specified reference to a given unit in a selectable format
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!     key: as returned from add_reference
-!!     format: see module parameters print_format_XXXXXXXXX
-!!
-!!   MODIFICATION HISTORY
-!!     08.2007 Joost VandeVondele [ ]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief printout of a specified reference to a given unit in a selectable format
+!> \param key as returned from add_reference
+!> \param format see module parameters print_format_XXXXXXXXX
+!> \par History
+!>      08.2007 Joost VandeVondele [ ]
+! *****************************************************************************
   SUBROUTINE print_reference(key,FORMAT,unit)
     INTEGER, INTENT(IN)                      :: key, FORMAT, unit
 
@@ -354,23 +295,13 @@ CONTAINS
       STOP "print_reference: wrong format"
     END SELECT
   END SUBROUTINE print_reference
-!!****f* reference_manager/print_reference_journal *
-!!
-!!   NAME
-!!     print_reference_journal
-!!
-!!   FUNCTION
-!!     prints a reference in a journal style citation format,
-!!     adding also a DOI link, which is convenient
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     08.2007 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief prints a reference in a journal style citation format,
+!>      adding also a DOI link, which is convenient
+!> \par History
+!>      08.2007 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE print_reference_journal(key,unit)
     INTEGER, INTENT(IN)                      :: key, unit
 
@@ -437,24 +368,14 @@ CONTAINS
     ENDIF
     
   END SUBROUTINE print_reference_journal
-!!****f* reference_manager/print_reference_html *
-!!
-!!   NAME
-!!     print_reference_html
-!!
-!!   FUNCTION
-!!     prints a reference in a journal style citation format,
-!!     adding 'beautifying' html tags, and a link to the journal
-!!     using the DOI
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     08.2007 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief prints a reference in a journal style citation format,
+!>      adding 'beautifying' html tags, and a link to the journal
+!>      using the DOI
+!> \par History
+!>      08.2007 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE print_reference_html(key,unit)
     INTEGER, INTENT(IN)                      :: key, unit
 
@@ -505,29 +426,16 @@ CONTAINS
     ENDDO
     IF (ititle>0) WRITE(unit,'(A)') "."
 
-    
   END SUBROUTINE print_reference_html
 
-!!****f* reference_manager/XXXX *
-!!
-!!   NAME
-!!      get_next_author, get_next_title, get_source, get_year, get_pages,
-!!      get_volume, get_issue
-!!
-!!   FUNCTION
-!!      returns the corresponding fields from an ISI record.
-!!      returns an empty string if the field can not be found
-!!      iline_start should be initialized to 1 to obtain the first matching entry
-!!      on return it is updated, so that succesive calls give succesive fields
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     08.2007 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the corresponding fields from an ISI record.
+!>       returns an empty string if the field can not be found
+!>       iline_start should be initialized to 1 to obtain the first matching entry
+!>       on return it is updated, so that succesive calls give succesive fields
+!> \par History
+!>      08.2007 created [Joost VandeVondele]
+! *****************************************************************************
   FUNCTION get_next_author(ISI_record,iline_start) RESULT(res)
     CHARACTER(LEN=ISI_length), &
       DIMENSION(:), POINTER                  :: ISI_record
@@ -557,6 +465,7 @@ CONTAINS
 
   END FUNCTION get_next_author
 
+! *****************************************************************************
   FUNCTION get_next_title(ISI_record,iline_start) RESULT(res)
     CHARACTER(LEN=ISI_length), &
       DIMENSION(:), POINTER                  :: ISI_record
@@ -585,6 +494,7 @@ CONTAINS
 
   END FUNCTION get_next_title
 
+! *****************************************************************************
   FUNCTION get_source(ISI_record) RESULT(res)
     CHARACTER(LEN=ISI_length), &
       DIMENSION(:), POINTER                  :: ISI_record
@@ -599,6 +509,7 @@ CONTAINS
     ENDDO
   END FUNCTION get_source
 
+! *****************************************************************************
   FUNCTION get_year(ISI_record) RESULT(res)
     CHARACTER(LEN=ISI_length), &
       DIMENSION(:), POINTER                  :: ISI_record
@@ -613,6 +524,7 @@ CONTAINS
     ENDDO
   END FUNCTION get_year
 
+! *****************************************************************************
   FUNCTION get_month(ISI_record) RESULT(res)
     CHARACTER(LEN=ISI_length), &
       DIMENSION(:), POINTER                  :: ISI_record
@@ -627,6 +539,7 @@ CONTAINS
     ENDDO
   END FUNCTION get_month
 
+! *****************************************************************************
   FUNCTION get_day(ISI_record) RESULT(res)
     CHARACTER(LEN=ISI_length), &
       DIMENSION(:), POINTER                  :: ISI_record
@@ -647,6 +560,7 @@ CONTAINS
     res=""
   END FUNCTION get_day
 
+! *****************************************************************************
   FUNCTION get_volume(ISI_record) RESULT(res)
     CHARACTER(LEN=ISI_length), &
       DIMENSION(:), POINTER                  :: ISI_record
@@ -661,6 +575,7 @@ CONTAINS
     ENDDO
   END FUNCTION get_volume
 
+! *****************************************************************************
   FUNCTION get_issue(ISI_record) RESULT(res)
     CHARACTER(LEN=ISI_length), &
       DIMENSION(:), POINTER                  :: ISI_record
@@ -675,6 +590,7 @@ CONTAINS
     ENDDO
   END FUNCTION get_issue
 
+! *****************************************************************************
   FUNCTION get_pages(ISI_record) RESULT(res)
     CHARACTER(LEN=ISI_length), &
       DIMENSION(:), POINTER                  :: ISI_record
@@ -701,6 +617,7 @@ CONTAINS
     IF (res.EQ."".AND.ar.NE."") res=ar
   END FUNCTION get_pages
 
+! *****************************************************************************
   FUNCTION get_citation_key(key) RESULT(res)
     INTEGER                                  :: key
     CHARACTER(LEN=default_string_length)     :: res
@@ -712,6 +629,7 @@ CONTAINS
 ! This returns something epoch like, but can only be used to order the records
 ! missing years, months, days are implied zero(1900)
 !
+! *****************************************************************************
   FUNCTION get_epoch(ISI_record) RESULT(res)
     CHARACTER(LEN=ISI_length), &
       DIMENSION(:), POINTER                  :: ISI_record

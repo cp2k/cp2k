@@ -2,26 +2,16 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/xc_ke_gga [1.0] *
-!!
-!!   NAME
-!!     xc_ke_gga
-!!
-!!   FUNCTION
-!!     Calculate the several different kinetic energy functionals
-!!     with a GGA form 
-!!
-!!   AUTHOR
-!!     JGH (20.02.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (26.02.2003) : OpenMP enabled
-!!     fawzi (04.2004)  : adapted to the new xc interface
-!!
-!******************************************************************************
 
-MODULE xc_ke_gga
 ! *****************************************************************************
+!> \brief Calculate the several different kinetic energy functionals
+!>      with a GGA form 
+!> \par History
+!>      JGH (26.02.2003) : OpenMP enabled
+!>      fawzi (04.2004)  : adapted to the new xc interface
+!> \author JGH (20.02.2002)
+! *****************************************************************************
+MODULE xc_ke_gga
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE f77_blas
   USE input_constants,                 ONLY: &
@@ -60,13 +50,10 @@ MODULE xc_ke_gga
   REAL(KIND=dp) :: fact, tact
   REAL(KIND=dp) :: eps_rho
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_ke_gga'
-!!***
-! *****************************************************************************
 
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE ke_gga_init ( cutoff )
 
     REAL(KIND=dp), INTENT(IN)                :: cutoff
@@ -86,7 +73,6 @@ CONTAINS
   END SUBROUTINE ke_gga_init
 
 ! *****************************************************************************
-
   SUBROUTINE ke_gga_info ( functional,lsd,reference, shortform, needs, max_deriv, error )
     INTEGER, INTENT(in)                      :: functional
     LOGICAL, INTENT(in)                      :: lsd
@@ -171,7 +157,6 @@ CONTAINS
   END SUBROUTINE ke_gga_info
 
 ! *****************************************************************************
-
   SUBROUTINE ke_gga_lda_eval ( functional, rho_set, deriv_set, order, error )
 
     !   ---------------------------------------------------------------------------
@@ -256,7 +241,6 @@ CONTAINS
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
 
-
        IF ( order>=0 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"",&
                allocate_deriv=.TRUE., error=error)
@@ -327,7 +311,6 @@ CONTAINS
   END SUBROUTINE ke_gga_lda_eval
 
 ! *****************************************************************************
-
   SUBROUTINE ke_gga_lsd_eval ( functional, rho_set, deriv_set, order, &
        error )
 
@@ -494,7 +477,6 @@ CONTAINS
 
        END DO
 
-
        DEALLOCATE ( s, STAT=stat )
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        DEALLOCATE ( fs, STAT=stat )
@@ -504,7 +486,6 @@ CONTAINS
   END SUBROUTINE ke_gga_lsd_eval
 
 ! *****************************************************************************
-
   SUBROUTINE kex_p_0 ( rho, r13, fs, e_0, npoints, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13
@@ -530,7 +511,6 @@ CONTAINS
   END SUBROUTINE kex_p_0
 
 ! *****************************************************************************
-
   SUBROUTINE kex_p_1 ( rho, grho, r13, s, fs, e_rho, e_ndrho, npoints, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13, s
@@ -565,7 +545,6 @@ CONTAINS
   END SUBROUTINE kex_p_1
 
 ! *****************************************************************************
-
   SUBROUTINE kex_p_2 ( rho, grho, r13, s, fs, e_rho_rho, e_rho_ndrho,e_ndrho_ndrho,&
       npoints,error)
 
@@ -608,7 +587,6 @@ CONTAINS
   END SUBROUTINE kex_p_2
 
 ! *****************************************************************************
-
   SUBROUTINE kex_p_3 ( rho, grho, r13, s, fs, e_rho_rho_rho,e_rho_rho_ndrho,&
       e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho, npoints, error )
 
@@ -662,7 +640,6 @@ CONTAINS
 
   END SUBROUTINE kex_p_3
 
-! *****************************************************************************
 ! Enhancement Factors
 ! *****************************************************************************
   SUBROUTINE efactor_ol1 ( s, fs, m )
@@ -845,7 +822,6 @@ CONTAINS
                t11*t33-t30*t17*(2.0_dp*q*t22*t23+t1*& 
               (-1.0_dp/t40/t7*t43*t4+t20)*t23-t1*t49/t50)
 
-
          t1 = q*x 
          t3 = b**2
          t4 = x**2
@@ -880,7 +856,6 @@ CONTAINS
               (3.0_dp*q*t42*t20-3.0_dp*q*t45*t47+3.0_dp*t1*&
               (1.0_dp/t71/t7*t39*t3*t4*x-t40*x)*t20-&
               3.0_dp*t1*t42*t47*t19+2.0_dp*t1*t45*t19/t46/t8)
-
 
       CASE DEFAULT
          CALL stop_program("efactor_llp","Illegal order")
@@ -1072,8 +1047,8 @@ CONTAINS
     END DO
 
   END SUBROUTINE efactor_pbex
-! *****************************************************************************
 
+! *****************************************************************************
   SUBROUTINE efactor_pw91 ( s, fs, m, pset , f2_lsd)
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: s
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -1358,8 +1333,5 @@ CONTAINS
 
   END SUBROUTINE efactor_pw91_old
 
-! *****************************************************************************
-
 END MODULE xc_ke_gga
 
-! *****************************************************************************

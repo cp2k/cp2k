@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/sparse_matrix_output [1.0] *
-!!
-!!   NAME
-!!     sparse_matrix_output
-!!
-!!   FUNCTION
-!!     Some output routines for sparse matrices
-!!
-!!   AUTHOR
-!!     Matthias Krack (03.09.2001,25.06.2003)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH: outsourced to this routine from qs_overlap
-!!
-!!***
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Some output routines for sparse matrices
+!> \par History
+!>      JGH: outsourced to this routine from qs_overlap
+!> \author Matthias Krack (03.09.2001,25.06.2003)
+! *****************************************************************************
 MODULE sparse_matrix_output
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -67,26 +57,11 @@ MODULE sparse_matrix_output
 
 CONTAINS
 
-!!****f* sparse_matrix_output/write_fm_with_basis_info [1.0] *
-!!
-!!   NAME
-!!    write_fm_with_basis_info 
-!!
-!!   FUNCTION
-!!    Print a spherical matrix of blacs type. 
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!      Creation (12.06.2001,MK)
-!!      Allow for printing of a sub-matrix (01.07.2003,MK)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Print a spherical matrix of blacs type. 
+!> \author Creation (12.06.2001,MK)
+!>       Allow for printing of a sub-matrix (01.07.2003,MK)
+! *****************************************************************************
   SUBROUTINE write_fm_with_basis_info(blacs_matrix,before,after,qs_env,para_env,&
        first_row,last_row,first_col,last_col,output_unit,error)
 
@@ -160,26 +135,10 @@ CONTAINS
     
   END SUBROUTINE write_fm_with_basis_info
 
-!!****f* sparse_matrix_output/write_matrix_sym [1.0] *
-!!
-!!   NAME
-!!    write_matrix_sym 
-!!
-!!   FUNCTION
-!!    Write a matrix or a sub-matrix to the output unit (symmetric)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!      
-!!
-!!   AUTHOR
-!!     Creation (01.07.2003,MK)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Write a matrix or a sub-matrix to the output unit (symmetric)
+!> \author Creation (01.07.2003,MK)
+! *****************************************************************************
   SUBROUTINE write_matrix_sym(matrix,matrix_name,before,after,qs_env,para_env,&
                           first_row,last_row,first_col,last_col,output_unit,error)
 
@@ -317,26 +276,10 @@ CONTAINS
 
   END SUBROUTINE write_matrix_sym
 
-!!****f* sparse_matrix_output/write_matrix_gen [1.0] *
-!!
-!!   NAME
-!!    write_matrix_gen
-!!
-!!   FUNCTION
-!!    Write a matrix not necessarily symmetric (no index with atomic labels)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!      
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - 10.2007 - University of Zurich
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Write a matrix not necessarily symmetric (no index with atomic labels)
+!> \author Teodoro Laino [tlaino] - 10.2007 - University of Zurich
+! *****************************************************************************
   SUBROUTINE write_matrix_gen(matrix,matrix_name,before,after,para_env,&
        first_row,last_row,first_col,last_col,output_unit,error)
 
@@ -409,26 +352,11 @@ CONTAINS
 
   END SUBROUTINE write_matrix_gen
 
-!!****f* sparse_matrix_output/write_matrix_distribution [1.0] *
-!!
-!!   NAME
-!!    write_matrix_distribution 
-!!
-!!   FUNCTION
-!!    Print the distribution of a sparse matrix.
-!!
-!!   NOTES
-!!     -
-!!
-!!   HISTORY
-!!     Creation (25.06.2003,MK) 
-!!
-!!   AUTHOR
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Print the distribution of a sparse matrix.
+!> \par History
+!>      Creation (25.06.2003,MK) 
+! *****************************************************************************
   SUBROUTINE write_matrix_distribution(matrix,force_env_section,para_env,error)
     TYPE(real_matrix_type), POINTER          :: matrix
     TYPE(section_vals_type), POINTER         :: force_env_section
@@ -519,27 +447,11 @@ CONTAINS
 
   END SUBROUTINE write_matrix_distribution
 
-!!****f* sparse_matrix_output/write_sparse_matrix [1.0] *
-!!
-!!   NAME
-!!    write_sparse_matrix 
-!!
-!!   FUNCTION
-!!    Print a spherical matrix of sparse_matrix_type.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     
-!!
-!!   AUTHOR
-!!     Creation (07.06.2000,MK)
-!!     Allow for printing of a sub-matrix (01.07.2003,MK)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Print a spherical matrix of sparse_matrix_type.
+!> \author Creation (07.06.2000,MK)
+!>      Allow for printing of a sub-matrix (01.07.2003,MK)
+! *****************************************************************************
   SUBROUTINE write_sparse_matrix(sparse_matrix,before,after,qs_env,para_env,&
                                  first_row,last_row,first_col,last_col,scale,&
                                  output_unit,error)
@@ -635,7 +547,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE write_sparse_matrix
-
-! *****************************************************************************
 
 END MODULE sparse_matrix_output

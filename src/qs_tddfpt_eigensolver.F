@@ -3,18 +3,7 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****M* CP2K/qs_tddfpt_eigensolver *
-!!
-!!   NAME
-!!     qs_tddfpt_eigensolver
-!!
-!!   FUNCTION
-!!
-!!
-!!   NOTES
-!!
-!!
-!!****
+! *****************************************************************************
 MODULE qs_tddfpt_eigensolver
   USE cp_control_types,                ONLY: tddfpt_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
@@ -71,7 +60,6 @@ MODULE qs_tddfpt_eigensolver
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE eigensolver(p_env, qs_env, t_env, error)
 
     TYPE(qs_p_env_type), POINTER             :: p_env
@@ -154,8 +142,6 @@ CONTAINS
 
   END SUBROUTINE eigensolver
 
-! *****************************************************************************
-
   ! in_evals  : approximations to the eigenvalues for the preconditioner
   ! t_env     : TD-DFT environment values
   ! p_env     : perturbation environment values
@@ -165,6 +151,7 @@ CONTAINS
   !
   ! res       : the function will return wheter the eigenvalues are converged or not
 
+! *****************************************************************************
   FUNCTION iterative_solver(in_evals, &
                             t_env, p_env, qs_env, &
                             out_evals, error) RESULT(res)
@@ -357,7 +344,6 @@ CONTAINS
                       CALL cp_fm_to_fm(X(spin)%matrix, b(k,spin)%matrix,error=error)
                    END IF
 
-
                 END DO
 
              ELSE
@@ -530,8 +516,6 @@ CONTAINS
 
   END FUNCTION iterative_solver
 
-! *****************************************************************************
-
   ! X        : the vector on which to apply the op
   ! R        : the result
   ! t_env    : td-dft environment (mainly control information)
@@ -539,8 +523,8 @@ CONTAINS
   !            both of these carry info for the tddfpt calculation
   ! qs_env   : info about a quickstep ground state calculation
 
+! *****************************************************************************
   SUBROUTINE apply_op(X, R,  p_env, qs_env, do_kernel, error)
-
 
     TYPE(cp_fm_p_type), DIMENSION(:)         :: X, R
     TYPE(qs_p_env_type), POINTER             :: p_env
@@ -599,7 +583,6 @@ CONTAINS
   END SUBROUTINE apply_op
 
 ! *****************************************************************************
-
   SUBROUTINE allocate_krylov_vectors(vectors, vectors_name, &
                                      startv, n_v, nspins, fm_struct, error)
 
@@ -631,7 +614,5 @@ CONTAINS
     END DO
 
   END SUBROUTINE allocate_krylov_vectors
-
-! *****************************************************************************
 
 END MODULE qs_tddfpt_eigensolver

@@ -2,15 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/kg_energy_types [1.0] *
-!!
-!!   NAME
-!!     kg_energy_types
-!!
-!!   FUNCTION
-!!
-!******************************************************************************
-
+! *****************************************************************************
 MODULE kg_energy_types
 
   USE f77_blas
@@ -24,6 +16,7 @@ MODULE kg_energy_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_energy_types'
   PRIVATE
 
+! *****************************************************************************
   TYPE kg_energy_type
     REAL(KIND = dp) :: bond_corr,&
                 core_overlap,& 
@@ -46,20 +39,14 @@ MODULE kg_energy_types
             deallocate_kg_energy,&
             init_kg_energy
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE allocate_kg_energy(kg_energy)
 
 !   Purpose: Allocate and/or initialise a Quickstep energy data structure.
 
 !   History: - Creation (13.06.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(kg_energy_type), POINTER            :: kg_energy
 
@@ -80,14 +67,11 @@ CONTAINS
   END SUBROUTINE allocate_kg_energy
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_kg_energy(kg_energy)
 
 !   Purpose: Deallocate a Quickstep energy data structure.
 
 !   History: - Creation (13.06.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(kg_energy_type), POINTER            :: kg_energy
 
@@ -109,14 +93,11 @@ CONTAINS
   END SUBROUTINE deallocate_kg_energy
 
 ! *****************************************************************************
-
   SUBROUTINE init_kg_energy(kg_energy)
 
 !   Purpose: Initialise a Quickstep energy data structure.
 
 !   History: - Creation (13.06.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(kg_energy_type), POINTER            :: kg_energy
 
@@ -141,7 +122,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE init_kg_energy
-
-! *****************************************************************************
 
 END MODULE kg_energy_types

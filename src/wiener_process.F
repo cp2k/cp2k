@@ -3,24 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/wiener_process [1.0] *
-!!
-!!   NAME
-!!     wiener_process
-!!
-!!   FUNCTION
-!!     Handling of the Wiener process currently employed in turn of the
-!!     Langevin dynamics.
-!!
-!!   AUTHOR
-!!     Matthias Krack (05.07.2005)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Handling of the Wiener process currently employed in turn of the
+!>      Langevin dynamics.
+!> \par History
+!>      none
+!> \author Matthias Krack (05.07.2005)
+! *****************************************************************************
 MODULE wiener_process
 
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
@@ -58,29 +47,15 @@ MODULE wiener_process
 
   PUBLIC :: create_wiener_process
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-!!****f* wiener_process/create_wiener_process *
-!!
-!!   NAME
-!!     create_wiener_process
-!!
-!!   FUNCTION
-!!     Create a Wiener process for Langevin dynamics and initialize an
-!!     independent random number generator for each atom in all force
-!!     environment and all the subsystems/fragments therein.
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     Creation (06.07.2005,MK)
-!!
-!!*** **********************************************************************
+!> \brief Create a Wiener process for Langevin dynamics and initialize an
+!>      independent random number generator for each atom in all force
+!>      environment and all the subsystems/fragments therein.
+!> \par History
+!>      Creation (06.07.2005,MK)
+! *****************************************************************************
   SUBROUTINE create_wiener_process(md_env,error)
 
     TYPE(md_environment_type), POINTER       :: md_env
@@ -187,7 +162,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_wiener_process
-
-  ! ***************************************************************************
 
 END MODULE wiener_process

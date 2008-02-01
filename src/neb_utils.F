@@ -3,31 +3,18 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/neb_utils [1.0] *
-!!
-!!   NAME
-!!     neb_utils
-!!
-!!   FUNCTION
-!!     Module with utility for  Nudged Elastic Band Calculation
-!!
-!!   NOTES
-!!     Numerical accuracy for parallel runs:
-!!      Each replica starts the SCF run from the one optimized
-!!      in a previous run. It may happen then energies and derivatives
-!!      of a serial run and a parallel run could be slightly different
-!!      'cause of a different starting density matrix.
-!!      Exact results are obtained using:
-!!         EXTRAPOLATION USE_GUESS in QS section (Teo 09.2006)
-!!
-!!   AUTHOR
-!!     Teodoro Laino 10.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Module with utility for  Nudged Elastic Band Calculation
+!> \note
+!>      Numerical accuracy for parallel runs:
+!>       Each replica starts the SCF run from the one optimized
+!>       in a previous run. It may happen then energies and derivatives
+!>       of a serial run and a parallel run could be slightly different
+!>       'cause of a different starting density matrix.
+!>       Exact results are obtained using:
+!>          EXTRAPOLATION USE_GUESS in QS section (Teo 09.2006)
+!> \author Teodoro Laino 10.2006
+! *****************************************************************************
 MODULE neb_utils
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -88,25 +75,10 @@ MODULE neb_utils
 
 CONTAINS
 
-!!****f* neb_utils/neb_replica_distance [1.0] *
-!!
-!!   NAME
-!!     neb_replica_distance
-!!
-!!   FUNCTION
-!!     Computes the distance between two replica
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Computes the distance between two replica
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE neb_replica_distance(particle_set, coords, i0, i, distance, iw, rotate, error)
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
@@ -135,25 +107,10 @@ CONTAINS
     END IF
   END SUBROUTINE neb_replica_distance
 
-!!****f* neb_utils/build_replica_coords [1.0] *
-!!
-!!   NAME
-!!     build_replica_coords
-!!
-!!   FUNCTION
-!!     Constructs or Read the coordinates for all replica
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Constructs or Read the coordinates for all replica
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE build_replica_coords(neb_section, particle_set,&
        coords, vels, neb_env, ndim, iw, globenv, para_env, logger, error)
     TYPE(section_vals_type), POINTER         :: neb_section
@@ -323,26 +280,11 @@ CPSourceFileRef,&
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE build_replica_coords
 
-!!****f* neb_utils/neb_calc_energy_forces [1.0] *
-!!
-!!   NAME
-!!     neb_calc_energy_forces
-!!
-!!   FUNCTION
-!!     Driver to compute energy and forces within a NEB,
-!!     Based on the use of the replica_env
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Driver to compute energy and forces within a NEB,
+!>      Based on the use of the replica_env
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE neb_calc_energy_forces(rep_env, neb_env, coords, energies, forces,&
        particle_set, output_unit, error)
     TYPE(replica_env_type), POINTER          :: rep_env
@@ -444,26 +386,11 @@ CPSourceFileRef,&
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE neb_calc_energy_forces
 
-!!****f* neb_utils/perform_replica_md [1.0] *
-!!
-!!   NAME
-!!     perform_replica_md
-!!
-!!   FUNCTION
-!!     Driver to perform an MD run on each single replica to 
-!!     compute specifically Free Energies in a NEB scheme
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino  01.2007
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Driver to perform an MD run on each single replica to 
+!>      compute specifically Free Energies in a NEB scheme
+!> \author Teodoro Laino  01.2007
+! *****************************************************************************
   SUBROUTINE perform_replica_md(rep_env, coords, irep, n_rep_neb, error)
     TYPE(replica_env_type), POINTER          :: rep_env
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: coords
@@ -510,25 +437,10 @@ CPSourceFileRef,&
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE perform_replica_md
 
-!!****f* neb_utils/get_tangent [1.0] *
-!!
-!!   NAME
-!!     get_tangent
-!!
-!!   FUNCTION
-!!     Computes the tangent for point i of the NEB chain
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Computes the tangent for point i of the NEB chain
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE get_tangent(neb_env, coords, i, tangent, energies, iw, error)
     TYPE(neb_type), POINTER                  :: neb_env
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: coords
@@ -583,25 +495,10 @@ CPSourceFileRef,&
     IF (distance0 /= 0.0_dp) tangent(:) = tangent(:) / distance0
   END SUBROUTINE get_tangent
 
-!!****f* neb_utils/get_neb_force [1.0] *
-!!
-!!   NAME
-!!     get_neb_force
-!!
-!!   FUNCTION
-!!     Computes the forces for point i of the NEB chain
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Computes the forces for point i of the NEB chain
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   RECURSIVE SUBROUTINE get_neb_force(neb_env,tangent,coords,i,forces,tag,iw,error)
     TYPE(neb_type), POINTER                  :: neb_env
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: tangent
@@ -713,26 +610,11 @@ CPSourceFileRef,&
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE get_neb_force
 
-!!****f* neb_utils/reorient_images [1.0] *
-!!
-!!   NAME
-!!     reorient_images
-!!
-!!   FUNCTION
-!!     Reorient iteratively all images of the NEB chain in order to
-!!     have always the smaller RMSD between two following images
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Reorient iteratively all images of the NEB chain in order to
+!>      have always the smaller RMSD between two following images
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE reorient_images(rotate_frames, particle_set, coords, vels, iw,&
        distances, para_env, error)
     LOGICAL, INTENT(IN)                      :: rotate_frames
@@ -781,25 +663,10 @@ CPSourceFileRef,&
     END IF
   END SUBROUTINE reorient_images
 
-!!****f* neb_utils/check_convergence [1.0] *
-!!
-!!   NAME
-!!     check_convergence
-!!
-!!   FUNCTION
-!!     Checks for convergence criteria during a NEB run
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino 10.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Checks for convergence criteria during a NEB run
+!> \author Teodoro Laino 10.2006
+! *****************************************************************************
   FUNCTION check_convergence(neb_env, Dcoords, forces, error) RESULT(converged)
     TYPE(neb_type), POINTER                  :: neb_env
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Dcoords, forces

@@ -3,24 +3,14 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/manybody_potential [1.0] *
-!!
-!!   NAME
-!!     manybody_potential
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM, I-Feng W. Kuo, Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     Efficient tersoff implementation and general "lifting" of manybody_potential module
-!!     12.2007 [tlaino] - Splitting manybody module : In this module we should only
-!!                        keep the main routines for computing energy and forces of
-!!                        manybody potentials. Each potential should have his own module!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      Efficient tersoff implementation and general "lifting" of manybody_potential module
+!>      12.2007 [tlaino] - Splitting manybody module : In this module we should only
+!>                         keep the main routines for computing energy and forces of
+!>                         manybody potentials. Each potential should have his own module!
+!> \author CJM, I-Feng W. Kuo, Teodoro Laino
+! *****************************************************************************
 MODULE manybody_potential
 
   USE atomic_kind_types,               ONLY: atomic_kind_type
@@ -62,29 +52,14 @@ MODULE manybody_potential
 
 CONTAINS
 
-!!****f* manybody_potential/energy_manybody [1.0] *
-!!
-!!   NAME
-!!     energy_manybody
-!!
-!!   FUNCTION
-!!     computes the embedding contribution to the energy
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     CJM, I-Feng W. Kuo, Teodoro Laino 
-!!
-!!   MODIFICATION HISTORY
-!!     tlaino [2007] - New algorithm for tersoff potential
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief computes the embedding contribution to the energy
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      tlaino [2007] - New algorithm for tersoff potential
+!> \author CJM, I-Feng W. Kuo, Teodoro Laino 
+! *****************************************************************************
   SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, &
        local_particles, particle_set, cell, pot_manybody, para_env, error )
 
@@ -252,28 +227,13 @@ CONTAINS
     CALL timestop ( handle )
   END SUBROUTINE energy_manybody
 
-!!****f* manybody_potential/force_nonbond_manybody [1.0] *
-!!
-!!   NAME
-!!     force_nonbond_manybody
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     I-Feng W. Kuo, Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     Fast implementation of the tersoff potential - [tlaino] 2007
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      Fast implementation of the tersoff potential - [tlaino] 2007
+!> \author I-Feng W. Kuo, Teodoro Laino
+! *****************************************************************************
   SUBROUTINE force_nonbond_manybody ( fist_nonbond_env, particle_set, cell,  &
        f_nonbond, pv_nonbond, use_virial, error )
 

@@ -1,20 +1,8 @@
-
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_rho_atom_methods [1.0] *
-!!
-!!   NAME
-!!     qs_rho_atom_methods
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
 MODULE qs_rho_atom_methods
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -84,8 +72,6 @@ MODULE qs_rho_atom_methods
             calculate_rho_atom_coeff, &
             init_rho_atom
 
-! *****************************************************************************
-
  CONTAINS
 
 ! *****************************************************************************
@@ -127,8 +113,6 @@ MODULE qs_rho_atom_methods
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: my_CG_dxyz
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(harmonics_atom_type), POINTER       :: harmonics
-
-! *****************************************************************************
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -172,9 +156,6 @@ MODULE qs_rho_atom_methods
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "int1,int2",2*nr*dp_size)
 
-
-!******************************************************************************
-
         DO iat = bo(1),bo(2)
           iatom = atom_list(iat)
           DO i=1,nspins
@@ -185,9 +166,6 @@ MODULE qs_rho_atom_methods
             ENDIF
           END DO
         END DO
-
-
-!******************************************************************************
 
     m1s = 0
 
@@ -316,7 +294,6 @@ MODULE qs_rho_atom_methods
                       rho_atom_set(iatom)%rho_rad_s(i)%r_coef(1:nr,iso) +&
                       gg(1:nr,l)*CPCS_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
 
-
                     rho_atom_set(iatom)%drho_rad_h(i)%r_coef(1:nr,iso) =&
                         rho_atom_set(iatom)%drho_rad_h(i)%r_coef(1:nr,iso) +&
                         dgg(1:nr,l)*CPCH_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
@@ -367,7 +344,6 @@ MODULE qs_rho_atom_methods
       m1s = m1s+maxso
     ENDDO    ! iset1
 
-
     DO iat = bo(1),bo(2)
        iatom = atom_list(iat)
 
@@ -408,7 +384,6 @@ MODULE qs_rho_atom_methods
   END SUBROUTINE calculate_rho_atom
 
 ! *****************************************************************************
-
   SUBROUTINE calculate_rho_atom_coeff(qs_env, rho_ao, rho_atom_set,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -454,7 +429,6 @@ MODULE qs_rho_atom_methods
       POINTER                                :: rho_atom
 
 !
-! *****************************************************************************
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -783,7 +757,6 @@ MODULE qs_rho_atom_methods
   END SUBROUTINE calculate_rho_atom_coeff
 
 ! *****************************************************************************
-
   SUBROUTINE init_rho_atom(qs_env,gapw_control,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -937,7 +910,6 @@ MODULE qs_rho_atom_methods
 !     *** calculate the radial grid ***
       CALL create_grid_atom(grid_atom,nr,na,llmax,quadrature)
 
-
       grid_atom%wa(1:na) = 4._dp*pi*lebedev_grid(ll)%w(1:na)
       DO ir = 1,nr
         DO ia= 1,na
@@ -998,7 +970,6 @@ MODULE qs_rho_atom_methods
   END SUBROUTINE init_rho_atom
 
 ! *****************************************************************************
-
   SUBROUTINE allocate_rho_atom_internals(qs_env, rho_atom_set,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1082,7 +1053,6 @@ MODULE qs_rho_atom_methods
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                "cpc_h,cpc_s,drho_rad_h,drho_rad_s,rho_rad_h_d,rho_rad_s_d")
 
-
           ALLOCATE (rho_atom_set(iatom)%ga_Vlocal_gb_h(nspins), &
                     rho_atom_set(iatom)%ga_Vlocal_gb_s(nspins), &
                     STAT=istat)
@@ -1143,6 +1113,7 @@ MODULE qs_rho_atom_methods
 
   END SUBROUTINE allocate_rho_atom_internals
 
+! *****************************************************************************
   SUBROUTINE allocate_rho_atom_rad(rho_atom_set,iatom,ispin,nr,max_iso_not0,error)
 
     TYPE(rho_atom_type), DIMENSION(:), &
@@ -1195,6 +1166,7 @@ MODULE qs_rho_atom_methods
 
   END SUBROUTINE  allocate_rho_atom_rad
 
+! *****************************************************************************
   SUBROUTINE set2zero_rho_atom_rad(rho_atom_set,iatom,ispin,error)
 
 !    TYPE(rho_atom_type), POINTER             :: rho_atom

@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_energy [1.0] *
-!!
-!!   NAME
-!!     qs_energy
-!!
-!!   FUNCTION
-!!     Perform a QUICKSTEP wavefunction optimization (single point)
-!!
-!!   AUTHOR
-!!     MK (29.10.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Perform a QUICKSTEP wavefunction optimization (single point)
+!> \par History
+!>      none
+!> \author MK (29.10.2002)
+! *****************************************************************************
 MODULE qs_energy
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_control_utils,                ONLY: read_becke_section,&
@@ -61,21 +51,15 @@ MODULE qs_energy
 
   PUBLIC :: qs_energies
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE qs_energies (qs_env, globenv, consistent_energies, calc_forces, &
                           error)
 !   Purpose: QUICKSTEP single point wavefunction optimization.
 
 !   History: - Creation (29.10.2002,MK)
 !            - consistent_energies option added (25.08.2005, TdK)
-
-!   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -185,9 +169,6 @@ CONTAINS
        END IF
     END IF
     
-
-
-
     !Properties
     right_iteration_level = .TRUE.
     IF(dft_control%do_xas_calculation .AND. right_iteration_level ) THEN
@@ -197,7 +178,5 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qs_energies
-
-! *****************************************************************************
 
 END MODULE qs_energy

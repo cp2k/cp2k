@@ -2,18 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_oce_types
-!!
-!!   NAME
-!!     qs_oce_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
 MODULE qs_oce_types
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -60,19 +49,23 @@ MODULE qs_oce_types
 
 ! *** Define a oce matrix type ***
 
+! *****************************************************************************
   TYPE vtriple_type
     TYPE(qlist_type), DIMENSION(:,:,:), POINTER :: neighbor
   END TYPE vtriple_type
 
+! *****************************************************************************
   TYPE oce_couple
     LOGICAL                           :: block_created
   END TYPE oce_couple
 
+! *****************************************************************************
   TYPE dist_list_4oce_type
     INTEGER                           :: ndist
     REAL(dp), DIMENSION(:,:), POINTER :: rdist
   END TYPE dist_list_4oce_type
 
+! *****************************************************************************
   TYPE oce_matrix_type
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER  :: hardo,softo
     TYPE(vtriple_type), DIMENSION(:,:), POINTER      :: voce
@@ -94,20 +87,14 @@ MODULE qs_oce_types
             build_reduced_3c_lists,&
             retrieve_sac_list
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE allocate_oce_set(oce_set,natom,nkind,ndim,error)
 
 !   Purpose: Allocate and initialize the matrix set of oce coefficients.
 
 !   History:
-
-!   ***************************************************************************
 
     TYPE(oce_matrix_type), POINTER           :: oce_set
     INTEGER, INTENT(IN)                      :: natom, nkind, ndim
@@ -131,8 +118,7 @@ CONTAINS
 
   END SUBROUTINE allocate_oce_set
 
-!******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE allocate_vtriple(vtriple,nkind,natom,error)
 
     TYPE(vtriple_type), DIMENSION(:, :), &
@@ -158,7 +144,6 @@ CONTAINS
   END SUBROUTINE allocate_vtriple
 
 ! *****************************************************************************
-
   SUBROUTINE create_oce_set(oce_set,error)
 
     TYPE(oce_matrix_type), POINTER           :: oce_set
@@ -182,12 +167,9 @@ CONTAINS
   END SUBROUTINE create_oce_set
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_oce_set(oce_set,error)
 
 !   Purpose: Deallocate the matrix set of oce coefficients
-
-! *****************************************************************************
 
     TYPE(oce_matrix_type), POINTER           :: oce_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -214,7 +196,6 @@ CONTAINS
   END SUBROUTINE deallocate_oce_set
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_vtriple(vtriple,error)
 
     TYPE(vtriple_type), DIMENSION(:, :), &
@@ -228,8 +209,6 @@ CONTAINS
                                                 kcell, kkind, natom, nkind
     LOGICAL                                  :: failure
     TYPE(qlist_type), POINTER                :: sac_oce_neighbor
-
-! *****************************************************************************
 
     failure = .FALSE.
 
@@ -273,16 +252,14 @@ CONTAINS
     ENDIF
 
   END SUBROUTINE deallocate_vtriple
-! *****************************************************************************
 
+! *****************************************************************************
   SUBROUTINE prepare_oce_coeff(particle_set,oce,natom,nsgf, &
                                first_sgf,last_sgf,distribution_2d, error)
 
 !   Purpose: Create the structure for the matrix for oce coefficients
 
 !   History: - Creation (5-02-04 MI)
-
-!   ***************************************************************************
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -311,7 +288,6 @@ CONTAINS
     ALLOCATE (last_nso(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "last_nso",natom*int_size)
-
 
     CALL get_particle_set(particle_set=particle_set, &
                           first_nso=first_nso,last_nso=last_nso,&
@@ -379,7 +355,6 @@ CONTAINS
   END SUBROUTINE prepare_oce_coeff
 
 ! *****************************************************************************
-
   SUBROUTINE build_reduced_3c_lists(atomic_kind_set,iatom,jatom,ikind,jkind, &
                          sbc_list, vlist,reduced_3c_list,pippo,eps_rho,error)
 
@@ -420,7 +395,6 @@ CONTAINS
 
     CALL timeset(routineN,"I"," ",handle)
 
-
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     num = logger%para_env%mepos + 300
@@ -452,7 +426,6 @@ CONTAINS
                             paw_atom=paw_atom)
 
        IF(.NOT. paw_atom .AND. pippo)  CYCLE
-
 
        CALL get_neighbor_list(neighbor_list=sbc_list_neighbor_list,&
                                      nnode=nneighbor)
@@ -576,6 +549,7 @@ CONTAINS
 
   END SUBROUTINE build_reduced_3c_lists
 
+! *****************************************************************************
   SUBROUTINE check_oce_overlap(atomic_kind_set,ikind,rac,dac2,jkind,rbc,dbc2,&
              kkind,maxab)
 
@@ -703,7 +677,6 @@ CONTAINS
   END SUBROUTINE
 
 ! *****************************************************************************
-
   SUBROUTINE retrieve_sac_list(vlist,sac_list,iatom,ikind,nkind,error)
 
     TYPE(vtriple_type), DIMENSION(:, :), &
@@ -860,6 +833,5 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE  retrieve_sac_list
-! *****************************************************************************
 
 END MODULE qs_oce_types

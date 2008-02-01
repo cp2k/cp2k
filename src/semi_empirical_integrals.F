@@ -2,24 +2,14 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/semi_empirical_integrals [1.0] *
-!!
-!!   NAME
-!!     semi_empirical_integrals
-!!
-!!   FUNCTION
-!!     Integrals for semi-empiric methods
-!!
-!!   AUTHOR
-!!     JGH (11.10.2004)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (27.10.2004) : separate routine for nuclear attraction integrals
-!!     JGH (13.03.2006) : tapering function
-!!
-!!***
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Integrals for semi-empiric methods
+!> \par History
+!>      JGH (27.10.2004) : separate routine for nuclear attraction integrals
+!>      JGH (13.03.2006) : tapering function
+!> \author JGH (11.10.2004)
+! *****************************************************************************
 MODULE semi_empirical_integrals
 
   USE f77_blas
@@ -45,8 +35,6 @@ MODULE semi_empirical_integrals
   REAL(KIND=dp), SAVE, PUBLIC          :: r0, al
   LOGICAL, SAVE, PUBLIC                :: taper_fn_init = .FALSE.
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
@@ -63,7 +51,6 @@ CONTAINS
   !
   ! on output w      = Array of two-electron repulsion integrals.
   !
-  !***********************************************************************
 
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rijv
@@ -573,7 +560,6 @@ CONTAINS
   END SUBROUTINE rotint
 
 ! *****************************************************************************
-
   SUBROUTINE rotnuc (sepi,sepj,rijv,e1b,e2a,enuc,itype,shortrange)
   !
   ! routine adapted from mopac7 (rotate)
@@ -590,7 +576,6 @@ CONTAINS
   !                    e2a = Electron on atom nj attracting nucleus of ni.
   !           enuc   = nuclear-nuclear repulsion term.
   !
-  !***********************************************************************
 
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rijv
@@ -834,8 +819,8 @@ CONTAINS
       END IF
 
   END SUBROUTINE rotnuc
-! *****************************************************************************
 
+! *****************************************************************************
   SUBROUTINE terep ( sepi, sepj, rij, ri, shortrange )
   !
   ! routine adapted from mopac7 (repp)
@@ -855,7 +840,6 @@ CONTAINS
   !     (OO/OO)=16,  (PP/OO)=17,  (OO/PP)=18,  (PP/PP)=19,  (PO/PO)=20,
   !     (PP/P*P*)=21,   (P*P/P*P)=22.
   !
-! *****************************************************************************
 
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
@@ -1493,7 +1477,6 @@ CONTAINS
   !     (SS/)=1,   (SO/)=2,   (OO/)=3,   (PP/)=4
   !     where ij=1 if the orbitals centred on atom i,  =2 if on atom j.
   !
-  ! ***************************************************************************
 
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
@@ -1918,6 +1901,7 @@ CONTAINS
 
   END SUBROUTINE set_taper_fn
 
+! *****************************************************************************
   FUNCTION taper ( rij ) RESULT(ft)
     REAL(KIND=dp), INTENT(IN)                :: rij
     REAL(KIND=dp)                            :: ft
@@ -1934,6 +1918,5 @@ CONTAINS
     END IF
 
   END FUNCTION taper
-! *****************************************************************************
 
 END MODULE semi_empirical_integrals

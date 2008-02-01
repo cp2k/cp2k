@@ -3,26 +3,15 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/eip_silicon [1.0] *
-!!
-!!   NAME
-!!     eip_silicon
-!!
-!!   FUNCTION
-!!     Empirical interatomic potentials for Silicon
-!!
-!!   NOTES
-!!     Stefan Goedecker's OpenMP implementation of Bazant's EDIP & Lenosky's
-!!     empirical interatomic potentials for Silicon.
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Empirical interatomic potentials for Silicon
+!> \note
+!>      Stefan Goedecker's OpenMP implementation of Bazant's EDIP & Lenosky's
+!>      empirical interatomic potentials for Silicon.
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
 MODULE eip_silicon
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -61,41 +50,28 @@ MODULE eip_silicon
   PUBLIC :: eip_bazant, eip_lenosky
 
 !***
-!****************************************************************************
 
 CONTAINS
 
-!!****f* eip_silicon/eip_bazant [1.0] *
-!!
-!!   NAME
-!!     eip_bazant
-!!
-!!   FUNCTION
-!!     Interface routine of Goedecker's Bazant EDIP to CP2K
-!!
-!!   REFERENCES
-!!     http://www-math.mit.edu/~bazant/EDIP
-!!     M.Z. Bazant & E. Kaxiras: Modeling of Covalent Bonding in Solids by
-!!                               Inversion of Cohesive Energy Curves;
-!!                               Phys. Rev. Lett. 77, 4370 (1996)
-!!     M.Z. Bazant, E. Kaxiras and J.F. Justo: Environment-dependent interatomic
-!!                                             potential for bulk silicon;
-!!                                             Phys. Rev. B 56, 8542-8552 (1997)
-!!     S. Goedecker: Optimization and parallelization of a force field for silicon
-!!                   using OpenMP; CPC 148, 1 (2002)
-!!
-!!   INPUTS
-!!     - force_env: The force environment
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Interface routine of Goedecker's Bazant EDIP to CP2K
+!> \param force_env The force environment
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par Literature
+!>      http://www-math.mit.edu/~bazant/EDIP
+!>      M.Z. Bazant & E. Kaxiras: Modeling of Covalent Bonding in Solids by
+!>                                Inversion of Cohesive Energy Curves;
+!>                                Phys. Rev. Lett. 77, 4370 (1996)
+!>      M.Z. Bazant, E. Kaxiras and J.F. Justo: Environment-dependent interatomic
+!>                                              potential for bulk silicon;
+!>                                              Phys. Rev. B 56, 8542-8552 (1997)
+!>      S. Goedecker: Optimization and parallelization of a force field for silicon
+!>                    using OpenMP; CPC 148, 1 (2002)
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE eip_bazant(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -262,34 +238,21 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE eip_bazant
-!****************************************************************************
 
-!!****f* eip_silicon/eip_lenosky [1.0] *
-!!
-!!   NAME
-!!     eip_lenosky
-!!
-!!   FUNCTION
-!!     Interface routine of Goedecker's Lenosky force field to CP2K
-!!
-!!   REFERENCES
-!!     T. Lenosky, et. al.: Highly optimized empirical potential model of silicon;
-!!                          Modelling Simul. Sci. Eng., 8 (2000)
-!!     S. Goedecker: Optimization and parallelization of a force field for silicon
-!!                   using OpenMP; CPC 148, 1 (2002)
-!!
-!!   INPUTS
-!!     - force_env: The force environment
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Interface routine of Goedecker's Lenosky force field to CP2K
+!> \param force_env The force environment
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par Literature
+!>      T. Lenosky, et. al.: Highly optimized empirical potential model of silicon;
+!>                           Modelling Simul. Sci. Eng., 8 (2000)
+!>      S. Goedecker: Optimization and parallelization of a force field for silicon
+!>                    using OpenMP; CPC 148, 1 (2002)
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE eip_lenosky(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -456,33 +419,20 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE eip_lenosky
-!****************************************************************************
 
-!!****f* eip_silicon/eip_print_energies [1.0] *
-!!
-!!   NAME
-!!     eip_print_energies
-!!
-!!   FUNCTION
-!!     Print routine for the EIP energies
-!!
-!!   NOTES
-!!     As usual the EIP energies differ from the DFT energies!
-!!     Only the relative energy differneces are correctly reproduced.
-!!
-!!   INPUTS
-!!     - eip_env: The eip environment of matter
-!!     - output_unit: The output unit
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Print routine for the EIP energies
+!> \param eip_env The eip environment of matter
+!> \param output_unit The output unit
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      As usual the EIP energies differ from the DFT energies!
+!>      Only the relative energy differneces are correctly reproduced.
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE eip_print_energies(eip_env, output_unit, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
     INTEGER, INTENT(IN)                      :: output_unit
@@ -501,32 +451,17 @@ CONTAINS
     END IF
 
   END SUBROUTINE eip_print_energies
-!***************************************************************************
 
-!!****f* eip_silicon/eip_print_energy_var [1.0] *
-!!
-!!   NAME
-!!     eip_print_energy_var
-!!
-!!   FUNCTION
-!!     Print routine for the variance of the energy/atom
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - eip_env: The eip environment of matter
-!!     - output_unit: The output unit
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Print routine for the variance of the energy/atom
+!> \param eip_env The eip environment of matter
+!> \param output_unit The output unit
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE eip_print_energy_var(eip_env, output_unit, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
     INTEGER, INTENT(IN)                      :: output_unit
@@ -551,32 +486,17 @@ CONTAINS
     END IF
 
   END SUBROUTINE eip_print_energy_var
-!***************************************************************************
 
-!!****f* eip_silicon/eip_print_forces [1.0] *
-!!
-!!   NAME
-!!     eip_print_forces
-!!
-!!   FUNCTION
-!!     Print routine for the forces
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - eip_env: The eip environment of matter
-!!     - output_unit: The output unit
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Print routine for the forces
+!> \param eip_env The eip environment of matter
+!> \param output_unit The output unit
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE eip_print_forces(eip_env, output_unit, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
     INTEGER, INTENT(IN)                      :: output_unit
@@ -612,32 +532,17 @@ CONTAINS
     END IF
 
   END SUBROUTINE eip_print_forces
-!***************************************************************************
 
-!!****f* eip_silicon/eip_print_coord_avg [1.0] *
-!!
-!!   NAME
-!!     eip_print_coord_avg
-!!
-!!   FUNCTION
-!!     Print routine for the average coordination number
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - eip_env: The eip environment of matter
-!!     - output_unit: The output unit
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Print routine for the average coordination number
+!> \param eip_env The eip environment of matter
+!> \param output_unit The output unit
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE eip_print_coord_avg(eip_env, output_unit, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
     INTEGER, INTENT(IN)                      :: output_unit
@@ -662,32 +567,17 @@ CONTAINS
     END IF
 
   END SUBROUTINE eip_print_coord_avg
-!***************************************************************************
 
-!!****f* eip_silicon/eip_print_coord_var [1.0] *
-!!
-!!   NAME
-!!     eip_print_coord_var
-!!
-!!   FUNCTION
-!!     Print routine for the variance of the coordination number
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - eip_env: The eip environment of matter
-!!     - output_unit: The output unit
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Print routine for the variance of the coordination number
+!> \param eip_env The eip environment of matter
+!> \param output_unit The output unit
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE eip_print_coord_var(eip_env, output_unit, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
     INTEGER, INTENT(IN)                      :: output_unit
@@ -712,32 +602,17 @@ CONTAINS
     END IF
 
   END SUBROUTINE eip_print_coord_var
-!***************************************************************************
 
-!!****f* eip_silicon/eip_print_count [1.0] *
-!!
-!!   NAME
-!!     eip_print_count
-!!
-!!   FUNCTION
-!!     Print routine for the function call counter
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - eip_env: The eip environment of matter
-!!     - output_unit: The output unit
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Print routine for the function call counter
+!> \param eip_env The eip environment of matter
+!> \param output_unit The output unit
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE eip_print_count(eip_env, output_unit, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
     INTEGER, INTENT(IN)                      :: output_unit
@@ -762,52 +637,38 @@ CONTAINS
     END IF
 
   END SUBROUTINE eip_print_count
-!***************************************************************************
 
-!!****f* eip_silicon/eip_bazant_silicon [1.0] *
-!!
-!!   NAME
-!!     eip_bazant_silicon
-!!
-!!   FUNCTION
-!!     Bazant's EDIP (environment-dependent interatomic potential) for Silicon
-!!     by Stefan Goedecker
-!!
-!!   REFERENCES
-!!     http://www-math.mit.edu/~bazant/EDIP
-!!     M.Z. Bazant & E. Kaxiras: Modeling of Covalent Bonding in Solids by
-!!                               Inversion of Cohesive Energy Curves;
-!!                               Phys. Rev. Lett. 77, 4370 (1996)
-!!     M.Z. Bazant, E. Kaxiras and J.F. Justo: Environment-dependent interatomic
-!!                                             potential for bulk silicon;
-!!                                             Phys. Rev. B 56, 8542-8552 (1997)
-!!     S. Goedecker: Optimization and parallelization of a force field for silicon
-!!                   using OpenMP; CPC 148, 1 (2002)
-!!
-!!   INPUTS
-!!     - nat: number of atoms
-!!     - alat: lattice constants of the orthorombic box containing the particles
-!!     - rxyz0: atomic positions in Angstrom
-!!
-!!   OUTPUTS
-!!     - rxyz0: rxyz0 may be modified on output.
-!!              If an atom is outside the box the program will bring it back
-!!              into the box by translations through alat
-!!     - fxyz: forces in eV/A
-!!     - ener: total energy in eV
-!!     - coord: average coordination number
-!!     - ener_var: variance of the energy/atom
-!!     - coord_var: variance of the coordination number
-!!     - count: count is increased by one per call, has to be initialized
-!               to 0.e0_dp before first call of eip_bazant
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Bazant's EDIP (environment-dependent interatomic potential) for Silicon
+!>      by Stefan Goedecker
+!> \param nat number of atoms
+!> \param alat lattice constants of the orthorombic box containing the particles
+!> \param rxyz 0: atomic positions in Angstrom
+!> 
+!> \param rxyz 0: rxyz0 may be modified on output.
+!>               If an atom is outside the box the program will bring it back
+!>               into the box by translations through alat
+!> \param fxyz forces in eV/A
+!> \param ener total energy in eV
+!> \param coord average coordination number
+!> \param ener_var variance of the energy/atom
+!> \param coord_var variance of the coordination number
+!> \param count count is increased by one per call, has to be initialized
+!>                to 0.e0_dp before first call of eip_bazant
+!> \par Literature
+!>      http://www-math.mit.edu/~bazant/EDIP
+!>      M.Z. Bazant & E. Kaxiras: Modeling of Covalent Bonding in Solids by
+!>                                Inversion of Cohesive Energy Curves;
+!>                                Phys. Rev. Lett. 77, 4370 (1996)
+!>      M.Z. Bazant, E. Kaxiras and J.F. Justo: Environment-dependent interatomic
+!>                                              potential for bulk silicon;
+!>                                              Phys. Rev. B 56, 8542-8552 (1997)
+!>      S. Goedecker: Optimization and parallelization of a force field for silicon
+!>                    using OpenMP; CPC 148, 1 (2002)
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
     SUBROUTINE eip_bazant_silicon(nat,alat,rxyz0,fxyz,ener,coord,ener_var,&
                                   coord_var,count)
 
@@ -831,7 +692,6 @@ CONTAINS
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: txyz
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: s2,s3,sz
         INTEGER, ALLOCATABLE, DIMENSION(:)         :: num2,num3,numz
-
 
 !        cut=par_a
         cut= 3.1213820e0_dp + 1.e-14_dp
@@ -937,7 +797,6 @@ CONTAINS
 
     ENDIF
 
-
 ! duplicate all atoms within boundary layer
         laymx=ncx*(2*ll1*ll2+2*ll1*ll3+2*ll2*ll3+4*ll1+4*ll2+4*ll3+8)
         nn=nat+laymx
@@ -982,7 +841,6 @@ CONTAINS
         ENDDO
         ENDDO
 
-
 ! yz plane
         DO l3=0,ll3-1
         DO l2=0,ll2-1
@@ -1016,7 +874,6 @@ CONTAINS
         ENDDO
         ENDDO
 
-
 ! xz plane
         DO l3=0,ll3-1
         DO l1=0,ll1-1
@@ -1049,7 +906,6 @@ CONTAINS
 
         ENDDO
         ENDDO
-
 
 ! x axis
         DO l1=0,ll1-1
@@ -1108,7 +964,6 @@ CONTAINS
 
         ENDDO
 
-
 ! y axis
         DO l2=0,ll2-1
 
@@ -1166,7 +1021,6 @@ CONTAINS
 
         ENDDO
 
-
 ! z axis
         DO l3=0,ll3-1
 
@@ -1223,7 +1077,6 @@ CONTAINS
         ENDDO
 
         ENDDO
-
 
 ! corners
         in=icell(0,0,0,0)
@@ -1341,7 +1194,6 @@ CONTAINS
 !$omp private(iat,cut2,iam,ii,indlst,l1,l2,l3,myspace,npr) &
 !$omp shared (indlstx,nat,nn,nnbrx,ncx,ll1,ll2,ll3,icell,lsta,lstb,lay, &
 !$omp rel,rxyz,cut,myspaceout)
-
 
         npr=1
 !$       npr=omp_get_num_threads()
@@ -1472,8 +1324,7 @@ CONTAINS
 
         END SUBROUTINE eip_bazant_silicon
 
-
-
+! *****************************************************************************
         SUBROUTINE subfeniat_b(iat1,iat2,nat,lsta,lstb,rel,ener,ener2,  &
           coord,coord2,nnbrx,ff,max_nbrs,istop,  &
           s2_t0,s2_t1,s2_t2,s2_t3,s2_dx,s2_dy,s2_dz,s2_r,  &
@@ -1561,7 +1412,6 @@ CONTAINS
           ener2=0.e0_dp
           istop=0
 
-
 !   COMBINE COEFFICIENTS
 
           Qort = SQRT(par_Qo)
@@ -1569,8 +1419,6 @@ CONTAINS
           u5 = u2*u4
           bmc = par_b-par_c
           cmbinv = 1.0e0_dp/(par_c-par_b)
-
-
 
 !  --- LEVEL 1: OUTER LOOP OVER ATOMS ---
 
@@ -1585,12 +1433,10 @@ CONTAINS
             n3 = 1
             nz = 1
 
-
 !  --- LEVEL 2: LOOP PREPASS OVER PAIRS ---
 
             DO n=lsta(1,i),lsta(2,i)
               j=lstb(n)
-
 
 !   PARTS OF TWO-BODY INTERACTION r<par_a
 
@@ -1626,7 +1472,6 @@ CONTAINS
         coord_iat=coord_iat+(2*xarg+1.e0_dp)*(xarg-1.e0_dp)**2
         ENDIF
 
-
 !   RADIAL PARTS OF THREE-BODY INTERACTION r<par_b
 
                 IF(r .LT. par_bg)  THEN
@@ -1648,7 +1493,6 @@ CONTAINS
                   istop=1
                   RETURN
                   ENDIF
-
 
 !   COORDINATION AND NEIGHBOR FUNCTION par_c<r<par_b
 
@@ -1683,13 +1527,11 @@ CONTAINS
 !  r < par_bg
               END DO
 
-
 !   ZERO ACCUMULATION ARRAY FOR ENVIRONMENT FORCES
 
               DO nl=1, nz-1
                 sz_sum(nl)=0.e0_dp
               END DO
-
 
 !   ENVIRONMENT-DEPENDENCE OF PAIR INTERACTION
 
@@ -1699,14 +1541,11 @@ CONTAINS
               dp1 = -2.e0_dp*temp0*pZ
 !   derivative of bond order
 
-
-
 !  --- LEVEL 2: LOOP FOR PAIR INTERACTIONS ---
 
             DO nj=1, n2-1
 
               temp0 = s2_t1(nj) - pZ
-
 
 !   two-body energy V2(rij,Z)
 
@@ -1727,8 +1566,6 @@ CONTAINS
               ff(2,j) = ff(2,j) - dV2ijy
               ff(3,j) = ff(3,j) - dV2ijz
 
-
-
 !  --- LEVEL 3: LOOP FOR PAIR COORDINATION FORCES ---
 
               dV2dZ = - dp1 * s2_t0(nj)
@@ -1737,7 +1574,6 @@ CONTAINS
               END DO
 
             END DO
-
 
 !   COORDINATION-DEPENDENCE OF THREE-BODY INTERACTION
 
@@ -1751,20 +1587,17 @@ CONTAINS
               dtau = u5*temp0*(2*temp0-u3)
 !   its derivative
 
-
 !  --- LEVEL 2: FIRST LOOP FOR THREE-BODY INTERACTIONS ---
 
             DO nj=1, n3-2
 
               j=num3(nj)
 
-
 !  --- LEVEL 3: SECOND LOOP FOR THREE-BODY INTERACTIONS ---
 
               DO nk=nj+1, n3-1
 
                 k=num3(nk)
-
 
 !   angular function h(l,Z)
 
@@ -1777,12 +1610,10 @@ CONTAINS
 
                 dhdl = dHdx*winv
 
-
 !   three-body energy
 
                 temp1 = s3_g(nj) * s3_g(nk)
                 ener_iat = ener_iat + temp1*H
-
 
 !   (-) radial force on atom j
 
@@ -1794,7 +1625,6 @@ CONTAINS
                 fjy = dV3rijy
                 fjz = dV3rijz
 
-
 !   (-) radial force on atom k
 
                 dV3rik = s3_g(nj) * s3_dg(nk) * H
@@ -1804,7 +1634,6 @@ CONTAINS
                 fkx = dV3rikx
                 fky = dV3riky
                 fkz = dV3rikz
-
 
 !   (-) angular force on j
 
@@ -1816,7 +1645,6 @@ CONTAINS
                 fjy = fjy + dV3ljy
                 fjz = fjz + dV3ljz
 
-
 !   (-) angular force on k
 
                 dV3lkx = dV3l * (s3_dx(nj) - lcos * s3_dx(nk)) * s3_rinv(nk)
@@ -1825,7 +1653,6 @@ CONTAINS
                 fkx = fkx + dV3lkx
                 fky = fky + dV3lky
                 fkz = fkz + dV3lkz
-
 
 !   apply radial + angular forces to i, j, k
 
@@ -1839,12 +1666,9 @@ CONTAINS
                 ff(2,i) = ff(2,i) + fjy + fky
                 ff(3,i) = ff(3,i) + fjz + fkz
 
-
-
 !   prefactor for 4-body forces from coordination
                   dxdZ = dwinv*(lcos + tau) + winv*dtau
                   dV3dZ = temp1*dHdx*dxdZ
-
 
 !  --- LEVEL 4: LOOP FOR THREE-BODY COORDINATION FORCES ---
 
@@ -1853,7 +1677,6 @@ CONTAINS
                   END DO
               END DO
             END DO
-
 
 !  --- LEVEL 2: LOOP TO APPLY COORDINATION FORCES ---
 
@@ -1871,7 +1694,6 @@ CONTAINS
                 ff(2,l) = ff(2,l) - dEdrly
                 ff(3,l) = ff(3,l) - dEdrlz
 
-
             END DO
 
         coord=coord+coord_iat
@@ -1881,12 +1703,10 @@ CONTAINS
 
 1000      CONTINUE
 
-
         RETURN
         END SUBROUTINE subfeniat_b
 
-
-
+! *****************************************************************************
         SUBROUTINE sublstiat_b(iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, &
                    rxyz,icell,lstb,lay,rel,cut2,indlst)
 ! finds the neighbours of atom iat (specified by lsta and lstb) and and
@@ -1925,47 +1745,33 @@ CONTAINS
 
         RETURN
         END SUBROUTINE sublstiat_b
-!****************************************************************************
 
-!!****f* eip_silicon/eip_lenosky_silicon [1.0] *
-!!
-!!   NAME
-!!     eip_lenosky_silicon
-!!
-!!   FUNCTION
-!!     Lenosky's "highly optimized empirical potential model of silicon"
-!!     by Stefan Goedecker
-!!
-!!   REFERENCES
-!!     T. Lenosky, et. al.: Highly optimized empirical potential model of silicon;
-!!                          Modelling Simul. Sci. Eng., 8 (2000)
-!!     S. Goedecker: Optimization and parallelization of a force field for silicon
-!!                   using OpenMP; CPC 148, 1 (2002)
-!!
-!!   INPUTS
-!!     - nat: number of atoms
-!!     - alat: lattice constants of the orthorombic box containing the particles
-!!     - rxyz0: atomic positions in Angstrom
-!!
-!!   OUTPUTS
-!!     - rxyz0: rxyz0 may be modified on output.
-!!              If an atom is outside the box the program will bring it back
-!!              into the box by translations through alat
-!!     - fxyz: forces in eV/A
-!!     - ener: total energy in eV
-!!     - coord: average coordination number
-!!     - ener_var: variance of the energy/atom
-!!     - coord_var: variance of the coordination number
-!!     - count: count is increased by one per call, has to be initialized
-!               to 0.e0_dp before first call of eip_bazant
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Lenosky's "highly optimized empirical potential model of silicon"
+!>      by Stefan Goedecker
+!> \param nat number of atoms
+!> \param alat lattice constants of the orthorombic box containing the particles
+!> \param rxyz 0: atomic positions in Angstrom
+!> 
+!> \param rxyz 0: rxyz0 may be modified on output.
+!>               If an atom is outside the box the program will bring it back
+!>               into the box by translations through alat
+!> \param fxyz forces in eV/A
+!> \param ener total energy in eV
+!> \param coord average coordination number
+!> \param ener_var variance of the energy/atom
+!> \param coord_var variance of the coordination number
+!> \param count count is increased by one per call, has to be initialized
+!>                to 0.e0_dp before first call of eip_bazant
+!> \par Literature
+!>      T. Lenosky, et. al.: Highly optimized empirical potential model of silicon;
+!>                           Modelling Simul. Sci. Eng., 8 (2000)
+!>      S. Goedecker: Optimization and parallelization of a force field for silicon
+!>                    using OpenMP; CPC 148, 1 (2002)
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
     SUBROUTINE eip_lenosky_silicon(nat,alat,rxyz0,fxyz,ener,coord,ener_var,&
                                    coord_var,count)
 
@@ -2093,7 +1899,6 @@ CONTAINS
 
     ENDIF
 
-
 ! duplicate all atoms within boundary layer
         laymx=ncx*(2*ll1*ll2+2*ll1*ll3+2*ll2*ll3+4*ll1+4*ll2+4*ll3+8)
         nn=nat+laymx
@@ -2138,7 +1943,6 @@ CONTAINS
         ENDDO
         ENDDO
 
-
 ! yz plane
         DO l3=0,ll3-1
         DO l2=0,ll2-1
@@ -2172,7 +1976,6 @@ CONTAINS
         ENDDO
         ENDDO
 
-
 ! xz plane
         DO l3=0,ll3-1
         DO l1=0,ll1-1
@@ -2205,7 +2008,6 @@ CONTAINS
 
         ENDDO
         ENDDO
-
 
 ! x axis
         DO l1=0,ll1-1
@@ -2264,7 +2066,6 @@ CONTAINS
 
         ENDDO
 
-
 ! y axis
         DO l2=0,ll2-1
 
@@ -2322,7 +2123,6 @@ CONTAINS
 
         ENDDO
 
-
 ! z axis
         DO l3=0,ll3-1
 
@@ -2379,7 +2179,6 @@ CONTAINS
         ENDDO
 
         ENDDO
-
 
 ! corners
         in=icell(0,0,0,0)
@@ -2497,7 +2296,6 @@ CONTAINS
 !$omp private(iat,cut2,iam,ii,indlst,l1,l2,l3,myspace,npr) &
 !$omp shared (indlstx,nat,nn,nnbrx,ncx,ll1,ll2,ll3,icell,lsta,lstb,lay, &
 !$omp rel,rxyz,cut,myspaceout)
-
 
         npr=1
 !$       npr=omp_get_num_threads()
@@ -2619,7 +2417,7 @@ CONTAINS
 
         END SUBROUTINE eip_lenosky_silicon
 
-
+! *****************************************************************************
         SUBROUTINE subfeniat_l(iat1,iat2,nat,lsta,lstb,rel,tener,tener2, &
                tcoord,tcoord2,nnbrx,txyz,f2ij,npjx,f3ij,npjkx,f3ik,istop)
 ! for a subset of atoms iat1 to iat2 the routine calculates the (partial) forces
@@ -2726,7 +2524,6 @@ CONTAINS
         txyz(2,iat)=0.e0_dp
         txyz(3,iat)=0.e0_dp
 121     CONTINUE
-
 
 ! calculation of forces, energy
 
@@ -3014,7 +2811,6 @@ CONTAINS
         txyz(2,kat)=txyz(2,kat)+ep_uuu*f3ik(2,jkcnt)
         txyz(3,kat)=txyz(3,kat)+ep_uuu*f3ik(3,jkcnt)
 
-
         ENDIF
 3300        CONTINUE
 2200        CONTINUE
@@ -3031,7 +2827,7 @@ CONTAINS
         RETURN
         END SUBROUTINE subfeniat_l
 
-
+! *****************************************************************************
         SUBROUTINE sublstiat_l(iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, &
                    rxyz,icell,lstb,lay,rel,cut2,indlst)
 ! finds the neighbours of atom iat (specified by lsta and lstb) and and
@@ -3071,6 +2867,7 @@ CONTAINS
         RETURN
         END SUBROUTINE sublstiat_l
 
+! *****************************************************************************
         SUBROUTINE splint(ya,y2a,tmin,tmax,hsixth,h2sixth,hi,n,x,y,yp)
         IMPLICIT REAL(KIND=dp) (a-h,o-z)
         DIMENSION y2a(0:n-1),ya(0:n-1)
@@ -3118,6 +2915,5 @@ CONTAINS
         ENDIF
       RETURN
       END SUBROUTINE splint
-!****************************************************************************
 
 END MODULE eip_silicon

@@ -17,38 +17,28 @@
 !   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.                 !
 !                                                                             !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/kahan_sum *
-!!
-!!   NAME
-!!     kahan_sum
-!!
-!!   FUNCTION
-!!     sums arrays of real/complex numbers with *much* reduced round-off as compared to 
-!!     a naive implementation (or the one found in most compiler's SUM intrinsic)
-!!     using an implementation of Kahan's algorithm for summing real numbers
-!!     that can be used instead of the standard Fortran SUM(array[,mask]).
-!!
-!!     see also http://en.wikipedia.org/wiki/Kahan_summation_algorithm
-!!
-!!   NOTES
-!!     if the compiler optimises away the 'tricky' bit, no accuracy is gained,
-!!     if the compiler uses extended precision inconsistently even worse results might be obtained.
-!!     This has not been observed.
-!!     This algorithm is not fast, and thus not recommended for cases where round-off is not a 
-!!     concern but performance is.
-!!
-!!     the standard intrinsic sum can be 'replaced' using the following use statement
-!!
-!!     USE kahan_sum, ONLY: sum => kahan_sum
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 [Joost VandeVondele]
-!!
-!!   SOURCE
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief sums arrays of real/complex numbers with *much* reduced round-off as compared to 
+!>      a naive implementation (or the one found in most compiler's SUM intrinsic)
+!>      using an implementation of Kahan's algorithm for summing real numbers
+!>      that can be used instead of the standard Fortran SUM(array[,mask]).
+!> 
+!>      see also http://en.wikipedia.org/wiki/Kahan_summation_algorithm
+!> \note
+!>      if the compiler optimises away the 'tricky' bit, no accuracy is gained,
+!>      if the compiler uses extended precision inconsistently even worse results might be obtained.
+!>      This has not been observed.
+!>      This algorithm is not fast, and thus not recommended for cases where round-off is not a 
+!>      concern but performance is.
+!> 
+!>      the standard intrinsic sum can be 'replaced' using the following use statement
+!> 
+!>      USE kahan_sum, ONLY: sum => kahan_sum
+!> \par History
+!>      03.2006 [Joost VandeVondele]
+!> \author Joost VandeVondele
+! *****************************************************************************
 MODULE kahan_sum
   IMPLICIT NONE
   PRIVATE
@@ -69,6 +59,7 @@ MODULE kahan_sum
      kahan_sum_s7,      kahan_sum_d7,      kahan_sum_c7,      kahan_sum_z7   
   END INTERFACE accurate_sum
  CONTAINS
+! *****************************************************************************
   FUNCTION kahan_sum_s1(array,mask) RESULT(ks)
     REAL(KIND=sp), DIMENSION(:), INTENT(IN)  :: array
     LOGICAL, DIMENSION(:), INTENT(IN), &
@@ -99,6 +90,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_s1
   
+! *****************************************************************************
   FUNCTION kahan_sum_d1(array,mask) RESULT(ks)
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: array
     LOGICAL, DIMENSION(:), INTENT(IN), &
@@ -129,6 +121,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_d1
   
+! *****************************************************************************
   FUNCTION kahan_sum_c1(array,mask) RESULT(ks)
     COMPLEX(KIND=sp), DIMENSION(:), &
       INTENT(IN)                             :: array
@@ -160,6 +153,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_c1
   
+! *****************************************************************************
   FUNCTION kahan_sum_z1(array,mask) RESULT(ks)
     COMPLEX(KIND=dp), DIMENSION(:), &
       INTENT(IN)                             :: array
@@ -191,6 +185,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_z1
   
+! *****************************************************************************
   FUNCTION kahan_sum_s2(array,mask) RESULT(ks)
     REAL(KIND=sp), DIMENSION(:, :), &
       INTENT(IN)                             :: array
@@ -226,6 +221,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_s2
   
+! *****************************************************************************
   FUNCTION kahan_sum_d2(array,mask) RESULT(ks)
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: array
@@ -261,6 +257,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_d2
   
+! *****************************************************************************
   FUNCTION kahan_sum_c2(array,mask) RESULT(ks)
     COMPLEX(KIND=sp), DIMENSION(:, :), &
       INTENT(IN)                             :: array
@@ -296,6 +293,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_c2
   
+! *****************************************************************************
   FUNCTION kahan_sum_z2(array,mask) RESULT(ks)
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: array
@@ -331,6 +329,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_z2
   
+! *****************************************************************************
   FUNCTION kahan_sum_s3(array,mask) RESULT(ks)
     REAL(KIND=sp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: array
@@ -370,6 +369,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_s3
   
+! *****************************************************************************
   FUNCTION kahan_sum_d3(array,mask) RESULT(ks)
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: array
@@ -409,6 +409,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_d3
   
+! *****************************************************************************
   FUNCTION kahan_sum_c3(array,mask) RESULT(ks)
     COMPLEX(KIND=sp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: array
@@ -448,6 +449,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_c3
   
+! *****************************************************************************
   FUNCTION kahan_sum_z3(array,mask) RESULT(ks)
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: array
@@ -487,6 +489,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_z3
   
+! *****************************************************************************
   FUNCTION kahan_sum_s4(array,mask) RESULT(ks)
     REAL(KIND=sp), DIMENSION(:, :, :, :), &
       INTENT(IN)                             :: array
@@ -530,6 +533,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_s4
   
+! *****************************************************************************
   FUNCTION kahan_sum_d4(array,mask) RESULT(ks)
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       INTENT(IN)                             :: array
@@ -573,6 +577,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_d4
   
+! *****************************************************************************
   FUNCTION kahan_sum_c4(array,mask) RESULT(ks)
     COMPLEX(KIND=sp), &
       DIMENSION(:, :, :, :), INTENT(IN)      :: array
@@ -616,6 +621,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_c4
   
+! *****************************************************************************
   FUNCTION kahan_sum_z4(array,mask) RESULT(ks)
     COMPLEX(KIND=dp), &
       DIMENSION(:, :, :, :), INTENT(IN)      :: array
@@ -659,6 +665,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_z4
   
+! *****************************************************************************
   FUNCTION kahan_sum_s5(array,mask) RESULT(ks)
     REAL(KIND=sp), &
       DIMENSION(:, :, :, :, :), INTENT(IN)   :: array
@@ -706,6 +713,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_s5
   
+! *****************************************************************************
   FUNCTION kahan_sum_d5(array,mask) RESULT(ks)
     REAL(KIND=dp), &
       DIMENSION(:, :, :, :, :), INTENT(IN)   :: array
@@ -753,6 +761,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_d5
   
+! *****************************************************************************
   FUNCTION kahan_sum_c5(array,mask) RESULT(ks)
     COMPLEX(KIND=sp), &
       DIMENSION(:, :, :, :, :), INTENT(IN)   :: array
@@ -800,6 +809,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_c5
   
+! *****************************************************************************
   FUNCTION kahan_sum_z5(array,mask) RESULT(ks)
     COMPLEX(KIND=dp), &
       DIMENSION(:, :, :, :, :), INTENT(IN)   :: array
@@ -847,6 +857,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_z5
   
+! *****************************************************************************
   FUNCTION kahan_sum_s6(array,mask) RESULT(ks)
     REAL(KIND=sp), &
       DIMENSION(:, :, :, :, :, :), &
@@ -899,6 +910,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_s6
   
+! *****************************************************************************
   FUNCTION kahan_sum_d6(array,mask) RESULT(ks)
     REAL(KIND=dp), &
       DIMENSION(:, :, :, :, :, :), &
@@ -951,6 +963,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_d6
   
+! *****************************************************************************
   FUNCTION kahan_sum_c6(array,mask) RESULT(ks)
     COMPLEX(KIND=sp), &
       DIMENSION(:, :, :, :, :, :), &
@@ -1003,6 +1016,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_c6
   
+! *****************************************************************************
   FUNCTION kahan_sum_z6(array,mask) RESULT(ks)
     COMPLEX(KIND=dp), &
       DIMENSION(:, :, :, :, :, :), &
@@ -1055,6 +1069,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_z6
   
+! *****************************************************************************
   FUNCTION kahan_sum_s7(array,mask) RESULT(ks)
     REAL(KIND=sp), &
       DIMENSION(:, :, :, :, :, :, :), &
@@ -1112,6 +1127,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_s7
   
+! *****************************************************************************
   FUNCTION kahan_sum_d7(array,mask) RESULT(ks)
     REAL(KIND=dp), &
       DIMENSION(:, :, :, :, :, :, :), &
@@ -1169,6 +1185,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_d7
   
+! *****************************************************************************
   FUNCTION kahan_sum_c7(array,mask) RESULT(ks)
     COMPLEX(KIND=sp), &
       DIMENSION(:, :, :, :, :, :, :), &
@@ -1226,6 +1243,7 @@ MODULE kahan_sum
     ENDIF
   END FUNCTION kahan_sum_c7
   
+! *****************************************************************************
   FUNCTION kahan_sum_z7(array,mask) RESULT(ks)
     COMPLEX(KIND=dp), &
       DIMENSION(:, :, :, :, :, :, :), &

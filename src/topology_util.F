@@ -3,24 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/topology_util [1.0] *
-!!
-!!   NAME
-!!     topology_util
-!!
-!!   FUNCTION
-!!     Collection of subroutine needed for topology related things
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!    jgh (23-05-2004) Last atom of molecule information added
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Collection of subroutine needed for topology related things
+!> \par History
+!>     jgh (23-05-2004) Last atom of molecule information added
+! *****************************************************************************
 MODULE topology_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -55,10 +42,12 @@ MODULE topology_util
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_util'
 
+! *****************************************************************************
   TYPE array1_list_type
      INTEGER, POINTER, DIMENSION(:) :: array1 => NULL()
   END TYPE array1_list_type
 
+! *****************************************************************************
   TYPE array2_list_type
      INTEGER, POINTER, DIMENSION(:) :: array1 => NULL()
      INTEGER, POINTER, DIMENSION(:) :: array2 => NULL()
@@ -81,29 +70,12 @@ MODULE topology_util
      MODULE PROCEDURE reorder_structure1d, reorder_structure2d
   END INTERFACE
   
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** topology_util [1.0] *
-!!
-!!   NAME
-!!     topology_reorder_atoms
-!!
-!!
-!!   FUNCTION
-!!
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!     Teodoro Laino 09.2006 - Rewritten with a graph matching algorithm
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      Teodoro Laino 09.2006 - Rewritten with a graph matching algorithm
+! *****************************************************************************
   SUBROUTINE topology_reorder_atoms(topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
@@ -443,24 +415,10 @@ CONTAINS
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
   END SUBROUTINE topology_reorder_atoms
 
-!******************************************************************************
-!!****** topology_util [1.0] *
-!!
-!!   NAME
-!!     setup_graph_set
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Set up a SET of graph kind
-!!
-!!   AUTHOR
-!!     Teodoro Laino 10.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Set up a SET of graph kind
+!> \author Teodoro Laino 10.2006
+! *****************************************************************************
   SUBROUTINE setup_graph_set(graph_set, idim, ind, array2, atom_bond_list, map_mol,&
        atm_map1, atm_map2, atm_map3, error)
     TYPE(graph_type), DIMENSION(:), POINTER  :: graph_set
@@ -497,24 +455,10 @@ CONTAINS
 
   END SUBROUTINE setup_graph_set
 
-!******************************************************************************
-!!****** topology_util [1.0] *
-!!
-!!   NAME
-!!     allocate_graph_set
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Allocate a new graph_set deallocating an old one..
-!!
-!!   AUTHOR
-!!     Teodoro Laino 10.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Allocate a new graph_set deallocating an old one..
+!> \author Teodoro Laino 10.2006
+! *****************************************************************************
   SUBROUTINE allocate_graph_set(graph_set_in, graph_set_out, ldim_in, ldim_out,  error)
     TYPE(graph_type), DIMENSION(:), POINTER  :: graph_set_in, graph_set_out
     INTEGER, INTENT(IN), OPTIONAL            :: ldim_in, ldim_out
@@ -567,24 +511,11 @@ CONTAINS
     END IF
 
   END SUBROUTINE allocate_graph_set
-!******************************************************************************
-!!****** topology_util [1.0] *
-!!
-!!   NAME
-!!     setup_graph
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Set up a graph kind
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+
+! *****************************************************************************
+!> \brief Set up a graph kind
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE setup_graph(ind, graph, array2, atom_bond_list, map_mol,&
        atm_map1, atm_map2, atm_map3, error)
     INTEGER, INTENT(IN)                      :: ind
@@ -636,24 +567,10 @@ CONTAINS
 
   END SUBROUTINE setup_graph
 
-!******************************************************************************
-!!****** topology_util [1.0] *
-!!
-!!   NAME
-!!     reorder_list_array
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Order arrays of lists
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Order arrays of lists
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   RECURSIVE SUBROUTINE reorder_list_array(Ilist1, Ilist2, Ilist3, Ilist4, nsize, ndim, error)
     INTEGER, DIMENSION(:), POINTER           :: Ilist1
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: Ilist2, Ilist3, Ilist4
@@ -717,24 +634,10 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE reorder_list_array
 
-!******************************************************************************
-!!****** topology_util [1.0] *
-!!
-!!   NAME
-!!     reorder_list_array_low
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Low level routine for ordering arrays of lists
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Low level routine for ordering arrays of lists
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   RECURSIVE SUBROUTINE reorder_list_array_low(Ilist2, Ilist3, Ilist4, nsize,&
        ldim, istart, iend, error)
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: Ilist2, Ilist3, Ilist4
@@ -799,25 +702,9 @@ CONTAINS
 
   END SUBROUTINE reorder_list_array_low
   
-!******************************************************************************
-!!****** topology_util [1.0] *
-!!
-!!   NAME
-!!     give_back_molecule
-!!
-!!   SYNOPSIS
-!!
-!!
-!!   FUNCTION
-!!     
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   RECURSIVE SUBROUTINE give_back_molecule(icheck, bond_list,i,mol_natom,mol_map,my_mol)
     LOGICAL, DIMENSION(:), POINTER           :: icheck
     TYPE(array1_list_type), DIMENSION(:), &
@@ -844,25 +731,10 @@ CONTAINS
     END IF
   END SUBROUTINE give_back_molecule
 
-!******************************************************************************
-!!****** topology_util [1.0] *
-!!
-!!   NAME
-!!     tag_molecule
-!!
-!!   SYNOPSIS
-!!
-!!
-!!   FUNCTION
-!!     gives back a mapping of molecules.. icheck needs to be initialized with -1
-!!
-!!   AUTHOR
-!!     Teodoro Laino 04.2007 - Zurich University
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief gives back a mapping of molecules.. icheck needs to be initialized with -1
+!> \author Teodoro Laino 04.2007 - Zurich University
+! *****************************************************************************
   RECURSIVE SUBROUTINE tag_molecule(icheck, bond_list, i, my_mol)
     INTEGER, DIMENSION(:), POINTER           :: icheck
     TYPE(array1_list_type), DIMENSION(:), &
@@ -880,26 +752,11 @@ CONTAINS
 
   END SUBROUTINE tag_molecule
 
-!******************************************************************************
-!!****** topology_util [1.0] *
-!!
-!!   NAME
-!!    reorder_structure1d
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Given two lists of corresponding element a complex type is built in 
-!!     which each element of the type has a list of mapping elements
-!!
-!!   AUTHOR
-!!     Teodoro Laino 08.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Given two lists of corresponding element a complex type is built in 
+!>      which each element of the type has a list of mapping elements
+!> \author Teodoro Laino 08.2006
+! *****************************************************************************
   SUBROUTINE reorder_structure1d(work, list1, list2, N, error)
     TYPE(array1_list_type), DIMENSION(:), &
       INTENT(INOUT)                          :: work
@@ -940,26 +797,11 @@ CONTAINS
 
   END SUBROUTINE reorder_structure1d
 
-!******************************************************************************
-!!****** topology_util [1.0] *
-!!
-!!   NAME
-!!    reorder_structure2d
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Given two lists of corresponding element a complex type is built in 
-!!     which each element of the type has a list of mapping elements
-!!
-!!   AUTHOR
-!!    Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Given two lists of corresponding element a complex type is built in 
+!>      which each element of the type has a list of mapping elements
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE reorder_structure2d(work, list1, list2, list3, N, error)
     TYPE(array2_list_type), DIMENSION(:), &
       INTENT(INOUT)                          :: work
@@ -1020,27 +862,12 @@ CONTAINS
 
   END SUBROUTINE reorder_structure2d
     
-!******************************************************************************
-!!****** topology_util [1.0] *
-!!
-!!   NAME
-!!     find_molecule
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     each atom will be assigned a molecule number based on bonded fragments
-!!     The array mol_info should be initialized with -1 before calling the 
-!!     find_molecule routine
-!!
-!!   AUTHOR
-!!     Joost 05.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief each atom will be assigned a molecule number based on bonded fragments
+!>      The array mol_info should be initialized with -1 before calling the 
+!>      find_molecule routine
+!> \author Joost 05.2006
+! *****************************************************************************
   SUBROUTINE find_molecule(atom_bond_list,mol_info,mol_name)
     TYPE(array1_list_type), DIMENSION(:), &
       INTENT(IN)                             :: atom_bond_list
@@ -1063,25 +890,10 @@ CONTAINS
     ENDDO
   END SUBROUTINE find_molecule
 
-!******************************************************************************
-!!****** topology_util [1.0] *
-!!
-!!   NAME
-!!     spread_mol
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     spreads the molnumber over the bonded list
-!!
-!!   AUTHOR
-!!     Joost 05.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief spreads the molnumber over the bonded list
+!> \author Joost 05.2006
+! *****************************************************************************
   RECURSIVE SUBROUTINE spread_mol(atom_bond_list,mol_info,iatom,imol, &
        my_mol_name, mol_name)
     TYPE(array1_list_type), DIMENSION(:), &
@@ -1108,25 +920,9 @@ CONTAINS
     ENDDO
   END SUBROUTINE spread_mol
  
-!******************************************************************************
-!!****** topology_util [1.0] *
-!!
-!!   NAME
-!!     topology_set_atm_mass
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Use info from periodic table and set atm_mass
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Use info from periodic table and set atm_mass
+! *****************************************************************************
   SUBROUTINE topology_set_atm_mass(topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
@@ -1241,23 +1037,9 @@ CONTAINS
     
   END SUBROUTINE topology_set_atm_mass
 
-!******************************************************************************
-!!****** topology_util [1.0] *
-!!
-!!   NAME
-!!     topology_molecules_check
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Check and verify that all molecules of the same kind are bonded the same
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Check and verify that all molecules of the same kind are bonded the same
+! *****************************************************************************
   SUBROUTINE topology_molecules_check(topology,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
@@ -1396,27 +1178,12 @@ CONTAINS
 
   END SUBROUTINE topology_molecules_check
 
-!!****f* cp_subsystem_methods/check_subsys_element [1.0] *
-!!
-!!   NAME
-!!     check_subsys_element
-!!
-!!   FUNCTION
-!!     Check and returns the ELEMENT label
-!!
-!!   NOTES
-!!
-!!
-!!   INPUTS
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     12.2005 created [teo]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Check and returns the ELEMENT label
+!> \par History
+!>      12.2005 created [teo]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE check_subsys_element(element_in, element_out, subsys_section, error)
     CHARACTER(len=*), INTENT(IN)             :: element_in
     CHARACTER(len=default_string_length), &

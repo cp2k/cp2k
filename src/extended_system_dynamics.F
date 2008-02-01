@@ -2,24 +2,14 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/extended_system_dynamics [1.0] *
-!!
-!!   NAME
-!!     extended_system_dynamics
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     CJM 20-Feb-2001: Now npt_ifo is allocated to zero when not used
-!!     CJM 11-apr-2001: adding routines to thermostat ao_type 
-!!     CJM 02-Aug-2003: renamed
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      CJM 20-Feb-2001: Now npt_ifo is allocated to zero when not used
+!>      CJM 11-apr-2001: adding routines to thermostat ao_type 
+!>      CJM 02-Aug-2003: renamed
+!> \author CJM
+! *****************************************************************************
 MODULE extended_system_dynamics
  
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -60,29 +50,14 @@ MODULE extended_system_dynamics
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_dynamics'
 
-!!*****
-!******************************************************************************
 CONTAINS
 
-!******************************************************************************
-!!****** extended_system_dynamics/lnhc_coeffs [1.0] *
-!!
-!!   NAME
-!!     lnhc_coeffs
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!    CJM
-!!
-!!   CREATION DATE
-!!     11-Apr-2001
-!!
-!!   MODIFICATION HISTORY
-!!     05-02-04 adapted to new coeffs type
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      05-02-04 adapted to new coeffs type
+!> \author CJM
+!> \date 11-Apr-2001
+! *****************************************************************************
   SUBROUTINE lnhc_coeffs ( nhc, dyn_coeff_set, group, error )
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
@@ -115,25 +90,12 @@ CONTAINS
 
   END SUBROUTINE lnhc_coeffs
 
-!******************************************************************************
-!!****** extended_system_dynamics/lnhc_barostat [1.0] *
-!!
-!!   NAME
-!!     lnhc_barostat
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!    CJM
-!!
-!!   CREATION DATE
-!!     13-DEC-2000
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author CJM
+!> \date 13-DEC-2000
+! *****************************************************************************
   SUBROUTINE lnhc_barostat ( nhc, npt, group, error )
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc
@@ -166,24 +128,11 @@ CONTAINS
     CALL timestop(flops,handle)
   END SUBROUTINE lnhc_barostat
 
-!******************************************************************************
-!!****** extended_system_dynamics/lnhc_particles [1.0] *
-!!
-!!   NAME
-!!     lnhc_particles
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   CREATION DATE
-!!     14-NOV-2000
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+!> \date 14-NOV-2000
+! *****************************************************************************
   SUBROUTINE lnhc_particles( nhc, molecule_kind_set, molecule_set,  &
        particle_set, local_molecules, group, shell_adiabatic,&
        shell_particle_set, core_particle_set, vel, shell_vel, core_vel,&
@@ -232,24 +181,11 @@ CONTAINS
     CALL timestop(flops,handle)
   END SUBROUTINE lnhc_particles
 
-!******************************************************************************
-!!****** extended_system_dynamics/lnhc_shell_set [1.0] *
-!!
-!!   NAME
-!!    lnhc_shell_set 
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   CREATION DATE
-!!     14-NOV-2000
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+!> \date 14-NOV-2000
+! *****************************************************************************
   SUBROUTINE lnhc_shells(nhc, atomic_kind_set, particle_set, local_particles, &
        group, shell_particle_set, core_particle_set, vel, shell_vel, core_vel,&
        error)
@@ -291,25 +227,9 @@ CONTAINS
     CALL timestop(flops,handle)
   END SUBROUTINE lnhc_shells
 
-!******************************************************************************
-!!****** extended_system_dynamics/do_nhc [1.0] *
-!!
-!!   NAME
-!!    do_nhc 
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!    10.2007 [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!   CREATION DATE
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \author 10.2007 [tlaino] - Teodoro Laino - University of Zurich
+! *****************************************************************************
   SUBROUTINE do_nhc(nhc, map_info, flops, error)
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(map_info_type), POINTER             :: map_info
@@ -337,24 +257,11 @@ CONTAINS
 
   END SUBROUTINE do_nhc
 
-!******************************************************************************
-!!****** extended_system_dynamics/shell_scale_comv [1.0] *
-!!
-!!   NAME
-!!    shell_scale_comv
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   CREATION DATE
-!!     14-NOV-2000
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+!> \date 14-NOV-2000
+! *****************************************************************************
   SUBROUTINE shell_scale_comv(atomic_kind_set, local_particles, particle_set,&
        com_vel, shell_vel, core_vel)
 
@@ -402,24 +309,11 @@ CONTAINS
     END DO  ! iparticle_kind
   END SUBROUTINE shell_scale_comv
 
-!******************************************************************************
-!!****** extended_system_dynamics/multiple_step_yoshida [1.0] *
-!!
-!!   NAME
-!!    multiple_step_yoshida 
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   CREATION DATE
-!!     14-NOV-2000
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+!> \date 14-NOV-2000
+! *****************************************************************************
   SUBROUTINE multiple_step_yoshida(nhc,flops,error)
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc

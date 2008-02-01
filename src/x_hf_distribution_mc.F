@@ -3,26 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!***** cp2k/x_hf_distribution_mc[1.0] *
-!!
-!!   NAME
-!!     x_hf_distribution_mc 
-!!
-!!   FUNCTION
-!!     Optimizes the load balance for a given cost matrix for a one dimensional
-!!     distribution of processors
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [Manuel Guidon]
-!!
-!****************************************************************************
-
+! *****************************************************************************
+!> \brief Optimizes the load balance for a given cost matrix for a one dimensional
+!>      distribution of processors
+!> \par History
+!>      09.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
 MODULE x_hf_distribution_mc
 
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -64,34 +51,18 @@ MODULE x_hf_distribution_mc
  
   CONTAINS
 
-
-!!***** x_hf_distribution_mc/init [1.0] *
-!!
-!!   NAME
-!!     init 
-!!
-!!   FUNCTION
-!!     Initializes the module variables
-!!
-!!   NOTES
-!!
-!!
-!!   INPUTS
-!!     - para_env: parallel environnment
-!!     - nbin_in: size of the cost_matrix
-!!     - ncpu_in: number of cpus
-!!     - bin_costs_in: cost per (nbin*ncpu)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief Initializes the module variables
+!> \param para_env parallel environnment
+!> \param nbin_in size of the cost_matrix
+!> \param ncpu_in number of cpus
+!> \param bin_costs_in cost per (nbin*ncpu)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE init(para_env, nbin_in, ncpu_in, bin_costs_in, load_balance_parameter, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER(int_8)                           :: nbin_in, ncpu_in
@@ -130,31 +101,15 @@ MODULE x_hf_distribution_mc
     ENDDO
 
   END SUBROUTINE init
-!***************************************************************************
 
-!!***** x_hf_distribution_mc/destructor [1.0] *
-!!
-!!   NAME
-!!     destructor 
-!!
-!!   FUNCTION
-!!     frees memory
-!!
-!!   NOTES
-!!
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief frees memory
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE destructor(error)
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -165,30 +120,14 @@ MODULE x_hf_distribution_mc
 
      CALL delete_rng_stream(my_rng_stream,error=error)
   END SUBROUTINE destructor
-!***************************************************************************
 
-!!***** x_hf_distribution_mc/compute_cost_cpu [1.0] *
-!!
-!!   NAME
-!!     compute_cost_cpu 
-!!
-!!   FUNCTION
-!!     Calculate the cost of a distribution
-!!
-!!   NOTES
-!!
-!!
-!!   INPUTS
-!!     - distribution: maps cost_matrix to a cpu
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief Calculate the cost of a distribution
+!> \param distribution maps cost_matrix to a cpu
+!> \par History
+!>      09.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE compute_cost_cpu(distribution)
     INTEGER                                  :: distribution(my_nbin)
 
@@ -199,30 +138,14 @@ MODULE x_hf_distribution_mc
       my_cost_cpu(distribution(i)) = my_cost_cpu(distribution(i))+my_bin_costs(i)
     ENDDO
   END SUBROUTINE compute_cost_cpu
-!***************************************************************************
 
-!!***** x_hf_distribution_mc/compute_max_cost [1.0] *
-!!
-!!   NAME
-!!     compute_max_cost
-!!
-!!   FUNCTION
-!!     Calculates the maximal cost of a distribution
-!!
-!!   NOTES
-!!
-!!
-!!   INPUTS
-!!     - max_cost: variable that stores the max_cost
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief Calculates the maximal cost of a distribution
+!> \param max_cost variable that stores the max_cost
+!> \par History
+!>      09.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE compute_max_cost(max_cost)
     INTEGER(int_8)                           :: max_cost
 
@@ -236,35 +159,21 @@ MODULE x_hf_distribution_mc
     ENDDO
 
   END SUBROUTINE compute_max_cost
-!***************************************************************************
 
-!!***** x_hf_distribution_mc/distribute_monte_carlo [1.0] *
-!!
-!!   NAME
-!!     distribute_monte_carlo
-!!
-!!   FUNCTION
-!!     Optimizes a 1d distribution according to a given cost_matrix
-!!
-!!   NOTES
-!!     Uses two basic random updates:
-!!        a) swap the cost of two distributions
-!!        b) assign the cost of i to j
-!!
-!!   INPUTS
-!!     - Ntries: Number of trial steps
-!!     - T_in: Initial temperature (for acceptance criterion)
-!!     - error:  variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief Optimizes a 1d distribution according to a given cost_matrix
+!> \param Ntries Number of trial steps
+!> \param T_in Initial temperature (for acceptance criterion)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      Uses two basic random updates:
+!>         a) swap the cost of two distributions
+!>         b) assign the cost of i to j
+!> \par History
+!>      09.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE distribute_monte_carlo(error)
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -352,39 +261,22 @@ MODULE x_hf_distribution_mc
 
   END SUBROUTINE distribute_monte_carlo
 
-!***************************************************************************
-
-!!***** x_hf_distribution_mc/x_hf_optimize_distribution [1.0] *
-!!
-!!   NAME
-!!     x_hf_optimize_distribution 
-!!
-!!   FUNCTION
-!!     Interface to the module
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - para_env: parallel environment
-!!     - nbin_in: size of the cost matrix
-!!     - ncpu_in: number of processors
-!!     - bin_costs_in: cost_matrix
-!!     - distribution_vector: 1d vector that assigns cost matrix to process
-!!     - steps: number of Monte Carlo steps to be performed
-!!     - initial_temperature: initial temperature for acceptance criterion
-!!     - optimal_cost: stores the optimal cost
-!!     - error:  variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief Interface to the module
+!> \param para_env parallel environment
+!> \param nbin_in size of the cost matrix
+!> \param ncpu_in number of processors
+!> \param bin_costs_in cost_matrix
+!> \param distribution_vector 1d vector that assigns cost matrix to process
+!> \param steps number of Monte Carlo steps to be performed
+!> \param initial_temperature initial temperature for acceptance criterion
+!> \param optimal_cost stores the optimal cost
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE x_hf_optimize_distribution(para_env, nbin_in, ncpu_in, bin_costs_in, distribution_vector, &
                                         load_balance_parameter, optimal_cost, error)
     TYPE(cp_para_env_type), POINTER          :: para_env

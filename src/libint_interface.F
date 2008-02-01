@@ -2,25 +2,16 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!***** cp2k/libint_interface [1.0] *
-!!
-!!   NAME
-!!     libint_interface
-!!
-!!   FUNCTION
-!!     Interface to the Libint-Library 
-!!
-!!   NOTES
-!!     IMPORTANT NOTE : this file currently is for a libint configured for
-!!                      LIBINT_MAX_AM 5 and LIBINT_MAX_AM1 4
-!!
-!!   AUTHOR
-!!     Manuel Guidon 
-!!
-!!   MODIFICATION HISTORY
-!!     11.2006 created [Manuel Guidon]
-!!
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief Interface to the Libint-Library 
+!> \note
+!>      IMPORTANT NOTE : this file currently is for a libint configured for
+!>                       LIBINT_MAX_AM 5 and LIBINT_MAX_AM1 4
+!> \par History
+!>      11.2006 created [Manuel Guidon]
+!> \author Manuel Guidon 
+! *****************************************************************************
 MODULE libint_interface
 
   USE f77_blas
@@ -60,36 +51,21 @@ MODULE libint_interface
   INTEGER, DIMENSION(12), PARAMETER :: full_perm7 = (/10,11,12,7,8,9,1,2,3,4,5,6/)
   INTEGER, DIMENSION(12), PARAMETER :: full_perm8 = (/10,11,12,7,8,9,4,5,6,1,2,3/)
 
-
   INTEGER                            :: global_m  = -HUGE(global_m)  
   REAL(KIND=dp), DIMENSION(17)       :: global_Fm = 0.0_dp
   REAL(KIND=dp)                      :: global_T  = 0.0_dp
 
 !***
-!****************************************************************************
 
   CONTAINS
 
-!!***** libint_interface/evaluate_eri [1.0] *
-!!
-!!   NAME
-!!     evaluate_eri
-!!
-!!   FUNCTION
-!!     Evaluate electron repulsion integrals for a primitive quartet
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     11.2006 created [Manuel Guidon]
-!!     08.2007 refactured permutation part [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief Evaluate electron repulsion integrals for a primitive quartet
+!> \par History
+!>      11.2006 created [Manuel Guidon]
+!>      08.2007 refactured permutation part [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE evaluate_eri(lib,A,B,C,D,Zeta_A,Zeta_B,Zeta_C,Zeta_D,&
                           n_a,n_b,n_c,n_d,&
                           ncoa,ncob,ncoc,ncod,&
@@ -137,7 +113,6 @@ MODULE libint_interface
     ALLOCATE(p_work(mysize))
 #endif
 #endif
-
 
     IF(m_max/=0) THEN
       perm_case = 1
@@ -407,7 +382,6 @@ MODULE libint_interface
       tmp_max = max_contraction*ABS(prim%F(1))
     END IF
 
-
     !! IF we use a Compiler that does not support whether ISO_C_BINDING nor
     !! CRAY POINTERS, we have to DEALLOCATE work array here
     !! See comment on __UGLY_BUT_FAST in libint_wrapper
@@ -430,27 +404,12 @@ MODULE libint_interface
 
   END SUBROUTINE evaluate_eri
 
-!***************************************************************************
-
-!!***** libint_interface/build_quartet_data [1.0] *
-!!
-!!   NAME
-!!     build_quartet_data
-!!
-!!   FUNCTION
-!!     Fill data structure used in libint
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     03.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief Fill data structure used in libint
+!> \par History
+!>      03.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE build_quartet_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max, &
                               potential_parameter, prim)
      
@@ -488,7 +447,6 @@ MODULE libint_interface
     CD2 = DOT_PRODUCT(CD,CD)
     PQ2 = DOT_PRODUCT(PQ,PQ)
     
-
     S1234= EXP((-Zeta_A*Zeta_B*ZetaInv*AB2)+(-Zeta_C*Zeta_D*EtaInv*CD2))
     T = Rho*PQ2
 
@@ -595,27 +553,13 @@ MODULE libint_interface
     prim%oo2p      = 0.5_dp*RhoInv
 !    prim%ss_r12_ss = 0.0_dp                      !Not used in libint,libderiv
   END SUBROUTINE build_quartet_data
-!***************************************************************************
 
-!!***** libint_interface/build_deriv_data [1.0] *
-!!
-!!   NAME
-!!     build_derive_data
-!!
-!!   FUNCTION
-!!     Fill data structure used in libderiv
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     03.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief Fill data structure used in libderiv
+!> \par History
+!>      03.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE build_deriv_data(A,B,C,D,Zeta_A, Zeta_B, Zeta_C, Zeta_D, m_max,&
                             potential_parameter, prim)
      
@@ -764,28 +708,14 @@ MODULE libint_interface
     C = C1
     D = D1
   END SUBROUTINE build_deriv_data
-!***************************************************************************
 
-!!***** libint_interface/evaluate_deriv_eri [1.0] *
-!!
-!!   NAME
-!!     evaluate_deriv_eri
-!!
-!!   FUNCTION
-!!     Evaluates derivatives of electron repulsion integrals for a primitive quartet
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     03.2007 created [Manuel Guidon]
-!!     08.2007 refactured permutation part [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief Evaluates derivatives of electron repulsion integrals for a primitive quartet
+!> \par History
+!>      03.2007 created [Manuel Guidon]
+!>      08.2007 refactured permutation part [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE evaluate_deriv_eri(deriv,A,B,C,D,Zeta_A,Zeta_B,Zeta_C,Zeta_D,&
                                 n_a,n_b,n_c,n_d,work_forces,&
                                 ncoa, ncob, ncoc, ncod,&
@@ -829,7 +759,6 @@ MODULE libint_interface
       perm_case = perm_case + 4
     END IF
 
-   
     m_max = n_a+n_b+n_c+n_d
     m_max = m_max + 1
     mysize = nco(n_a)*nco(n_b)*nco(n_c)*nco(n_d)
@@ -1141,28 +1070,13 @@ MODULE libint_interface
     END SELECT
   END SUBROUTINE evaluate_deriv_eri
 
-!***************************************************************************
-
-!!***** libint_interface/evaluate_eri_screen [1.0] *
-!!
-!!   NAME
-!!     evaluate_eri_screen
-!!
-!!   FUNCTION
-!!     Evaluates max-abs values of  electron repulsion integrals for a primitive quartet
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     03.2007 created [Manuel Guidon]
-!!     08.2007 refactured permutation part [Manuel Guidon]                  
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief Evaluates max-abs values of  electron repulsion integrals for a primitive quartet
+!> \par History
+!>      03.2007 created [Manuel Guidon]
+!>      08.2007 refactured permutation part [Manuel Guidon]                  
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE evaluate_eri_screen(lib,A,B,C,D,Zeta_A,Zeta_B,Zeta_C,Zeta_D,&
                                  n_a,n_b,n_c,n_d,&
                                  max_val, potential_parameter)
@@ -1317,29 +1231,14 @@ MODULE libint_interface
 #endif
 #endif
 
-
   END SUBROUTINE evaluate_eri_screen
-!***************************************************************************
 
-!!***** libint_interface/pbc [1.0] *
-!!
-!!   NAME
-!!     pbc
-!!
-!!   FUNCTION
-!!     auxiliary function to apply minimum image convention
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     06.2007 created [Manuel Guidon]
-!!
-!!****************************************************************************
-
+! *****************************************************************************
+!> \brief auxiliary function to apply minimum image convention
+!> \par History
+!>      06.2007 created [Manuel Guidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE pbc(x, box_size, box_size_inv, retval)
     REAL(dp), INTENT(IN)                     :: x(3), box_size(3), &
                                                 box_size_inv(3)
@@ -1361,6 +1260,5 @@ MODULE libint_interface
       retval(3)=x(3) - box_size(3)*ANINT(x(3)*box_size_inv(3))
     END IF
   END SUBROUTINE pbc
-!***************************************************************************
 
 END MODULE libint_interface

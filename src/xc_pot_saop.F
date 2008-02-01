@@ -3,16 +3,9 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****m* cp2k/xc_pot_saop *
-!!
-!!   NAME
-!!     xc_pot_saop
-!!
-!!   FUNCTION
-!!     Calculate the saop potential
-!!
-!!****
-
+! *****************************************************************************
+!> \brief Calculate the saop potential
+! *****************************************************************************
 MODULE xc_pot_saop
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -112,11 +105,9 @@ MODULE xc_pot_saop
   REAL(KIND=dp), PARAMETER :: kappa = 0.804_dp, mu = 0.21951_dp, &
                               beta_ec  = 0.066725_dp, gamma_saop = 0.031091_dp
 
-
 CONTAINS
 
-  !*****************************************************************
-
+! *****************************************************************************
   SUBROUTINE add_saop_pot(ks_matrix, qs_env, oe_corr, error)
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -282,7 +273,6 @@ CONTAINS
        vxc_LB(ispin)%pw%cr3d = vxc_LB(ispin)%pw%cr3d - vxc_tmp(ispin)%pw%cr3d
     END DO
     NULLIFY(dummy)
-
 
     !-----------------------------------------------------------------------------------!
     ! Construct 2 times PBE one particle density from the PZ correlation energy density !
@@ -489,10 +479,8 @@ CONTAINS
     DEALLOCATE(vxc_GLLB, vxc_LB, vxc_tmp, orbital_density_matrix, single_mo_coeff, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-
     DEALLOCATE(rho_r, vxc_SAOP, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
 
     CALL section_vals_release(xc_fun_section_tmp,error=error)
     CALL section_vals_release(xc_section_tmp,error=error)
@@ -507,8 +495,7 @@ CONTAINS
 
   END SUBROUTINE add_saop_pot
 
-  !*****************************************************************
-
+! *****************************************************************************
   SUBROUTINE gapw_add_atomic_saop_pot(ks_matrix, qs_env, oe_corr, error)
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -596,7 +583,6 @@ CONTAINS
     ELSE
        nspins=1
     END IF
-
 
     CALL section_vals_val_get(xc_section_orig,"DENSITY_CUTOFF",&
          r_val=density_cut,error=error)
@@ -692,7 +678,6 @@ CONTAINS
        ALLOCATE(drho_h(1:4,1:na,1:nr,1:nspins), drho_s(1:4,1:na,1:nr,1:nspins), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-
 !      Distribute the atoms of this kind
        num_pe = qs_env%para_env%num_pe
        mepos  = qs_env%para_env%mepos
@@ -744,7 +729,6 @@ CONTAINS
           CALL xc_dset_zero_all(deriv_set, error)
           CALL vxc_of_r_new(xc_fun_section_tmp, rho_set_s, deriv_set, 1, needs,&
                             weight, lsd, na, nr, exc, vxc_tmp_s, vxg, error=error)
-
 
           !-------------------------------------------!
           ! 2. PZ correlation for LB94 and ec_uniform !
@@ -805,7 +789,6 @@ CONTAINS
           END DO
           NULLIFY(deriv, dummy, e_uniform)
 
-
           !------------------!
           ! Now the orbitals !
           !------------------!
@@ -836,7 +819,6 @@ CONTAINS
 
                 DEALLOCATE(coeff_col, stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
 
                 ! This calculates the CPC and density on the grids for every atom even though
                 ! we need it only for iatom at the moment. It seems that to circumvent this,
@@ -1055,7 +1037,6 @@ CONTAINS
 
     END DO
 
-
     ! finally add the contributions to the KS-matrix
 !    do ispin = 1,nspins
        CALL update_ks_atom(qs_env, qs_env%matrix_ks, &
@@ -1081,8 +1062,7 @@ CONTAINS
 
   END SUBROUTINE gapw_add_atomic_saop_pot
 
-  !*****************************************************************
-
+! *****************************************************************************
   SUBROUTINE add_lb_pot(pot, rho_set, lsd, spin, error)
 
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -1134,8 +1114,7 @@ CONTAINS
 
   END SUBROUTINE add_lb_pot
 
-  !*****************************************************************
-
+! *****************************************************************************
   SUBROUTINE calc_2excpbe(pot, rho_set, e_uniform, lsd)
 
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -1189,8 +1168,7 @@ CONTAINS
 
   END SUBROUTINE calc_2excpbe
 
-  !*****************************************************************
-
+! *****************************************************************************
   FUNCTION calc_ecpbe_u(ra, rb, ngr, ec_unif, rc, ngrc) RESULT(res)
 
     REAL(kind=dp), INTENT(in)                :: ra, rb, ngr, ec_unif, rc, ngrc
@@ -1222,8 +1200,7 @@ CONTAINS
 
   END FUNCTION calc_ecpbe_u
 
-  !*****************************************************************
-
+! *****************************************************************************
   FUNCTION calc_ecpbe_r(r, ngr, ec_unif, rc, ngrc) RESULT(res)
 
     REAL(kind=dp), INTENT(in)                :: r, ngr, ec_unif, rc, ngrc
@@ -1247,8 +1224,7 @@ CONTAINS
 
   END FUNCTION calc_ecpbe_r
 
-  !*****************************************************************
-
+! *****************************************************************************
   FUNCTION calc_expbe_u(ra, rb, ngr, rc, ngrc) RESULT(res)
 
     REAL(kind=dp), INTENT(in)                :: ra, rb, ngr, rc, ngrc
@@ -1261,8 +1237,7 @@ CONTAINS
 
   END FUNCTION calc_expbe_u
 
-  !*****************************************************************
-
+! *****************************************************************************
   FUNCTION calc_expbe_r(r, ngr, rc, ngrc) RESULT(res)
 
     REAL(kind=dp), INTENT(in)                :: r, ngr, rc, ngrc
@@ -1284,7 +1259,5 @@ CONTAINS
     END IF
 
   END FUNCTION calc_expbe_r
-
-  !*****************************************************************
 
 END MODULE xc_pot_saop

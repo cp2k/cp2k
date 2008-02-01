@@ -3,30 +3,18 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/qs_diis [1.0] *
-!!
-!!   NAME
-!!     qs_diis
-!!
-!!   FUNCTION
-!!     Apply the direct inversion in the iterative subspace (DIIS) of Pulay
-!!     in the framework of an SCF iteration for convergence acceleration
-!!
-!!   LITERATURE
-!!     - P. Pulay, Chem. Phys. Lett. 73, 393 (1980)
-!!     - P. Pulay, J. Comput. Chem. 3, 556 (1982)
-!!
-!!   AUTHOR
-!!     Matthias Krack (28.06.2000)
-!!
-!!   MODIFICATION HISTORY
-!!     - Changed to BLACS matrix usage (08.06.2001,MK)
-!!     - rewritten to include LSD (1st attempt) (01.2003, Joost VandeVondele)
-!!     - DIIS for ROKS (05.04.06,MK)
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Apply the direct inversion in the iterative subspace (DIIS) of Pulay
+!>      in the framework of an SCF iteration for convergence acceleration
+!> \par Literature
+!>      - P. Pulay, Chem. Phys. Lett. 73, 393 (1980)
+!>      - P. Pulay, J. Comput. Chem. 3, 556 (1982)
+!> \par History
+!>      - Changed to BLACS matrix usage (08.06.2001,MK)
+!>      - rewritten to include LSD (1st attempt) (01.2003, Joost VandeVondele)
+!>      - DIIS for ROKS (05.04.06,MK)
+!> \author Matthias Krack (28.06.2000)
+! *****************************************************************************
 MODULE qs_diis
 
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -74,37 +62,17 @@ MODULE qs_diis
             qs_diis_b_create,&
             qs_diis_b_step
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
-!!****f* qs_diis/qs_diis_b_create [1.0] *
-!!
-!!   NAME
-!!     qs_diis_b_create
-!!
-!!   FUNCTION
-!!     Allocates an SCF DIIS buffer
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - diis_buffer: the buffer to create
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-
+!> \brief Allocates an SCF DIIS buffer
+!> \param diis_buffer the buffer to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE qs_diis_b_create(diis_buffer,nbuffer,error)
 
     TYPE(qs_diis_buffer_type), POINTER       :: diis_buffer
@@ -141,36 +109,21 @@ CONTAINS
 
   END SUBROUTINE qs_diis_b_create
 
-  !***************************************************************************
-
-!!****f* qs_diis/qs_diis_b_check_i_alloc [1.0] *
-!!
-!!   NAME
-!!     qs_diis_b_check_i_alloc
-!!
-!!   FUNCTION
-!!     Allocate and initialize a DIIS buffer for nao*nao parameter
-!!     variables and with a buffer size of nbuffer.
-!!
-!!   NOTES
-!!     check to allocate matrixes only when needed, using a linked list?
-!!
-!!   ARGUMENTS
-!!     - diis_buffer: the buffer to initialize
-!!     - matrix_struct: the structure for the matrix of the buffer
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Matthias Krack
-!!
-!!   MODIFICATION HISTORY
-!!     - Creation (07.05.2001, Matthias Krack)
-!!     - Changed to BLACS matrix usage (08.06.2001,MK)
-!!     - DIIS for ROKS (05.04.06,MK)
-!!
-!!*** *********************************************************************
-
+! *****************************************************************************
+!> \brief Allocate and initialize a DIIS buffer for nao*nao parameter
+!>      variables and with a buffer size of nbuffer.
+!> \param diis_buffer the buffer to initialize
+!> \param matrix_struct the structure for the matrix of the buffer
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      check to allocate matrixes only when needed, using a linked list?
+!> \par History
+!>      - Creation (07.05.2001, Matthias Krack)
+!>      - Changed to BLACS matrix usage (08.06.2001,MK)
+!>      - DIIS for ROKS (05.04.06,MK)
+!> \author Matthias Krack
+! *****************************************************************************
   SUBROUTINE qs_diis_b_check_i_alloc(diis_buffer,matrix_struct,nspin,&
                                      scf_section,error)
 
@@ -269,34 +222,17 @@ CONTAINS
 
   END SUBROUTINE qs_diis_b_check_i_alloc
 
-  ! *****************************************************************************
-
-!!****f* qs_diis/qs_diis_b_step [1.0] *
-!!
-!!   NAME
-!!     qs_diis_b_step
-!!
-!!   FUNCTION
-!!     Update the SCF DIIS buffer, and if appropriate does a diis step.
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Matthias Krack
-!!
-!!   MODIFICATION HISTORY
-!!     - Creation (07.05.2001, Matthias Krack)
-!!     - Changed to BLACS matrix usage (08.06.2001, MK)
-!!     - 03.2003 rewamped [fawzi]
-!!     - Adapted for high-spin ROKS (08.04.06,MK)
-!!
-!!*** *********************************************************************
-
+! *****************************************************************************
+!> \brief Update the SCF DIIS buffer, and if appropriate does a diis step.
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      - Creation (07.05.2001, Matthias Krack)
+!>      - Changed to BLACS matrix usage (08.06.2001, MK)
+!>      - 03.2003 rewamped [fawzi]
+!>      - Adapted for high-spin ROKS (08.04.06,MK)
+!> \author Matthias Krack
+! *****************************************************************************
   SUBROUTINE qs_diis_b_step(diis_buffer,mo_array,kc,sc,delta,error_max,&
                             diis_step,eps_diis,s_matrix,scf_section,roks,&
                             error)
@@ -618,32 +554,15 @@ CONTAINS
 
   END SUBROUTINE qs_diis_b_step
 
-  ! ***************************************************************************
-
-!!****f* qs_diis/qs_diis_b_clear [1.0] *
-!!
-!!   NAME
-!!     qs_diis_b_clear
-!!
-!!   FUNCTION
-!!     clears the buffer
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - diis_buffer: the buffer to clear
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief clears the buffer
+!> \param diis_buffer the buffer to clear
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE qs_diis_b_clear(diis_buffer,error)
 
     TYPE(qs_diis_buffer_type), POINTER       :: diis_buffer
@@ -671,7 +590,5 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qs_diis_b_clear
-
-  ! ***************************************************************************
 
 END MODULE qs_diis

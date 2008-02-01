@@ -3,25 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_cp2k_distribution *
-!!
-!!   NAME
-!!     input_cp2k_distribution
-!!
-!!   FUNCTION
-!!     function that builds the distribution section of the input
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!     04.2007 created
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief function that builds the distribution section of the input
+!> \par History
+!>      04.2007 created
+!> \author Joost VandeVondele
+! *****************************************************************************
 MODULE input_cp2k_distribution
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
@@ -46,29 +33,15 @@ MODULE input_cp2k_distribution
 
   PUBLIC :: create_distribution_section
 
-!****************************************************************************
 CONTAINS
 
-!!****f* input_cp2k_distribution/create_distribution_section [1.0] *
-!!
-!!   NAME
-!!     create_distribution_section
-!!
-!!   FUNCTION
-!!     Creates the distribution section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the distribution section
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE create_distribution_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -132,30 +105,16 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-
     END IF
   END SUBROUTINE create_distribution_section
-!***************************************************************************
-!!****f* input_cp2k_distribution/create_2d_mc_section [1.0] *
-!!
-!!   NAME
-!!     create_mc_section
-!!
-!!   FUNCTION
-!!     provides options for the distribute_2d_monte_carlo
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief provides options for the distribute_2d_monte_carlo
+!> \param section the section to create
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE create_2d_mc_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error

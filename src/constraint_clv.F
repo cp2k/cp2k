@@ -3,21 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/constraint_clv [1.0] *
-!!
-!!   NAME
-!!     constraint_clv
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author Teodoro Laino [tlaino]
+! *****************************************************************************
 MODULE constraint_clv
   USE cell_types,                      ONLY: cell_type
   USE colvar_methods,                  ONLY: colvar_eval_mol_f
@@ -54,24 +44,14 @@ MODULE constraint_clv
 
 CONTAINS
 
-!!****** constraint_clv/shake_colv_int [1.0] *
-!!
-!!   NAME
-!!     shake_colv_int
-!!
-!!   FUNCTION
-!!     Intramolecular subroutine
-!!     shake_colv algorithm for collective variables constraints
-!!     updates the multiplier one molecule type at a time
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Intramolecular subroutine
+!>      shake_colv algorithm for collective variables constraints
+!>      updates the multiplier one molecule type at a time
+!> \par History
+!>      none
+!> \author Teodoro Laino [tlaino]
+! *****************************************************************************
   SUBROUTINE shake_colv_int( molecule, particle_set, pos, vel, dt, ishake,&
        cell,  imass, max_sigma, error )
 
@@ -108,24 +88,14 @@ CONTAINS
 
   END SUBROUTINE shake_colv_int
 
-!!****** constraint_clv/rattle_colv_int [1.0] *
-!!
-!!   NAME
-!!     rattle_colv_int
-!!
-!!   FUNCTION
-!!     Intramolecular subroutine
-!!     rattle algorithm for collective variables constraints
-!!     updates the multiplier one molecule type at a time
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Intramolecular subroutine
+!>      rattle algorithm for collective variables constraints
+!>      updates the multiplier one molecule type at a time
+!> \par History
+!>      none
+!> \author Teodoro Laino [tlaino]
+! *****************************************************************************
   SUBROUTINE rattle_colv_int( molecule, particle_set, vel, dt, irattle,&
        cell, imass, max_sigma, error )
 
@@ -156,24 +126,14 @@ CONTAINS
 
   END SUBROUTINE rattle_colv_int
 
-!!****** constraint_clv/shake_roll_colv_int [1.0] *
-!!
-!!   NAME
-!!     shake_roll_colv_int
-!!
-!!   FUNCTION
-!!     Intramolecular subroutine
-!!     shake algorithm (box allowed to change) for collective variables constraints
-!!     updates the multiplier one molecule type at a time
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Intramolecular subroutine
+!>      shake algorithm (box allowed to change) for collective variables constraints
+!>      updates the multiplier one molecule type at a time
+!> \par History
+!>      none
+!> \author Teodoro Laino [tlaino]
+! *****************************************************************************
   SUBROUTINE shake_roll_colv_int( molecule, particle_set, pos, vel, r_shake, v_shake, &
        dt, ishake, cell, imass, max_sigma, error )
 
@@ -207,24 +167,14 @@ CONTAINS
 
   END SUBROUTINE shake_roll_colv_int
 
-!!****** constraint_clv/rattle_roll_colv_int [1.0] *
-!!
-!!   NAME
-!!     rattle_roll_colv_int
-!!
-!!   FUNCTION
-!!     Intramolecular subroutine
-!!     rattle algorithm (box allowed to change) for collective variables constraints
-!!     updates the multiplier one molecule type at a time
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Intramolecular subroutine
+!>      rattle algorithm (box allowed to change) for collective variables constraints
+!>      updates the multiplier one molecule type at a time
+!> \par History
+!>      none
+!> \author Teodoro Laino [tlaino]
+! *****************************************************************************
   SUBROUTINE rattle_roll_colv_int ( molecule, particle_set, vel, r_rattle,  &
        dt, irattle, veps,  cell, imass, max_sigma, error )
 
@@ -257,24 +207,14 @@ CONTAINS
 
   END SUBROUTINE rattle_roll_colv_int
 
-!!****** constraint_clv/shake_colv_ext [1.0] *
-!!
-!!   NAME
-!!     shake_colv_ext
-!!
-!!   FUNCTION
-!!     Intermolecular subroutine
-!!     shake_colv algorithm for collective variables constraints
-!!     updates the multiplier one molecule type at a time
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Intermolecular subroutine
+!>      shake_colv algorithm for collective variables constraints
+!>      updates the multiplier one molecule type at a time
+!> \par History
+!>      none
+!> \author Teodoro Laino [tlaino]
+! *****************************************************************************
   SUBROUTINE shake_colv_ext( gci, particle_set, pos, vel, dt, ishake,&
        cell,  imass, max_sigma, error )
 
@@ -307,24 +247,14 @@ CONTAINS
 
   END SUBROUTINE shake_colv_ext
 
-!!****** constraint_clv/rattle_colv_ext [1.0] *
-!!
-!!   NAME
-!!     rattle_colv_ext
-!!
-!!   FUNCTION
-!!     Intermolecular subroutine
-!!     rattle algorithm for collective variables constraints
-!!     updates the multiplier one molecule type at a time
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Intermolecular subroutine
+!>      rattle algorithm for collective variables constraints
+!>      updates the multiplier one molecule type at a time
+!> \par History
+!>      none
+!> \author Teodoro Laino [tlaino]
+! *****************************************************************************
   SUBROUTINE rattle_colv_ext( gci, particle_set, vel, dt, irattle,&
        cell, imass, max_sigma, error )
 
@@ -353,24 +283,14 @@ CONTAINS
 
   END SUBROUTINE rattle_colv_ext
 
-!!****** constraint_clv/shake_roll_colv_ext [1.0] *
-!!
-!!   NAME
-!!     shake_roll_colv_ext
-!!
-!!   FUNCTION
-!!     Intermolecular subroutine
-!!     shake algorithm (box allowed to change) for collective variables constraints
-!!     updates the multiplier one molecule type at a time
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Intermolecular subroutine
+!>      shake algorithm (box allowed to change) for collective variables constraints
+!>      updates the multiplier one molecule type at a time
+!> \par History
+!>      none
+!> \author Teodoro Laino [tlaino]
+! *****************************************************************************
   SUBROUTINE shake_roll_colv_ext( gci, particle_set, pos, vel, r_shake, v_shake, &
        dt, ishake, cell, imass, max_sigma, error )
 
@@ -402,24 +322,14 @@ CONTAINS
 
   END SUBROUTINE shake_roll_colv_ext
 
-!!****** constraint_clv/rattle_roll_colv_ext [1.0] *
-!!
-!!   NAME
-!!     rattle_roll_colv_ext
-!!
-!!   FUNCTION
-!!     Intermolecular subroutine
-!!     rattle algorithm (box allowed to change) for collective variables constraints
-!!     updates the multiplier one molecule type at a time
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Intermolecular subroutine
+!>      rattle algorithm (box allowed to change) for collective variables constraints
+!>      updates the multiplier one molecule type at a time
+!> \par History
+!>      none
+!> \author Teodoro Laino [tlaino]
+! *****************************************************************************
   SUBROUTINE rattle_roll_colv_ext ( gci, particle_set, vel, r_rattle,  &
        dt, irattle, veps,  cell, imass, max_sigma, error )
 
@@ -450,24 +360,14 @@ CONTAINS
 
   END SUBROUTINE rattle_roll_colv_ext
 
-!!****** constraint_clv/shake_colv_low [1.0] *
-!!
-!!   NAME
-!!     shake_colv_low
-!!
-!!   FUNCTION
-!!     Real Shake subroutine - Low Level
-!!     shake_colv algorithm for collective variables constraints
-!!     updates the multiplier one molecule type at a time
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Real Shake subroutine - Low Level
+!>      shake_colv algorithm for collective variables constraints
+!>      updates the multiplier one molecule type at a time
+!> \par History
+!>      none
+!> \author Teodoro Laino [tlaino]
+! *****************************************************************************
   SUBROUTINE shake_colv_low( fixd_list, colv_list, lcolv, &
        particle_set, pos, vel, dt, ishake, cell,  imass, max_sigma,&
        error )
@@ -542,24 +442,14 @@ CONTAINS
     END DO
   END SUBROUTINE shake_colv_low
 
-!!****** constraint_clv/rattle_colv_low [1.0] *
-!!
-!!   NAME
-!!     rattle_colv_low
-!!
-!!   FUNCTION
-!!     Real Rattle - Low Level
-!!     rattle algorithm for collective variables constraints
-!!     updates the multiplier one molecule type at a time
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Real Rattle - Low Level
+!>      rattle algorithm for collective variables constraints
+!>      updates the multiplier one molecule type at a time
+!> \par History
+!>      none
+!> \author Teodoro Laino [tlaino]
+! *****************************************************************************
   SUBROUTINE rattle_colv_low ( fixd_list, colv_list, lcolv, &
        particle_set, vel, dt, irattle, cell, imass, max_sigma, error )
 
@@ -616,24 +506,14 @@ CONTAINS
     
   END SUBROUTINE rattle_colv_low
 
-!!****** constraint_clv/shake_roll_colv_low [1.0] *
-!!
-!!   NAME
-!!     shake_roll_colv_low
-!!
-!!   FUNCTION
-!!     Real shake_roll - Low Level
-!!     shake algorithm (box allowed to change) for collective variables constraints
-!!     updates the multiplier one molecule type at a time
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Real shake_roll - Low Level
+!>      shake algorithm (box allowed to change) for collective variables constraints
+!>      updates the multiplier one molecule type at a time
+!> \par History
+!>      none
+!> \author Teodoro Laino [tlaino]
+! *****************************************************************************
   SUBROUTINE shake_roll_colv_low( fixd_list, colv_list, lcolv, &
        particle_set, pos, vel, r_shake, v_shake, dt, ishake, cell,&
        imass, max_sigma, error )
@@ -708,24 +588,14 @@ CONTAINS
 
   END SUBROUTINE shake_roll_colv_low
 
-!!****** constraint_clv/rattle_roll_colv_low [1.0] *
-!!
-!!   NAME
-!!     rattle_roll_colv_low
-!!
-!!   FUNCTION
-!!     Real Rattle_roll - Low Level
-!!     rattle algorithm (box allowed to change) for collective variables constraints
-!!     updates the multiplier one molecule type at a time
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Real Rattle_roll - Low Level
+!>      rattle algorithm (box allowed to change) for collective variables constraints
+!>      updates the multiplier one molecule type at a time
+!> \par History
+!>      none
+!> \author Teodoro Laino [tlaino]
+! *****************************************************************************
   SUBROUTINE rattle_roll_colv_low (fixd_list, colv_list, lcolv, &
        particle_set, vel, r_rattle, dt, irattle, veps,  cell,&
        imass, max_sigma, error )
@@ -788,22 +658,12 @@ CONTAINS
 
   END SUBROUTINE rattle_roll_colv_low
 
-!!****** constraint_clv/update_con_colv [1.0] *
-!!
-!!   NAME
-!!     update_con_colv
-!!
-!!   FUNCTION
-!!     Update position/velocities
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     Teodoro Laino [teo] created 04.2006
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Update position/velocities
+!> \par History
+!>      Teodoro Laino [teo] created 04.2006
+!> \author Teodoro Laino [tlaino]
+! *****************************************************************************
   SUBROUTINE  update_con_colv(wrk, fac, lcolv, lambda, roll, rmat, imass,&
        error)
     REAL(KIND=dp), INTENT(INOUT)             :: wrk( :, : )
@@ -847,22 +707,12 @@ CONTAINS
     END IF
   END SUBROUTINE update_con_colv
 
-!!****** constraint_clv/eval_Jac_colvar [1.0] *
-!!
-!!   NAME
-!!     eval_Jac_colvar
-!!
-!!   FUNCTION
-!!     Evaluates the Jacobian of the collective variables constraints
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     Teodoro Laino [teo] created 04.2006
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Evaluates the Jacobian of the collective variables constraints
+!> \par History
+!>      Teodoro Laino [teo] created 04.2006
+!> \author Teodoro Laino [tlaino]
+! *****************************************************************************
   FUNCTION eval_Jac_colvar(colvar, colvar_old, roll, rmat, imass,&
        error) RESULT(res)
     TYPE(colvar_type), POINTER               :: colvar, colvar_old
@@ -904,22 +754,12 @@ CONTAINS
 
   END FUNCTION eval_Jac_colvar
 
-!!****** constraint_clv/rattle_con_eval [1.0] *
-!!
-!!   NAME
-!!     rattle_con_eval
-!!
-!!   FUNCTION
-!!     Evaluates the constraint for the rattle scheme
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     Teodoro Laino [teo] created 04.2006
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Evaluates the constraint for the rattle scheme
+!> \par History
+!>      Teodoro Laino [teo] created 04.2006
+!> \author Teodoro Laino [tlaino]
+! *****************************************************************************
   FUNCTION rattle_con_eval(colvar, vel, roll, veps, rmat, particles, error) RESULT(res)
     TYPE(colvar_type), POINTER               :: colvar
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )

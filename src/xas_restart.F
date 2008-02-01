@@ -2,32 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****s* cp2k/xas_methods   [1.0] *
-!!
-!!   NAME
-!!      xas_methods
-!!
-!!   FUNCTION
-!!      Initialize the XAS orbitals for specific core excitations
-!!      Either the GS orbitals are used as initial guess, or the
-!!      xas mos are read from a previous calculation.
-!!      In the latter case, the core-hole potetial should be the same.
-!!
-!!   NOTE
-!!      The restart with the same core-hole potential should be checked
-!!      and a wrong restart should stop the program
-!!
-!!   AUTHOR
-!!     MI (09.2006)
-!!
-!!   MODIFICATION HISTORY
-!!     created 09.2006
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Initialize the XAS orbitals for specific core excitations
+!>       Either the GS orbitals are used as initial guess, or the
+!>       xas mos are read from a previous calculation.
+!>       In the latter case, the core-hole potetial should be the same.
+!> \note
+!>       The restart with the same core-hole potential should be checked
+!>       and a wrong restart should stop the program
+!> \par History
+!>      created 09.2006
+!> \author MI (09.2006)
+! *****************************************************************************
 MODULE xas_restart
-
 
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_files,                        ONLY: open_file
@@ -73,39 +61,23 @@ MODULE xas_restart
 
   PUBLIC ::  xas_read_restart, xas_write_restart, xas_initialize_rho
 
-
-!****************************************************************************
-
 CONTAINS
-  ! ***************************************************************************
 
-!!****f* xas_restart/xas_read_restart [1.0] *
-!!
-!!   NAME
-!!     xas_read_restart
-!!
-!!   FUNCTION
-!!     Set up for reading the restart
-!!     corresponing to the excitation of iatom
-!!     If the corresponding restart file does not exist
-!!     the GS orbitals are used as initial guess
-!!
-!!   ARGUMENTS
-!!     xas_control: control variables
-!!     xas_section: input section for XAS calculations
-!!     qs_env:
-!!     iatom: index of the absorbing atom
-!!     estate: index of the core-hole orbital
-!!     error:
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     09.2006 created [MI]
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief Set up for reading the restart
+!>      corresponing to the excitation of iatom
+!>      If the corresponding restart file does not exist
+!>      the GS orbitals are used as initial guess
+!> \param xas_control control variables
+!> \param xas_section input section for XAS calculations
+!>      qs_env:
+!> \param iatom index of the absorbing atom
+!> \param estate index of the core-hole orbital
+!>      error:
+!> \par History
+!>      09.2006 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE xas_read_restart(xas_control,xas_section,qs_env,iatom,estate,error)
 
     TYPE(xas_control_type)                   :: xas_control
@@ -219,8 +191,7 @@ CONTAINS
 
   END SUBROUTINE xas_read_restart
 
-  !*****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE xas_write_restart(xas_control,xas_section,qs_env,iatom,error)
 
     TYPE(xas_control_type)                   :: xas_control
@@ -287,24 +258,15 @@ CONTAINS
 
   END SUBROUTINE xas_write_restart
 
-!*****************************************************************************
 !****f* xas_restart/xas_initialize_rho [1.0] *
-!!
-!!   NAME
-!!      xas_initialize_rho
-!!
-!!   FUNCTION
-!!     Once the mos and the occupation numbers are initialized
-!!     the electronic density of the excited state can be calclated
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     09-2006 MI created
-!!
-!!*** *********************************************************************
 
+! *****************************************************************************
+!> \brief Once the mos and the occupation numbers are initialized
+!>      the electronic density of the excited state can be calclated
+!> \par History
+!>      09-2006 MI created
+!> \author MI
+! *****************************************************************************
   SUBROUTINE xas_initialize_rho(qs_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -341,7 +303,5 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE xas_initialize_rho
-
-! *****************************************************************************
 
 END MODULE  xas_restart

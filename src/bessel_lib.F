@@ -2,26 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/bessel_lib [1.0] *
-!!
-!!   NAME
-!!     bessel_lib
-!!
-!!   FUNCTION
-!!     Calculates Bessel functions
-!!
-!!   AUTHOR
-!!     JGH (10-02-2001) 
-!! 
-!!   MODIFICATION HISTORY
-!!     March-2006: Bessel Transform (JGH)
-!!
-!!   NOTES
-!!     Functions adapted from netlib 
-!!
-!!*****
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Calculates Bessel functions
+!> \note
+!>      Functions adapted from netlib 
+!> \par History
+!>      March-2006: Bessel Transform (JGH)
+!> \author JGH (10-02-2001) 
+! *****************************************************************************
 MODULE bessel_lib
   
   USE f77_blas
@@ -36,14 +25,10 @@ MODULE bessel_lib
   PUBLIC :: bessi0, bessi1, bessj0, bessj1, bessk0, bessk1
   PUBLIC :: bessel_transform
   
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-
+! *****************************************************************************
   FUNCTION bessj0 ( x )
-
 
     REAL(KIND=dp), INTENT(IN)                :: x
     REAL(KIND=dp)                            :: bessj0
@@ -78,10 +63,8 @@ CONTAINS
 
   END FUNCTION bessj0
 
-!******************************************************************************
-
+! *****************************************************************************
   FUNCTION bessj1 ( x )
-
 
     REAL(KIND=dp), INTENT(IN)                :: x
     REAL(KIND=dp)                            :: bessj1
@@ -115,10 +98,8 @@ CONTAINS
       END IF
   END FUNCTION bessj1
 
-!******************************************************************************
-
+! *****************************************************************************
   FUNCTION bessk0 ( x )
-
 
     REAL(KIND=dp), INTENT(IN)                :: x
     REAL(KIND=dp)                            :: bessk0
@@ -143,10 +124,8 @@ CONTAINS
 
   END FUNCTION bessk0
 
-!******************************************************************************
-
+! *****************************************************************************
   FUNCTION bessk1 ( x )
-
 
     REAL(KIND=dp), INTENT(IN)                :: x
     REAL(KIND=dp)                            :: bessk1
@@ -172,10 +151,8 @@ CONTAINS
 
   END FUNCTION bessk1 
 
-!******************************************************************************
-
+! *****************************************************************************
   FUNCTION bessi0 ( x )
-
 
     REAL(KIND=dp), INTENT(IN)                :: x
     REAL(KIND=dp)                            :: bessi0
@@ -203,10 +180,8 @@ CONTAINS
 
   END FUNCTION bessi0 
 
-!******************************************************************************
-
+! *****************************************************************************
   FUNCTION bessi1 ( x )
-
 
     REAL(KIND=dp), INTENT(IN)                :: x
     REAL(KIND=dp)                            :: bessi1
@@ -235,8 +210,7 @@ CONTAINS
 
   END FUNCTION bessi1
 
-!******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE bessel_transform (fg,g,l,r,fr,wr,n)
     !
     ! f(g) = 4Pi * INT(0..INF) r^2 * f(r) * B_L(g*r) dr
@@ -266,8 +240,7 @@ CONTAINS
 
   END SUBROUTINE bessel_transform
 
-!******************************************************************************
-
+! *****************************************************************************
   FUNCTION bessel0(x,l)
     !
     ! Calculates spherical Bessel functions
@@ -325,8 +298,5 @@ CONTAINS
 
   END FUNCTION bessel0
 
-!******************************************************************************
-
 END MODULE bessel_lib
 
-!******************************************************************************

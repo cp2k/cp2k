@@ -2,25 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/qs_vxc_atom [1.0] *
-!!
-!!   NAME
-!!     qs_vxc_atom
-!!
-!!   FUNCTION
-!!     routines that build the integrals of the Vxc potential calculated
-!!     for the atomic density in the basis set of spherical primitives
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!
-!!
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief routines that build the integrals of the Vxc potential calculated
+!>      for the atomic density in the basis set of spherical primitives
+! *****************************************************************************
 MODULE qs_vxc_atom
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -81,12 +67,9 @@ MODULE qs_vxc_atom
             calc_rho_angular,&
             gaVxcgb_noGC
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE calculate_vxc_atom(qs_env,energy_only,error,gradient_atom_set,adiabatic_rescale_factor)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -423,8 +406,7 @@ CONTAINS
 
   END SUBROUTINE calculate_vxc_atom
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE calculate_xc_2nd_deriv_atom(p_env,qs_env,xc_section,error)
 
     TYPE(qs_p_env_type), POINTER             :: p_env
@@ -688,7 +670,6 @@ CONTAINS
  END SUBROUTINE calculate_xc_2nd_deriv_atom
 
 ! *****************************************************************************
-
   SUBROUTINE calc_rho_angular(grid_atom, harmonics, nspins, grad_func, &
                               ir, r_h, r_s, rho_h, rho_s, &
                               dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s, error)
@@ -793,7 +774,6 @@ CONTAINS
                                       r_s_d(3,ispin)%r_coef(ir,iso)*&
                                        harmonics%slm(ia,iso)
 
-
                drho_h(4,ia,ir,ispin) = SQRT(&
                     drho_h(1,ia,ir,ispin)*drho_h(1,ia,ir,ispin)+&
                     drho_h(2,ia,ir,ispin)*drho_h(2,ia,ir,ispin)+&
@@ -811,8 +791,7 @@ CONTAINS
 
  END SUBROUTINE calc_rho_angular
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE  gaVxcgb_noGC(vxc_h,vxc_s,atom_kind,rho_atom,nspins,error)
 
     REAL(dp), DIMENSION(:, :, :), POINTER    :: vxc_h, vxc_s
@@ -860,7 +839,6 @@ CONTAINS
     my_CG => harmonics%my_CG
     max_iso_not0 = harmonics%max_iso_not0
     lmax_expansion = indso(1,max_iso_not0)
-
 
     ALLOCATE (g1(nr),g2(nr),gg(nr,0:2*maxl),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -918,7 +896,6 @@ CONTAINS
 
             ! limit the expansion of the local densities to a max L
             IF(lmax12 .GT. lmax_expansion) lmax12 = lmax_expansion
-
 
             DO l=lmin12+1,lmax12
               gg(1:nr,l) = grid_atom%rad(1:nr)*gg(:,l-1)
@@ -986,8 +963,7 @@ CONTAINS
 
   END SUBROUTINE gaVxcgb_noGC
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE  gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,rho_atom,drho_h,&
                          drho_s,nspins,error)
 
@@ -1063,7 +1039,6 @@ CONTAINS
 
     CALL get_rho_atom(rho_atom=rho_atom, ga_Vlocal_gb_h=int_hh,ga_Vlocal_gb_s=int_ss)
 
-
     DO ispin=1,nspins
 
     g1 = 0.0_dp
@@ -1094,7 +1069,6 @@ CONTAINS
             gg = 0.0_dp
             dgg = 0.0_dp
 
-
             IF (lmin12 == 0) THEN
               gg(1:nr,lmin12) = g1(1:nr)*g2(1:nr)
             ELSE
@@ -1118,7 +1092,6 @@ CONTAINS
               gVXGg_h = 0.0_dp
               gVXGg_s = 0.0_dp
 
-
 !             Cross Term
               DO l = lmin12,lmax12
                 DO ia = 1,na
@@ -1138,7 +1111,6 @@ CONTAINS
                             vxg_s(3,ia,ir,ispin)*harmonics%a(3,ia))
 
                      urad = grid_atom%oorad2l(ir,1)
-
 
                      gVXGg_h(1,ia,l) = gVXGg_h(1,ia,l) + &
                                     vxg_h(1,ia,ir,ispin)*&
@@ -1250,7 +1222,5 @@ CONTAINS
                      "g1,g2,gg,matso_h,matso_s,gVXCg_s,gVXCg_h,gVXGg_h,gVXGg_s")
 
   END SUBROUTINE gaVxcgb_GC
-
-  ! ***************************************************************************
 
 END MODULE qs_vxc_atom

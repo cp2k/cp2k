@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/mc_move_control [1.0] *
-!!
-!!   NAME
-!!     mc_move_control
-!!
-!!   FUNCTION
-!!     control the handling of the move data in Monte Carlo (MC) simulations
-!!
-!!   AUTHOR
-!!     Matthew J. McGrath  (10.16.2003)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief control the handling of the move data in Monte Carlo (MC) simulations
+!> \par History
+!>      none
+!> \author Matthew J. McGrath  (10.16.2003)
+! *****************************************************************************
 MODULE mc_move_control
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -48,29 +38,16 @@ MODULE mc_move_control
            mc_move_update,move_q_reinit,q_move_accept,mc_moves_release,&
            write_move_stats
  
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-!!****s* mc_move_control.F/init_mc_moves
-!!
-!!   NAME
-!!     init_mc_moves
-!!
-!!   FUNCTION
-!!     allocates and initializes the structure to record all move
-!!     attempts/successes
-!!
-!!   ARGUMENTS
-!!     - moves: the move structure to update
-!!  
-!!   Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
+!> \brief allocates and initializes the structure to record all move
+!>      attempts/successes
+!> \param moves the move structure to update
+!> 
+!>    Suitable for parallel.
+!> \author MJM
+! *****************************************************************************
   SUBROUTINE init_mc_moves ( moves )
 
     TYPE(mc_moves_type), POINTER             :: moves
@@ -207,23 +184,12 @@ CONTAINS
  END SUBROUTINE init_mc_moves
 
 ! *****************************************************************************
-!!****s* mc_move_control.F/mc_moves_release
-!!
-!!   NAME
-!!     mc_moves_release
-!!
-!!   FUNCTION
-!!     deallocates all the structures and nullifies the pointer
-!!
-!!   ARGUMENTS
-!!     - moves: the move structure to release
-!!  
-!!   Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
+!> \brief deallocates all the structures and nullifies the pointer
+!> \param moves the move structure to release
+!> 
+!>    Suitable for parallel.
+!> \author MJM
+! *****************************************************************************
   SUBROUTINE mc_moves_release ( moves )
 
     TYPE(mc_moves_type), POINTER             :: moves
@@ -304,30 +270,14 @@ CONTAINS
  END SUBROUTINE mc_moves_release
 
 ! *****************************************************************************
-!!****s* mc_move_control.F/q_move_reinit
-!!
-!!   NAME
-!!     q_move_reinit
-!!
-!!   SYNOPSIS
-!!     Subroutine q_move_reinit(moves)
-!!           Type(mc_moves_type), Pointer          :: moves
-!!     End Subroutine q_move_reinit
-!!
-!!   FUNCTION
-!!     sets all qsuccess counters back to zero
-!!
-!!   ARGUMENTS
-!!     - moves: the move structure to update
-!!     - lbias: are we biasing translations/rotations/conformational changes
-!!       with a different potential?
-!!
-!!   Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
+!> \brief sets all qsuccess counters back to zero
+!> \param moves the move structure to update
+!> \param lbias are we biasing translations/rotations/conformational changes
+!>        with a different potential?
+!> 
+!>    Suitable for parallel.
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE move_q_reinit ( moves , lbias )
 
     TYPE(mc_moves_type), POINTER             :: moves
@@ -366,27 +316,16 @@ SUBROUTINE move_q_reinit ( moves , lbias )
  END SUBROUTINE move_q_reinit
 
 ! *****************************************************************************
-!!****s* mc_move_control.F/q_move_accept
-!!
-!!   NAME
-!!     q_move_accept
-!!
-!!   FUNCTION
-!!     updates accepted moves in the given structure...assumes you've been
-!!     recording all successful moves in "qsuccesses"...this was done to
-!!     compensate for doing multiple inner moves between Quickstep moves 
-!!     (which determine ultimate acceptance of moves)
-!!
-!!   ARGUMENTS
-!!     - moves: the move structure to update
-!!     - lbias: are we biasing non-swap particle moves with a cheaper potential
-!!  
-!!   Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
+!> \brief updates accepted moves in the given structure...assumes you've been
+!>      recording all successful moves in "qsuccesses"...this was done to
+!>      compensate for doing multiple inner moves between Quickstep moves 
+!>      (which determine ultimate acceptance of moves)
+!> \param moves the move structure to update
+!> \param lbias are we biasing non-swap particle moves with a cheaper potential
+!> 
+!>    Suitable for parallel.
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE q_move_accept(moves,lbias)
 
     TYPE(mc_moves_type), POINTER             :: moves
@@ -446,26 +385,15 @@ SUBROUTINE q_move_accept(moves,lbias)
  END SUBROUTINE q_move_accept
 
 ! *****************************************************************************
-!!****s* mc_move_control.F/write_move_stats
-!!
-!!   NAME
-!!     write_move_stats
-!!
-!!   FUNCTION
-!!     writes the number of accepted and attempted moves to a file for
-!!     the various move types
-!!
-!!   ARGUMENTS
-!!     - moves: the structure containing the move data
-!!     - nnstep: what step we're on
-!!     - unit: the unit of the file we're writing to
-!!  
-!!   Use only in serial.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
+!> \brief writes the number of accepted and attempted moves to a file for
+!>      the various move types
+!> \param moves the structure containing the move data
+!> \param nnstep what step we're on
+!> \param unit the unit of the file we're writing to
+!> 
+!>    Use only in serial.
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE write_move_stats(moves,nnstep,unit)
 
     TYPE(mc_moves_type), POINTER             :: moves
@@ -531,31 +459,20 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
  END SUBROUTINE write_move_stats
 
 ! *****************************************************************************
-!!****s* mc_move_control.F/mc_move_update
-!!
-!!   NAME
-!!     mc_move_update
-!!
-!!   FUNCTION
-!!     updates the maximum displacements of a Monte Carlo simulation,
-!!     based on the ratio of successful moves to attempts...tries to hit a
-!!     target of 0.5 acceptance ratio
-!!
-!!   ARGUMENTS
-!!     - mc_par: the mc parameters for the force env
-!!     - move_updates: holds the accepted/attempted moves since the last
-!!             update (or start of simulation)
-!!     - flag: indicates which displacements to update..."volume" is for
-!!             volume moves and "trans" is for everything else
-!!     - nnstep: how many steps the simulation has run
-!!     - ionode: is this the main CPU running this job?
-!!  
-!!   Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
+!> \brief updates the maximum displacements of a Monte Carlo simulation,
+!>      based on the ratio of successful moves to attempts...tries to hit a
+!>      target of 0.5 acceptance ratio
+!> \param mc_par the mc parameters for the force env
+!> \param move_updates holds the accepted/attempted moves since the last
+!>              update (or start of simulation)
+!> \param flag indicates which displacements to update..."volume" is for
+!>              volume moves and "trans" is for everything else
+!> \param nnstep how many steps the simulation has run
+!> \param ionode is this the main CPU running this job?
+!> 
+!>    Suitable for parallel.
+!> \author MJM
+! *****************************************************************************
  SUBROUTINE mc_move_update ( mc_par,move_updates,molecule_type,flag,&
       nnstep,ionode )
 
@@ -797,15 +714,9 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 ! end the timing
       CALL timestop(0.0E0_dp,handle)
 
-
-
   END SUBROUTINE mc_move_update
 
 ! -----------------------------------------------------------------------------
 
-!**********************************************************************
-
 END MODULE mc_move_control
-
-!**********************************************************************
 

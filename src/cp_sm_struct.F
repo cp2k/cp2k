@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/cp_sm_struct [1.0] *
-!!
-!!   NAME
-!!     cp_sm_struct
-!!
-!!   FUNCTION
-!!     represent the structure of a block matrix (sparse matrix)
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief represent the structure of a block matrix (sparse matrix)
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 MODULE cp_sm_struct
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain,&
@@ -48,64 +34,30 @@ MODULE cp_sm_struct
   PUBLIC :: sm_struct_create, sm_struct_retain, sm_struct_release,&
        sm_struct_add_local_block, sm_struct_clear_local_blocks,&
        sm_struct_get, sm_struct_write
-!!***
-!****************************************************************************
 
-!!****s* cp_sm_struct/cp_sm_node_type [1.0] *
-!!
-!!   NAME
-!!     cp_sm_node_type
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - pos: position of the actual block (in 1d array)
-!!     - row: row of the block
-!!     - col: column of the block
-!!     - next_row: next block in the same col
-!!     - next_col: next block in the same row
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!   SOURCE
-  !**************************************************************************
+! *****************************************************************************
+!> \param pos position of the actual block (in 1d array)
+!> \param row row of the block
+!> \param col column of the block
+!> \param next_row next block in the same col
+!> \param next_col next block in the same row
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   TYPE cp_sm_node_type
      INTEGER :: pos, row, col
      TYPE(cp_sm_node_type), POINTER :: next_row, next_col
   END TYPE cp_sm_node_type
-!!***
-  !**************************************************************************
 
-!!****s* cp_sm_struct/cp_sm_struct_type [1.0] *
-!!
-!!   NAME
-!!     cp_sm_struct_type
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     split dimension in another structure?
-!!
-!!   ATTRIBUTES
-!!     - n_local_blocks: number of local blocks
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!   SOURCE
-  !**************************************************************************
+! *****************************************************************************
+!> \param n_local_blocks number of local blocks
+!> \note
+!>      split dimension in another structure?
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   TYPE cp_sm_struct_type
      INTEGER :: ref_count, id_nr, n_local_blocks
      INTEGER, DIMENSION(:), POINTER :: block_begins_at_row, &
@@ -116,75 +68,26 @@ MODULE cp_sm_struct
      TYPE(cp_sm_node_type), POINTER :: local_blocks
      TYPE(distribution_2d_type), POINTER :: distribution_2d
   END TYPE cp_sm_struct_type
-!!***
-  !**************************************************************************
 
-!!****s* cp_sm_struct_p_type [1.0] *
-!!
-!!   NAME
-!!     cp_sm_struct_p_type
-!!
-!!   FUNCTION
-!!     just to build array of sm_struct pointers
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!   SOURCE
-  !**************************************************************************
+! *****************************************************************************
+!> \brief just to build array of sm_struct pointers
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   TYPE cp_sm_struct_p_type
      TYPE(cp_sm_struct_type), POINTER :: sm_struct
   END TYPE cp_sm_struct_p_type
-!!***
-  !**************************************************************************
 
 CONTAINS
 
-!!****f* cp_sm_struct/sm_struct_create [1.0] *
-!!
-!!   NAME
-!!     sm_struct_create
-!!
-!!   SYNOPSIS
-!!     Subroutine sm_struct_create(sm_struct, block_begins_at_row,&
-!!         block_begins_at_col, para_env, symmetry, distribution_2d,&
-!!         local_blocks_ptr, error)
-!!       Type(cp_sm_struct_type), Pointer:: sm_struct
-!!       Integer, Dimension(:), Intent (IN):: block_begins_at_row,&
-!!         block_begins_at_col
-!!       Type(cp_para_env_type), Pointer:: para_env
-!!       Character(Len=*):: symmetry
-!!       Type(distribution_2d_type), Pointer:: distribution_2d
-!!       Type(cp_sm_node_type), Optional, Pointer:: local_blocks_ptr
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine sm_struct_create
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE sm_struct_create(sm_struct, block_begins_at_row,&
      block_begins_at_col, para_env, symmetry, distribution_2d,&
      local_blocks_ptr,sparsity_id,error)
@@ -240,37 +143,16 @@ SUBROUTINE sm_struct_create(sm_struct, block_begins_at_row,&
           nblocks=sm_struct%n_local_blocks, error=error)
   END IF
 END SUBROUTINE sm_struct_create
-!***************************************************************************
 
-!!****f* cp_sm_struct/sm_struct_retain [1.0] *
-!!
-!!   NAME
-!!     sm_struct_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine sm_struct_retain(sm_struct, error)
-!!       Type(cp_sm_struct_type), Pointer:: sm_struct
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine sm_struct_retain
-!!
-!!   FUNCTION
-!!     retains the given sm_struct (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - sm_struct: the object to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given sm_struct (see doc/ReferenceCounting.html)
+!> \param sm_struct the object to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE sm_struct_retain(sm_struct,error)
     TYPE(cp_sm_struct_type), POINTER         :: sm_struct
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -288,32 +170,19 @@ SUBROUTINE sm_struct_retain(sm_struct,error)
      sm_struct%ref_count=sm_struct%ref_count+1
   END IF
 END SUBROUTINE sm_struct_retain
-!***************************************************************************
 
-!!****f* cp_sm_struct/sm_nodes_dealloc [1.0] *
-!!
-!!   NAME
-!!     sm_nodes_dealloc
-!!
-!!   FUNCTION
-!!     deallocates the whole node structure staring at sm_nodes
-!!
-!!   NOTES
-!!     assumes that the first column has pointers to each row
-!!     private routine
-!!
-!!   ARGUMENTS
-!!     - sm_nodes: the nodes to deallocate
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deallocates the whole node structure staring at sm_nodes
+!> \param sm_nodes the nodes to deallocate
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      assumes that the first column has pointers to each row
+!>      private routine
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE sm_nodes_dealloc(sm_nodes,error)
     TYPE(cp_sm_node_type), POINTER           :: sm_nodes
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -343,37 +212,16 @@ SUBROUTINE sm_nodes_dealloc(sm_nodes,error)
      NULLIFY(sm_nodes)
   END IF
 END SUBROUTINE sm_nodes_dealloc
-!***************************************************************************
 
-!!****f* cp_sm_struct/sm_struct_release [1.0] *
-!!
-!!   NAME
-!!     sm_struct_release
-!!
-!!   SYNOPSIS
-!!     Subroutine sm_struct_release(sm_struct, error)
-!!       Type(cp_sm_struct_type), Pointer:: sm_struct
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine sm_struct_release
-!!
-!!   FUNCTION
-!!     releases the given sm_struct (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - sm_struct: the object to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given sm_struct (see doc/ReferenceCounting.html)
+!> \param sm_struct the object to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE sm_struct_release(sm_struct, error)
     TYPE(cp_sm_struct_type), POINTER         :: sm_struct
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -423,41 +271,18 @@ SUBROUTINE sm_struct_release(sm_struct, error)
      END IF
   END IF
 END SUBROUTINE sm_struct_release
-!***************************************************************************
 
-!!****f* cp_sm_struct/sm_struct_add_local_block [1.0] *
-!!
-!!   NAME
-!!     sm_struct_add_local_block
-!!
-!!   SYNOPSIS
-!!     Subroutine sm_struct_add_local_block(sm_struct, block_row, block_col,&
-!!         error)
-!!       Type(cp_sm_struct_type), Pointer:: sm_struct
-!!       Integer, Intent (IN):: block_row, block_col
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine sm_struct_add_local_block
-!!
-!!   FUNCTION
-!!     adds a local block to the given row and col
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - sm_struct: the structure where to add the block
-!!     - block_row: the row of the block to add
-!!     - block_col: the column of the block to add
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief adds a local block to the given row and col
+!> \param sm_struct the structure where to add the block
+!> \param block_row the row of the block to add
+!> \param block_col the column of the block to add
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE sm_struct_add_local_block(sm_struct, block_row, block_col, error)
     TYPE(cp_sm_struct_type), POINTER         :: sm_struct
     INTEGER, INTENT(in)                      :: block_row, block_col
@@ -565,32 +390,19 @@ SUBROUTINE sm_struct_add_local_block(sm_struct, block_row, block_col, error)
   END IF
 
 END SUBROUTINE sm_struct_add_local_block
-!***************************************************************************
 
-!!****f* cp_sm_struct/sm_nodes_renumber [1.0] *
-!!
-!!   NAME
-!!     sm_nodes_renumber
-!!
-!!   FUNCTION
-!!     renumbers the nodes of the structure
-!!
-!!   NOTES
-!!     private routine
-!!
-!!   ARGUMENTS
-!!     - sm_nodes: the nodes to renumber
-!!     - nblocks: will contain the number of block (ignores 0 col and row)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief renumbers the nodes of the structure
+!> \param sm_nodes the nodes to renumber
+!> \param nblocks will contain the number of block (ignores 0 col and row)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      private routine
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE sm_nodes_renumber(sm_nodes, nblocks, error)
     TYPE(cp_sm_node_type), POINTER           :: sm_nodes
     INTEGER, INTENT(out), OPTIONAL           :: nblocks
@@ -627,36 +439,15 @@ SUBROUTINE sm_nodes_renumber(sm_nodes, nblocks, error)
   IF (PRESENT(nblocks)) nblocks=nr
 
 END SUBROUTINE sm_nodes_renumber
-!***************************************************************************
 
-!!****f* cp_sm_struct/sm_struct_clear_local_blocks [1.0] *
-!!
-!!   NAME
-!!     sm_struct_clear_local_blocks
-!!
-!!   SYNOPSIS
-!!     Subroutine sm_struct_clear_local_blocks(sm_struct, error)
-!!       Type(cp_sm_struct_type), Pointer:: sm_struct
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine sm_struct_clear_local_blocks
-!!
-!!   FUNCTION
-!!     clears the local blocks
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief clears the local blocks
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE sm_struct_clear_local_blocks(sm_struct, error)
     TYPE(cp_sm_struct_type), POINTER         :: sm_struct
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -675,50 +466,16 @@ SUBROUTINE sm_struct_clear_local_blocks(sm_struct, error)
      sm_struct%n_local_blocks=0
   END IF
 END SUBROUTINE sm_struct_clear_local_blocks
-!***************************************************************************
 
-!!****f* cp_sm_struct/sm_struct_get [1.0] *
-!!
-!!   NAME
-!!     sm_struct_get
-!!
-!!   SYNOPSIS
-!!     Subroutine sm_struct_get(sm_struct, ref_count, id_nr, n_local_blocks,&
-!!         block_begins_at_row, block_begins_at_col, first_col, first_row,&
-!!         last_col, last_row, para_env, symmetry, local_blocks,&
-!!         n_blocks_row, n_blocks_col, n_rows, n_cols, distribution_2d,&
-!!         error)
-!!       Type(cp_sm_struct_type), Pointer:: sm_struct
-!!       Integer, Intent (OUT), Optional:: ref_count, id_nr, n_local_blocks
-!!       Integer, Dimension(:), Pointer, Optional:: block_begins_at_row,&
-!!         block_begins_at_col, first_col, first_row, last_col, last_row
-!!       Type(cp_para_env_type), Pointer, Optional:: para_env
-!!       Character(Len=*), Intent (OUT), Optional:: symmetry
-!!       Type(cp_sm_node_type), Pointer, Optional:: local_blocks
-!!       Integer, Intent (OUT), Optional:: n_blocks_row, n_blocks_col,&
-!!         n_rows, n_cols
-!!       Type(distribution_2d_type), Pointer, Optional:: distribution_2d
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine sm_struct_get
-!!
-!!   FUNCTION
-!!     returns various attributes about the given sm_struct
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - sm_struct: the structure you want info about
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns various attributes about the given sm_struct
+!> \param sm_struct the structure you want info about
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE sm_struct_get(sm_struct, ref_count, id_nr, n_local_blocks,&
      block_begins_at_row, block_begins_at_col, first_col, &
      first_row, last_col, last_row, para_env, symmetry, local_blocks,&
@@ -814,43 +571,19 @@ SUBROUTINE sm_struct_get(sm_struct, ref_count, id_nr, n_local_blocks,&
      IF (PRESENT(distribution_2d)) distribution_2d => sm_struct%distribution_2d
   END IF
 END SUBROUTINE sm_struct_get
-!***************************************************************************
 
-!!****f* cp_sm_struct/sm_struct_write [1.0] *
-!!
-!!   NAME
-!!     sm_struct_write
-!!
-!!   SYNOPSIS
-!!     Subroutine sm_struct_write(sm_struct, unit_nr, local,&
-!!         short_description, error)
-!!       Type(cp_sm_struct_type), Pointer:: sm_struct
-!!       Integer, Intent (IN):: unit_nr
-!!       Logical, Intent (IN), Optional:: local, short_description
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine sm_struct_write
-!!
-!!   FUNCTION
-!!     writes out information about the given sm_struct
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - sm_struct: the sm struct to output
-!!     - unit_nr: the unit where to output
-!!     - local: if the unit is local to this processor (defaults to false)
-!!     - short_description: if only a short description should be written 
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes out information about the given sm_struct
+!> \param sm_struct the sm struct to output
+!> \param unit_nr the unit where to output
+!> \param local if the unit is local to this processor (defaults to false)
+!> \param short_description if only a short description should be written 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE sm_struct_write(sm_struct, unit_nr, local, short_description, error)
     TYPE(cp_sm_struct_type), POINTER         :: sm_struct
     INTEGER, INTENT(in)                      :: unit_nr
@@ -1076,6 +809,5 @@ SUBROUTINE sm_struct_write(sm_struct, unit_nr, local, short_description, error)
      END IF
   END IF
 END SUBROUTINE sm_struct_write
-!***************************************************************************
 
 END MODULE cp_sm_struct

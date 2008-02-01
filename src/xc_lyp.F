@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/xc_lyp [1.0] *
-!!
-!!   NAME
-!!     xc_lyp
-!!
-!!   FUNCTION
-!!     calculates the lyp correlation functional
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief calculates the lyp correlation functional
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 MODULE xc_lyp
   USE bibliography,                    ONLY: Lee1988,&
                                              cite_reference
@@ -51,45 +37,20 @@ MODULE xc_lyp
        c=0.2533_dp,d=0.349_dp
 
   PUBLIC :: lyp_lda_info, lyp_lsd_info, lyp_lda_eval, lyp_lsd_eval
-!!***
-!****************************************************************************
 CONTAINS
 
-!!****f* xc_lyp/lyp_lda_info [1.0] *
-!!
-!!   NAME
-!!     lyp_lda_info
-!!
-!!   SYNOPSIS
-!!     Subroutine lyp_lda_info(reference, shortform, needs, max_deriv,&
-!!         error)
-!!       Character(Len=*), Intent (OUT), Optional:: reference, shortform
-!!       Type(xc_rho_cflags_type), Intent (INOUT), Optional:: needs
-!!       Integer, Intent (OUT), Optional:: max_deriv
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine lyp_lda_info
-!!
-!!   FUNCTION
-!!     return various information on the functional
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - reference: string with the reference of the actual functional
-!!     - shortform: string with the shortform of the functional name
-!!     - needs: the components needed by this functional are set to
-!!       true (does not set the unneeded components to false)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief return various information on the functional
+!> \param reference string with the reference of the actual functional
+!> \param shortform string with the shortform of the functional name
+!> \param needs the components needed by this functional are set to
+!>        true (does not set the unneeded components to false)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE lyp_lda_info(reference,shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
@@ -114,43 +75,19 @@ CONTAINS
     IF (PRESENT(max_deriv)) max_deriv=3
 
   END SUBROUTINE lyp_lda_info
-!***************************************************************************
 
-!!****f* xc_lyp/lyp_lsd_info [1.0] *
-!!
-!!   NAME
-!!     lyp_lsd_info
-!!
-!!   SYNOPSIS
-!!     Subroutine lyp_lsd_info(reference, shortform, needs, max_deriv,&
-!!         error)
-!!       Character(Len=*), Intent (OUT), Optional:: reference, shortform
-!!       Type(xc_rho_cflags_type), Intent (INOUT), Optional:: needs
-!!       Integer, Intent (OUT), Optional:: max_deriv
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine lyp_lsd_info
-!!
-!!   FUNCTION
-!!     return various information on the functional
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - reference: string with the reference of the actual functional
-!!     - shortform: string with the shortform of the functional name
-!!     - needs: the components needed by this functional are set to
-!!       true (does not set the unneeded components to false)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief return various information on the functional
+!> \param reference string with the reference of the actual functional
+!> \param shortform string with the shortform of the functional name
+!> \param needs the components needed by this functional are set to
+!>        true (does not set the unneeded components to false)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE lyp_lsd_info(reference,shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
@@ -175,46 +112,23 @@ SUBROUTINE lyp_lsd_info(reference,shortform, needs, max_deriv, error)
   IF (PRESENT(max_deriv)) max_deriv=2
 
 END SUBROUTINE lyp_lsd_info
-!***************************************************************************
 
-!!****f* xc_lyp/lyp_lda_eval [1.0] *
-!!
-!!   NAME
-!!     lyp_lda_eval
-!!
-!!   SYNOPSIS
-!!     Subroutine lyp_lda_eval(rho_set, deriv_set, grad_deriv, error)
-!!       Type(xc_rho_set_type), Pointer:: rho_set
-!!       Type(xc_derivative_set_type), Pointer:: deriv_set
-!!       Integer, Intent (IN):: grad_deriv
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine lyp_lda_eval
-!!
-!!   FUNCTION
-!!     evaluates the lyp correlation functional for lda
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - rho_set: the density where you want to evaluate the functional
-!!     - deriv_set: place where to store the functional derivatives (they are
-!!       added to the derivatives)
-!!     - grad_deriv: degree of the derivative that should be evalated,
-!!       if positive all the derivatives up to the given degree are evaluated,
-!!       if negative only the given degree is calculated
-!!     - lyp_params: input parameters (scaling)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!     01.2007 added scaling [Manuel Guidon]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief evaluates the lyp correlation functional for lda
+!> \param rho_set the density where you want to evaluate the functional
+!> \param deriv_set place where to store the functional derivatives (they are
+!>        added to the derivatives)
+!> \param grad_deriv degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param lyp_params input parameters (scaling)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      11.2003 created [fawzi]
+!>      01.2007 added scaling [Manuel Guidon]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,lyp_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -335,46 +249,23 @@ SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,lyp_params,error)
   END IF
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE lyp_lda_eval
-!***************************************************************************
 
-!!****f* xc_lyp/lyp_lda_calc [1.0] *
-!!
-!!   NAME
-!!     lyp_lda_eval
-!!
-!!   SYNOPSIS
-!!     Subroutine lyp_lda_eval(rho_set, deriv_set, grad_deriv, error)
-!!       Type(xc_rho_set_type), Pointer:: rho_set
-!!       Type(xc_derivative_set_type), Pointer:: deriv_set
-!!       Integer, Intent (IN):: grad_deriv
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine lyp_lda_eval
-!!
-!!   FUNCTION
-!!     evaluates the lyp correlation functional for lda
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - rho_set: the density where you want to evaluate the functional
-!!     - deriv_set: place where to store the functional derivatives (they are
-!!       added to the derivatives)
-!!     - grad_deriv: degree of the derivative that should be evalated,
-!!       if positive all the derivatives up to the given degree are evaluated,
-!!       if negative only the given degree is calculated
-!!     - sc: scaling-parameter for correlation
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!     01.2007 added scaling [Manuel Guidon]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief evaluates the lyp correlation functional for lda
+!> \param rho_set the density where you want to evaluate the functional
+!> \param deriv_set place where to store the functional derivatives (they are
+!>        added to the derivatives)
+!> \param grad_deriv degree of the derivative that should be evalated,
+!>        if positive all the derivatives up to the given degree are evaluated,
+!>        if negative only the given degree is calculated
+!> \param sc scaling-parameter for correlation
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      11.2003 created [fawzi]
+!>      01.2007 added scaling [Manuel Guidon]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
      e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
      e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
@@ -840,40 +731,17 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
      END DO
   END SELECT
 END SUBROUTINE lyp_lda_calc
-!***************************************************************************
 
-!!****f* xc_lyp/lyp_lsd_eval [1.0] *
-!!
-!!   NAME
-!!     lyp_lsd_eval
-!!
-!!   SYNOPSIS
-!!     Subroutine lyp_lsd_eval(rho_set, deriv_set, grad_deriv, error)
-!!       Type(xc_rho_set_type), Pointer:: rho_set
-!!       Type(xc_derivative_set_type), Pointer:: deriv_set
-!!       Integer, Intent (IN):: grad_deriv
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine lyp_lsd_eval
-!!
-!!   FUNCTION
-!!     evaluates the becke 88 exchange functional for lsd
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - lyp_params: input parameter (scaling) 
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!     01.2007 added scaling [Manuel Guidon]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief evaluates the becke 88 exchange functional for lsd
+!> \param lyp_params input parameter (scaling) 
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      11.2003 created [fawzi]
+!>      01.2007 added scaling [Manuel Guidon]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,lyp_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -1019,37 +887,22 @@ SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,lyp_params,error)
   END IF
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE lyp_lsd_eval
-!***************************************************************************
 
-!!****f* xc_lyp/lyp_lsd_calc [1.0] *
-!!
-!!   NAME
-!!     lyp_lsd_calc
-!!
-!!   FUNCTION
-!!     low level calculation of the becke 88 exchange functional for lsd
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - rho_spin: alpha or beta spin density
-!!     - rho_1_3_spin: rho_spin**(1./3.)
-!!     - norm_drho_spin: || grad rho_spin ||
-!!     - e_0: adds to it the local value of the functional
-!!     - e_*_spin: derivative of the functional wrt. to the variables
-!!       named where the * is. Everything wrt. to the spin of the arguments.
-!!     - sc: scaling parameter for correlation
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     01.2004 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief low level calculation of the becke 88 exchange functional for lsd
+!> \param rho_spin alpha or beta spin density
+!> \param rho_ 1_3_spin: rho_spin**(1./3.)
+!> \param norm_drho_spin || grad rho_spin ||
+!> \param e_ 0: adds to it the local value of the functional
+!> \param e_ *_spin: derivative of the functional wrt. to the variables
+!>        named where the * is. Everything wrt. to the spin of the arguments.
+!> \param sc scaling parameter for correlation
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      01.2004 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
      e_0, e_ra, e_rb, e_ndra_ra, e_ndra_rb, e_ndrb_ra, e_ndrb_rb, e_ndr_ndr,&
      e_ndra_ndra, e_ndrb_ndrb, e_ndr,&
@@ -1402,7 +1255,5 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
  END DO
 
 END SUBROUTINE lyp_lsd_calc
-!***************************************************************************
-
 
 END MODULE xc_lyp

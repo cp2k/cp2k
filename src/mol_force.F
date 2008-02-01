@@ -2,22 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/mol_force [1.0] *
-!!
-!!   NAME
-!!     mol_force
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     Torsions added (DG) 05-Dec-2000
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      Torsions added (DG) 05-Dec-2000
+!> \author CJM
+! *****************************************************************************
 MODULE mol_force
 
   USE input_constants,                 ONLY: do_ff_charmm,&
@@ -34,29 +24,14 @@ MODULE mol_force
   PUBLIC :: force_bonds, force_bends, force_torsions, force_imp_torsions
   PUBLIC :: get_pv_bond, get_pv_bend, get_pv_torsion
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** mol_force/force_bonds [1.0] *
-!!
-!!   NAME
-!!     force_bonds
-!!
-!!   FUNCTION
-!!     Computes the forces from the bonds
-!!     force_bonds_1 is for purely harmonic bonds
-!!     force_bonds_3 uses a quartic form (i.e. 3 force constants)
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Computes the forces from the bonds
+!>      force_bonds_1 is for purely harmonic bonds
+!>      force_bonds_3 uses a quartic form (i.e. 3 force constants)
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE force_bonds ( id_type, rij, r0, k, energy, fscalar )
     INTEGER, INTENT(IN)                      :: id_type
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rij
@@ -110,25 +85,12 @@ CONTAINS
 
   END SUBROUTINE force_bonds
 
-!!*****
-!******************************************************************************
-!!****** mol_force/force_bends [1.0] *
-!!
-!!   NAME
-!!     force_bends
-!!
-!!   FUNCTION
-!!     Computes the forces from the bends
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Computes the forces from the bends
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE force_bends (id_type, b12, b32, d12, d32, id12, id32, dist, &
        theta, theta0, k, g1, g2, g3, energy, fscalar )
     INTEGER, INTENT(IN)                      :: id_type
@@ -171,25 +133,12 @@ CONTAINS
 
   END SUBROUTINE force_bends
 
-!!*****
-!******************************************************************************
-!!****** mol_force/force_torsions [1.0] *
-!!
-!!   NAME
-!!     force_torsions
-!!
-!!   FUNCTION
-!!     Computes the forces from the torsions
-!!
-!!   AUTHOR
-!!     DG
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Computes the forces from the torsions
+!> \par History
+!>      none
+!> \author DG
+! *****************************************************************************
   SUBROUTINE force_torsions (id_type, is32, dist1, dist2, u1, u2, iw1, iw2, &
        k, cosphi0, m, gt1, gt2, gt3, gt4, energy, fscalar )
     INTEGER, INTENT(IN)                      :: id_type
@@ -257,25 +206,12 @@ CONTAINS
 
   END SUBROUTINE force_torsions
 
-!!*****
-!******************************************************************************
-!!****** mol_force/force_imp_torsions [1.0] *
-!!
-!!   NAME
-!!     force_imp_torsions
-!!
-!!   FUNCTION
-!!     Computes the forces from the torsions
-!!
-!!   AUTHOR
-!!     DG
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Computes the forces from the torsions
+!> \par History
+!>      none
+!> \author DG
+! *****************************************************************************
   SUBROUTINE force_imp_torsions (id_type,s32, is32, ism, isn,  dist1, dist2, tm, tn, t12, t32, &
        k, phi0, gt1, gt2, gt3, gt4, energy, fscalar )
     INTEGER, INTENT(IN)                      :: id_type
@@ -331,28 +267,14 @@ CONTAINS
        CALL stop_program ("mol_force.F","unmatched impr kind")
     END SELECT
 
-
   END SUBROUTINE force_imp_torsions
 
-!!*****
-!******************************************************************************
-!!****** mol_force/get_pv_bond [1.0] *
-!!
-!!   NAME
-!!     get_pv_bond
-!!
-!!   FUNCTION
-!!     Computes the pressure tensor from the bonds
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Computes the pressure tensor from the bonds
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE get_pv_bond(f12,r12,pv_bond)
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: f12, r12
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -373,25 +295,12 @@ CONTAINS
 
   END SUBROUTINE get_pv_bond
 
-!!*****
-!******************************************************************************
-!!****** mol_force/get_pv_bend [1.0] *
-!!
-!!   NAME
-!!     get_pv_bend
-!!
-!!   FUNCTION
-!!     Computes the pressure tensor from the bends
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Computes the pressure tensor from the bends
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE get_pv_bend(f1,f3,r12,r32,pv_bend)
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: f1, f3, r12, r32
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -421,25 +330,12 @@ CONTAINS
 
   END SUBROUTINE get_pv_bend
 
-!!*****
-!******************************************************************************
-!!****** mol_force/get_pv_torsion [1.0] *
-!!
-!!   NAME
-!!     get_pv_torsion
-!!
-!!   FUNCTION
-!!     Computes the pressure tensor from the torsions
-!!
-!!   AUTHOR
-!!     DG
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Computes the pressure tensor from the torsions
+!> \par History
+!>      none
+!> \author DG
+! *****************************************************************************
   SUBROUTINE get_pv_torsion(f1,f3,f4,r12,r32,r43,pv_torsion)
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: f1, f3, f4, r12, r32, r43
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -478,9 +374,5 @@ CONTAINS
 
   END SUBROUTINE get_pv_torsion
 
-!!*****
-!******************************************************************************
-
 END MODULE mol_force
 
-!******************************************************************************

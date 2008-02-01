@@ -2,26 +2,16 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_interactions [1.0] *
-!!
-!!   NAME
-!!     qs_interactions
-!!
-!!   FUNCTION
-!!     Calculate the interaction radii for the operator matrix calculation.
-!!
-!!   AUTHOR
-!!     MK (12.07.2000)
-!!
-!!   MODIFICATION HISTORY
-!!     Joost VandeVondele : added exp_radius_very_extended
-!!     24.09.2002 overloaded init_interaction_radii for KG use (gt)
-!!     27.02.2004 integrated KG into QS version of init_interaction_radii (jgh)
-!!     07.03.2006 new routine to extend kind interaction radius for semi-empiric (jgh)
-!!
-!!***
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Calculate the interaction radii for the operator matrix calculation.
+!> \par History
+!>      Joost VandeVondele : added exp_radius_very_extended
+!>      24.09.2002 overloaded init_interaction_radii for KG use (gt)
+!>      27.02.2004 integrated KG into QS version of init_interaction_radii (jgh)
+!>      07.03.2006 new routine to extend kind interaction radius for semi-empiric (jgh)
+!> \author MK (12.07.2000)
+! *****************************************************************************
 MODULE qs_interactions
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -64,7 +54,6 @@ MODULE qs_interactions
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_interactions'
 
-
 ! *** Public subroutines ***
 
   PUBLIC :: init_interaction_radii, init_se_nlradius
@@ -73,20 +62,15 @@ MODULE qs_interactions
 
   PUBLIC :: exp_radius_very_extended
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE init_interaction_radii(qs_control,cell,atomic_kind_set,&
                                     subsys_section,error)
 
 !   Purpose: Initialize all the atomic kind radii for a given threshold value.
 
 !   History: - Creation (24.09.2002, gt)
-
-!   ***************************************************************************
 
     TYPE(qs_control_type), INTENT(IN)        :: qs_control
     TYPE(cell_type), POINTER                 :: cell
@@ -334,7 +318,6 @@ CONTAINS
 
       END IF
 
-
 !     *** Calculate the aux orbital basis function radii ***
 
       IF (ASSOCIATED(aux_basis_set)) THEN
@@ -509,7 +492,6 @@ CONTAINS
   END SUBROUTINE init_se_nlradius
 
 ! *****************************************************************************
-
   SUBROUTINE write_kind_radii(cell,atomic_kind_set,subsys_section,error)
 
     TYPE(cell_type), POINTER                 :: cell
@@ -567,15 +549,12 @@ CONTAINS
   END SUBROUTINE write_kind_radii
 
 ! *****************************************************************************
-
   SUBROUTINE write_core_charge_radii(cell,atomic_kind_set,subsys_section,error)
 
 !   Purpose: Write the radii of the core charge distributions to the output
 !            unit.
 
 !   History: - Creation (15.09.2000,MK)
-
-!   ***************************************************************************
 
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -636,14 +615,11 @@ CONTAINS
   END SUBROUTINE write_core_charge_radii
 
 ! *****************************************************************************
-
   SUBROUTINE write_pgf_orb_radii(basis,cell,atomic_kind_set,subsys_section,error)
 
 !   Purpose: Write the orbital basis function radii to the output unit.
 
 !   History: - Creation (05.06.2000,MK)
-
-!   ***************************************************************************
 
     CHARACTER(len=*)                         :: basis
     TYPE(cell_type), POINTER                 :: cell
@@ -820,7 +796,6 @@ CONTAINS
   END SUBROUTINE write_pgf_orb_radii
 
 ! *****************************************************************************
-
   SUBROUTINE write_ppl_radii(cell,atomic_kind_set,subsys_section,error)
 
 !   Purpose: Write the radii of the exponential functions of the Goedecker
@@ -828,8 +803,6 @@ CONTAINS
 !            "output_unit".
 
 !   History: - Creation (06.10.2000,MK)
-
-!   ***************************************************************************
 
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -882,7 +855,6 @@ CONTAINS
   END SUBROUTINE write_ppl_radii
 
 ! *****************************************************************************
-
   SUBROUTINE write_ppnl_radii(cell,atomic_kind_set,subsys_section,error)
 
 !   Purpose: Write the radii of the projector functions of the Goedecker
@@ -890,8 +862,6 @@ CONTAINS
 !            "output_unit".
 
 !   History: - Creation (06.10.2000,MK)
-
-!   ***************************************************************************
 
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -941,8 +911,6 @@ CONTAINS
   
 !   Purpose: Write the radii of the one center projector 
 
-!   ***************************************************************************
-
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -988,26 +956,15 @@ CONTAINS
          "PRINT%RADII/GAPW_PRJ_RADII",error=error)
   END SUBROUTINE write_paw_radii
 
-
-!!****f* qs_interactions/exp_radius_very_extended *
-!!
-!!   NAME
-!!     exp_radius_very_extended
-!!
-!!   FUNCTION
-!!     computes the radius of the Gaussian outside of which it is smaller
-!!     than eps
-!!
-!!   NOTES
-!!     can optionally screen by the maximum element of the pab block
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     03.2007 new version that assumes that the Gaussians origante from spherical
-!!             Gaussians
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief computes the radius of the Gaussian outside of which it is smaller
+!>      than eps
+!> \note
+!>      can optionally screen by the maximum element of the pab block
+!> \par History
+!>      03.2007 new version that assumes that the Gaussians origante from spherical
+!>              Gaussians
+! *****************************************************************************
  FUNCTION exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,o1,o2,ra,rb,rp,&
                           zetp,eps,prefactor,cutoff) RESULT(radius)
 

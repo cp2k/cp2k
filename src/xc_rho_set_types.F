@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/xc_rho_set_types [1.0] *
-!!
-!!   NAME
-!!     xc_rho_set_types
-!!
-!!   FUNCTION
-!!     contains the structure
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief contains the structure
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 MODULE xc_rho_set_types
   USE cell_types,                      ONLY: cell_type
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
@@ -65,58 +51,40 @@ MODULE xc_rho_set_types
   PUBLIC :: xc_rho_set_create, xc_rho_set_retain, xc_rho_set_release,&
        xc_rho_set_update, xc_rho_set_get
 
-!!***
-  !****************************************************************************
-
-
-
-!!****s* xc_rho_set_types/xc_rho_set_type [1.0] *
-!!
-!!   NAME
-!!     xc_rho_set_type
-!!
-!!   FUNCTION
-!!     represent a density, with all the representation and data needed
-!!     to perform a functional evaluation
-!!
-!!   NOTES
-!!     the use of 3d arrays is the result of trying to use only basic
-!!     types (to be generic and independent from the method), and
-!!     avoiding copies using the actual structure.
-!!     only the part defined by local bounds is guaranteed to be present,
-!!     and it is the only meaningful part.
-!!
-!!   ATTRIBUTES
-!!     - ref_count: reference count (see doc/ReferenceCounting.html)
-!!     - id_nr: identification number (unique)
-!!     - local_bounds: the part of the 3d array on which the functional is
-!!       computed
-!!     - owns: which components are owned by this structure (and should
-!!       be deallocated
-!!     - has: which components are present and up to date
-!!     - rho: the density
-!!     - drho: the gradient of the density (x,y and z direction)
-!!     - norm_drho: the norm of the gradient of the density
-!!     - rhoa, rhob: spin alpha and beta parts of the density in the LSD case
-!!     - drhoa, drhob: gradient of the spin alpha and beta parts of the density
-!!       in the LSD case (x,y and z direction)
-!!     - norm_drhoa, norm_drhob: norm of the gradient of rhoa and rhob
-!!     - drhoa_drhob: the scalar product between the gradient of rhoa and the
-!!       one of rhob
-!!     - rho_1_3: rho^(1.0_dp/3.0_dp)
-!!     - rhoa_1_3, rhob_1_3: rhoa^(1.0_dp/3.0_dp), rhob^(1.0_dp/3.0_dp)
-!!     - tau: the kinetic (KohnSham) part of rho
-!!     - tau_a: the kinetic (KohnSham) part of rhoa
-!!     - tau_b: the kinetic (KohnSham) part of rhob
-!!
-!!   AUTHOR
-!!     fawzi & thomas
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi & thomas]
-!!
-!!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief represent a density, with all the representation and data needed
+!>      to perform a functional evaluation
+!> \param ref_count reference count (see doc/ReferenceCounting.html)
+!> \param id_nr identification number (unique)
+!> \param local_bounds the part of the 3d array on which the functional is
+!>        computed
+!> \param owns which components are owned by this structure (and should
+!>        be deallocated
+!> \param has which components are present and up to date
+!> \param rho the density
+!> \param drho the gradient of the density (x,y and z direction)
+!> \param norm_drho the norm of the gradient of the density
+!> \param rhoa , rhob: spin alpha and beta parts of the density in the LSD case
+!> \param drhoa , drhob: gradient of the spin alpha and beta parts of the density
+!>        in the LSD case (x,y and z direction)
+!> \param norm_drhoa , norm_drhob: norm of the gradient of rhoa and rhob
+!> \param drhoa_drhob the scalar product between the gradient of rhoa and the
+!>        one of rhob
+!> \param rho_ 1_3: rho^(1.0_dp/3.0_dp)
+!> \param rhoa_ 1_3, rhob_1_3: rhoa^(1.0_dp/3.0_dp), rhob^(1.0_dp/3.0_dp)
+!> \param tau the kinetic (KohnSham) part of rho
+!> \param tau_a the kinetic (KohnSham) part of rhoa
+!> \param tau_b the kinetic (KohnSham) part of rhob
+!> \note
+!>      the use of 3d arrays is the result of trying to use only basic
+!>      types (to be generic and independent from the method), and
+!>      avoiding copies using the actual structure.
+!>      only the part defined by local bounds is guaranteed to be present,
+!>      and it is the only meaningful part.
+!> \par History
+!>      11.2003 created [fawzi & thomas]
+!> \author fawzi & thomas
+! *****************************************************************************
   TYPE xc_rho_set_type
      INTEGER :: ref_count, id_nr
      INTEGER, DIMENSION(2,3) :: local_bounds
@@ -136,27 +104,15 @@ MODULE xc_rho_set_types
      REAL(kind = dp), DIMENSION(:,:,:), POINTER :: rhoa_1_3, rhob_1_3
      REAL(kind = dp), DIMENSION(:,:,:), POINTER :: tau_a, tau_b
   END TYPE xc_rho_set_type
-!!***
-  !****************************************************************************
-
 
 CONTAINS
 
-
-!!****f* xc_rho_set_types/xc_rho_set_create [1.0] *
-!!
-!!   NAME
-!!     xc_rho_set_create
-!!
-!!   FUNCTION
-!!     allocates and does (minimal) initialization of a rho_set
-!!
-!!   ARGUMENTS
-!!     - rho_set: the structure to allocate
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief allocates and does (minimal) initialization of a rho_set
+!> \param rho_set the structure to allocate
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE xc_rho_set_create(rho_set,local_bounds,rho_cutoff,drho_cutoff,&
        tau_cutoff,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -203,22 +159,13 @@ CONTAINS
             rho_set%tau,rho_set%tau_a,rho_set%tau_b)
     END IF
   END SUBROUTINE xc_rho_set_create
-  !***************************************************************************
 
-!!****f* xc_rho_set_types/xc_rho_set_retain [1.0] *
-!!
-!!   NAME
-!!     xc_rho_set_retain
-!!
-!!   FUNCTION
-!!     retains the given rho_set
-!!
-!!   ARGUMENTS
-!!     - rho_set: the object to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given rho_set
+!> \param rho_set the object to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE xc_rho_set_retain(rho_set, error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -235,23 +182,14 @@ CONTAINS
        rho_set%ref_count=rho_set%ref_count+1
     END IF
   END SUBROUTINE xc_rho_set_retain
-  !***************************************************************************
 
-!!****f* xc_rho_set_types/xc_rho_set_release [1.0] *
-!!
-!!   NAME
-!!     xc_rho_set_release
-!!
-!!   FUNCTION
-!!     releases the given rho_set
-!!
-!!   ARGUMENTS
-!!     - rho_set: the structure to release
-!!     - pw_pool: the plae where to give back the arrays
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given rho_set
+!> \param rho_set the structure to release
+!> \param pw_pool the plae where to give back the arrays
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE xc_rho_set_release(rho_set, pw_pool, error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_pool
@@ -367,27 +305,18 @@ CONTAINS
     END IF
     NULLIFY(rho_set)
   END SUBROUTINE xc_rho_set_release
-  !***************************************************************************
 
-!!****f* xc_rho_set_types/xc_rho_set_get [1.0] *
-!!
-!!   NAME
-!!     xc_rho_set_get
-!!
-!!   FUNCTION
-!!     returns the various attributes of rho_set
-!!
-!!   ARGUMENTS
-!!     - rho_set: the object you whant info about
-!!     - can_return_null: if true the object returned can be null,
-!!       if false (the default) it stops with an error if a requested
-!!       component is not associated
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!     for the other components see the attributes of xc_rho_set
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the various attributes of rho_set
+!> \param rho_set the object you whant info about
+!> \param can_return_null if true the object returned can be null,
+!>        if false (the default) it stops with an error if a requested
+!>        component is not associated
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> 
+!>      for the other components see the attributes of xc_rho_set
+! *****************************************************************************
   SUBROUTINE xc_rho_set_get(rho_set, can_return_null, rho, drho, norm_drho,&
        rhoa, rhob, norm_drhoa, norm_drhob, drhoa_drhob,rho_1_3,rhoa_1_3,&
        rhob_1_3,drhoa,drhob,rho_cutoff,drho_cutoff,tau_cutoff,tau,tau_a,&
@@ -508,30 +437,16 @@ CONTAINS
        IF (PRESENT(local_bounds)) local_bounds => rho_set%local_bounds
     END IF
   END SUBROUTINE xc_rho_set_get
-  !***************************************************************************
 
-!!****f* xc_rho_set_types/xc_rho_set_clean [1.0] *
-!!
-!!   NAME
-!!     xc_rho_set_clean
-!!
-!!   FUNCTION
-!!     cleans (releases) most of the data stored in the rho_set giving back
-!!     what it can to the pw_pool
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - rho_set: the rho_set to be cleaned
-!!     - pw_pool: place to give back 3d arrays,...
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief cleans (releases) most of the data stored in the rho_set giving back
+!>      what it can to the pw_pool
+!> \param rho_set the rho_set to be cleaned
+!> \param pw_pool place to give back 3d arrays,...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE xc_rho_set_clean(rho_set,pw_pool,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(pw_pool_type), POINTER              :: pw_pool
@@ -640,31 +555,21 @@ CONTAINS
 
     END IF
   END SUBROUTINE xc_rho_set_clean
-  !***************************************************************************
 
-
-!!****f* xc_rho_set_types/xc_rho_set_update [1.0] *
-!!
-!!   NAME
-!!     xc_rho_set_update
-!!
-!!   FUNCTION
-!!     updates the given rho set with the density given by
-!!     rho_r (and rho_g). The rho set will contain the components specified
-!!     in needs
-!!
-!!   ARGUMENTS
-!!     - rho_set: the rho_set to update
-!!     - rho_r: the new density (in r space)
-!!     - rho_g: the new density (in g space, needed for some
-!!       derivatives)
-!!     - needs: the components of rho that are needed
-!!     - cell: cell parameters (to rescale the derivative)
-!!     - pw_pool: pool for the allocation of pw and cr3d
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief updates the given rho set with the density given by
+!>      rho_r (and rho_g). The rho set will contain the components specified
+!>      in needs
+!> \param rho_set the rho_set to update
+!> \param rho_r the new density (in r space)
+!> \param rho_g the new density (in g space, needed for some
+!>        derivatives)
+!> \param needs the components of rho that are needed
+!> \param cell cell parameters (to rescale the derivative)
+!> \param pw_pool pool for the allocation of pw and cr3d
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs,&
        xc_deriv_method_id,xc_rho_smooth_id,cell,pw_pool,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -1177,6 +1082,5 @@ CONTAINS
     CPPostcondition(xc_rho_cflags_equal(rho_set%has,needs,error=error),cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE xc_rho_set_update
-  !***************************************************************************
 
 END MODULE xc_rho_set_types

@@ -2,32 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/qs_ks_methods [1.0] *
-!!
-!!   NAME
-!!     qs_ks_methods
-!!
-!!   FUNCTION
-!!     routines that build the Kohn-Sham matrix (i.e calculate the coulomb
-!!     and xc parts
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     05.2002 moved from qs_scf (see there the history) [fawzi]
-!!     JGH [30.08.02] multi-grid arrays independent from density and potential
-!!     10.2002 introduced pools, uses updated rho as input,
-!!             removed most temporary variables, renamed may vars,
-!!             began conversion to LSD [fawzi]
-!!     10.2004 moved calculate_w_matrix here [Joost VandeVondele]
-!!             introduced energy derivative wrt MOs [Joost VandeVondele]
-!!
-!!   SOURCE
-!****************************************************************************
+
+! *****************************************************************************
+!> \brief routines that build the Kohn-Sham matrix (i.e calculate the coulomb
+!>      and xc parts
+!> \par History
+!>      05.2002 moved from qs_scf (see there the history) [fawzi]
+!>      JGH [30.08.02] multi-grid arrays independent from density and potential
+!>      10.2002 introduced pools, uses updated rho as input,
+!>              removed most temporary variables, renamed may vars,
+!>              began conversion to LSD [fawzi]
+!>      10.2004 moved calculate_w_matrix here [Joost VandeVondele]
+!>              introduced energy derivative wrt MOs [Joost VandeVondele]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE qs_ks_methods
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -170,34 +158,19 @@ MODULE qs_ks_methods
   PUBLIC :: qs_ks_create, qs_ks_did_change, qs_vxc_create, calc_rho_tot_gspace, &
        qs_ks_update_qs_env, qs_ks_build_kohn_sham_matrix, calculate_w_matrix
 !***
-!****************************************************************************
 
 CONTAINS
 
-!!****f* qs_ks_methods/qs_ks_create [1.0] *
-!!
-!!   NAME
-!!     qs_ks_create
-!!
-!!   FUNCTION
-!!     allocates and initializes the given ks_env.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - ks_env: the ks env to be initialized
-!!     - qs_env: the qs environment
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     05.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief allocates and initializes the given ks_env.
+!> \param ks_env the ks env to be initialized
+!> \param qs_env the qs environment
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      05.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE qs_ks_create(ks_env, qs_env, error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -254,51 +227,38 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qs_ks_create
-!***************************************************************************
 
-!!****f* qs_ks_methods/qs_ks_build_kohn_sham_matrix [1.0] *
-!!
-!!   NAME
-!!     qs_ks_build_kohn_sham_matrix
-!!
-!!   FUNCTION
-!!     routine where the real calculations are made: the
-!!     KS matrix is calculated
-!!
-!!   NOTES
-!!     make rho, energy and qs_charges optional, defaulting
-!!     to qs_env components?
-!!
-!!   INPUTS
-!!     - ks_env: the ks_env that old all the temporary objects that
-!!       the calculation of the KS matrix needs
-!!     - qs_env: the qs_env to update
-!!     - calculate_forces: if true calculate the quantities needed
-!!       to calculate the forces. Defaults to false.
-!!     - just_energy: if true updates the energies but not the
-!!       ks matrix. Defaults to false
-!!     - ks: the KS matrix that is created
-!!     - rho: the density, must be up to date
-!!     - rho_xc: the soft density, only for gapw_xc , must be up to date
-!!     - energy: the place where energies are stored
-!!     - qs_charges: the place where the grids charges are stored
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Matthias Krack
-!!
-!!   MODIFICATION HISTORY
-!!     06.2002 moved from qs_scf to qs_ks_methods, use of ks_env
-!!             new did_change scheme [fawzi]
-!!     10.2002 introduced pools, uses updated rho as input, LSD [fawzi]
-!!     10.2004 build_kohn_sham matrix now also computes the derivatives
-!!             of the total energy wrt to the MO coefs, if instructed to
-!!             do so. This appears useful for orbital dependent functionals
-!!             where the KS matrix alone (however this might be defined)
-!!              does not contain the info to construct this derivative.
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief routine where the real calculations are made: the
+!>      KS matrix is calculated
+!> \param ks_env the ks_env that old all the temporary objects that
+!>        the calculation of the KS matrix needs
+!> \param qs_env the qs_env to update
+!> \param calculate_forces if true calculate the quantities needed
+!>        to calculate the forces. Defaults to false.
+!> \param just_energy if true updates the energies but not the
+!>        ks matrix. Defaults to false
+!> \param ks the KS matrix that is created
+!> \param rho the density, must be up to date
+!> \param rho_xc the soft density, only for gapw_xc , must be up to date
+!> \param energy the place where energies are stored
+!> \param qs_charges the place where the grids charges are stored
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      make rho, energy and qs_charges optional, defaulting
+!>      to qs_env components?
+!> \par History
+!>      06.2002 moved from qs_scf to qs_ks_methods, use of ks_env
+!>              new did_change scheme [fawzi]
+!>      10.2002 introduced pools, uses updated rho as input, LSD [fawzi]
+!>      10.2004 build_kohn_sham matrix now also computes the derivatives
+!>              of the total energy wrt to the MO coefs, if instructed to
+!>              do so. This appears useful for orbital dependent functionals
+!>              where the KS matrix alone (however this might be defined)
+!>               does not contain the info to construct this derivative.
+!> \author Matthias Krack
+! *****************************************************************************
   SUBROUTINE qs_ks_build_kohn_sham_matrix(ks_env,qs_env,ks_matrix,&
                                           rho,energy,calculate_forces,&
                                           just_energy,rho_xc,kg_gpw,&
@@ -451,7 +411,6 @@ CONTAINS
     ELSE
       NULLIFY(my_rho_xc)
     END IF
-
 
     ! gets the tmp grids
     IF (.NOT. failure) THEN
@@ -636,12 +595,9 @@ CONTAINS
        CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,&
             error=error)
        
-
        CALL calc_v_sic_rspace(v_sic_rspace,energy,&
                               qs_env,dft_control,rho,poisson_env,just_energy,&
                               calculate_forces,auxbas_pw_pool,error=error)
-
-       
 
        IF ( gapw ) CALL Vh_1c_gg_integrals(qs_env,energy%hartree_1c,error=error)
 
@@ -1035,7 +991,6 @@ CONTAINS
              END DO
           END IF ! ASSOCIATED(v_rspace_new)
 
-
           IF (ASSOCIATED(v_tau_rspace)) THEN
              DO ispin=1,nspins
                  v_tau_rspace(ispin)%pw%cr3d =&
@@ -1292,23 +1247,13 @@ CONTAINS
 
   END SUBROUTINE qs_ks_build_kohn_sham_matrix
 
-!!****f* qs_ks_methods/pw_hfx *
-!!
-!!   NAME
-!!     pw_hfx
-!!
-!!   FUNCTION
-!!     computes the Hartree-Fock energy brute force in a pw basis
-!!
-!!   NOTES
-!!     only computes the HFX energy, no derivatives as yet
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     12.2007 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief computes the Hartree-Fock energy brute force in a pw basis
+!> \note
+!>      only computes the HFX energy, no derivatives as yet
+!> \par History
+!>      12.2007 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE pw_hfx(qs_env,energy,hf_section,poisson_env,auxbas_pw_pool,irep,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_energy_type), POINTER            :: energy
@@ -1384,7 +1329,6 @@ CONTAINS
                                   use_data=REALDATA3D,&
                                   in_space=REALSPACE,error=error)
        ENDDO
-
 
        exchange_energy = 0.0_dp
    
@@ -1469,21 +1413,9 @@ CONTAINS
 
   END SUBROUTINE pw_hfx
 
-!!****f* qs_ks_methods/sic_explicit_orbitals *
-!!
-!!   NAME
-!!     sic_explicit_orbitals
-!!
-!!   FUNCTION
-!!     do sic calculations on explicit orbitals
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief do sic calculations on explicit orbitals
+! *****************************************************************************
   SUBROUTINE sic_explicit_orbitals(energy,qs_env,dft_control,poisson_env,just_energy,&
                                calculate_forces,auxbas_pw_pool,error)
 
@@ -1528,7 +1460,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-
 
     NULLIFY(tau,vxc_tau)
 
@@ -1626,7 +1557,6 @@ CONTAINS
                             use_data=REALDATA3D,&
                             in_space=REALSPACE,error=error)
 
-
     NULLIFY(orb_density_matrix)
     CALL replicate_matrix_structure(source=rho%rho_ao(1)%matrix,&
                                     TARGET=orb_density_matrix,&
@@ -1701,7 +1631,6 @@ CONTAINS
             CALL set_matrix(orb_h,0.0_dp)
        ENDIF
 
-
        IF (just_energy) THEN
            exc=xc_exc_calc(rho_r=rho_r, rho_g=rho_g, tau=tau, xc_section=xc_section,&
                    cell=cell, pw_pool=xc_pw_pool, error=error)
@@ -1714,7 +1643,6 @@ CONTAINS
                    dft_control % sic_scaling_b * vxc(1) % pw %pw_grid%dvol *  vxc(1) % pw % cr3d 
        END IF
        energy%exc = energy%exc - dft_control % sic_scaling_b * exc
-
 
        IF (.NOT. just_energy) THEN
            CALL integrate_v_rspace(v_rspace=work_v_rspace,p=orb_density_matrix_p,h=orb_h_p,&
@@ -1762,21 +1690,10 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE sic_explicit_orbitals
-!!****f* qs_ks_methods/calc_v_sic_rspace *
-!!
-!!   NAME
-!!     calc_v_sic_rspace
-!!
-!!   FUNCTION
-!!     do sic calculations on the spin density
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief do sic calculations on the spin density
+! *****************************************************************************
   SUBROUTINE calc_v_sic_rspace(v_sic_rspace,energy,&
                                qs_env,dft_control,rho,poisson_env,just_energy,&
                                calculate_forces,auxbas_pw_pool,error)
@@ -1907,7 +1824,6 @@ CONTAINS
   END SUBROUTINE calc_v_sic_rspace
 
 ! *****************************************************************************
-
   SUBROUTINE calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, skip_nuclear_density, error)
     TYPE(pw_p_type), INTENT(INOUT)           :: rho_tot_gspace
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1952,7 +1868,6 @@ CONTAINS
   END SUBROUTINE calc_rho_tot_gspace
 
 ! *****************************************************************************
-
   SUBROUTINE print_densities(qs_env, rho_tot_gspace, rho, rho_xc, output_unit, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(pw_p_type), INTENT(IN)              :: rho_tot_gspace
@@ -2042,36 +1957,20 @@ CONTAINS
   END SUBROUTINE print_densities
 
 ! *****************************************************************************
-
-!!****f* qs_ks_methods/qs_ks_update_qs_env [1.0] *
-!!
-!!   NAME
-!!     qs_ks_update_qs_env
-!!
-!!   FUNCTION
-!!     updates the Kohn Sham matrix of the given qs_env (facility method)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - ks_env: the ks_env that old all the temporary objects that
-!!       the calculation of the KS matrix needs
-!!     - qs_env: the qs_env to update
-!!     - calculate_forces: if true calculate the quantities needed
-!!       to calculate the forces. Defaults to false.
-!!     - just_energy: if true updates the energies but not the
-!!       ks matrix. Defaults to false
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     4.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+!> \brief updates the Kohn Sham matrix of the given qs_env (facility method)
+!> \param ks_env the ks_env that old all the temporary objects that
+!>        the calculation of the KS matrix needs
+!> \param qs_env the qs_env to update
+!> \param calculate_forces if true calculate the quantities needed
+!>        to calculate the forces. Defaults to false.
+!> \param just_energy if true updates the energies but not the
+!>        ks matrix. Defaults to false
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      4.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
                                just_energy,diis_step,error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -2191,38 +2090,23 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE qs_ks_update_qs_env
-!***************************************************************************
 
-!!****f* qs_ks_methods/qs_ks_did_change [1.0] *
-!!
-!!   NAME
-!!     qs_ks_did_change
-!!
-!!   FUNCTION
-!!     tells that some of the things relevant to the ks calculation
-!!     did change. has to be called when changes happen otherwise
-!!     the calculation will give wrong results.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - ks_env: the environement that is informed about the changes
-!!     - s_mstruct_changed: if true it means that the structure of the
-!!       overlap matrix has changed
-!!       (atoms have moved)
-!!     - rho_changed: if true it means that the density has changed
-!!     - full_reset: if true everything has changed
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     4.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief tells that some of the things relevant to the ks calculation
+!>      did change. has to be called when changes happen otherwise
+!>      the calculation will give wrong results.
+!> \param ks_env the environement that is informed about the changes
+!> \param s_mstruct_changed if true it means that the structure of the
+!>        overlap matrix has changed
+!>        (atoms have moved)
+!> \param rho_changed if true it means that the density has changed
+!> \param full_reset if true everything has changed
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      4.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,potential_changed,full_reset,error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     LOGICAL, INTENT(in), OPTIONAL            :: s_mstruct_changed, &
@@ -2261,52 +2145,37 @@ SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,potential_chang
           ks_env%rho_changed) ks_env%forces_up_to_date=.FALSE.
   END IF
 END SUBROUTINE qs_ks_did_change
-!***************************************************************************
 
-!!****f* qs_ks_methods/qs_vxc_create [1.0] *
-!!
-!!   NAME
-!!     qs_vxc_create
-!!
-!!   FUNCTION
-!!     calculates and allocates the xc potential, already reducing it to
-!!     the dependence on rho and the one on tau
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - vxc_rho: will contain the v_xc part that depend on rho
-!!       (if one of the choosen xc functionals has it it is allocated and you
-!!       are responsible for it)
-!!     - vxc_tau: will contain the kinetic (tau) part of v_xc
-!!       (if one of the choosen xc functionals has it it is allocated and you
-!!       are responsible for it)
-!!     - qs_env: qs_environment to get all the needed things (rho,...)
-!!     - calculate_forces: if the forces should be calculated (so that you
-!!       might be able to add forces to the atoms is you do strange stuff in
-!!       the xc
-!!     - just_energy: if true calculates just the energy, and does not
-!!       allocate v_*_rspace
-!!     - harris: If true uses the rho structure of the Harris environment
-!!     - nsc_force: Uses rho_diff in case the non-self-consistent force should be
-!!                  calculated. Works only in combination with the Harris functional!
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     - 05.2002 modified to use the mp_allgather function each pe
-!!       computes only part of the grid and this is broadcasted to all
-!!       instead of summed.
-!!       This scales significantly better (e.g. factor 3 on 12 cpus
-!!       32 H2O) [Joost VdV]
-!!     - moved to qs_ks_methods [fawzi]
-!!     - sic alterations [Joost VandeVondele]
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief calculates and allocates the xc potential, already reducing it to
+!>      the dependence on rho and the one on tau
+!> \param vxc_rho will contain the v_xc part that depend on rho
+!>        (if one of the choosen xc functionals has it it is allocated and you
+!>        are responsible for it)
+!> \param vxc_tau will contain the kinetic (tau) part of v_xc
+!>        (if one of the choosen xc functionals has it it is allocated and you
+!>        are responsible for it)
+!> \param qs_env qs_environment to get all the needed things (rho,...)
+!> \param calculate_forces if the forces should be calculated (so that you
+!>        might be able to add forces to the atoms is you do strange stuff in
+!>        the xc
+!> \param just_energy if true calculates just the energy, and does not
+!>        allocate v_*_rspace
+!> \param harris If true uses the rho structure of the Harris environment
+!> \param nsc_force Uses rho_diff in case the non-self-consistent force should be
+!>                   calculated. Works only in combination with the Harris functional!
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      - 05.2002 modified to use the mp_allgather function each pe
+!>        computes only part of the grid and this is broadcasted to all
+!>        instead of summed.
+!>        This scales significantly better (e.g. factor 3 on 12 cpus
+!>        32 H2O) [Joost VdV]
+!>      - moved to qs_ks_methods [fawzi]
+!>      - sic alterations [Joost VandeVondele]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
      just_energy, harris, nsc_force, gapw_xc, epr_xc, adiabatic_rescale_factor, error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
@@ -2401,8 +2270,6 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
      ELSE
         CALL get_qs_env(qs_env=qs_env, rho=rho_struct, error=error)
      END IF
-
-
 
      ! test if the real space density is available
      CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
@@ -2827,32 +2694,17 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
 END SUBROUTINE qs_vxc_create
 
 ! *****************************************************************************
-!!****f* qs_ks_methods/calculate_w_matrix_1 [1.0] *
-!!
-!!    NAME
-!!      calculate_w_matrix_1
-!!
-!!    FUNCTION
-!!      Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
-!!      and the MO occupation numbers. Only works if they are eigenstates
-!!
-!!    NOTE
-!!      -
-!!
-!!    INPUTS
-!!       mo_set : type containing the full matrix of the MO and the eigenvalues
-!!       w_matrix : sparse matrix
-!!       error
-!!
-!!    AUTHOR
-!!       MK
-!!
-!!    MODIFICATION HISTORY
-!!        Creation (03.03.03,MK)
-!!        Modification that computes it as a full block, several times (e.g. 20)
-!!              faster at the cost of some additional memory
-!!
-!!*** *************************************************************************
+!> \brief Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
+!>       and the MO occupation numbers. Only works if they are eigenstates
+!> \param mo_set type containing the full matrix of the MO and the eigenvalues
+!> \param w_matrix sparse matrix
+!>        error
+!> \par History
+!>         Creation (03.03.03,MK)
+!>         Modification that computes it as a full block, several times (e.g. 20)
+!>               faster at the cost of some additional memory
+!> \author MK
+! *****************************************************************************
   SUBROUTINE calculate_w_matrix_1(mo_set,w_matrix,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
@@ -2898,33 +2750,17 @@ END SUBROUTINE qs_vxc_create
   END SUBROUTINE calculate_w_matrix_1
 
 ! *****************************************************************************
-!!****f* qs_ks_methods/calculate_w_matrix_2 [1.0] *
-!!
-!!    NAME
-!!      calculate_w_matrix_2
-!!
-!!    FUNCTION
-!!      Calculate the W matrix from the MO coefs, MO derivs
-!!       could overwrite the mo_derivs for increased memory efficiency
-!!
-!!    NOTE
-!!      -
-!!
-!!    INPUTS
-!!       mo_set : type containing the full matrix of the MO coefs
-!!       mo_deriv:
-!!       w_matrix : sparse matrix
-!!       s_matrix: sparse matrix for the overlap
-!!       error
-!!
-!!    AUTHOR
-!!       MK
-!!
-!!    MODIFICATION HISTORY
-!!        Creation (JV)
-!!
-!!*** *************************************************************************
-
+!> \brief Calculate the W matrix from the MO coefs, MO derivs
+!>        could overwrite the mo_derivs for increased memory efficiency
+!> \param mo_set type containing the full matrix of the MO coefs
+!>        mo_deriv:
+!> \param w_matrix sparse matrix
+!> \param s_matrix sparse matrix for the overlap
+!>        error
+!> \par History
+!>         Creation (JV)
+!> \author MK
+! *****************************************************************************
   SUBROUTINE calculate_w_matrix_2(mo_set,mo_deriv,w_matrix,s_matrix,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
@@ -3002,8 +2838,7 @@ END SUBROUTINE qs_vxc_create
 
   END SUBROUTINE calculate_w_matrix_2
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE calculate_w_matrix_roks(mo_set,matrix_ks,matrix_p,matrix_w,error)
 
     ! Calculate the energy-weighted density matrix W if ROKS is active.
@@ -3059,7 +2894,5 @@ END SUBROUTINE qs_vxc_create
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_w_matrix_roks
-
-  ! ***************************************************************************
 
 END MODULE qs_ks_methods

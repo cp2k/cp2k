@@ -1,29 +1,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_loc_methods_new [1.0] *
-!!
-!!   NAME
-!!     qs_loc_methods_new
-!!
-!!   FUNCTION
-!!     Driver for the localization that should be general
-!!     for all the methods available and all the definition of the
-!!     spread functional
-!!     Write centers, spread and cubes only if required and for the
-!!     selected states
-!!     The localized functions are copied in the standard mos array
-!!     for the next use
-!!
-!!   AUTHORS
-!!     MI (04.2005)
-!!
-!!   MODIFICATION HISTORY
-!!     01.2008 Teodoro Laino [tlaino] - University of Zurich 
-!!       - Merging the two localization codes and updating to new structures
-!!
-!!   SOURCE
-!******************************************************************************
+
+! *****************************************************************************
+!> \brief Driver for the localization that should be general
+!>      for all the methods available and all the definition of the
+!>      spread functional
+!>      Write centers, spread and cubes only if required and for the
+!>      selected states
+!>      The localized functions are copied in the standard mos array
+!>      for the next use
+!> \par History
+!>      01.2008 Teodoro Laino [tlaino] - University of Zurich 
+!>        - Merging the two localization codes and updating to new structures
+!> \author MI (04.2005)
+! *****************************************************************************
 MODULE qs_loc_methods
   USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
                                              atomic_kind_type,&
@@ -117,51 +108,37 @@ MODULE qs_loc_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_methods'
 
-
 ! *** Public ***
   PUBLIC ::  qs_loc_driver, optimize_loc_berry, qs_print_cubes
 
 CONTAINS
 
-!******************************************************************************
-!!****f* qs_loc_methods/optimize_loc_berry [1.0] *
-!!
-!!   NAME
-!!     optimize_loc_berry
-!!
-!!   FUNCTION
-!!      Calculate and optimize the spread functional as calculated from
-!!      the selected mos  and by the definition using the berry phase
-!!      as given by silvestrelli et al
-!!      If required the centers and the spreads for each mos selected
-!!      are calculated from z_ij and printed in the proper files.
-!!      The files should be appended if already exist, in this way
-!!      it would be possible to follow the evlution of the localization
-!!      e.g. along a MD trajectory
-!!
-!!   NOTES
-!!      This definition need the use of complex numbers, therefore the
-!!      optimization routines are specific for this case
-!!      The file for the centers and the spreads have a xyz format
-!!
-!!   ARGUMENTS
-!!     - method: indicates localization algorithm
-!!     - qs_loc_env: new environment for the localization calculations
-!!     - vectors: selected mos to be localized
-!!     - op_sm_set: sparse matrices containing the integrals of the kind <mi e{iGr} nu>
-!!     - zij_fm_set: set of full matrix of size nmoloc x nmoloc, will contain the z_ij numbers
-!!                   as defined by Silvestrelli et al
-!!     - ionode: logical that indicates the node responsable for the i/o
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     04.2005 created [MI]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Calculate and optimize the spread functional as calculated from
+!>       the selected mos  and by the definition using the berry phase
+!>       as given by silvestrelli et al
+!>       If required the centers and the spreads for each mos selected
+!>       are calculated from z_ij and printed in the proper files.
+!>       The files should be appended if already exist, in this way
+!>       it would be possible to follow the evlution of the localization
+!>       e.g. along a MD trajectory
+!> \param method indicates localization algorithm
+!> \param qs_loc_env new environment for the localization calculations
+!> \param vectors selected mos to be localized
+!> \param op_sm_set sparse matrices containing the integrals of the kind <mi e{iGr} nu>
+!> \param zij_fm_set set of full matrix of size nmoloc x nmoloc, will contain the z_ij numbers
+!>                    as defined by Silvestrelli et al
+!> \param ionode logical that indicates the node responsable for the i/o
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>       This definition need the use of complex numbers, therefore the
+!>       optimization routines are specific for this case
+!>       The file for the centers and the spreads have a xyz format
+!> \par History
+!>      04.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE optimize_loc_berry( method, qs_loc_env, vectors, op_sm_set, &
        zij_fm_set, cell, weights,  ispin, loc_section, error)
 
@@ -268,25 +245,11 @@ CONTAINS
 
   END SUBROUTINE optimize_loc_berry
 
-!******************************************************************************
-!!****f* qs_loc_methods/optimize_loc_pipek [1.0] *
-!!
-!!   NAME
-!!    optimize_loc_pipek 
-!!
-!!   FUNCTION
-!!
-!!   NOTES  
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     04.2005 created [MI]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \par History
+!>      04.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE  optimize_loc_pipek(qs_env, method, qs_loc_env, vectors, zij_fm_set,&
        ispin, loc_section, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -405,25 +368,11 @@ CONTAINS
 
   END SUBROUTINE optimize_loc_pipek
 
-!******************************************************************************
-!!****f* qs_loc_methods/centers_spreads_berry [1.0] *
-!!
-!!   NAME
-!!     centers_spreads_berry
-!!
-!!   FUNCTION
-!!
-!!   NOTES  
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     04.2005 created [MI]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \par History
+!>      04.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE centers_spreads_berry( qs_loc_env, zij, nmoloc, cell, weights, ispin,&
        loc_section, error)
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
@@ -504,28 +453,17 @@ CONTAINS
 
   END SUBROUTINE centers_spreads_berry
 
-!!****f* qs_loc_methods/centers_spreads_pipek *
-!!
-!!   NAME
-!!      centers_spreads_pipek
-!!   FUNCTION
-!!      define and print the centers and spread
-!!      when the pipek operator is used
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!      zij_fm_set: matrix elements that define the populations on atoms
-!!      localized_wfn_control: control parameter for a localization calculation
-!!      ispin: spin 1 or 2
-!!      ionode: i/o proc. should write the output if required
-!!      error:
-!!
-!!   MODIFICATION HISTORY
-!!     05.2005 created [MI]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief define and print the centers and spread
+!>       when the pipek operator is used
+!> \param zij_fm_set matrix elements that define the populations on atoms
+!> \param localized_wfn_control control parameter for a localization calculation
+!> \param ispin spin 1 or 2
+!> \param ionode i/o proc. should write the output if required
+!>       error:
+!> \par History
+!>      05.2005 created [MI]
+! *****************************************************************************
   SUBROUTINE centers_spreads_pipek(qs_loc_env,zij_fm_set,particle_set,ispin,loc_section,error)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
@@ -621,22 +559,12 @@ CONTAINS
 
   END SUBROUTINE centers_spreads_pipek
 
-!******************************************************************************
-!!****f* qs_loc_methods/qs_loc_driver
-!!
-!!   NAME
-!!     qs_loc_driver
-!!
-!!   FUNCTION
-!!     set up the calculation of localized orbitals
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     04.2005 created [MI]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief set up the calculation of localized orbitals
+!> \par History
+!>      04.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE qs_loc_driver(qs_env,qs_loc_env,loc_section,myspin,ext_mo_coeff,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -874,35 +802,22 @@ CONTAINS
 
   END SUBROUTINE qs_loc_driver
 
-!*****************************************************************************
-!!****f* qs_loc_methods/qs_print_cubes
-!!
-!!   NAME
-!!     qs_print_cubes
-!!
-!!   FUNCTION
-!!     write the cube files for a set of selected states
-!!
-!!   ARGUMENTS
-!!    - qs_env
-!!    - mo_coeff : set mos from which the states to be printed are extracted
-!!    - nstates : number of states to be printed
-!!    - state_list : list of the indexes of the states to be printed
-!!    - centers : centers and spread, all=0 if they hva not been calculated
-!!    - ispin
-!!    - ionode
-!!    - root    : initial part of the cube file names
-!!
-!!   NOTE
-!!     This routine shoul not be in this module
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 created [MI]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief write the cube files for a set of selected states
+!> \param qs_en v
+!> \param mo_coeff set mos from which the states to be printed are extracted
+!> \param nstates number of states to be printed
+!> \param state_list list of the indexes of the states to be printed
+!> \param centers centers and spread, all=0 if they hva not been calculated
+!> \param ispi n
+!> \param ionod e
+!> \param root initial part of the cube file names
+!> \note
+!>      This routine shoul not be in this module
+!> \par History
+!>      08.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE qs_print_cubes(qs_env,mo_coeff,nstates,state_list,centers,&
        print_key,root,ispin,idir,state0,error)
 
@@ -1011,28 +926,12 @@ CONTAINS
 
   END SUBROUTINE qs_print_cubes
 
-!!****f* qs_loc_methods/print_wannier_centers [1.0] *
-!!
-!!   NAME
-!!     print_wannier_centers
-!!
-!!   FUNCTION
-!!     Prints wannier centers
-!!
-!!   NOTES
-!!
-!!   ARGUMENTS
-!!     - qs_env: the qs_env in which the qs_env lives
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Prints wannier centers
+!> \param qs_env the qs_env in which the qs_env lives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE print_wannier_centers(qs_loc_env, print_key, center, logger, ispin, error)
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: print_key
@@ -1075,28 +974,12 @@ CONTAINS
 
   END SUBROUTINE print_wannier_centers
 
-!!****f* qs_loc_methods/print_wannier_traj [1.0] *
-!!
-!!   NAME
-!!     print_wannier_traj
-!!
-!!   FUNCTION
-!!     computes spread and centers
-!!
-!!   NOTES
-!!
-!!   ARGUMENTS
-!!     - qs_env: the qs_env in which the qs_env lives
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief computes spread and centers
+!> \param qs_env the qs_env in which the qs_env lives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE print_wannier_traj(qs_loc_env, print_key, center, iunit, init_traj, error)
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(section_vals_type), POINTER         :: print_key

@@ -3,27 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/metadynamics_types *
-!!
-!!   NAME
-!!     metadynamics_types
-!!
-!!   FUNCTION
-!!    defines types for metadynamics calculation
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!     01.2005 created [fawzi and ale]
-!!
-!!   SOURCE
-!!
-!****************************************************************************
+! *****************************************************************************
+!> \brief defines types for metadynamics calculation
+!> \par History
+!>      01.2005 created [fawzi and ale]
+! *****************************************************************************
 MODULE metadynamics_types
   USE cp_para_env,                     ONLY: cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -41,6 +25,7 @@ MODULE metadynamics_types
   PUBLIC :: hills_env_type, meta_env_type, meta_env_retain, &
             meta_env_release, metavar_type, wall_type
 
+! *****************************************************************************
   TYPE hills_env_type
      LOGICAL                                :: restart
      REAL(KIND=dp)                          :: ww
@@ -50,12 +35,14 @@ MODULE metadynamics_types
      REAL(KIND=dp), DIMENSION(:),   POINTER :: ww_history
   END TYPE hills_env_type
 
+! *****************************************************************************
   TYPE wall_type
      INTEGER       :: id_type, id_direction
      REAL(KIND=dp) :: pos
      REAL(KINd=dp) :: k_quadratic, ww_gauss, sigma_gauss
   END TYPE wall_type
 
+! *****************************************************************************
   TYPE metavar_type
      INTEGER       :: icolvar
      LOGICAL       :: do_wall, periodic
@@ -64,6 +51,7 @@ MODULE metadynamics_types
      TYPE(wall_type), DIMENSION(:), POINTER :: walls
   END TYPE metavar_type
 
+! *****************************************************************************
   TYPE meta_env_type
      INTEGER       :: ref_count, id_nr
      LOGICAL       :: do_hills
@@ -81,25 +69,12 @@ MODULE metadynamics_types
 
 CONTAINS
 
-!!****f* metadynamics/meta_env_retain *
-!!
-!!   NAME
-!!     meta_env_retain
-!!
-!!   FUNCTION
-!!     retains the meta_env
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     alessandro laio and fawzi mohamed
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the meta_env
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author alessandro laio and fawzi mohamed
+! *****************************************************************************
 SUBROUTINE meta_env_retain(meta_env,error)
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -115,27 +90,13 @@ SUBROUTINE meta_env_retain(meta_env,error)
   CPPreconditionNoFail(meta_env%ref_count>0,cp_failure_level,routineP,error)
   meta_env%ref_count=meta_env%ref_count+1
 END SUBROUTINE meta_env_retain
-!***************************************************************************
 
-!!****f* metadynamics/meta_env_release *
-!!
-!!   NAME
-!!     meta_env_release
-!!
-!!   FUNCTION
-!!     releases the meta_env
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     alessandro laio and fawzi mohamed
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the meta_env
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author alessandro laio and fawzi mohamed
+! *****************************************************************************
 SUBROUTINE meta_env_release(meta_env,error)
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -182,6 +143,5 @@ SUBROUTINE meta_env_release(meta_env,error)
   END IF
   NULLIFY(meta_env)
 END SUBROUTINE meta_env_release
-!***************************************************************************
 
 END MODULE metadynamics_types

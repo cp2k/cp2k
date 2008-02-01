@@ -2,19 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****s* cp2k/dg_types [1.0] *
-!!
-!!   NAME
-!!     dg_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!******************************************************************************
+
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
 MODULE dg_types
 
   USE dg_rho0_types,                   ONLY: dg_rho0_create,&
@@ -28,6 +20,7 @@ MODULE dg_types
   IMPLICIT NONE
 
 ! Information on the assignment function for Ewald
+! *****************************************************************************
   TYPE dg_type
     PRIVATE
     INTEGER :: ref_count, id_nr
@@ -35,6 +28,7 @@ MODULE dg_types
     TYPE ( dg_rho0_type ), POINTER :: dg_rho0
   END TYPE dg_type
 
+! *****************************************************************************
   TYPE dg_p_type
     TYPE ( dg_type ), POINTER :: dg
   END TYPE dg_p_type
@@ -50,11 +44,10 @@ MODULE dg_types
   CONTAINS
 
 !-----------------------------------------------------------------------------!
+! *****************************************************************************
  SUBROUTINE dg_get ( dg, id_nr, grid_index, dg_rho0 )
 
 !   Purpose: Get the dg_type
-
-!   ***************************************************************************
 
     TYPE(dg_type), POINTER                   :: dg
     INTEGER, OPTIONAL                        :: id_nr, grid_index
@@ -72,12 +65,9 @@ MODULE dg_types
   END SUBROUTINE dg_get
 
 ! *****************************************************************************
-
   SUBROUTINE dg_create ( dg, error )
 
 !   Purpose: create the dg structure
-
-!   ***************************************************************************
 
     TYPE(dg_type), POINTER                   :: dg
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -100,36 +90,18 @@ MODULE dg_types
     dg%ref_count=1
 
   END SUBROUTINE dg_create
-!***************************************************************************
-!!****f* dg_types/dg_retain [1.0] *
-!!
-!!   NAME
-!!     dg_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine dg_retain(dg, error)
-!!       Type(dg_type), Pointer:: dg
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine dg_retain
-!!
-!!   FUNCTION
-!!     retains the given dg_type
-!!
-!!   NOTES
-!!     see doc/ReferenceCounting.html
-!!
-!!   ARGUMENTS
-!!     - dg_type: the dg_type to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief retains the given dg_type
+!> \param dg_type the dg_type to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      see doc/ReferenceCounting.html
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE dg_retain ( dg, error)
     TYPE(dg_type), POINTER                   :: dg
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -147,36 +119,18 @@ SUBROUTINE dg_retain ( dg, error)
      dg%ref_count=dg%ref_count+1
   END IF
 END SUBROUTINE dg_retain
-!***************************************************************************
-!!****f* dg_types/dg_release [1.0] *
-!!
-!!   NAME
-!!     dg_release
-!!
-!!   SYNOPSIS
-!!     Subroutine dg_release(dg, error)
-!!       Type(dg_type), Pointer:: dg
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine dg_release
-!!
-!!   FUNCTION
-!!     releases the given dg_type
-!!
-!!   NOTES
-!!     see doc/ReferenceCounting.html
-!!
-!!   ARGUMENTS
-!!     - dg: the dg_type to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief releases the given dg_type
+!> \param dg the dg_type to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      see doc/ReferenceCounting.html
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE dg_release(dg, error)
     TYPE(dg_type), POINTER                   :: dg
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -206,8 +160,6 @@ END SUBROUTINE dg_release
 
 !   Purpose: Set the double grid environment
 
-! ***************************************************************************
-
     TYPE(dg_type), POINTER                   :: dg
     TYPE(dg_rho0_type), OPTIONAL, POINTER    :: dg_rho0
     INTEGER, OPTIONAL                        :: grid_index
@@ -227,4 +179,3 @@ END SUBROUTINE dg_release
 !-----------------------------------------------------------------------------!
 END MODULE dg_types
 !-----------------------------------------------------------------------------!
-!!*****

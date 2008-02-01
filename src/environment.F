@@ -2,25 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/environment [1.0] *
-!!
-!!   NAME
-!!     environment
-!!
-!!   FUNCTION
-!!     Sets up and terminates the global environment variables
-!!
-!!   AUTHOR
-!!     JGH,MK
-!!
-!!   MODIFICATION HISTORY
-!!     - Merged with Quickstep MODULE start_program_run (17.01.2002,MK)
-!!     - Compile information added (16.01.2002,MK)
-!!     - Merged with MODULE cp2k_input, some rearrangements (30.10.2002,MK)
-!!
-!!******
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Sets up and terminates the global environment variables
+!> \par History
+!>      - Merged with Quickstep MODULE start_program_run (17.01.2002,MK)
+!>      - Compile information added (16.01.2002,MK)
+!>      - Merged with MODULE cp2k_input, some rearrangements (30.10.2002,MK)
+!> \author JGH,MK
+! *****************************************************************************
 MODULE environment
   USE bibliography,                    ONLY: Frigo2005,&
                                              cite_reference
@@ -110,30 +100,16 @@ MODULE environment
 
   PUBLIC :: compile_arch,compile_date,compile_host,compile_lastcvs
 
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****f* environment/cp2k_init [1.0] *
-!!
-!!   NAME
-!!     cp2k_init
-!!
-!!   FUNCTION
-!!     Initializes a CP2K run (setting of the global environment variables)
-!!
-!!   AUTHOR
-!!     JGH,MK
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (28.11.2001) : default for pp_library_path
-!!     - print keys added (17.01.2002, MK)
-!!     - merged with cp2k_input (30.10.2002,MK)
-!!
-!!******
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Initializes a CP2K run (setting of the global environment variables)
+!> \par History
+!>      JGH (28.11.2001) : default for pp_library_path
+!>      - print keys added (17.01.2002, MK)
+!>      - merged with cp2k_input (30.10.2002,MK)
+!> \author JGH,MK
+! *****************************************************************************
   SUBROUTINE cp2k_init(para_env,output_unit,globenv,input_file_name)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -239,7 +215,6 @@ CONTAINS
        CALL stop_memory(routineN,moduleN,__LINE__,"all_host")
     END IF
 
-
     !   *** Initialize timing ***
 
     CALL timeset ("CP2K","I","",globenv%handle)
@@ -286,29 +261,16 @@ CONTAINS
   END SUBROUTINE cp2k_init
 
 ! *****************************************************************************
-
-!!****f* environment/cp2k_read [1.0] *
-!!
-!!   NAME
-!!     cp2k_read
-!!
-!!   FUNCTION
-!!     read part of cp2k_init
-!!
-!!   NOTES
-!!     The following routines need to be synchronized wrt. adding/removing
-!!     of the default environments (logging, perormance,error):
-!!     environment:cp2k_init, environment:cp2k_finalize,
-!!     f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
-!!     f77_interface:create_force_env, f77_interface:destroy_force_env
-!!
-!!   ARGUMENTS
-!!     - globenv: the globenv
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+!> \brief read part of cp2k_init
+!> \param globenv the globenv
+!> \note
+!>      The following routines need to be synchronized wrt. adding/removing
+!>      of the default environments (logging, perormance,error):
+!>      environment:cp2k_init, environment:cp2k_finalize,
+!>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
+!>      f77_interface:create_force_env, f77_interface:destroy_force_env
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
 
     TYPE(section_vals_type), POINTER         :: root_section
@@ -363,30 +325,17 @@ CONTAINS
          "GLOBAL%PRINT/PHYSCON",error=error)
 
   END SUBROUTINE cp2k_read
-!***************************************************************************
 
-!!****f* environment/cp2k_setup [1.0] *
-!!
-!!   NAME
-!!     cp2k_setup
-!!
-!!   FUNCTION
-!!     globenv initializations that need the input and error
-!!
-!!   NOTES
-!!     if possible do the initializations here as the environement
-!!     (error,...) is setup, instaed of cp2k_init
-!!
-!!   INPUTS
-!!     - globenv: the global environment to initialize
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief globenv initializations that need the input and error
+!> \param globenv the global environment to initialize
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      if possible do the initializations here as the environement
+!>      (error,...) is setup, instaed of cp2k_init
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE cp2k_setup(root_section,para_env,globenv,error)
 
     TYPE(section_vals_type), POINTER         :: root_section
@@ -454,28 +403,15 @@ CONTAINS
 
   END SUBROUTINE cp2k_setup
 
-!***************************************************************************
-
-!!****f* environment/read_global_section [1.0] *
-!!
-!!   NAME
-!!     read_global_section
-!!
-!!   FUNCTION
-!!     read the global sectionof new input
-!!
-!!   NOTES
-!!     Should not be required anymore once everything is converted
-!!     to get information directly from the input structure
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     06-2005 [created]
-!!
-!!******
-!******************************************************************************
+! *****************************************************************************
+!> \brief read the global sectionof new input
+!> \note
+!>      Should not be required anymore once everything is converted
+!>      to get information directly from the input structure
+!> \par History
+!>      06-2005 [created]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE read_global_section(root_section,para_env,globenv,error)
 
     TYPE(section_vals_type), POINTER         :: root_section
@@ -662,23 +598,11 @@ CONTAINS
 
   END SUBROUTINE read_global_section
 
-!******************************************************************************
-!!****f* environment/read_cp2k_section [1.0] *
-!!
-!!   NAME
-!!     read_cp2k_section
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     JGH,MK
-!!
-!!   MODIFICATION HISTORY
-!!     2-Dec-2000 (JGH) added default fft library
-!!
-!!******
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      2-Dec-2000 (JGH) added default fft library
+!> \author JGH,MK
+! *****************************************************************************
   SUBROUTINE read_cp2k_section(root_section,para_env,globenv,error)
 
     TYPE(section_vals_type), POINTER         :: root_section
@@ -702,7 +626,6 @@ CONTAINS
     logger => cp_error_get_logger(error)
     output_unit=cp_print_key_unit_nr(logger,global_section,"PROGRAM_RUN_INFO",&
          extension=".log",error=error)
-
 
     n(:) = 4
     zz(:,:,:) = 0.0_dp
@@ -784,31 +707,18 @@ CONTAINS
 
   END SUBROUTINE read_cp2k_section
 
-!******************************************************************************
-!!****f* environment/cp2k_finalize [1.0] *
-!!
-!!   NAME
-!!     cp2k_finalize
-!!
-!!   FUNCTION
-!!     Writes final timings and banner for CP2K
-!!
-!!   NOTES
-!!     The following routines need to be synchronized wrt. adding/removing
-!!     of the default environments (logging, perormance,error):
-!!     environment:cp2k_init, environment:cp2k_finalize,
-!!     f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
-!!     f77_interface:create_force_env, f77_interface:destroy_force_env
-!!
-!!   AUTHOR
-!!     JGH,MK
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!******
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Writes final timings and banner for CP2K
+!> \note
+!>      The following routines need to be synchronized wrt. adding/removing
+!>      of the default environments (logging, perormance,error):
+!>      environment:cp2k_init, environment:cp2k_finalize,
+!>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
+!>      f77_interface:create_force_env, f77_interface:destroy_force_env
+!> \par History
+!>      none
+!> \author JGH,MK
+! *****************************************************************************
   SUBROUTINE cp2k_finalize(root_section,para_env,globenv,error)
 
     TYPE(section_vals_type), POINTER         :: root_section
@@ -948,7 +858,5 @@ CONTAINS
     CALL cp_rm_default_logger()
 
   END SUBROUTINE cp2k_finalize
-
-  ! ***************************************************************************
 
 END MODULE environment

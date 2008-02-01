@@ -3,23 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* distribution_2d_types [1.0] *
-!!
-!!   NAME
-!!     distribution_2d_types
-!!
-!!   FUNCTION
-!!     stores a mapping of 2D info (e.g. matrix) on a
-!!     2D processor distribution (i.e. blacs grid)
-!!     where cpus in the same blacs row own the same rows of the 2D info
-!!     (and similar for the cols)
-!!
-!!   NOTES
-!!
-!!   AUTHOR
-!!     Joost VandeVondele (2003-08)
-!!
+! *****************************************************************************
+!> \brief stores a mapping of 2D info (e.g. matrix) on a
+!>      2D processor distribution (i.e. blacs grid)
+!>      where cpus in the same blacs row own the same rows of the 2D info
+!>      (and similar for the cols)
+!> \author Joost VandeVondele (2003-08)
+! *****************************************************************************
 MODULE distribution_2d_types
 
   USE cp_array_i_utils,                ONLY: cp_1d_i_p_type,&
@@ -54,47 +44,30 @@ MODULE distribution_2d_types
             distribution_2d_write,&
             distribution_2d_get
 
-!!*** **********************************************************************
-
-  !!****s* distribution_2d_types/distribution_2d_type [1.0] *
-  !!
-  !!   NAME
-  !!     distribution_2d_type
-  !!
-  !!   FUNCTION
-  !!     distributes pairs on a 2d grid of processors
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     - row_distribution(i): processor row that owns the row i
-  !!     - col_distribution(i): processor col that owns the col i
-  !!     - n_row_distribution: nuber of global rows
-  !!     - n_col_distribution: number of global cols
-  !!     - n_local_rows(ikind): number of local rows of kind ikind
-  !!     - n_local_cols(ikind): number of local cols of kind ikind
-  !!     - local_cols(ikind)%array: ordered global indexes of the local cols
-  !!       of kind ikind (might be oversized)
-  !!     - local_rows(ikind)%array: ordered global indexes of the local
-  !!       rows of kind ikind (might be oversized)
-  !!     - flat_local_rows: ordered global indexes of the local rows
-  !!       (allocated on request, might be oversized)
-  !!     - flat_local_cols: ordered global indexes of the local cols
-  !!       (allocated on request, might be oversized)
-  !!     - blacs_env: parallel environment in which the pairs are distributed
-  !!     - ref_count: reference count (see doc/ReferenceCounting.html)
-  !!     - id_nr: identification number (unique)
-  !!
-  !!   AUTHOR
-  !!     Joost & Fawzi
-  !!
-  !!   MODIFICATION HISTORY
-  !!     08.2003 created [joost]
-  !!     09.2003 kind separation, minor cleanup [fawzi]
-  !!
-  !!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief distributes pairs on a 2d grid of processors
+!> \param row_distribution (i): processor row that owns the row i
+!> \param col_distribution (i): processor col that owns the col i
+!> \param n_row_distribution nuber of global rows
+!> \param n_col_distribution number of global cols
+!> \param n_local_rows (ikind): number of local rows of kind ikind
+!> \param n_local_cols (ikind): number of local cols of kind ikind
+!> \param local_cols (ikind)%array: ordered global indexes of the local cols
+!>        of kind ikind (might be oversized)
+!> \param local_rows (ikind)%array: ordered global indexes of the local
+!>        rows of kind ikind (might be oversized)
+!> \param flat_local_rows ordered global indexes of the local rows
+!>        (allocated on request, might be oversized)
+!> \param flat_local_cols ordered global indexes of the local cols
+!>        (allocated on request, might be oversized)
+!> \param blacs_env parallel environment in which the pairs are distributed
+!> \param ref_count reference count (see doc/ReferenceCounting.html)
+!> \param id_nr identification number (unique)
+!> \par History
+!>      08.2003 created [joost]
+!>      09.2003 kind separation, minor cleanup [fawzi]
+!> \author Joost & Fawzi
+! *****************************************************************************
   TYPE distribution_2d_type
     INTEGER, DIMENSION(:), POINTER       :: row_distribution
     INTEGER, DIMENSION(:), POINTER       :: col_distribution
@@ -110,32 +83,17 @@ MODULE distribution_2d_types
     INTEGER                              :: ref_count
     INTEGER                              :: id_nr
   END TYPE distribution_2d_type
-  !!*** ***********************************************************************
 
 CONTAINS
 
-!!****f* distribution_2d_types/distribution_2d_create [1.0] *
-!!
-!!   NAME
-!!     distribution_2d_create
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     initializes the distribution_2d
-!!
-!!   NOTES
-!!     the row and col_distribution are not allocated if not given
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!     09.2003 rewamped [fawzi]
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief initializes the distribution_2d
+!> \note
+!>      the row and col_distribution are not allocated if not given
+!> \par History
+!>      09.2003 rewamped [fawzi]
+!> \author Joost VandeVondele
+! *****************************************************************************
 SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
      local_rows_ptr, n_local_rows, &
      local_cols_ptr, row_distribution_ptr, col_distribution_ptr,&
@@ -279,27 +237,10 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
 
    END IF
  END SUBROUTINE distribution_2d_create
-!***************************************************************************
 
-!!****f* distribution_2d_types/distribution_2d_retain [1.0] *
-!!
-!!   NAME
-!!     distribution_2d_retain
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \author Joost VandeVondele
+! *****************************************************************************
 SUBROUTINE distribution_2d_retain(distribution_2d,error)
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -317,24 +258,7 @@ SUBROUTINE distribution_2d_retain(distribution_2d,error)
   ENDIF
 END SUBROUTINE distribution_2d_retain
 
-!!****f* distribution_2d_types/distribution_2d_release [1.0] *
-!!
-!!   NAME
-!!     distribution_2d_release
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *********************************************************************
+! *****************************************************************************
 SUBROUTINE distribution_2d_release(distribution_2d,error)
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -396,31 +320,17 @@ SUBROUTINE distribution_2d_release(distribution_2d,error)
    NULLIFY(distribution_2d)
 END SUBROUTINE distribution_2d_release
 
-!!****f* cp_local_lists_types/distribution_2d_build_gdist [1.0] *
-!!
-!!   NAME
-!!     distribution_2d_build_gdist
-!!
-!!   FUNCTION
-!!     build the arrays with the prow/pcol of the processor that owns that index
-!!     (-1 if no processor owns it)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - distribution_2d: the distribution for which you want to build the global
-!!       distribution
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     09.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief build the arrays with the prow/pcol of the processor that owns that index
+!>      (-1 if no processor owns it)
+!> \param distribution_ 2d: the distribution for which you want to build the global
+!>        distribution
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE distribution_2d_build_gdist(distribution_2d,error)
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -590,32 +500,17 @@ CPSourceFileRef,&
 
   END IF
 END SUBROUTINE distribution_2d_build_gdist
-!***************************************************************************
 
-!!****f* distribution_2d_types/distribution_2d_destroy_gdist [1.0] *
-!!
-!!   NAME
-!!     distribution_2d_destroy_gdist
-!!
-!!   FUNCTION
-!!     deletes the global distribution
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - distribution_2d: the distribution from which you want to remove
-!!       the global distribution
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     09.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief deletes the global distribution
+!> \param distribution_ 2d: the distribution from which you want to remove
+!>        the global distribution
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE distribution_2d_destroy_gdist(distribution_2d,error)
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -642,37 +537,24 @@ SUBROUTINE distribution_2d_destroy_gdist(distribution_2d,error)
      END IF
   END IF
 END SUBROUTINE distribution_2d_destroy_gdist
-!***************************************************************************
 
-!!****f* distribution_2d_types/distribution_2d_write [1.0] *
-!!
-!!   NAME
-!!     distribution_2d_write
-!!
-!!   FUNCTION
-!!     writes out the given distribution
-!!
-!!   NOTES
-!!     to clean up, make safer wrt. grabage in distribution_2d%n_*
-!!
-!!   INPUTS
-!!     - distribution_2d: the distribution to write out
-!!     - unit_nr: the unit to write to
-!!     - local: if the unit is local to to each processor (otherwise
-!!       only the processor with logger%para_env%source==
-!!       logger%para_env%mepos writes), defaults to false.
-!!     - long_description: if a long description should be given,
-!!       defaults to false
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 adapted qs_distribution_2d_create write done by Matthias[fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes out the given distribution
+!> \param distribution_ 2d: the distribution to write out
+!> \param unit_nr the unit to write to
+!> \param local if the unit is local to to each processor (otherwise
+!>        only the processor with logger%para_env%source==
+!>        logger%para_env%mepos writes), defaults to false.
+!> \param long_description if a long description should be given,
+!>        defaults to false
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      to clean up, make safer wrt. grabage in distribution_2d%n_*
+!> \par History
+!>      08.2003 adapted qs_distribution_2d_create write done by Matthias[fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE distribution_2d_write(distribution_2d, unit_nr, local,&
      long_description, error)
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
@@ -847,33 +729,18 @@ SUBROUTINE distribution_2d_write(distribution_2d, unit_nr, local,&
   CALL m_flush(unit_nr)
 
 END SUBROUTINE distribution_2d_write
-!***************************************************************************
 
-!!****f* distribution_2d_types/distribution_2d_get [1.0] *
-!!
-!!   NAME
-!!     distribution_2d_get
-!!
-!!   FUNCTION
-!!     returns various attributes about the distribution_2d
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - distribution_2d: the object you want info about
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!     see distribution_2d_type attributes for a description of the other
-!!     arguments
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     09.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns various attributes about the distribution_2d
+!> \param distribution_ 2d: the object you want info about
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!>      see distribution_2d_type attributes for a description of the other
+!>      arguments
+!> \par History
+!>      09.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE distribution_2d_get(distribution_2d, row_distribution, &
      col_distribution, n_row_distribution, n_col_distribution,&
      n_local_rows, n_local_cols, local_rows, local_cols,&
@@ -981,6 +848,5 @@ SUBROUTINE distribution_2d_get(distribution_2d, row_distribution, &
      IF (PRESENT(id_nr)) id_nr = distribution_2d%id_nr
   END IF
 END SUBROUTINE distribution_2d_get
-!***************************************************************************
 
 END MODULE distribution_2d_types

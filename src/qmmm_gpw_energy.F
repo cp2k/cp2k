@@ -3,25 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/qmmm_gpw_energy [1.0] *
-!!
-!!   NAME
-!!     qmmm_gpw_energy
-!!
-!!   FUNCTION
-!!     A collection of methods to treat the QM/MM electrostatic coupling
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     5.2004 created [tlaino]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief A collection of methods to treat the QM/MM electrostatic coupling
+!> \par History
+!>      5.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
 MODULE qmmm_gpw_energy
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
@@ -84,30 +71,16 @@ MODULE qmmm_gpw_energy
   PUBLIC :: qmmm_elec_with_gaussian, qmmm_elec_with_gaussian_low,&
             qmmm_elec_with_gaussian_LR, qmmm_elec_with_gaussian_LG
 !***
-!****************************************************************************
 CONTAINS
-!!****f* qmmm_gpw_energy/qmmm_el_coupling [1.0] *
-!!
-!!   NAME
-!!     qmmm_el_coupling
-!!
-!!   FUNCTION
-!!     Main Driver to compute the QM/MM Electrostatic Coupling
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created [tlaino]
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief Main Driver to compute the QM/MM Electrostatic Coupling
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      05.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE  qmmm_el_coupling(qs_env,qmmm_env,mm_particles,mm_cell,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
@@ -224,29 +197,15 @@ CONTAINS
     END IF
   END SUBROUTINE qmmm_el_coupling
 
-!!****f* qmmm_gpw_energy/qmmm_elec_with_gaussian [1.0] *
-!!
-!!   NAME
-!!     qmmm_electrostatic_with gaussian
-!!
-!!   FUNCTION
-!!     Compute the QM/MM electrostatic Interaction collocating the gaussian
-!!     Electrostatic Potential
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 created [tlaino]
-!!
-!!**************************************************************************
+! *****************************************************************************
+!> \brief Compute the QM/MM electrostatic Interaction collocating the gaussian
+!>      Electrostatic Potential
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      06.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_elec_with_gaussian(qmmm_env, v_qmmm, mm_particles,&
        aug_pools, cube_info, para_env, eps_mm_rspace, pw_pools,&
        auxbas_grid, coarser_grid, interp_section, mm_cell, error)
@@ -346,29 +305,15 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_elec_with_gaussian
 
-!!****f* qmmm_gpw_energy/qmmm_elec_with_gaussian_low [1.0] *
-!!
-!!   NAME
-!!     qmmm_electrostatic_with gaussian_low
-!!
-!!   FUNCTION
-!!     Compute the QM/MM electrostatic Interaction collocating the gaussian
-!!     Electrostatic Potential - Low Level
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging ,stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 created [tlaino]
-!!
-!!**************************************************************************
+! *****************************************************************************
+!> \brief Compute the QM/MM electrostatic Interaction collocating the gaussian
+!>      Electrostatic Potential - Low Level
+!> \param error variable to control error logging ,stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      06.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_elec_with_gaussian_low( tmp_grid, mm_particles,&
          mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
          cube_info, para_env, eps_mm_rspace, pgfs, auxbas_grid, coarser_grid,&
@@ -516,32 +461,20 @@ CONTAINS
 
   END SUBROUTINE qmmm_elec_with_gaussian_low
 
-!!****f* qmmm_gpw_energy/qmmm_elec_with_gaussian_LG [1.0] *
-!!
-!!   NAME
-!!     qmmm_elec_with gaussian_LG
-!!
-!!   FUNCTION
-!!     Compute the QM/MM electrostatic Interaction collocating 
-!!     (1/R - Sum_NG Gaussians) on the coarser grid level in G-SPACE
-!!     Long Range QM/MM Electrostatic Potential with Gaussian - Low Level
-!!     PERIODIC BOUNDARY CONDITION VERSION
-!!
-!!   NOTES
-!!     This version includes the explicit code of Eval_Interp_Spl3_pbc
-!!     in order to achieve better performance
-!! 
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     07.2004 created [tlaino]
-!!
-!!**************************************************************************
+! *****************************************************************************
+!> \brief Compute the QM/MM electrostatic Interaction collocating 
+!>      (1/R - Sum_NG Gaussians) on the coarser grid level in G-SPACE
+!>      Long Range QM/MM Electrostatic Potential with Gaussian - Low Level
+!>      PERIODIC BOUNDARY CONDITION VERSION
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      This version includes the explicit code of Eval_Interp_Spl3_pbc
+!>      in order to achieve better performance
+!> \par History
+!>      07.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_elec_with_gaussian_LG(pgfs, cgrid, mm_charges,&
        mm_atom_index, mm_particles, mm_el_pot_radius, para_env,&
        coarser_grid_level, per_potentials, mm_cell, dOmmOqm, &
@@ -793,30 +726,16 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_elec_with_gaussian_LG
 
-!!****f* qmmm_gpw_energy/qmmm_elec_with_gaussian_LR [1.0] *
-!!
-!!   NAME
-!!     qmmm_elec_with gaussian_LR
-!!
-!!   FUNCTION
-!!     Compute the QM/MM electrostatic Interaction collocating 
-!!     (1/R - Sum_NG Gaussians) on the coarser grid level.
-!!     Long Range QM/MM Electrostatic Potential with Gaussian - Low Level
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     07.2004 created [tlaino]
-!!
-!!**************************************************************************
+! *****************************************************************************
+!> \brief Compute the QM/MM electrostatic Interaction collocating 
+!>      (1/R - Sum_NG Gaussians) on the coarser grid level.
+!>      Long Range QM/MM Electrostatic Potential with Gaussian - Low Level
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      07.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE qmmm_elec_with_gaussian_LR(pgfs, grid, mm_charges,&
        mm_atom_index, mm_particles, mm_el_pot_radius, para_env,&
        coarser_grid_level, potentials, mm_cell, dOmmOqm,&

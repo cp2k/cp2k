@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/pair_potential_util [1.0] *
-!!
-!!   NAME
-!!     pair_potential_util
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     September 2005 - Introduced the Born-Mayer-Huggins-Fumi-Tosi  Potential (BMHTF)
-!!     2006 - Major rewriting of the routines.. Linear scaling setup of splines
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      September 2005 - Introduced the Born-Mayer-Huggins-Fumi-Tosi  Potential (BMHTF)
+!>      2006 - Major rewriting of the routines.. Linear scaling setup of splines
+!> \author CJM
+! *****************************************************************************
 MODULE pair_potential_util
 
   USE erf_fn,                          ONLY: erfc
@@ -55,24 +45,9 @@ MODULE pair_potential_util
 
 CONTAINS
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_util/ener_pot [1.0] *
-  !!
-  !!   NAME
-  !!     ener_pot
-  !!
-  !!   FUNCTION
-  !!     Evaluates the nonbond potential energy for the implemented FF kinds
-  !!
-  !!   AUTHOR
-  !!
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Evaluates the nonbond potential energy for the implemented FF kinds
+! *****************************************************************************
   FUNCTION ener_pot ( pot, r, energy_cutoff, vdw_scale14 ) RESULT(value)
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
@@ -162,24 +137,9 @@ CONTAINS
     value = value - energy_cutoff
   END FUNCTION ener_pot
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_util/ener_coul [1.0] *
-  !!
-  !!   NAME
-  !!     ener_coul
-  !!
-  !!   FUNCTION
-  !!     Evaluates the Coulomb electrostatic energy
-  !!
-  !!   AUTHOR
-  !!
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Evaluates the Coulomb electrostatic energy
+! *****************************************************************************
   FUNCTION ener_coul ( e_cutoff_coul, fac, r, ewald_type, alpha, my_do_14 )
 
     REAL(KIND=dp), INTENT(IN)                :: e_cutoff_coul, fac, r
@@ -203,24 +163,10 @@ CONTAINS
 
   END FUNCTION ener_coul
 
-  !******************************************************************************
-  !!****
-  !!****s* pair_potential_util/potential_f [1.0] *
-  !!
-  !!   NAME
-  !!     potential_f
-  !!
-  !!   FUNCTION
-  !!    Evaluates the nonbond and electrostaitic potential analytically
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino [tlaino] 2006.05
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!
-  !!   SOURCE
-  !******************************************************************************
+! *****************************************************************************
+!> \brief Evaluates the nonbond and electrostaitic potential analytically
+!> \author Teodoro Laino [tlaino] 2006.05
+! *****************************************************************************
   SUBROUTINE potential_f ( rijsq, potparm, qi, qj, iatom, jatom, energy, ewald_env, error )
     REAL(KIND=dp), INTENT(IN)                :: rijsq
     TYPE(pair_potential_pp_type), POINTER    :: potparm

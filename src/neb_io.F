@@ -3,31 +3,18 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/neb_IO [1.0] *
-!!
-!!   NAME
-!!     neb_IO
-!!
-!!   FUNCTION
-!!     I/O Module for Nudged Elastic Band Calculation
-!!
-!!   NOTES
-!!     Numerical accuracy for parallel runs:
-!!      Each replica starts the SCF run from the one optimized
-!!      in a previous run. It may happen then energies and derivatives
-!!      of a serial run and a parallel run could be slightly different
-!!      'cause of a different starting density matrix.
-!!      Exact results are obtained using:
-!!         EXTRAPOLATION USE_GUESS in QS section (Teo 09.2006)
-!!
-!!   AUTHOR
-!!     Teodoro Laino 10.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief I/O Module for Nudged Elastic Band Calculation
+!> \note
+!>      Numerical accuracy for parallel runs:
+!>       Each replica starts the SCF run from the one optimized
+!>       in a previous run. It may happen then energies and derivatives
+!>       of a serial run and a parallel run could be slightly different
+!>       'cause of a different starting density matrix.
+!>       Exact results are obtained using:
+!>          EXTRAPOLATION USE_GUESS in QS section (Teo 09.2006)
+!> \author Teodoro Laino 10.2006
+! *****************************************************************************
 MODULE neb_io
   USE cell_types,                      ONLY: cell_type
   USE cp2k_units,                      ONLY: get_cp2k_units,&
@@ -66,32 +53,16 @@ MODULE neb_io
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'neb_io' 
 
-
   PUBLIC :: read_neb_section,&
             dump_neb_info,&
             dump_replica_coordinates
 
 CONTAINS
 
-!!****f* neb_IO/read_neb_section [1.0] *
-!!
-!!   NAME
-!!     read_neb_section
-!!
-!!   FUNCTION
-!!     Read data from the NEB input section
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Read data from the NEB input section
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE read_neb_section(neb_env, neb_section,error)
     TYPE(neb_type), POINTER                  :: neb_env
     TYPE(section_vals_type), POINTER         :: neb_section
@@ -117,25 +88,10 @@ CONTAINS
     CALL section_vals_val_get(neb_section,"OPTIMIZE_BAND%OPT_TYPE",i_val=neb_env%opt_type,error=error)
   END SUBROUTINE read_neb_section
 
-!!****f* neb_IO/dump_neb_info [1.0] *
-!!
-!!   NAME
-!!     dump_neb_info
-!!
-!!   FUNCTION
-!!     dump print info of a NEB run
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************  
+! *****************************************************************************
+!> \brief dump print info of a NEB run
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE dump_neb_info(neb_env, coords, vels, forces, particle_set, logger,&
        istep, energies, distances, output_unit, error)
     TYPE(neb_type), POINTER                  :: neb_env
@@ -327,25 +283,10 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE dump_neb_info
 
-!!****f* neb_IO/dump_replica_coordinates [1.0] *
-!!
-!!   NAME
-!!     dump_replica_coordinates
-!!
-!!   FUNCTION
-!!     dump coordinates of a replica NEB
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!             
-!!
-!!   SOURCE
-!****************************************************************************  
+! *****************************************************************************
+!> \brief dump coordinates of a replica NEB
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
   SUBROUTINE dump_replica_coordinates(particle_set, coords, i, ienum, iw)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set

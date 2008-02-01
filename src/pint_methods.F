@@ -3,25 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/pint_methods *
-!!
-!!   NAME
-!!     pint_methods
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2005 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \par History
+!>      02.2005 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 MODULE pint_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
@@ -43,31 +29,16 @@ MODULE pint_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pint_methods'
 
   PUBLIC :: do_pint_run
-!!***
-!****************************************************************************
 CONTAINS
 
-!!****f* pint_methods/pint_env_test *
-!!
-!!   NAME
-!!     pint_env_test
-!!
-!!   FUNCTION
-!!     tests the path integral methods
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - para_env: parallel environment
-!!     - input: the input to test
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief tests the path integral methods
+!> \param para_env parallel environment
+!> \param input the input to test
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pint_env_test(para_env,input,error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: input
@@ -131,32 +102,17 @@ SUBROUTINE pint_env_test(para_env,input,error)
      END IF
   END IF
 END SUBROUTINE pint_env_test
-!***************************************************************************
 
-!!****f* pint_methods/do_pint_run [1.0] *
-!!
-!!   NAME
-!!     do_pint_run
-!!
-!!   FUNCTION
-!!     perform a path integral simulation
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - para_env: parallel environment
-!!     - input: the input to test
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief perform a path integral simulation
+!> \param para_env parallel environment
+!> \param input the input to test
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE do_pint_run(para_env,input,error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: input
@@ -185,6 +141,5 @@ SUBROUTINE do_pint_run(para_env,input,error)
      CALL pint_release(pint_env,error=error)
   END IF
 END SUBROUTINE do_pint_run
-!***************************************************************************
 
 END MODULE pint_methods

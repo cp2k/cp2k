@@ -2,27 +2,17 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/mc_ge_moves [1.0] *
-!!
-!!   NAME
-!!     mc_ge_moves
-!!
-!!   FUNCTION
-!!     contains the Monte Carlo moves that can handle more than one
-!!     box, including the Quickstep move, a volume swap between boxes,
-!      and a particle swap between boxes
-!!
-!!   AUTHOR
-!!     Matthew J. McGrath  (01.25.2004)
-!!
-!!   MODIFICATION HISTORY
-!!     MJM (07.28.2005): make the Quickstep move general, and changed
-!!                       the swap and volume moves to work with the
-!!                       CP2K classical routines
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief contains the Monte Carlo moves that can handle more than one
+!>      box, including the Quickstep move, a volume swap between boxes,
+!>       and a particle swap between boxes
+!> \par History
+!>      MJM (07.28.2005): make the Quickstep move general, and changed
+!>                        the swap and volume moves to work with the
+!>                        CP2K classical routines
+!> \author Matthew J. McGrath  (01.25.2004)
+! *****************************************************************************
 MODULE mc_ge_moves
   USE cell_types,                      ONLY: cell_clone,&
                                              cell_create,&
@@ -81,58 +71,43 @@ MODULE mc_ge_moves
   PUBLIC :: mc_ge_volume_move,mc_ge_swap_move,&
       mc_quickstep_move
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-!!****s* mc_ge_moves.F/mc_quickstep_move
-!!
-!!   NAME
-!!     mc_quickstep_move
-!!
-!!   FUNCTION
-!!     computes the acceptance of a series of biased or unbiased moves
-!!     (translation, rotation, conformational changes)
-!!
-!!   ARGUMENTS
-!!     - mc_par: the mc parameters for the force envs of the boxes
-!!     - force_env: the force environments for the boxes
-!!     - bias_env: the force environments with the biasing potential for the boxes
-!!     - moves: the structure that keeps track of how many moves have been
-!!              accepted/rejected for both boxes
-!!     - lreject: automatically rejects the move (used when an overlap occurs in
-!!               the sequence of moves)
-!!     - move_updates: the structure that keeps track of how many moves have
-!!              been accepted/rejected since the last time the displacements
-!!              were updated for both boxes
-!!     - energy_check: the running total of how much the energy has changed
-!!                     since the initial configuration
-!!     - r_old: the coordinates of the last accepted move before the sequence
-!!        whose acceptance is determined by this call
-!!     - nnstep: the Monte Carlo step we're on
-!!     - old_energy: the energy of the last accepted move involving the full potential
-!!     - bias_energy_new: the energy of the current configuration involving the bias potential
-!!     - nboxes: the number of boxes (force environments) in the system
-!!     - box_flag: indicates if a move has been tried in a given box..if not, we don't
-!!       recompute the energy
-!!     - subsys: the pointers for the particle subsystems of both boxes
-!!     - particles: the pointers for the particle sets
-!!     - rng_stream: the stream we pull random numbers from
-!!     - error: the cp_error_type in case something goes wrong
-!!
-!!     Designed for parallel use.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
+!> \brief computes the acceptance of a series of biased or unbiased moves
+!>      (translation, rotation, conformational changes)
+!> \param mc_par the mc parameters for the force envs of the boxes
+!> \param force_env the force environments for the boxes
+!> \param bias_env the force environments with the biasing potential for the boxes
+!> \param moves the structure that keeps track of how many moves have been
+!>               accepted/rejected for both boxes
+!> \param lreject automatically rejects the move (used when an overlap occurs in
+!>                the sequence of moves)
+!> \param move_updates the structure that keeps track of how many moves have
+!>               been accepted/rejected since the last time the displacements
+!>               were updated for both boxes
+!> \param energy_check the running total of how much the energy has changed
+!>                      since the initial configuration
+!> \param r_old the coordinates of the last accepted move before the sequence
+!>         whose acceptance is determined by this call
+!> \param nnstep the Monte Carlo step we're on
+!> \param old_energy the energy of the last accepted move involving the full potential
+!> \param bias_energy_new the energy of the current configuration involving the bias potential
+!> \param nboxes the number of boxes (force environments) in the system
+!> \param box_flag indicates if a move has been tried in a given box..if not, we don't
+!>        recompute the energy
+!> \param subsys the pointers for the particle subsystems of both boxes
+!> \param particles the pointers for the particle sets
+!> \param rng_stream the stream we pull random numbers from
+!> \param error the cp_error_type in case something goes wrong
+!> 
+!>      Designed for parallel use.
+!> \author MJM
+! *****************************************************************************
   SUBROUTINE mc_Quickstep_move(mc_par,force_env,bias_env,moves,&
                         lreject,move_updates,energy_check,r_old,&
                         nnstep,old_energy,bias_energy_new,last_bias_energy,&
                         nboxes,box_flag,subsys,particles,rng_stream,error)
-
-!   ***************************************************************************
 
     TYPE(mc_simulation_parameters_p_type), &
       DIMENSION(:), POINTER                  :: mc_par
@@ -210,7 +185,6 @@ CONTAINS
 ! type 1, since the acceptance will be identical for all boxes and molecules
       moves(1,1)%moves%Quickstep%attempts=&
            moves(1,1)%moves%Quickstep%attempts+1
-
 
 ! grab the coordinates for the force_env
       DO ibox=1,nboxes
@@ -403,7 +377,6 @@ CONTAINS
 
          ENDDO
 
-
          IF ( .NOT. ionode) r_old(:,:,:) = 0.0E0_dp
 
 ! coodinates changed, so we need to broadcast those, even for the lbias
@@ -452,48 +425,32 @@ CONTAINS
   END SUBROUTINE mc_Quickstep_move
 
 ! *****************************************************************************
-
+!> \brief attempts a swap move between two simulation boxes
+!> \param mc_par the mc parameters for the force envs of the boxes
+!> \param force_env the force environments for the boxes
+!> \param bias_env the force environments used to bias moves for the boxes
+!> \param moves the structure that keeps track of how many moves have been
+!>               accepted/rejected for both boxes
+!> \param energy_check the running total of how much the energy has changed
+!>                      since the initial configuration
+!> \param r_old the coordinates of the last accepted move involving a
+!>               full potential calculation for both boxes
+!> \param old_energy the energy of the last accepted move involving a
+!>                    a full potential calculation
+!> \param para_env the parallel environment for this simulation
+!> \param bias_energy_old the energies of both boxes computed using the biasing
+!>        potential
+!> \param last_bias_energy the energy for the biased simulations
+!> \param rng_stream the stream we pull random numbers from
+!> \param error the cp_error_type in case something goes wrong
+!> 
+!>      Suitable for parallel.
+!> \author MJM
 ! *****************************************************************************
-!!****s* mc_ge_moves.F/mc_ge_swap_move
-!!
-!!   NAME
-!!     mc_ge_swap_move
-!!
-!!   FUNCTION
-!!     attempts a swap move between two simulation boxes
-!!
-!!   ARGUMENTS
-!!     - mc_par: the mc parameters for the force envs of the boxes
-!!     - force_env: the force environments for the boxes
-!!     - bias_env: the force environments used to bias moves for the boxes
-!!     - moves: the structure that keeps track of how many moves have been
-!!              accepted/rejected for both boxes
-!!     - energy_check: the running total of how much the energy has changed
-!!                     since the initial configuration
-!!     - r_old: the coordinates of the last accepted move involving a
-!!              full potential calculation for both boxes
-!!     - old_energy: the energy of the last accepted move involving a
-!!                   a full potential calculation
-!!     - para_env: the parallel environment for this simulation
-!!     - bias_energy_old: the energies of both boxes computed using the biasing
-!!       potential
-!!     - last_bias_energy: the energy for the biased simulations
-!!     - rng_stream: the stream we pull random numbers from
-!!     - error: the cp_error_type in case something goes wrong
-!!
-!!     Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
-
   SUBROUTINE mc_ge_swap_move(mc_par,force_env,bias_env,moves,&
                 energy_check,r_old,old_energy,&
                 para_env,bias_energy_old,last_bias_energy,&
                 rng_stream,error)
-
-!   ***************************************************************************
 
     TYPE(mc_simulation_parameters_p_type), &
       DIMENSION(:), POINTER                  :: mc_par
@@ -713,7 +670,6 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "atom_names_insert",MAX(ins_atoms,rem_atoms)*dp_size)
 
-    
 ! grab the cells for later...acceptance and insertion
       IF(lbias) THEN
          CALL force_env_get(bias_env(insert_box)%force_env,&
@@ -728,7 +684,6 @@ CONTAINS
       ENDIF
       CALL get_cell(cell_remove,abc=abc_remove)
       CALL get_cell(cell_insert,abc=abc_insert)
-
 
       IF(ionode) THEN
 ! choose an insertion point
@@ -1082,7 +1037,6 @@ CONTAINS
          ENDIF
       ENDIF
 
-
 ! now we need to figure out the rosenbluth weight for the old configuration...
 ! we wait until now to do that because we need the energy of the box that
 ! has had a molecule removed...notice we use the environment that has not
@@ -1147,7 +1101,6 @@ CONTAINS
          CALL mp_bcast(rand,source,group)
       ENDIF
 
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       IF ( rand .LT. w ) THEN
 
@@ -1176,7 +1129,6 @@ CONTAINS
             ENDIF
 
          ENDDO
-
 
 ! change particle numbers...basically destory the old mc_molecule_info and attach
 ! the new stuff to the mc_pars
@@ -1219,7 +1171,6 @@ CONTAINS
          CALL section_vals_release(force_env(remove_box)%force_env%root_section,error=error)
          CALL force_env_release(force_env(remove_box)%force_env,error=error)
          force_env(remove_box)%force_env => test_env(remove_box)%force_env
-
 
 ! if we're biasing, update the bias_env
          IF(lbias) THEN
@@ -1277,53 +1228,36 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "particles_old")
 
-
 ! end the timing
       CALL timestop(0.0E0_dp,handle)
 
   END SUBROUTINE mc_ge_swap_move
 
 ! *****************************************************************************
-
+!> \brief performs a Monte Carlo move that alters the volume of the simulation boxes,
+!>      keeping the total volume of the two boxes the same
+!> \param mc_par the mc parameters for the force env
+!> \param force_env the force environments used in the move
+!> \param moves the structure that keeps track of how many moves have been
+!>               accepted/rejected
+!> \param move_updates the structure that keeps track of how many moves have
+!>               been accepted/rejected since the last time the displacements
+!>               were updated
+!> \param nnstep the total number of Monte Carlo moves already performed
+!> \param old_energy the energy of the last accepted move involving an
+!>                    unbiased potential calculation
+!> \param energy_check the running total of how much the energy has changed
+!>                      since the initial configuration
+!> \param r_old the coordinates of the last accepted move involving a
+!>               Quickstep calculation
+!> \param rng_stream the stream we pull random numbers from
+!> \param error the cp_error_type in case of problems
+!> 
+!>      Designed for parallel.
+!> \author MJM
 ! *****************************************************************************
-!!****s* mc_ge_moves.F/mc_ge_volume_move
-!!
-!!   NAME
-!!     mc_ge_volume_move
-!!
-!!   FUNCTION
-!!     performs a Monte Carlo move that alters the volume of the simulation boxes,
-!!     keeping the total volume of the two boxes the same
-!!
-!!   ARGUMENTS
-!!     - mc_par: the mc parameters for the force env
-!!     - force_env: the force environments used in the move
-!!     - moves: the structure that keeps track of how many moves have been
-!!              accepted/rejected
-!!     - move_updates: the structure that keeps track of how many moves have
-!!              been accepted/rejected since the last time the displacements
-!!              were updated
-!!     - nnstep: the total number of Monte Carlo moves already performed
-!!     - old_energy: the energy of the last accepted move involving an
-!!                   unbiased potential calculation
-!!     - energy_check: the running total of how much the energy has changed
-!!                     since the initial configuration
-!!     - r_old: the coordinates of the last accepted move involving a
-!!              Quickstep calculation
-!!     - rng_stream: the stream we pull random numbers from
-!!     - error: the cp_error_type in case of problems
-!!
-!!     Designed for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
-
   SUBROUTINE mc_ge_volume_move ( mc_par,force_env, moves,move_updates,&
       nnstep,old_energy,energy_check,r_old,rng_stream,error)
-
-!   ***************************************************************************
 
     TYPE(mc_simulation_parameters_p_type), &
       DIMENSION(:), POINTER                  :: mc_par
@@ -1492,7 +1426,6 @@ CONTAINS
          CALL force_env_set_cell(force_env(ibox)%force_env,&
               cell_test(ibox)%cell,error=error)
       ENDDO
-
 
       DO ibox=1,2
 
@@ -1681,8 +1614,5 @@ CONTAINS
 
   END SUBROUTINE mc_ge_volume_move
 
-
 END MODULE mc_ge_moves
-
-!**********************************************************************
 

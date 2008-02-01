@@ -3,17 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****s* cp2k/cp_control_types [1.0] *
-!!
-!!   NAME
-!!     cp_control_types
-!!
-!!   FUNCTION
-!!     Defines control structures, which contain the parameters and the
-!!     settings for the DFT-based calculations.
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Defines control structures, which contain the parameters and the
+!>      settings for the DFT-based calculations.
+! *****************************************************************************
 MODULE cp_control_types
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
@@ -33,12 +26,14 @@ MODULE cp_control_types
 
 !------------------------------------------------------------------------------!
 ! Control parameters for pw grids
+! *****************************************************************************
   TYPE pw_grid_option
      LOGICAL :: spherical
      LOGICAL :: fullspace
   END TYPE pw_grid_option
 !------------------------------------------------------------------------------!
 ! Control parameters for DFTB calculations
+! *****************************************************************************
   TYPE dftb_control_type
      LOGICAL                              :: self_consistent
      LOGICAL                              :: orthogonal_basis
@@ -53,6 +48,7 @@ MODULE cp_control_types
   END TYPE dftb_control_type
 !------------------------------------------------------------------------------!
 ! Control parameters for semi empirical calculations
+! *****************************************************************************
   TYPE semi_empirical_control_type
      LOGICAL               :: orthogonal_basis
      LOGICAL               :: analytical_gradients
@@ -72,6 +68,7 @@ MODULE cp_control_types
 !              the construction of the OCE coefficients. The default is 1
 !              (no effects). Larger values can be used to reduce the memory
 !              allocations, but should be tested first.
+! *****************************************************************************
   TYPE gapw_control_type
     REAL(KIND = dp)                 :: eps_3c_reduce,&
                                        eps_fit,&
@@ -93,6 +90,7 @@ MODULE cp_control_types
   END TYPE gapw_control_type
 !------------------------------------------------------------------------------!
 ! parameters for finite field calculations
+! *****************************************************************************
   TYPE finite_field_type
     LOGICAL                         :: berry_phase
     REAL(KIND = dp)                 :: efield_strength
@@ -100,6 +98,7 @@ MODULE cp_control_types
   END TYPE finite_field_type
 !------------------------------------------------------------------------------!
 ! some parameters useful for mulliken_restraints
+! *****************************************************************************
   TYPE mulliken_restraint_type
     INTEGER                         :: ref_count
     REAL(KIND = dp)                 :: strength
@@ -109,6 +108,7 @@ MODULE cp_control_types
   END TYPE mulliken_restraint_type
 !------------------------------------------------------------------------------!
 ! some parameters useful for ddapc_restraints
+! *****************************************************************************
   TYPE ddapc_restraint_type
     INTEGER                         :: ref_count
     REAL(KIND = dp)                 :: strength
@@ -121,6 +121,7 @@ MODULE cp_control_types
   END TYPE ddapc_restraint_type
 
 ! *** some parameters useful for becke_constraints
+! *****************************************************************************
   TYPE becke_constraint_type
     INTEGER                         :: ref_count
     REAL(KIND = dp)                 :: strength
@@ -136,6 +137,7 @@ MODULE cp_control_types
 
 !------------------------------------------------------------------------------!
 ! some parameters useful for s2_restraints
+! *****************************************************************************
   TYPE s2_restraint_type
     INTEGER                         :: ref_count
     REAL(KIND = dp)                 :: strength
@@ -149,6 +151,7 @@ MODULE cp_control_types
 ! eps_pgf_orb: Cutoff value for the interaction of the primitive Gaussian-type
 !              functions (primitive basis functions).
 !
+! *****************************************************************************
   TYPE qs_control_type
     CHARACTER(LEN=10)               :: method
     INTEGER                         :: method_id
@@ -205,6 +208,7 @@ MODULE cp_control_types
 !   calculation, since they can be used to construct the solutions of the
 !   TDDFPT operator without the perturbation kernel.
 !
+! *****************************************************************************
   TYPE tddfpt_control_type
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: lumos
      REAL(KIND=dp)                             :: tolerance
@@ -227,6 +231,7 @@ MODULE cp_control_types
   END TYPE tddfpt_control_type
 !------------------------------------------------------------------------------!
 ! Control parameters for a DFT calculation
+! *****************************************************************************
   TYPE dft_control_type
      TYPE(qs_control_type)           :: qs_control
      TYPE(tddfpt_control_type)       :: tddfpt_control
@@ -275,23 +280,13 @@ MODULE cp_control_types
             dft_control_release,&
             dft_control_create
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
-!!****f* cp_control_types/mulliken_control_create *
-!!
-!!   NAME
-!!      mulliken_control_create
-!!
-!!   FUNCTION
-!!      create  the mulliken_restraint_type
-!!
-!!   MODIFICATION HISTORY
-!!     02.2005 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief create  the mulliken_restraint_type
+!> \par History
+!>      02.2005 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE mulliken_control_create(mulliken_restraint_control,error)
     TYPE(mulliken_restraint_type), POINTER   :: mulliken_restraint_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -315,18 +310,11 @@ CONTAINS
     NULLIFY(mulliken_restraint_control%atoms)
   END SUBROUTINE mulliken_control_create
 
-!!****f* cp_control_types/mulliken_control_release *
-!!
-!!   NAME
-!!      mulliken_control_release
-!!
-!!   FUNCTION
-!!      release the mulliken_restraint_type
-!!
-!!   MODIFICATION HISTORY
-!!     02.2005 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief release the mulliken_restraint_type
+!> \par History
+!>      02.2005 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE mulliken_control_release(mulliken_restraint_control,error)
     TYPE(mulliken_restraint_type), POINTER   :: mulliken_restraint_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -351,18 +339,11 @@ CONTAINS
     ENDIF
   END SUBROUTINE mulliken_control_release
 
-!!****f* cp_control_types/mulliken_control_retain *
-!!
-!!   NAME
-!!      mulliken_control_retain
-!!
-!!   FUNCTION
-!!      retain the mulliken_restraint_type
-!!
-!!   MODIFICATION HISTORY
-!!     02.2005 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retain the mulliken_restraint_type
+!> \par History
+!>      02.2005 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE mulliken_control_retain(mulliken_restraint_control,error)
     TYPE(mulliken_restraint_type), POINTER   :: mulliken_restraint_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -378,18 +359,11 @@ CONTAINS
     mulliken_restraint_control%ref_count=mulliken_restraint_control%ref_count+1
   END SUBROUTINE mulliken_control_retain
 
-!!****f* cp_control_types/ddapc_control_create *
-!!
-!!   NAME
-!!      ddapc_control_create
-!!
-!!   FUNCTION
-!!      create the ddapc_restraint_type
-!!
-!!   MODIFICATION HISTORY
-!!     02.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief create the ddapc_restraint_type
+!> \par History
+!>      02.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE ddapc_control_create(ddapc_restraint_control,error)
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -417,18 +391,11 @@ CONTAINS
 
   END SUBROUTINE ddapc_control_create
 
-!!****f* cp_control_types/ddapc_control_release *
-!!
-!!   NAME
-!!      ddapc_control_release
-!!
-!!   FUNCTION
-!!      release the ddapc_restraint_type
-!!
-!!   MODIFICATION HISTORY
-!!     02.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief release the ddapc_restraint_type
+!> \par History
+!>      02.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE ddapc_control_release(ddapc_restraint_control,error)
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -455,18 +422,11 @@ CONTAINS
     ENDIF
   END SUBROUTINE ddapc_control_release
 
-!!****f* cp_control_types/ddapc_control_retain *
-!!
-!!   NAME
-!!      ddapc_control_retain
-!!
-!!   FUNCTION
-!!      retain the ddapc_restraint_type
-!!
-!!   MODIFICATION HISTORY
-!!     02.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retain the ddapc_restraint_type
+!> \par History
+!>      02.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE ddapc_control_retain(ddapc_restraint_control,error)
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -482,23 +442,11 @@ CONTAINS
     ddapc_restraint_control%ref_count=ddapc_restraint_control%ref_count+1
   END SUBROUTINE ddapc_control_retain
 
-!!****f* cp_control_types/becke_control_create *
-!!
-!!   NAME
-!!      becke_control_create
-!!
-!!   FUNCTION
-!!      create the becke_constraint_type
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     02.2007 created [Florian Schiffmann]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief create the becke_constraint_type
+!> \par History
+!>      02.2007 created [Florian Schiffmann]
+! *****************************************************************************
   SUBROUTINE becke_control_create(becke_control,error)
     TYPE(becke_constraint_type), POINTER     :: becke_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -526,23 +474,11 @@ CONTAINS
     NULLIFY(becke_control%coeff)
   END SUBROUTINE becke_control_create
 
-!!****f* cp_control_types/becke_control_release *
-!!
-!!   NAME
-!!      becke_control_release
-!!
-!!   FUNCTION
-!!      release the becke_constraint_type
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     02.2007 created [Florian Schiffmann]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief release the becke_constraint_type
+!> \par History
+!>      02.2007 created [Florian Schiffmann]
+! *****************************************************************************
   SUBROUTINE becke_control_release(becke_control,error)
     TYPE(becke_constraint_type), POINTER     :: becke_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -569,23 +505,11 @@ CONTAINS
     ENDIF
   END SUBROUTINE becke_control_release
 
-!!****f* cp_control_types/becke_control_retain *
-!!
-!!   NAME
-!!      becke_control_retain
-!!
-!!   FUNCTION
-!!      retain the becke_constraint_type
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     02.2007 created [Florian Schiffmann]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retain the becke_constraint_type
+!> \par History
+!>      02.2007 created [Florian Schiffmann]
+! *****************************************************************************
   SUBROUTINE becke_control_retain(becke_control,error)
     TYPE(becke_constraint_type), POINTER     :: becke_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -600,18 +524,11 @@ CONTAINS
     becke_control%ref_count=becke_control%ref_count+1
   END SUBROUTINE becke_control_retain
 
-!!****f* cp_control_types/s2_control_create *
-!!
-!!   NAME
-!!      s2_control_create
-!!
-!!   FUNCTION
-!!      create the s2_restraint_type
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief create the s2_restraint_type
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE s2_control_create(s2_restraint_control,error)
     TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -635,18 +552,11 @@ CONTAINS
     s2_restraint_control%target=1.0_dp
   END SUBROUTINE s2_control_create
 
-!!****f* cp_control_types/s2_control_release *
-!!
-!!   NAME
-!!      s2_control_release
-!!
-!!   FUNCTION
-!!      release the s2_restraint_type
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief release the s2_restraint_type
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE s2_control_release(s2_restraint_control,error)
     TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -668,18 +578,11 @@ CONTAINS
     ENDIF
   END SUBROUTINE s2_control_release
 
-!!****f* cp_control_types/s2_control_retain *
-!!
-!!   NAME
-!!      s2_control_retain
-!!
-!!   FUNCTION
-!!      retain the s2_restraint_type
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retain the s2_restraint_type
+!> \par History
+!>      03.2006 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE s2_control_retain(s2_restraint_control,error)
     TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -695,26 +598,14 @@ CONTAINS
   END SUBROUTINE s2_control_retain
 
 ! *****************************************************************************
-!!****f* cp_control_types/dft_control_create [1.0] *
-!!
-!!   NAME
-!!     dft_control_create
-!!
-!!   FUNCTION
-!!     allocates and perform a very basic initialization
-!!
-!!   ARGUMENTS
-!!     - dft_control: the object to create
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+!> \brief allocates and perform a very basic initialization
+!> \param dft_control the object to create
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE dft_control_create(dft_control, error)
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -744,22 +635,10 @@ CONTAINS
   END SUBROUTINE dft_control_create
 
 ! *****************************************************************************
-!!****f* cp_control_types/dft_control_retain [1.0] *
-!!
-!!   NAME
-!!     dft_control_retain
-!!
-!!   FUNCTION
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE dft_control_retain(dft_control,error)
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -778,22 +657,10 @@ CONTAINS
   END SUBROUTINE dft_control_retain
 
 ! *****************************************************************************
-!!****f* cp_control_types/dft_control_release [1.0] *
-!!
-!!   NAME
-!!     dft_control_release
-!!
-!!   FUNCTION
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE dft_control_release(dft_control,error)
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -818,20 +685,7 @@ CONTAINS
     END IF
   END SUBROUTINE dft_control_release
 
-!!****f* cp_control_types/gapw_control_create [1.0] *
-!!
-!!   NAME
-!!     gapw_control_create
-!!
-!!   FUNCTION
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
   SUBROUTINE gapw_control_create(gapw_control, error)
     TYPE(gapw_control_type), POINTER         :: gapw_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -851,20 +705,7 @@ CONTAINS
     END IF
   END SUBROUTINE gapw_control_create
 
-!!****f* cp_control_types/qs_control_init [1.0] *
-!!
-!!   NAME
-!!    qs_control_init 
-!!
-!!   FUNCTION
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
   SUBROUTINE qs_control_init(qs_control, error)
     TYPE(qs_control_type), INTENT(out)       :: qs_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -888,20 +729,7 @@ CONTAINS
 
   END SUBROUTINE qs_control_init
 
-!!****f* cp_control_types/qs_control_release [1.0] *
-!!
-!!   NAME
-!!    qs_control_release 
-!!
-!!   FUNCTION
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
   SUBROUTINE qs_control_release(qs_control, error)
     TYPE(qs_control_type), INTENT(inout)     :: qs_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -929,20 +757,7 @@ CONTAINS
 
   END SUBROUTINE qs_control_release
 
-!!****f* cp_control_types/tddfpt_control_init [1.0] *
-!!
-!!   NAME
-!!    tddfpt_control_init 
-!!
-!!   FUNCTION
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
   SUBROUTINE tddfpt_control_init(tddfpt_control, error)
     TYPE(tddfpt_control_type), INTENT(out)   :: tddfpt_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -950,20 +765,7 @@ CONTAINS
     NULLIFY(tddfpt_control%lumos,tddfpt_control%lumos_eigenvalues)
   END SUBROUTINE tddfpt_control_init
 
-!!****f* cp_control_types/tddfpt_control_release [1.0] *
-!!
-!!   NAME
-!!     tddfpt_control_release
-!!
-!!   FUNCTION
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
   SUBROUTINE tddfpt_control_release(tddfpt_control, error)
     TYPE(tddfpt_control_type), INTENT(inout) :: tddfpt_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -992,20 +794,7 @@ CONTAINS
     END IF
   END SUBROUTINE tddfpt_control_release
 
-!!****f* cp_control_types/dftb_control_create [1.0] *
-!!
-!!   NAME
-!!    dftb_control_create 
-!!
-!!   FUNCTION
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
   SUBROUTINE dftb_control_create(dftb_control,error)
     TYPE(dftb_control_type), POINTER         :: dftb_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1025,20 +814,7 @@ CONTAINS
     NULLIFY(dftb_control%sk_pair_list)
   END SUBROUTINE dftb_control_create
 
-!!****f* cp_control_types/dftb_control_release [1.0] *
-!!
-!!   NAME
-!!    dftb_control_release 
-!!
-!!   FUNCTION
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
   SUBROUTINE dftb_control_release(dftb_control,error)
     TYPE(dftb_control_type), POINTER         :: dftb_control
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1061,20 +837,7 @@ CONTAINS
     END IF
   END SUBROUTINE dftb_control_release
 
-!!****f* cp_control_types/se_control_create [1.0] *
-!!
-!!   NAME
-!!    se_control_create 
-!!
-!!   FUNCTION
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
   SUBROUTINE se_control_create(se_control,error)
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
@@ -1093,20 +856,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE se_control_create
 
-!!****f* cp_control_types/se_control_release [1.0] *
-!!
-!!   NAME
-!!    se_control_release 
-!!
-!!   FUNCTION
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
   SUBROUTINE se_control_release(se_control,error)
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
@@ -1128,4 +878,3 @@ CONTAINS
 
 END MODULE cp_control_types
 
-!***************************************************************************

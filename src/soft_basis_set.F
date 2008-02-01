@@ -2,25 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/soft_basis_set [1.0] *
-!!
-!!   NAME
-!!     soft_basis_set
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     MI (08.01.2004)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
-MODULE soft_basis_set
 
 ! *****************************************************************************
+!> \par History
+!>      none
+!> \author MI (08.01.2004)
+! *****************************************************************************
+MODULE soft_basis_set
 
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type,&
@@ -55,19 +43,13 @@ MODULE soft_basis_set
 
   PUBLIC :: create_soft_basis
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE create_soft_basis(orb_basis,soft_basis,gapw,rc,paw_atom,gpw_type_forced,&
        error)
    
 !   Purpose: create the soft basis from a GTO basis 
-
-!   ***************************************************************************
 
     TYPE(gto_basis_set_type), POINTER        :: orb_basis, soft_basis
     TYPE(gapw_control_type), POINTER         :: gapw

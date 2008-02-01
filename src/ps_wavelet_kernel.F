@@ -2,24 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2007 - 2008 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/ps_wavelet_kernel *
-!!
-!!   NAME
-!!     ps_wavelet_kernel
-!!
-!!   FUNCTION
-!!     Creates the wavelet kernel for the wavelet based poisson solver.
-!!
-!!   AUTHOR
-!!     Florian Schiffmann (09.2007,fschiff)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+
+! *****************************************************************************
+!> \brief Creates the wavelet kernel for the wavelet based poisson solver.
+!> \author Florian Schiffmann (09.2007,fschiff)
+! *****************************************************************************
 MODULE ps_wavelet_kernel
-
-
 
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -47,53 +35,39 @@ MODULE ps_wavelet_kernel
 
 CONTAINS
 
-
-!!****h* BigDFT/createKernel
-!! NAME
-!!    createKernel
-!!
-!! FUNCTION
-!!    Allocate a pointer which corresponds to the zero-padded FFT slice needed for
-!!    calculating the convolution with the kernel expressed in the interpolating scaling
-!!    function basis. The kernel pointer is unallocated on input, allocated on output.
-!!
-!! ARGUMENTS
-!!   - geocode:  Indicates the boundary conditions (BC) of the problem:
-!!            'F' free BC, isolated systems.
-!!                The program calculates the solution as if the given density is
-!!                "alone" in R^3 space.
-!!            'S' surface BC, isolated in y direction, periodic in xz plane                
-!!                The given density is supposed to be periodic in the xz plane,
-!!                so the dimensions in these direction mus be compatible with the FFT
-!!                Beware of the fact that the isolated direction is y!
-!!            'P' periodic BC.
-!!                The density is supposed to be periodic in all the three directions,
-!!                then all the dimensions must be compatible with the FFT.
-!!                No need for setting up the kernel.
-!!    - iproc,nproc: number of process, number of processes
-!!    - n01,n02,n03; dimensions of the real space grid to be hit with the Poisson Solver
-!!    - itype_scf:   order of the interpolating scaling functions used in the decomposition
-!!    - hx,hy,hz:    grid spacings. For the isolated BC case for the moment they are supposed to 
-!!                be equal in the three directions
-!!    - kernel:      pointer for the kernel FFT. Unallocated on input, allocated on output.
-!!                Its dimensions are equivalent to the region of the FFT space for which the
-!!                kernel is injective. This will divide by two each direction, 
-!!                since the kernel for the zero-padded convolution is real and symmetric.
-!!
-!! WARNING
-!!    Due to the fact that the kernel dimensions are unknown before the calling, the kernel
-!!    must be declared as pointer in input of this routine.
-!!    To avoid that, one can properly define the kernel dimensions by adding 
-!!    the nd1,nd2,nd3 arguments to the PS_dim4allocation routine, then eliminating the pointer
-!!    declaration.
-!!
-!! AUTHOR
-!!    Luigi Genovese
-!! CREATION DATE
-!!    February 2007
-!!
-!! SOURCE
-!!
+! *****************************************************************************
+!> \brief Allocate a pointer which corresponds to the zero-padded FFT slice needed for
+!>     calculating the convolution with the kernel expressed in the interpolating scaling
+!>     function basis. The kernel pointer is unallocated on input, allocated on output.
+!> \param geocode Indicates the boundary conditions (BC) of the problem:
+!>             'F' free BC, isolated systems.
+!>                 The program calculates the solution as if the given density is
+!>                 "alone" in R^3 space.
+!>             'S' surface BC, isolated in y direction, periodic in xz plane                
+!>                 The given density is supposed to be periodic in the xz plane,
+!>                 so the dimensions in these direction mus be compatible with the FFT
+!>                 Beware of the fact that the isolated direction is y!
+!>             'P' periodic BC.
+!>                 The density is supposed to be periodic in all the three directions,
+!>                 then all the dimensions must be compatible with the FFT.
+!>                 No need for setting up the kernel.
+!> \param iproc ,nproc: number of process, number of processes
+!> \param n 01,n02,n03; dimensions of the real space grid to be hit with the Poisson Solver
+!> \param itype_scf order of the interpolating scaling functions used in the decomposition
+!> \param hx ,hy,hz:    grid spacings. For the isolated BC case for the moment they are supposed to 
+!>                 be equal in the three directions
+!> \param kernel pointer for the kernel FFT. Unallocated on input, allocated on output.
+!>                 Its dimensions are equivalent to the region of the FFT space for which the
+!>                 kernel is injective. This will divide by two each direction, 
+!>                 since the kernel for the zero-padded convolution is real and symmetric.
+!> \warning Due to the fact that the kernel dimensions are unknown before the calling, the kernel
+!>     must be declared as pointer in input of this routine.
+!>     To avoid that, one can properly define the kernel dimensions by adding 
+!>     the nd1,nd2,nd3 arguments to the PS_dim4allocation routine, then eliminating the pointer
+!>     declaration.
+!> \author Luigi Genovese
+!> \date February 2007
+! *****************************************************************************
   SUBROUTINE createKernel(geocode,n01,n02,n03,hx,hy,hz,itype_scf,iproc,nproc,kernel,mpi_group,error)
 
     CHARACTER(len=1), INTENT(in)             :: geocode
@@ -222,36 +196,23 @@ CONTAINS
 !!!  END IF
 END SUBROUTINE createKernel
 
-
-!!****h* BigDFT/Surfaces_Kernel
-!! NAME
-!!   Surfaces_Kernel
-!!
-!! FUNCTION
-!!    Build the kernel of the Poisson operator with
-!!    surfaces Boundary conditions
-!!    in an interpolating scaling functions basis.
-!!    Beware of the fact that the nonperiodic direction is y!
-!!
-!! ARGUMENTS
-!!    - n1,n2,n3         :  Dimensions for the FFT
-!!    - m3               :  Actual dimension in non-periodic direction
-!!    - nker1,nker2,nker3:  Dimensions of the kernel (nker3=n3/2+1) nker(1,2)=n(1,2)/2+1
-!!    - h1,h2,h3         :  Mesh steps in the three dimensions
-!!    - itype_scf        :  Order of the scaling function
-!!    - iproc,nproc      :  Number of process, number of processes
-!!    - karray           :  output array
-!!
-!! AUTHOR
-!!    L. Genovese
-!! CREATION DATE
-!!    October 2006
-!!
-!! SOURCE
-!!
+! *****************************************************************************
+!> \brief Build the kernel of the Poisson operator with
+!>     surfaces Boundary conditions
+!>     in an interpolating scaling functions basis.
+!>     Beware of the fact that the nonperiodic direction is y!
+!> \param n 1,n2,n3         :  Dimensions for the FFT
+!> \param m 3               :  Actual dimension in non-periodic direction
+!> \param nker 1,nker2,nker3:  Dimensions of the kernel (nker3=n3/2+1) nker(1,2)=n(1,2)/2+1
+!> \param h 1,h2,h3         :  Mesh steps in the three dimensions
+!> \param itype_scf Order of the scaling function
+!> \param iproc ,nproc      :  Number of process, number of processes
+!> \param karray output array
+!> \author L. Genovese
+!> \date October 2006
+! *****************************************************************************
 SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
                            itype_scf,karray,iproc,nproc,mpi_group,error)
-  
   
     INTEGER, INTENT(in)                      :: n1, n2, n3, m3, nker1, nker2, &
                                                 nker3
@@ -376,7 +337,6 @@ SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
   n_cell = m3
   n_range = MAX(n_cell,n_range)
   
-  
   !Allocations
   ncache=ncache_optimal
   !the HalFFT must be performed only in the third dimension,
@@ -420,7 +380,6 @@ SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
   !arrays for the halFFT
   CALL ctrig(n3/2,btrig,after,before,now,1,ic)
 
- 
   !build the phases for the HalFFT reconstruction 
   pion=2._dp*pi/REAL(n3,KIND=dp)
   DO i3=2,n3/2
@@ -557,14 +516,11 @@ SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
      
   END DO
 
-
   !give to each processor a slice of the third dimension
   IF (nproc > 1) THEN
     CALL mp_alltoall(kernel,&!nker1*(nact2/nproc)*(nker3/nproc), &
          kernel_mpi,nker1*(nact2/nproc)*(nker3/nproc), &
          mpi_group)
-
-
 
      DO jp2=1,nproc
         DO i3=1,nker3/nproc
@@ -583,7 +539,6 @@ SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
   ELSE
      karray(1:nker1,1:nker2,1:nker3)=kernel(1:nker1,1:nker2,1:nker3)
   ENDIF
-
 
   !De-allocations
   DEALLOCATE(kernel,stat=i_all)
@@ -608,8 +563,8 @@ SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
   CPPostcondition(i_all==0,cp_failure_level,routineP,error,failure)
 
 END SUBROUTINE Surfaces_Kernel
-!!***
 
+! *****************************************************************************
 SUBROUTINE calculates_green_opt(n,n_scf,itype_scf,intorder,xval,yval,c,mu,hres,g_mu,error)
     INTEGER, INTENT(in)                      :: n, n_scf, itype_scf, intorder
     REAL(KIND=dp), DIMENSION(0:n_scf), &
@@ -655,7 +610,6 @@ SUBROUTINE calculates_green_opt(n,n_scf,itype_scf,intorder,xval,yval,c,mu,hres,g
 
   ALLOCATE(green(-nrec:nrec),stat=i_all)
   CPPostcondition(i_all==0,cp_failure_level,routineP,error,failure)
-
 
   !initialization of the branching value
   ikern=0
@@ -747,14 +701,13 @@ SUBROUTINE calculates_green_opt(n,n_scf,itype_scf,intorder,xval,yval,c,mu,hres,g
      g_mu(i)=0._dp
   END DO
   
-  
   DEALLOCATE(green,stat=i_all)
   DEALLOCATE(green1,stat=i_stat)
   CPPostcondition(i_stat+i_all==0,cp_failure_level,routineP,error,failure)
 
-  
 END SUBROUTINE calculates_green_opt
 
+! *****************************************************************************
 SUBROUTINE calculates_green_opt_muzero(n,n_scf,intorder,xval,yval,c,hres,green,error)
     INTEGER, INTENT(in)                      :: n, n_scf, intorder
     REAL(KIND=dp), DIMENSION(0:n_scf), &
@@ -845,6 +798,7 @@ SUBROUTINE calculates_green_opt_muzero(n,n_scf,intorder,xval,yval,c,hres,green,e
   
 END SUBROUTINE calculates_green_opt_muzero
 
+! *****************************************************************************
 SUBROUTINE indices(var_realimag,nelem,intrn,extrn,index)
 
     INTEGER, INTENT(out)                     :: var_realimag
@@ -868,38 +822,25 @@ SUBROUTINE indices(var_realimag,nelem,intrn,extrn,index)
   
 END SUBROUTINE indices
 
-
-!!****h* BigDFT/Free_Kernel
-!! NAME
-!!   Free_Kernel
-!!
-!! FUNCTION
-!!    Build the kernel of a gaussian function
-!!    for interpolating scaling functions.
-!!    Do the parallel HalFFT of the symmetrized function and stores into
-!!    memory only 1/8 of the grid divided by the number of processes nproc
-!!
-!!    Build the kernel (karray) of a gaussian function
-!!    for interpolating scaling functions
-!!    $$ K(j) = \sum_k \omega_k \int \int \phi(x) g_k(x'-x) \delta(x'- j) dx dx' $$
-!!
-!!    ARGUMENTS
-!!    - n01,n02,n03       : Mesh dimensions of the density
-!!    - nfft1,nfft2,nfft3 : Dimensions of the FFT grid (HalFFT in the third direction)
-!!    - n1k,n2k,n3k       : Dimensions of the kernel FFT
-!!    - hgrid             : Mesh step
-!!    - itype_scf         : Order of the scaling function (8,14,16)
-!!
-!! AUTHORS
-!!    T. Deutsch, L. Genovese
-!! CREATION DATE
-!!    February 2006
-!!
-!! SOURCE
-!!
+! *****************************************************************************
+!> \brief Build the kernel of a gaussian function
+!>     for interpolating scaling functions.
+!>     Do the parallel HalFFT of the symmetrized function and stores into
+!>     memory only 1/8 of the grid divided by the number of processes nproc
+!> 
+!>     Build the kernel (karray) of a gaussian function
+!>     for interpolating scaling functions
+!>     $$ K(j) = \sum_k \omega_k \int \int \phi(x) g_k(x'-x) \delta(x'- j) dx dx' $$
+!> \param n 01,n02,n03       : Mesh dimensions of the density
+!> \param nfft 1,nfft2,nfft3 : Dimensions of the FFT grid (HalFFT in the third direction)
+!> \param n 1k,n2k,n3k       : Dimensions of the kernel FFT
+!> \param hgrid Mesh step
+!> \param itype_scf Order of the scaling function (8,14,16)
+!> \author T. Deutsch, L. Genovese
+!> \date February 2006
+! *****************************************************************************
 SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
      hgrid,itype_scf,iproc,nproc,karray,mpi_group,error)
-
 
     INTEGER, INTENT(in)                      :: n01, n02, n03, nfft1, nfft2, &
                                                 nfft3, n1k, n2k, n3k
@@ -963,7 +904,6 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
  !this will be the array of the kernel in the real space
  ALLOCATE(kp(n1h+1,n3h+1,nker2/nproc),stat=i_all)
  CPPostcondition(i_all==0,cp_failure_level,routineP,error,failure)
-
 
  !defining proper extremes for the calculation of the
  !local part of the kernel
@@ -1074,7 +1014,6 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
        END DO
     END DO
 
-    
  END DO loop_gauss
 
  !De-allocations
@@ -1097,10 +1036,9 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
  DEALLOCATE(kp,stat=i_all)
  CPPostcondition(i_all==0,cp_failure_level,routineP,error,failure)
 
-
 END SUBROUTINE Free_Kernel
-!!***
 
+! *****************************************************************************
 SUBROUTINE inserthalf(n1,n3,lot,nfft,i1,zf,zw)
     INTEGER, INTENT(in)                      :: n1, n3, lot, nfft, i1
     REAL(KIND=dp), &
@@ -1125,43 +1063,29 @@ SUBROUTINE inserthalf(n1,n3,lot,nfft,i1,zf,zw)
   
 END SUBROUTINE inserthalf
 
-
-!!****h* BigDFT/kernelfft
-!! NAME
-!!   kernelfft
-!!
-!! FUNCTION
-!!     (Based on suitable modifications of S.Goedecker routines)
-!!     Calculates the FFT of the distributed kernel
-!!
-!! ARGUMENTS
-!!     - zf:          Real kernel (input)
-!!                  zf(i1,i2,i3)
-!!     - zr:          Distributed Kernel FFT 
-!!                  zr(2,i1,i2,i3)
-!!     - nproc:       number of processors used as returned by MPI_COMM_SIZE
-!!     - iproc:       [0:nproc-1] number of processor as returned by MPI_COMM_RANK
-!!     - n1,n2,n3:    logical dimension of the transform. As transform lengths 
-!!                  most products of the prime factors 2,3,5 are allowed.
-!!                  The detailed table with allowed transform lengths can 
-!!                  be found in subroutine CTRIG
-!!     - nd1,nd2,nd3: Dimensions of work arrays
-!!
-!! RESTRICTIONS
-!!     Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
-!!     Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
-!!     Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
-!!     This file is distributed under the terms of the
-!!     GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
-!!
-!! AUTHORS
-!!    S. Goedecker, L. Genovese
-!!
-!! CREATION DATE
-!!     February 2006
-!!
-!! SOURCE
-!!
+! *****************************************************************************
+!> \brief (Based on suitable modifications of S.Goedecker routines)
+!>      Calculates the FFT of the distributed kernel
+!> \par Restrictions
+!>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
+!>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
+!>      Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
+!>      This file is distributed under the terms of the
+!>      GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
+!> \param zf Real kernel (input)
+!>                   zf(i1,i2,i3)
+!> \param zr Distributed Kernel FFT 
+!>                   zr(2,i1,i2,i3)
+!> \param nproc number of processors used as returned by MPI_COMM_SIZE
+!> \param iproc [0:nproc-1] number of processor as returned by MPI_COMM_RANK
+!> \param n 1,n2,n3:    logical dimension of the transform. As transform lengths 
+!>                   most products of the prime factors 2,3,5 are allowed.
+!>                   The detailed table with allowed transform lengths can 
+!>                   be found in subroutine CTRIG
+!> \param nd 1,nd2,nd3: Dimensions of work arrays
+!> \author S. Goedecker, L. Genovese
+!> \date February 2006
+! *****************************************************************************
 SUBROUTINE kernelfft(n1,n2,n3,nd1,nd2,nd3,nk1,nk2,nk3,nproc,iproc,zf,zr,mpi_group,error)
 
     INTEGER, INTENT(in)                      :: n1, n2, n3, nd1, nd2, nd3, &
@@ -1316,7 +1240,6 @@ SUBROUTINE kernelfft(n1,n2,n3,nd1,nd2,nd3,nk1,nk2,nk3,nproc,iproc,zf,zr,mpi_grou
      ! output: I1,J2,j3,Jp2,(jp3)
   ENDIF
 
-
   DO j3=1,nd3/nproc
      !this condition ensures that we manage only the interesting part for the FFT
      IF (iproc*(nd3/nproc)+j3.LE.n3/2+1) THEN
@@ -1421,9 +1344,9 @@ SUBROUTINE kernelfft(n1,n2,n3,nd1,nd2,nd3,nk1,nk2,nk3,nproc,iproc,zf,zr,mpi_grou
   IF (nproc.GT.1) DEALLOCATE(zmpi1,stat=i_stat)
   CPPostcondition(i_all==0,cp_failure_level,routineP,error,failure)
 
-
 END SUBROUTINE kernelfft
 
+! *****************************************************************************
 SUBROUTINE realcopy(lot,nfft,n2,nk1,nk2,zin,zout)
     INTEGER, INTENT(in)                      :: lot, nfft, n2, nk1, nk2
     REAL(KIND=dp), DIMENSION(2, lot, n2), &
@@ -1441,7 +1364,7 @@ SUBROUTINE realcopy(lot,nfft,n2,nk1,nk2,zin,zout)
   
 END SUBROUTINE realcopy
 
-
+! *****************************************************************************
 SUBROUTINE switch(nfft,n2,lot,n1,lzt,zt,zw)
     INTEGER                                  :: nfft, n2, lot, n1, lzt
     REAL(KIND=dp)                            :: zt(2,lzt,n1), zw(2,lot,n2)
@@ -1457,6 +1380,7 @@ SUBROUTINE switch(nfft,n2,lot,n1,lzt,zt,zw)
         RETURN
       END SUBROUTINE switch
       
+! *****************************************************************************
       SUBROUTINE mpiswitch(j3,nfft,Jp2st,J2st,lot,n1,nd2,nd3,nproc,zmpi1,zw)
     INTEGER                                  :: j3, nfft, Jp2st, J2st, lot, &
                                                 n1, nd2, nd3, nproc
@@ -1482,7 +1406,7 @@ SUBROUTINE switch(nfft,n2,lot,n1,lzt,zt,zw)
 300        CONTINUE
          END SUBROUTINE mpiswitch
          
-         
+! *****************************************************************************
          SUBROUTINE gequad(nterms,p,w,urange,drange,acc)
 ! 
     INTEGER                                  :: nterms

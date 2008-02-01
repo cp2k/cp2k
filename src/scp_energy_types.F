@@ -2,15 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/scp_energy_types [1.0] *
-!!
-!!   NAME
-!!     scp_energy_types
-!!
-!!   FUNCTION
-!!
-!******************************************************************************
-
+! *****************************************************************************
 MODULE scp_energy_types
 
   USE kinds,                           ONLY: dp,&
@@ -22,6 +14,7 @@ MODULE scp_energy_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_energy_types'
   PRIVATE
 
+! *****************************************************************************
   TYPE scp_energy_type
     REAL(KIND = dp) :: e_scp_core, e_scp_self, e_scp_total, &
                        e_scp_hartree, e_scp_ks, e_scp_kernel, e_scp_qmmm, &
@@ -38,20 +31,14 @@ MODULE scp_energy_types
             deallocate_scp_energy,&
             init_scp_energy
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE allocate_scp_energy(scp_energy)
 
 !   Purpose: Allocate and/or initialise a Quickstep energy data structure.
 
 !   History: - Creation (13.06.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(scp_energy_type), POINTER           :: scp_energy
 
@@ -72,14 +59,11 @@ CONTAINS
   END SUBROUTINE allocate_scp_energy
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_scp_energy(scp_energy)
 
 !   Purpose: Deallocate a Quickstep energy data structure.
 
 !   History: - Creation (13.06.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(scp_energy_type), POINTER           :: scp_energy
 
@@ -101,14 +85,11 @@ CONTAINS
   END SUBROUTINE deallocate_scp_energy
 
 ! *****************************************************************************
-
   SUBROUTINE init_scp_energy(scp_energy)
 
 !   Purpose: Initialise a Quickstep energy data structure.
 
 !   History: - Creation (13.06.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(scp_energy_type), POINTER           :: scp_energy
 
@@ -132,7 +113,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE init_scp_energy
-
-! *****************************************************************************
 
 END MODULE scp_energy_types

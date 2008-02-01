@@ -2,33 +2,16 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****m* cp2k/xc_perdew_zunger *
-!!
-!!   NAME
-!!     xc_perdew_zunger
-!!
-!!   FUNCTION
-!!     Calculate the Perdew-Zunger correlation potential and 
-!!     energy density and ist derivatives with respect to
-!!     the spin-up and spin-down densities up to 3rd order.
-!!
-!!   SYNOPSIS
-!!     perdew_zunger ( method, cutoff )
-!!     perdew_zunger ( reference, shortform )
-!!     perdew_zunger ( rho, ec, order )
-!!     perdew_zunger ( rhoa, rhob, ec, order )
-!!     perdew_zunger_energy_density ( rho, ec, order )
-!!     perdew_zunger_energy_density ( rhoa, rhob, ec, order )
-!!
-!!   MODIFICATION HISTORY
-!!     18-MAR-2002, TCH, working version
-!!     fawzi (04.2004)  : adapted to the new xc interface
-!!
-!!   SEE ALSO
-!!     functionals_utilities
-!!
-!!****
 
+! *****************************************************************************
+!> \brief Calculate the Perdew-Zunger correlation potential and 
+!>      energy density and ist derivatives with respect to
+!>      the spin-up and spin-down densities up to 3rd order.
+!> \par History
+!>      18-MAR-2002, TCH, working version
+!>      fawzi (04.2004)  : adapted to the new xc interface
+!> \see functionals_utilities
+! *****************************************************************************
 MODULE xc_perdew_zunger
   USE bibliography,                    ONLY: Ortiz1994,&
                                              Perdew1981,&
@@ -73,26 +56,12 @@ MODULE xc_perdew_zunger
 CONTAINS
 
 ! *****************************************************************************
-
-!!****f* cp2k/xc_perdew_zunger/pz_info *
-!!
-!!   NAME
-!!     perdew_zunger
-!!
-!!   FUNCTION
-!!     Return some info on the functionals.
-!!
-!!   ARGUMENTS
-!!     - reference : CHARACTER(*), INTENT(OUT), OPTIONAL - full reference
-!!     - shortform : CHARACTER(*), INTENT(OUT), OPTIONAL - short reference
-!!
-!!   MODIFICATION HISTORY
-!!     18-MAR-2002, TCH, working version
-!!
-!!   SEE ALSO
-!!     
-!!
-!!****
+!> \brief Return some info on the functionals.
+!> \param reference CHARACTER(*), INTENT(OUT), OPTIONAL - full reference
+!> \param shortform CHARACTER(*), INTENT(OUT), OPTIONAL - short reference
+!> \par History
+!>      18-MAR-2002, TCH, working version
+! *****************************************************************************
   SUBROUTINE pz_info ( method, lsd, reference, shortform, needs, max_deriv, error)
     INTEGER, INTENT(in)                      :: method
     LOGICAL, INTENT(in)                      :: lsd
@@ -151,30 +120,19 @@ CONTAINS
   END SUBROUTINE pz_info
 
 ! *****************************************************************************
-
-!!****f* cp2k/xc_perdew_zunger/pz_lda_eval *
-!!
-!!   NAME
-!!     pz_lda_eval
-!!
-!!   FUNCTION
-!!     Calculate the correlation energy and its derivatives
-!!     wrt to rho (the electron density) up to 3rd order. This
-!!     is the LDA version of the Perdew-Zunger correlation energy
-!!     If no order argument is given, then the routine calculates
-!!     just the energy.
-!!
-!!   ARGUMENTS
-!!     - order : INTEGER, OPTIONAL - order of derivatives to calculate
-!!       order must lie between -3 and 3. If it is negative then only
-!!       that order will be calculated, otherwise all derivatives up to
-!!       that order will be calculated.
-!!     - pz_params: input paramter (scaling)
-!!
-!!    MODIFICATION HISTORY
-!!    01.2007 added scaling [Manuel Guidon]
-!!
-!!****
+!> \brief Calculate the correlation energy and its derivatives
+!>      wrt to rho (the electron density) up to 3rd order. This
+!>      is the LDA version of the Perdew-Zunger correlation energy
+!>      If no order argument is given, then the routine calculates
+!>      just the energy.
+!> \param order INTEGER, OPTIONAL - order of derivatives to calculate
+!>        order must lie between -3 and 3. If it is negative then only
+!>        that order will be calculated, otherwise all derivatives up to
+!>        that order will be calculated.
+!> \param pz_params input paramter (scaling)
+!> \par History
+!>     01.2007 added scaling [Manuel Guidon]
+! *****************************************************************************
   SUBROUTINE pz_lda_eval ( method, rho_set, deriv_set, order, pz_params, error )
     
     INTEGER, INTENT(in)                      :: method
@@ -268,7 +226,6 @@ CONTAINS
   END SUBROUTINE pz_lda_eval
 
 ! *****************************************************************************
-
 SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, sc)
   !FM low level calc routine
     REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: rho
@@ -309,30 +266,19 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
   END SUBROUTINE pz_lda_calc
 
 ! *****************************************************************************
-
-!!****f* cp2k/xc_perdew_zunger/pz_lsd *
-!!
-!!   NAME
-!!     perdew_zunger
-!!
-!!   FUNCTION
-!!     Calculate the correlation energy and its derivatives
-!!     wrt to rho (the electron density) up to 3rd order. This
-!!     is the LSD version of the Perdew-Zunger correlation energy
-!!     If no order argument is given, then the routine calculates
-!!     just the energy.
-!!
-!!   ARGUMENTS
-!!     - order: INTEGER, OPTIONAL - order of derivatives to calculate
-!!       order must lie between -3 and 3. If it is negative then only
-!!       that order will be calculated, otherwise all derivatives up to
-!!       that order will be calculated.
-!!     - pz_params: input paramter (scaling)
-!!
-!!   MODIFICATION HISTORY
-!!     01.2007 added scaling [Manuel Guidon]
-!!
-!!****
+!> \brief Calculate the correlation energy and its derivatives
+!>      wrt to rho (the electron density) up to 3rd order. This
+!>      is the LSD version of the Perdew-Zunger correlation energy
+!>      If no order argument is given, then the routine calculates
+!>      just the energy.
+!> \param order INTEGER, OPTIONAL - order of derivatives to calculate
+!>        order must lie between -3 and 3. If it is negative then only
+!>        that order will be calculated, otherwise all derivatives up to
+!>        that order will be calculated.
+!> \param pz_params input paramter (scaling)
+!> \par History
+!>      01.2007 added scaling [Manuel Guidon]
+! *****************************************************************************
   SUBROUTINE pz_lsd_eval ( method, rho_set, deriv_set, order,pz_params, error )
     INTEGER, INTENT(in)                      :: method
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -444,7 +390,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
 
   END SUBROUTINE pz_lsd_eval
 
-  
+! *****************************************************************************
     SUBROUTINE pz_lsd_calc(a,b,e_0,ea,eb,eaa,eab,ebb,eaaa,eaab,eabb,&
          ebbb, npoints, order, sc)
       !FM low-level computation routine
@@ -500,29 +446,15 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
   END SUBROUTINE pz_lsd_calc
 
 ! *****************************************************************************
-
-!!****f* cp2k/xc_perdew_zunger/pz_init *
-!!
-!!   NAME
-!!     perdew_zunger
-!!
-!!   FUNCTION
-!!     Initializes the functionals
-!!
-!!   ARGUMENTS
-!!     - method : CHARACTER(3) - name of the method used for parameters
-!!     - cutoff : REAL(KIND=dp) - the cutoff density
-!!
-!!   MODIFICATION HISTORY
-!!     18-MAR-2002, TCH, working version
-!!
-!!   SEE ALSO
-!!     functionals_utilities
-!!
-!!****
+!> \brief Initializes the functionals
+!> \param method CHARACTER(3) - name of the method used for parameters
+!> \param cutoff REAL(KIND=dp) - the cutoff density
+!> \par History
+!>      18-MAR-2002, TCH, working version
+!> \see functionals_utilities
+! *****************************************************************************
   SUBROUTINE pz_init ( method, cutoff )
     
-
     INTEGER, INTENT(IN)                      :: method
     REAL(KIND=dp), INTENT(IN)                :: cutoff
 
@@ -574,9 +506,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
   END SUBROUTINE pz_init
 
 ! *****************************************************************************
-
   SUBROUTINE calc_g(r, z, g, order)
-
 
     REAL(KIND=dp), INTENT(IN)                :: r
     INTEGER, INTENT(IN)                      :: z
@@ -633,9 +563,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
   END SUBROUTINE calc_g
 
 ! *****************************************************************************
-
   SUBROUTINE pz_lda_ed_loc ( rho, ed, order, sc )
-    
     
     REAL(KIND=dp), INTENT(IN)                :: rho
     REAL(KIND=dp), DIMENSION(0:), &
@@ -684,9 +612,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
   END SUBROUTINE pz_lda_ed_loc
 
 ! *****************************************************************************
-
   SUBROUTINE pz_lsd_ed_loc ( a, b, ed, order, sc )
-    
     
     REAL(KIND=dp), INTENT(IN)                :: a, b
     REAL(KIND=dp), DIMENSION(0:), &
@@ -805,7 +731,5 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
     END IF
     
   END SUBROUTINE pz_lsd_ed_loc
-
-! *****************************************************************************
 
 END MODULE xc_perdew_zunger

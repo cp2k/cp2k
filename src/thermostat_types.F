@@ -3,22 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!***** cp2k/thermostat_types [1.0] *
-!!
-!!   NAME
-!!     thermostat_types
-!!
-!!   FUNCTION
-!!     Thermostat structure: module containing thermostat available for MD
-!!
-!!   AUTHOR
-!!     teo [tlaino] - University of Zurich - 09.2007
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Thermostat structure: module containing thermostat available for MD
+!> \author teo [tlaino] - University of Zurich - 09.2007
+! *****************************************************************************
 MODULE thermostat_types
   USE csvr_system_types,               ONLY: csvr_dealloc,&
                                              csvr_init,&
@@ -52,28 +40,14 @@ MODULE thermostat_types
             thermostat_info_type,&
             release_thermostat_info
 
-!!****f* thermostat_types/thermostats_type [1.0] *
-!!
-!!   NAME
-!!    thermostats_type 
-!!
-!!   FUNCTION
-!!    Define thermostat types
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [tlaino] - Teodoro Laino - University of Zurich
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Define thermostat types
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created [tlaino] - Teodoro Laino - University of Zurich
+!> \author Teodoro Laino
+! *****************************************************************************
   TYPE thermostats_type
      INTEGER :: id_nr, ref_count
      TYPE (thermostat_info_type), POINTER :: thermostat_info_part
@@ -85,6 +59,7 @@ MODULE thermostat_types
   END TYPE thermostats_type
 
   ! Single thermostat_type
+! *****************************************************************************
   TYPE thermostat_type
      INTEGER :: id_nr, ref_count, type_of_thermostat
      TYPE (lnhc_parameters_type), POINTER :: nhc
@@ -92,6 +67,7 @@ MODULE thermostat_types
   END TYPE thermostat_type
 
   ! Global info type
+! *****************************************************************************
   TYPE thermostat_info_type
      INTEGER                              :: sum_of_thermostats
      INTEGER                              :: number_of_thermostats
@@ -105,28 +81,13 @@ MODULE thermostat_types
 
 CONTAINS
 
-!!****f* thermostat_types/allocate_thermostats [1.0] *
-!!
-!!   NAME
-!!    allocate_thermostats 
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2007 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE allocate_thermostats(thermostats, error )
     TYPE(thermostats_type), POINTER          :: thermostats
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -163,27 +124,12 @@ CONTAINS
 
   END SUBROUTINE allocate_thermostats
 
-!!****f* thermostat_types/retain_thermostats [1.0] *
-!!
-!!   NAME
-!!     retain_thermostats
-!!
-!!   FUNCTION
-!!     retains the  full set of thermostats
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     -
-!!
-!!   AUTHOR
-!!    Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [tlaino]
-!! 
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the  full set of thermostats
+!> \par History
+!>      09.2007 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE retain_thermostats(thermostats,error)
     TYPE(thermostats_type), POINTER          :: thermostats
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -204,28 +150,13 @@ CONTAINS
 
   END SUBROUTINE retain_thermostats
 
-!!****f* thermostat_types/release_thermostats [1.0] *
-!!
-!!   NAME
-!!     release_thermostats
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2007 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE release_thermostats(thermostats, error)
     TYPE(thermostats_type), POINTER          :: thermostats
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -263,27 +194,12 @@ CONTAINS
     END IF
   END SUBROUTINE release_thermostats
 
-!!****f* thermostat_types/create_thermostat_type [1.0] *
-!!
-!!   NAME
-!!    create_thermostat_type 
-!!
-!!   FUNCTION
-!!    Create a thermostat type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     -
-!!
-!!   AUTHOR
-!!    Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [tlaino]
-!! 
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Create a thermostat type
+!> \par History
+!>      09.2007 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE create_thermostat_type(thermostat, simpar, section, skip_region, error)  
     TYPE(thermostat_type), POINTER           :: thermostat
     TYPE(simulation_parameters_type), &
@@ -329,28 +245,13 @@ CONTAINS
 
   END SUBROUTINE create_thermostat_type
 
-!!****f* thermostat_types/release_thermostat_info [1.0] *
-!!
-!!   NAME
-!!     release_thermostat_info
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2007 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      10.2007 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE release_thermostat_info(thermostat_info, error)
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -371,30 +272,14 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE release_thermostat_info
-!!*****
 
-!!****f* thermostat_types/release_thermostat_type [1.0] *
-!!
-!!   NAME
-!!     release_thermostat_type
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2007 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE release_thermostat_type(thermostat, error)
     TYPE(thermostat_type), POINTER           :: thermostat
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -423,8 +308,5 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE release_thermostat_type
-!!*****
-!******************************************************************************
 
 END MODULE thermostat_types
-!******************************************************************************

@@ -3,6 +3,7 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
+! *****************************************************************************
 MODULE lebedev
 
 ! Purpose: Generation of the spherical Lebedev grids.
@@ -19,8 +20,6 @@ MODULE lebedev
 !             - V. I. Lebedev, Russ. Acad. Sci. Dokl. Math. 50, 283 (1995)
 
 ! History: - Creation (04.05.99, Matthias Krack)
-
-! *****************************************************************************
 
 ! Implemented Lebedev grids:
 
@@ -41,15 +40,11 @@ MODULE lebedev
 !   13    47        25           770
 !   14    53        30           974
 
-! *****************************************************************************
-
 ! Index:
 
 ! FUNCTION get_number_of_lebedev_grid(l,n) RESULT(number_of_lebedev_grid)
 ! SUBROUTINE load_sub_grid(subsystem,lgnum,np)
 ! SUBROUTINE init_lebedev_grids
-
-! *****************************************************************************
 
 ! Global variables:
 
@@ -69,8 +64,6 @@ MODULE lebedev
 ! nlgp        : Grid point counter.
 ! r           : Working storage (grid point coordinates).
 ! w           : Working storage (grid point weights).
-
-! *****************************************************************************
 
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -93,6 +86,7 @@ MODULE lebedev
                          nlg = 14,&
                          max_np = 36
 
+! *****************************************************************************
   TYPE oh_grid
     INTEGER                           :: l,n
     REAL(KIND = dp), DIMENSION(:), POINTER   :: w
@@ -112,12 +106,9 @@ MODULE lebedev
 
   PUBLIC :: deallocate_lebedev_grids,get_number_of_lebedev_grid,init_lebedev_grids
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   FUNCTION get_number_of_lebedev_grid(l,n) RESULT(number_of_lebedev_grid)
 
 !   Purpose: Get the number of the Lebedev grid, which has the requested
@@ -125,12 +116,8 @@ CONTAINS
 
 !   History: - Creation (05.05.99, Matthias Krack)
 
-!   ***************************************************************************
-
 !   l: Minimal angular momentum quantum number of the requested Lebedev grid.
 !   n: Minimal size of the requested Lebedev grid.
-
-!   ***************************************************************************
 
     INTEGER, INTENT(IN), OPTIONAL            :: l, n
     INTEGER                                  :: number_of_lebedev_grid
@@ -168,20 +155,15 @@ CONTAINS
   END FUNCTION get_number_of_lebedev_grid
 
 ! *****************************************************************************
-
   SUBROUTINE load_sub_grid(subsystem,lgnum,np)
 
 !   Purpose: Load the Lebedev grid points of a subsystem.
 
 !   History: - Creation (06.05.99, Matthias Krack)
 
-!   ***************************************************************************
-
 !   subsystem: String, which specifies the selected subsystem.
 !   lgnum    : Number of the current Lebedev grid.
 !   np       : Number of the nonredundant grid points.
-
-!   ***************************************************************************
 
     CHARACTER(*), INTENT(IN)                 :: subsystem
     INTEGER, INTENT(IN)                      :: lgnum, np
@@ -349,7 +331,6 @@ CONTAINS
   END SUBROUTINE load_sub_grid
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_lebedev_grids
 
     INTEGER                                  :: ilg
@@ -361,15 +342,12 @@ CONTAINS
   END SUBROUTINE deallocate_lebedev_grids
 
 ! *****************************************************************************
-
   SUBROUTINE init_lebedev_grids
 
 !   Purpose: Load the coordinates and weights of the nonredundant Lebedev grid
 !            points.
 
 !   History: - Creation (04.05.99, Matthias Krack)
-
-!   ***************************************************************************
 
     INTEGER                                  :: ilg
 
@@ -886,7 +864,5 @@ CONTAINS
     init_lebedev_grids_done = .TRUE.
 
   END SUBROUTINE init_lebedev_grids
-
-! *****************************************************************************
 
 END MODULE lebedev

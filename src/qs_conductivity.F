@@ -3,27 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/qs_conductivity [1.0] *
-!!
-!!   NAME
-!!     qs_conductivity
-!!   CVS id
-!!   $Id$
-!!
-!!   FUNCTION
-!!
-!!     should be able to compute the optical conductivity
-!!
-!!   AUTHORS
-!!     Joost VandeVondele (04.2003)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
-MODULE qs_conductivity
 ! *****************************************************************************
+!> \brief should be able to compute the optical conductivity
+!> \author Joost VandeVondele (04.2003)
+! *****************************************************************************
+MODULE qs_conductivity
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -49,10 +33,10 @@ MODULE qs_conductivity
 
 ! *** Public ***
   PUBLIC :: optical_conductivity
-! *****************************************************************************
 
 CONTAINS
 
+! *****************************************************************************
 SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
                                 unoccupied_orbs,unoccupied_evals,volume,ionode,scr,error)
     TYPE(real_matrix_p_type), DIMENSION(:), &

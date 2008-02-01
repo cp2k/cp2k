@@ -2,22 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/ewald_pw_types [1.0] *
-!!
-!!   NAME
-!!     ewald_pw_types
-!!
-!!   FUNCTION
-!!     pw_types
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief pw_types
+!> \author CJM
+! *****************************************************************************
 MODULE ewald_pw_types
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -80,7 +69,7 @@ MODULE ewald_pw_types
             ewald_pw_retain, ewald_pw_create, &
             ewald_pw_get, ewald_pw_set
 
-
+! *****************************************************************************
   TYPE ewald_pw_type
      PRIVATE
      INTEGER :: ref_count, id_nr
@@ -93,17 +82,9 @@ MODULE ewald_pw_types
 
 CONTAINS
 
-!!****f* ewald_pw_types/ewald_pw_retain [1.0] *
-!!
-!!   NAME
-!!     ewald_pw_retain
-!!
-!!   FUNCTION
-!!     retains the structure ewald_pw_type
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the structure ewald_pw_type
+! *****************************************************************************
   SUBROUTINE ewald_pw_retain(ewald_pw,error)
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -122,17 +103,9 @@ CONTAINS
     END IF
   END SUBROUTINE ewald_pw_retain
 
-!!****f* ewald_pw_types/ewald_pw_create [1.0] *
-!!
-!!   NAME
-!!     ewald_pw_create
-!!
-!!   FUNCTION
-!!     creates the structure ewald_pw_type
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the structure ewald_pw_type
+! *****************************************************************************
   SUBROUTINE ewald_pw_create ( ewald_pw, ewald_env, cell, cell_ref, print_section, error )
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -167,16 +140,10 @@ CONTAINS
   END SUBROUTINE ewald_pw_create
 
 !****f* ewald_pw_types/ewald_pw_release [1.0] *
-!!
-!!   NAME
-!!     release_ewald_pw
-!!
-!!   FUNCTION
-!!     releases the memory used by the ewald_pw
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief releases the memory used by the ewald_pw
+! *****************************************************************************
   SUBROUTINE ewald_pw_release ( ewald_pw, error )
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -207,21 +174,14 @@ CONTAINS
   END SUBROUTINE ewald_pw_release
 
 !****** ewald_pw_types/ewald_pw_init [1.0] *
-!!
-!!   NAME
-!!     ewald_pw_init
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (12-Jan-2001): Added SPME part
-!!     JGH (15-Mar-2001): Work newly distributed between initialize, setup,
-!!                        and force routine
-!!
-!******************************************************************************
+
+! *****************************************************************************
+!> \par History
+!>      JGH (12-Jan-2001): Added SPME part
+!>      JGH (15-Mar-2001): Work newly distributed between initialize, setup,
+!>                         and force routine
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section, error )
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -412,20 +372,11 @@ CONTAINS
   END SUBROUTINE ewald_pw_init
 
 !****** ewald_pw_types/ewald_pw_get [1.0] *
-!!
-!!   NAME
-!!    ewald_pw_get 
-!!
-!!   FUNCTION
-!!     get the ewald_pw environment to the correct program.
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!******************************************************************************
+
+! *****************************************************************************
+!> \brief get the ewald_pw environment to the correct program.
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE ewald_pw_get (ewald_pw, pw_big_pool, pw_small_pool, rs_pool, poisson_env, dg )
 
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
@@ -446,20 +397,11 @@ CONTAINS
   END SUBROUTINE ewald_pw_get
 
 !****** ewald_pw_types/ewald_pw_set [1.0] *
-!!
-!!   NAME
-!!    ewald_pw_set 
-!!
-!!   FUNCTION
-!!     set the ewald_pw environment to the correct program.
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     
-!!
-!******************************************************************************
+
+! *****************************************************************************
+!> \brief set the ewald_pw environment to the correct program.
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE ewald_pw_set (ewald_pw, pw_big_pool, pw_small_pool, rs_pool, dg,&
        poisson_env, error )
 

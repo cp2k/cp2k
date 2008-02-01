@@ -2,47 +2,36 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_collocate_density [1.0] *
-!!
-!!   NAME
-!!     qs_collocate_density
-!!
-!!   FUNCTION
-!!     Calculate the plane wave density by collocating the primitive Gaussian
-!!     functions (pgf).
-!!
-!!   AUTHOR
-!!     Matthias Krack (03.04.2001)
-!!     1) Joost VandeVondele (01.2002)
-!!     Thomas D. Kuehne (04.08.2005)
-!!
-!!   MODIFICATION HISTORY
-!!     - rewrote collocate for increased accuracy and speed
-!!     - introduced the PGI hack for increased speed with that compiler
-!!       (22.02.02)
-!!     - Added Multiple Grid feature
-!!     - new way to get over the grid (01.03.02)
-!!     - removed timing calls since they were getting expensive
-!!     - Updated with the new QS data structures (09.04.02,MK)
-!!     - introduction of the real space grid type ( prelim. version JVdV 05.02)
-!!     - parallel FFT (JGH 22.05.02)
-!!     - multigrid arrays independent from density (JGH 30.08.02)
-!!     - old density stored in g space (JGH 30.08.02)
-!!     - distributed real space code (JGH 17.07.03)
-!!     - refactoring and new loop ordering (JGH 23.11.03)
-!!     - OpenMP parallelization (JGH 03.12.03)
-!!     - Modified to compute tau (Joost 12.03)
-!!     - removed the incremental density rebuild (Joost 01.04)
-!!     - introduced realspace multigridding (Joost 02.04)
-!!     - introduced map_consistent (Joost 02.04)
-!!     - Addition of the subroutine calculate_atomic_charge_density (TdK, 08.05)
-!!     - rewrite of the collocate/integrate kernels (Joost VandeVondele, 03.07)
-!!
-!!   SOURCE
-!******************************************************************************
 
-MODULE qs_collocate_density
 ! *****************************************************************************
+!> \brief Calculate the plane wave density by collocating the primitive Gaussian
+!>      functions (pgf).
+!> \par History
+!>      - rewrote collocate for increased accuracy and speed
+!>      - introduced the PGI hack for increased speed with that compiler
+!>        (22.02.02)
+!>      - Added Multiple Grid feature
+!>      - new way to get over the grid (01.03.02)
+!>      - removed timing calls since they were getting expensive
+!>      - Updated with the new QS data structures (09.04.02,MK)
+!>      - introduction of the real space grid type ( prelim. version JVdV 05.02)
+!>      - parallel FFT (JGH 22.05.02)
+!>      - multigrid arrays independent from density (JGH 30.08.02)
+!>      - old density stored in g space (JGH 30.08.02)
+!>      - distributed real space code (JGH 17.07.03)
+!>      - refactoring and new loop ordering (JGH 23.11.03)
+!>      - OpenMP parallelization (JGH 03.12.03)
+!>      - Modified to compute tau (Joost 12.03)
+!>      - removed the incremental density rebuild (Joost 01.04)
+!>      - introduced realspace multigridding (Joost 02.04)
+!>      - introduced map_consistent (Joost 02.04)
+!>      - Addition of the subroutine calculate_atomic_charge_density (TdK, 08.05)
+!>      - rewrite of the collocate/integrate kernels (Joost VandeVondele, 03.07)
+!> \author Matthias Krack (03.04.2001)
+!>      1) Joost VandeVondele (01.2002)
+!>      Thomas D. Kuehne (04.08.2005)
+! *****************************************************************************
+MODULE qs_collocate_density
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -145,6 +134,7 @@ MODULE qs_collocate_density
 
 ! *** Public type ***
 
+! *****************************************************************************
   TYPE lgrid_type
      INTEGER :: ldim
      REAL(dp), DIMENSION(:), POINTER :: r
@@ -154,39 +144,21 @@ MODULE qs_collocate_density
 
   INTEGER :: debug_count=0
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-!!****f* qs_collocate_density/collocate_atomic_charge_density [1.0] *
-!!
-!!   NAME
-!!     collocate_atomic_charge_density
-!!
-!!   FUNCTION
-!!     Collocates an arbitrary density from the aux_basis_set onto a grid.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - rho: The PW-Grid onto which the density is collocated
-!!     - rho_g: The realspace-grid onto which the density is collocated
-!!     - rho_r: The G-space-grid onto which the density is collocated
-!!     - total_rho: Gives back the integral of the collocated density
-!!     - qs_env: The QS environment of matter
-!!     - error: variable to control error logging, stopping,...
-!!              see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     08.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+!> \brief Collocates an arbitrary density from the aux_basis_set onto a grid.
+!> \param rho The PW-Grid onto which the density is collocated
+!> \param rho_g The realspace-grid onto which the density is collocated
+!> \param rho_r The G-space-grid onto which the density is collocated
+!> \param total_rho Gives back the integral of the collocated density
+!> \param qs_env The QS environment of matter
+!> \param error variable to control error logging, stopping,...
+!>               see module cp_error_handling
+!> \par History
+!>      08.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE collocate_atomic_charge_density(total_rho, qs_env, error)
 
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
@@ -371,21 +343,9 @@ CONTAINS
 
   END SUBROUTINE collocate_atomic_charge_density
 
-!!****f* qs_collocate_density/calculate_rho_core *
-!!
-!!   NAME
-!!     calculate_rho_core
-!!
-!!   FUNCTION
-!!     computes the density of the core charges on the grid
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief computes the density of the core charges on the grid
+! *****************************************************************************
   SUBROUTINE calculate_rho_core(rho_core,total_rho,qs_env,error)
 
     TYPE(pw_p_type), INTENT(INOUT)           :: rho_core
@@ -527,23 +487,13 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_rho_core
-!!****f* qs_collocate_density/calculate_rho_elec *
-!!
-!!   NAME
-!!     calculate_rho_elec
-!!
-!!   FUNCTION
-!!     computes the density corresponding to a given density matrix on the grid
-!!
-!!   NOTES
-!!     both rho and rho_gspace contain the new rho
-!!     (in real and g-space respectively)
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief computes the density corresponding to a given density matrix on the grid
+!> \note
+!>      both rho and rho_gspace contain the new rho
+!>      (in real and g-space respectively)
+! *****************************************************************************
   SUBROUTINE calculate_rho_elec(matrix_p, rho,rho_gspace, total_rho,&
        qs_env, soft_valid, compute_tau, error)
 
@@ -813,7 +763,6 @@ CONTAINS
 
        ENDIF
 
-
        IF (atom_pair_changed .OR. iset_old .NE. iset .OR. jset_old .NE. jset) THEN
 
           ncoa = npgfa(iset)*ncoset(la_max(iset))
@@ -885,7 +834,6 @@ CONTAINS
 
     END DO loop_tasks
 
-
     !   *** Release work storage ***
 
     IF (distributed_rs_grids) THEN
@@ -906,32 +854,19 @@ CONTAINS
 
   END SUBROUTINE calculate_rho_elec
 
-!!*************************************************************************
-
-
-!!****f* qs_collocate_density/calculate_wavefunction *
-!!
-!!   NAME
-!!     calculate_wavefunction
-!!
-!!   FUNCTION
-!!     maps a given wavefunction on the grid
-!!
-!!   NOTES
-!!     modified calculate_rho_elec, should write the wavefunction represented by
-!!     it's presumably dominated by the FFT and the rs->pw and back routines
-!!
-!!   BUGS ???
-!!     does it take correctly the periodic images of the basis functions into account
-!!     i.e. is only correct if the basis functions are localised enough to be just in 1 cell ?
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [Joost VandeVondele]
-!!     03.2006 made independent of qs_env [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief maps a given wavefunction on the grid
+!> \note
+!>      modified calculate_rho_elec, should write the wavefunction represented by
+!>      it's presumably dominated by the FFT and the rs->pw and back routines
+!> 
+!>    BUGS ???
+!>      does it take correctly the periodic images of the basis functions into account
+!>      i.e. is only correct if the basis functions are localised enough to be just in 1 cell ?
+!> \par History
+!>      08.2002 created [Joost VandeVondele]
+!>      03.2006 made independent of qs_env [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE calculate_wavefunction(mo_vectors,ivector,rho,rho_gspace, &
                    atomic_kind_set,cell,dft_control,particle_set, &
                    pw_env,error)
@@ -1100,7 +1035,6 @@ CONTAINS
                IF (MODULO(offset,group_size)==my_pos) map_it_here=.TRUE.
             ENDIF
             
-            
             IF (map_it_here) CALL collocate_pgf_product_rspace(&
                  la_max(iset),zeta(ipgf,iset),la_min(iset),&
                  0,0.0_dp,0,&
@@ -1149,21 +1083,9 @@ CONTAINS
 
   END SUBROUTINE calculate_wavefunction
 
-!!****f* qs_collocate_density/collocate_pgf_product_rspace *
-!!
-!!   NAME
-!!     collocate_pgf_product_rspace
-!!
-!!   FUNCTION
-!!     low level collocation of primitive gaussian functions
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief low level collocation of primitive gaussian functions
+! *****************************************************************************
   SUBROUTINE collocate_pgf_product_rspace(la_max,zeta,la_min,&
                                           lb_max,zetb,lb_min,&
                                           ra,rab,rab2,scale,pab,o1,o2,&
@@ -1241,7 +1163,6 @@ CONTAINS
     ELSE
        my_map_consistent=.FALSE.
     ENDIF
-
 
     IF (PRESENT(collocate_rho0).AND.PRESENT(rpgf0_s)) THEN
        my_collocate_rho0=collocate_rho0
@@ -1528,6 +1449,7 @@ CONTAINS
     !
     ! this treats efficiently the orthogonal case
     !
+! *****************************************************************************
     SUBROUTINE collocate_ortho()
 
 !   *** properties of the grid ***
@@ -1598,6 +1520,7 @@ CONTAINS
 !
 !   this is a general 'optimized' routine to do the collocation
 !
+! *****************************************************************************
     SUBROUTINE collocate_general_opt()
 
     INTEGER :: dir, i, i_index, il, ilx, ily, ilz, index_max(3), &
@@ -1698,7 +1621,6 @@ CONTAINS
            grid_map(i)=i-cubecenter(1)+offset(1)
         ENDIF
       ENDDO
-
 
       ! go over the grid, but cycle if the point is not within the radius
       DO k=index_min(3),index_max(3)
@@ -1814,6 +1736,7 @@ CONTAINS
 !
 !   this is a general 'reference' routine to do the collocation
 !
+! *****************************************************************************
     SUBROUTINE collocate_general()
  
     INTEGER                                  :: i, index_max(3), &
@@ -1849,6 +1772,7 @@ CONTAINS
        
     END SUBROUTINE collocate_general
 
+! *****************************************************************************
     FUNCTION primitive_value(point) RESULT(res)
     REAL(KIND=dp)                            :: point(3), res
 
@@ -1898,21 +1822,9 @@ CONTAINS
 
   END SUBROUTINE collocate_pgf_product_rspace
 
-!!****f* qs_collocate_density/collocate_pgf_product_gspace *
-!!
-!!   NAME
-!!     collocate_pgf_product_gspace
-!!
-!!   FUNCTION
-!!     low level collcation of primitive gaussian functions in g-space
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief low level collcation of primitive gaussian functions in g-space
+! *****************************************************************************
   SUBROUTINE collocate_pgf_product_gspace(la_max,zeta,la_min,&
                                           lb_max,zetb,lb_min,&
                                           ra,rab,rab2,scale,pab,na,nb,&
@@ -2106,25 +2018,14 @@ CONTAINS
 
   END SUBROUTINE collocate_pgf_product_gspace
 
-!!****f* qs_collocate_density/density_rs2pw *
-!!
-!!   NAME
-!!     density_rs2pw
-!!
-!!   FUNCTION
-!!     given partial densities on the realspace multigrids, 
-!!     computes the full density on the plane wave grids, both in real and 
-!!     gspace
-!!
-!!   NOTES
-!!     should contain the all communication in the collocation of the density
-!!     in the case of replicated grids
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief given partial densities on the realspace multigrids, 
+!>      computes the full density on the plane wave grids, both in real and 
+!>      gspace
+!> \note
+!>      should contain the all communication in the collocation of the density
+!>      in the case of replicated grids
+! *****************************************************************************
   SUBROUTINE density_rs2pw(pw_env,rs_rho,rho,rho_gspace,interp_section,error)
 
     TYPE(pw_env_type), POINTER               :: pw_env

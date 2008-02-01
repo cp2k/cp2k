@@ -2,21 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2007 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****h* cp2k/ps_wavelet_base *
-!!
-!!   NAME
-!!     ps_wavelet_base
-!!
-!!   FUNCTION
-!!     Creates the wavelet kernel for the wavelet based poisson solver.
-!!
-!!   AUTHOR
-!!     Florian Schiffmann (09.2007,fschiff)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+
+! *****************************************************************************
+!> \brief Creates the wavelet kernel for the wavelet based poisson solver.
+!> \author Florian Schiffmann (09.2007,fschiff)
+! *****************************************************************************
 MODULE ps_wavelet_base
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -29,11 +19,11 @@ MODULE ps_wavelet_base
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ps_wavelet_util'
 
-
   PUBLIC :: scramble_unpack
 
 CONTAINS
 
+! *****************************************************************************
   SUBROUTINE P_PoissonSolver(n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc,zf&
        ,scal,hx,hy,hz,mpi_group,error)
     INTEGER, INTENT(in)                      :: n1, n2, n3, nd1, nd2, nd3, &
@@ -121,7 +111,6 @@ CONTAINS
        WRITE(*,*)' p_poissonsolver: problem of memory allocation'
        STOP
     END IF
-
 
     !calculating the FFT work arrays (beware on the HalFFT in n3 dimension)
     CALL ctrig(n3,btrig3,after3,before3,now3,1,ic3)
@@ -264,7 +253,6 @@ CONTAINS
              ENDDO
              !output: i1,i2,j3,(jp3)
 
-
              !Multiply with kernel in fourier space
              i3=iproc*(nd3/nproc)+j3
              CALL P_multkernel(n1,n2,n3,lot,nfft,j,i3,zw(1,1,inzee),hx,hy,hz)
@@ -402,6 +390,7 @@ CONTAINS
     !  call timing(iproc,'PSolv_comput  ','OF')
   END SUBROUTINE P_PoissonSolver
 
+! *****************************************************************************
   SUBROUTINE P_mpiswitch_upcorn(j3,nfft,Jp2stb,J2stb,lot,n1,md2,nd3,nproc,zmpi1,zw)
     INTEGER, INTENT(in)                      :: j3, nfft
     INTEGER, INTENT(inout)                   :: Jp2stb, J2stb
@@ -431,6 +420,7 @@ CONTAINS
     END DO
   END SUBROUTINE P_mpiswitch_upcorn
 
+! *****************************************************************************
   SUBROUTINE P_switch_upcorn(nfft,n2,lot,n1,lzt,zt,zw)
     INTEGER, INTENT(in)                      :: nfft, n2, lot, n1, lzt
     REAL(KIND=dp), DIMENSION(2, lzt, n1), &
@@ -449,6 +439,7 @@ CONTAINS
 
   END SUBROUTINE P_switch_upcorn
 
+! *****************************************************************************
   SUBROUTINE P_unswitch_downcorn(nfft,n2,lot,n1,lzt,zw,zt)
     INTEGER, INTENT(in)                      :: nfft, n2, lot, n1, lzt
     REAL(KIND=dp), DIMENSION(2, lot, n2), &
@@ -467,6 +458,7 @@ CONTAINS
 
   END SUBROUTINE P_unswitch_downcorn
 
+! *****************************************************************************
   SUBROUTINE P_unmpiswitch_downcorn(j3,nfft,Jp2stf,J2stf,lot,n1,md2,nd3,nproc,zw,zmpi1)
     INTEGER, INTENT(in)                      :: j3, nfft
     INTEGER, INTENT(inout)                   :: Jp2stf, J2stf
@@ -497,43 +489,28 @@ CONTAINS
     END DO
   END SUBROUTINE P_unmpiswitch_downcorn
 
-
-!!****h* BigDFT/P_fill_downcorn
-!! NAME
-!!   P_fill_downcorn
-!!
-!! FUNCTION
-!!     (Based on suitable modifications of S.Goedecker routines)
-!!     Restore data into output array
-!!
-!! ARGUMENTS
-!!     - zf:          Original distributed density as well as
-!!                  Distributed solution of the poisson equation (inout)
-!!     - zw:          FFT work array
-!!     - n3:          (twice the) dimension of the last FFTtransform.
-!!     - md1,md3:     Dimensions of the undistributed part of the real grid
-!!     - nfft:        number of planes
-!!     - scal:        Needed to achieve unitarity and correct dimensions
-!!
-!! WARNING
-!!     Assuming that high frequencies are in the corners 
-!!     and that n3 is multiple of 4   
-!!
-!! RESTRICTIONS on USAGE
-!!     Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
-!!     Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
-!!     Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
-!!     This file is distributed under the terms of the
-!!     GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
-!!
-!! AUTHORS
-!!    S. Goedecker, L. Genovese
-!!
-!! CREATION DATE
-!!     February 2006
-!!
-!! SOURCE
-!!
+! *****************************************************************************
+!> \brief (Based on suitable modifications of S.Goedecker routines)
+!>      Restore data into output array
+!> \param zf Original distributed density as well as
+!>                   Distributed solution of the poisson equation (inout)
+!> \param zw FFT work array
+!> \param n 3:          (twice the) dimension of the last FFTtransform.
+!> \param md 1,md3:     Dimensions of the undistributed part of the real grid
+!> \param nfft number of planes
+!> \param scal Needed to achieve unitarity and correct dimensions
+!> \warning Assuming that high frequencies are in the corners 
+!>      and that n3 is multiple of 4   
+!> 
+!>  RESTRICTIONS on USAGE
+!>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
+!>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
+!>      Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
+!>      This file is distributed under the terms of the
+!>      GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
+!> \author S. Goedecker, L. Genovese
+!> \date February 2006
+! *****************************************************************************
   SUBROUTINE P_unfill_downcorn(md1,md3,lot,nfft,n3,zw,zf,scal)
     INTEGER, INTENT(in)                      :: md1, md3, lot, nfft, n3
     REAL(KIND=dp), DIMENSION(2, lot, n3), &
@@ -554,6 +531,7 @@ CONTAINS
 
   END SUBROUTINE P_unfill_downcorn
 
+! *****************************************************************************
   SUBROUTINE P_fill_upcorn(md1,md3,lot,nfft,n3,zf,zw)
     INTEGER, INTENT(in)                      :: md1, md3, lot, nfft, n3
     REAL(KIND=dp), DIMENSION(md1, md3), &
@@ -572,37 +550,25 @@ CONTAINS
 
   END SUBROUTINE P_fill_upcorn
 
-!!****h* BigDFT/scramble_P
-!! NAME
-!!   scramble_P
-!!
-!! FUNCTION
-!!     (Based on suitable modifications of S.Goedecker routines)
-!!     Assign the correct planes to the work array zmpi2
-!!     in order to prepare for interprocessor data transposition.
-!!
-!! ARGUMENTS
-!!     - zmpi2:          Work array for multiprocessor manipulation (output)
-!!     - zw:             Work array (input)
-!!     - n1,n3:          logical dimension of the FFT transform, reference for work arrays
-!!     - md2,nd3:        Dimensions of real grid and of the kernel, respectively
-!!     - i1,j2,lot,nfft: Starting points of the plane and number of remaining lines
-!!
-!! RESTRICTIONS on USAGE
-!!     Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
-!!     Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
-!!     Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
-!!     This file is distributed under the terms of the
-!!     GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
-!!
-!! AUTHORS
-!!    S. Goedecker, L. Genovese
-!!
-!! CREATION DATE
-!!     February 2006
-!!
-!! SOURCE
-!!
+! *****************************************************************************
+!> \brief (Based on suitable modifications of S.Goedecker routines)
+!>      Assign the correct planes to the work array zmpi2
+!>      in order to prepare for interprocessor data transposition.
+!> \param zmpi 2:          Work array for multiprocessor manipulation (output)
+!> \param zw Work array (input)
+!> \param n 1,n3:          logical dimension of the FFT transform, reference for work arrays
+!> \param md 2,nd3:        Dimensions of real grid and of the kernel, respectively
+!> \param i 1,j2,lot,nfft: Starting points of the plane and number of remaining lines
+!> 
+!>  RESTRICTIONS on USAGE
+!>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
+!>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
+!>      Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
+!>      This file is distributed under the terms of the
+!>      GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
+!> \author S. Goedecker, L. Genovese
+!> \date February 2006
+! *****************************************************************************
   SUBROUTINE scramble_P(i1,j2,lot,nfft,n1,n3,md2,nproc,nd3,zw,zmpi2)
     INTEGER, INTENT(in)                      :: i1, j2, lot, nfft, n1, n3, &
                                                 md2, nproc, nd3
@@ -623,37 +589,25 @@ CONTAINS
 
   END SUBROUTINE scramble_P
 
-!!****h* BigDFT/unscramble_P
-!! NAME
-!!   unscramble_P
-!!
-!! FUNCTION
-!!     (Based on suitable modifications of S.Goedecker routines)
-!!     Insert the correct planes of the work array zmpi2
-!!     in order to prepare for backward FFT transform
-!!
-!! ARGUMENTS
-!!     - zmpi2:          Work array for multiprocessor manipulation (input)
-!!     - zw:             Work array (output)
-!!     - n1,n3:          logical dimension of the FFT transform, reference for work arrays
-!!     - md2,nd3:        Dimensions of real grid and of the kernel, respectively
-!!     - i1,j2,lot,nfft: Starting points of the plane and number of remaining lines
-!!
-!! RESTRICTIONS on USAGE
-!!     Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
-!!     Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
-!!     Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
-!!     This file is distributed under the terms of the
-!!     GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
-!!
-!! AUTHORS
-!!    S. Goedecker, L. Genovese
-!!
-!! CREATION DATE
-!!     February 2006
-!!
-!! SOURCE
-!!
+! *****************************************************************************
+!> \brief (Based on suitable modifications of S.Goedecker routines)
+!>      Insert the correct planes of the work array zmpi2
+!>      in order to prepare for backward FFT transform
+!> \param zmpi 2:          Work array for multiprocessor manipulation (input)
+!> \param zw Work array (output)
+!> \param n 1,n3:          logical dimension of the FFT transform, reference for work arrays
+!> \param md 2,nd3:        Dimensions of real grid and of the kernel, respectively
+!> \param i 1,j2,lot,nfft: Starting points of the plane and number of remaining lines
+!> 
+!>  RESTRICTIONS on USAGE
+!>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
+!>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
+!>      Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
+!>      This file is distributed under the terms of the
+!>      GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
+!> \author S. Goedecker, L. Genovese
+!> \date February 2006
+! *****************************************************************************
   SUBROUTINE unscramble_P(i1,j2,lot,nfft,n1,n3,md2,nproc,nd3,zmpi2,zw)
     INTEGER, INTENT(in)                      :: i1, j2, lot, nfft, n1, n3, &
                                                 md2, nproc, nd3
@@ -683,36 +637,24 @@ CONTAINS
 
   END SUBROUTINE unscramble_P
 
-!!****h* BigDFT/P_multkernel
-!! NAME
-!!   P_multkernel
-!!
-!! FUNCTION
-!!     (Based on suitable modifications of S.Goedecker routines)
-!!     Multiply with the kernel taking into account its symmetry
-!!     Conceived to be used into convolution loops
-!!
-!! ARGUMENTS
-!!     zw:         Work array (input/output)
-!!     n1,n2:      logical dimension of the FFT transform, reference for zw
-!!     nd1,nd2:    Dimensions of POT
-!!     jS,j3,nfft: starting point of the plane and number of remaining lines
-!!
-!! RESTRICTIONS on USAGE
-!!     Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
-!!     Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
-!!     Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
-!!     This file is distributed under the terms of the
-!!      GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
-!!
-!! AUTHORS
-!!    S. Goedecker, L. Genovese
-!!
-!! CREATION DATE
-!!     February 2006
-!!
-!! SOURCE
-!!
+! *****************************************************************************
+!> \brief (Based on suitable modifications of S.Goedecker routines)
+!>      Multiply with the kernel taking into account its symmetry
+!>      Conceived to be used into convolution loops
+!> \param zw Work array (input/output)
+!>      n1,n2:      logical dimension of the FFT transform, reference for zw
+!>      nd1,nd2:    Dimensions of POT
+!>      jS,j3,nfft: starting point of the plane and number of remaining lines
+!> 
+!>  RESTRICTIONS on USAGE
+!>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
+!>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
+!>      Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
+!>      This file is distributed under the terms of the
+!>       GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
+!> \author S. Goedecker, L. Genovese
+!> \date February 2006
+! *****************************************************************************
   SUBROUTINE P_multkernel(n1,n2,n3,lot,nfft,jS,i3,zw,hx,hy,hz)
     !Argments
     INTEGER, INTENT(in)                      :: n1, n2, n3, lot, nfft, jS, i3
@@ -746,37 +688,25 @@ CONTAINS
 
   END SUBROUTINE P_multkernel
 
-!!****h* BigDFT/multkernel
-!! NAME
-!!   multkernel
-!!
-!! FUNCTION
-!!     (Based on suitable modifications of S.Goedecker routines)
-!!     Multiply with the kernel taking into account its symmetry
-!!     Conceived to be used into convolution loops
-!!
-!! ARGUMENTS
-!!     pot:      Kernel, symmetric and real, half the length
-!!     zw:       Work array (input/output)
-!!     n1,n2:    logical dimension of the FFT transform, reference for zw
-!!     nd1,nd2:  Dimensions of POT
-!!     jS, nfft: starting point of the plane and number of remaining lines
-!!
-!! RESTRICTIONS on USAGE
-!!     Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
-!!     Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
-!!     Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
-!!     This file is distributed under the terms of the
-!!      GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
-!!
-!! AUTHORS
-!!    S. Goedecker, L. Genovese
-!!
-!! CREATION DATE
-!!     February 2006
-!!
-!! SOURCE
-!!
+! *****************************************************************************
+!> \brief (Based on suitable modifications of S.Goedecker routines)
+!>      Multiply with the kernel taking into account its symmetry
+!>      Conceived to be used into convolution loops
+!> \param pot Kernel, symmetric and real, half the length
+!> \param zw Work array (input/output)
+!>      n1,n2:    logical dimension of the FFT transform, reference for zw
+!>      nd1,nd2:  Dimensions of POT
+!>      jS, nfft: starting point of the plane and number of remaining lines
+!> 
+!>  RESTRICTIONS on USAGE
+!>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
+!>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
+!>      Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
+!>      This file is distributed under the terms of the
+!>       GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
+!> \author S. Goedecker, L. Genovese
+!> \date February 2006
+! *****************************************************************************
   SUBROUTINE multkernel(nd1,nd2,n1,n2,lot,nfft,jS,pot,zw)
     !Argments
     INTEGER, INTENT(in)                      :: nd1, nd2, n1, n2, lot, nfft, &
@@ -819,51 +749,40 @@ CONTAINS
 
   END SUBROUTINE multkernel
 
-!!!HERE POT MUST BE THE KERNEL (BEWARE THE HALF DIMENSION)
-!!****h* BigDFT/S_PoissonSolver
-!! NAME
-!!   PoissonSolver
-!!
-!! FUNCTION
-!!     (Based on suitable modifications of S.Goedecker routines)
-!!     Applies the local FFT space Kernel to the density in Real space.
-!!     Does NOT calculate the LDA exchange-correlation terms
-!!
-!! ARGUMENTS
-!!     zf:          Density (input/output)
-!!                  ZF(i1,i3,i2)
-!!                  i1=1,md1 , i2=1,md2/nproc , i3=1,md3 
-!!     pot:         Kernel, only the distributed part (REAL)
-!!                  POT(i1,i2,i3)
-!!                  i1=1,nd1 , i2=1,nd2 , i3=1,nd3/nproc 
-!!     nproc:       number of processors used as returned by MPI_COMM_SIZE
-!!     iproc:       [0:nproc-1] number of processor as returned by MPI_COMM_RANK
-!!     n1,n2,n3/2:  logical dimension of the transform. As transform lengths 
-!!                    most products of the prime factors 2,3,5 are allowed.
-!!                  The detailed table with allowed transform lengths can 
-!!                  be found in subroutine CTRIG
-!!     md1,md2,md3: Dimension of ZF
-!!     nd1,nd2,nd3/nproc: Dimension of POT
-!!     scal:        factor of renormalization of the FFT in order to acheve unitarity 
-!!                  and the correct dimension
-!!     hx,hy,hz:    grid spacing, used for integrating eharthree
-!!     ehartree:    hartree energy of the potential
-!!
-!! RESTRICTIONS on USAGE
-!!     Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
-!!     Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
-!!     Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
-!!     This file is distributed under the terms of the
-!!      GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
-!!
-!! AUTHORS
-!!    S. Goedecker, L. Genovese
-!!
-!! CREATION DATE
-!!    October 2006
-!!
-!! SOURCE
-!!
+! *****************************************************************************
+!> \brief !HERE POT MUST BE THE KERNEL (BEWARE THE HALF DIMENSION)
+!> ****h* BigDFT/S_PoissonSolver
+!>      (Based on suitable modifications of S.Goedecker routines)
+!>      Applies the local FFT space Kernel to the density in Real space.
+!>      Does NOT calculate the LDA exchange-correlation terms
+!> \param zf Density (input/output)
+!>                   ZF(i1,i3,i2)
+!>                   i1=1,md1 , i2=1,md2/nproc , i3=1,md3 
+!> \param pot Kernel, only the distributed part (REAL)
+!>                   POT(i1,i2,i3)
+!>                   i1=1,nd1 , i2=1,nd2 , i3=1,nd3/nproc 
+!> \param nproc number of processors used as returned by MPI_COMM_SIZE
+!> \param iproc [0:nproc-1] number of processor as returned by MPI_COMM_RANK
+!>      n1,n2,n3/2:  logical dimension of the transform. As transform lengths 
+!>                     most products of the prime factors 2,3,5 are allowed.
+!>                   The detailed table with allowed transform lengths can 
+!>                   be found in subroutine CTRIG
+!>      md1,md2,md3: Dimension of ZF
+!>      nd1,nd2,nd3/nproc: Dimension of POT
+!> \param scal factor of renormalization of the FFT in order to acheve unitarity 
+!>                   and the correct dimension
+!>      hx,hy,hz:    grid spacing, used for integrating eharthree
+!> \param ehartree hartree energy of the potential
+!> 
+!>  RESTRICTIONS on USAGE
+!>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
+!>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
+!>      Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
+!>      This file is distributed under the terms of the
+!>       GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
+!> \author S. Goedecker, L. Genovese
+!> \date October 2006
+! *****************************************************************************
   SUBROUTINE S_PoissonSolver(n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc,pot,zf,&
        scal,hx,hy,hz,mpi_group,error)
     INTEGER, INTENT(in)                      :: n1, n2, n3, nd1, nd2, nd3, &
@@ -1268,6 +1187,7 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE S_PoissonSolver
 
+! *****************************************************************************
   SUBROUTINE S_mpiswitch_upcorn(j3,nfft,Jp2stb,J2stb,lot,n1,md2,nd3,nproc,zmpi1,zw)
     INTEGER, INTENT(in)                      :: j3, nfft
     INTEGER, INTENT(inout)                   :: Jp2stb, J2stb
@@ -1297,6 +1217,7 @@ CONTAINS
     END DO
   END SUBROUTINE S_mpiswitch_upcorn
 
+! *****************************************************************************
   SUBROUTINE S_switch_upcorn(nfft,n2,lot,n1,lzt,zt,zw)
     INTEGER, INTENT(in)                      :: nfft, n2, lot, n1, lzt
     REAL(KIND=dp), DIMENSION(2, lzt, n1), &
@@ -1314,6 +1235,7 @@ CONTAINS
     END DO
   END SUBROUTINE S_switch_upcorn
 
+! *****************************************************************************
   SUBROUTINE S_unswitch_downcorn(nfft,n2,lot,n1,lzt,zw,zt)
     INTEGER, INTENT(in)                      :: nfft, n2, lot, n1, lzt
     REAL(KIND=dp), DIMENSION(2, lot, n2), &
@@ -1331,6 +1253,7 @@ CONTAINS
     END DO
   END SUBROUTINE S_unswitch_downcorn
 
+! *****************************************************************************
   SUBROUTINE S_unmpiswitch_downcorn(j3,nfft,Jp2stf,J2stf,lot,n1,md2,nd3,nproc,zw,zmpi1)
     INTEGER, INTENT(in)                      :: j3, nfft
     INTEGER, INTENT(inout)                   :: Jp2stf, J2stf
@@ -1361,44 +1284,30 @@ CONTAINS
     END DO
   END SUBROUTINE S_unmpiswitch_downcorn
 
-!!****h* BigDFT/unfill_downcorn
-!! NAME
-!!   unfill_downcorn
-!!
-!! FUNCTION
-!!     (Based on suitable modifications of S.Goedecker routines)
-!!     Restore data into output array, calculating in the meanwhile
-!!     Hartree energy of the potential 
-!!
-!! ARGUMENTS
-!!     zf:          Original distributed density as well as
-!!                  Distributed solution of the poisson equation (inout)
-!!     zw:          FFT work array
-!!     n3:          (twice the) dimension of the last FFTtransform.
-!!     md1,md3:     Dimensions of the undistributed part of the real grid
-!!     nfft:        number of planes
-!!     scal:        Needed to achieve unitarity and correct dimensions
-!!     ehartreetmp: Hartree energy
-!!
-!! WARNING
-!!     Assuming that high frequencies are in the corners 
-!!     and that n3 is multiple of 4   
-!!
-!! RESTRICTIONS on USAGE
-!!     Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
-!!     Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
-!!     Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
-!!     This file is distributed under the terms of the
-!!     GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
-!!
-!! AUTHORS
-!!    S. Goedecker, L. Genovese
-!!
-!! CREATION DATE
-!!     February 2006
-!!
-!! SOURCE
-!!
+! *****************************************************************************
+!> \brief (Based on suitable modifications of S.Goedecker routines)
+!>      Restore data into output array, calculating in the meanwhile
+!>      Hartree energy of the potential 
+!> \param zf Original distributed density as well as
+!>                   Distributed solution of the poisson equation (inout)
+!> \param zw FFT work array
+!>      n3:          (twice the) dimension of the last FFTtransform.
+!>      md1,md3:     Dimensions of the undistributed part of the real grid
+!> \param nfft number of planes
+!> \param scal Needed to achieve unitarity and correct dimensions
+!> \param ehartreetmp Hartree energy
+!> \warning Assuming that high frequencies are in the corners 
+!>      and that n3 is multiple of 4   
+!> 
+!>  RESTRICTIONS on USAGE
+!>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
+!>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
+!>      Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
+!>      This file is distributed under the terms of the
+!>      GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
+!> \author S. Goedecker, L. Genovese
+!> \date February 2006
+! *****************************************************************************
   SUBROUTINE unfill_downcorn(md1,md3,lot,nfft,n3,zw,zf,scal)
     INTEGER, INTENT(in)                      :: md1, md3, lot, nfft, n3
     REAL(KIND=dp), DIMENSION(2, lot, n3/2), &
@@ -1422,6 +1331,7 @@ CONTAINS
     END DO
   END SUBROUTINE unfill_downcorn
 
+! *****************************************************************************
   SUBROUTINE halfill_upcorn(md1,md3,lot,nfft,n3,zf,zw)
     INTEGER                                  :: md1, md3, lot, nfft, n3
     REAL(KIND=dp)                            :: zf(md1,md3), zw(2,lot,n3/2)
@@ -1446,41 +1356,28 @@ CONTAINS
 
   END SUBROUTINE halfill_upcorn
 
-
-!!****h* BigDFT/scramble_unpack
-!! NAME
-!!   scramble_unpack
-!!
-!! FUNCTION
-!!     (Based on suitable modifications of S.Goedecker routines)
-!!     Assign the correct planes to the work array zmpi2
-!!     in order to prepare for interprocessor data transposition.
-!!     In the meanwhile, it unpacks the data of the HalFFT in order to prepare for
-!!     multiplication with the kernel
-!!
-!! ARGUMENTS
-!!     - zmpi2:          Work array for multiprocessor manipulation (output)
-!!     - zw:             Work array (input)
-!!     - cosinarr:      Array of the phases needed for unpacking
-!!     - n1,n3:          logical dimension of the FFT transform, reference for work arrays
-!!     - md2,nd3:        Dimensions of real grid and of the kernel, respectively
-!!     - i1,j2,lot,nfft: Starting points of the plane and number of remaining lines
-!!
-!! RESTRICTIONS on USAGE
-!!     Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
-!!     Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
-!!     Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
-!!     This file is distributed under the terms of the
-!!     GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
-!!
-!! AUTHORS
-!!    S. Goedecker, L. Genovese
-!!
-!! CREATION DATE
-!!     February 2006
-!!
-!! SOURCE
-!!
+! *****************************************************************************
+!> \brief (Based on suitable modifications of S.Goedecker routines)
+!>      Assign the correct planes to the work array zmpi2
+!>      in order to prepare for interprocessor data transposition.
+!>      In the meanwhile, it unpacks the data of the HalFFT in order to prepare for
+!>      multiplication with the kernel
+!> \param zmpi 2:          Work array for multiprocessor manipulation (output)
+!> \param zw Work array (input)
+!> \param cosinarr Array of the phases needed for unpacking
+!> \param n 1,n3:          logical dimension of the FFT transform, reference for work arrays
+!> \param md 2,nd3:        Dimensions of real grid and of the kernel, respectively
+!> \param i 1,j2,lot,nfft: Starting points of the plane and number of remaining lines
+!> 
+!>  RESTRICTIONS on USAGE
+!>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
+!>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
+!>      Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
+!>      This file is distributed under the terms of the
+!>      GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
+!> \author S. Goedecker, L. Genovese
+!> \date February 2006
+! *****************************************************************************
   SUBROUTINE scramble_unpack(i1,j2,lot,nfft,n1,n3,md2,nproc,nd3,zw,zmpi2,cosinarr)
     INTEGER, INTENT(in)                      :: i1, j2, lot, nfft, n1, n3, &
                                                 md2, nproc, nd3
@@ -1530,40 +1427,28 @@ CONTAINS
 
   END SUBROUTINE scramble_unpack
 
-!!****h* BigDFT/unscramble_pack
-!! NAME
-!!   unscramble_pack
-!!
-!! FUNCTION
-!!     (Based on suitable modifications of S.Goedecker routines)
-!!     Insert the correct planes of the work array zmpi2
-!!     in order to prepare for backward FFT transform
-!!     In the meanwhile, it packs the data in order to be transformed with the HalFFT 
-!!     procedure
-!!
-!! ARGUMENTS
-!!     - zmpi2:          Work array for multiprocessor manipulation (input)
-!!     - zw:             Work array (output)
-!!     - cosinarr:       Array of the phases needed for packing
-!!     - n1,n3:          logical dimension of the FFT transform, reference for work arrays
-!!     - md2,nd3:        Dimensions of real grid and of the kernel, respectively
-!!     - i1,j2,lot,nfft: Starting points of the plane and number of remaining lines
-!!
-!! RESTRICTIONS on USAGE
-!!     Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
-!!     Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
-!!     Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
-!!     This file is distributed under the terms of the
-!!     GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
-!!
-!! AUTHORS
-!!    S. Goedecker, L. Genovese
-!!
-!! CREATION DATE
-!!     February 2006
-!!
-!! SOURCE
-!!
+! *****************************************************************************
+!> \brief (Based on suitable modifications of S.Goedecker routines)
+!>      Insert the correct planes of the work array zmpi2
+!>      in order to prepare for backward FFT transform
+!>      In the meanwhile, it packs the data in order to be transformed with the HalFFT 
+!>      procedure
+!> \param zmpi 2:          Work array for multiprocessor manipulation (input)
+!> \param zw Work array (output)
+!> \param cosinarr Array of the phases needed for packing
+!> \param n 1,n3:          logical dimension of the FFT transform, reference for work arrays
+!> \param md 2,nd3:        Dimensions of real grid and of the kernel, respectively
+!> \param i 1,j2,lot,nfft: Starting points of the plane and number of remaining lines
+!> 
+!>  RESTRICTIONS on USAGE
+!>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
+!>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
+!>      Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
+!>      This file is distributed under the terms of the
+!>      GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
+!> \author S. Goedecker, L. Genovese
+!> \date February 2006
+! *****************************************************************************
   SUBROUTINE unscramble_pack(i1,j2,lot,nfft,n1,n3,md2,nproc,nd3,zmpi2,zw,cosinarr)
     INTEGER, INTENT(in)                      :: i1, j2, lot, nfft, n1, n3, &
                                                 md2, nproc, nd3
@@ -1602,53 +1487,40 @@ CONTAINS
 
   END SUBROUTINE unscramble_pack
 
-
-!!****h* BigDFT/F_PoissonSolver
-!! NAME
-!!   F_PoissonSolver
-!!
-!! FUNCTION
-!!     (Based on suitable modifications of S.Goedecker routines)
-!!     Applies the local FFT space Kernel to the density in Real space.
-!!     Calculates also the LDA exchange-correlation terms
-!!
-!! ARGUMENTS
-!!     zf:          Density (input/output)
-!!                  ZF(i1,i3,i2)
-!!                  i1=1,md1 , i2=1,md2/nproc , i3=1,md3 
-!!     pot:         Kernel, only the distributed part (REAL)
-!!                  POT(i1,i2,i3)
-!!                  i1=1,nd1 , i2=1,nd2 , i3=1,nd3/nproc
-!!     zfpot_ion:   Distributed array of the ionization potential 
-!!     nproc:       number of processors used as returned by MPI_COMM_SIZE
-!!     iproc:       [0:nproc-1] number of processor as returned by MPI_COMM_RANK
-!!     n1,n2,n3:    logical dimension of the transform. As transform lengths 
-!!                    most products of the prime factors 2,3,5 are allowed.
-!!                  The detailed table with allowed transform lengths can 
-!!                  be found in subroutine CTRIG
-!!     md1,md2,md3: Dimension of ZF
-!!     nd1,nd2,nd3: Dimension of POT
-!!     scal:        factor of renormalization of the FFT in order to acheve unitarity 
-!!                  and the correct dimension
-!!     hgrid:       grid spacing, used for integrating quantities
-!!     ehartree:    hartree energy of the potential
-!!     eexcu,vexcu: LDA exchange correlation terms   
-!!
-!! RESTRICTIONS on USAGE
-!!     Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
-!!     Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
-!!     Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
-!!     This file is distributed under the terms of the
-!!      GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
-!!
-!! AUTHORS
-!!    S. Goedecker, L. Genovese
-!!
-!! CREATION DATE
-!!     February 2006
-!!
-!! SOURCE
-!!
+! *****************************************************************************
+!> \brief (Based on suitable modifications of S.Goedecker routines)
+!>      Applies the local FFT space Kernel to the density in Real space.
+!>      Calculates also the LDA exchange-correlation terms
+!> \param zf Density (input/output)
+!>                   ZF(i1,i3,i2)
+!>                   i1=1,md1 , i2=1,md2/nproc , i3=1,md3 
+!> \param pot Kernel, only the distributed part (REAL)
+!>                   POT(i1,i2,i3)
+!>                   i1=1,nd1 , i2=1,nd2 , i3=1,nd3/nproc
+!> \param zfpot_ion Distributed array of the ionization potential 
+!> \param nproc number of processors used as returned by MPI_COMM_SIZE
+!> \param iproc [0:nproc-1] number of processor as returned by MPI_COMM_RANK
+!>      n1,n2,n3:    logical dimension of the transform. As transform lengths 
+!>                     most products of the prime factors 2,3,5 are allowed.
+!>                   The detailed table with allowed transform lengths can 
+!>                   be found in subroutine CTRIG
+!>      md1,md2,md3: Dimension of ZF
+!>      nd1,nd2,nd3: Dimension of POT
+!> \param scal factor of renormalization of the FFT in order to acheve unitarity 
+!>                   and the correct dimension
+!> \param hgrid grid spacing, used for integrating quantities
+!> \param ehartree hartree energy of the potential
+!>      eexcu,vexcu: LDA exchange correlation terms   
+!> 
+!>  RESTRICTIONS on USAGE
+!>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
+!>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
+!>      Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
+!>      This file is distributed under the terms of the
+!>       GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
+!> \author S. Goedecker, L. Genovese
+!> \date February 2006
+! *****************************************************************************
   SUBROUTINE F_PoissonSolver(n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc,pot,zf&
        ,scal,hgrid,mpi_group,error)!,ehartree)
     INTEGER, INTENT(in)                      :: n1, n2, n3, nd1, nd2, nd3, &
@@ -2040,6 +1912,7 @@ CONTAINS
 
   END SUBROUTINE F_PoissonSolver
 
+! *****************************************************************************
   SUBROUTINE switch_upcorn(nfft,n2,lot,n1,lzt,zt,zw)
     INTEGER                                  :: nfft, n2, lot, n1, lzt
     REAL(KIND=dp)                            :: zt(2,lzt,n1), zw(2,lot,n2)
@@ -2065,7 +1938,7 @@ CONTAINS
     END DO
   END SUBROUTINE switch_upcorn
 
-
+! *****************************************************************************
   SUBROUTINE mpiswitch_upcorn(j3,nfft,Jp2stb,J2stb,lot,n1,md2,nd3,nproc,zmpi1,zw)
     INTEGER                                  :: j3, nfft, Jp2stb, J2stb, lot, &
                                                 n1, md2, nd3, nproc
@@ -2098,6 +1971,7 @@ CONTAINS
     END DO Main
   END SUBROUTINE mpiswitch_upcorn
 
+! *****************************************************************************
   SUBROUTINE unswitch_downcorn(nfft,n2,lot,n1,lzt,zw,zt)
     INTEGER                                  :: nfft, n2, lot, n1, lzt
     REAL(KIND=dp)                            :: zw(2,lot,n2), zt(2,lzt,n1)
@@ -2117,6 +1991,7 @@ CONTAINS
     RETURN
   END SUBROUTINE unswitch_downcorn
 
+! *****************************************************************************
   SUBROUTINE unmpiswitch_downcorn(j3,nfft,Jp2stf,J2stf,lot,n1,md2,nd3,nproc,zw,zmpi1)
     INTEGER                                  :: j3, nfft, Jp2stf, J2stf, lot, &
                                                 n1, md2, nd3, nproc
@@ -2145,44 +2020,30 @@ CONTAINS
     END DO Main
   END SUBROUTINE unmpiswitch_downcorn
 
-!!****h* BigDFT/F_unfill_downcorn
-!! NAME
-!!   F_unfill_downcorn
-!!
-!! FUNCTION
-!!     (Based on suitable modifications of S.Goedecker routines)
-!!     Restore data into output array, calculating in the meanwhile
-!!     Hartree energy of the potential 
-!!
-!! ARGUMENTS
-!!     - zf:          Original distributed density as well as
-!!                  Distributed solution of the poisson equation (inout)
-!!     - zw:          FFT work array
-!!     - n3:          (twice the) dimension of the last FFTtransform.
-!!     - md1,md3:     Dimensions of the undistributed part of the real grid
-!!     - nfft:        number of planes
-!!     - scal:        Needed to achieve unitarity and correct dimensions
-!!     - ehartreetmp: Hartree energy
-!!
-!! WARNING
-!!     Assuming that high frequencies are in the corners 
-!!     and that n3 is multiple of 4   
-!!
-!! RESTRICTIONS on USAGE
-!!     Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
-!!     Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
-!!     Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
-!!     This file is distributed under the terms of the
-!!     GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
-!!
-!! AUTHORS
-!!    S. Goedecker, L. Genovese
-!!
-!! CREATION DATE
-!!     February 2006
-!!
-!! SOURCE
-!!
+! *****************************************************************************
+!> \brief (Based on suitable modifications of S.Goedecker routines)
+!>      Restore data into output array, calculating in the meanwhile
+!>      Hartree energy of the potential 
+!> \param zf Original distributed density as well as
+!>                   Distributed solution of the poisson equation (inout)
+!> \param zw FFT work array
+!> \param n 3:          (twice the) dimension of the last FFTtransform.
+!> \param md 1,md3:     Dimensions of the undistributed part of the real grid
+!> \param nfft number of planes
+!> \param scal Needed to achieve unitarity and correct dimensions
+!> \param ehartreetmp Hartree energy
+!> \warning Assuming that high frequencies are in the corners 
+!>      and that n3 is multiple of 4   
+!> 
+!>  RESTRICTIONS on USAGE
+!>      Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
+!>      Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
+!>      Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
+!>      This file is distributed under the terms of the
+!>      GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
+!> \author S. Goedecker, L. Genovese
+!> \date February 2006
+! *****************************************************************************
   SUBROUTINE F_unfill_downcorn(md1,md3,lot,nfft,n3,zw,zf,scal,ehartreetmp)
     INTEGER, INTENT(in)                      :: md1, md3, lot, nfft, n3
     REAL(KIND=dp), DIMENSION(2, lot, n3/2), &

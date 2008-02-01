@@ -2,24 +2,14 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** mc_types.F *********************************************************
-!!
-!!   NAME
-!!     mc_types
-!! 
-!!   FUNCTION
-!!     holds all the structure types needed for Monte Carlo, except
-!!     the mc_environment_type
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief holds all the structure types needed for Monte Carlo, except
+!>      the mc_environment_type
+!> \par History
+!>      none
+!> \author MJM
+! *****************************************************************************
 MODULE mc_types
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -91,7 +81,7 @@ MODULE mc_types
             get_mc_input_file,mc_input_file_destroy,&
             mc_input_parameters_check
 
-
+! *****************************************************************************
   TYPE mc_simulation_parameters_type
 ! contains all the parameters needed for running Monte Carlo simulations
       PRIVATE
@@ -151,6 +141,7 @@ MODULE mc_types
       REAL ( dp ) :: exp_min_val, exp_max_val, min_val, max_val
   END TYPE mc_simulation_parameters_type
 
+! *****************************************************************************
   TYPE mc_input_file_type
 ! contains all the text of the input file
       PRIVATE
@@ -162,6 +153,7 @@ MODULE mc_types
       REAL(dp),DIMENSION(:,:),POINTER :: coordinates_empty
    END TYPE mc_input_file_type
 
+! *****************************************************************************
   TYPE mc_molecule_info_type
 ! contains information on molecules...I had to do this because I use multiple force
 ! environments, and they know nothing about each other
@@ -176,11 +168,13 @@ MODULE mc_types
       INTEGER,DIMENSION(:),POINTER :: nunits,mol_type,nunits_tot,in_box
  END TYPE mc_molecule_info_type
 
+! *****************************************************************************
   TYPE mc_simulation_parameters_p_type
 ! a pointer for multiple boxes
       TYPE (mc_simulation_parameters_type),POINTER :: mc_par
   END TYPE mc_simulation_parameters_p_type
 
+! *****************************************************************************
   TYPE mc_averages_type
 ! contains some data that is averaged throughout the course of a run
       REAL(KIND = dp) :: ave_energy
@@ -189,10 +183,12 @@ MODULE mc_types
       REAL(KIND = dp) :: molecules
   END TYPE mc_averages_type
 
+! *****************************************************************************
   TYPE mc_averages_p_type
       TYPE (mc_averages_type),POINTER :: averages
   END TYPE mc_averages_p_type
 
+! *****************************************************************************
   TYPE mc_moves_type
 ! contains data for how many moves of a give type we've accepted/rejected
       TYPE ( accattempt ), POINTER :: bias_bond
@@ -216,12 +212,14 @@ MODULE mc_types
       INTEGER :: empty,grown,empty_conf,empty_avbmc
   END TYPE mc_moves_type
 
+! *****************************************************************************
   TYPE accattempt
       INTEGER :: successes
       INTEGER :: qsuccesses
       INTEGER :: attempts
   END TYPE accattempt
 
+! *****************************************************************************
   TYPE mc_moves_p_type
       TYPE(mc_moves_type), POINTER :: moves
   END TYPE mc_moves_p_type
@@ -232,23 +230,12 @@ MODULE mc_types
 CONTAINS
 
 ! *****************************************************************************
-!!****s* mc_types.F/get_mc_input_file
-!!
-!!   NAME
-!!     get_mc_input_file
-!!
-!!   FUNCTION
-!!     accesses the private elements of the mc_input_file_type
-!!
-!!   ARGUMENTS
-!!     - mc_input_file: the input file you want data for
-!!
-!!   Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
+!> \brief accesses the private elements of the mc_input_file_type
+!> \param mc_input_file the input file you want data for
+!> 
+!>    Suitable for parallel.
+!> \author MJM
+! *****************************************************************************
  SUBROUTINE get_mc_input_file ( mc_input_file,run_type_row,run_type_column,&
       coord_row_start,coord_row_end,cell_row,cell_column,global_row_end,&
       mol_set_nmol_row,mol_set_nmol_column,in_use,text,atom_names_empty,&
@@ -283,7 +270,7 @@ CONTAINS
    IF(PRESENT(coordinates_empty)) coordinates_empty=> mc_input_file%coordinates_empty
    
  END SUBROUTINE GET_MC_INPUT_FILE
-!******************************************************************************
+! *****************************************************************************
  SUBROUTINE get_mc_par ( mc_par, nstep, nvirial, iuptrans, iupvolume, &
        nmoves,nswapmoves,rm,cl,diff,nstart,&
        source,group,lbias,ionode,lrestart,lstop,rmvolume,rmbond,rmangle,&
@@ -297,24 +284,11 @@ CONTAINS
        exp_min_val, exp_max_val, min_val, max_val)
 
 ! *****************************************************************************
-!!****s* mc_types.F/get_mc_par
-!!
-!!   NAME
-!!     get_mc_par
-!!
-!!   FUNCTION
-!!     accesses the private elements of the mc_parameters_type
-!!
-!!   ARGUMENTS
-!!     - mc_par: the structure mc parameters you want
-!!
-!!   Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
-
+!> \brief accesses the private elements of the mc_parameters_type
+!> \param mc_par the structure mc parameters you want
+!> 
+!>    Suitable for parallel.
+!> \author MJM
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
     INTEGER, INTENT(OUT), OPTIONAL           :: nstep, nvirial, iuptrans, &
@@ -442,31 +416,17 @@ CONTAINS
 
   END SUBROUTINE get_mc_par
 
- !****************************************************************************
-
+! *****************************************************************************
  SUBROUTINE get_mc_molecule_info ( mc_molecule_info, nmol_types,nchain_total,nboxes,&
       names,conf_prob,nchains,nunits,mol_type,nunits_tot,in_box,atom_names,&
       mass)
 
 ! *****************************************************************************
-!!****s* mc_types.F/get_mc_molecule_info
-!!
-!!   NAME
-!!     get_mc_molecule_info
-!!
-!!   FUNCTION
-!!     accesses the private elements of the mc_molecule_info_type
-!!
-!!   ARGUMENTS
-!!     - mc_molecule_info: the structure you want the parameters for
-!!
-!!   Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
-
+!> \brief accesses the private elements of the mc_molecule_info_type
+!> \param mc_molecule_info the structure you want the parameters for
+!> 
+!>    Suitable for parallel.
+!> \author MJM
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     INTEGER, INTENT(OUT), OPTIONAL           :: nmol_types, nchain_total, &
                                                 nboxes
@@ -506,6 +466,7 @@ CONTAINS
 
   END SUBROUTINE get_mc_molecule_info
 
+! *****************************************************************************
 SUBROUTINE set_mc_par ( mc_par, rm,cl,&
       diff,nstart,rmvolume,rmbond,rmangle,rmdihedral,rmrot,rmtrans,PROGRAM,&
       nmoves,nswapmoves,lstop,temperature,pressure,iuptrans,iupvolume,&
@@ -516,24 +477,11 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
       mc_input_file,mc_bias_file,exp_max_val,exp_min_val,min_val,max_val)
 
 ! *****************************************************************************
-!!****s* mc_types.F/set_mc_par
-!!
-!!   NAME
-!!     set_mc_par
-!!
-!!   FUNCTION
-!!     changes the private elements of the mc_parameters_type
-!!
-!!   ARGUMENTS
-!!     - mc_par: the structure mc parameters you want
-!!
-!!   Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
-
+!> \brief changes the private elements of the mc_parameters_type
+!> \param mc_par the structure mc parameters you want
+!> 
+!>    Suitable for parallel.
+!> \author MJM
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
     INTEGER, INTENT(IN), OPTIONAL            :: rm, cl, diff, nstart
@@ -697,27 +645,13 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     IF(PRESENT(mc_molecule_info)) mc_par%mc_molecule_info => mc_molecule_info
   END SUBROUTINE set_mc_par
 
-!******************************************************************************
-!!****** mc/mc_sim_par_create [1.0] *
-!!
-!!   NAME
-!!     mc_sim_par_create
-!!
-!!   FUNCTION
-!!     creates (allocates) the mc_simulation_parameters type
-!!
-!!   ARGUMENTS
-!!     - mc_par: the structure that will be created (allocated)
-!!     - nmol_types: the number of molecule types in the system
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!   NOTES
-!!
-!!*****************************************************************************
+! *****************************************************************************
+!> \brief creates (allocates) the mc_simulation_parameters type
+!> \param mc_par the structure that will be created (allocated)
+!> \param nmol_types the number of molecule types in the system
+!> \author MJM
+! *****************************************************************************
   SUBROUTINE mc_sim_par_create ( mc_par ,nmol_types,nboxes)
-
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
@@ -727,8 +661,6 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
-
-!******************************************************************************
 
     NULLIFY(mc_par)
 
@@ -787,27 +719,12 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 
   END SUBROUTINE mc_sim_par_create
 
-
-!******************************************************************************
-!!****** mc/mc_sim_par_destroy [1.0] *
-!!
-!!   NAME
-!!     mc_sim_par_destroy
-!!
-!!   FUNCTION
-!!     destroys (deallocates) the mc_simulation_parameters type
-!!
-!!   ARGUMENTS
-!!     - mc_par: the structure that will be destroyed
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!   NOTES
-!!
-!!*****************************************************************************
+! *****************************************************************************
+!> \brief destroys (deallocates) the mc_simulation_parameters type
+!> \param mc_par the structure that will be destroyed
+!> \author MJM
+! *****************************************************************************
   SUBROUTINE mc_sim_par_destroy ( mc_par )
-
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
@@ -816,8 +733,6 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
-
-!******************************************************************************
 
     DEALLOCATE (mc_par%mc_input_file,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -879,32 +794,17 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
          "mc_par")
     NULLIFY(mc_par)
 
-
  END SUBROUTINE mc_sim_par_destroy
 
-!******************************************************************************
-!!****** mc/mc_input_file_create [1.0] *
-!!
-!!   NAME
-!!     mc_input_file_create
-!!
-!!   FUNCTION
-!!     creates (allocates) the mc_input_file_type
-!!
-!!   ARGUMENTS
-!!     - mc_input_file: the structure that will be created (allocated)
-!!     - input_file_name: the name of the file to read
-!!     - nmol_types: the number of molecule types in the system
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!   NOTES
-!!
-!!*****************************************************************************
+! *****************************************************************************
+!> \brief creates (allocates) the mc_input_file_type
+!> \param mc_input_file the structure that will be created (allocated)
+!> \param input_file_name the name of the file to read
+!> \param nmol_types the number of molecule types in the system
+!> \author MJM
+! *****************************************************************************
   SUBROUTINE mc_input_file_create (mc_input_file,input_file_name,&
        mc_molecule_info,empty_coords,error)
-
 
     TYPE(mc_input_file_type), POINTER        :: mc_input_file
     CHARACTER(LEN=*), INTENT(IN)             :: input_file_name
@@ -924,7 +824,6 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     INTEGER, DIMENSION(:), POINTER           :: nunits
     TYPE(cp_logger_type), POINTER            :: logger
 
-!******************************************************************************
 ! some stuff in case we need to write error messages to the screen
 
     logger=>cp_error_get_logger(error)
@@ -964,7 +863,6 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
        nlines=nlines+1
     ENDDO
 
-    
     ALLOCATE (mc_input_file%text(1:nlines),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "mc_input_file%text",nlines*default_string_length)
@@ -1081,26 +979,12 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 
   END SUBROUTINE mc_input_file_create
 
-!******************************************************************************
-!!****** mc/mc_input_file_destroy [1.0] *
-!!
-!!   NAME
-!!     mc_input_file_destroy
-!!
-!!   FUNCTION
-!!     destroys (deallocates) things in the mc_input_file_type
-!!
-!!   ARGUMENTS
-!!     - mc_input_file: the structure that will be released (deallocated)
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!   NOTES
-!!
-!!*****************************************************************************
+! *****************************************************************************
+!> \brief destroys (deallocates) things in the mc_input_file_type
+!> \param mc_input_file the structure that will be released (deallocated)
+!> \author MJM
+! *****************************************************************************
   SUBROUTINE mc_input_file_destroy(mc_input_file)
-
 
     TYPE(mc_input_file_type), POINTER        :: mc_input_file
 
@@ -1108,8 +992,6 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
-
-!******************************************************************************
 
     DEALLOCATE (mc_input_file%mol_set_nmol_row,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -1129,34 +1011,20 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
 
   END SUBROUTINE mc_input_file_destroy
 
-!******************************************************************************
-!!****** mc/mc_parse_text [1.0] *
-!!
-!!   NAME
-!!     mc_parse_text
-!!
-!!   FUNCTION
-!!     a basic text parser used to find the row and column numbers of various strings
-!!     in the input file, to store as indices for when we create a dat_file...
-!!     returns 0 for the row if nothing is found
-!!
-!!   ARGUMENTS
-!!     - text: the text to parse
-!!     - nstart: the line to start searching from
-!!     - nend: the line to end searching
-!!     - string_search: the text we're looking for
-!!     - lend: if .TRUE., find the &END that comes after string_search...assumes that
-!!           the row is the first row with & in the same column as the search string
-!!     - row_number: the row the string is first found on
-!!     - column_number: the column number that the string first appears on
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!   NOTES
-!!
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief a basic text parser used to find the row and column numbers of various strings
+!>      in the input file, to store as indices for when we create a dat_file...
+!>      returns 0 for the row if nothing is found
+!> \param text the text to parse
+!> \param nstart the line to start searching from
+!> \param nend the line to end searching
+!> \param string_search the text we're looking for
+!> \param lend if .TRUE., find the &END that comes after string_search...assumes that
+!>            the row is the first row with & in the same column as the search string
+!> \param row_number the row the string is first found on
+!> \param column_number the column number that the string first appears on
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE mc_parse_text(text,nstart,nend,string_search,lend,&
      row_number,column_number)
 
@@ -1171,7 +1039,6 @@ SUBROUTINE mc_parse_text(text,nstart,nend,string_search,lend,&
     INTEGER                                  :: iline, index_string, jline, &
                                                 string_size
 
-!*****************************************************************************
 ! did not see any string utilities in the code to help, so here I go
 
   row_number=0
@@ -1206,33 +1073,18 @@ SUBROUTINE mc_parse_text(text,nstart,nend,string_search,lend,&
 
 END SUBROUTINE mc_parse_text
 
-!******************************************************************************
-!!****** mc/read_mc_section [1.0] *
-!!
-!!   NAME
-!!     read_mc_section
-!!
-!!   FUNCTION
-!!     reads in the Monte Carlo simulation parameters from an input file
-!!
-!!   ARGUMENTS
-!!     - mc_par: the structure that will store the parameters
-!!     - globenv: the global environment for the simulation
-!!     - input_file_name: the name of the input_file
-!!     - input_file: the structure that contains all the keywords in the input file
-!!     - force_env_section: used to grab the type of force_env
-!!     - error: the cp_error_type
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!   NOTES
-!!
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief reads in the Monte Carlo simulation parameters from an input file
+!> \param mc_par the structure that will store the parameters
+!> \param globenv the global environment for the simulation
+!> \param input_file_name the name of the input_file
+!> \param input_file the structure that contains all the keywords in the input file
+!> \param force_env_section used to grab the type of force_env
+!> \param error the cp_error_type
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_file, force_env_section,&
      error )
-
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
@@ -1265,7 +1117,6 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
 
     CPPrecondition(ASSOCIATED(input_file),cp_failure_level,routineP,error,failure)
 
-
       CALL timeset(routineN,'I','',handle)
 
       NULLIFY(mc_section)
@@ -1292,7 +1143,6 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       CASE (do_qs)
          mc_par % iprint = 1
       END SELECT
-
 
       logger=>cp_error_get_logger(error)
       iw = cp_logger_get_default_unit_nr(logger)
@@ -1600,36 +1450,21 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
 ! end the timing
       CALL timestop(0.0e0_dp,handle)
 
-
 END SUBROUTINE read_mc_section
 
-!******************************************************************************
-!!****** mc/find_mc_rcut [1.0] *
-!!
-!!   NAME
-!!     find_mc_rcut
-!!
-!!   FUNCTION
-!!     finds the largest interaction cutoff value in a classical simulation
-!!     so we know the smallest size we can make the box in a volume move
-!!
-!!   ARGUMENTS
-!!     - mc_par: the structure that will store the parameters
-!!     - force_env: the force environment that we'll grab the rcut parameter
-!!                  out of
-!!     - lterminate: set to .TRUE. if one of the sides of the box is
-!!           less than twice the cutoff
-!!
-!!   Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!   NOTES
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief finds the largest interaction cutoff value in a classical simulation
+!>      so we know the smallest size we can make the box in a volume move
+!> \param mc_par the structure that will store the parameters
+!> \param force_env the force environment that we'll grab the rcut parameter
+!>                   out of
+!> \param lterminate set to .TRUE. if one of the sides of the box is
+!>            less than twice the cutoff
+!> 
+!>    Suitable for parallel.
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE find_mc_rcut ( mc_par, force_env, lterminate )
-
 
     TYPE(mc_simulation_parameters_type), &
       INTENT(INOUT)                          :: mc_par
@@ -1679,33 +1514,19 @@ SUBROUTINE find_mc_rcut ( mc_par, force_env, lterminate )
 
 END SUBROUTINE find_mc_rcut
 
-!******************************************************************************
-!******************************************************************************
-!!****** mc/mc_determine_molecule_info [1.0] *
-!!
-!!   NAME
-!!     mc_determine_molecule_info
-!!
-!!   FUNCTION
-!!     figures out the number of total molecules, the number of atoms in each 
-!!     molecule, an array with the molecule types, etc...a lot of information
-!!     that we need.  I did this because I use multiple force_env (simulation
-!!     boxes) for MC, and they don't know about each other.
-!!
-!!   ARGUMENTS
-!!     - force_env: the pointer containing all the force environments in the
-!!       simulation
-!!     - mc_molecule_info: the structure that will hold all the information
-!!         for the molecule types
-!!
-!!   Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!   NOTES
-!!*****************************************************************************
-
+! *****************************************************************************
+!> \brief figures out the number of total molecules, the number of atoms in each 
+!>      molecule, an array with the molecule types, etc...a lot of information
+!>      that we need.  I did this because I use multiple force_env (simulation
+!>      boxes) for MC, and they don't know about each other.
+!> \param force_env the pointer containing all the force environments in the
+!>        simulation
+!> \param mc_molecule_info the structure that will hold all the information
+!>          for the molecule types
+!> 
+!>    Suitable for parallel.
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error,box_number,&
      coordinates_empty)
 
@@ -1738,7 +1559,6 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error,box_numbe
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles
 
-!**********************************************************************
 ! how many simulation boxes do we have?
 
     nboxes=SIZE(force_env(:))
@@ -1884,8 +1704,6 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error,box_numbe
        ENDDO
     ENDIF
 
-
-
 ! now we need to figure out the total number of molecules of each kind in
 ! each box, and the total number of interaction sites in each box
     mc_molecule_info%nchains(:,:)=0
@@ -1954,26 +1772,13 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,error,box_numbe
 
 END SUBROUTINE MC_DETERMINE_MOLECULE_INFO
 
-
-!******************************************************************************
-!!****** mc/mc_molecule_info_destroy [1.0] *
-!!
-!!   NAME
-!!     mc_molecule_info_destroy
-!!
-!!   FUNCTION
-!!     deallocates all the arrays in the mc_molecule_info_type
-!!
-!!   ARGUMENTS
-!!     - mc_molecule_info: the structure we wish to deallocate
-!!
-!!   Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!   NOTES
-!!*****************************************************************************
+! *****************************************************************************
+!> \brief deallocates all the arrays in the mc_molecule_info_type
+!> \param mc_molecule_info the structure we wish to deallocate
+!> 
+!>    Suitable for parallel.
+!> \author MJM
+! *****************************************************************************
 SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
 
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
@@ -1982,8 +1787,6 @@ SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
-
-!*****************************************************************************
 
     DEALLOCATE(mc_molecule_info%nchains,stat=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"nchains")
@@ -2004,33 +1807,21 @@ SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
     DEALLOCATE(mc_molecule_info%mass,stat=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mass")
     
-
     DEALLOCATE(mc_molecule_info,stat=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mc_molecule_info")
     NULLIFY(mc_molecule_info)
 
   END SUBROUTINE mc_molecule_info_destroy
 
+! *****************************************************************************
   SUBROUTINE mc_input_parameters_check ( mc_par)
 
 ! *****************************************************************************
-!!****s* mc_types.F/get_mc_molecule_info
-!!
-!!   NAME
-!!     get_mc_molecule_info
-!!
-!!   FUNCTION
-!!     accesses the private elements of the mc_molecule_info_type
-!!
-!!   ARGUMENTS
-!!     - mc_molecule_info: the structure you want the parameters for
-!!
-!!   Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!*****************************************************************************
+!> \brief accesses the private elements of the mc_molecule_info_type
+!> \param mc_molecule_info the structure you want the parameters for
+!> 
+!>    Suitable for parallel.
+!> \author MJM
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
 
@@ -2041,8 +1832,6 @@ SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
                                                 nchain_total, nmol_types
     INTEGER, DIMENSION(:), POINTER           :: nunits
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
-
-!******************************************************************************
 
     CALL get_mc_par(mc_par,mc_molecule_info=mc_molecule_info)
 
@@ -2108,4 +1897,3 @@ SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
 
 END MODULE mc_types
 
-!******************************************************************************

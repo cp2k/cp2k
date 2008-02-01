@@ -2,23 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/fist_main [1.0] *
-!!
-!!   NAME
-!!     fist_main
-!!
-!!   FUNCTION
-!!     perform classical molecular dynamics and path integral simulations
-!!   AUTHOR
-!!     CJM-Sept-01-02
-!!
-!!   MODIFICATION HISTORY
-!!     gt SEPT-23-2002: part is allocated/deallocated/initialized in
-!!                      read_coord_vel
-!!     CJM rewrite
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief perform classical molecular dynamics and path integral simulations
+!> \par History
+!>      gt SEPT-23-2002: part is allocated/deallocated/initialized in
+!>                       read_coord_vel
+!>      CJM rewrite
+!> \author CJM-Sept-01-02
+! *****************************************************************************
 MODULE fist_main
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
@@ -48,7 +40,6 @@ MODULE fist_main
   TYPE(fist_environment_type), POINTER :: fist_env
   PUBLIC :: fist_create_force_env
 
-!!***
 !!-----------------------------------------------------------------------------!
 
 CONTAINS
@@ -56,27 +47,13 @@ CONTAINS
 !-----------------------------------------------------------------------------!
 ! FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST  !
 !-----------------------------------------------------------------------------!
-!!****** fist_main/fist [1.0] *
-!!
-!!   NAME
-!!     fist
-!!
-!!   SYNOPSIS
-!!
-!!
-!!   FUNCTION
-!!     Controls program flow for classical MD and path-integrals
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   USED BY
-!!     cp2k
-!!
-!!*** *************************************************************************
 
+! *****************************************************************************
+!> \brief Controls program flow for classical MD and path-integrals
+!> \par Used By
+!>      cp2k
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE fist_create_force_env ( force_env, root_section, para_env, globenv,&
        qmmm, qmmm_env, force_env_section, subsys_section, use_motion_section, error )
     TYPE(force_env_type), POINTER            :: force_env
@@ -123,5 +100,4 @@ CONTAINS
     CALL timestop ( 0.0_dp, handle )
   END SUBROUTINE fist_create_force_env
 
-! *****************************************************************************
 END MODULE fist_main

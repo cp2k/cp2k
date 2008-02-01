@@ -2,57 +2,44 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/ai_verfc [1.0] *
-!!
-!!   NAME
-!!     ai_verfc
-!!
-!!   FUNCTION
-!!     Build up the nuclear potential part of the core Hamiltonian matrix
-!!     in the case of an allelectron calculation by computing the nuclear
-!!     attraction integral matrix <a|-Z/r|b> and the integral matrix
-!!     <a|Z*erf(r)/r|b>.  The integrals <a|Z*erf(r)/r|b> can be rewritten
-!!     as the three-center Coulomb integrals <ab||c> with a  primitive
-!!     s-type Gaussian function c multiplied by a factor N.
-!!
-!!                      erfc(r)
-!!     <a|V|b> = -Z*<a|---------|b>
-!!                         r
-!!
-!!                      1 - erf(r)
-!!             = -Z*<a|------------|b>
-!!                          r
-!!
-!!                       1           erf(r)
-!!             = -Z*(<a|---|b> - <a|--------|b>)
-!!                       r             r
-!!
-!!                       1
-!!             = -Z*(<a|---|b> - N*<ab||c>)
-!!                       r
-!!
-!!                      1
-!!             = -Z*<a|---|b> + Z*N*<ab||c>
-!!                      r
-!!                  \_______/       \_____/
-!!                      |              |
-!!                   nuclear        coulomb
-!!
-!!   AUTHOR
-!!     Matthias Krack (04.10.2000)
-!!
-!!   LITERATURE
-!!     S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
-MODULE ai_verfc
 
 ! *****************************************************************************
+!> \brief Build up the nuclear potential part of the core Hamiltonian matrix
+!>      in the case of an allelectron calculation by computing the nuclear
+!>      attraction integral matrix <a|-Z/r|b> and the integral matrix
+!>      <a|Z*erf(r)/r|b>.  The integrals <a|Z*erf(r)/r|b> can be rewritten
+!>      as the three-center Coulomb integrals <ab||c> with a  primitive
+!>      s-type Gaussian function c multiplied by a factor N.
+!> 
+!>                       erfc(r)
+!>      <a|V|b> = -Z*<a|---------|b>
+!>                          r
+!> 
+!>                       1 - erf(r)
+!>              = -Z*<a|------------|b>
+!>                           r
+!> 
+!>                        1           erf(r)
+!>              = -Z*(<a|---|b> - <a|--------|b>)
+!>                        r             r
+!> 
+!>                        1
+!>              = -Z*(<a|---|b> - N*<ab||c>)
+!>                        r
+!> 
+!>                       1
+!>              = -Z*<a|---|b> + Z*N*<ab||c>
+!>                       r
+!>                   \_______/       \_____/
+!>                       |              |
+!>                    nuclear        coulomb
+!> \par Literature
+!>      S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
+!> \par History
+!>      none
+!> \author Matthias Krack (04.10.2000)
+! *****************************************************************************
+MODULE ai_verfc
 
 ! ax,ay,az  : Angular momentum index numbers of orbital a.
 ! bx,by,bz  : Angular momentum index numbers of orbital b.
@@ -76,8 +63,6 @@ MODULE ai_verfc
 ! zetp      : Reciprocal of the sum of the exponents of orbital a and b.
 ! zetw        : Reciprocal of the sum of the exponents of orbital a, b and c.
 
-! *****************************************************************************
-
   USE f77_blas
   USE gamma,                           ONLY: fgamma
   USE kinds,                           ONLY: dp
@@ -94,13 +79,9 @@ MODULE ai_verfc
 
   PUBLIC :: verfc
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE verfc(la_max,npgfa,zeta,rpgfa,la_min,&
                    lb_max,npgfb,zetb,rpgfb,lb_min,&
                    zetc,rpgfc,zc,cerf,&
@@ -112,8 +93,6 @@ CONTAINS
 !            functions.
 
 !   History: - Creation (04.10.2000, Matthias Krack)
-
-!   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
@@ -475,7 +454,6 @@ CONTAINS
 !             ***                  (Bi - Ai)*[a|A(0)|b-1i]{n} ***
 !             *** [ab||s]{n}     = [(a+1i)(b-1i)||s]{n} -     ***
 !             ***                  (Bi - Ai)*[a(b-1i)||s]{n}  ***
-
 
               la_start = MAX(0,la_min-1)
 
@@ -854,7 +832,5 @@ CONTAINS
     END DO
 
   END SUBROUTINE verfc
-
-! *****************************************************************************
 
 END MODULE ai_verfc

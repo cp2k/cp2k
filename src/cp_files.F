@@ -2,21 +2,11 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/cp_files [1.0] *
-!!
-!!   NAME
-!!     cp_files
-!!
-!!   FUNCTION
-!!     Utility routines to open and close files
-!!
-!!   AUTHOR
-!!     CP2K_WORKSHOP 1.0 TEAM
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
+
+! *****************************************************************************
+!> \brief Utility routines to open and close files
+!> \author CP2K_WORKSHOP 1.0 TEAM
+! *****************************************************************************
 MODULE cp_files
   USE machine,                         ONLY: default_input_unit,&
                                              default_output_unit,&
@@ -30,33 +20,18 @@ MODULE cp_files
             get_unit_number,&
             get_eof_stat
 
-!!***
   LOGICAL, SAVE, PRIVATE :: did_init=.FALSE.
   INTEGER, SAVE, PRIVATE :: eof_stat
   INTEGER, PARAMETER, PRIVATE :: max_message_length=400
   INTEGER, PARAMETER, PRIVATE :: max_unit_number=999
-! *****************************************************************************
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_files'
   INTEGER, DIMENSION(2), PARAMETER :: reserved_unit_numbers = (/default_input_unit,default_output_unit/)
 CONTAINS
-  !!****f* cp_log_handling/close_file *
-  !!
-  !!   NAME
-  !!     close_file
-  !!
-  !!   FUNCTION
-  !!     closes the given unit
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     -
-  !!
-  !!   AUTHOR
-  !!     MK
-  !!
-  !!*** *********************************************************************
+
+! *****************************************************************************
+!> \brief closes the given unit
+!> \author MK
+! *****************************************************************************
   SUBROUTINE close_file(unit_number,file_status)
 
     INTEGER, INTENT(IN)                      :: unit_number
@@ -114,19 +89,11 @@ CONTAINS
 
   END SUBROUTINE close_file
 
-!!****f* cp_files/get_unit_number *
-!!
-!!   NAME
-!!      get_unit_number
-!!   FUNCTION
-!!      returns the first fortran unit that is not preconnected
-!!   NOTES
-!!      -1 if no free unit exists
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the first fortran unit that is not preconnected
+!> \note
+!>       -1 if no free unit exists
+! *****************************************************************************
   FUNCTION get_unit_number() RESULT(unit_number)
     INTEGER                                  :: unit_number
 
@@ -142,24 +109,11 @@ CONTAINS
     unit_number = -1
 
    END FUNCTION get_unit_number
-  !!****f* cp_files/open_file *
-  !!
-  !!   NAME
-  !!     open_file
-  !!
-  !!   FUNCTION
-  !!     opens the requested file using a free unit number
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     -
-  !!
-  !!   AUTHOR
-  !!     MK
-  !!
-  !!*** *********************************************************************
+
+! *****************************************************************************
+!> \brief opens the requested file using a free unit number
+!> \author MK
+! *****************************************************************************
   SUBROUTINE open_file(file_name,file_status,file_form,file_action,&
                        file_position,file_pad,unit_number)
 
@@ -290,14 +244,9 @@ CONTAINS
 
   END SUBROUTINE open_file
 
-!!****f* cp_files/get_eof_stat *
-!!
-!!   NAME
-!!      get_eof_stat
-!!   FUNCTION
-!!      returns the number returned by iostat on eof
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the number returned by iostat on eof
+! *****************************************************************************
   FUNCTION get_eof_stat() RESULT(res)
     INTEGER                                  :: res
 

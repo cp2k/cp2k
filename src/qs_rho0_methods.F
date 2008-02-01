@@ -2,18 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_rho0_methods
-!!
-!!   NAME
-!!     qs_rho0_methods
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
 MODULE qs_rho0_methods
 
   USE ai_coulomb,                      ONLY: coulomb3
@@ -81,12 +70,9 @@ MODULE qs_rho0_methods
 
   PUBLIC :: calculate_rho0_atom,init_rho0
 
-!******************************************************************************
-
  CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE  calculate_mpole_gau(mp_gau,orb_basis,harmonics,nchannels,nsotot)
 
     TYPE(mpole_gau_overlap)                  :: mp_gau
@@ -156,7 +142,6 @@ MODULE qs_rho0_methods
   END SUBROUTINE calculate_mpole_gau
 
 ! *****************************************************************************
-
   SUBROUTINE calculate_rho0_atom(rho_atom_set, rho0_atom_set, &
                                  rho0_mp,a_list,g_atom,&
                                  paw_atom,natom,ikind,harmonics,&
@@ -212,7 +197,6 @@ MODULE qs_rho0_methods
       rho0_mp%mp_rho(iatom)%Qlm_tot = 0.0_dp
       rho0_mp%mp_rho(iatom)%Qlm_tot(1) = rho0_mp%mp_rho(iatom)%Qlm_z
     ENDDO
-
 
     DO iso = 1, nsoset(lmax0)
       l = indso(1,iso)
@@ -279,7 +263,6 @@ MODULE qs_rho0_methods
   END SUBROUTINE calculate_rho0_atom
 
 ! *****************************************************************************
-
   SUBROUTINE calculate_Qlm_atom(mpole_gau,mpole_rho,rho_atom,iso)
 
     TYPE(mpole_gau_overlap), POINTER         :: mpole_gau
@@ -319,7 +302,6 @@ MODULE qs_rho0_methods
   END SUBROUTINE calculate_Qlm_atom
 
 ! *****************************************************************************
-
   SUBROUTINE init_rho0(qs_env, gapw_control, cell, &
                        tddft, tddft_local_rho_set, error)
 
@@ -523,7 +505,6 @@ MODULE qs_rho0_methods
       rho0_mpole%zet0_s = rho0_mpole%zet0_h
     END IF
 
-
 !   Allocate and calculate the normalization factors for g0_lm_h and g0_lm_s
     CALL reallocate(rho0_mpole%norm_g0l_h,0,rho0_mpole%lmax_0)
     CALL reallocate(rho0_mpole%norm_g0l_s,0,rho0_mpole%lmax_0)
@@ -533,7 +514,6 @@ MODULE qs_rho0_methods
       rho0_mpole%norm_g0l_s(l) = (2._dp*l+1._dp)/&
                                  ( fourpi*gaussint_sph(rho0_mpole%zet0_s,2*l))
     END DO
-
 
 !   Allocate and Initialize the g0 gaussians used to build the compensation density
 !   an calculate the interaction radii
@@ -553,7 +533,6 @@ MODULE qs_rho0_methods
     ALLOCATE(rho0_mpole%set_radius_3c(maxnset,nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "orb_radius_3c,set_radius_3c")
-
 
 !   Calculate the interaction radii for the 3 centers lists
     CALL radii_3c_orbxrho0(qs_env,rho0_mpole,error=error)
@@ -585,7 +564,6 @@ MODULE qs_rho0_methods
     END SUBROUTINE init_rho0
 
 ! *****************************************************************************
-
   SUBROUTINE interaction_radii_g0(rho0_mpole,grid_atom,ik,&
                                   eps_Vrho0,max_rpgf0_s,calculate_V0hmV0s)
 
@@ -680,8 +658,7 @@ MODULE qs_rho0_methods
 
   END SUBROUTINE  interaction_radii_g0
 
-!******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE radii_3c_orbxrho0(qs_env,rho0_mpole,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -833,7 +810,6 @@ MODULE qs_rho0_methods
             EXIT
           END IF
 
-
         END DO  ! i
 
         orb_rad(ikind) = MAX(orb_rad(ikind) ,r_cut_set(iset) )
@@ -873,9 +849,5 @@ MODULE qs_rho0_methods
 
   END SUBROUTINE radii_3c_orbxrho0
 
-
-!******************************************************************************
-
 END MODULE qs_rho0_methods
 
-!******************************************************************************

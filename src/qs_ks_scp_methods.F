@@ -2,21 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_ks_scp_methods [1.0] *
-!!
-!!   NAME
-!!     qs_ks_scp_methods
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \author CJM
+! *****************************************************************************
 MODULE qs_ks_scp_methods
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -65,31 +54,16 @@ MODULE qs_ks_scp_methods
 
 CONTAINS
 
-!!****f* qs_ks_methods/qs_ks_scp_create [1.0] *
-!!
-!!   NAME
-!!     qs_ks_scp_create
-!!
-!!   FUNCTION
-!!     allocates and initializes the given ks_scp_env.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - ks_scp_env: the ks_scp env to be initialized
-!!     - qs_env: the qs environment
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     04.2007 
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief allocates and initializes the given ks_scp_env.
+!> \param ks_scp_env the ks_scp env to be initialized
+!> \param qs_env the qs environment
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      04.2007 
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE qs_ks_scp_create ( ks_scp_env, qs_env, error )
     TYPE(qs_ks_scp_env_type), POINTER        :: ks_scp_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -121,7 +95,6 @@ CONTAINS
        CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,pw_pools=pw_pools,&
             auxbas_grid=auxbas_grid,error=error)
 
-
        ks_scp_env%rho_changed=.TRUE.
        ks_scp_env%potential_changed=.TRUE.
        ks_scp_env%full_reset=.TRUE.
@@ -142,28 +115,13 @@ CONTAINS
 
   END SUBROUTINE qs_ks_scp_create
 
-!***************************************************************************
-!!****f* qs_ks_scp_methods/scp_calculate_qmmm_energy [1.0] *
-!!
-!!   NAME
-!!     scp_calculate_qmmm_energy
-!!
-!!   FUNCTION
-!!     Computes the contribution to the hartree energy due to the SCP
-!!     electrostatic coupling
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     12.2007 created
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Computes the contribution to the hartree energy due to the SCP
+!>      electrostatic coupling
+!> \par History
+!>      12.2007 created
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE scp_calculate_qmmm_energy(scp_env, v_qmmm, error)
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(pw_p_type), INTENT(IN)              :: v_qmmm
@@ -180,7 +138,6 @@ CONTAINS
     CALL timeset(routineN,'I','',handle)
     NULLIFY ( rho_scp, rhop_r, energy )
    
-
     CALL get_scp_env(scp_env=scp_env,&
                      rho_scp = rho_scp, & 
                      energy = energy, &
@@ -190,7 +147,7 @@ CONTAINS
     energy % e_scp_qmmm = pw_integral_ab ( rhop_r%pw, v_qmmm%pw )
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE scp_calculate_qmmm_energy
-!!*** **********************************************************************
+! *****************************************************************************
   SUBROUTINE scp_calculate_gpw_energy(scp_env, v, error)
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(pw_p_type), INTENT(IN)              :: v
@@ -207,7 +164,6 @@ CONTAINS
     CALL timeset(routineN,'I','',handle)
     NULLIFY ( rho_scp, rhop_g, energy )
    
-
     CALL get_scp_env(scp_env=scp_env,&
                      rho_scp = rho_scp, & 
                      energy = energy, &
@@ -218,26 +174,13 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE scp_calculate_gpw_energy
-!!****f* qs_ks_scp_methods/scp_modify_hartree_pot [1.0] *
-!!
-!!   NAME
-!!     scp_modify_hartree_pot
-!!
-!!   FUNCTION
-!!     Modify the hartree potential in order to include the SCP correction
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     04.2007 
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief Modify the hartree potential in order to include the SCP correction
+!> \par History
+!>      04.2007 
+!> \author CJM
+! *****************************************************************************
   SUBROUTINE scp_modify_hartree_pot(v_hartree,v_scp, error)
     TYPE(pw_p_type), INTENT(INOUT)           :: v_hartree
     TYPE(pw_p_type), INTENT(IN)              :: v_scp
@@ -258,34 +201,20 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE scp_modify_hartree_pot
 
-!!****f* qs_ks_scp_methods/qs_ks_scp_did_change [1.0] *
-!!
-!!   NAME
-!!     qs_ks_scp_did_change
-!!
-!!   FUNCTION
-!!     tells that some of the things relevant to the ks_scp calculation
-!!     did change. Has to be called when changes happen otherwise
-!!     the calculation will give wrong results.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - ks_scp_env: the environement that is informed about the changes
-!!     - rho_changed: if true it means that the density has changed
-!!     - potential_changed: if true it means that the potential has changed
-!!     - full_reset: if true everything has changed
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     4.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief tells that some of the things relevant to the ks_scp calculation
+!>      did change. Has to be called when changes happen otherwise
+!>      the calculation will give wrong results.
+!> \param ks_scp_env the environement that is informed about the changes
+!> \param rho_changed if true it means that the density has changed
+!> \param potential_changed if true it means that the potential has changed
+!> \param full_reset if true everything has changed
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      4.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE qs_ks_scp_did_change(qs_env,rho_changed,potential_changed,full_reset,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: rho_changed, &
@@ -321,20 +250,10 @@ SUBROUTINE qs_ks_scp_did_change(qs_env,rho_changed,potential_changed,full_reset,
   END IF
 END SUBROUTINE qs_ks_scp_did_change
 
-!!****f** qs_ks_scp_methods/qs_ks_scp_update [1.1] *
-!!
-!!   NAME
-!!    qs_ks_scp_update
-!!
-!!   FUNCTION
-!!   Updates the qs_ks_scp_env if necessary
-!!
-!!   AUTHOR
-!!    CJM
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Updates the qs_ks_scp_env if necessary
+!> \author CJM
+! *****************************************************************************
 SUBROUTINE qs_ks_scp_update ( qs_env, just_energy, error )
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -361,7 +280,6 @@ SUBROUTINE qs_ks_scp_update ( qs_env, just_energy, error )
 
   CALL timeset ( 'qs_ks_scp_update','I',' ',handle )
 
-  
   failure = .FALSE.
   energy_only = .FALSE.
   IF ( PRESENT ( just_energy ) ) energy_only = just_energy
@@ -383,7 +301,6 @@ SUBROUTINE qs_ks_scp_update ( qs_env, just_energy, error )
 ! Could also get pw_env direct from qs_env. But, in general,
 ! SCP should have its own pw_env (for example with using SCP
 ! for classical polarizable models in conjunction with FIST)
-
 
   CPPrecondition(ASSOCIATED(ks_scp_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(ks_scp_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -430,5 +347,4 @@ SUBROUTINE qs_ks_scp_update ( qs_env, just_energy, error )
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE qs_ks_scp_update
 
-!!*** **********************************************************************
 END MODULE qs_ks_scp_methods

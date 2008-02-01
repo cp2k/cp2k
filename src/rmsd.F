@@ -3,25 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/rmsd [1.0] *
-!!
-!!   NAME
-!!     rmsd
-!!
-!!   FUNCTION
-!!     Defines functions to perform rmsd in 3D
-!!
-!!   NOTES
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino 09.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Defines functions to perform rmsd in 3D
+!> \author Teodoro Laino 09.2006
+! *****************************************************************************
 MODULE rmsd
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
@@ -41,33 +26,18 @@ MODULE rmsd
 
 CONTAINS
 
-!!****f* rmsd/rmsd3 [1.0] *
-!!
-!!   NAME
-!!     rmsd3
-!!
-!!   FUNCTION
-!!     Computes the RMSD in 3D. Provides also derivatives.
-!!
-!!   NOTES
-!!     Optional arguments:
-!!         my_val -> gives back the value of the RMSD
-!!         transl -> provides the translational vector
-!!         rotate -> if .true. gives back in r the coordinates rotated 
-!!                   in order to minimize the RMSD3
-!!         rot    -> provides the rotational matrix
-!!         drmsd3 -> derivatives of RMSD3 w.r.t. atomic positions
-!!         
-!!
-!!   AUTHOR
-!!     Teodoro Laino 08.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!****************************************************************************
-
+! *****************************************************************************
+!> \brief Computes the RMSD in 3D. Provides also derivatives.
+!> \note
+!>      Optional arguments:
+!>          my_val -> gives back the value of the RMSD
+!>          transl -> provides the translational vector
+!>          rotate -> if .true. gives back in r the coordinates rotated 
+!>                    in order to minimize the RMSD3
+!>          rot    -> provides the rotational matrix
+!>          drmsd3 -> derivatives of RMSD3 w.r.t. atomic positions
+!> \author Teodoro Laino 08.2006
+! *****************************************************************************
   SUBROUTINE rmsd3( particle_set, r, r0, output_unit, weights, my_val,&
        rotate, transl, rot, drmsd3, para_env, error)
     TYPE(particle_type), DIMENSION(:), &

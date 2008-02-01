@@ -2,19 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_rho_atom_types [1.0] *
-!!
-!!   NAME
-!!     qs_rho_atom_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
 MODULE qs_rho_atom_types
 
   USE f77_blas
@@ -34,11 +22,12 @@ MODULE qs_rho_atom_types
 
 ! *** Define the rho_atom_type ***
 
+! *****************************************************************************
   TYPE rho_atom_coeff
     REAL(dp), DIMENSION(:,:), POINTER :: r_coef
   END TYPE rho_atom_coeff
 
-
+! *****************************************************************************
   TYPE rho_atom_type
     TYPE(rho_atom_coeff), DIMENSION(:),&
                                POINTER  :: cpc_h, cpc_s
@@ -62,6 +51,7 @@ MODULE qs_rho_atom_types
                                            ga_Vlocal_gb_s
   END TYPE rho_atom_type
 
+! *****************************************************************************
   TYPE rho_atom_p_type
      TYPE(rho_atom_type), POINTER       :: rho_atom
   END TYPE rho_atom_p_type 
@@ -72,20 +62,14 @@ MODULE qs_rho_atom_types
             deallocate_rho_atom_set,&
             get_rho_atom
 
-
 ! *** Public data types ***
 
   PUBLIC :: rho_atom_coeff,rho_atom_p_type,rho_atom_type
 
-! *****************************************************************************
-
  CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE allocate_rho_atom_set(rho_atom_set,natom)
-
-!   ***************************************************************************
 
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
@@ -126,7 +110,6 @@ MODULE qs_rho_atom_types
   END SUBROUTINE allocate_rho_atom_set
 
 ! *****************************************************************************
-
   SUBROUTINE deallocate_rho_atom_set(rho_atom_set) 
 
     TYPE(rho_atom_type), DIMENSION(:), &
@@ -136,8 +119,6 @@ MODULE qs_rho_atom_types
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iat, istat, j, n, natom
-
-! *****************************************************************************
 
     IF (ASSOCIATED(rho_atom_set)) THEN
 
@@ -234,7 +215,6 @@ MODULE qs_rho_atom_types
   END SUBROUTINE deallocate_rho_atom_set
 
 ! *****************************************************************************
-
   SUBROUTINE get_rho_atom(rho_atom,cpc_h,cpc_s,rho_rad_h,rho_rad_s,&
                           drho_rad_h,drho_rad_s,vrho_rad_h,vrho_rad_s,&
                           rho_rad_h_d,rho_rad_s_d,&
@@ -253,8 +233,6 @@ MODULE qs_rho_atom_types
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_rho_atom', &
       routineP = moduleN//':'//routineN
-
-! *****************************************************************************
 
     IF (ASSOCIATED(rho_atom)) THEN
       IF (PRESENT(cpc_h)) cpc_h => rho_atom%cpc_h
@@ -276,5 +254,4 @@ MODULE qs_rho_atom_types
 
   END SUBROUTINE  get_rho_atom
 
-!****************************************************************************
 END MODULE qs_rho_atom_types

@@ -3,26 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/ep_qs_types [1.0] *
-!!
-!!   NAME
-!!     ep_qs_types
-!!
-!!   FUNCTION
-!!     types for the modifications of the qs calculation to perform an ep
-!!     calculation
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     06.2006 created
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief types for the modifications of the qs calculation to perform an ep
+!>      calculation
+!> \par History
+!>      06.2006 created
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE ep_qs_types
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -39,83 +26,40 @@ MODULE ep_qs_types
 
   PUBLIC :: ep_qs_type, ep_qs_p_type
   PUBLIC :: ep_qs_retain, ep_qs_release
-!!***
-!****************************************************************************
 
-!!****s* ep_qs_types/ep_qs_type *
-!!
-!!   NAME
-!!     ep_qs_type
-!!
-!!   FUNCTION
-!!     environement for changes to the normal qs calculation done during an ep
-!!     calculation
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - id_nr: identification number for the ep_qs_type
-!!     - ref_count: reference count (see cp2k/doc/ReferenceCounting.html)
-!!     - ep_active: if ep is active
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief environement for changes to the normal qs calculation done during an ep
+!>      calculation
+!> \param id_nr identification number for the ep_qs_type
+!> \param ref_count reference count (see cp2k/doc/ReferenceCounting.html)
+!> \param ep_active if ep is active
+!> \author fawzi
+! *****************************************************************************
 TYPE ep_qs_type
    INTEGER :: id_nr, ref_count
    LOGICAL :: ep_active
    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: dH_coeffs, dS_coeffs
    REAL(kind=dp) :: core_energy,tot_rho
 END TYPE ep_qs_type
-!***************************************************************************
 
-!!****s* ep_qs_types/ep_qs_p_type *
-!!
-!!   NAME
-!!     ep_qs_p_type
-!!
-!!   FUNCTION
-!!     pointer to an ep_qs_type for arrays of pointers
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - ep_qs_env: the pointer to the ep_qs_type
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief pointer to an ep_qs_type for arrays of pointers
+!> \param ep_qs_env the pointer to the ep_qs_type
+!> \author fawzi
+! *****************************************************************************
 TYPE ep_qs_p_type
    TYPE(ep_qs_type), POINTER :: ep_qs_env
 END TYPE ep_qs_p_type
-!***************************************************************************
 
 CONTAINS
 
-!!****f* ep_qs_types/ep_qs_retain *
-!!
-!!   NAME
-!!     ep_qs_retain
-!!
-!!   FUNCTION
-!!     retains the given ep_qs_env
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - ep_qs_env: the object to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given ep_qs_env
+!> \param ep_qs_env the object to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE ep_qs_retain(ep_qs_env,error)
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -133,28 +77,14 @@ SUBROUTINE ep_qs_retain(ep_qs_env,error)
      ep_qs_env%ref_count=ep_qs_env%ref_count+1
   END IF
 END SUBROUTINE ep_qs_retain
-!***************************************************************************
 
-!!****f* ep_qs_types/ep_qs_release *
-!!
-!!   NAME
-!!     ep_qs_release
-!!
-!!   FUNCTION
-!!     releases the given ep_qs_env
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - ep_qs_env: the object to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given ep_qs_env
+!> \param ep_qs_env the object to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE ep_qs_release(ep_qs_env,error)
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -178,33 +108,18 @@ SUBROUTINE ep_qs_release(ep_qs_env,error)
   END IF
   NULLIFY(ep_qs_env)
 END SUBROUTINE ep_qs_release
-!***************************************************************************
 
-
-!!****f* ep_qs_types/ep_qs_set *
-!!
-!!   NAME
-!!     ep_qs_set
-!!
-!!   FUNCTION
-!!     sets the components of a ep_qs_env
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - ep_qs_env: the env to modify
-!!     - dH_coeffs_ptr: new coeffs, might be null, aquires ownership of
-!!       the pointer
-!!     - dS_coeffs: the new coeffs, might be null, aquires ownership of
-!!       the pointer
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief sets the components of a ep_qs_env
+!> \param ep_qs_env the env to modify
+!> \param dH_coeffs_ptr new coeffs, might be null, aquires ownership of
+!>        the pointer
+!> \param dS_coeffs the new coeffs, might be null, aquires ownership of
+!>        the pointer
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE ep_qs_set(ep_qs_env, dH_coeffs_ptr, dS_coeffs_ptr, error)
     TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -256,7 +171,5 @@ CPSourceFileRef,&
   END IF
   CALL timestop(handle)
 END SUBROUTINE ep_qs_set
-!***************************************************************************
 
 END MODULE ep_qs_types
-!****************************************************************************

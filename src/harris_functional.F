@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/harris_functional [1.0] *
-!!
-!!   NAME
-!!     harris_functional
-!!
-!!   FUNCTION
-!!     Performs the Harris functional energy correction
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Performs the Harris functional energy correction
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
 MODULE harris_functional
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -73,41 +59,26 @@ MODULE harris_functional
             harris_postprocessing
 
 !***
-!****************************************************************************
 
 CONTAINS
 
-!!****f* harris_functional/harris_energy_correction [1.0] *
-!!
-!!   NAME
-!!     harris_energy_correction
-!!
-!!   FUNCTION
-!!     Performs the harris functional energy correction
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - rho: The frozen input density, in general the sum of
-!!            the atomic densities
-!!     - qs_env: The QS environment, on which the Harris
-!!               functional energy correction should be performed.
-!!     - harris_env: The harris environment in which all results are stored
-!!     - EII_necessary: Logical flag which indicates if EII has to be
-!!                      computes or not
-!!     - fast: Logical which prevents some minor double calculations if the
-!!             Harris functional is driven on top of the QS SCF-cycle.
-!!     - error: variable to control error logging, stopping,...
-!!              see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Performs the harris functional energy correction
+!> \param rho The frozen input density, in general the sum of
+!>             the atomic densities
+!> \param qs_env The QS environment, on which the Harris
+!>                functional energy correction should be performed.
+!> \param harris_env The harris environment in which all results are stored
+!> \param EII_necessary Logical flag which indicates if EII has to be
+!>                       computes or not
+!> \param fast Logical which prevents some minor double calculations if the
+!>              Harris functional is driven on top of the QS SCF-cycle.
+!> \param error variable to control error logging, stopping,...
+!>               see module cp_error_handling
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_energy_correction(qs_env, harris_env, para_env, &
                                       EII_necessary, fast, error)
 
@@ -266,34 +237,19 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE harris_energy_correction
-!***************************************************************************
 
-!!****f* harris_functional/harris_eigenvalue_summation [1.0] *
-!!
-!!   NAME
-!!     harris_eigenvalue_summation
-!!
-!!   FUNCTION
-!!     Calculates the sum of eigenvalues needed for the Harris energy
-!!     functional out of the eigenvalues extracted from the MOs.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - qs_env: The QS environment, on which the Harris
-!!               functional energy correction should be performed.
-!!     - harris_env: The harris environment in which all results are stored
-!!     - error: variable to control error logging, stopping,...
-!!              see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Calculates the sum of eigenvalues needed for the Harris energy
+!>      functional out of the eigenvalues extracted from the MOs.
+!> \param qs_env The QS environment, on which the Harris
+!>                functional energy correction should be performed.
+!> \param harris_env The harris environment in which all results are stored
+!> \param error variable to control error logging, stopping,...
+!>               see module cp_error_handling
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_eigenvalue_summation(qs_env, harris_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -355,35 +311,20 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE harris_eigenvalue_summation
-!***************************************************************************
 
-!!****f* harris_functional/harris_eigenvalue_calculation [1.0] *
-!!
-!!   NAME
-!!     harris_eigenvalue_calculation
-!!
-!!   FUNCTION
-!!     Calculates the sum of eigenvalues needed for the Harris energy
-!!     functional as the trace of sparse matrix product K*P, thus:
-!!     sum_of_eigenvalues = tr(K*P)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - qs_env: The QS environment, on which the Harris
-!!               functional energy correction should be performed.
-!!     - harris_env: The harris environment in which all results are stored
-!!     - error: variable to control error logging, stopping,...
-!!              see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Calculates the sum of eigenvalues needed for the Harris energy
+!>      functional as the trace of sparse matrix product K*P, thus:
+!>      sum_of_eigenvalues = tr(K*P)
+!> \param qs_env The QS environment, on which the Harris
+!>                functional energy correction should be performed.
+!> \param harris_env The harris environment in which all results are stored
+!> \param error variable to control error logging, stopping,...
+!>               see module cp_error_handling
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_eigenvalue_calculation(qs_env, harris_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -437,36 +378,21 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE harris_eigenvalue_calculation
-!***************************************************************************
 
-!!****f* harris_functional/harris_eigenvalue_trace_KS_Pmix [1.0] *
-!!
-!!   NAME
-!!     harris_eigenvalue_trace_KS_Pmix
-!!
-!!   FUNCTION
-!!     Calculates the sum of eigenvalues needed for the Harris energy
-!!     functional as the trace of sparse matrix product KS*Pmix_new, thus:
-!!     sum_of_eigenvalues = tr(KS*Pmix_new)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - scf_env: The SCF environment in which the Pmix matrix is stored
-!!     - qs_env: The QS environment, on which the Harris
-!!               functional energy correction should be performed.
-!!     - harris_env: The harris environment in which all results are stored
-!!     - error: variable to control error logging, stopping,...
-!!              see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Calculates the sum of eigenvalues needed for the Harris energy
+!>      functional as the trace of sparse matrix product KS*Pmix_new, thus:
+!>      sum_of_eigenvalues = tr(KS*Pmix_new)
+!> \param scf_env The SCF environment in which the Pmix matrix is stored
+!> \param qs_env The QS environment, on which the Harris
+!>                functional energy correction should be performed.
+!> \param harris_env The harris environment in which all results are stored
+!> \param error variable to control error logging, stopping,...
+!>               see module cp_error_handling
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_eigenvalue_trace_KS_Pmix(scf_env, qs_env, harris_env, error)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
@@ -521,31 +447,16 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE harris_eigenvalue_trace_KS_Pmix
-!***************************************************************************
 
-!!****f* harris_functional/harris_postprocessing [1.0] *
-!!
-!!   NAME
-!!     harris_postprocessing
-!!
-!!   FUNCTION
-!!     Performs the output and diverse analyses
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - harris_env: The harris environment in which all results are stored
-!!     - error: variable to control error logging, stopping,...
-!!              see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Performs the output and diverse analyses
+!> \param harris_env The harris environment in which all results are stored
+!> \param error variable to control error logging, stopping,...
+!>               see module cp_error_handling
+!> \par History
+!>      06.2005 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE harris_postprocessing(harris_env, error)
 
     TYPE(harris_env_type), POINTER           :: harris_env
@@ -598,6 +509,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE harris_postprocessing
-!***************************************************************************
 
 END MODULE harris_functional

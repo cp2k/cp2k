@@ -3,30 +3,16 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/pw_spline_utils [1.0] *
-!!
-!!   NAME
-!!     pw_spline_utils
-!!
-!!   FUNCTION
-!!     different utils that are useful to manipulate splines on the regular
-!!     grid of a pw
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     05.2003 created [fawzi]
-!!     08.2004 removed spline evaluation method using more than 2 read streams
-!!             (pw_compose_stripe_rs3), added linear solver based spline 
-!!             inversion [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief different utils that are useful to manipulate splines on the regular
+!>      grid of a pw
+!> \par History
+!>      05.2003 created [fawzi]
+!>      08.2004 removed spline evaluation method using more than 2 read streams
+!>              (pw_compose_stripe_rs3), added linear solver based spline 
+!>              inversion [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE pw_spline_utils
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
@@ -89,7 +75,6 @@ MODULE pw_spline_utils
          spl3_1d_transf_coeffs=&
          (/ 2._dp/3._dp,23._dp/48._dp,1._dp/6._dp,1._dp/48._dp /)
     
-         
     REAL ( KIND = dp ), PUBLIC, PARAMETER, DIMENSION(3) :: spline3_deriv_coeffs=&
          (/ 2.0_dp/9.0_dp,  1.0_dp/18.0_dp, 1.0_dp/72.0_dp /),&
          spline2_deriv_coeffs=&
@@ -122,28 +107,12 @@ MODULE pw_spline_utils
             Eval_Interp_Spl3_pbc,&
             Eval_d_Interp_Spl3_pbc
 !***
-!****************************************************************************
 
-  !!****s* pw_spline_utils/pw_spline_precond_type [1.0] *
-  !!
-  !!   NAME
-  !!     pw_spline_precond_type
-  !!
-  !!   FUNCTION
-  !!     stores information for the preconditioner used to calculate the 
-  !!     coeffs of splines
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     -
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief stores information for the preconditioner used to calculate the 
+!>      coeffs of splines
+!> \author fawzi
+! *****************************************************************************
   TYPE pw_spline_precond_type
      INTEGER :: ref_count,id_nr, kind
      REAL(kind=dp), DIMENSION(4) :: coeffs
@@ -151,42 +120,22 @@ MODULE pw_spline_utils
      LOGICAL :: sharpen, normalize, pbc, transpose
      TYPE(pw_pool_type), POINTER :: pool
   END TYPE pw_spline_precond_type
-  !!***
-  !****************************************************************************
 
 CONTAINS
 
-!!****f* pw_spline_utils/pw_spline2_interpolate_values_g [1.0] *
-!!
-!!   NAME
-!!     pw_spline2_interpolate_values_g
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_spline2_interpolate_values_g(spline_g, error)
-!!       Type(pw_type), Pointer:: spline_g
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_spline2_interpolate_values_g
-!!
-!!   FUNCTION
-!!     calculates the FFT of the coefficents of the quadratic spline that
-!!     interpolates the given values
-!!
-!!   NOTES
-!!     does not work with spherical cutoff
-!!
-!!   INPUTS
-!!     - spline_g: on entry the FFT of the values to interpolate as cc,
-!!       will contain the FFT of the coefficents of the spline
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     06.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates the FFT of the coefficents of the quadratic spline that
+!>      interpolates the given values
+!> \param spline_g on entry the FFT of the values to interpolate as cc,
+!>        will contain the FFT of the coefficents of the spline
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      does not work with spherical cutoff
+!> \par History
+!>      06.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE pw_spline2_interpolate_values_g(spline_g,error)
     TYPE(pw_type), POINTER                   :: spline_g
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -254,41 +203,22 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE pw_spline2_interpolate_values_g
-!***************************************************************************
 
-!!****f* pw_spline_utils/pw_spline3_interpolate_values_g [1.0] *
-!!
-!!   NAME
-!!     pw_spline3_interpolate_values_g
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_spline3_interpolate_values_g(spline_g, error)
-!!       Type(pw_type), Pointer:: spline_g
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_spline3_interpolate_values_g
-!!
-!!   FUNCTION
-!!     calculates the FFT of the coefficents of the2 cubic spline that
-!!     interpolates the given values
-!!
-!!   NOTES
-!!     does not work with spherical cutoff
-!!     stupid distribution for cos calculation, it should calculate only the
-!!     needed cos, and avoid the mp_sum
-!!
-!!   INPUTS
-!!     - spline_g: on entry the FFT of the values to interpolate as cc,
-!!       will contain the FFT of the coefficents of the spline
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     06.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates the FFT of the coefficents of the2 cubic spline that
+!>      interpolates the given values
+!> \param spline_g on entry the FFT of the values to interpolate as cc,
+!>        will contain the FFT of the coefficents of the spline
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      does not work with spherical cutoff
+!>      stupid distribution for cos calculation, it should calculate only the
+!>      needed cos, and avoid the mp_sum
+!> \par History
+!>      06.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE pw_spline3_interpolate_values_g(spline_g,error)
     TYPE(pw_type), POINTER                   :: spline_g
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -363,40 +293,19 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE pw_spline3_interpolate_values_g
-!***************************************************************************
 
-!!****f* pw_spline_utils/pw_spline2_evaluate_values_g [1.0] *
-!!
-!!   NAME
-!!     pw_spline2_evaluate_values_g
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_spline2_evaluate_values_g(spline_g, error)
-!!       Type(pw_type), Pointer:: spline_g
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_spline2_evaluate_values_g
-!!
-!!   FUNCTION
-!!     calculates the FFT of the values of the quadratic spline given by the
-!!     FFT of the coefficents of the spline (inverse of 
-!!     pw_spline_interpolate_values_g)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - spline_g: on entry the FFT of the coefficents of the spline as cr3d,
-!!       will contain the FFT of the values of the spline
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     06.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates the FFT of the values of the quadratic spline given by the
+!>      FFT of the coefficents of the spline (inverse of 
+!>      pw_spline_interpolate_values_g)
+!> \param spline_g on entry the FFT of the coefficents of the spline as cr3d,
+!>        will contain the FFT of the values of the spline
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      06.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE pw_spline2_evaluate_values_g(spline_g,error)
     TYPE(pw_type), POINTER                   :: spline_g
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -464,47 +373,27 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE pw_spline2_evaluate_values_g
-!***************************************************************************
 
-!!****f* pw_spline_utils/pw_nn_smear_g [1.0] *
-!!
-!!   NAME
-!!     pw_nn_smear_g
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_nn_smear_g(spline_g, coeffs, error)
-!!       Type(pw_type), Pointer:: spline_g
-!!       Real(Kind=dp), Dimension(4), Intent (IN):: coeffs
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_nn_smear_g
-!!
-!!   FUNCTION
-!!     calculates the FFT of the values of a nearest neighbor smearing
-!!
-!!   NOTES
-!!     does not normalize the smear to 1.
-!!     with coeff=(/ 8._dp/27._dp, 2._dp/27._dp, 1._dp/54._dp, 1._dp/216._dp /)
-!!     is equivalent to pw_spline3_evaluate_values_g, with
-!!     coeff=(/ 27._dp/64._dp, 9._dp/128._dp, 3._dp/256._dp, 1._dp/512._dp /)
-!!
-!!   INPUTS
-!!     - spline_g: on entry the FFT of the values to interpolate as cc3d,
-!!       will contain the FFT of the smeared values
-!!     - coeffs: array with the coefficent of the smearing, ordered with 
-!!       the distance from the center: coeffs(1) the coeff of the central
-!!       element, coeffs(2) the coeff of the 6 element with distance 1,
-!!       coeff(3) the coeff of the 12 elements at distance sqrt(2),
-!!       coeff(4) the coeff of the 8 elements at distance sqrt(3).
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     07.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates the FFT of the values of a nearest neighbor smearing
+!> \param spline_g on entry the FFT of the values to interpolate as cc3d,
+!>        will contain the FFT of the smeared values
+!> \param coeffs array with the coefficent of the smearing, ordered with 
+!>        the distance from the center: coeffs(1) the coeff of the central
+!>        element, coeffs(2) the coeff of the 6 element with distance 1,
+!>        coeff(3) the coeff of the 12 elements at distance sqrt(2),
+!>        coeff(4) the coeff of the 8 elements at distance sqrt(3).
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      does not normalize the smear to 1.
+!>      with coeff=(/ 8._dp/27._dp, 2._dp/27._dp, 1._dp/54._dp, 1._dp/216._dp /)
+!>      is equivalent to pw_spline3_evaluate_values_g, with
+!>      coeff=(/ 27._dp/64._dp, 9._dp/128._dp, 3._dp/256._dp, 1._dp/512._dp /)
+!> \par History
+!>      07.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE pw_nn_smear_g(spline_g,coeffs,error)
     TYPE(pw_type), POINTER                   :: spline_g
     REAL(KIND=dp), DIMENSION(4), INTENT(in)  :: coeffs
@@ -578,40 +467,19 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE pw_nn_smear_g
-!***************************************************************************
 
-!!****f* pw_spline_utils/pw_spline3_evaluate_values_g [1.0] *
-!!
-!!   NAME
-!!     pw_spline3_evaluate_values_g
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_spline3_evaluate_values_g(spline_g, error)
-!!       Type(pw_type), Pointer:: spline_g
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_spline3_evaluate_values_g
-!!
-!!   FUNCTION
-!!     calculates the FFT of the values of the cubic spline given by the
-!!     FFT of the coefficents of the spline (inverse of 
-!!     pw_spline_interpolate_values_g)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - spline_g: on entry the FFT of the values to interpolate as cc3d,
-!!       will contain the FFT of the coefficents of the spline
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     06.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates the FFT of the values of the cubic spline given by the
+!>      FFT of the coefficents of the spline (inverse of 
+!>      pw_spline_interpolate_values_g)
+!> \param spline_g on entry the FFT of the values to interpolate as cc3d,
+!>        will contain the FFT of the coefficents of the spline
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      06.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE pw_spline3_evaluate_values_g(spline_g,error)
     TYPE(pw_type), POINTER                   :: spline_g
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -686,45 +554,20 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE pw_spline3_evaluate_values_g
-!***************************************************************************
 
-!!****f* pw_spline_utils/pw_spline_scale_deriv [1.0] *
-!!
-!!   NAME
-!!     pw_spline_scale_deriv
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_spline_scale_deriv(deriv_vals_r, cell, transpose,&
-!!         scale, error)
-!!       Type(pw_p_type), Dimension(3):: deriv_vals_r
-!!       Type(cell_type), Pointer:: cell
-!!       Logical, Intent (IN), Optional:: transpose
-!!       Real(Kind=dp), Intent (IN), Optional:: scale
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_spline_scale_deriv
-!!
-!!   FUNCTION
-!!     rescales the derivatives from gridspacing=1 to the real derivatives
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - deriv_vals_r: an array of x,y,z derivatives
-!!     - cell: the mapping to the real cell
-!!     - transpose: if true applies the transpose of the map (defaults to 
-!!       false)
-!!     - scale: a scaling factor (defaults to 1.0)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     06.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief rescales the derivatives from gridspacing=1 to the real derivatives
+!> \param deriv_vals_r an array of x,y,z derivatives
+!> \param cell the mapping to the real cell
+!> \param transpose if true applies the transpose of the map (defaults to 
+!>        false)
+!> \param scale a scaling factor (defaults to 1.0)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      06.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE pw_spline_scale_deriv(deriv_vals_r,cell,transpose,scale,error)
     TYPE(pw_p_type), DIMENSION(3)            :: deriv_vals_r
     TYPE(cell_type), POINTER                 :: cell
@@ -820,41 +663,21 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE pw_spline_scale_deriv
-!***************************************************************************
 
-!!****f* pw_spline_utils/pw_spline3_deriv_g [1.0] *
-!!
-!!   NAME
-!!     pw_spline3_deriv_g
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_spline3_deriv_g(spline_g, idir, error)
-!!       Type(pw_type), Pointer:: spline_g
-!!       Integer, Intent (IN):: idir
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_spline3_deriv_g
-!!
-!!   FUNCTION
-!!     calculates the FFT of the values of the x,y,z (idir=1,2,3)
-!!     derivative of the cubic spline
-!!
-!!   NOTES
-!!     the distance between gridpoints is assumed to be 1
-!!
-!!   INPUTS
-!!     - spline_g: on entry the FFT of the coefficents of the spline
-!!       will contain the FFT of the derivative
-!!     - idir: direction of the derivative
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     06.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates the FFT of the values of the x,y,z (idir=1,2,3)
+!>      derivative of the cubic spline
+!> \param spline_g on entry the FFT of the coefficents of the spline
+!>        will contain the FFT of the derivative
+!> \param idir direction of the derivative
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      the distance between gridpoints is assumed to be 1
+!> \par History
+!>      06.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE pw_spline3_deriv_g(spline_g,idir,error)
     TYPE(pw_type), POINTER                   :: spline_g
     INTEGER, INTENT(in)                      :: idir
@@ -986,41 +809,21 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE pw_spline3_deriv_g
-!***************************************************************************
 
-!!****f* pw_spline_utils/pw_spline2_deriv_g [1.0] *
-!!
-!!   NAME
-!!     pw_spline_deriv_g
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_spline_deriv_g(spline_g, idir, error)
-!!       Type(pw_type), Pointer:: spline_g
-!!       Integer, Intent (IN):: idir
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pw_spline_deriv_g
-!!
-!!   FUNCTION
-!!     calculates the FFT of the values of the x,y,z (idir=1,2,3)
-!!     derivative of the quadratic spline
-!!
-!!   NOTES
-!!     the distance between gridpoints is assumed to be 1
-!!
-!!   INPUTS
-!!     - spline_g: on entry the FFT of the coefficents of the spline
-!!       will contain the FFT of the derivative
-!!     - idir: direction of the derivative
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     06.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates the FFT of the values of the x,y,z (idir=1,2,3)
+!>      derivative of the quadratic spline
+!> \param spline_g on entry the FFT of the coefficents of the spline
+!>        will contain the FFT of the derivative
+!> \param idir direction of the derivative
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      the distance between gridpoints is assumed to be 1
+!> \par History
+!>      06.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE pw_spline2_deriv_g(spline_g,idir,error)
     TYPE(pw_type), POINTER                   :: spline_g
     INTEGER, INTENT(in)                      :: idir
@@ -1150,37 +953,24 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE pw_spline2_deriv_g
-!***************************************************************************
 
-!!****f* pw_spine_utils/pw_compose_stripe [1.0] *
-!!
-!!   NAME
-!!     pw_compose_stripe
-!!
-!!   FUNCTION
-!!     applies a nearest neighbor linear operator to a stripe in x direction:
-!!     out_val(i)=sum(weight(j)*in_val(i+j-1),j=0..2)
-!!
-!!   NOTES
-!!     uses 2 read streams and 1 write stream
-!!
-!!   ARGUMENTS
-!!     - weights: the weights of the linear operator
-!!     - in_val: the argument to the operator
-!!     - in_val_first: the first argument (needed to calculate out_val(1))
-!!     - in_val_last: the last argument (needed to calculate out_val(n_el))
-!!     - out_val: the place where the result is accumulated
-!!     - n_el: the number of elements in in_v and out_v
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2004 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief applies a nearest neighbor linear operator to a stripe in x direction:
+!>      out_val(i)=sum(weight(j)*in_val(i+j-1),j=0..2)
+!> \param weights the weights of the linear operator
+!> \param in_val the argument to the operator
+!> \param in_val_first the first argument (needed to calculate out_val(1))
+!> \param in_val_last the last argument (needed to calculate out_val(n_el))
+!> \param out_val the place where the result is accumulated
+!> \param n_el the number of elements in in_v and out_v
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      uses 2 read streams and 1 write stream
+!> \par History
+!>      04.2004 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pw_compose_stripe(weights,in_val,in_val_first,in_val_last,&
      out_val,n_el)
     REAL(kind=dp), DIMENSION(0:2), &
@@ -1278,7 +1068,7 @@ SUBROUTINE pw_compose_stripe(weights,in_val,in_val_first,in_val_last,&
   END SELECT
   
 END SUBROUTINE pw_compose_stripe
-!***************************************************************************
+! *****************************************************************************
 SUBROUTINE pw_compose_stripe2(weights,in_val,in_val_first,in_val_last,&
      out_val,first_val,last_val,myj,myk,j,k)
     REAL(kind=dp), DIMENSION(0:2), &
@@ -1377,35 +1167,21 @@ SUBROUTINE pw_compose_stripe2(weights,in_val,in_val_first,in_val_last,&
   
 END SUBROUTINE pw_compose_stripe2
 !**********
-!!****f* pw_spline_utils/pw_nn_compose_r_work [1.0] *
-!!
-!!   NAME
-!!     pw_nn_compose_r_work
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     private routine that computes pw_nn_compose_r (it seems that without 
-!!     passing arrays in this way either some compiler do a copyin/out (xlf)
-!!     or by inlining suboptimal code is produced (nag))
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - weights: a 3x3x3 array with the linear operator
-!!     - in_val: the argument for the linear operator
-!!     - out_val: place where the value of the linear oprator should be added
-!!     - pw_in: pw to be able to get the needed meta data about in_val and 
-!!       out_val
-!!     - bo: boundaries of in_val and out_val
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief private routine that computes pw_nn_compose_r (it seems that without 
+!>      passing arrays in this way either some compiler do a copyin/out (xlf)
+!>      or by inlining suboptimal code is produced (nag))
+!> \param weights a 3x3x3 array with the linear operator
+!> \param in_val the argument for the linear operator
+!> \param out_val place where the value of the linear oprator should be added
+!> \param pw_in pw to be able to get the needed meta data about in_val and 
+!>        out_val
+!> \param bo boundaries of in_val and out_val
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
     REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)  :: weights
     INTEGER, DIMENSION(2, 3)                 :: bo
@@ -1492,37 +1268,18 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF
 END SUBROUTINE pw_nn_compose_r_work
-!***************************************************************************
 
-!!****f* pw_spline_utils/pw_nn_compose_r [1.0] *
-!!
-!!   NAME
-!!     pw_nn_compose_r
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_nn_compose_r(weights, pw_in, pw_out, error)
-!!       Real(Kind=dp), Dimension(0:2,0:2,0:2):: weights
-!!       Type(pw_type), Pointer:: pw_in, pw_out
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_nn_compose_r
-!!
-!!   FUNCTION
-!!     applies a nearest neighbor linear operator to a pw in real space
-!!
-!!   NOTES
-!!     has specialized versions for derivative operator (with central values==0)
-!!
-!!   ARGUMENTS
-!!     - weights: a 3x3x3 array with the linear operator
-!!     - pw_in: the argument for the linear operator
-!!     - pw_out: place where the value of the linear oprator should be added
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief applies a nearest neighbor linear operator to a pw in real space
+!> \param weights a 3x3x3 array with the linear operator
+!> \param pw_in the argument for the linear operator
+!> \param pw_out place where the value of the linear oprator should be added
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      has specialized versions for derivative operator (with central values==0)
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out,error)
     REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)  :: weights
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
@@ -1554,44 +1311,25 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out,error)
   END IF
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE pw_nn_compose_r
-!***************************************************************************
 
-!!****f* pw_spline_utils/pw_nn_smear_r [1.0] *
-!!
-!!   NAME
-!!     pw_nn_smear_r
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_nn_smear_r(pw_in, pw_out, coeffs, error)
-!!       Type(pw_type), Pointer:: pw_in, pw_out
-!!       Real(Kind=dp), Dimension(4), Intent (IN):: coeffs
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_nn_smear_r
-!!
-!!   FUNCTION
-!!     calculates the values of a nearest neighbor smearing
-!!
-!!   NOTES
-!!     does not normalize the smear to 1.
-!!     with coeff=(/ 8._dp/27._dp, 2._dp/27._dp, 1._dp/54._dp, 1._dp/216._dp /)
-!!     is equivalent to pw_spline3_evaluate_values_g, with
-!!     coeff=(/ 27._dp/64._dp, 9._dp/128._dp, 3._dp/256._dp, 1._dp/512._dp /)
-!!
-!!   INPUTS
-!!     - pw_in: the argument for the linear operator
-!!     - pw_out: place where the smeared values should be added
-!!     - coeffs: array with the coefficent of the smearing, ordered with 
-!!       the distance from the center: coeffs(1) the coeff of the central
-!!       element, coeffs(2) the coeff of the 6 element with distance 1,
-!!       coeff(3) the coeff of the 12 elements at distance sqrt(2),
-!!       coeff(4) the coeff of the 8 elements at distance sqrt(3).
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates the values of a nearest neighbor smearing
+!> \param pw_in the argument for the linear operator
+!> \param pw_out place where the smeared values should be added
+!> \param coeffs array with the coefficent of the smearing, ordered with 
+!>        the distance from the center: coeffs(1) the coeff of the central
+!>        element, coeffs(2) the coeff of the 6 element with distance 1,
+!>        coeff(3) the coeff of the 12 elements at distance sqrt(2),
+!>        coeff(4) the coeff of the 8 elements at distance sqrt(3).
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      does not normalize the smear to 1.
+!>      with coeff=(/ 8._dp/27._dp, 2._dp/27._dp, 1._dp/54._dp, 1._dp/216._dp /)
+!>      is equivalent to pw_spline3_evaluate_values_g, with
+!>      coeff=(/ 27._dp/64._dp, 9._dp/128._dp, 3._dp/256._dp, 1._dp/512._dp /)
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE pw_nn_smear_r(pw_in,pw_out,coeffs,error)
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
     REAL(KIND=dp), DIMENSION(4), INTENT(in)  :: coeffs
@@ -1615,56 +1353,35 @@ END SUBROUTINE pw_nn_compose_r
     CALL pw_nn_compose_r(weights=weights,pw_in=pw_in,pw_out=pw_out,&
          error=error)
   END SUBROUTINE pw_nn_smear_r
-!***************************************************************************
 
-
-!!****f* pw_spline_utils/pw_nn_deriv_r [1.0] *
-!!
-!!   NAME
-!!     pw_nn_deriv_r
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_nn_deriv_r(pw_in, pw_out, coeffs, idir, error)
-!!       Type(pw_type), Pointer:: pw_in, pw_out
-!!       Real(Kind=dp), Dimension(3), Intent (IN):: coeffs
-!!       Integer:: idir
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_nn_deriv_r
-!!
-!!   FUNCTION
-!!     calculates a nearest neighbor central derivative.
-!!     for the x dir:
-!!     pw_out%cr3d(i,j,k)=( pw_in(i+1,j,k)-pw_in(i-1,j,k) )*coeff(1)+
-!!            ( pw_in(i+1,j(+-)1,k)-pw_in(i-1,j(+-)1,k)+
-!!              pw_in(i+1,j,k(+-)1)-pw_in(i-1,j,k(+-)1) )*coeff(2)+
-!!            ( pw_in(i+1,j(+-)1,k(+-)1)-pw_in(i-1,j(+-)1,k(+-)1)+
-!!              pw_in(i+1,j(+-)1,k(-+)1)-pw_in(i-1,j(+-)1,k(-+)1) )*coeff(3)
-!!     periodic boundary conditions are applied
-!!
-!!   NOTES
-!!     with coeff=(/ 2.0_dp/9.0_dp,  1.0_dp/18.0_dp, 1.0_dp/72.0_dp /)
-!!     is equivalent to pw_spline3_deriv_r, with
-!!     coeff=(/ 9.0_dp/32.0_dp, 3.0_dp/64.0_dp, 1.0_dp/128.0_dp /)
-!!     to pw_spline2_deriv_r
-!!     coeff=(/ 25._dp/72._dp, 5._dp/144, 1._dp/288._dp /)
-!!
-!!   INPUTS
-!!     - pw_in: the argument for the linear operator
-!!     - pw_out: place where the smeared values should be added
-!!     - spline_g: on entry the FFT of the values to interpolate as cc3d,
-!!       will contain the FFT of the smeared values
-!!     - coeffs: array with the coefficent of the front (positive) plane
-!!       of the central derivative, ordered with 
-!!       the distance from the center: coeffs(1) the coeff of the central
-!!       element, coeffs(2) the coeff of the 4 element with distance 1,
-!!       coeff(3) the coeff of the 4 elements at distance sqrt(2)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates a nearest neighbor central derivative.
+!>      for the x dir:
+!>      pw_out%cr3d(i,j,k)=( pw_in(i+1,j,k)-pw_in(i-1,j,k) )*coeff(1)+
+!>             ( pw_in(i+1,j(+-)1,k)-pw_in(i-1,j(+-)1,k)+
+!>               pw_in(i+1,j,k(+-)1)-pw_in(i-1,j,k(+-)1) )*coeff(2)+
+!>             ( pw_in(i+1,j(+-)1,k(+-)1)-pw_in(i-1,j(+-)1,k(+-)1)+
+!>               pw_in(i+1,j(+-)1,k(-+)1)-pw_in(i-1,j(+-)1,k(-+)1) )*coeff(3)
+!>      periodic boundary conditions are applied
+!> \param pw_in the argument for the linear operator
+!> \param pw_out place where the smeared values should be added
+!> \param spline_g on entry the FFT of the values to interpolate as cc3d,
+!>        will contain the FFT of the smeared values
+!> \param coeffs array with the coefficent of the front (positive) plane
+!>        of the central derivative, ordered with 
+!>        the distance from the center: coeffs(1) the coeff of the central
+!>        element, coeffs(2) the coeff of the 4 element with distance 1,
+!>        coeff(3) the coeff of the 4 elements at distance sqrt(2)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      with coeff=(/ 2.0_dp/9.0_dp,  1.0_dp/18.0_dp, 1.0_dp/72.0_dp /)
+!>      is equivalent to pw_spline3_deriv_r, with
+!>      coeff=(/ 9.0_dp/32.0_dp, 3.0_dp/64.0_dp, 1.0_dp/128.0_dp /)
+!>      to pw_spline2_deriv_r
+!>      coeff=(/ 25._dp/72._dp, 5._dp/144, 1._dp/288._dp /)
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE pw_nn_deriv_r(pw_in,pw_out,coeffs,idir,error)
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
     REAL(KIND=dp), DIMENSION(3), INTENT(in)  :: coeffs
@@ -1709,64 +1426,52 @@ END SUBROUTINE pw_nn_compose_r
             error=error)
     END IF
   END SUBROUTINE pw_nn_deriv_r
-!***************************************************************************
 
-!!****f* pw_spline_utils/add_coarse2fine *
-!!
-!!   NAME
-!!     add_coarse2fine
-!!
-!!   FUNCTION
-!!     low level function that adds a coarse grid
-!!     to a fine grid.
-!!     If pbc is true periodic boundary conditions are applied
-!!
-!!     It will add to
-!!
-!!       fine_values(2*coarse_bounds(1,1):2*coarse_bounds(2,1),
-!!                   2*coarse_bounds(1,2):2*coarse_bounds(2,2),
-!!                   2*coarse_bounds(1,3):2*coarse_bounds(2,3))
-!!
-!!     using
-!!
-!!       coarse_coeffs(coarse_bounds(1,1):coarse_bounds(2,1),
-!!                     coarse_bounds(1,2):coarse_bounds(2,2),
-!!                     coarse_bounds(1,3):coarse_bounds(2,3))
-!!
-!!     composed with the weights obtained by the direct product of the
-!!     1d coefficents weights:
-!!
-!!     for i,j,k in -3..3
-!!        w(i,j,k)=weights_1d(abs(i)+1)*weights_1d(abs(j)+1)*
-!!                 weights_1d(abs(k)+1)
-!!
-!!   NOTES
-!!     coarse looping is continuos, I did not check if keeping the fine looping
-!!     contiguos is better.
-!!     And I ask myself yet again why, why we use x-slice distribution,
-!!     z-slice distribution would be much better performancewise
-!!     (and would semplify this code enormously).
-!!     fine2coarse has much more understandable parallel part (build up of
-!!     send/rcv sizes,... but worse if you have really a lot of processors, 
-!!     probabily irrelevant because it is not critical) [fawzi].
-!!
-!!   ARGUMENTS
-!!     - coarse_coeffs_pw: the values of the coefficients
-!!     - fine_values_pw: where to add the values due to the
-!!       coarse coeffs
-!!     - weights_1d: the weights of the 1d smearing
-!!     - w_border0: the 1d weight at the border (when pbc is false)
-!!     - w_border1: the 1d weights for a point one off the border
-!!       (w_border1(1) is the weight of the coefficent at the border)
-!!       (used if pbc is false)
-!!     - pbc: if periodic boundary conditions should be applied
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief low level function that adds a coarse grid
+!>      to a fine grid.
+!>      If pbc is true periodic boundary conditions are applied
+!> 
+!>      It will add to
+!> 
+!>        fine_values(2*coarse_bounds(1,1):2*coarse_bounds(2,1),
+!>                    2*coarse_bounds(1,2):2*coarse_bounds(2,2),
+!>                    2*coarse_bounds(1,3):2*coarse_bounds(2,3))
+!> 
+!>      using
+!> 
+!>        coarse_coeffs(coarse_bounds(1,1):coarse_bounds(2,1),
+!>                      coarse_bounds(1,2):coarse_bounds(2,2),
+!>                      coarse_bounds(1,3):coarse_bounds(2,3))
+!> 
+!>      composed with the weights obtained by the direct product of the
+!>      1d coefficents weights:
+!> 
+!>      for i,j,k in -3..3
+!>         w(i,j,k)=weights_1d(abs(i)+1)*weights_1d(abs(j)+1)*
+!>                  weights_1d(abs(k)+1)
+!> \param coarse_coeffs_pw the values of the coefficients
+!> \param fine_values_pw where to add the values due to the
+!>        coarse coeffs
+!> \param weights_ 1d: the weights of the 1d smearing
+!> \param w_border 0: the 1d weight at the border (when pbc is false)
+!> \param w_border 1: the 1d weights for a point one off the border
+!>        (w_border1(1) is the weight of the coefficent at the border)
+!>        (used if pbc is false)
+!> \param pbc if periodic boundary conditions should be applied
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      coarse looping is continuos, I did not check if keeping the fine looping
+!>      contiguos is better.
+!>      And I ask myself yet again why, why we use x-slice distribution,
+!>      z-slice distribution would be much better performancewise
+!>      (and would semplify this code enormously).
+!>      fine2coarse has much more understandable parallel part (build up of
+!>      send/rcv sizes,... but worse if you have really a lot of processors, 
+!>      probabily irrelevant because it is not critical) [fawzi].
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE add_coarse2fine(coarse_coeffs_pw,fine_values_pw,&
        weights_1d,w_border0,w_border1,pbc,safe_computation,error)
     TYPE(pw_type), POINTER                   :: coarse_coeffs_pw, &
@@ -2050,8 +1755,6 @@ CPSourceFileRef,&
                 END IF
              END DO
           END IF
-
-
 
           CPPostcondition(ALL(sent_size(:n_procs-2)==send_offset(1:)),cp_failure_level,routineP,error,failure)
           CPPostcondition(sent_size(n_procs-1)==send_tot_size,cp_failure_level,routineP,error,failure)
@@ -2552,58 +2255,44 @@ CPSourceFileRef,&
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE add_coarse2fine
-!***************************************************************************
 
-
-
-!!****f* pw_spline_utils/add_fine2coarse [1.0] *
-!!
-!!   NAME
-!!     add_fine2coarse
-!!
-!!   FUNCTION
-!!     low level function that adds a coarse grid (without boundary)
-!!     to a fine grid.
-!!
-!!     It will add to
-!!
-!!       coarse_coeffs(coarse_bounds(1,1):coarse_bounds(2,1),
-!!                     coarse_bounds(1,2):coarse_bounds(2,2),
-!!                     coarse_bounds(1,3):coarse_bounds(2,3))
-!!
-!!     using
-!!
-!!       fine_values(2*coarse_bounds(1,1):2*coarse_bounds(2,1),
-!!                   2*coarse_bounds(1,2):2*coarse_bounds(2,2),
-!!                   2*coarse_bounds(1,3):2*coarse_bounds(2,3))
-!!
-!!     composed with the weights obtained by the direct product of the
-!!     1d coefficents weights:
-!!
-!!     for i,j,k in -3..3
-!!        w(i,j,k)=weights_1d(abs(i)+1)*weights_1d(abs(j)+1)*
-!!                 weights_1d(abs(k)+1)
-!!
-!!   NOTES
-!!     see coarse2fine for some relevant notes
-!!
-!!   ARGUMENTS
-!!     - coarse_coeffs: 3d array with boundary of size 1 with the values of the
-!!       coefficients
-!!     - fine_values: 3d array where to add the values due to the
-!!       coarse coeffs
-!!     - coarse_bounds: bounds of the coarse coefficents
-!!     - weights_1d: the weights of the 1d smearing
-!!     - w_border0: the 1d weight at the border
-!!     - w_border1: the 1d weights for a point one off the border
-!!       (w_border1(1) is the weight of the coefficent at the border)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief low level function that adds a coarse grid (without boundary)
+!>      to a fine grid.
+!> 
+!>      It will add to
+!> 
+!>        coarse_coeffs(coarse_bounds(1,1):coarse_bounds(2,1),
+!>                      coarse_bounds(1,2):coarse_bounds(2,2),
+!>                      coarse_bounds(1,3):coarse_bounds(2,3))
+!> 
+!>      using
+!> 
+!>        fine_values(2*coarse_bounds(1,1):2*coarse_bounds(2,1),
+!>                    2*coarse_bounds(1,2):2*coarse_bounds(2,2),
+!>                    2*coarse_bounds(1,3):2*coarse_bounds(2,3))
+!> 
+!>      composed with the weights obtained by the direct product of the
+!>      1d coefficents weights:
+!> 
+!>      for i,j,k in -3..3
+!>         w(i,j,k)=weights_1d(abs(i)+1)*weights_1d(abs(j)+1)*
+!>                  weights_1d(abs(k)+1)
+!> \param coarse_coeffs 3d array with boundary of size 1 with the values of the
+!>        coefficients
+!> \param fine_values 3d array where to add the values due to the
+!>        coarse coeffs
+!> \param coarse_bounds bounds of the coarse coefficents
+!> \param weights_ 1d: the weights of the 1d smearing
+!> \param w_border 0: the 1d weight at the border
+!> \param w_border 1: the 1d weights for a point one off the border
+!>        (w_border1(1) is the weight of the coefficent at the border)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      see coarse2fine for some relevant notes
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE add_fine2coarse(fine_values_pw,coarse_coeffs_pw,&
        weights_1d,w_border0,w_border1,pbc,safe_computation,error)
     TYPE(pw_type), POINTER                   :: fine_values_pw, &
@@ -3337,32 +3026,17 @@ CPSourceFileRef,&
     
     CALL timestop(0._dp,handle)
   END SUBROUTINE add_fine2coarse
-  !***************************************************************************
 
-  !!****f* pw_spline_utils/pw_spline_precond_create [1.0] *
-  !!
-  !!   NAME
-  !!     creates a preconditioner for pw splines
-  !!
-  !!   FUNCTION
-  !!     -
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - preconditioner: the preconditioner to create
-  !!     - precond_kind: the kind of preconditioner to use
-  !!     - pool: a pool with grids of the same type as the elements to 
-  !!       precondition
-  !!     - pbc: if periodic boundary conditions should be applied
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \param preconditioner the preconditioner to create
+!> \param precond_kind the kind of preconditioner to use
+!> \param pool a pool with grids of the same type as the elements to 
+!>        precondition
+!> \param pbc if periodic boundary conditions should be applied
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE pw_spline_precond_create(preconditioner,precond_kind,&
        pool,pbc,transpose,error)
     TYPE(pw_spline_precond_type), POINTER    :: preconditioner
@@ -3393,29 +3067,15 @@ CPSourceFileRef,&
        CALL pw_spline_precond_set_kind(preconditioner,precond_kind,error=error)
     END IF
   END SUBROUTINE pw_spline_precond_create
-  !***************************************************************************
 
-  !!****f* pw_spline_utils/pw_spline_precond_set_kind *
-  !!
-  !!   NAME
-  !!     pw_spline_precond_set_kind
-  !!
-  !!   FUNCTION
-  !!     switches the types of precoditioner to use
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - precoditioner: the preconditioner to be changed
-  !!     - precond_kind: the new kind of preconditioner to use
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief switches the types of precoditioner to use
+!> \param precoditioner the preconditioner to be changed
+!> \param precond_kind the new kind of preconditioner to use
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE pw_spline_precond_set_kind(preconditioner,precond_kind,pbc,&
        transpose,error)
     TYPE(pw_spline_precond_type), POINTER    :: preconditioner
@@ -3504,28 +3164,14 @@ CPSourceFileRef,&
        END IF
     END IF
   END SUBROUTINE pw_spline_precond_set_kind
-  !***************************************************************************
 
-  !!****f* pw_spline_utils/pw_spline_precond_retain [1.0] *
-  !!
-  !!   NAME
-  !!     pw_spline_precond_retain
-  !!
-  !!   FUNCTION
-  !!     retains the preconditioner
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - preconditioner: the preconditioner to retain
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the preconditioner
+!> \param preconditioner the preconditioner to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE pw_spline_precond_retain(preconditioner,error)
     TYPE(pw_spline_precond_type), POINTER    :: preconditioner
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -3543,28 +3189,14 @@ CPSourceFileRef,&
        preconditioner%ref_count=preconditioner%ref_count+1
     END IF
   END SUBROUTINE pw_spline_precond_retain
-  !***************************************************************************
 
-  !!****f* pw_spline_utils/pw_spline_precond_release [1.0] *
-  !!
-  !!   NAME
-  !!     pw_spline_precond_release
-  !!
-  !!   FUNCTION
-  !!     releases the preconditioner
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - preconditioner: the preconditioner to release
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the preconditioner
+!> \param preconditioner the preconditioner to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE pw_spline_precond_release(preconditioner,error)
     TYPE(pw_spline_precond_type), POINTER    :: preconditioner
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -3587,31 +3219,17 @@ CPSourceFileRef,&
        END IF
     END IF
   END SUBROUTINE pw_spline_precond_release
-  !***************************************************************************
 
-  !!****f* m/ pw_spline_do_precond *
-  !!
-  !!   NAME
-  !!     pw_spline_do_precond
-  !!
-  !!   FUNCTION
-  !!     applies the preconditioner to the system of equations to find the
-  !!     coefficents of the spline
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - preconditioner: the preconditioner to apply
-  !!     - v_in: the grid on which the preconditioner should be applied
-  !!     - v_out: place to store the preconditioner applied on v_out
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief applies the preconditioner to the system of equations to find the
+!>      coefficents of the spline
+!> \param preconditioner the preconditioner to apply
+!> \param v_in the grid on which the preconditioner should be applied
+!> \param v_out place to store the preconditioner applied on v_out
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE pw_spline_do_precond(preconditioner,in_v,out_v,error)
     TYPE(pw_spline_precond_type), POINTER    :: preconditioner
     TYPE(pw_type), POINTER                   :: in_v, out_v
@@ -3657,44 +3275,31 @@ CPSourceFileRef,&
        END SELECT
     END IF
   END SUBROUTINE pw_spline_do_precond
-  !***************************************************************************
 
-  !!****f* pw_spline_utils/find_coeffs [1.0] *
-  !!
-  !!   NAME
-  !!     find_coeffs
-  !!
-  !!   FUNCTION
-  !!     solves iteratively (CG) a systmes of linear equations
-  !!          linOp(coeffs)=values
-  !!     (for example those needed to find the coefficents of a spline)
-  !!     Returns true if the it succeded to acheive the requested accuracy
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - values: the right hand side of the system
-  !!     - coeff: will contain the solution of the system (and on entry
-  !!       it contains the starting point)
-  !!     - linOp: the linear operator to be inverted
-  !!     - preconditioner: the preconditioner to apply
-  !!     - pool: a pool of grids (for the temporary objects)
-  !!     - eps_r: the requested precision on the residual
-  !!     - eps_x: the requested precision on the solution
-  !!     - max_iter: maximum number of iteration allowed
-  !!     - print_section: information about when to print information
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief solves iteratively (CG) a systmes of linear equations
+!>           linOp(coeffs)=values
+!>      (for example those needed to find the coefficents of a spline)
+!>      Returns true if the it succeded to acheive the requested accuracy
+!> \param values the right hand side of the system
+!> \param coeff will contain the solution of the system (and on entry
+!>        it contains the starting point)
+!> \param linOp the linear operator to be inverted
+!> \param preconditioner the preconditioner to apply
+!> \param pool a pool of grids (for the temporary objects)
+!> \param eps_r the requested precision on the residual
+!> \param eps_x the requested precision on the solution
+!> \param max_iter maximum number of iteration allowed
+!> \param print_section information about when to print information
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   FUNCTION find_coeffs(values,coeffs,linOp,preconditioner, pool, &
        eps_r,eps_x,max_iter,print_section,error) RESULT(res)
     TYPE(pw_type), POINTER                   :: values, coeffs
     INTERFACE
+! *****************************************************************************
        SUBROUTINE linOp(pw_in,pw_out,error)
          USE pw_types, ONLY: pw_type
          USE cp_error_handling, ONLY: cp_error_type
@@ -3811,29 +3416,17 @@ CPSourceFileRef,&
        CALL pw_pool_give_back_pw(pool,Ap,error=error)
     END IF
   END FUNCTION find_coeffs
-  !***************************************************************************
 
-  !!****f* pw_spline_utils/pw_restrict_s3 [1.0] *
-  !!
-  !!   NAME
-  !!     pw_restrict_s3
-  !!
-  !!   FUNCTION
-  !!     restricts the function from a fine grid to a coarse one
-  !!
-  !!   NOTES
-  !!     extremely slow (but correct) version
-  !!
-  !!   ARGUMENTS
-  !!     - pw_fine_in: the fine grid
-  !!     - pw_coarse_out: the coarse grid
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief restricts the function from a fine grid to a coarse one
+!> \param pw_fine_in the fine grid
+!> \param pw_coarse_out the coarse grid
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      extremely slow (but correct) version
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE pw_restrict_s3(pw_fine_in,pw_coarse_out,coarse_pool,param_section,&
        error)
     TYPE(pw_type), POINTER                   :: pw_fine_in, pw_coarse_out
@@ -3930,29 +3523,17 @@ CPSourceFileRef,&
     END IF
     CALL timestop(0._dp,handle)
   END SUBROUTINE pw_restrict_s3
-  !***************************************************************************
 
-  !!****f* pw_spline_utils/pw_prolongate_s3 [1.0] *
-  !!
-  !!   NAME
-  !!     pw_prolongate_s3
-  !!
-  !!   FUNCTION
-  !!     prolongates a function from a coarse grid into a fine one
-  !!
-  !!   NOTES
-  !!     extremely slow (but correct) version
-  !!
-  !!   ARGUMENTS
-  !!     - pw_fine_in: the fine grid
-  !!     - pw_coarse_out: the coarse grid
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief prolongates a function from a coarse grid into a fine one
+!> \param pw_fine_in the fine grid
+!> \param pw_coarse_out the coarse grid
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      extremely slow (but correct) version
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE pw_prolongate_s3(pw_coarse_in,pw_fine_out,coarse_pool,&
        param_section,error)
     TYPE(pw_type), POINTER                   :: pw_coarse_in, pw_fine_out
@@ -4048,30 +3629,16 @@ CPSourceFileRef,&
     END IF
     CALL timestop(0._dp,handle)
   END SUBROUTINE pw_prolongate_s3
-  !***************************************************************************
 
-  !!****f* pw_spline_utils/pw_nn_compose_r_no_pbc *
-  !!
-  !!   NAME
-  !!     pw_compose_r_no_pbc
-  !!
-  !!   FUNCTION
-  !!     adds to pw_out pw_in composed with the weights
-  !!     pw_out%cr3d(i,j,k)=pw_out%cr3d(i,j,k)+sum(pw_in%cr3d(i+l,j+m,k+n)*
-  !!        weights_1d(abs(l)+1)*weights_1d(abs(m)+1)*weights_1d(abs(n)+1),
-  !!        l=-1..1,m=-1..1,n=-1..1)
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief adds to pw_out pw_in composed with the weights
+!>      pw_out%cr3d(i,j,k)=pw_out%cr3d(i,j,k)+sum(pw_in%cr3d(i+l,j+m,k+n)*
+!>         weights_1d(abs(l)+1)*weights_1d(abs(m)+1)*weights_1d(abs(n)+1),
+!>         l=-1..1,m=-1..1,n=-1..1)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE pw_nn_compose_r_no_pbc(weights_1d,pw_in,pw_out,&
        sharpen,normalize,transpose,smooth_boundary,error)
     REAL(kind=dp), DIMENSION(-1:1)           :: weights_1d
@@ -4417,8 +3984,8 @@ CPSourceFileRef,&
     END IF
 666 CONTINUE
   END SUBROUTINE pw_nn_compose_r_no_pbc
-  !***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE spl3_nopbc(pw_in,pw_out,error)
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -4428,6 +3995,7 @@ CPSourceFileRef,&
          pw_out=pw_out,sharpen=.FALSE.,normalize=.FALSE.,error=error)
   END SUBROUTINE spl3_nopbc
 
+! *****************************************************************************
   SUBROUTINE spl3_nopbct(pw_in,pw_out,error)
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -4438,6 +4006,7 @@ CPSourceFileRef,&
          error=error)
   END SUBROUTINE spl3_nopbct
 
+! *****************************************************************************
   SUBROUTINE spl3_pbc(pw_in,pw_out,error)
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -4447,29 +4016,17 @@ CPSourceFileRef,&
          error=error)
   END SUBROUTINE spl3_pbc
 
-  !!****f* pw_spline_utils/Eval_Interp_Spl3_pbc *
-  !!
-  !!   NAME
-  !!     Eval_Interp_Spl3_pbc
-  !!
-  !!   FUNCTION
-  !!     Evaluates the PBC interpolated Spline (pw) function on the generic 
-  !!     input vector (vec)
-  !!
-  !!   NOTES
-  !!     Requires the Spline coefficients to be computed with PBC
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino 12/2005 [tlaino]
-  !!
-  !!   MODIFICATION HISTORY
-  !!     12.2007 Adapted for use with distributed grids [rdeclerck]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief Evaluates the PBC interpolated Spline (pw) function on the generic 
+!>      input vector (vec)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      Requires the Spline coefficients to be computed with PBC
+!> \par History
+!>      12.2007 Adapted for use with distributed grids [rdeclerck]
+!> \author Teodoro Laino 12/2005 [tlaino]
+! *****************************************************************************
   FUNCTION Eval_Interp_Spl3_pbc(vec,pw,error) RESULT(val)
     REAL(KIND=dp), DIMENSION(3), INTENT(in)  :: vec
     TYPE(pw_type), POINTER                   :: pw
@@ -4616,29 +4173,17 @@ CPSourceFileRef,&
 
   END FUNCTION Eval_Interp_Spl3_pbc
 
-  !!****f* pw_spline_utils/Eval_d_Interp_Spl3_pbc *
-  !!
-  !!   NAME
-  !!     Eval_d_Interp_Spl3_pbc
-  !!
-  !!   FUNCTION
-  !!     Evaluates the derivatives of the PBC interpolated Spline (pw) 
-  !!     function on the generic input vector (vec)
-  !!
-  !!   NOTES
-  !!     Requires the Spline coefficients to be computed with PBC
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino 12/2005 [tlaino]
-  !!
-  !!   MODIFICATION HISTORY
-  !!     12.2007 Adapted for use with distributed grids [rdeclerck]
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief Evaluates the derivatives of the PBC interpolated Spline (pw) 
+!>      function on the generic input vector (vec)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      Requires the Spline coefficients to be computed with PBC
+!> \par History
+!>      12.2007 Adapted for use with distributed grids [rdeclerck]
+!> \author Teodoro Laino 12/2005 [tlaino]
+! *****************************************************************************
   FUNCTION Eval_d_Interp_Spl3_pbc(vec,pw,error) RESULT(val)
     REAL(KIND=dp), DIMENSION(3), INTENT(in)  :: vec
     TYPE(pw_type), POINTER                   :: pw

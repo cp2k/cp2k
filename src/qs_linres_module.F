@@ -3,28 +3,16 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****m* cp2k/qs_linres_module *
-!!
-!!   NAME
-!!     qs_linres_module
-!!
-!!   FUNCTION
-!!     Contains the setup for  the calculation of properties by linear response
-!!     by the application of second order density functional perturbation theory.
-!!     The knowledge of the ground state energy, density and wavefunctions is assumed.
-!!     Uses the self consistent approach.
-!!     Properties that can be calculated : none
-!!
-!!   AUTHOR
-!!      MI
-!!
-!!   MODIFICATION HISTORY
-!!      created 06-2005 [MI]
-!!
-!!   SOURCE
-!!****
-
+! *****************************************************************************
+!> \brief Contains the setup for  the calculation of properties by linear response
+!>      by the application of second order density functional perturbation theory.
+!>      The knowledge of the ground state energy, density and wavefunctions is assumed.
+!>      Uses the self consistent approach.
+!>      Properties that can be calculated : none
+!> \par History
+!>       created 06-2005 [MI]
+!> \author MI
+! *****************************************************************************
 MODULE qs_linres_module
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_types,                     ONLY: cp_fm_type
@@ -90,28 +78,14 @@ MODULE qs_linres_module
 CONTAINS
 
 ! *****************************************************************************
-!!****f* cp2k/qs_linres_module/linres_calculation
-!!
-!!   NAME
-!!     linres_calculation
-!!
-!!   FUNCTION
-!!     Driver for the linear response calculatios
-!!     Initialize the perturbation environment
-!!     Define which properties is to be calculated
-!!     Start up the optimization of the response density and wfn
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 created [MI]
-!!
-!****************************************************************************
-
+!> \brief Driver for the linear response calculatios
+!>      Initialize the perturbation environment
+!>      Define which properties is to be calculated
+!>      Start up the optimization of the response density and wfn
+!> \par History
+!>      06.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE linres_calculation(qs_env, globenv, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -244,26 +218,14 @@ CONTAINS
   END SUBROUTINE linres_calculation
 
 ! *****************************************************************************
-!!****f* cp2k/qs_linres_module/linres_init
-!!
-!!   NAME
-!!     linres_init
-!!
-!!   FUNCTION
-!!     Initialize some general settings like the p_env
-!!     Localize the psi0 if required
-!!
-!!   NOTES
-!!     - The localization should probably be always for all the occupied states
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     06.2005 created [MI]
-!!
-!****************************************************************************
-
+!> \brief Initialize some general settings like the p_env
+!>      Localize the psi0 if required
+!> \note
+!>      - The localization should probably be always for all the occupied states
+!> \par History
+!>      06.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE linres_init(lr_section,p_env,qs_env,globenv,error)
 
     TYPE(section_vals_type), POINTER         :: lr_section
@@ -300,7 +262,6 @@ CONTAINS
 
     CPPrecondition(.NOT.ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-
 
        CALL linres_control_create(linres_control,error=error)
        CALL set_qs_env(qs_env=qs_env, linres_control=linres_control,error=error)
@@ -393,7 +354,6 @@ CONTAINS
             "LINRES|    Max number of iterations per SCF cycle",linres_control%max_scf
        END IF
 
-
       !------------------!
       ! create the p_env !
       !------------------!
@@ -442,8 +402,5 @@ CONTAINS
 
   END SUBROUTINE linres_init
 
-
-! *****************************************************************************
 END MODULE qs_linres_module
-
 

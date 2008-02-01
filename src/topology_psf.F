@@ -3,24 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/topology_psf [1.0] *
-!!
-!!   NAME
-!!     topology_psf
-!!
-!!   FUNCTION
-!!     Functionality to read in PSF topologies and convert it into local
-!!     data structures
-!!
-!!   AUTHOR
-!!     ikuo
-!!     tlaino 10.2006
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Functionality to read in PSF topologies and convert it into local
+!>      data structures
+!> \author ikuo
+!>      tlaino 10.2006
+! *****************************************************************************
 MODULE topology_psf
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_generate_filename,&
@@ -70,23 +58,9 @@ MODULE topology_psf
             psf_post_process,&
             idm_psf
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!!*****
-!******************************************************************************
-!!****** topology/pre_read_topology_psf [1.0] *
-!!
-!!   NAME
-!!     pre_read_topology_psf
-!!
-!!   FUNCTION
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
   SUBROUTINE pre_read_topology_psf (topology,subsys_section, error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
@@ -151,25 +125,14 @@ CONTAINS
 
   END SUBROUTINE pre_read_topology_psf
 
-!!*****
-!******************************************************************************
-!!****** topology/read_topology_psf [1.0] *
-!!
-!!   NAME
-!!     read_topology_psf
-!!
-!!   FUNCTION
-!!     Read PSF topology file
-!!     Teodoro Laino - Introduced CHARMM31 EXT PSF standard format
-!!
-!!   HISTORY
-!!     04-2007 Teodoro Laino - Zurich University [tlaino]
-!!     This routine should contain only information read from the PSF format
-!!     and all post_process should be performef in the psf_post_process
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Read PSF topology file
+!>      Teodoro Laino - Introduced CHARMM31 EXT PSF standard format
+!> \par History
+!>      04-2007 Teodoro Laino - Zurich University [tlaino]
+!>      This routine should contain only information read from the PSF format
+!>      and all post_process should be performef in the psf_post_process
+! *****************************************************************************
   SUBROUTINE read_topology_psf (filename,topology,para_env,subsys_section, psf_type, error)
     CHARACTER(LEN=*), INTENT(IN)             :: filename
     TYPE(topology_parameters_type), &
@@ -511,20 +474,9 @@ CPSourceFileRef,&
     CALL stop_program ("read_topology_psf","Error while reading PSF data!")
   END SUBROUTINE read_topology_psf
 
-
-!!*****
-!******************************************************************************
-!!****** topology/psf_post_process [1.0] *
-!!
-!!   NAME
-!!     psf_post_process
-!!
-!!   FUNCTION
-!!    Post processing of PSF informations
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Post processing of PSF informations
+! *****************************************************************************
   SUBROUTINE  psf_post_process(topology,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
@@ -686,22 +638,10 @@ CPSourceFileRef,&
          "PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)
   END SUBROUTINE psf_post_process
 
-!!*****
-!******************************************************************************
-!!****** topology/idm_psf [1.0] *
-!!
-!!   NAME
-!!     idm_psf
-!!
-!!   FUNCTION
-!!    Input driven modification (IDM) of PSF defined structures
-!!
-!!   AUTHOR
-!!    Teodoro Laino - Zurich University 04.2007
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Input driven modification (IDM) of PSF defined structures
+!> \author Teodoro Laino - Zurich University 04.2007
+! *****************************************************************************
   SUBROUTINE  idm_psf(topology,section,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
@@ -865,21 +805,10 @@ CPSourceFileRef,&
 
   END SUBROUTINE idm_psf
 
-!!*****
-!******************************************************************************
-!!****** topology/write_topology_psf [1.0] *
-!!
-!!   NAME
-!!     write_topology_psf
-!!
-!!   FUNCTION
-!!     Teodoro Laino - 01.2006
-!!     Write PSF topology file in the CHARMM31 EXT standard format
-!!
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Teodoro Laino - 01.2006
+!>      Write PSF topology file in the CHARMM31 EXT standard format
+! *****************************************************************************
   SUBROUTINE write_topology_psf (file_unit,topology,para_env,subsys_section,force_env_section,error)
     INTEGER, INTENT(IN)                      :: file_unit
     TYPE(topology_parameters_type), &
@@ -1053,4 +982,3 @@ CPSourceFileRef,&
 
 END MODULE topology_psf
 
-!******************************************************************************

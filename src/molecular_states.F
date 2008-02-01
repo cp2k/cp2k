@@ -3,25 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/molecular_states [1.0] *
-!!
-!!   NAME
-!!     molecular_states
-!!
-!!   FUNCTION
-!!     Routines for the calculation of molecular states
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
-MODULE molecular_states
 ! *****************************************************************************
+!> \brief Routines for the calculation of molecular states
+!> \author CJM
+! *****************************************************************************
+MODULE molecular_states
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
@@ -77,16 +63,12 @@ MODULE molecular_states
 
   PUBLIC :: construct_molecular_states
 
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
        mo_coeff, mo_eigenvalues, Hks, matrix_S, qs_env, wf_r, wf_g,&
        force_env_section, error)
-
 
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
@@ -189,7 +171,6 @@ CONTAINS
             "eval", ns )
 
        NULLIFY(b,c,d,fm_struct_tmp,e_vectors,rot_e_vectors)
-
 
        CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nrow_global, &
             ncol_global=ns, &

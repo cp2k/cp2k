@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_environment_types [1.0] *
-!!
-!!   NAME
-!!     qs_environment_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     MK (23.01.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     - mo_set_p_type added to qs_env (23.04.02,MK)
-!!     - qs_force_type added to qs_env (05.06.02,MK)
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      - mo_set_p_type added to qs_env (23.04.02,MK)
+!>      - qs_force_type added to qs_env (05.06.02,MK)
+!> \author MK (23.01.2002)
+! *****************************************************************************
 MODULE qs_environment_types
 
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
@@ -193,111 +183,93 @@ MODULE qs_environment_types
             qs_env_retain,&
             set_qs_env
 
-!!***
-!****************************************************************************
-
-!!****t* qs_environment_types/qs_environment_type [1.0] *
-!!
-!!   NAME
-!!     qs_environment_type
-!!
-!!   FUNCTION
-!!     contains all the info needed by quickstep to do dft scf
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - id_nr: identification number, guarateed to be unique
-!!     - ref_count: reference count (see doc/ReferenceCounting.html)
-!!     - cell: the simulation cell (box)
-!!     - dft_control: object that contains the values of various parameters
-!!       relevant to a dft calculation
-!!     - mos: the molecular orbitals, in LSD array with the different spins
-!!     - sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl:
-!!       neighbor lists for the calculation of the core Hamiltonian matrix
-!!     - sac_oce,sbc_oce: neighbor lists for the calculation of the expansion
-!!       coefficients of the local atomic densities rho1_hard and rho1_soft
-!!     - sab_2c: neighbor lists for the calculation of the 2 centers
-!!       hartree term Vh(rho0_hard)rho0_hard-Vh(rho0_soft)*rho0_soft
-!!       Also used for Hartree terms in semi-empirical methods
-!!     - sac_3c, sbc_3c: neighbor lists for the calculation of the 3 centers
-!!       hartree term Vh(rho0_hard-rho0_soft)*rho_soft
-!!     - sab_all: neighbor lists for the calculation of the  matrix element of
-!!       non-symmetric operators
-!!     - energy: place where the energies calculated are stored
-!!     - matrix_h: core hamiltonian (matrix_h(1)), if needed by the calculation also
-!!       its derivatives wrt. x,y, and z (matrix_h(2:4))
-!!     - matrix_ks: Khon-Sham matrix (filtred by the structure of S).
-!!       with LSD an array with the differents orbitals
-!!     - matrix_s: the overlap matrix (matrix_s(1)), if needed by the calculation also
-!!       its derivatives wrt. x,y, and z (matrix_s(2:4))
-!!     - kinetic: kinetic part of h
-!!     - matrix_dv: derivatives of the grid potentials in x-y-z direction
-!!     - gamma_matrix: gamma (Coulomb) matrix in DFTB, if needed by the calculation also
-!!       its derivatives wrt. x,y, and z 
-!!     - rho: the (old) density, in various representations (ao+grid)
-!!     - rho_xc: the (old) soft density, used for the GAPW_XC method only
-!!     - scf_control: various parameters relevant to the scf cycle
-!!     - pw_env: various things to create and get info on the grids used
-!!       by qs
-!!     - ewald_env: information to perform ewald summation (used by DFTB)
-!!     - ewald_pw: information on pw used to perform ewald summation (used by DFTB)
-!!     - kg_sub_pw_env : it contains the set of pw_env for the different molecule kind
-!!       to be used in the KG_GPW method in order to construct the molecular desities
-!!       on different grids. The grids are built in the small box containing the single molecule.
-!!     - para_env: parallel environement that should be  used to do the qs
-!!       related calculations
-!!     - blacs_env: parallel environement needed by scalapack (full matrixes)
-!!     - rho_core: a grid with the charges of the cores of the atoms in the
-!!       reciprocal (g) space
-!!     - qs_charges: an object where to put the charges that are present on
-!!       the various grids
-!!     - ks_env: environement for the calculation of the Kohn Sham matrix
-!!     - wf_history: place where the snapshots of the previous states are
-!!       stored (used during the md to extrapolate the new starting point)
-!!     - scf_env: place where temporary information used in the scf is stored
-!!     - mpools: all the pools of matrixes
-!!     - distribution_2d: distribution of the atom pairs between the processors
-!!     - subsys: the particles, molecules,... of this environment
-!!     - local_rho_set: contains the atomic, compensations and core densities
-!!                      and the local parts of the xc terms
-!!     - hartree_local: contains the 1, 2 and 3 centers coulomb terms
-!!     - requires_mo_derivs: logical, true if dE/dC is required (e.g. OT)
-!!     - mo_derivs: the actual derivatives of the total energy wrt to MO coeffs
-!!     - neighbor_list_id: the current version of the neighbor_list
-!!     - xas_env: temporary information for xas calculation
-!!     - dftb_potential: pair potentials for use with DFTB
-!!     - scp_env: SCP environment for use with QS
-!!
-!!     compatibility get (things that you should get from the subsys):
-!!     - atomic_kind_set: array with infos about the species (atomic_kinds)
-!!       present in the system
-!!     - particle_set: info on the atoms you simulate, pos,...
-!!     - local_particles: which particles ar local to this processor
-!!     new:
-!!     - local_molecules: which molecules are local to this processor
-!!     - molecule_kind_set: description of the molecule kinds
-!!     - molecule_set: all the molecule description
-!!     - use_harris: LOGICAL which indicates, if the Harris energy functional
-!!                   should be used.
-!!     - harris_env: The harris environment, which consist of the harris energy
-!!                   and force type and the rho structure to pass the density of
-!!                   the harris energy functional to the force calculation
-!!     - ep_qs_env: environment to perform an ep calculation
-!!     - x        : contains data used in Hartree-Fock-Exchange calculations
-!!     - task_list     : the list of tasks used in collocate and integrate
-!!     - task_list_soft: the list of tasks used in collocate and integrate in case of soft basis functions
-!!
-!!   AUTHOR
-!!     Matthias Krack & fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2002 added doc and attribute description [fawzi]
-!!     08.2004 renamed some of the very short names (s,c,k,h) for easier grepping
-!!
-!!*** *********************************************************************
-
+! *****************************************************************************
+!> \brief contains all the info needed by quickstep to do dft scf
+!> \param id_nr identification number, guarateed to be unique
+!> \param ref_count reference count (see doc/ReferenceCounting.html)
+!> \param cell the simulation cell (box)
+!> \param dft_control object that contains the values of various parameters
+!>        relevant to a dft calculation
+!> \param mos the molecular orbitals, in LSD array with the different spins
+!> \param sab_orb ,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl:
+!>        neighbor lists for the calculation of the core Hamiltonian matrix
+!> \param sac_oce ,sbc_oce: neighbor lists for the calculation of the expansion
+!>        coefficients of the local atomic densities rho1_hard and rho1_soft
+!> \param sab_ 2c: neighbor lists for the calculation of the 2 centers
+!>        hartree term Vh(rho0_hard)rho0_hard-Vh(rho0_soft)*rho0_soft
+!>        Also used for Hartree terms in semi-empirical methods
+!> \param sac_ 3c, sbc_3c: neighbor lists for the calculation of the 3 centers
+!>        hartree term Vh(rho0_hard-rho0_soft)*rho_soft
+!> \param sab_all neighbor lists for the calculation of the  matrix element of
+!>        non-symmetric operators
+!> \param energy place where the energies calculated are stored
+!> \param matrix_h core hamiltonian (matrix_h(1)), if needed by the calculation also
+!>        its derivatives wrt. x,y, and z (matrix_h(2:4))
+!> \param matrix_ks Khon-Sham matrix (filtred by the structure of S).
+!>        with LSD an array with the differents orbitals
+!> \param matrix_s the overlap matrix (matrix_s(1)), if needed by the calculation also
+!>        its derivatives wrt. x,y, and z (matrix_s(2:4))
+!> \param kinetic kinetic part of h
+!> \param matrix_dv derivatives of the grid potentials in x-y-z direction
+!> \param gamma_matrix gamma (Coulomb) matrix in DFTB, if needed by the calculation also
+!>        its derivatives wrt. x,y, and z 
+!> \param rho the (old) density, in various representations (ao+grid)
+!> \param rho_xc the (old) soft density, used for the GAPW_XC method only
+!> \param scf_control various parameters relevant to the scf cycle
+!> \param pw_env various things to create and get info on the grids used
+!>        by qs
+!> \param ewald_env information to perform ewald summation (used by DFTB)
+!> \param ewald_pw information on pw used to perform ewald summation (used by DFTB)
+!> \param kg_sub_pw_env it contains the set of pw_env for the different molecule kind
+!>        to be used in the KG_GPW method in order to construct the molecular desities
+!>        on different grids. The grids are built in the small box containing the single molecule.
+!> \param para_env parallel environement that should be  used to do the qs
+!>        related calculations
+!> \param blacs_env parallel environement needed by scalapack (full matrixes)
+!> \param rho_core a grid with the charges of the cores of the atoms in the
+!>        reciprocal (g) space
+!> \param qs_charges an object where to put the charges that are present on
+!>        the various grids
+!> \param ks_env environement for the calculation of the Kohn Sham matrix
+!> \param wf_history place where the snapshots of the previous states are
+!>        stored (used during the md to extrapolate the new starting point)
+!> \param scf_env place where temporary information used in the scf is stored
+!> \param mpools all the pools of matrixes
+!> \param distribution_ 2d: distribution of the atom pairs between the processors
+!> \param subsys the particles, molecules,... of this environment
+!> \param local_rho_set contains the atomic, compensations and core densities
+!>                       and the local parts of the xc terms
+!> \param hartree_local contains the 1, 2 and 3 centers coulomb terms
+!> \param requires_mo_derivs logical, true if dE/dC is required (e.g. OT)
+!> \param mo_derivs the actual derivatives of the total energy wrt to MO coeffs
+!> \param neighbor_list_id the current version of the neighbor_list
+!> \param xas_env temporary information for xas calculation
+!> \param dftb_potential pair potentials for use with DFTB
+!> \param scp_env SCP environment for use with QS
+!> 
+!>      compatibility get (things that you should get from the subsys):
+!> \param atomic_kind_set array with infos about the species (atomic_kinds)
+!>        present in the system
+!> \param particle_set info on the atoms you simulate, pos,...
+!> \param local_particles which particles ar local to this processor
+!>      new:
+!> \param local_molecules which molecules are local to this processor
+!> \param molecule_kind_set description of the molecule kinds
+!> \param molecule_set all the molecule description
+!> \param use_harris LOGICAL which indicates, if the Harris energy functional
+!>                    should be used.
+!> \param harris_env The harris environment, which consist of the harris energy
+!>                    and force type and the rho structure to pass the density of
+!>                    the harris energy functional to the force calculation
+!> \param ep_qs_env environment to perform an ep calculation
+!> \param x contains data used in Hartree-Fock-Exchange calculations
+!> \param task_list the list of tasks used in collocate and integrate
+!> \param task_list_soft the list of tasks used in collocate and integrate in case of soft basis functions
+!> \par History
+!>      11.2002 added doc and attribute description [fawzi]
+!>      08.2004 renamed some of the very short names (s,c,k,h) for easier grepping
+!> \author Matthias Krack & fawzi
+! *****************************************************************************
   TYPE qs_environment_type
 !   PRIVATE
     INTEGER :: id_nr, ref_count
@@ -369,36 +341,19 @@ MODULE qs_environment_types
   END TYPE qs_environment_type
 
 ! *****************************************************************************
-
-!!****s* qs_environment_types/qs_environment_p_type [1.0] *
-!!
-!!   NAME
-!!     qs_environment_p_type
-!!
-!!   FUNCTION
-!!     to build arrays of pointers
-!!
-!!   ATTRIBUTES
-!!     - qs_env: the pointer to the qs_env
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!   SOURCE
-  !***************************************************************************
+!> \brief to build arrays of pointers
+!> \param qs_env the pointer to the qs_env
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   TYPE qs_environment_p_type
      TYPE(qs_environment_type), POINTER :: qs_env
   END TYPE qs_environment_p_type
-!!***
-  !****************************************************************************
 
 CONTAINS
 
 ! *****************************************************************************
-
  SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,super_cell,cell_ref,use_ref_cell,&
                         dft_control,mos,sab_orb,sab_all,qmmm,qmmm_periodic,&
                         sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
@@ -423,8 +378,6 @@ CONTAINS
 !   Purpose: Get the QUICKSTEP environment.
 
 !   History: - Creation (23.01.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -667,14 +620,11 @@ CONTAINS
   END SUBROUTINE get_qs_env
 
 ! *****************************************************************************
-
   SUBROUTINE init_qs_env(qs_env,para_env,error)
 
 !   Purpose: Initialise the QUICKSTEP environment.
 
 !   History: - Creation (25.01.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -770,9 +720,7 @@ CONTAINS
 
   END SUBROUTINE init_qs_env
 
-
 ! *****************************************************************************
-
   SUBROUTINE set_qs_env(qs_env,cell,super_cell,cell_ref,use_ref_cell, &
                         dft_control,mos,qmmm,qmmm_periodic,&
                         sab_orb,sab_all,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
@@ -794,8 +742,6 @@ CONTAINS
 !   Purpose: Set the QUICKSTEP environment.
 
 !   History: - Creation (23.01.2002,MK)
-
-!   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, super_cell, cell_ref
@@ -1101,30 +1047,17 @@ CONTAINS
   END SUBROUTINE set_qs_env
 
 ! *****************************************************************************
-
-!!****f* qs_environment_types/qs_env_create [1.0] *
-!!
-!!   NAME
-!!     qs_env_create
-!!
-!!   FUNCTION
-!!     allocates and intitializes a qs_env
-!!
-!!   ARGUMENTS
-!!     - qs_env: the object to create
-!!     - para_env: the parallel environement for the qs_env
-!!     - blacs_env: the blacs env for the qs_env (for full matrixes,
-!!       it must be coerent with the para_env)
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+!> \brief allocates and intitializes a qs_env
+!> \param qs_env the object to create
+!> \param para_env the parallel environement for the qs_env
+!> \param blacs_env the blacs env for the qs_env (for full matrixes,
+!>        it must be coerent with the para_env)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE qs_env_create(qs_env,para_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1145,31 +1078,16 @@ SUBROUTINE qs_env_create(qs_env,para_env,error)
           error=error)
   END IF
 END SUBROUTINE qs_env_create
-!***************************************************************************
 
-!!****f* qs_environment_types/qs_env_retain [1.0] *
-!!
-!!   NAME
-!!     qs_env_retain
-!!
-!!   FUNCTION
-!!     retains the given qs_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - qs_env: the object to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given qs_env (see doc/ReferenceCounting.html)
+!> \param qs_env the object to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE qs_env_retain(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1187,31 +1105,16 @@ SUBROUTINE qs_env_retain(qs_env,error)
      qs_env%ref_count=qs_env%ref_count+1
   END IF
 END SUBROUTINE qs_env_retain
-!***************************************************************************
 
-!!****f* qs_environment_types/qs_env_release [1.0] *
-!!
-!!   NAME
-!!     qs_env_release
-!!
-!!   FUNCTION
-!!     releases the given qs_env (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - qs_env: the object to release
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given qs_env (see doc/ReferenceCounting.html)
+!> \param qs_env the object to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE qs_env_release(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1445,35 +1348,20 @@ SUBROUTINE qs_env_release(qs_env,error)
   END IF
   NULLIFY(qs_env)
 END SUBROUTINE qs_env_release
-!***************************************************************************
 
-!!****f* qs_environment_types/qs_env_reorthogonalize_vectors [1.0] *
-!!
-!!   NAME
-!!     qs_env_reorthogonalize_vectors
-!!
-!!   FUNCTION
-!!     reorthogonalizes the mos
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - qs_env: the qs_env in which to orthogonalize
-!!     - v: the vectors to orthogonalize
-!!     - ispin: the spin of the vector to orthogonalize (unused at the
-!!       moment)
-!!     - n_col: number of column of v to orthogonalize
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief reorthogonalizes the mos
+!> \param qs_env the qs_env in which to orthogonalize
+!> \param v the vectors to orthogonalize
+!> \param ispin the spin of the vector to orthogonalize (unused at the
+!>        moment)
+!> \param n_col number of column of v to orthogonalize
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
      error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1543,6 +1431,5 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
   END IF
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE qs_env_reorthogonalize_vectors
-!***************************************************************************
 
 END MODULE qs_environment_types

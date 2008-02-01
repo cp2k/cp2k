@@ -3,26 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/cp_ddapc_types [1.0] *
-!!
-!!   NAME
-!!     cp_ddapc_types
-!!
-!!   FUNCTION
-!!     contains information regarding the decoupling/recoupling method of Bloechl
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!*****************************************************************************
+! *****************************************************************************
+!> \brief contains information regarding the decoupling/recoupling method of Bloechl
+!> \author Teodoro Laino
+! *****************************************************************************
 MODULE cp_ddapc_types
   USE cell_types,                      ONLY: cell_release,&
                                              cell_type,&
@@ -62,28 +46,9 @@ MODULE cp_ddapc_types
   PUBLIC :: cp_ddapc_type, cp_ddapc_create, cp_ddapc_retain, cp_ddapc_release
   PUBLIC :: cp_ddapc_ewald_type, cp_ddapc_ewald_create, cp_ddapc_ewald_release
 
-!!****s* cp_ddapc_types/cp_ddapc_type [1.0] *
-!!
-!!   NAME
-!!     cp_ddapc_type
-!!
-!!   FUNCTION
-!!
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     -
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!!***************************************************************************
+! *****************************************************************************
+!> \author Teodoro Laino
+! *****************************************************************************
   TYPE cp_ddapc_type
      INTEGER :: ref_count, id_nr
      REAL(KIND=dp) :: c0
@@ -96,6 +61,7 @@ MODULE cp_ddapc_types
      REAL(KIND=dp)   , POINTER, DIMENSION(:)    :: w
   END TYPE cp_ddapc_type
 
+! *****************************************************************************
   TYPE cp_ddapc_ewald_type
      LOGICAL                                    :: do_decoupling
      LOGICAL                                    :: do_qmmm_periodic
@@ -110,28 +76,9 @@ MODULE cp_ddapc_types
 
 CONTAINS
 
-
-!!****f* cp_ddapc_types/cp_ddapc_create [1.0] *
-!!
-!!   NAME
-!!     cp_ddapc_create
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!
-!!   AUTHOR
-!!     Tedoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \author Tedoro Laino
+! *****************************************************************************
   SUBROUTINE cp_ddapc_create(cp_ddapc_env, cp_ddapc_ewald, &
        particle_set, radii, cell, super_cell, rho_tot_g, gcut, iw, iw2, Vol,  &
        force_env_section, error)
@@ -221,28 +168,11 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE cp_ddapc_create
 
-!***************************************************************************
-!!****f* cp_ddapc_types/cp_ddapc_retain [1.0] *
-!!
-!!   NAME
-!!     cp_ddapc_retain
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino - [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author Teodoro Laino - [tlaino]
+! *****************************************************************************
   SUBROUTINE cp_ddapc_retain(cp_ddapc_env, error)
     TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -260,27 +190,11 @@ CONTAINS
     END IF
   END SUBROUTINE cp_ddapc_retain
 
-!!****f* cp_ddapc_types/cp_ddapc_release [1.0] *
-!!
-!!   NAME
-!!     cp_ddapc_release
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino - [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author Teodoro Laino - [tlaino]
+! *****************************************************************************
   SUBROUTINE cp_ddapc_release(cp_ddapc_env, error)
     TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -337,28 +251,11 @@ CONTAINS
     END IF
   END SUBROUTINE cp_ddapc_release
 
-!***************************************************************************
-!!****f* cp_ddapc_types/cp_ddapc_ewald_create [1.0] *
-!!
-!!   NAME
-!!     cp_ddapc_ewald_create
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino - [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author Teodoro Laino - [tlaino]
+! *****************************************************************************
   SUBROUTINE cp_ddapc_ewald_create(cp_ddapc_ewald, qmmm, qmmm_periodic,qm_cell,&
        force_env_section, subsys_section, para_env, error)
     TYPE(cp_ddapc_ewald_type), POINTER       :: cp_ddapc_ewald
@@ -493,28 +390,11 @@ CONTAINS
     END IF
   END SUBROUTINE cp_ddapc_ewald_create
 
-!***************************************************************************
-!!****f* cp_ddapc_types/eval_lg [1.0] *
-!!
-!!   NAME
-!!     eval_lg
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino - [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author Teodoro Laino - [tlaino]
+! *****************************************************************************
   SUBROUTINE eval_lg(multipole_section, hmat, deth, LG, gx, gy, gz, error)
     TYPE(section_vals_type), POINTER         :: multipole_section
     REAL(KIND=dp), INTENT(IN)                :: hmat(3,3), deth
@@ -575,29 +455,11 @@ CONTAINS
 
   END SUBROUTINE eval_lg
 
-
-!***************************************************************************
-!!****f* cp_ddapc_types/cp_ddapc_ewald_release [1.0] *
-!!
-!!   NAME
-!!     cp_ddapc_ewald_release
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!
-!!
-!!   AUTHOR
-!!     Teodoro Laino - [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author Teodoro Laino - [tlaino]
+! *****************************************************************************
   SUBROUTINE cp_ddapc_ewald_release(cp_ddapc_ewald, error)
     TYPE(cp_ddapc_ewald_type), POINTER       :: cp_ddapc_ewald
     TYPE(cp_error_type), INTENT(inout)       :: error

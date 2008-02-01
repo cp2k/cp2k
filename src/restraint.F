@@ -3,20 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/restraint [1.0] *
-!!
-!!   NAME
-!!     restraint
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \par History
+!>      none
+! *****************************************************************************
 MODULE restraint
   USE cell_types,                      ONLY: cell_type
   USE colvar_methods,                  ONLY: colvar_eval_mol_f
@@ -65,22 +55,10 @@ MODULE restraint
 
 CONTAINS
 
-!!****** restraint/restraint_control [1.0] *
-!!
-!!   NAME
-!!     restraint_control
-!!
-!!   FUNCTION
-!!     Computes restraints
-!!
-!!   AUTHOR
-!!     Teodoro Laino 08.2006 [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Computes restraints
+!> \author Teodoro Laino 08.2006 [tlaino]
+! *****************************************************************************
   SUBROUTINE restraint_control( force_env, error )
 
     TYPE(force_env_type), POINTER            :: force_env
@@ -267,22 +245,10 @@ CONTAINS
 
   END SUBROUTINE restraint_control
 
-!!****** restraint/restraint_3x3_int [1.0] *
-!!
-!!   NAME
-!!     restraint_3x3_int
-!!
-!!   FUNCTION
-!!     Computes restraints 3x3 - Intramolecular
-!!
-!!   AUTHOR
-!!     Teodoro Laino 08.2006 [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Computes restraints 3x3 - Intramolecular
+!> \author Teodoro Laino 08.2006 [tlaino]
+! *****************************************************************************
   SUBROUTINE restraint_3x3_int( molecule, particle_set, energy, force, error )
 
     TYPE(molecule_type), POINTER             :: molecule
@@ -310,22 +276,10 @@ CONTAINS
 
   END SUBROUTINE restraint_3x3_int
 
-!!****** restraint/restraint_4x6_int [1.0] *
-!!
-!!   NAME
-!!     restraint_4x6_int
-!!
-!!   FUNCTION
-!!     Computes restraints 4x6 - Intramolecular
-!!
-!!   AUTHOR
-!!     Teodoro Laino 08.2006 [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Computes restraints 4x6 - Intramolecular
+!> \author Teodoro Laino 08.2006 [tlaino]
+! *****************************************************************************
   SUBROUTINE restraint_4x6_int( molecule, particle_set, energy, force, error )
 
     TYPE(molecule_type), POINTER             :: molecule
@@ -353,22 +307,10 @@ CONTAINS
 
   END SUBROUTINE restraint_4x6_int
 
-!!****** restraint/restraint_colv_int [1.0] *
-!!
-!!   NAME
-!!     restraint_colv_int
-!!
-!!   FUNCTION
-!!     Computes restraints colv - Intramolecular
-!!
-!!   AUTHOR
-!!     Teodoro Laino 08.2006 [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Computes restraints colv - Intramolecular
+!> \author Teodoro Laino 08.2006 [tlaino]
+! *****************************************************************************
   SUBROUTINE restraint_colv_int( molecule, particle_set, cell, energy, force, error )
 
     TYPE(molecule_type), POINTER             :: molecule
@@ -401,22 +343,10 @@ CONTAINS
 
   END SUBROUTINE restraint_colv_int
 
-!!****** restraint/restraint_3x3_ext [1.0] *
-!!
-!!   NAME
-!!     restraint_3x3_ext
-!!
-!!   FUNCTION
-!!     Computes restraints 3x3 - Intermolecular
-!!
-!!   AUTHOR
-!!     Teodoro Laino 08.2006 [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Computes restraints 3x3 - Intermolecular
+!> \author Teodoro Laino 08.2006 [tlaino]
+! *****************************************************************************
   SUBROUTINE restraint_3x3_ext( gci, particle_set, energy, force, error )
 
     TYPE(global_constraint_type), POINTER    :: gci
@@ -443,22 +373,10 @@ CONTAINS
 
   END SUBROUTINE restraint_3x3_ext
 
-!!****** restraint/restraint_4x6_ext [1.0] *
-!!
-!!   NAME
-!!     restraint_4x6_ext
-!!
-!!   FUNCTION
-!!     Computes restraints 4x6 - Intermolecular
-!!
-!!   AUTHOR
-!!     Teodoro Laino 08.2006 [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Computes restraints 4x6 - Intermolecular
+!> \author Teodoro Laino 08.2006 [tlaino]
+! *****************************************************************************
   SUBROUTINE restraint_4x6_ext( gci, particle_set, energy, force, error )
 
     TYPE(global_constraint_type), POINTER    :: gci
@@ -485,22 +403,10 @@ CONTAINS
 
   END SUBROUTINE restraint_4x6_ext
 
-!!****** restraint/restraint_colv_ext [1.0] *
-!!
-!!   NAME
-!!     restraint_colv_ext
-!!
-!!   FUNCTION
-!!     Computes restraints colv - Intermolecular
-!!
-!!   AUTHOR
-!!     Teodoro Laino 08.2006 [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Computes restraints colv - Intermolecular
+!> \author Teodoro Laino 08.2006 [tlaino]
+! *****************************************************************************
   SUBROUTINE restraint_colv_ext( gci, particle_set, cell, energy, force, error )
 
     TYPE(global_constraint_type), POINTER    :: gci
@@ -528,22 +434,10 @@ CONTAINS
 
   END SUBROUTINE restraint_colv_ext
 
-!!****** restraint/restraint_3x3_low [1.0] *
-!!
-!!   NAME
-!!     restraint_3x3_low
-!!
-!!   FUNCTION
-!!     Computes restraints 3x3 - Real 3x3 restraints
-!!
-!!   AUTHOR
-!!     Teodoro Laino 08.2006 [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Computes restraints 3x3 - Real 3x3 restraints
+!> \author Teodoro Laino 08.2006 [tlaino]
+! *****************************************************************************
   SUBROUTINE restraint_3x3_low( ng3x3, g3x3_list, fixd_list, first_atom,&
        particle_set, energy, force, error )
 
@@ -601,22 +495,10 @@ CONTAINS
 
   END SUBROUTINE restraint_3x3_low
 
-!!****** restraint/restraint_4x6_low [1.0] *
-!!
-!!   NAME
-!!     restraint_4x6_low
-!!
-!!   FUNCTION
-!!     Computes restraints 4x6 - Real 4x6 restraints
-!!
-!!   AUTHOR
-!!     Teodoro Laino 08.2006 [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Computes restraints 4x6 - Real 4x6 restraints
+!> \author Teodoro Laino 08.2006 [tlaino]
+! *****************************************************************************
   SUBROUTINE restraint_4x6_low( ng4x6, g4x6_list, fixd_list, first_atom,&
        particle_set, energy, force, error )
 
@@ -690,22 +572,10 @@ CONTAINS
 
   END SUBROUTINE restraint_4x6_low
 
-!!****** restraint/restraint_colv_low [1.0] *
-!!
-!!   NAME
-!!     restraint_colv_low
-!!
-!!   FUNCTION
-!!     Computes restraints colv - Real COLVAR restraints
-!!
-!!   AUTHOR
-!!     Teodoro Laino 08.2006 [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Computes restraints colv - Real COLVAR restraints
+!> \author Teodoro Laino 08.2006 [tlaino]
+! *****************************************************************************
   SUBROUTINE restraint_colv_low( colv_list, fixd_list, lcolv, &
        particle_set, cell, energy, force, error )
 

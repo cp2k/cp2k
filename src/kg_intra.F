@@ -2,26 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/KG_intra[1.0] *
-!!
-!!   NAME
-!!     kg_intra
-!!
-!!   FUNCTION
-!!     bonded_correction due to the non-interaction of gaussian charges on
-!!     the same molecule. Calculates the nuclear bonded_correction
-!!     and the frozen_density bonded correction
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
-MODULE kg_intra
 
 ! *****************************************************************************
+!> \brief bonded_correction due to the non-interaction of gaussian charges on
+!>      the same molecule. Calculates the nuclear bonded_correction
+!>      and the frozen_density bonded correction
+!> \par History
+!>      none
+! *****************************************************************************
+MODULE kg_intra
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -53,21 +42,14 @@ MODULE kg_intra
 
   PUBLIC :: calculate_ebond_corr
 
-
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE calculate_ebond_corr(kg_env,e_bc,calculate_forces,error)
 
 !   Purpose: Calculate the overlap energy of the core charge distribution.
 
 !   History: - Creation (24.10.2002)
-
-!   ***************************************************************************
-
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     REAL(KIND=dp), INTENT(out)               :: e_bc
@@ -253,7 +235,5 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_ebond_corr
-
-! *****************************************************************************
 
 END MODULE kg_intra

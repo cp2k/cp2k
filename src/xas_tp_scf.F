@@ -3,23 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****s* cp2k/xas_tp_scf   [1.0] *
-!!
-!!   NAME
-!!      xas_methods
-!!
-!!   FUNCTION
-!!      xas_scf for the tp method
-!!      It is repeaated for every atom that have to be excited
-!!
-!!   AUTHOR
-!!     MI (05.2005)
-!!
-!!   MODIFICATION HISTORY
-!!     created 05.2005
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief xas_scf for the tp method
+!>       It is repeaated for every atom that have to be excited
+!> \par History
+!>      created 05.2005
+!> \author MI (05.2005)
+! *****************************************************************************
 MODULE xas_tp_scf
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -115,37 +105,21 @@ MODULE xas_tp_scf
 
   PUBLIC :: xas_do_tp_scf, xes_scf_once
 
-  !****************************************************************************
-
 CONTAINS
 
-  !!****f* xas_methods/xas_do_tp_scf [1.0] *
-  !!
-  !!   NAME
-  !!     xas_do_tp_scf
-  !!
-  !!   FUNCTION
-  !!     perform an scf loop to calculate the xas spectrum
-  !!     given by the excitation of a inner state of a selected atom
-  !!     by using the transition potential method
-  !!
-  !!   NOTES
-  !!
-  !!   ARGUMENTS
-  !!     - xas_env: the environment for XAS  calculations
-  !!     - scf_env: the scf_env where to perform the scf procedure
-  !!     - qs_env: the qs_env, the scf_env and xas_env live in
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     MI
-  !!
-  !!   MODIFICATION HISTORY
-  !!     05.2005 created [MI]
-  !!
-  !!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief perform an scf loop to calculate the xas spectrum
+!>      given by the excitation of a inner state of a selected atom
+!>      by using the transition potential method
+!> \param xas_env the environment for XAS  calculations
+!> \param scf_env the scf_env where to perform the scf procedure
+!> \param qs_env the qs_env, the scf_env and xas_env live in
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      05.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE xas_do_tp_scf (xas_control,xas_env,iatom,scf_env,qs_env,globenv,&
        converged,should_stop,error)
 
@@ -440,13 +414,11 @@ CONTAINS
 
        END SELECT
 
-
        IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
           CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
                scf_env%p_mix,scf_env%iter_delta,&
                qs_env=qs_env,error=error)
        ENDIF
-
 
        t2 = m_walltime()
 
@@ -528,8 +500,7 @@ CONTAINS
 
   END SUBROUTINE xas_do_tp_scf
 
-  !!*** **********************************************************************
-
+! *****************************************************************************
   SUBROUTINE xas_smearing(mo_set,xas_control,estate,ispin,ionode,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
@@ -636,8 +607,8 @@ CONTAINS
          uniform_occupation=.FALSE.)
 
   END SUBROUTINE xas_smearing
-  !***************************************************************************
 
+! *****************************************************************************
   SUBROUTINE cls_prepare_states(xas_control,xas_env,qs_env,iatom,error)
 
     TYPE(xas_control_type)                   :: xas_control
@@ -723,7 +694,6 @@ CONTAINS
     ALLOCATE(centers_wfn(3,xas_control%nexc_search),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     centers_wfn=0.0_dp
-
 
     IF(.NOT.xas_env%scf_method==xas_scf_general) THEN
        CALL get_xas_env(xas_env=xas_env, &
@@ -872,6 +842,7 @@ CONTAINS
 
   END SUBROUTINE cls_prepare_states
 
+! *****************************************************************************
   SUBROUTINE xes_scf_once(qs_env,xas_env,scf_section,globenv,converged,should_stop,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -911,7 +882,6 @@ CONTAINS
     ELSE
        output_unit = -1
     END IF
-
 
     CALL timeset(routineN,"I"," ",handle)
 

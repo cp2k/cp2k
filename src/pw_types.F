@@ -2,34 +2,22 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!***** cp2k/pw_types [1.0] *
-!!
-!!   NAME
-!!     pw_types
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     apsi
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (29-Dec-2000) : Changes for parallel use
-!!     JGH (13-Mar-2001) : added timing calls
-!!     JGH (26-Feb-2003) : OpenMP enabled
-!!     JGH (17-Nov-2007) : Removed mass arrays
-!!     JGH (01-Dec-2007) : Removed and renamed routines
-!!
-!!   NOTES
-!!     If parallel mode is distributed certain combination of
-!!     "in_use" and "in_space" can not be used.
-!!     For performance reasons it would be better to have the loops
-!!     over g-vectros in the gather/scatter routines in new subprograms
-!!     with the actual arrays (also the adressing) in the parameter list
-!!
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \note
+!>      If parallel mode is distributed certain combination of
+!>      "in_use" and "in_space" can not be used.
+!>      For performance reasons it would be better to have the loops
+!>      over g-vectros in the gather/scatter routines in new subprograms
+!>      with the actual arrays (also the adressing) in the parameter list
+!> \par History
+!>      JGH (29-Dec-2000) : Changes for parallel use
+!>      JGH (13-Mar-2001) : added timing calls
+!>      JGH (26-Feb-2003) : OpenMP enabled
+!>      JGH (17-Nov-2007) : Removed mass arrays
+!>      JGH (01-Dec-2007) : Removed and renamed routines
+!> \author apsi
+! *****************************************************************************
 MODULE pw_types
   USE fft_tools,                       ONLY: BWFFT,&
                                              FWFFT,&
@@ -63,6 +51,7 @@ MODULE pw_types
   PUBLIC :: pw_integral_aa, pw_integral_ab, pw_integral_a2b
   PUBLIC :: pw_dr2_gg, pw_integrate_function
 
+! *****************************************************************************
   TYPE pw_type
      REAL (KIND=dp), DIMENSION ( : ), POINTER :: cr
      REAL (KIND=dp), DIMENSION ( :, :, : ), POINTER :: cr3d
@@ -77,6 +66,7 @@ MODULE pw_types
      TYPE ( pw_grid_type ), POINTER :: pw_grid
   END TYPE pw_type
   
+! *****************************************************************************
   TYPE pw_p_type
      TYPE(pw_type), POINTER :: pw
   END TYPE pw_p_type
@@ -109,35 +99,15 @@ MODULE pw_types
      MODULE PROCEDURE fft_wrap_pw1, fft_wrap_pw1pw2
   END INTERFACE
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!!****** pw_types/pw_zero [1.0] *
-!!
-!!   NAME
-!!     pw_zero
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_zero(pw)
-!!       Type(pw_type), Intent (INOUT):: pw
-!!     End Subroutine pw_zero
-!!
-!!   FUNCTION
-!!     Set values of a pw type to zero
-!!
-!!   AUTHOR
-!!     apsi
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Set values of a pw type to zero
+!> \par History
+!>      none
+!> \author apsi
+! *****************************************************************************
 SUBROUTINE pw_zero ( pw )
-
 
     TYPE(pw_type), INTENT(INOUT)             :: pw
 
@@ -169,39 +139,18 @@ SUBROUTINE pw_zero ( pw )
 
 END SUBROUTINE pw_zero
 
-!!*****
-!******************************************************************************
-!!****** pw_types/pw_copy [1.0] *
-!!
-!!   NAME
-!!     pw_copy
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_copy(pw1, pw2)
-!!       Type(pw_type), Intent (IN):: pw1
-!!       Type(pw_type), Intent (INOUT):: pw2
-!!     End Subroutine pw_copy
-!!
-!!   FUNCTION
-!!     copy a pw type variable
-!!
-!!   AUTHOR
-!!     apsi
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (7-Mar-2001) : check for pw_grid %id_nr, allow copy if 
-!!       in_use == COMPLEXDATA1D and in_space == RECIPROCALSPACE
-!!     JGH (21-Feb-2003) : Code for generalized reference grids
-!!
-!!   NOTES
-!!     Currently only copying of respective types allowed, 
-!!     in order to avoid errors
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief copy a pw type variable
+!> \note
+!>      Currently only copying of respective types allowed, 
+!>      in order to avoid errors
+!> \par History
+!>      JGH (7-Mar-2001) : check for pw_grid %id_nr, allow copy if 
+!>        in_use == COMPLEXDATA1D and in_space == RECIPROCALSPACE
+!>      JGH (21-Feb-2003) : Code for generalized reference grids
+!> \author apsi
+! *****************************************************************************
 SUBROUTINE pw_copy ( pw1, pw2 )
-  
   
     TYPE(pw_type), INTENT(IN)                :: pw1
     TYPE(pw_type), INTENT(INOUT)             :: pw2
@@ -359,23 +308,11 @@ SUBROUTINE pw_copy ( pw1, pw2 )
   
 END SUBROUTINE pw_copy
 
-!!****f* pw_types/pw_scale *
-!!
-!!   NAME
-!!     pw_scale
-!!   FUNCTION
-!!     multiplies pw coeffs with a number
-!!   NOTES
-!!
-!!   INPUTS
-!!    -
-!!
-!!   MODIFICATION HISTORY
-!!     11.2004 created [Joost VandeVondele]
-!!
-!!   SOURCE
-!!*** **********************************************************************
-!!*****
+! *****************************************************************************
+!> \brief multiplies pw coeffs with a number
+!> \par History
+!>      11.2004 created [Joost VandeVondele]
+! *****************************************************************************
 SUBROUTINE pw_scale( pw, a )
 
     TYPE(pw_type), INTENT(INOUT)             :: pw
@@ -409,34 +346,15 @@ SUBROUTINE pw_scale( pw, a )
 
 END SUBROUTINE pw_scale
 
-!******************************************************************************
-!!****** pw_types/pw_derive [1.0] *
-!!
-!!   NAME
-!!     pw_derive
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_derive(pw, n)
-!!       Type(pw_type), Intent (INOUT):: pw
-!!       Integer, Dimension(3), Intent (IN):: n
-!!     End Subroutine pw_derive
-!!
-!!   FUNCTION
-!!     Calculate the derivative of a plane wave vector
-!!
-!!   AUTHOR
-!!     JGH (25-Feb-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (06-10-2002) allow only for inplace derivatives
-!!
-!!   NOTES
-!!     Calculate the derivative dx^n(1) dy^n(2) dz^n(3) PW
-!!     PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Calculate the derivative of a plane wave vector
+!> \note
+!>      Calculate the derivative dx^n(1) dy^n(2) dz^n(3) PW
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+!> \par History
+!>      JGH (06-10-2002) allow only for inplace derivatives
+!> \author JGH (25-Feb-2001)
+! *****************************************************************************
 SUBROUTINE pw_derive ( pw, n )
 
     TYPE(pw_type), INTENT(INOUT)             :: pw
@@ -524,33 +442,14 @@ SUBROUTINE pw_derive ( pw, n )
 
 END SUBROUTINE pw_derive
 
-!******************************************************************************
-!!****** pw_types/pw_dr2 [1.0] *
-!!
-!!   NAME
-!!     pw_dr2
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_dr2(pw, pwdr2)
-!!       Type(pw_type), Intent (IN)               :: pw
-!!       Type(pw_type), DIMENSION(:), Intent (OUT):: pwdr2
-!!     End Subroutine pw_dr2
-!!
-!!   FUNCTION
-!!     Calculate the tensorial 2nd derivative of a plane wave vector
-!!
-!!   AUTHOR
-!!     JGH (05-May-2006)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   NOTES
-!!     PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
-!!
-!!*****
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Calculate the tensorial 2nd derivative of a plane wave vector
+!> \note
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+!> \par History
+!>      none
+!> \author JGH (05-May-2006)
+! *****************************************************************************
 SUBROUTINE pw_dr2 ( pw, pwdr2, i, j )
 
     TYPE(pw_type), INTENT(IN)                :: pw
@@ -600,35 +499,16 @@ SUBROUTINE pw_dr2 ( pw, pwdr2, i, j )
 
 END SUBROUTINE pw_dr2
 
-!******************************************************************************
-!!****** pw_types/pw_dr2_gg [1.0] *
-!!
-!!   NAME
-!!     pw_dr2_gg
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_dr2(pw, pwdr2)
-!!       Type(pw_type), Intent (IN)               :: pw
-!!       Type(pw_type), DIMENSION(:), Intent (OUT):: pwdr2_gg
-!!     End Subroutine pw_dr2
-!!
-!!   FUNCTION
-!!     Calculate the tensorial 2nd derivative of a plane wave vector
-!!     and divides by |G|^2. pwdr2_gg(G=0) is put to zero.
-!!
-!!   AUTHOR
-!!     RD (20-Nov-2006)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   NOTES
-!!     PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
-!!     Adapted from pw_dr2
-!!
-!!*****
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Calculate the tensorial 2nd derivative of a plane wave vector
+!>      and divides by |G|^2. pwdr2_gg(G=0) is put to zero.
+!> \note
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+!>      Adapted from pw_dr2
+!> \par History
+!>      none
+!> \author RD (20-Nov-2006)
+! *****************************************************************************
 SUBROUTINE pw_dr2_gg ( pw, pwdr2_gg, i, j )
 
     TYPE(pw_type), INTENT(IN)                :: pw
@@ -681,34 +561,15 @@ SUBROUTINE pw_dr2_gg ( pw, pwdr2_gg, i, j )
 
 END SUBROUTINE pw_dr2_gg
 
-!******************************************************************************
-!!****** pw_types/pw_smoothing [1.0] *
-!!
-!!   NAME
-!!     pw_smoothing
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_smoothing(pw, ecut, sigma)
-!!       Type(pw_type), Intent (INOUT)            :: pw
-!!       REAL, Intent(IN)                         :: ecut, sigma
-!!     End Subroutine pw_smoothing
-!!
-!!   FUNCTION
-!!     Multiplies a G-space function with a smoothing factor of the form
-!!     f(|G|) = exp((ecut - G^2)/sigma)/(1+exp((ecut - G^2)/sigma))
-!!
-!!   AUTHOR
-!!     JGH (09-June-2006)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   NOTES
-!!     PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
-!!
-!!*****
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Multiplies a G-space function with a smoothing factor of the form
+!>      f(|G|) = exp((ecut - G^2)/sigma)/(1+exp((ecut - G^2)/sigma))
+!> \note
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+!> \par History
+!>      none
+!> \author JGH (09-June-2006)
+! *****************************************************************************
 SUBROUTINE pw_smoothing ( pw, ecut, sigma )
 
     TYPE(pw_type), INTENT(INOUT)             :: pw
@@ -749,33 +610,14 @@ SUBROUTINE pw_smoothing ( pw, ecut, sigma )
 
 END SUBROUTINE pw_smoothing
 
-!******************************************************************************
-!!****** pw_types/pw_transfer [1.0] *
-!!
-!!   NAME
-!!     pw_transfer
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_transfer(pw1, pw2)
-!!       Type(pw_type), Intent (IN):: pw1
-!!       Type(pw_type), Intent (INOUT):: pw2
-!!     End Subroutine pw_transfer
-!!
-!!   FUNCTION
-!!     Generalize copy of pw types
-!!
-!!   AUTHOR
-!!     JGH (25-Feb-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (13-Mar-2001) : added gather/scatter cases
-!!
-!!   NOTES
-!!     Copy routine that allows for in_space changes
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Generalize copy of pw types
+!> \note
+!>      Copy routine that allows for in_space changes
+!> \par History
+!>      JGH (13-Mar-2001) : added gather/scatter cases
+!> \author JGH (25-Feb-2001)
+! *****************************************************************************
 SUBROUTINE pw_transfer ( pw1, pw2, debug )
 
     TYPE(pw_type), INTENT(IN), TARGET        :: pw1
@@ -822,40 +664,18 @@ SUBROUTINE pw_transfer ( pw1, pw2, debug )
 
 END SUBROUTINE pw_transfer
 
-!!*****
-!******************************************************************************
-!!****** pw_types/pw_axpy [1.0] *
-!!
-!!   NAME
-!!     pw_axpy
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_axpy(pw1, pw2, alpha)
-!!       Type(pw_type), Intent (IN)           :: pw1
-!!       Type(pw_type), Intent (INOUT)        :: pw2
-!!       REAL(KIND=dp), Intent (IN), OPTIONAL :: alpha
-!!     End Subroutine pw_axpy
-!!
-!!   FUNCTION
-!!     pw2 = alpha*pw1 + pw2
-!!     alpha defaults to 1
-!!
-!!   AUTHOR
-!!     apsi
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (21-Feb-2003) : added reference grid functionality
-!!     JGH (01-Dec-2007) : rename and remove complex alpha
-!!
-!!   NOTES
-!!     Currently only summing up of respective types allowed,
-!!     in order to avoid errors
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief pw2 = alpha*pw1 + pw2
+!>      alpha defaults to 1
+!> \note
+!>      Currently only summing up of respective types allowed,
+!>      in order to avoid errors
+!> \par History
+!>      JGH (21-Feb-2003) : added reference grid functionality
+!>      JGH (01-Dec-2007) : rename and remove complex alpha
+!> \author apsi
+! *****************************************************************************
 SUBROUTINE pw_axpy ( pw1, pw2, alpha )
-
 
     TYPE(pw_type), INTENT(IN)                :: pw1
     TYPE(pw_type), INTENT(INOUT)             :: pw2
@@ -1050,25 +870,12 @@ SUBROUTINE pw_axpy ( pw1, pw2, alpha )
 
 END SUBROUTINE pw_axpy
 
-!!*****
-!******************************************************************************
-!!****** pw_types/pw_gather [1.0] *
-!!
-!!   NAME
-!!     pw_gather
-!!
-!!   FUNCTION
-!!     Gathers the pw vector from a 3d data field
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Gathers the pw vector from a 3d data field
+!> \par History
+!>      none
+!> \author JGH
+! *****************************************************************************
 SUBROUTINE pw_gather_s ( pw, c, scale )
  
     TYPE(pw_type), INTENT(INOUT)             :: pw
@@ -1132,10 +939,8 @@ SUBROUTINE pw_gather_s ( pw, c, scale )
 
 END SUBROUTINE pw_gather_s
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE pw_gather_p ( pw, c, scale )
-
 
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
     COMPLEX(KIND=dp), DIMENSION(:, :), &
@@ -1206,27 +1011,13 @@ SUBROUTINE pw_gather_p ( pw, c, scale )
 
 END SUBROUTINE pw_gather_p
 
-!!*****
-!******************************************************************************
-!!****** pw_types/pw_scatter [1.0] *
-!!
-!!   NAME
-!!     pw_scatter
-!!
-!!   FUNCTION
-!!     Scatters a pw vector to a 3d data field
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Scatters a pw vector to a 3d data field
+!> \par History
+!>      none
+!> \author JGH
+! *****************************************************************************
 SUBROUTINE pw_scatter_s ( pw, c, scale )
-
 
     TYPE(pw_type), INTENT(IN)                :: pw
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
@@ -1327,10 +1118,8 @@ SUBROUTINE pw_scatter_s ( pw, c, scale )
 
 END SUBROUTINE pw_scatter_s
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE pw_scatter_p ( pw, c, scale )
-
 
     TYPE(pw_type), INTENT(IN), TARGET        :: pw
     COMPLEX(KIND=dp), DIMENSION(:, :), &
@@ -1440,33 +1229,18 @@ SUBROUTINE pw_scatter_p ( pw, c, scale )
 
 END SUBROUTINE pw_scatter_p
 
-!!*****
-!******************************************************************************
-!!****** pw_types/pw_fft_wrap [1.1] *
-!!
-!!   NAME
-!!     pw_fft_wrap
-!!
-!!   FUNCTION
-!!     Generic function for 3d FFT of a coefficient_type or pw_type
-!!
-!!   AUTHOR
-!!     apsi
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (30-12-2000): New setup of functions and adaptation to parallelism
-!!     JGH (04-01-2001): Moved routine from pws to this module, only covers
-!!                       pw_types, no more coefficient types
-!!
-!!   NOTES
-!!     The following functions are covered
-!!      fft_wrap_pw1, fft_wrap_pw1pw2
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Generic function for 3d FFT of a coefficient_type or pw_type
+!> \note
+!>      The following functions are covered
+!>       fft_wrap_pw1, fft_wrap_pw1pw2
+!> \par History
+!>      JGH (30-12-2000): New setup of functions and adaptation to parallelism
+!>      JGH (04-01-2001): Moved routine from pws to this module, only covers
+!>                        pw_types, no more coefficient types
+!> \author apsi
+! *****************************************************************************
 SUBROUTINE fft_wrap_pw1 ( pw1, debug )
-
 
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw1
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
@@ -1518,12 +1292,9 @@ SUBROUTINE fft_wrap_pw1 ( pw1, debug )
 
 END SUBROUTINE fft_wrap_pw1
 
-
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
   
-
     TYPE(pw_type), INTENT(IN), TARGET        :: pw1
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw2
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
@@ -1795,10 +1566,8 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
 
 END SUBROUTINE fft_wrap_pw1pw2
 
-!******************************************************************************
-
+! *****************************************************************************
 FUNCTION fftselect ( use1, use2, space1 ) RESULT ( mode )
-
 
     INTEGER, INTENT(IN)                      :: use1, use2, space1
     CHARACTER(LEN=9)                         :: mode
@@ -1841,42 +1610,18 @@ FUNCTION fftselect ( use1, use2, space1 ) RESULT ( mode )
 
 END FUNCTION fftselect
 
-!!*****
-!******************************************************************************
-
-!!****f* pw_types/pw_write [1.0] *
-!!
-!!   NAME
-!!     pw_write
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_write(pw, unit_nr, error)
-!!       Type(pw_type), Intent (IN):: pw
-!!       Integer, Intent (IN):: unit_nr
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_write
-!!
-!!   FUNCTION
-!!     writes a small description of the actual grid
-!!     (change to output the data as cube file, maybe with an
-!!     optional long_description arg?)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - pw: the pw data to output
-!!     - unit_nr: the unit to output to
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes a small description of the actual grid
+!>      (change to output the data as cube file, maybe with an
+!>      optional long_description arg?)
+!> \param pw the pw data to output
+!> \param unit_nr the unit to output to
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      08.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE pw_write(pw, unit_nr, error)
     TYPE(pw_type), INTENT(in)                :: pw
     INTEGER, INTENT(in)                      :: unit_nr
@@ -1951,8 +1696,8 @@ SUBROUTINE pw_write(pw, unit_nr, error)
        pw%pw_grid%id_nr
 
 END SUBROUTINE pw_write
-!***************************************************************************
 
+! *****************************************************************************
 FUNCTION pw_compatible ( grida, gridb ) RESULT ( compat )
     TYPE(pw_grid_type), INTENT(IN)           :: grida, gridb
     LOGICAL                                  :: compat
@@ -1968,37 +1713,17 @@ FUNCTION pw_compatible ( grida, gridb ) RESULT ( compat )
    
 END FUNCTION pw_compatible
 
-!***************************************************************************
-
-!!****f* pw_types/pw_retain [1.0] *
-!!
-!!   NAME
-!!     pw_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_retain(pw, error)
-!!       Type(pw_type), Pointer:: pw
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_retain
-!!
-!!   FUNCTION
-!!     retains a pw type
-!!
-!!   NOTES
-!!     see doc/ReferenceCounting.html
-!!
-!!   ARGUMENTS
-!!     - pw: the pw to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     03.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains a pw type
+!> \param pw the pw to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      see doc/ReferenceCounting.html
+!> \par History
+!>      03.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pw_retain(pw, error)
     TYPE(pw_type), POINTER                   :: pw
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2016,37 +1741,18 @@ SUBROUTINE pw_retain(pw, error)
      pw%ref_count=pw%ref_count+1
   END IF
 END SUBROUTINE pw_retain
-!***************************************************************************
 
-!!****f* pw_types/pw_release [1.0] *
-!!
-!!   NAME
-!!     pw_release
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_release(pw, error)
-!!       Type(pw_type), Pointer:: pw
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_release
-!!
-!!   FUNCTION
-!!     releases the given pw
-!!
-!!   NOTES
-!!     see doc/ReferenceCounting.html
-!!
-!!   ARGUMENTS
-!!     - pw: the pw to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     04.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given pw
+!> \param pw the pw to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \note
+!>      see doc/ReferenceCounting.html
+!> \par History
+!>      04.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pw_release(pw, error)
     TYPE(pw_type), POINTER                   :: pw
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -2094,46 +1800,20 @@ SUBROUTINE pw_release(pw, error)
   END IF
   NULLIFY(pw)
 END SUBROUTINE pw_release
-!***************************************************************************
 
-!!****f* pw_types/pw_create [1.0] *
-!!
-!!   NAME
-!!     pw_create
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_create(pw, pw_grid, use_data, in_space,&
-!!         cr3d_ptr, error)
-!!       Type(pw_type), Pointer:: pw
-!!       Type(pw_grid_type), Pointer:: pw_grid
-!!       Integer, Intent (IN):: use_data
-!!       Integer, Intent (IN), Optional:: in_space
-!!       REAL(KIND=dp), Dimension(:,:,:), Optional, Pointer:: cr3d_ptr
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_create
-!!
-!!   FUNCTION
-!!     allocates and initializes pw_type
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - pw: the type that will bw allocated and initialized
-!!     - use_data: which kind of data will be used
-!!     - in_space: in which space the pw is (real or reciprocal)
-!!     - cr3d_ptr: pointer with the cr3d data (make sense only if 
-!!       use_data==REALDATA3D)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief allocates and initializes pw_type
+!> \param pw the type that will bw allocated and initialized
+!> \param use_data which kind of data will be used
+!> \param in_space in which space the pw is (real or reciprocal)
+!> \param cr 3d_ptr: pointer with the cr3d data (make sense only if 
+!>        use_data==REALDATA3D)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr, error)
     TYPE(pw_type), POINTER                   :: pw
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -2231,38 +1911,16 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr, error)
   END IF
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE pw_create
-!***************************************************************************
 
-!!****f* pw_types/pw_compare_debug [1.0] *
-!!
-!!   NAME
-!!     pw_compare_debug
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_compare_debug(pw1, pw2, maxdiff, error)
-!!       Type(pw_type), Pointer:: pw1, pw2
-!!       REAL(KIND=dp), Intent (OUT), Optional:: maxdiff
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pw_compare_debug
-!!
-!!   FUNCTION
-!!     compares two pw, only for debugging purposes
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - pw1,pw2: the two pw to compare
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief compares two pw, only for debugging purposes
+!> \param pw 1,pw2: the two pw to compare
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE pw_compare_debug(pw1,pw2,maxdiff,error)
     TYPE(pw_type), POINTER                   :: pw1, pw2
     REAL(KIND=dp), INTENT(out), OPTIONAL     :: maxdiff
@@ -2329,24 +1987,13 @@ SUBROUTINE pw_compare_debug(pw1,pw2,maxdiff,error)
   END IF
 END SUBROUTINE pw_compare_debug
 
-!***************************************************************************
-!!****** pws/pw_integral [1.0] *
-!!
-!!   NAME
-!!     pw_integral
-!!
-!!   FUNCTION
-!!     Calculate integral over unit cell for functions in plane wave basis
-!!     only returns the real part of it ......
-!!
-!!   AUTHOR
-!!     apsi
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (14-Mar-2001) : Parallel sum and some tests, HALFSPACE case
-!!
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Calculate integral over unit cell for functions in plane wave basis
+!>      only returns the real part of it ......
+!> \par History
+!>      JGH (14-Mar-2001) : Parallel sum and some tests, HALFSPACE case
+!> \author apsi
+! *****************************************************************************
 FUNCTION pw_integral_ab ( pw1, pw2, flag ) RESULT ( integral_value )
 
     TYPE(pw_type), INTENT(IN)                :: pw1, pw2
@@ -2410,8 +2057,7 @@ FUNCTION pw_integral_ab ( pw1, pw2, flag ) RESULT ( integral_value )
 
 END FUNCTION pw_integral_ab
 
-!******************************************************************************
-
+! *****************************************************************************
 FUNCTION pw_integral_aa ( pw1, flag ) RESULT ( integral_value )
 
     TYPE(pw_type), INTENT(IN)                :: pw1
@@ -2470,8 +2116,7 @@ FUNCTION pw_integral_aa ( pw1, flag ) RESULT ( integral_value )
 
 END FUNCTION pw_integral_aa
 
-!******************************************************************************
-
+! *****************************************************************************
 FUNCTION pw_integral_a2b ( pw1, pw2 ) RESULT ( integral_value )
 
     TYPE(pw_type), INTENT(IN)                :: pw1, pw2
@@ -2508,27 +2153,14 @@ FUNCTION pw_integral_a2b ( pw1, pw2 ) RESULT ( integral_value )
 
 END FUNCTION pw_integral_a2b
 
-!******************************************************************************
-!!****** pw_types/pw_structure_factor [1.0] *
-!!
-!!   NAME
-!!     pw_structure_factor
-!!
-!!   FUNCTION
-!!     Calculate the structure factor for point r
-!!
-!!   AUTHOR
-!!     JGH (05-May-2006)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   NOTES
-!!     PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
-!!
-!****
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Calculate the structure factor for point r
+!> \note
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+!> \par History
+!>      none
+!> \author JGH (05-May-2006)
+! *****************************************************************************
 SUBROUTINE pw_structure_factor ( sf, r )
 
     TYPE(pw_type), INTENT(INOUT)             :: sf
@@ -2567,8 +2199,7 @@ SUBROUTINE pw_structure_factor ( sf, r )
 
 END SUBROUTINE pw_structure_factor
 
-!******************************************************************************
-
+! *****************************************************************************
 FUNCTION pw_integrate_function(fun,isign,OPERATOR) RESULT(total_fun)
 
     TYPE(pw_type), INTENT(IN)                :: fun
@@ -2631,8 +2262,5 @@ FUNCTION pw_integrate_function(fun,isign,OPERATOR) RESULT(total_fun)
 
 END FUNCTION pw_integrate_function
 
-!******************************************************************************
-
 END MODULE pw_types
 
-!******************************************************************************

@@ -3,25 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/eip_environment_types [1.0] *
-!!
-!!   NAME
-!!     eip_environment_types
-!!
-!!   FUNCTION
-!!     The environment for the empirical interatomic potential methods.
-!!
-!!   NOTES
-!!     -
-!!     
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief The environment for the empirical interatomic potential methods.
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
 MODULE eip_environment_types
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
@@ -74,50 +61,33 @@ MODULE eip_environment_types
             eip_env_get, &
             eip_env_clear, &
             eip_env_create
-!!***
-!****************************************************************************
 
-!!****s* eip_environment_types/eip_environment_type [1.0] *
-!!
-!!   NAME
-!!     eip_environment_type
-!!
-!!   FUNCTION
-!!     The empirical interatomic potential environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - id_nr: unique identifier
-!!     - ref_count: reference counter (see doc/ReferenceCounting.html)
-!!     - eip_model: Specifies which EIP model is in use.
-!!     - eip_kinetic_energy: The EIP kinetic energy
-!!     - eip_potential_energy: The EIP potential energy
-!!     - eip_energy: The total eip energy
-!!     - eip_energy_var: Variance of the energy/atom
-!!     - eip_forces: The final eip forces [eV/A]
-!!     - coord_avg: The average coordination number
-!!     - coord_var: The variance of the coordination number
-!!     - count: Counts how often the empirical interatomic potential function
-!!              is called. Don't ask why this is a real!
-!!     - subsystem: the particles, molecules,... of this environment
-!!     - eip_input: Pointer to the EIP input section
-!!     - force_env_input: Pointer to the force_env input section
-!!     - cell: The simulation cell
-!!     - cell_ref: The reference simulation cell
-!!     - use_ref_cell: Logical which indicates if reference 
-!!                     simulation cell is used
-!!     - virial: Dummy virial pointer
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief The empirical interatomic potential environment
+!> \param id_nr unique identifier
+!> \param ref_count reference counter (see doc/ReferenceCounting.html)
+!> \param eip_model Specifies which EIP model is in use.
+!> \param eip_kinetic_energy The EIP kinetic energy
+!> \param eip_potential_energy The EIP potential energy
+!> \param eip_energy The total eip energy
+!> \param eip_energy_var Variance of the energy/atom
+!> \param eip_forces The final eip forces [eV/A]
+!> \param coord_avg The average coordination number
+!> \param coord_var The variance of the coordination number
+!> \param count Counts how often the empirical interatomic potential function
+!>               is called. Don't ask why this is a real!
+!> \param subsystem the particles, molecules,... of this environment
+!> \param eip_input Pointer to the EIP input section
+!> \param force_env_input Pointer to the force_env input section
+!> \param cell The simulation cell
+!> \param cell_ref The reference simulation cell
+!> \param use_ref_cell Logical which indicates if reference 
+!>                      simulation cell is used
+!> \param virial Dummy virial pointer
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   TYPE eip_environment_type
     INTEGER                                          :: id_nr, &
                                                         ref_count, &
@@ -139,62 +109,29 @@ MODULE eip_environment_types
     TYPE(virial_type), POINTER                       :: virial
 
   END TYPE eip_environment_type
-!!***
-!****************************************************************************
 
-!!****s* eip_environment_types/eip_environment_p_type [1.0] *
-!!
-!!   NAME
-!!     eip_environment_p_type
-!!
-!!   FUNCTION
-!!     Type which allows the use of arrays of pointers
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     - eip_env_ptr: Pointer to the actual eip environment
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief Type which allows the use of arrays of pointers
+!> \param eip_env_ptr Pointer to the actual eip environment
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   TYPE eip_environment_p_type
     TYPE(eip_environment_type), POINTER :: eip_env_ptr
   END TYPE eip_environment_p_type
-!!***
-!****************************************************************************
 
 CONTAINS
 
-!!****f* eip_environment_types/eip_env_retain [1.0] *
-!!
-!!   NAME
-!!     eip_env_retain
-!!
-!!   FUNCTION
-!!     Retains a eip environment (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - eip_env: The eip environment to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Retains a eip environment (see doc/ReferenceCounting.html)
+!> \param eip_env The eip environment to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE eip_env_retain(eip_env, error)
 
     TYPE(eip_environment_type), POINTER      :: eip_env
@@ -215,31 +152,16 @@ CONTAINS
       eip_env%ref_count = eip_env%ref_count+1
     END IF
   END SUBROUTINE eip_env_retain
-!***************************************************************************
 
-!!****f* eip_environment_types/eip_env_release [1.0] *
-!!
-!!   NAME
-!!     eip_env_release
-!!
-!!   FUNCTION
-!!     Releases the given eip environment (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - eip_env: The eip environment to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Releases the given eip environment (see doc/ReferenceCounting.html)
+!> \param eip_env The eip environment to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE eip_env_release(eip_env, error)
 
     TYPE(eip_environment_type), POINTER      :: eip_env
@@ -290,59 +212,44 @@ CONTAINS
     END IF
     NULLIFY(eip_env)
   END SUBROUTINE eip_env_release
-!***************************************************************************
 
-!!****f* eip_environment_types/eip_env_get [1.0] *
-!!
-!!   NAME
-!!     eip_env_get
-!!
-!!   FUNCTION
-!!     Returns various attributes of the eip environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - eip_env: The enquired eip environment
-!!     - id_nr: unique identifier
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!     - eip_model: Specifies which EIP model is in use.
-!!     - eip_kinetic_energy: The EIP kinetic energy
-!!     - eip_potential_energy: The EIP potential energy
-!!     - eip_energy: The total eip energy
-!!     - eip_energy_var: Variance of the energy/atom
-!!     - eip_forces: The final eip forces [eV/A]
-!!     - coord_avg: The average coordination number
-!!     - coord_var: The variance of the coordination number
-!!     - count: Counts how often the empirical interatomic potential function
-!!              is called. Don't ask why this is a real!
-!!     - subsys: the particles, molecules,... of this environment
-!!     - atomic_kind_set: The set of all atomic kinds involved
-!!     - particle_set: The set of all particles
-!!     - local_particles: All particles on this particular node
-!!     - molecule_kind_set: The set of all different molecule kinds involved
-!!     - molecule_set: The set of all molecules
-!!     - local_molecules: All molecules on this particular node
-!!     - eip_input: the pointer to the EIP input section
-!!     - force_env_input: Pointer to the force_env input section
-!!     - cell: The simulation cell
-!!     - cell_ref: The reference simulation cell
-!!     - use_ref_cell: Logical which indicates if reference 
-!!                     simulation cell is used
-!!     - virial: Dummy virial pointer
-!!
-!!     For possible missing arguments see the attributes of 
-!!     eip_environment_type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Returns various attributes of the eip environment
+!> \param eip_env The enquired eip environment
+!> \param id_nr unique identifier
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> \param eip_model Specifies which EIP model is in use.
+!> \param eip_kinetic_energy The EIP kinetic energy
+!> \param eip_potential_energy The EIP potential energy
+!> \param eip_energy The total eip energy
+!> \param eip_energy_var Variance of the energy/atom
+!> \param eip_forces The final eip forces [eV/A]
+!> \param coord_avg The average coordination number
+!> \param coord_var The variance of the coordination number
+!> \param count Counts how often the empirical interatomic potential function
+!>               is called. Don't ask why this is a real!
+!> \param subsys the particles, molecules,... of this environment
+!> \param atomic_kind_set The set of all atomic kinds involved
+!> \param particle_set The set of all particles
+!> \param local_particles All particles on this particular node
+!> \param molecule_kind_set The set of all different molecule kinds involved
+!> \param molecule_set The set of all molecules
+!> \param local_molecules All molecules on this particular node
+!> \param eip_input the pointer to the EIP input section
+!> \param force_env_input Pointer to the force_env input section
+!> \param cell The simulation cell
+!> \param cell_ref The reference simulation cell
+!> \param use_ref_cell Logical which indicates if reference 
+!>                      simulation cell is used
+!> \param virial Dummy virial pointer
+!> 
+!>      For possible missing arguments see the attributes of 
+!>      eip_environment_type
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE eip_env_get(eip_env, id_nr, eip_model, eip_energy, eip_energy_var, &
                          eip_forces, coord_avg, coord_var, count, subsys, &
                          atomic_kind_set, particle_set , local_particles, &
@@ -435,59 +342,44 @@ CONTAINS
     END IF
 
   END SUBROUTINE eip_env_get
-!***************************************************************************
 
-!!****f* eip_environment_types/eip_env_set [1.0] *
-!!
-!!   NAME
-!!     eip_env_set
-!!
-!!   FUNCTION
-!!     Sets various attributes of the eip environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - eip_env: The enquired eip environment
-!!     - id_nr: unique identifier
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!     - eip_model: Specifies which EIP model is in use
-!!     - eip_kinetic_energy: The EIP kinetic energy
-!!     - eip_potential_energy: The EIP potential energy
-!!     - eip_energy: The total eip energy
-!!     - eip_energy_var: Variance of the energy/atom
-!!     - eip_forces: The final eip forces [eV/A]
-!!     - coord_avg: The average coordination number
-!!     - coord_var: The variance of the coordination number
-!!     - count: Counts how often the empirical interatomic potential function
-!!              is called. Don't ask why this is a real!
-!!     - subsys: the particles, molecules,... of this environment
-!!     - atomic_kind_set: The set of all atomic kinds involved
-!!     - particle_set: The set of all particles
-!!     - local_particles: All particles on this particular node
-!!     - molecule_kind_set: The set of all different molecule kinds involved
-!!     - molecule_set: The set of all molecules
-!!     - local_molecules: All molecules on this particular node
-!!     - eip_input: the pointer to the EIP input section
-!!     - force_env_input: Pointer to the force_env input section
-!!     - cell: The simulation cell
-!!     - cell_ref: The reference simulation cell
-!!     - use_ref_cell: Logical which indicates if reference 
-!!                     simulation cell is used
-!!     - virial: Dummy virial pointer
-!!
-!!     For possible missing arguments see the attributes of 
-!!     eip_environment_type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Sets various attributes of the eip environment
+!> \param eip_env The enquired eip environment
+!> \param id_nr unique identifier
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> \param eip_model Specifies which EIP model is in use
+!> \param eip_kinetic_energy The EIP kinetic energy
+!> \param eip_potential_energy The EIP potential energy
+!> \param eip_energy The total eip energy
+!> \param eip_energy_var Variance of the energy/atom
+!> \param eip_forces The final eip forces [eV/A]
+!> \param coord_avg The average coordination number
+!> \param coord_var The variance of the coordination number
+!> \param count Counts how often the empirical interatomic potential function
+!>               is called. Don't ask why this is a real!
+!> \param subsys the particles, molecules,... of this environment
+!> \param atomic_kind_set The set of all atomic kinds involved
+!> \param particle_set The set of all particles
+!> \param local_particles All particles on this particular node
+!> \param molecule_kind_set The set of all different molecule kinds involved
+!> \param molecule_set The set of all molecules
+!> \param local_molecules All molecules on this particular node
+!> \param eip_input the pointer to the EIP input section
+!> \param force_env_input Pointer to the force_env input section
+!> \param cell The simulation cell
+!> \param cell_ref The reference simulation cell
+!> \param use_ref_cell Logical which indicates if reference 
+!>                      simulation cell is used
+!> \param virial Dummy virial pointer
+!> 
+!>      For possible missing arguments see the attributes of 
+!>      eip_environment_type
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE eip_env_set(eip_env, id_nr, eip_model, eip_energy, eip_energy_var, &
                          eip_forces, coord_avg, coord_var, count, subsys, &
                          atomic_kind_set, particle_set , local_particles, &
@@ -625,34 +517,19 @@ CONTAINS
       IF (PRESENT(virial)) eip_env%virial => virial
     END IF
   END SUBROUTINE eip_env_set
-!***************************************************************************
 
-!!****f* eip_environment_types/eip_env_clear [1.0] *
-!!
-!!   NAME
-!!     eip_env_clear
-!!
-!!   FUNCTION
-!!     Reinitializes the eip environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - eip_env: The eip environment to be reinitialized
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!     For possible missing arguments see the attributes of 
-!!     eip_environment_type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Reinitializes the eip environment
+!> \param eip_env The eip environment to be reinitialized
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> 
+!>      For possible missing arguments see the attributes of 
+!>      eip_environment_type
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE eip_env_clear(eip_env, error)
 
     TYPE(eip_environment_type), POINTER      :: eip_env
@@ -703,34 +580,19 @@ CONTAINS
       CALL eip_env_create(eip_env, error=error)
     END IF
   END SUBROUTINE eip_env_clear
-!***************************************************************************
 
-!!****f* eip_environment_types/eip_env_create [1.0] *
-!!
-!!   NAME
-!!     eip_env_create
-!!
-!!   FUNCTION
-!!     Creates the eip environment
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - eip_env: The eip environment to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!     For possible missing arguments see the attributes of 
-!!     eip_environment_type
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     03.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Creates the eip environment
+!> \param eip_env The eip environment to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling
+!> 
+!>      For possible missing arguments see the attributes of 
+!>      eip_environment_type
+!> \par History
+!>      03.2006 initial create [tdk]
+!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+! *****************************************************************************
   SUBROUTINE eip_env_create(eip_env, error)
 
     TYPE(eip_environment_type), POINTER      :: eip_env
@@ -763,6 +625,5 @@ CONTAINS
       CALL eip_env_clear(eip_env, error=error)
     END IF
   END SUBROUTINE eip_env_create
-!***************************************************************************
 
 END MODULE eip_environment_types

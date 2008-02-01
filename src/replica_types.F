@@ -3,30 +3,19 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/replica_types *
-!!
-!!   NAME
-!!     replica_types
-!!
-!!   FUNCTION
-!!     types used to handle many replica of the same system that differ only
-!!     in atom positions, and velocity.
-!!     This is useful for things like path integrals or nudged elastic band
-!!
-!!   NOTES
-!!     this is a stupid implementation that replicates all the information
-!!     about the replicas, if you really want to do a *lot* of replicas on
-!!     a lot of processors you should think about distributiong also that
-!!     information
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     09.2005 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief types used to handle many replica of the same system that differ only
+!>      in atom positions, and velocity.
+!>      This is useful for things like path integrals or nudged elastic band
+!> \note
+!>      this is a stupid implementation that replicates all the information
+!>      about the replicas, if you really want to do a *lot* of replicas on
+!>      a lot of processors you should think about distributiong also that
+!>      information
+!> \par History
+!>      09.2005 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 MODULE replica_types
   USE cp_files,                        ONLY: close_file,&
                                              open_file
@@ -73,52 +62,36 @@ MODULE replica_types
   PUBLIC :: rep_env_retain, rep_env_release,rep_env_write
   PUBLIC :: rep_env_sync, rep_env_calc_e_f,rep_env_sync_type
   PUBLIC :: rep_envs_get_rep_env, rep_env_create,rep_env_local_index
-  !!***
-  !****************************************************************************
 
-  !!****s* replica_types/replica_env_type *
-  !!
-  !!   NAME
-  !!     replica_env_type
-  !!
-  !!   FUNCTION
-  !!     keeps replicated information about the replicas
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     - ref_count: reference count
-  !!     - id_nr: identity number (unique or each replica_env)
-  !!     - nrep: number of replicas
-  !!     - nat: number of atoms (in each replica)
-  !!     - ndim: number of dimensions (3*nat)
-  !!     - f_env_id: id of the force env that will do the calculations for the
-  !!       replicas owned by this processor
-  !!     - r,v,f: positions, velocities and forces of the replicas.
-  !!       the indexing is as follow (idir,iat,irep)
-  !!     - replica_owner: which processor column owns the replica irep
-  !!     - cart: 2d distribution of the processors for the replicas,
-  !!       a column  work together on the same force_env (i.e. changing the
-  !!       row you stay in the same replica), rows have different replicas
-  !!     - para_env: the global para env that contains all the replicas,
-  !!       this is just the cart as para_env
-  !!     - para_env_f: parallel environment of the underlying force
-  !!       environment
-  !!     - row_rank: mapping row -> rank in para_env_f
-  !!     - para_env_inter_rep: parallel environment between processors
-  !!       on the same row of cart
-  !!     - col_rank: mapping column -> rank in para_env_inter_rep
-  !!     - local_rep_indices: indices of the local replicas, starting at 1
-  !!     - wf_history: wavefunction history for the owned replicas
-  !!     - keep_wf_history: if the wavefunction history for the owned replicas
-  !!       should be kept
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief keeps replicated information about the replicas
+!> \param ref_count reference count
+!> \param id_nr identity number (unique or each replica_env)
+!> \param nrep number of replicas
+!> \param nat number of atoms (in each replica)
+!> \param ndim number of dimensions (3*nat)
+!> \param f_env_id id of the force env that will do the calculations for the
+!>        replicas owned by this processor
+!> \param r ,v,f: positions, velocities and forces of the replicas.
+!>        the indexing is as follow (idir,iat,irep)
+!> \param replica_owner which processor column owns the replica irep
+!> \param cart 2d distribution of the processors for the replicas,
+!>        a column  work together on the same force_env (i.e. changing the
+!>        row you stay in the same replica), rows have different replicas
+!> \param para_env the global para env that contains all the replicas,
+!>        this is just the cart as para_env
+!> \param para_env_f parallel environment of the underlying force
+!>        environment
+!> \param row_rank mapping row -> rank in para_env_f
+!> \param para_env_inter_rep parallel environment between processors
+!>        on the same row of cart
+!> \param col_rank mapping column -> rank in para_env_inter_rep
+!> \param local_rep_indices indices of the local replicas, starting at 1
+!> \param wf_history wavefunction history for the owned replicas
+!> \param keep_wf_history if the wavefunction history for the owned replicas
+!>        should be kept
+!> \author fawzi
+! *****************************************************************************
   TYPE replica_env_type
      INTEGER :: ref_count, id_nr, f_env_id, nrep,nat,ndim
      REAL(kind=dp), DIMENSION(:,:), POINTER :: r,v,f
@@ -130,65 +103,36 @@ MODULE replica_types
      TYPE(cp_para_cart_type), POINTER :: cart
      TYPE(cp_para_env_type), POINTER :: para_env, para_env_f,para_env_inter_rep
   END TYPE replica_env_type
-  !!***yf
-  !****************************************************************************
 
-  !!****s* replica_types/replica_env_p_type *
-  !!
-  !!   NAME
-  !!     replica_env_p_type
-  !!
-  !!   FUNCTION
-  !!     to build arrays of pointers to a replica_env_type
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     - rep_env: the pointer to the replica_env
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief ****s* replica_types/replica_env_p_type *
+!> 
+!>      to build arrays of pointers to a replica_env_type
+!> \param rep_env the pointer to the replica_env
+!> \author fawzi
+! *****************************************************************************
   TYPE replica_env_p_type
      TYPE(replica_env_type), POINTER :: rep_env
   END TYPE replica_env_p_type
-  !!***
-  !****************************************************************************
 
   TYPE(replica_env_p_type), POINTER, DIMENSION(:), PRIVATE :: rep_envs
 
 CONTAINS
 
-  !!****f* replica_methods/rep_env_create *
-  !!
-  !!   NAME
-  !!     rep_env_create
-  !!
-  !!   FUNCTION
-  !!     creates a replica environment together with its force environment
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - rep_env: the replica environment that will be created
-  !!     - para_env: the parallel enviroment that will contain the replicas
-  !!     - input: the input used to initialize the force environment
-  !!     - nrep: the number of replicas to calculate
-  !!     - prep: the number of processors for each replica
-  !!     - sync_v: if the volocity should be synchronized (defaults to false)
-  !!     - keep_wf_history: if wf history should be kept on a per replica
-  !!       basis (defaults to true for QS jobs)
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a replica environment together with its force environment
+!> \param rep_env the replica environment that will be created
+!> \param para_env the parallel enviroment that will contain the replicas
+!> \param input the input used to initialize the force environment
+!> \param nrep the number of replicas to calculate
+!> \param prep the number of processors for each replica
+!> \param sync_v if the volocity should be synchronized (defaults to false)
+!> \param keep_wf_history if wf history should be kept on a per replica
+!>        basis (defaults to true for QS jobs)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE rep_env_create(rep_env, para_env, input, nrep, prep,&
        sync_v,keep_wf_history,error)
     TYPE(replica_env_type), POINTER          :: rep_env
@@ -372,30 +316,17 @@ CONTAINS
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE rep_env_create
-  !***************************************************************************
 
-  !!****f* replica_types/rep_env_release *
-  !!
-  !!   NAME
-  !!     rep_env_release
-  !!
-  !!   FUNCTION
-  !!     releases the given replica environment
-  !!
-  !!   NOTES
-  !!     here and not in replica_types to allow the use of replica_env_type
-  !!     in a force_env (call to destroy_force_env gives circular dep)
-  !!
-  !!   ARGUMENTS
-  !!     - rep_env: the replica environment to release
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief releases the given replica environment
+!> \param rep_env the replica environment to release
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      here and not in replica_types to allow the use of replica_env_type
+!>      in a force_env (call to destroy_force_env gives circular dep)
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE rep_env_release(rep_env,error)
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -463,28 +394,14 @@ CONTAINS
     NULLIFY(rep_env)
     CALL timestop(handle)
   END SUBROUTINE rep_env_release
-  !***************************************************************************
 
-  !!****f* replica_types/rep_env_retain *
-  !!
-  !!   NAME
-  !!     rep_env_retain
-  !!
-  !!   FUNCTION
-  !!     retains the given replica environment
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - rep_env: the replica environment to retain
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given replica environment
+!> \param rep_env the replica environment to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE rep_env_retain(rep_env,error)
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -504,29 +421,15 @@ CONTAINS
     END IF
     CALL timestop(handle)
   END SUBROUTINE rep_env_retain
-  !***************************************************************************
 
-  !!****f* replica_types/rep_env_write *
-  !!
-  !!   NAME
-  !!     rep_env_write
-  !!
-  !!   FUNCTION
-  !!     writes out information about the rep_env
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - rep_env: the replica env to describe
-  !!     - unit_nr: the unit to write to
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes out information about the rep_env
+!> \param rep_env the replica env to describe
+!> \param unit_nr the unit to write to
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE rep_env_write(rep_env, unit_nr, error)
     TYPE(replica_env_type), POINTER          :: rep_env
     INTEGER, INTENT(in)                      :: unit_nr
@@ -579,30 +482,18 @@ CONTAINS
     END IF
     CALL timestop(handle)
   END SUBROUTINE rep_env_write
-  !***************************************************************************
 
-  !!****f* replica_types/rep_env_sync *
-  !!
-  !!   NAME
-  !!     rep_env_sync
-  !!
-  !!   FUNCTION
-  !!     sends the data from each replica to all the other
-  !!     on replica j/=i data from replica i overwrites val(:,i)
-  !!
-  !!   NOTES
-  !!     could be optimized: bcast in inter_rep, all2all or shift vs sum
-  !!
-  !!   ARGUMENTS
-  !!     - rep_env: replica environment
-  !!     - vals: the values to synchronize (second index runs over replicas)
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief sends the data from each replica to all the other
+!>      on replica j/=i data from replica i overwrites val(:,i)
+!> \param rep_env replica environment
+!> \param vals the values to synchronize (second index runs over replicas)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      could be optimized: bcast in inter_rep, all2all or shift vs sum
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE rep_env_sync(rep_env,vals,error)
     TYPE(replica_env_type), POINTER          :: rep_env
     REAL(kind=dp), DIMENSION(:, :), &
@@ -631,31 +522,15 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE rep_env_sync
 
-
-  !***************************************************************************
-
-  !!****f* replica_types/rep_env_sync_type *
-  !!
-  !!   NAME
-  !!     rep_env_sync_type
-  !!
-  !!   FUNCTION
-  !!     sends the data from each replica to all the other
-  !!     in this case the result type is passed
-  !!
-  !!   NOTES
-  !!
-  !!   ARGUMENTS
-  !!     - rep_env: replica environment
-  !!     - results: is an array of result_types
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fschiff
-  !!
-  !!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief sends the data from each replica to all the other
+!>      in this case the result type is passed
+!> \param rep_env replica environment
+!> \param results is an array of result_types
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fschiff
+! *****************************************************************************
   SUBROUTINE rep_env_sync_type(rep_env,results,error)
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(cp_result_p_type), DIMENSION(:), &
@@ -762,31 +637,19 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE rep_env_sync_type
-  !***************************************************************************
 
-  !!****f* replica_types/rep_env_calc_e_f *
-  !!
-  !!   NAME
-  !!     rep_env_calc_e_f
-  !!
-  !!   FUNCTION
-  !!     evaluates the forces
-  !!
-  !!   NOTES
-  !!     indirect through f77_int_low to work around fortran madness
-  !!
-  !!   INPUTS
-  !!     - rep_env: the replica environment on which you want to evaluate the
-  !!       forces
-  !!     - calc_f: if true calculates also the forces, if false only the
-  !!       energy
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief evaluates the forces
+!> \param rep_env the replica environment on which you want to evaluate the
+!>        forces
+!> \param calc_f if true calculates also the forces, if false only the
+!>        energy
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      indirect through f77_int_low to work around fortran madness
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE rep_env_calc_e_f(rep_env,calc_f,error)
     TYPE(replica_env_type), POINTER          :: rep_env
     LOGICAL, OPTIONAL                        :: calc_f
@@ -813,28 +676,14 @@ CONTAINS
     END IF
     CALL timestop(handle)
   END SUBROUTINE rep_env_calc_e_f
-  !***************************************************************************
 
-  !!****f* replica_types/rep_envs_get_rep_env *
-  !!
-  !!   NAME
-  !!     rep_envs_get_rep_env
-  !!
-  !!   FUNCTION
-  !!     returns the replica environment with the given id_nr
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - id_nr: the id_nr of the requested rep_envs
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the replica environment with the given id_nr
+!> \param id_nr the id_nr of the requested rep_envs
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   FUNCTION rep_envs_get_rep_env(id_nr,error) RESULT(res)
     INTEGER, INTENT(in)                      :: id_nr
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -857,28 +706,14 @@ CONTAINS
        END IF
     END IF
   END FUNCTION rep_envs_get_rep_env
-  !***************************************************************************
 
-  !!****f* replica_types/rep_envs_add_rep_env *
-  !!
-  !!   NAME
-  !!     rep_envs_add_rep_env
-  !!
-  !!   FUNCTION
-  !!     adds the given rep_env to the list of controlled rep_envs.
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - rep_env: the rep_env to add
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief adds the given rep_env to the list of controlled rep_envs.
+!> \param rep_env the rep_env to add
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE rep_envs_add_rep_env(rep_env,error)
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -920,28 +755,14 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE rep_envs_add_rep_env
-  !***************************************************************************
 
-  !!****f* replica_types/rep_envs_rm_rep_env *
-  !!
-  !!   NAME
-  !!     rep_envs_rm_rep_env
-  !!
-  !!   FUNCTION
-  !!     removes the given rep_env to the list of controlled rep_envs.
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - rep_env: the rep_env to remove
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief removes the given rep_env to the list of controlled rep_envs.
+!> \param rep_env the rep_env to remove
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE rep_envs_rm_rep_env(rep_env,error)
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -977,29 +798,15 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE rep_envs_rm_rep_env
-  !***************************************************************************
 
-  !!****f* replica_env_p_type/rep_env_local_index *
-  !!
-  !!   NAME
-  !!     rep_env_local_index
-  !!
-  !!   FUNCTION
-  !!     returns the local index of the replica (-1 if it is not a local replica)
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     - rep_env: the replica env
-  !!     - global_index: the global replica index
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the local index of the replica (-1 if it is not a local replica)
+!> \param rep_env the replica env
+!> \param global_index the global replica index
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author fawzi
+! *****************************************************************************
   FUNCTION rep_env_local_index(rep_env,global_index,error) RESULT(res)
     TYPE(replica_env_type), POINTER          :: rep_env
     INTEGER, INTENT(in)                      :: global_index
@@ -1031,6 +838,5 @@ CONTAINS
     END IF
     CALL timestop(handle)
   END FUNCTION rep_env_local_index
-  !***************************************************************************
 
 END MODULE replica_types

@@ -2,30 +2,18 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/orbital_symbols [1.0] *
-!!
-!!   NAME
-!!     orbital_symbols
-!!
-!!   FUNCTION
-!!     orbital_symbols
-!!
-!!   AUTHOR
-!!     Matthias Krack (08.06.2000)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief orbital_symbols
+!> \par History
+!>      none
+!> \author Matthias Krack (08.06.2000)
+! *****************************************************************************
 MODULE orbital_symbols
   USE f77_blas
-! *****************************************************************************
 ! Index:
 ! FUNCTION cgf_symbol(n,lxyz) RESULT(symbol)
 ! FUNCTION sgf_symbol(n,l,m) RESULT(symbol)
-! *****************************************************************************
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
@@ -42,20 +30,14 @@ MODULE orbital_symbols
 
   PUBLIC :: cgf_symbol,sgf_symbol
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   FUNCTION cgf_symbol(n,lxyz) RESULT(symbol)
 
 !   Purpose: Build a Cartesian orbital symbol (orbital labels for printing).
 
 !   History: - Creation (07.07.99, Matthias Krack)
-
-!   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: n
     INTEGER, DIMENSION(3), INTENT(IN)        :: lxyz
@@ -112,20 +94,15 @@ CONTAINS
   END FUNCTION cgf_symbol
 
 ! *****************************************************************************
-
   FUNCTION sgf_symbol(n,l,m) RESULT(symbol)
 
 !   Purpose: Build a spherical orbital symbol (orbital labels for printing).
 
 !   History: - Creation (11.03.99, Matthias Krack)
 
-!   ***************************************************************************
-
 !   l: Angular momentum quantum number l of the orbital.
 !   m: Magnetic quantum number m of the orbital.
 !   n: Principle quantum number n of the orbital.
-
-!   ***************************************************************************
 
     INTEGER, INTENT(IN)                      :: n, l, m
     CHARACTER(LEN=6)                         :: symbol
@@ -171,7 +148,5 @@ CONTAINS
     END IF
 
   END FUNCTION sgf_symbol
-
-! *****************************************************************************
 
 END MODULE orbital_symbols

@@ -3,6 +3,7 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
+! *****************************************************************************
 MODULE kg_energy_utils
 
   USE atomic_kind_types,               ONLY: atomic_kind_type
@@ -25,6 +26,7 @@ MODULE kg_energy_utils
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_energy_utils'
+! *****************************************************************************
   TYPE diis_info_type
     INTEGER :: nhist, ihist
     REAL (KIND=dp), DIMENSION(:,:), POINTER :: e_hist
@@ -36,7 +38,7 @@ MODULE kg_energy_utils
 
 CONTAINS
 
-!******************************************************************************
+! *****************************************************************************
   SUBROUTINE diis_info_create(diis_info,nhist,dyn_coeff_set)
 
     TYPE(diis_info_type), POINTER            :: diis_info
@@ -85,7 +87,7 @@ CONTAINS
 
   END SUBROUTINE diis_info_create
 
-!***************************************************************************
+! *****************************************************************************
   SUBROUTINE diis_info_destroy(diis_info)
 
     TYPE(diis_info_type), POINTER            :: diis_info
@@ -116,6 +118,7 @@ CONTAINS
   END SUBROUTINE diis_info_destroy
 
 !------------------------------------------------------------------------------!
+! *****************************************************************************
   SUBROUTINE do_diis_step ( kg_env, diis_info, maxerr, error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
@@ -249,6 +252,7 @@ CONTAINS
   RETURN
   END SUBROUTINE do_diis_step
 !------------------------------------------------------------------------------!
+! *****************************************************************************
   SUBROUTINE STORE_HIST(c_forces,cg,e_hist,c_hist,hess,nhist,ihist)
 !------------------------------------------------------------------------------!
 
@@ -288,6 +292,7 @@ CONTAINS
   RETURN
   END SUBROUTINE store_hist
 !------------------------------------------------------------------------------!
+! *****************************************************************************
   SUBROUTINE SOLVE(dcg,e_hist,ihist,ncoef)
 !------------------------------------------------------------------------------!
     REAL(KIND=dp), INTENT(INOUT)             :: dcg(:)
@@ -348,8 +353,6 @@ CONTAINS
   IF ( stat /= 0 )  CALL stop_memory (routineP, 'deall eigenvec' )
   RETURN
   END SUBROUTINE solve
-!******************************************************************************
 
 END MODULE kg_energy_utils
 
-!******************************************************************************

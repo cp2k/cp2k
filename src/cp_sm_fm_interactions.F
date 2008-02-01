@@ -3,21 +3,13 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/cp_sm_fm_interactions [1.0] *
-!!
-!!   NAME
-!!     cp_sm_fm_interactions
-!!
-!!   FUNCTION
-!!     used for all operations involving cp_fm_types and sparse matrices
-!!     (real_matrix)
-!!
-!!   NOTES
-!!     first version : most routines imported
-!!
-!!   AUTHOR
-!!     Joost VandeVondele (2003-08)
-!!
+! *****************************************************************************
+!> \brief used for all operations involving cp_fm_types and sparse matrices
+!>      (real_matrix)
+!> \note
+!>      first version : most routines imported
+!> \author Joost VandeVondele (2003-08)
+! *****************************************************************************
 MODULE cp_sm_fm_interactions
   USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
@@ -63,12 +55,9 @@ MODULE cp_sm_fm_interactions
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_sm_fm_interactions'
 
-  !****************************************************************************
-
 CONTAINS
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE copy_fm_to_sm(fm,real_matrix,alpha,beta)
 
     !   Purpose: Copy a BLACS matrix to a sparse matrix.
@@ -77,7 +66,6 @@ CONTAINS
     !   History: - Creation (06.06.2001, Matthias Krack)
     !   08.2002 adapted to local_data, could be optimized
     !   08.2003 imported form qs_blacs
-    ! ***************************************************************************
 
     TYPE(cp_fm_type), POINTER          :: fm
     TYPE(real_matrix_type), POINTER    :: real_matrix
@@ -143,7 +131,6 @@ CONTAINS
           ELSE
              fm_block => fm%local_data
           END IF
-
 
           CALL mp_bcast(fm_block,ipe,group)
 
@@ -256,15 +243,13 @@ CONTAINS
 
   END SUBROUTINE copy_fm_to_sm
 
-  ! *****************************************************************************
+! *****************************************************************************
   SUBROUTINE copy_sm_to_fm(real_matrix,fm,error)
 
     !   Purpose: Copy a real_matrix to a fm. It assumes that a block is at most
     !   present once in the real_matrix.
     !   Rewrite of the original routines for improved efficiency (Joost VandeVondele, 2003-08)
     !   imported from qs_blacs
-
-    !   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER    :: real_matrix ! the matrix to copy FROM
     TYPE(cp_fm_type), POINTER :: fm ! the matrix to copy TO
@@ -316,9 +301,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(real_matrix),cp_failure_level,routineP,error,failure)
     IF (failure) RETURN
 
-
     CALL timeset(routineN,"I","",handle)
-
 
     ! info about the full matrix
     group = fm%matrix_struct%para_env%group
@@ -342,7 +325,6 @@ CONTAINS
          first_col=first_col,&
          last_row=last_row,&
          last_col=last_col)
-
 
 #if defined(__SCALAPACK)
     NULLIFY(number_of_blocks_row, cum_num_of_blocks_row,block_info_row,number_of_blocks_col,cum_num_of_blocks_col, &
@@ -499,7 +481,6 @@ CONTAINS
     total_send_data = SUM(total_size_of_blocks(:,mype))
     total_recv_data = SUM(total_size_of_blocks(mype,:))
 
-
     ALLOCATE(block_send(2*total_send_blocks),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"block_send",2*total_send_blocks)
     ALLOCATE(block_recv(2*total_recv_blocks),STAT=istat)
@@ -651,13 +632,11 @@ CONTAINS
 
   END SUBROUTINE copy_sm_to_fm
 
-
-  !******************************************************************************
   !
   ! new version of the cp_sm_fm_multiply, optimized communication,
   ! imported from cp_fm_basic_linalg
   !
-  !*******************************************************************************
+! *****************************************************************************
   SUBROUTINE cp_sm_fm_multiply_general(sparse_matrix,v_in,v_out,ncol, &
        alpha,beta,error)
     ! to do: better interface
@@ -685,7 +664,6 @@ CONTAINS
 #if defined(__SCALAPACK)
     INTEGER, EXTERNAL :: NUMROC
 #endif
-
 
     !   ---------------------------------------------------------------------------
     failure=.FALSE.
@@ -837,10 +815,9 @@ CPSourceFileRef,&
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE cp_sm_fm_multiply_general
 
-  ! *****************************************************************************
   ! computes sparse=sparse+alpha*v*g^T
   ! imported from cp_fm_basic_linalg
-  ! *****************************************************************************
+! *****************************************************************************
   SUBROUTINE cp_sm_plus_fm_fm_t_general(sparse_matrix,matrix_v,matrix_g,ncol,&
        alpha,error)
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
@@ -996,39 +973,14 @@ CPSourceFileRef,&
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE cp_sm_plus_fm_fm_t_general
 
-!!****f* cp_sm_fm_interactions/cp_sm_fm_multiply [1.0] *
-!!
-!!   NAME
-!!     cp_sm_fm_multiply
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_sm_fm_multiply(sparse_matrix, v_in, v_out, ncol,&
-!!         alpha, beta, error)
-!!       Type(real_matrix_type), Pointer:: sparse_matrix
-!!       Type(cp_fm_type), Pointer:: v_in
-!!       Type(cp_fm_type), Pointer:: v_out
-!!       Integer, Intent (IN):: ncol
-!!       Real(Kind=dp), Intent (IN), Optional:: alpha, beta
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine cp_sm_fm_multiply
-!!
-!!   FUNCTION
-!!     multiplies a sparse matrix with a full matrix
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed & Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [f&j]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief multiplies a sparse matrix with a full matrix
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2003 created [f&j]
+!> \author Fawzi Mohamed & Joost VandeVondele
+! *****************************************************************************
   SUBROUTINE cp_sm_fm_multiply(sparse_matrix,v_in,v_out,ncol, &
        alpha,beta,error)
     ! to do: better interface
@@ -1108,41 +1060,15 @@ CPSourceFileRef,&
  END IF
 
 END SUBROUTINE cp_sm_fm_multiply
-!***************************************************************************
 
-!!****f* cp_sm_fm_interactions/cp_sm_plus_fm_fm_t [1.0] *
-!!
-!!   NAME
-!!     cp_sm_plus_fm_fm_t
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_sm_plus_fm_fm_t(sparse_matrix, matrix_v, matrix_g,&
-!!         ncol, alpha, error)
-!!       Type(real_matrix_type), Pointer:: sparse_matrix
-!!       Type(cp_fm_type), Pointer:: matrix_v
-!!       Type(cp_fm_type), Pointer, Optional:: matrix_g
-!!       Integer, Intent (IN):: ncol
-!!       Real(Kind=dp), Optional, Intent (IN):: alpha
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_sm_plus_fm_fm_t
-!!
-!!   FUNCTION
-!!     multiplies a sparse matrix with a full matrix
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed & Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [f&j]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief multiplies a sparse matrix with a full matrix
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2003 created [f&j]
+!> \author Fawzi Mohamed & Joost VandeVondele
+! *****************************************************************************
 SUBROUTINE cp_sm_plus_fm_fm_t(sparse_matrix,matrix_v,matrix_g,ncol,&
      alpha,error)
     TYPE(real_matrix_type), POINTER          :: sparse_matrix
@@ -1209,30 +1135,14 @@ SUBROUTINE cp_sm_plus_fm_fm_t(sparse_matrix,matrix_v,matrix_g,ncol,&
   END IF
 
 END SUBROUTINE cp_sm_plus_fm_fm_t
-!***************************************************************************
 
-!!****f* cp_sm_fm_interactions/cp_sm_fm_multiply_2d [1.0] *
-!!
-!!   NAME
-!!     cp_sm_fm_multiply_2d
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Joost VandeVondele & Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [j&f]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2003 created [j&f]
+!> \author Joost VandeVondele & Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_sm_fm_multiply_2d(sm,fm_in,fm_out, alpha,beta,transpose_sm, &
        do_diagonal_blocks,antisymmetric, ncol, error)
 
@@ -1524,30 +1434,15 @@ CPSourceFileRef,&
     CALL timestop(flops*1.0e-9_dp,handle)
 
   END SUBROUTINE cp_sm_fm_multiply_2d
-!**************************************************************************
 
-!!****f* cp_sm_fm_interactions/cp_sm_plus_fm_fm_t_2d [1.0] *
-!!
-!!   NAME
-!!     cp_sm_plus_fm_fm_t_2d
-!!
-!!   FUNCTION
-!!     computes sparse=sparse+alpha*v*g^T
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Joost VandeVondele & Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [j&f]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief computes sparse=sparse+alpha*v*g^T
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2003 created [j&f]
+!> \author Joost VandeVondele & Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_sm_plus_fm_fm_t_2d(sm,matrix_v,matrix_g,ncol,&
        alpha,error)
     TYPE(real_matrix_type), POINTER          :: sm
@@ -1828,34 +1723,19 @@ CPSourceFileRef,&
     CALL timestop(flops*1.0e-9_dp,handle)
 
   END SUBROUTINE cp_sm_plus_fm_fm_t_2d
-!***************************************************************************
 
-!!****f* cp_sm_fm_interactions/junk_of_fm_index [1.0] *
-!!
-!!   NAME
-!!     junk_of_fm_index
-!!
-!!   FUNCTION
-!!     returns the junk (starting at 1) in which the given global index is using the
-!!     distribution size_small+1,size_small+1,...,size_small,size_small,...
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - fm_index: index of the full matrix (1 based)
-!!     - fm_size: number of elements of the full matrix
-!!     - njunk: number of junks you want
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Joost VandeVondele & Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [j&f]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the junk (starting at 1) in which the given global index is using the
+!>      distribution size_small+1,size_small+1,...,size_small,size_small,...
+!> \param fm_index index of the full matrix (1 based)
+!> \param fm_size number of elements of the full matrix
+!> \param njunk number of junks you want
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2003 created [j&f]
+!> \author Joost VandeVondele & Fawzi Mohamed
+! *****************************************************************************
   FUNCTION junk_of_fm_index(fm_index,fm_size,njunk,error) RESULT(res)
     INTEGER, INTENT(in)                      :: fm_index, fm_size, njunk
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1881,30 +1761,17 @@ CPSourceFileRef,&
        res=-HUGE(0)
     END IF
   END FUNCTION junk_of_fm_index
-  !***************************************************************************
 
-!!****f* cp_sm_fm_interactions/fm_reshuffle_create_layout [1.0] *
-!!
-!!   NAME
-!!     fm_reshuffle_create_layout
-!!
-!!   FUNCTION
-!!     returns various info about the layout needed by the multiplication
-!!
-!!   NOTES
-!!     aloocates the arrays
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Joost VandeVondele & Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [j&f]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns various info about the layout needed by the multiplication
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      aloocates the arrays
+!> \par History
+!>      08.2003 created [j&f]
+!> \author Joost VandeVondele & Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE fm_reshuffle_create_layout(sm,fm, transpose_layout, shift,&
        ncol,gindex_of_junk, ncol_global_of_junk, ipcol_of_junk_col,&
        junk_of_col, ncol_local_of_junk, pcol_of_fm_row, f2c_send_count, &
@@ -2146,30 +2013,15 @@ CPSourceFileRef,&
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE fm_reshuffle_create_layout
-!***************************************************************************
 
-!!****f* cp_sm_fm_interactions/fm2junk [1.0] *
-!!
-!!   NAME
-!!     fm2junk
-!!
-!!   FUNCTION
-!!     transfer a full matrix from block cyclic format to junk format
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Joost VandeVondele & Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [j&f]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief transfer a full matrix from block cyclic format to junk format
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2003 created [j&f]
+!> \author Joost VandeVondele & Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE fm2junk(sm,fm,junks,shift,hole_pos,sm_transposed,&
        alpha,ncol, error)
 
@@ -2438,31 +2290,15 @@ CPSourceFileRef,&
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE fm2junk
-!***************************************************************************
 
-
-!!****f* cp_sm_fm_interactions/junk2fm [1.0] *
-!!
-!!   NAME
-!!     junk2fm
-!!
-!!   FUNCTION
-!!     transfer a full matrix from junk format to block cyclic format
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Joost VandeVondele & Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [j&f]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief transfer a full matrix from junk format to block cyclic format
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      08.2003 created [j&f]
+!> \author Joost VandeVondele & Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE junk2fm(sm,fm,junks,shift,hole_pos,sm_transposed,beta,ncol,error)
 
     TYPE(real_matrix_type), POINTER :: sm
@@ -2719,6 +2555,5 @@ CPSourceFileRef,&
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE junk2fm
-!***************************************************************************
 
 END MODULE cp_sm_fm_interactions

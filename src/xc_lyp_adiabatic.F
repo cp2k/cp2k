@@ -3,31 +3,17 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/xc_lyp_adiabatic [1.0] *
-!!
-!!   NAME
-!!     xc_lyp_adiabatic
-!!
-!!   FUNCTION
-!!     Calculates the density_scaled Lyp functional when used in adiabatic hybrids.
-!!     The energy is given as
-!!
-!!       Ec = 2*lambda*Ec(rho/lambda) + lambda^2*d/dlambda(Ec(rho/lambda)), 
-!!   
-!!     where rho/lambda is the scaled density 
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Manuel Guidon 
-!!
-!!   MODIFICATION HISTORY
-!!     1.2008 created [mguidon]
-!!
-!!   SOURCE
-!****************************************************************************
-
+! *****************************************************************************
+!> \brief Calculates the density_scaled Lyp functional when used in adiabatic hybrids.
+!>      The energy is given as
+!> 
+!>        Ec = 2*lambda*Ec(rho/lambda) + lambda^2*d/dlambda(Ec(rho/lambda)), 
+!> 
+!>      where rho/lambda is the scaled density 
+!> \par History
+!>      1.2008 created [mguidon]
+!> \author Manuel Guidon 
+! *****************************************************************************
 MODULE xc_lyp_adiabatic
   USE bibliography,                    ONLY: Lee1988,&
                                              cite_reference
@@ -56,37 +42,21 @@ MODULE xc_lyp_adiabatic
        c=0.2533_dp,d=0.349_dp
 
   PUBLIC :: lyp_adiabatic_lda_info, lyp_adiabatic_lsd_info, lyp_adiabatic_lda_eval, lyp_adiabatic_lsd_eval
-!!***
-!****************************************************************************
 
 CONTAINS
 
-!!****f* xc_lyp_adiabatic/lyp_adiabatic_lda_info [1.0] *
-!!
-!!   NAME
-!!     lyp_adiabatic_lda_info
-!!
-!!   FUNCTION
-!!     return various information on the functional
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - reference: string with the reference of the actual functional
-!!     - shortform: string with the shortform of the functional name
-!!     - needs: the components needed by this functional are set to
-!!       true (does not set the unneeded components to false)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     01.2008 created [mguidon]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief return various information on the functional
+!> \param reference string with the reference of the actual functional
+!> \param shortform string with the shortform of the functional name
+!> \param needs the components needed by this functional are set to
+!>        true (does not set the unneeded components to false)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      01.2008 created [mguidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE lyp_adiabatic_lda_info(reference,shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
@@ -111,34 +81,19 @@ CONTAINS
     IF (PRESENT(max_deriv)) max_deriv=1
 
   END SUBROUTINE lyp_adiabatic_lda_info
-!***************************************************************************
 
-!!****f* xc_lyp_adiabatic/lyp_adiabatic_lsd_info [1.0] *
-!!
-!!   NAME
-!!     lyp_adiabatic_lsd_info
-!!
-!!   FUNCTION
-!!     return various information on the functional
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - reference: string with the reference of the actual functional
-!!     - shortform: string with the shortform of the functional name
-!!     - needs: the components needed by this functional are set to
-!!       true (does not set the unneeded components to false)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Manuel Guidon 
-!!
-!!   MODIFICATION HISTORY
-!!     01.2008 created [mguidon]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief return various information on the functional
+!> \param reference string with the reference of the actual functional
+!> \param shortform string with the shortform of the functional name
+!> \param needs the components needed by this functional are set to
+!>        true (does not set the unneeded components to false)
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      01.2008 created [mguidon]
+!> \author Manuel Guidon 
+! *****************************************************************************
   SUBROUTINE lyp_adiabatic_lsd_info(reference,shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
@@ -162,29 +117,12 @@ CONTAINS
     END IF
     IF (PRESENT(max_deriv)) max_deriv=1
   END SUBROUTINE lyp_adiabatic_lsd_info
-!***************************************************************************
 
-!!****f* xc_lyp_adiabatic/lyp_adiabatic_lda_eval [1.0] *
-!!
-!!   NAME
-!!     lyp_adiabatic_lda_eval
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     -
-!!
-!!   AUTHOR
-!!     Manuel Guidon 
-!!
-!!   MODIFICATION HISTORY
-!!     01.2008 created [mguidon]
-!!
-!!*************************************************************************
+! *****************************************************************************
+!> \par History
+!>      01.2008 created [mguidon]
+!> \author Manuel Guidon 
+! *****************************************************************************
   SUBROUTINE lyp_adiabatic_lda_eval(rho_set,deriv_set,grad_deriv,lyp_adiabatic_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -278,28 +216,12 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE lyp_adiabatic_lda_eval
-!***************************************************************************
 
-!!****f* xc_lyp_adiabatic/lyp_adiabatic_lda_calc [1.0] *
-!!
-!!   NAME
-!!     lyp_adiabatic_lda_eval
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!!     Manuel Guidon 
-!!
-!!   MODIFICATION HISTORY
-!!     01.2008 created [mguidon]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \par History
+!>      01.2008 created [mguidon]
+!> \author Manuel Guidon 
+! *****************************************************************************
   SUBROUTINE lyp_adiabatic_lda_calc(rho, rho_1_3, norm_drho,&
      e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
      e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
@@ -415,28 +337,12 @@ CONTAINS
     END DO
 
   END SUBROUTINE lyp_adiabatic_lda_calc
-!***************************************************************************
 
-!!****f* xc_lyp_adiabatic/lyp_adiabatic_lsd_eval [1.0] *
-!!
-!!   NAME
-!!     lyp_adiabatic_lsd_eval
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!!     Manuel Guidon 
-!!
-!!   MODIFICATION HISTORY
-!!     01.2008 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \par History
+!>      01.2008 created [fawzi]
+!> \author Manuel Guidon 
+! *****************************************************************************
   SUBROUTINE lyp_adiabatic_lsd_eval(rho_set,deriv_set,grad_deriv,lyp_adiabatic_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -549,28 +455,12 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE lyp_adiabatic_lsd_eval
-!***************************************************************************
 
-!!****f* xc_lyp_adiabatic/lyp_adiabatic_lsd_calc [1.0] *
-!!
-!!   NAME
-!!     lyp_adiabatic_lsd_calc
-!!
-!!   FUNCTION
-!!     
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!
-!!   AUTHOR
-!!     Manuel Guidon
-!!
-!!   MODIFICATION HISTORY
-!!     08.2008 created [mguidon]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \par History
+!>      08.2008 created [mguidon]
+!> \author Manuel Guidon
+! *****************************************************************************
   SUBROUTINE lyp_adiabatic_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
      e_0, e_ra, e_rb,& 
      e_ndr,&
@@ -796,6 +686,5 @@ CONTAINS
       END IF
     END DO
   END SUBROUTINE lyp_adiabatic_lsd_calc
-!***************************************************************************
 
 END MODULE xc_lyp_adiabatic

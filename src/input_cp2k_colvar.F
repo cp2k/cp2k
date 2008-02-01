@@ -3,25 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/input_cp2k_colvar *
-!!
-!!   NAME
-!!     input_cp2k_colvar
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     teo & fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     - taken out of input_cp2k_motion
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \par History
+!>      - taken out of input_cp2k_motion
+!> \author teo & fawzi
+! *****************************************************************************
 MODULE input_cp2k_colvar
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE f77_blas
@@ -53,26 +39,13 @@ PUBLIC :: create_colvar_section
 
 CONTAINS
 
-!!****f* input_cp2k/create_colvar_section *
-!!
-!!   NAME
-!!     create_colvar_section
-!!
-!!   FUNCTION
-!!     creates the colvar section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the colvar section
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_colvar_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -113,26 +86,13 @@ CONTAINS
 
   END SUBROUTINE create_colvar_section
 
-!!****f* input_cp2k/create_colvar_var_section *
-!!
-!!   NAME
-!!     create_colvar_var_section
-!!
-!!   FUNCTION
-!!     creates the collective variables for the colvar section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the collective variables for the colvar section
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_colvar_var_section(subsection, section, error)
     TYPE(section_type), POINTER              :: subsection, section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -187,26 +147,13 @@ CONTAINS
     END IF
   END SUBROUTINE create_colvar_var_section
 
-!!****f* input_cp2k/create_colvar_coord_section *
-!!
-!!   NAME
-!!     create_colvar_coord_section
-!!
-!!   FUNCTION
-!!     collective variables specifying coordination
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief collective variables specifying coordination
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_colvar_coord_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -294,26 +241,13 @@ CONTAINS
 
   END SUBROUTINE create_colvar_coord_section
 
-!!****f* input_cp2k/create_colvar_ddiff_section *
-!!
-!!   NAME
-!!     create_colvar_ddiff_section
-!!
-!!   FUNCTION
-!!     collective variables specifying torsion
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief collective variables specifying torsion
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_colvar_ddiff_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -354,26 +288,13 @@ CONTAINS
 
   END SUBROUTINE create_colvar_ddiff_section
 
-!!****f* input_cp2k/create_colvar_torsion_section *
-!!
-!!   NAME
-!!     create_colvar_torsion_section
-!!
-!!   FUNCTION
-!!     collective variables specifying torsion
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief collective variables specifying torsion
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_colvar_torsion_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -414,26 +335,13 @@ CONTAINS
 
   END SUBROUTINE create_colvar_torsion_section
 
-!!****f* input_cp2k/create_colvar_rot_section *
-!!
-!!   NAME
-!!     create_colvar_rot_section
-!!
-!!   FUNCTION
-!!     collective variables specifying torsion
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief collective variables specifying torsion
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_colvar_rot_section(section,error,description)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -499,26 +407,13 @@ CONTAINS
 
   END SUBROUTINE create_colvar_rot_section
 
-!!****f* input_cp2k/create_colvar_angle_section *
-!!
-!!   NAME
-!!     create_colvar_angle_section
-!!
-!!   FUNCTION
-!!     collective variables specifying angles
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief collective variables specifying angles
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_colvar_angle_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -556,29 +451,14 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_colvar_angle_section
-!****************************************************************************
 
-
-!!****f* input_cp2k/create_colvar_dist_section *
-!!
-!!   NAME
-!!     create_colvar_dist_section
-!!
-!!   FUNCTION
-!!     creates the colvar section regarded to the collective variables dist
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the colvar section regarded to the collective variables dist
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_colvar_dist_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -617,7 +497,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-
 ! Must be present in each colvar and handled properly
        CALL create_point_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -627,27 +506,14 @@ CONTAINS
 
   END SUBROUTINE create_colvar_dist_section
 
-!!****f* input_cp2k/create_colvar_d_pl_section *
-!!
-!!   NAME
-!!     create_colvar_d_pl_section
-!!
-!!   FUNCTION
-!!     creates the colvar section regarded to the collective variables distance 
-!!     of a point from a plane
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates the colvar section regarded to the collective variables distance 
+!>      of a point from a plane
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_colvar_d_pl_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -695,27 +561,13 @@ CONTAINS
 
   END SUBROUTINE create_colvar_d_pl_section
 
-
-!!****f* input_cp2k/create_point_section *
-!!
-!!   NAME
-!!     create_point_section
-!!
-!!   FUNCTION
-!!     create a geometrical point as a function of several atom coordinates
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief create a geometrical point as a function of several atom coordinates
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_point_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -774,26 +626,13 @@ CONTAINS
 
   END SUBROUTINE create_point_section
 
-!!****f* input_cp2k/create_colvar_qparm_section *
-!!
-!!   NAME
-!!     create_colvar_qparm_section
-!!
-!!   FUNCTION
-!!     collective variables specifying torsion
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief collective variables specifying torsion
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author teo
+! *****************************************************************************
   SUBROUTINE create_colvar_qparm_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -861,26 +700,13 @@ CONTAINS
 
   END SUBROUTINE create_colvar_qparm_section
 
-!!****f* input_cp2k/create_colvar_hudronium_section *
-!!
-!!   NAME
-!!     create_colvar_hyrdonium_section
-!!
-!!   FUNCTION
-!!     collective variables specifying hydronium solvation 
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section to be created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Marcel Baer
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief collective variables specifying hydronium solvation 
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Marcel Baer
+! *****************************************************************************
   SUBROUTINE create_colvar_hydronium_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout), &

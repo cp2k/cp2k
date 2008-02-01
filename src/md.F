@@ -3,23 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****** cp2k/md [1.0] *
-!!
-!!   NAME
-!!     md
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
 MODULE md
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -80,6 +68,7 @@ MODULE md
   PUBLIC :: initialize_velocities,&
             read_md_section
 
+! *****************************************************************************
   TYPE simulation_parameters_type
      INTEGER        :: nsteps
      REAL (KIND=dp) :: dt
@@ -120,28 +109,14 @@ MODULE md
      LOGICAL        :: scale_temperature_per_kind
   END TYPE simulation_parameters_type
 
-  !!***
-  !******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-!!****** md/read_md_section [1.0] *
-!!
-!!   NAME
-!!     read_md_section
-!!
-!!   FUNCTION
-!!     reads the md section and prints out what has been read
-!!
-!!   AUTHOR
-!!     Teo, CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   NOTES
-!!*** ************************************************************************
+! *****************************************************************************
+!> \brief reads the md section and prints out what has been read
+!> \par History
+!>      none
+!> \author Teo, CJM
+! *****************************************************************************
   SUBROUTINE read_md_section ( simpar,root_section, error)
     TYPE(simulation_parameters_type), &
       INTENT(OUT)                            :: simpar
@@ -302,23 +277,10 @@ CPSourceFileRef,&
 
   END SUBROUTINE read_md_section
 
-!******************************************************************************
-!!****** md/read_md_low [1.0] *
-!!
-!!   NAME
-!!     read_md_low
-!!
-!!
-!!   FUNCTION
-!!     Low Level: Parses the MD input section
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Low Level: Parses the MD input section
+!> \author teo
+! *****************************************************************************
   SUBROUTINE read_md_low(simpar, root_section, md_section, error)
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
@@ -400,23 +362,10 @@ CPSourceFileRef,&
 
   END SUBROUTINE read_md_low
 
-!******************************************************************************
-!!****** md/set_md_defaults [1.0] *
-!!
-!!   NAME
-!!     set_md_defaults
-!!
-!!
-!!   FUNCTION
-!!     Initializes the simpar
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Initializes the simpar
+!> \author teo
+! *****************************************************************************
   SUBROUTINE set_md_defaults(simpar)
     TYPE(simulation_parameters_type), &
       INTENT(OUT)                            :: simpar
@@ -451,23 +400,13 @@ CPSourceFileRef,&
     simpar % temp_sh_tol = 0.0_dp
   END SUBROUTINE set_md_defaults
 
-!******************************************************************************
-!!****** md/compute_rcom [1.0] *
-!!
-!!   NAME
-!!     compute_rcom
-!!
-!!   FUNCTION
-!!     compute center of mass position
-!!     *** is only used by initialize_velocities below ***
-!!
-!!   AUTHOR
-!!     Toon Verstraelen <Toon.Verstraelen@gmail.com>
-!!
-!!   MODIFICATION HISTORY
-!!     2007-11-6: created
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief compute center of mass position
+!>      *** is only used by initialize_velocities below ***
+!> \par History
+!>      2007-11-6: created
+!> \author Toon Verstraelen <Toon.Verstraelen@gmail.com>
+! *****************************************************************************
   SUBROUTINE compute_rcom(part,is_fixed,rcom)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
@@ -498,23 +437,13 @@ CPSourceFileRef,&
 
   END SUBROUTINE compute_rcom
 
-!******************************************************************************
-!!****** md/compute_vcom [1.0] *
-!!
-!!   NAME
-!!     compute_vcom
-!!
-!!   FUNCTION
-!!     compute center of mass velocity
-!!     *** is only used by initialize_velocities below ***
-!!
-!!   AUTHOR
-!!     Toon Verstraelen <Toon.Verstraelen@gmail.com>
-!!
-!!   MODIFICATION HISTORY
-!!     2007-11-6: created
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief compute center of mass velocity
+!>      *** is only used by initialize_velocities below ***
+!> \par History
+!>      2007-11-6: created
+!> \author Toon Verstraelen <Toon.Verstraelen@gmail.com>
+! *****************************************************************************
   SUBROUTINE compute_vcom(part,is_fixed,vcom,ecom)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
@@ -549,23 +478,13 @@ CPSourceFileRef,&
 
   END SUBROUTINE compute_vcom
 
-!******************************************************************************
-!!****** md/clone_core_shell_vel [1.0] *
-!!
-!!   NAME
-!!     clone_core_shell_vel
-!!
-!!   FUNCTION
-!!     Copy atom velocities into core and shell velocities
-!!     *** is only used by initialize_velocities below ***
-!!
-!!   AUTHOR
-!!     Toon Verstraelen <Toon.Verstraelen@gmail.com>
-!!
-!!   MODIFICATION HISTORY
-!!     2007-11-6: created
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Copy atom velocities into core and shell velocities
+!>      *** is only used by initialize_velocities below ***
+!> \par History
+!>      2007-11-6: created
+!> \author Toon Verstraelen <Toon.Verstraelen@gmail.com>
+! *****************************************************************************
   SUBROUTINE clone_core_shell_vel(part,shell_part,core_part)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part, shell_part, core_part
@@ -588,24 +507,14 @@ CPSourceFileRef,&
 
   END SUBROUTINE clone_core_shell_vel
 
-!******************************************************************************
-!!****** md/compute_ekin [1.0] *
-!!
-!!   NAME
-!!     compute_ekin
-!!
-!!   FUNCTION
-!!     Compute the kinetic energy. Does not subtract the center of mass kinetic
-!!     energy.
-!!     *** is only used by initialize_velocities below ***
-!!
-!!   AUTHOR
-!!     Toon Verstraelen <Toon.Verstraelen@gmail.com>
-!!
-!!   MODIFICATION HISTORY
-!!     2007-11-6: created
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Compute the kinetic energy. Does not subtract the center of mass kinetic
+!>      energy.
+!>      *** is only used by initialize_velocities below ***
+!> \par History
+!>      2007-11-6: created
+!> \author Toon Verstraelen <Toon.Verstraelen@gmail.com>
+! *****************************************************************************
   FUNCTION compute_ekin(part) RESULT(ekin)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
@@ -627,24 +536,14 @@ CPSourceFileRef,&
 
   END FUNCTION compute_ekin
 
-!******************************************************************************
-!!****** md/rescale_vel [1.0] *
-!!
-!!   NAME
-!!     rescale_vel
-!!
-!!   FUNCTION
-!!     Rescale the velocity to mimic the given external kinetic temperature.
-!!     Optionally also rescale vcom.
-!!     *** is only used by initialize_velocities below ***
-!!
-!!   AUTHOR
-!!     Toon Verstraelen <Toon.Verstraelen@gmail.com>
-!!
-!!   MODIFICATION HISTORY
-!!     2007-11-6: created
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Rescale the velocity to mimic the given external kinetic temperature.
+!>      Optionally also rescale vcom.
+!>      *** is only used by initialize_velocities below ***
+!> \par History
+!>      2007-11-6: created
+!> \author Toon Verstraelen <Toon.Verstraelen@gmail.com>
+! *****************************************************************************
   SUBROUTINE rescale_vel(part,simpar,ekin,vcom)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
@@ -675,23 +574,13 @@ CPSourceFileRef,&
 
   END SUBROUTINE rescale_vel
 
-!******************************************************************************
-!!****** md/subtract_vcom [1.0] *
-!!
-!!   NAME
-!!     subtract_vcom
-!!
-!!   FUNCTION
-!!     subtract center of mass velocity
-!!     *** is only used by initialize_velocities below ***
-!!
-!!   AUTHOR
-!!     Toon Verstraelen <Toon.Verstraelen@gmail.com>
-!!
-!!   MODIFICATION HISTORY
-!!     2007-11-6: created
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief subtract center of mass velocity
+!>      *** is only used by initialize_velocities below ***
+!> \par History
+!>      2007-11-6: created
+!> \author Toon Verstraelen <Toon.Verstraelen@gmail.com>
+! *****************************************************************************
   SUBROUTINE subtract_vcom(part,is_fixed,vcom)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
@@ -726,23 +615,13 @@ CPSourceFileRef,&
     END DO
   END SUBROUTINE subtract_vcom
 
-!******************************************************************************
-!!****** md/compute_vang [1.0] *
-!!
-!!   NAME
-!!     compute_vang
-!!
-!!   FUNCTION
-!!     compute the angular velocity
-!!     *** is only used by initialize_velocities below ***
-!!
-!!   AUTHOR
-!!     Toon Verstraelen <Toon.Verstraelen@gmail.com>
-!!
-!!   MODIFICATION HISTORY
-!!     2007-11-9: created
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief compute the angular velocity
+!>      *** is only used by initialize_velocities below ***
+!> \par History
+!>      2007-11-9: created
+!> \author Toon Verstraelen <Toon.Verstraelen@gmail.com>
+! *****************************************************************************
   SUBROUTINE compute_vang(part,is_fixed,rcom,vang)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
@@ -802,23 +681,13 @@ CPSourceFileRef,&
 
   END SUBROUTINE compute_vang
 
-!******************************************************************************
-!!****** md/subtract_vang [1.0] *
-!!
-!!   NAME
-!!     subtract_vang
-!!
-!!   FUNCTION
-!!     subtract the angular velocity
-!!     *** is only used by initialize_velocities below ***
-!!
-!!   AUTHOR
-!!     Toon Verstraelen <Toon.Verstraelen@gmail.com>
-!!
-!!   MODIFICATION HISTORY
-!!     2007-11-9: created
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief subtract the angular velocity
+!>      *** is only used by initialize_velocities below ***
+!> \par History
+!>      2007-11-9: created
+!> \author Toon Verstraelen <Toon.Verstraelen@gmail.com>
+! *****************************************************************************
   SUBROUTINE subtract_vang(part,is_fixed,rcom,vang)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: part
@@ -858,31 +727,14 @@ CPSourceFileRef,&
 
   END SUBROUTINE subtract_vang
 
-!******************************************************************************
-!!****** md/initialize_velocities [1.0] *
-!!
-!!   NAME
-!!     initialize_velocities
-!!
-!!   SYNOPSIS
-!!     Subroutine initialize_velocities(simpar, part)
-!!       Implicit None
-!!       Type(simulation_parameters_type), Intent (IN):: simpar
-!!       Type(particle_type), Intent (INOUT), Dimension(:):: part
-!!     End Subroutine initialize_velocities
-!!
-!!   FUNCTION
-!!     Initializes the velocities to the Maxwellian distribution
-!!
-!!   AUTHOR
-!!     CJM,MK,Toon Verstraelen <Toon.Verstraelen@gmail.com>
-!!
-!!   MODIFICATION HISTORY
-!!     - is_fixed removed from particle_type
-!!     - 2007-11-07: Cleanup (TV)
-!!     - 2007-11-09: Added angvel_zero feature
-!!
-!!*** *************************************************************************
+! *****************************************************************************
+!> \brief Initializes the velocities to the Maxwellian distribution
+!> \par History
+!>      - is_fixed removed from particle_type
+!>      - 2007-11-07: Cleanup (TV)
+!>      - 2007-11-09: Added angvel_zero feature
+!> \author CJM,MK,Toon Verstraelen <Toon.Verstraelen@gmail.com>
+! *****************************************************************************
   SUBROUTINE initialize_velocities(simpar, part, force_env, para_env, globenv, &
        molecule_kinds, print_section, subsys_section, shell_present, shell_part, &
        core_part, force_rescaling, error)
@@ -1159,6 +1011,5 @@ CPSourceFileRef,&
     CALL timestop(0.0_dp,handle)
     
   END SUBROUTINE initialize_velocities
-  ! ***************************************************************************
   
 END MODULE md

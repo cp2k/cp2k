@@ -3,26 +3,11 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/geo_opt [1.0] *
-!!
-!!   NAME
-!!     geo_opt
-!!
-!!   FUNCTION
-!!     performs geometry optimization
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     -
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!*****************************************************************************
+! *****************************************************************************
+!> \brief performs geometry optimization
+!> \par History
+!>      none
+! *****************************************************************************
 MODULE geo_opt
   USE bfgs_optimizer,                  ONLY: geoopt_bfgs
   USE cg_optimizer,                    ONLY: geoopt_cg
@@ -59,28 +44,11 @@ MODULE geo_opt
 
  CONTAINS
 
-!!****f* geo_opt/cp_geo_opt [1.0] *
-!!
-!!   NAME
-!!     cp_geo_opt
-!!
-!!   FUNCTION
-!!     Main driver to perform geometry optimization
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Main driver to perform geometry optimization
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
    RECURSIVE SUBROUTINE cp_geo_opt(force_env, globenv, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -126,28 +94,11 @@ MODULE geo_opt
 
   END SUBROUTINE cp_geo_opt
 
-!!****f* geo_opt/cp_rot_opt [1.0] *
-!!
-!!   NAME
-!!     cp_rot_opt
-!!
-!!   FUNCTION
-!!     Main driver to perform rotation optimization for Dimer
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Main driver to perform rotation optimization for Dimer
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
    SUBROUTINE cp_rot_opt(gopt_env, x0, gopt_param, geo_section, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
@@ -186,28 +137,11 @@ MODULE geo_opt
 
   END SUBROUTINE cp_rot_opt
 
-!!****f* geo_opt/cp_geo_opt_low [1.0] *
-!!
-!!   NAME
-!!     cp_geo_opt_low
-!!
-!!   FUNCTION
-!!     call to low level geometry optimizers
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief call to low level geometry optimizers
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
   RECURSIVE SUBROUTINE cp_geo_opt_low(force_env, globenv, gopt_param, gopt_env, force_env_section,&
        geo_section, x0, error)
     TYPE(force_env_type), POINTER            :: force_env

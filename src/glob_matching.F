@@ -9,6 +9,7 @@
 !     (character classes are not supported). A backslash escapes
 !     any character.
 !
+! *****************************************************************************
 MODULE glob_matching
     IMPLICIT NONE
 
@@ -29,6 +30,7 @@ CONTAINS
 ! Note:
 !     Trailing blanks are ignored
 !
+! *****************************************************************************
 RECURSIVE FUNCTION string_match( string, pattern ) RESULT(match)
     CHARACTER(len=*), INTENT(in)             :: string, pattern
     LOGICAL                                  :: match

@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_core_energies [1.0] *
-!!
-!!   NAME
-!!     qs_core_energies
-!!
-!!   FUNCTION
-!!     Calculation of the energies concerning the core charge distribution
-!!
-!!   AUTHOR
-!!     Matthias Krack (27.04.2001)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Calculation of the energies concerning the core charge distribution
+!> \par History
+!>      none
+!> \author Matthias Krack (27.04.2001)
+! *****************************************************************************
 MODULE qs_core_energies
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -77,13 +67,9 @@ MODULE qs_core_energies
             calculate_ecore_overlap,&
             calculate_ecore_self
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE calculate_ecore(h,p,ecore,para_env)
 
     ! Purpose: Calculate the core Hamiltonian energy which includes the kinetic
@@ -95,8 +81,6 @@ CONTAINS
     ! History: - Creation (03.05.2001,MK)
     !          - simplified taking advantage of new non-redundant matrix
     !            structure (27.06.2003,MK)
-
-    ! *************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: h, p
     REAL(KIND=dp), INTENT(OUT)               :: ecore
@@ -168,8 +152,7 @@ CONTAINS
 
   END SUBROUTINE calculate_ecore
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE calculate_ecore_overlap(qs_env,para_env,calculate_forces,molecular, &
                                      E_overlap_core,error)
 
@@ -179,8 +162,6 @@ CONTAINS
     !            - Force calculation added (03.06.2002,MK)
     !            - Parallelized using a list of local atoms for rows and
     !              columns (19.07.2003,MK)
-
-    ! *************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -766,15 +747,12 @@ CONTAINS
 
   END SUBROUTINE calculate_ecore_overlap
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE calculate_ecore_self(qs_env,E_self_core,error)
 
     ! Purpose: Calculate the self energy of the core charge distribution.
 
     ! History: - Creation (27.04.2001,MK)
-
-    ! *************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: E_self_core
@@ -822,7 +800,5 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_ecore_self
-
-  ! ***************************************************************************
 
 END MODULE qs_core_energies

@@ -3,6 +3,7 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
+! *****************************************************************************
 MODULE cp2k_runs
 
   USE bsse,                            ONLY: do_bsse_calculation
@@ -106,44 +107,29 @@ MODULE cp2k_runs
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_runs'
 CONTAINS
 
-!!****f* cp2k_runs/cp2k_run [1.0] *
-!!
-!!   NAME
-!!     cp2k_run
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     performs an instance of a cp2k run
-!!     cp2k_run_OK == .TRUE. if everything went fine
-!!
-!!   NOTES
-!!     para_env should be a valid communicator
-!!     output_unit should be writeable by at least the lowest rank of the mpi group
-!!
-!!     recursive because a given run_type might need to be able to perform
-!!     another cp2k_run as part of its job (e.g. farming, classical equilibration, ...)
-!!
-!!     the idea is that a cp2k instance should be able to run with just three
-!!     arguments, i.e. a given input file, output unit, mpi communicator.
-!!     giving these three to cp2k_run should produce a valid run.
-!!     the only task of the PROGRAM cp2k is to create valid instances of the
-!!     above arguments. Ideally, anything that is called afterwards should be
-!!     able to run simultaneously / multithreaded / sequential / parallel / ...
-!!     and able to fail safe
-!!
-!!   INPUTS
-!!     input_file_name : name of the file to be opened for input
-!!     ouput_unit      : unit to which output should be written
-!!     mpi_env         : the mpi environement for the run (the caller is
-!!                       responsible to get rid of it)
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief performs an instance of a cp2k run
+!>      cp2k_run_OK == .TRUE. if everything went fine
+!> \param input_file_name name of the file to be opened for input
+!> \param ouput_unit unit to which output should be written
+!> \param mpi_env the mpi environement for the run (the caller is
+!>                        responsible to get rid of it)
+!> \note
+!>      para_env should be a valid communicator
+!>      output_unit should be writeable by at least the lowest rank of the mpi group
+!> 
+!>      recursive because a given run_type might need to be able to perform
+!>      another cp2k_run as part of its job (e.g. farming, classical equilibration, ...)
+!> 
+!>      the idea is that a cp2k instance should be able to run with just three
+!>      arguments, i.e. a given input file, output unit, mpi communicator.
+!>      giving these three to cp2k_run should produce a valid run.
+!>      the only task of the PROGRAM cp2k is to create valid instances of the
+!>      above arguments. Ideally, anything that is called afterwards should be
+!>      able to run simultaneously / multithreaded / sequential / parallel / ...
+!>      and able to fail safe
+!> \author Joost VandeVondele
+! *****************************************************************************
   RECURSIVE FUNCTION cp2k_run(input_file_name,output_unit,mpi_comm) RESULT(cp2k_run_OK)
 
     CHARACTER(LEN=*), INTENT(IN)             :: input_file_name
@@ -402,28 +388,13 @@ CPSourceFileRef,&
 
   END FUNCTION cp2k_run
 
-!!****f* cp2k_runs/farming_run [1.0] *
-!!
-!!   NAME
-!!     farming_run
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     performs a farming run that performs several independent cp2k_runs
-!!
-!!   NOTES
-!!     needs to be part of this module as the cp2k_run -> farming_run -> cp2k_run
-!!     calling style creates a hard circular dependency
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Joost VandeVondele
-!!
-!!   MODIFICATION HISTORY
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief performs a farming run that performs several independent cp2k_runs
+!> \note
+!>      needs to be part of this module as the cp2k_run -> farming_run -> cp2k_run
+!>      calling style creates a hard circular dependency
+!> \author Joost VandeVondele
+! *****************************************************************************
   RECURSIVE SUBROUTINE farming_run(root_section,para_env, error)
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -540,7 +511,6 @@ CPSourceFileRef,&
         ENDIF
         CALL mp_environ(new_size,new_rank,new_group)
     ENDIF
-
 
     ! transfer the info about the slave group distribution to the master
     IF (farming_env%master_slave) THEN
@@ -763,6 +733,7 @@ CPSourceFileRef,&
     CALL timestop(0.0_dp,handle)
 
   CONTAINS
+! *****************************************************************************
     SUBROUTINE execute_job(i)
     INTEGER                                  :: i
 
@@ -818,25 +789,12 @@ CPSourceFileRef,&
      END SUBROUTINE execute_job
   END SUBROUTINE farming_run
 
-!!****f* cp2k_runs/write_cp2k_html_manual *
-!!
-!!   NAME
-!!     write_cp2k_html_manual
-!!
-!!   FUNCTION
-!!     writes a small html description of the cp2k input
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     joost [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes a small html description of the cp2k input
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author joost [fawzi]
+! *****************************************************************************
   SUBROUTINE write_cp2k_html_manual(error)
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -925,7 +883,6 @@ WRITE(unit_nr,*) ' <!-- END CODE --></TD><TD> '
        !WRITE(unit_nr,*) 'cp2k.berlios.de<br></font></td></tr></TABLE></FORM>'
        WRITE(unit_nr,*) '</TD></TR></TABLE>'
 
-
        WRITE(unit_nr,*) '<H2>Journal papers</H2>'
        WRITE(unit_nr,*) '<A HREF="references.html">List of references</A> cited in the CP2K input manual.'
 
@@ -956,7 +913,6 @@ WRITE(unit_nr,*) ' <!-- END CODE --></TD><TD> '
   END SUBROUTINE write_cp2k_html_manual
 
 ! *****************************************************************************
-
   SUBROUTINE write_xml_file(error)
 
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -1007,30 +963,17 @@ WRITE(unit_nr,*) ' <!-- END CODE --></TD><TD> '
   END SUBROUTINE write_xml_file
 
 ! *****************************************************************************
-
-  !!****f* f77_interface/run_input [1.0] *
-  !!
-  !!   NAME
-  !!     run_input
-  !!
-  !!   FUNCTION
-  !!     runs the given input
-  !!
-  !!   NOTES
-  !!     moved here because of circular dependencies
-  !!
-  !!   INPUTS
-  !!     - input_file_path: the path of the input file
-  !!     - output_file_path: path of the output file (to which it is appended)
-  !!       if it is "__STD_OUT__" the unit 6 is used
-  !!     - mpi_comm: the mpi communicator to be used for this environment
-  !!       it will not be freed
-  !!     - ierr: will return a number different from 0 if there was an error
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** *********************************************************************
+!> \brief runs the given input
+!> \param input_file_path the path of the input file
+!> \param output_file_path path of the output file (to which it is appended)
+!>        if it is "__STD_OUT__" the unit 6 is used
+!> \param mpi_comm the mpi communicator to be used for this environment
+!>        it will not be freed
+!> \param ierr will return a number different from 0 if there was an error
+!> \note
+!>      moved here because of circular dependencies
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE run_input(input_file_path,output_file_path,ierr,mpi_comm)
     CHARACTER(len=*), INTENT(in)             :: input_file_path, &
                                                 output_file_path
@@ -1075,7 +1018,5 @@ WRITE(unit_nr,*) ' <!-- END CODE --></TD><TD> '
     END IF
     CALL cp_para_env_release(para_env,error=error) !XXXXXXXXXXXX uninitiliased error
   END SUBROUTINE run_input
-  !****************************************************************************
 
 END MODULE cp2k_runs
-!!*****

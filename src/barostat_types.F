@@ -3,22 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!***** cp2k/barostat_types [1.0] *
-!!
-!!   NAME
-!!     barostat_types
-!!
-!!   FUNCTION
-!!     Barostat structure: module containing barostat available for MD
-!!
-!!   AUTHOR
-!!     teo [tlaino] - University of Zurich - 09.2007
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Barostat structure: module containing barostat available for MD
+!> \author teo [tlaino] - University of Zurich - 09.2007
+! *****************************************************************************
 MODULE barostat_types
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -45,6 +33,7 @@ MODULE barostat_types
             release_barostat_type,&
             retain_barostat_type
 
+! *****************************************************************************
   TYPE barostat_type
      INTEGER :: id_nr, ref_count, type_of_barostat
      TYPE ( npt_info_type ), POINTER :: npt (:,:)
@@ -57,28 +46,13 @@ MODULE barostat_types
 
 CONTAINS
 
-!!****f* barostat_types/create_barostat_type [1.0] *
-!!
-!!   NAME
-!!     create_barostat_type
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2007 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE create_barostat_type( barostat, motion_section, force_env,&
        simpar, para_env, globenv, error )
     TYPE(barostat_type), POINTER             :: barostat
@@ -125,27 +99,12 @@ CONTAINS
     
   END SUBROUTINE create_barostat_type
 
-!!****f* barostat_types/retain_barostat_type [1.0] *
-!!
-!!   NAME
-!!     retain_barostat_type
-!!
-!!   FUNCTION
-!!     retains the given barostat
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     -
-!!
-!!   AUTHOR
-!!    Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [tlaino]
-!! 
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given barostat
+!> \par History
+!>      09.2007 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE retain_barostat_type(barostat,error)
     TYPE(barostat_type), POINTER             :: barostat
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -165,28 +124,13 @@ CONTAINS
     END IF
   END SUBROUTINE retain_barostat_type
 
-!!****f* barostat_types/release_barostat_type [1.0] *
-!!
-!!   NAME
-!!     release_barostat_type
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     09.2007 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      09.2007 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE release_barostat_type(barostat, error)
     TYPE(barostat_type), POINTER             :: barostat
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -213,8 +157,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE release_barostat_type
-!!*****
-!******************************************************************************
 
 END MODULE barostat_types
-!******************************************************************************

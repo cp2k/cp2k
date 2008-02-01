@@ -3,42 +3,31 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****h* cp2k/cp_error_handling [1.0] *
-!!
-!!   NAME
-!!     cp_error_handling
-!!
-!!   FUNCTION
-!!     Module that contains the routines for error handling
-!!     The idea is that in general routines have an optional 
-!!     parameter that can be used to change the error behaviour.
-!!
-!!   NOTES
-!!     In general 0 means no error, a negative error code means an internal
-!!     error (in the routine, postcondition failure), and a positive error 
-!!     an error on the side of the caller (precondition failure).
-!!     Error numbers in the dange -1000..1000 are reserved for generic error
-!!     codes.
-!!     Inspired from the nag nl90 library.
-!!     Some help on this is also available in the high level dev notes on pao.
-!!
-!!     The following error levels are defined:
-!!     0 - note    : CP_NOTE_LEVEL
-!!     1 - warning : CP_WARNING_LEVEL
-!!     2 - failure : CP_FAILURE_LEVEL
-!!     3 - fatal   : CP_FATAL_LEVEL
-!!     You shouldn't use the numbers but the constants defined in 
-!!     cp_log_handling
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 1.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!*****************************************************************************
+! *****************************************************************************
+!> \brief Module that contains the routines for error handling
+!>      The idea is that in general routines have an optional 
+!>      parameter that can be used to change the error behaviour.
+!> \note
+!>      In general 0 means no error, a negative error code means an internal
+!>      error (in the routine, postcondition failure), and a positive error 
+!>      an error on the side of the caller (precondition failure).
+!>      Error numbers in the dange -1000..1000 are reserved for generic error
+!>      codes.
+!>      Inspired from the nag nl90 library.
+!>      Some help on this is also available in the high level dev notes on pao.
+!> 
+!>      The following error levels are defined:
+!>      0 - note    : CP_NOTE_LEVEL
+!>      1 - warning : CP_WARNING_LEVEL
+!>      2 - failure : CP_FAILURE_LEVEL
+!>      3 - fatal   : CP_FATAL_LEVEL
+!>      You shouldn't use the numbers but the constants defined in 
+!>      cp_log_handling
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+!>      @version 1.2002
+! *****************************************************************************
 MODULE cp_error_handling
   USE cp_log_handling,                 ONLY: &
        CP_FAILURE_LEVEL, CP_FATAL_LEVEL, CP_NOTE_LEVEL, CP_WARNING_LEVEL, &
@@ -101,44 +90,28 @@ MODULE cp_error_handling
   !! error number: not implemented
   INTEGER, PARAMETER :: cp_unimplemented_error_nr = -1000
 
-!!***
-!****************************************************************************
-
-!!****s* cp_error_handling/cp_error_type [1.0] *
-!!
-!!   NAME
-!!     cp_error_type
-!!
-!!   FUNCTION
-!!     this type represent a structure that can be passed to
-!!     the functions to change their error behaviour.
-!!     It should always be initialized with cp_error_init before use
-!!
-!!   NOTES
-!!     if one of level or error_nr is different from 0 then both must be
-!!     different from 0.
-!!
-!!   ATTRIBUTES
-!!     initialized: true if initialized (just for bug catching)
-!!     logger: a pointer to the logger where error logs should go 
-!!         (if null they go to cp_default_logger)
-!!     stop_level: the level at which the execution stops
-!!     print_level: starting at which level something gets printed
-!!     level: level of the error (0 = cp_note_level=no error, 
-!!          cp_warning_level, cp_failure_level or cp_fatal_level=3).
-!!          Definition of these constants is in cp_log_handling.
-!!     error_nr: the number of the error (0 = no error)
-!!     info: some additional info to store (error message, string ...)
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 2.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!***************************************************************************
+! *****************************************************************************
+!> \brief this type represent a structure that can be passed to
+!>      the functions to change their error behaviour.
+!>      It should always be initialized with cp_error_init before use
+!> \param initialized true if initialized (just for bug catching)
+!> \param logger a pointer to the logger where error logs should go 
+!>          (if null they go to cp_default_logger)
+!> \param stop_level the level at which the execution stops
+!> \param print_level starting at which level something gets printed
+!> \param level level of the error (0 = cp_note_level=no error, 
+!>           cp_warning_level, cp_failure_level or cp_fatal_level=3).
+!>           Definition of these constants is in cp_log_handling.
+!> \param error_nr the number of the error (0 = no error)
+!> \param info some additional info to store (error message, string ...)
+!> \note
+!>      if one of level or error_nr is different from 0 then both must be
+!>      different from 0.
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+!>      @version 2.2002
+! *****************************************************************************
   TYPE cp_error_type
      PRIVATE
      LOGICAL :: initialized
@@ -149,44 +122,28 @@ MODULE cp_error_handling
      INTEGER :: error_nr
      CHARACTER(LEN=512) :: info
   END TYPE cp_error_type
-!!***
-!****************************************************************************
 
 CONTAINS
 ! ================== error structure init/get/set ===================
 
-!!****f* cp_error_handling/cp_error_init [1.0] *
-!!
-!!   NAME
-!!    cp_error_init
-!!
-!!   FUNCTION
-!!    Initializes the error structure error.
-!!    The optional arguments initialize the values in the structure.
-!!    Default values: stop_level=2, logger=null (i.e. default logger)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     error: the error that will be initialized
-!!     stop_level: the stop level of the newly created error (defaults to
-!!           cp_failure_level)
-!!     print_level: the print level of the newly created error (defaults
-!!           to cp_note_level)
-!!     logger: the logger where errors are written (defaults to
-!!            the default logger)
-!!     template_error: an error that gives the default values for 
-!!            the previous variables (useful to initialize an internal error)
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 2.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Initializes the error structure error.
+!>     The optional arguments initialize the values in the structure.
+!>     Default values: stop_level=2, logger=null (i.e. default logger)
+!> \param error the error that will be initialized
+!> \param stop_level the stop level of the newly created error (defaults to
+!>            cp_failure_level)
+!> \param print_level the print level of the newly created error (defaults
+!>            to cp_note_level)
+!> \param logger the logger where errors are written (defaults to
+!>             the default logger)
+!> \param template_error an error that gives the default values for 
+!>             the previous variables (useful to initialize an internal error)
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+!>      @version 2.2002
+! *****************************************************************************
   SUBROUTINE cp_error_init(error, stop_level, print_level, logger, template_error, error_nr, level)
 
     TYPE(cp_error_type), INTENT(out)         :: error
@@ -224,32 +181,17 @@ CONTAINS
        CALL cp_logger_retain(error%logger)
     END IF
   END SUBROUTINE cp_error_init
-!****************************************************************************
 
-!!****f* cp_error_handling/cp_error_reset [1.0] *
-!!
-!!   NAME
-!!     cp_error_reset
-!!
-!!   FUNCTION
-!!     if the optional parameter error is present resets its level and 
-!!     error_nr to 0 (is tipically called when you want to discard the 
-!!     previous errors stored in error, i.e. not often)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     error: the error you want to reset
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 2.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief if the optional parameter error is present resets its level and 
+!>      error_nr to 0 (is tipically called when you want to discard the 
+!>      previous errors stored in error, i.e. not often)
+!> \param error the error you want to reset
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+!>      @version 2.2002
+! *****************************************************************************
   SUBROUTINE cp_error_reset(error)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -266,32 +208,17 @@ CONTAINS
        error%level=0
     END IF
   END SUBROUTINE cp_error_reset
-!****************************************************************************
 
-!!****f* cp_error_handling/cp_error_set [1.0] *
-!!
-!!   NAME
-!!     cp_error_set
-!!
-!!   FUNCTION
-!!     routine to set the various components of the error structure
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     error: the error you want to change
-!!     template_error: gives the default values of logger, stop_level
-!!          and print_level (but not of level and error_nr)
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 2.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief routine to set the various components of the error structure
+!> \param error the error you want to change
+!> \param template_error gives the default values of logger, stop_level
+!>           and print_level (but not of level and error_nr)
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+!>      @version 2.2002
+! *****************************************************************************
   SUBROUTINE cp_error_set(error,level,error_nr,stop_level,print_level,logger,&
        template_error,info)
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -321,34 +248,21 @@ CONTAINS
     IF (PRESENT(info)) error%info=info
     CALL cp_logger_release(old_logger)
   END SUBROUTINE cp_error_set
-!***************************************************************************
 
-!!****f* cp_error_handling/cp_error_dealloc_ref [1.0] *
-!!
-!!   NAME
-!!     cp_error_dealloc_ref
-!!
-!!   FUNCTION
-!!     Deallocates the memory allocated by the error
-!!
-!!   NOTES
-!!     actually the error allocates no memory, and it is better if it 
-!!     stays so even in the future, but I have written this routine 
-!!     to remain consistent with the generic types
-!!
-!!   INPUTS
-!!     err_to_free: the error that gets deallocated
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 1.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Deallocates the memory allocated by the error
+!> \param err_to_free the error that gets deallocated
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \note
+!>      actually the error allocates no memory, and it is better if it 
+!>      stays so even in the future, but I have written this routine 
+!>      to remain consistent with the generic types
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+!>      @version 1.2002
+! *****************************************************************************
   SUBROUTINE cp_error_dealloc_ref(err_to_free, error)
     TYPE(cp_error_type), INTENT(inout)       :: err_to_free
     TYPE(cp_error_type), INTENT(inout), &
@@ -371,31 +285,16 @@ CONTAINS
        CALL cp_logger_release(err_to_free%logger)
     END IF
   END SUBROUTINE cp_error_dealloc_ref
-!***************************************************************************
 
-!!****f* cp_error_handling/cp_error_get [1.0] *
-!!
-!!   NAME
-!!     cp_error_get
-!!
-!!   FUNCTION
-!!     returns the various attributes of the given error
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 1.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the various attributes of the given error
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+!>      @version 1.2002
+! *****************************************************************************
   SUBROUTINE cp_error_get(error,level,error_nr,stop_level,print_level,logger,info)
     TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER, INTENT(out), OPTIONAL           :: level, error_nr, stop_level, &
@@ -413,30 +312,15 @@ CONTAINS
     IF (PRESENT(logger)) logger=>cp_error_get_logger(error)
     IF (PRESENT(info)) info=error%info
   END SUBROUTINE cp_error_get
-!***************************************************************************
 
-!!****f* cp_error_handling/cp_error_get_level [1.0] *
-!!
-!!   NAME
-!!     cp_error_get_level
-!!
-!!   FUNCTION
-!!     gets the error level from the given error
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     error: the error you take the info from
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 1.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief gets the error level from the given error
+!> \param error the error you take the info from
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+!>      @version 1.2002
+! *****************************************************************************
   FUNCTION cp_error_get_level(error) RESULT(res)
     TYPE(cp_error_type), INTENT(in), &
       OPTIONAL                               :: error
@@ -448,32 +332,17 @@ CONTAINS
        res=0
     END IF
   END FUNCTION cp_error_get_level
-!****************************************************************************
 
-!!****f* cp_error_handling/cp_error_get_print_level [1.0] *
-!!
-!!   NAME
-!!     cp_error_get_print_level
-!!
-!!   FUNCTION
-!!     gets the print level (starting with which errorlevel something 
-!!     gets printed) from the given error
-!!     if the error is not present returns cp_note_level
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     error: the error you take the info from (optional)
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version .2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief gets the print level (starting with which errorlevel something 
+!>      gets printed) from the given error
+!>      if the error is not present returns cp_note_level
+!> \param error the error you take the info from (optional)
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+!>      @version .2002
+! *****************************************************************************
   FUNCTION cp_error_get_print_level(error) RESULT(res)
     TYPE(cp_error_type), INTENT(in), &
       OPTIONAL                               :: error
@@ -485,30 +354,15 @@ CONTAINS
        res=cp_note_level
     END IF
   END FUNCTION cp_error_get_print_level
-!****************************************************************************
 
-!!****f* cp_error_handling/cp_error_get_nr [1.0] *
-!!
-!!   NAME
-!!     cp_error_get_nr
-!!
-!!   FUNCTION
-!!     gets the error number from the given error
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     error: the error you take the info from
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 2.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief gets the error number from the given error
+!> \param error the error you take the info from
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+!>      @version 2.2002
+! *****************************************************************************
   FUNCTION cp_error_get_nr(error) RESULT(res)
     TYPE(cp_error_type), INTENT(in), &
       OPTIONAL                               :: error
@@ -520,34 +374,19 @@ CONTAINS
        res=0
     END IF
   END FUNCTION cp_error_get_nr
-!****************************************************************************
 
-!!****f* cp_error_handling/cp_error_get_logger [1.0] *
-!!
-!!   NAME
-!!     cp_error_get_logger
-!!
-!!   FUNCTION
-!!     gets the logger of the given error.
-!!     The error argument is optional, so you can get the logger
-!!     of an optional dummy argument.
-!!     If the error is not present or its logger is not associated
-!!     returns the default logger.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     error: the error you take the info from (optional)
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 1.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief gets the logger of the given error.
+!>      The error argument is optional, so you can get the logger
+!>      of an optional dummy argument.
+!>      If the error is not present or its logger is not associated
+!>      returns the default logger.
+!> \param error the error you take the info from (optional)
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+!>      @version 1.2002
+! *****************************************************************************
   FUNCTION cp_error_get_logger(error) RESULT(res)
     TYPE(cp_error_type), INTENT(in), &
       OPTIONAL                               :: error
@@ -561,31 +400,16 @@ CONTAINS
             ' cp_default_logger is not associated')
     END IF
   END FUNCTION cp_error_get_logger
-!****************************************************************************
 
-!!****f* cp_error_handling/cp_error_get_stop_level [1.0] *
-!!
-!!   NAME
-!!     cp_error_get_stop_level
-!!
-!!   FUNCTION
-!!     gets the error level at which the error will stop the programm
-!!     If the error is not present returns cp_failure_level
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     error: the error you take the info from (optional)
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 2.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief gets the error level at which the error will stop the programm
+!>      If the error is not present returns cp_failure_level
+!> \param error the error you take the info from (optional)
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+!>      @version 2.2002
+! *****************************************************************************
   FUNCTION cp_error_get_stop_level(error) RESULT(res)
     TYPE(cp_error_type), INTENT(in), &
       OPTIONAL                               :: error
@@ -600,30 +424,16 @@ CONTAINS
 
 ! =================== error handling ===================
 
-!!****f* cp_error_handling/cp_error_common_stop [1.0] *
-!!
-!!   NAME
-!!     cp_error_common_stop
-!!
-!!   FUNCTION
-!!     a subroutine that call just stop, useful because all the failures
-!!     fails calling this routine: the right point to set a breakpoint
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     fromWhere: 'module:routine' that called this function
-!!     message: an error message
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 2.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief a subroutine that call just stop, useful because all the failures
+!>      fails calling this routine: the right point to set a breakpoint
+!> \param fromWhere 'module:routine' that called this function
+!> \param message an error message
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+!>      @version 2.2002
+! *****************************************************************************
   SUBROUTINE cp_error_common_stop(fromWhere,message)
     CHARACTER(len=*), INTENT(in)             :: fromWhere, message
 
@@ -633,34 +443,19 @@ CONTAINS
     CALL print_message("ERROR in "//TRIM(fromWhere)//" "//TRIM(message),unit_nr,2,2,0)
     CALL mp_abort()
   END SUBROUTINE cp_error_common_stop
-!****************************************************************************
 
-!!****f* cp_error_handling/cp_error_handle_error [1.0] *
-!!
-!!   NAME
-!!     cp_error_handle_error
-!!
-!!   FUNCTION
-!!     all the error situations at the end should call this routine
-!!
-!!     main function for error logging, most error reporting ends up calling
-!!     this function, great place to put a breakpoint if you want to catch
-!!     errors that do not stop the program.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     error: the error you take the info from (optional)
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 2.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief all the error situations at the end should call this routine
+!> 
+!>      main function for error logging, most error reporting ends up calling
+!>      this function, great place to put a breakpoint if you want to catch
+!>      errors that do not stop the program.
+!> \param error the error you take the info from (optional)
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+!>      @version 2.2002
+! *****************************************************************************
   SUBROUTINE cp_error_handle_error(error, fromWhere, message, ionode)
     TYPE(cp_error_type), INTENT(in)          :: error
     CHARACTER(len=*), INTENT(in)             :: fromWhere, message
@@ -685,35 +480,20 @@ CONTAINS
        CALL mp_abort(message)
     END IF
   END SUBROUTINE cp_error_handle_error
-!***************************************************************************
 
-!!****f* cp_error_handling/cp_error_message [1.0] *
-!!
-!!   NAME
-!!     cp_error_message
-!!
-!!   FUNCTION
-!!     writes an error message of level level, subject to control of error
-!!     (i.e. if error%printlevel is >= level)
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     level: the level of the error (cp_note_level, cp_warning_level,
-!!     fromWhere: a string that contains the module name and routine name
-!!           where this test happened
-!!     message: the error message
-!!     error: the error type that controls error reporting (optional)
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 1.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief writes an error message of level level, subject to control of error
+!>      (i.e. if error%printlevel is >= level)
+!> \param level the level of the error (cp_note_level, cp_warning_level,
+!> \param fromWhere a string that contains the module name and routine name
+!>            where this test happened
+!> \param message the error message
+!> \param error the error type that controls error reporting (optional)
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+!>      @version 1.2002
+! *****************************************************************************
   SUBROUTINE cp_error_message(level, fromWhere, message, error)
     INTEGER, INTENT(in)                      :: level
     CHARACTER(len=*), INTENT(in)             :: fromWhere, message
@@ -727,41 +507,26 @@ CONTAINS
        CALL cp_log(logger, level, fromWhere, message,local=.TRUE.)
     END IF
   END SUBROUTINE cp_error_message
-!***************************************************************************
 
-!!****f* cp_error_handling/cp_assert [1.0] *
-!!
-!!   NAME
-!!     cp_assert
-!!
-!!   FUNCTION
-!!     routine that checks an assertion, if it fails set the optional
-!!     argument failure is given sets it to true.
-!!     This can be used to do many assertion one fater the other and 
-!!     check at the end if one failed.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     condition: the condition to check, if true does nothing
-!!     level: the level of the error (cp_note_level, cp_warning_level,
-!!     error_nr: the number of the error
-!!     fromWhere: a string that contains the module name and routine name
-!!           where this test happened
-!!     message: the error message
-!!     error: the error type that controls error reporting (optional)
-!!     failure: is set to true if the condition is false otherwise
-!!           it is not changed (optional)
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 1.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief routine that checks an assertion, if it fails set the optional
+!>      argument failure is given sets it to true.
+!>      This can be used to do many assertion one fater the other and 
+!>      check at the end if one failed.
+!> \param condition the condition to check, if true does nothing
+!> \param level the level of the error (cp_note_level, cp_warning_level,
+!> \param error_nr the number of the error
+!> \param fromWhere a string that contains the module name and routine name
+!>            where this test happened
+!> \param message the error message
+!> \param error the error type that controls error reporting (optional)
+!> \param failure is set to true if the condition is false otherwise
+!>            it is not changed (optional)
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+!>      @version 1.2002
+! *****************************************************************************
   SUBROUTINE cp_assert(condition, level, error_nr, fromWhere, &
        message, error,failure,info,only_ionode)
     !! the condition that is checked, if false, an error did happen
@@ -809,38 +574,23 @@ CONTAINS
        IF (debug_this_module) PRINT *, "assertion checked, in "//fromWhere//" msg="//message
     END IF
   END SUBROUTINE cp_assert
-!***************************************************************************
 
-!!****f* cp_error_handling/cp_error_propagate_error [1.0] *
-!!
-!!   NAME
-!!     cp_error_propagate_error
-!!
-!!   FUNCTION
-!!     if the internal error iError of a subroutine has an error levele 
-!!     that is at least failure_level(i.e. if there was a serious error
-!!     in the subroutine) propagates the error to the actual error
-!!     (i.e. sets error to the same error than iError) and sets failure
-!!     to true if a failure more severe than warning happened
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     iError: the error object that comes from the subroutine
-!!     error: the error object in the actual routine
-!!     failure: if iError has an error it is set to true
-!!     failure_level: starting with which error level propagation happens 
-!!           (defaults to cp_warning_level)
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 1.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief if the internal error iError of a subroutine has an error levele 
+!>      that is at least failure_level(i.e. if there was a serious error
+!>      in the subroutine) propagates the error to the actual error
+!>      (i.e. sets error to the same error than iError) and sets failure
+!>      to true if a failure more severe than warning happened
+!> \param iError the error object that comes from the subroutine
+!> \param error the error object in the actual routine
+!> \param failure if iError has an error it is set to true
+!> \param failure_level starting with which error level propagation happens 
+!>            (defaults to cp_warning_level)
+!> \par History
+!>      none
+!> \author Fawzi Mohamed
+!>      @version 1.2002
+! *****************************************************************************
   SUBROUTINE cp_error_propagate_error(iError, fromWhere, message, error, &
        failure, failure_level)
     TYPE(cp_error_type), INTENT(in)          :: iError
@@ -880,34 +630,19 @@ CONTAINS
        ENDIF
     END IF
   END SUBROUTINE cp_error_propagate_error
-!***************************************************************************
 
-!!****f* cp_error_handling/cp_unimplemented_error [1.0] *
-!!
-!!   NAME
-!!     cp_unimplemented_error
-!!
-!!   FUNCTION
-!!     comodity call to signat that something is not implemented
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - fromWhere: routine where the error happened
-!!     - message: the message to write out (UNIMPLEMENTED is added to it)
-!!     - error_level: the error level of this error, defaults to 
-!!       cp_failure_level
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     05.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief comodity call to signat that something is not implemented
+!> \param fromWhere routine where the error happened
+!> \param message the message to write out (UNIMPLEMENTED is added to it)
+!> \param error_level the error level of this error, defaults to 
+!>        cp_failure_level
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      05.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_unimplemented_error(fromWhere, message, error, error_level)
     CHARACTER(len=*), INTENT(in)             :: fromWhere
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: message
@@ -931,27 +666,15 @@ CONTAINS
             fromWhere, "UNIMPLEMENTED", error=error)
     END IF
   END SUBROUTINE cp_unimplemented_error
-!***************************************************************************
 
-!!****f* cp_error_handling/cp_error_synchronize_error [1.0] *
-!!
-!!   NAME
-!!     cp_error_synchronize_error
-!!
-!!   FUNCTION
-!!     synchronizes the error values between different processors
-!!     (propagating an eventual failure to each processor)
-!!
-!!   NOTES
-!!     allow for non uniform presence of the error argument?)
-!!
-!!   ARGUMENTS
-!!     - error: the error to synchronize
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief synchronizes the error values between different processors
+!>      (propagating an eventual failure to each processor)
+!> \param error the error to synchronize
+!> \note
+!>      allow for non uniform presence of the error argument?)
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE cp_error_synchronize_error(error,para_env)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -986,32 +709,17 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE cp_error_synchronize_error
-!***************************************************************************
 
-!!****f* cp_error_handling/cp_a_l [1.0] *
-!!
-!!   NAME
-!!     cp_a_l
-!!
-!!   FUNCTION
-!!     assert with linenumber (to be used with the assertion macros
-!!     to keep the line short)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - from_
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief assert with linenumber (to be used with the assertion macros
+!>      to keep the line short)
+!> \param from _
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      12.2002 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE cp_a_l(condition, level, fromWhere, lineNr, error,failure)
     LOGICAL, INTENT(in)                      :: condition
     INTEGER, INTENT(in)                      :: level
@@ -1026,30 +734,15 @@ CONTAINS
          message="condition FAILED at line "//ADJUSTL(cp_to_string(lineNr)),&
          error=error, failure=failure)
   END SUBROUTINE cp_a_l
-!***************************************************************************
 
-!!****f* cp_error_handling/cp_error_check [1.0] *
-!!
-!!   NAME
-!!     cp_error_check
-!!
-!!   FUNCTION
-!!     if error is present sets failure to true if an error did happen
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: the error to check for failure
-!!     - failure: set to true if there was an error
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2002 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief if error is present sets failure to true if an error did happen
+!> \param error the error to check for failure
+!> \param failure set to true if there was an error
+!> \par History
+!>      11.2002 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
   SUBROUTINE cp_error_check(error, failure)
     TYPE(cp_error_type), INTENT(in), &
       OPTIONAL                               :: error
@@ -1066,30 +759,16 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE cp_error_check
-!***************************************************************************
 
-!!****f* cp_error_handling/cp_simple_assert *
-!!
-!!   NAME
-!!     cp_simple_assert
-!!
-!!   FUNCTION
-!!     simple assert
-!!
-!!   ARGUMENTS
-!!     -
-!!
-!!   NOTES
-!!     you should use the CPAssert and similar macros defined in 
-!!     cp_prep_globals.h that call cp_a_l
-!!
-!!   MODIFICATION HISTORY
-!!     , TCH, created
-!!
-!!   SEE ALSO
-!!     cp_a_l
-!!
-!!****
+! *****************************************************************************
+!> \brief simple assert
+!> \note
+!>      you should use the CPAssert and similar macros defined in 
+!>      cp_prep_globals.h that call cp_a_l
+!> \par History
+!>      , TCH, created
+!> \see cp_a_l
+! *****************************************************************************
   SUBROUTINE cp_simple_assert(condition, routineP, line)
 
     LOGICAL, INTENT(in)                      :: condition
@@ -1106,7 +785,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE cp_simple_assert
-
-! *****************************************************************************
 
 END MODULE cp_error_handling

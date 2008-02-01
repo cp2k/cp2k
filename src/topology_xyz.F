@@ -2,20 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/topology_xyz [1.0] *
-!!
-!!   NAME
-!!     topology_xyz
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
 MODULE topology_xyz
 
   USE convert_units,                   ONLY: convert_to_cp2k_units
@@ -49,24 +36,9 @@ MODULE topology_xyz
 
 CONTAINS
 
-  !******************************************************************************
-  !!****** topology_xyz/read_coordinate_xyz [1.0] *
-  !!
-  !!   NAME
-  !!     read_coordinate_xyz
-  !!
-  !!   FUNCTION
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!
-  !!   OPTIONS
-  !!
-  !!   INPUTS
-  !!*** *************************************************************************
-
+! *****************************************************************************
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE read_coordinate_xyz (topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type)           :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env

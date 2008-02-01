@@ -2,25 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/timings [1.0] *
-!!
-!!   NAME
-!!     timings
-!!
-!!   FUNCTION
-!!     Timing routines for accounting
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     02.2004 made a stacked version (of stacks...) [Joost VandeVondele]
-!!     11.2004 storable timer_envs (for f77 interface) [fawzi]
-!!     10.2005 binary search to speed up lookup in timeset [fawzi]
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Timing routines for accounting
+!> \par History
+!>      02.2004 made a stacked version (of stacks...) [Joost VandeVondele]
+!>      11.2004 storable timer_envs (for f77 interface) [fawzi]
+!>      10.2005 binary search to speed up lookup in timeset [fawzi]
+!> \author JGH
+! *****************************************************************************
 MODULE timings
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
@@ -58,6 +48,7 @@ MODULE timings
   INTEGER, PARAMETER :: max_stack = 50          ! the calling stack max depth for a given timer env
   INTEGER, PARAMETER :: max_timer = 2000        ! total number of different callers
 
+! *****************************************************************************
   TYPE timer_env_type
      !PRIVATE
      INTEGER :: ref_count, id_nr
@@ -84,6 +75,7 @@ MODULE timings
      INTEGER :: mepos,group,num_pe
   END TYPE timer_env_type
 
+! *****************************************************************************
   TYPE timer_env_p_type
      TYPE(timer_env_type), POINTER :: timer_env
   END TYPE timer_env_p_type
@@ -93,25 +85,16 @@ MODULE timings
   TYPE(timer_env_p_type), DIMENSION(max_timer_env_stack) :: timer_env_stack 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'timings'
 
-  !!*****
-  !******************************************************************************
 CONTAINS
 
-!!****f* timings/add_timer_env *
-!!
-!!   NAME
-!!     add_timer_env
-!!   FUNCTION
-!!     adds the given timer_env to the top of the stack
-!!   NOTES
-!!     for each init_timer_env there should be the symmetric call to 
-!!     rm_timer_env
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     02.2004 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief adds the given timer_env to the top of the stack
+!> \note
+!>      for each init_timer_env there should be the symmetric call to 
+!>      rm_timer_env
+!> \par History
+!>      02.2004 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE add_timer_env(timer_env)
     TYPE(timer_env_type), OPTIONAL, POINTER  :: timer_env
 
@@ -132,20 +115,10 @@ CONTAINS
     END IF
   END SUBROUTINE add_timer_env
 
-!!****f* timings/timer_env_create *
-!!
-!!   NAME
-!!     timer_env_create
-!!   FUNCTION
-!!     creates a new timer env
-!!   NOTES
-!!     -
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a new timer env
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE timer_env_create(timer_env)
     TYPE(timer_env_type), POINTER            :: timer_env
 
@@ -166,21 +139,14 @@ CONTAINS
     timer_env%trace_sync=.FALSE. 
   END SUBROUTINE timer_env_create
 
-!!****f* timings/rm_timer_env *
-!!
-!!   NAME
-!!     rm_timer_env
-!!   FUNCTION
-!!     removes the current timer env from the stack
-!!   NOTES
-!!     for each rm_timer_env there should have been the symmetric call to 
-!!     add_timer_env
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     02.2004 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief removes the current timer env from the stack
+!> \note
+!>      for each rm_timer_env there should have been the symmetric call to 
+!>      add_timer_env
+!> \par History
+!>      02.2004 created [Joost VandeVondele]
+! *****************************************************************************
   SUBROUTINE rm_timer_env()
     IF (stack_pointer<1) THEN
        PRINT*,'no timer env available in destroy_timer_env'
@@ -190,20 +156,10 @@ CONTAINS
     stack_pointer=stack_pointer-1
   END SUBROUTINE rm_timer_env
 
-!!****f* timings/get_timer_env *
-!!
-!!   NAME
-!!     get_timer_env
-!!   FUNCTION
-!!     returns the current timer env from the stack
-!!   NOTES
-!!     -
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the current timer env from the stack
+!> \author fawzi
+! *****************************************************************************
   FUNCTION get_timer_env() RESULT(res)
     TYPE(timer_env_type), POINTER            :: res
 
@@ -214,20 +170,11 @@ CONTAINS
     res => timer_env_stack(stack_pointer)%timer_env
   END FUNCTION get_timer_env
 
-!!****f* timings/timer_env_retain *
-!!
-!!   NAME
-!!     timer_env_retain
-!!   FUNCTION
-!!     retains the given timer env
-!!   NOTES
-!!     -
-!!   INPUTS
-!!     - timer_env: the timer env to retain
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given timer env
+!> \param timer_env the timer env to retain
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE timer_env_retain(timer_env)
     TYPE(timer_env_type), POINTER            :: timer_env
 
@@ -243,21 +190,11 @@ CONTAINS
     timer_env%ref_count=timer_env%ref_count+1
   END SUBROUTINE timer_env_retain
 
-!!****f* timings/timer_env_release *
-!!
-!!   NAME
-!!     timer_env_release
-!!   FUNCTION
-!!     releases the given timer env
-!!   NOTES
-!!     -
-!!   INPUTS
-!!     - timer_env: the timer env to release
-!!   AUTHOR
-!!     fawzi
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given timer env
+!> \param timer_env the timer env to release
+!> \author fawzi
+! *****************************************************************************
   SUBROUTINE timer_env_release(timer_env)
     TYPE(timer_env_type), POINTER            :: timer_env
 
@@ -286,23 +223,12 @@ CONTAINS
     NULLIFY(timer_env)
   END SUBROUTINE timer_env_release
 
-!******************************************************************************
-!!****** timings/timeset_short [1.0] *
-!!
-!!   NAME
-!!     timeset_short
-!!
-!!   FUNCTION
-!!     Start timer (short call). Provides the usual shortcut
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Start timer (short call). Provides the usual shortcut
+!> \par History
+!>      none
+!> \author JGH
+! *****************************************************************************
   SUBROUTINE timeset_short(name, handle )
     CHARACTER(LEN=*), INTENT(IN)             :: name
     INTEGER                                  :: handle
@@ -310,23 +236,12 @@ CONTAINS
     CALL timeset_full(name, "I", "", handle)
   END SUBROUTINE timeset_short
 
-!******************************************************************************
-!!****** timings/timeset_full [1.0] *
-!!
-!!   NAME
-!!     timeset_full
-!!
-!!   FUNCTION
-!!     Start timer (long call)
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Start timer (long call)
+!> \par History
+!>      none
+!> \author JGH
+! *****************************************************************************
   SUBROUTINE timeset_full ( name, ct, pu, handle )
     CHARACTER(LEN=*), INTENT(IN)             :: name
     CHARACTER(LEN=1), INTENT(IN)             :: ct           ! Clock type [0|1]
@@ -355,7 +270,6 @@ CONTAINS
     timer_env%stack_size = timer_env%stack_size + 1
     stack_size = timer_env%stack_size
     timer_env%routine_stack ( stack_size ) = name
-
 
     !..binary search of the timer
     handle = timer_binsearch(name,timer_env%clock_name,timer_env%sort_index,&
@@ -437,44 +351,24 @@ CONTAINS
 
   END SUBROUTINE timeset_full
 
-!!****** timings/timestop_short [1.0] *
-!!
-!!   NAME
-!!     timestop_short (short call)
-!!
-!!   FUNCTION
-!!     End timer
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief End timer
+!> \par History
+!>      none
+!> \author JGH
+! *****************************************************************************
   SUBROUTINE timestop_short( handle ) ! provide the usual shortcut
     INTEGER                                  :: handle
 
     CALL timestop_full(0.0_dp,handle)
   END SUBROUTINE timestop_short
 
-!!****** timings/timestop_full [1.0] *
-!!
-!!   NAME
-!!     timestop_full
-!!
-!!   FUNCTION
-!!     End timer (long call)
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief End timer (long call)
+!> \par History
+!>      none
+!> \author JGH
+! *****************************************************************************
   SUBROUTINE timestop_full ( perf, handle )
     REAL(KIND=dp)                            :: perf
     INTEGER                                  :: handle
@@ -561,22 +455,12 @@ CONTAINS
     END IF
   END SUBROUTINE timestop_full
 
-!!****** timings/timeprint [1.0] *
-!!
-!!   NAME
-!!     timeprint
-!!
-!!   FUNCTION
-!!     Print accumulated information on timers
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Print accumulated information on timers
+!> \par History
+!>      none
+!> \author JGH
+! *****************************************************************************
   SUBROUTINE timeprint(iw,r_timings)
     INTEGER, INTENT(IN)                      :: iw
     REAL(KIND=dp), INTENT(IN)                :: r_timings
@@ -646,24 +530,12 @@ CONTAINS
 
   END SUBROUTINE timeprint
 
-!!*****
-!******************************************************************************
-!!****** timings/trace_debug [1.0] *
-!!
-!!   NAME
-!!     trace_debug
-!!
-!!   FUNCTION
-!!     Set routine tracer
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Set routine tracer
+!> \par History
+!>      none
+!> \author JGH
+! *****************************************************************************
   SUBROUTINE trace_debug ( set, trace_sync, para_env )
     CHARACTER(len=*)                         :: set
     LOGICAL                                  :: trace_sync
@@ -708,24 +580,12 @@ CONTAINS
 
   END SUBROUTINE trace_debug
 
-!!*****
-!******************************************************************************
-!!****** timings/print_stack [1.0] *
-!!
-!!   NAME
-!!     print_stack
-!!
-!!   FUNCTION
-!!     Print current routine stack
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+! *****************************************************************************
+!> \brief Print current routine stack
+!> \par History
+!>      none
+!> \author JGH
+! *****************************************************************************
   SUBROUTINE print_stack ( iw )
 
     INTEGER                                  :: iw
@@ -748,30 +608,17 @@ CONTAINS
 
   END SUBROUTINE print_stack
 
-!!****f* timings/timer_binsearch *
-!!
-!!   NAME
-!!     timer_binsearch
-!!
-!!   FUNCTION
-!!     makes a binary search in an array of strings ordered with the index
-!!     diven in ord_idx and returns the index of arr_idx
-!!     where the element is (or the element after which it should be inserted)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - el: the element to search
-!!     - list: the list of strings
-!!     - ord_idx: indexes that make list ordered in growing order
-!!     - lb: lower bound for the search (defaults to 1)
-!!     - ub: upper bound for the search (defaults to size(list))
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief makes a binary search in an array of strings ordered with the index
+!>      diven in ord_idx and returns the index of arr_idx
+!>      where the element is (or the element after which it should be inserted)
+!> \param el the element to search
+!> \param list the list of strings
+!> \param ord_idx indexes that make list ordered in growing order
+!> \param lb lower bound for the search (defaults to 1)
+!> \param ub upper bound for the search (defaults to size(list))
+!> \author fawzi
+! *****************************************************************************
   FUNCTION timer_binsearch(el,list,ord_idx,lb,ub)RESULT(res)
     CHARACTER(len=*), INTENT(in)             :: el
     CHARACTER(len=80), DIMENSION(:), &
@@ -804,8 +651,6 @@ CONTAINS
     END DO
     res=ui
   END FUNCTION timer_binsearch
-  !***************************************************************************
 
 END MODULE timings
 
-!******************************************************************************

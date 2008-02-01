@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qmmm_init [1.0] *
-!!
-!!   NAME
-!!     qmmm_init
-!!
-!!   FUNCTION
-!!     Initialize a QM/MM calculation
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     5.2004 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief Initialize a QM/MM calculation
+!> \par History
+!>      5.2004 created [fawzi]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 MODULE qmmm_init
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -97,32 +83,17 @@ MODULE qmmm_init
             setup_origin_mm_cell
 
 !***
-!****************************************************************************
 CONTAINS
 
-!!****f* qmmm_init/assign_mm_charges_and_radius [1.0] *
-!!
-!!   NAME
-!!     assign_mm_charges_and_radius
-!!
-!!   FUNCTION
-!!     Assigns charges and radius to evaluate the MM electrostatic potential
-!!
-!!   NOTES
-!!
-!!
-!!   INPUTS
-!!     - subsys: the subsys containing the MM charges
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     06.2004 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Assigns charges and radius to evaluate the MM electrostatic potential
+!> \param subsys the subsys containing the MM charges
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      06.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
  SUBROUTINE assign_mm_charges_and_radius(subsys, mm_atom_chrg,mm_el_pot_radius,mm_el_pot_radius_corr,&
                                          mm_atom_index, mm_link_atoms, mm_link_scale_factor,&
                                          error)
@@ -171,29 +142,15 @@ CONTAINS
 
  END SUBROUTINE assign_mm_charges_and_radius
 
-!!****f* qmmm_init/print_qmmm_charges [1.0] *
-!!
-!!   NAME
-!!     print_qmmm_charges
-!!
-!!   FUNCTION
-!!     Print info on charges generating the qmmm potential..
-!!
-!!   NOTES
-!!
-!!
-!!   INPUTS
-!!     - subsys: the subsys containing the MM charges
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     01.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Print info on charges generating the qmmm potential..
+!> \param subsys the subsys containing the MM charges
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      01.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
  SUBROUTINE print_qmmm_charges(mm_atom_index, mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr,&
                                added_charges, qmmm_section, nocompatibility, error)
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
@@ -260,29 +217,15 @@ CONTAINS
                "PRINT%QMMM_CHARGES", error=error)
   END SUBROUTINE print_qmmm_charges
 
-!!****f* qmmm_init/print_qmmm_links [1.0] *
-!!
-!!   NAME
-!!     print_qmmm_links
-!!
-!!   FUNCTION
-!!     Print info on qm/mm links
-!!
-!!   NOTES
-!!
-!!
-!!   INPUTS
-!!     - subsys: the subsys containing the MM charges
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     01.2005 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Print info on qm/mm links
+!> \param subsys the subsys containing the MM charges
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      01.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
  SUBROUTINE print_qmmm_links( qmmm_section, qmmm_links, error)
     TYPE(section_vals_type), POINTER         :: qmmm_section
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
@@ -329,28 +272,13 @@ CONTAINS
                "PRINT%qmmm_link_info", error=error)
   END SUBROUTINE print_qmmm_links
 
-  !!****f* qmmm_init/qmmm_init_gaussian_type [1.0] *
-  !!
-  !!   NAME
-  !!     qmmm_init_gaussian_type
-  !!
-  !!   FUNCTION
-  !!
-  !!
-  !!   NOTES
-  !!
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     1.2005 created [tlaino]
-  !!
-  !!*************************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      1.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
  SUBROUTINE qmmm_init_gaussian_type(qmmm_env_qm, qm_cell_small, mm_cell, para_env, &
                                     mm_atom_chrg, qs_env, added_charges, print_section, &
                                     qmmm_section, error )
@@ -423,28 +351,13 @@ CONTAINS
 
  END SUBROUTINE qmmm_init_gaussian_type
 
-  !!****f* qmmm_init/qmmm_init_potential [1.0] *
-  !!
-  !!   NAME
-  !!     qmmm_init_potential
-  !!
-  !!   FUNCTION
-  !!
-  !!
-  !!   NOTES
-  !!
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     1.2005 created [tlaino]
-  !!
-  !!*************************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      1.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
  SUBROUTINE qmmm_init_potential(qmmm_env_qm, qm_cell_small, mm_cell, para_env, qs_env,&
                                 added_charges, print_section, error)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
@@ -484,28 +397,13 @@ CONTAINS
 
  END SUBROUTINE qmmm_init_potential
 
-  !!****f* qmmm_init/qmmm_init_periodic_potential [1.0] *
-  !!
-  !!   NAME
-  !!     qmmm_init_periodic_potential
-  !!
-  !!   FUNCTION
-  !!
-  !!
-  !!   NOTES
-  !!
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     7.2005 created [tlaino]
-  !!
-  !!*************************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      7.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
  SUBROUTINE qmmm_init_periodic_potential(qmmm_env_qm, qm_cell_small, mm_cell, para_env, qs_env,&
                                          added_charges, qmmm_periodic, print_section, mm_atom_chrg, error)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
@@ -561,28 +459,13 @@ CONTAINS
 
  END SUBROUTINE qmmm_init_periodic_potential
 
-  !!****f* qmmm_init/setup_qmmm_vars_qm [1.0] *
-  !!
-  !!   NAME
-  !!     setup_qmmm_vars_qm
-  !!
-  !!   FUNCTION
-  !!
-  !!
-  !!   NOTES
-  !!
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     11.2004 created [tlaino]
-  !!
-  !!*************************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      11.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE setup_qmmm_vars_qm( qmmm_section, qmmm_env, subsys_mm, qm_atom_type,&
        qm_atom_index, mm_atom_index, qm_cell_small, qmmm_coupl_type, eps_mm_rspace,&
        qmmm_link, error)
@@ -733,29 +616,13 @@ CPSourceFileRef,&
     END IF
   END SUBROUTINE setup_qmmm_vars_qm
 
-
-  !!****f* qmmm_init/setup_qmmm_vars_mm [1.0] *
-  !!
-  !!   NAME
-  !!     setup_qmmm_vars_mm
-  !!
-  !!   FUNCTION
-  !!
-  !!
-  !!   NOTES
-  !!
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     12.2004 created [tlaino]
-  !!
-  !!*************************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE setup_qmmm_vars_mm( qmmm_section, qmmm_env, qm_atom_index,  &
                                  mm_link_atoms, mm_link_scale_factor, &
                                  fist_scale_charge_link, qmmm_coupl_type,&
@@ -796,29 +663,15 @@ CPSourceFileRef,&
     END IF
   END SUBROUTINE setup_qmmm_vars_mm
 
-  !!****f* qmmm_init/read_qmmm_ff_section [1.0] *
-  !!
-  !!   NAME
-  !!     read_qmmm_ff_section
-  !!
-  !!   FUNCTION
-  !!     reads information regarding the forcefield specific for the QM/MM
-  !!     interactions
-  !!
-  !!   NOTES
-  !!
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     12.2004 created [tlaino]
-  !!
-  !!*************************************************************************
+! *****************************************************************************
+!> \brief reads information regarding the forcefield specific for the QM/MM
+!>      interactions
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE read_qmmm_ff_section(qmmm_ff_section, inp_info, error)
     TYPE(section_vals_type), POINTER         :: qmmm_ff_section
     TYPE(input_info_type), POINTER           :: inp_info
@@ -894,28 +747,13 @@ CPSourceFileRef,&
 
   END SUBROUTINE read_qmmm_ff_section
 
-  !!****f* qmmm_init/setup_qm_atom_list [1.0] *
-  !!
-  !!   NAME
-  !!     setup_qm_atom_list
-  !!
-  !!   FUNCTION
-  !!
-  !!
-  !!   NOTES
-  !!
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     12.2004 created [tlaino]
-  !!
-  !!*************************************************************************
+! *****************************************************************************
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE setup_qm_atom_list(qmmm_section,qm_atom_index,qm_atom_type,&
        mm_link_atoms, mm_link_scale_factor, qmmm_link, fist_scale_charge_link, error)
     TYPE(section_vals_type), POINTER         :: qmmm_section
@@ -1057,29 +895,14 @@ CPSourceFileRef,&
 
   END SUBROUTINE setup_qm_atom_list
 
-
-  !!****f* qmmm_init/setup_qmmm_links [1.0] *
-  !!
-  !!   NAME
-  !!     setup_qmmm_links
-  !!
-  !!   FUNCTION
-  !!     this routine sets up all variables to treat qmmm links
-  !!
-  !!   NOTES
-  !!
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     12.2004 created [tlaino]
-  !!
-  !!*************************************************************************
+! *****************************************************************************
+!> \brief this routine sets up all variables to treat qmmm links
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE  setup_qmmm_links(qmmm_section, qmmm_links, mm_el_pot_radius, mm_el_pot_radius_corr,&
        mm_atom_index, qm_cell_small, iw, error)
     TYPE(section_vals_type), POINTER         :: qmmm_section
@@ -1201,29 +1024,14 @@ CPSourceFileRef,&
     END IF
   END SUBROUTINE setup_qmmm_links
 
-
-  !!****f* qmmm_init/setup_qmmm_links [1.0] *
-  !!
-  !!   NAME
-  !!     setup_qmmm_links
-  !!
-  !!   FUNCTION
-  !!     this routine sets up all variables to treat qmmm links
-  !!
-  !!   NOTES
-  !!
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     12.2004 created [tlaino]
-  !!
-  !!*************************************************************************
+! *****************************************************************************
+!> \brief this routine sets up all variables to treat qmmm links
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
   SUBROUTINE move_or_add_atoms(qmmm_section, move_mm_charges, add_mm_charges, &
                                mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr,&
                                added_charges, mm_atom_index, qm_cell_small, error)
@@ -1344,28 +1152,14 @@ CPSourceFileRef,&
 
    END SUBROUTINE move_or_add_atoms
 
-  !!****f* qmmm_init/setup_qmmm_links [1.0] *
-  !!
-  !!   NAME
-  !!     setup_qmmm_links
-  !!
-  !!   FUNCTION
-  !!     this routine sets up all variables of the add_set_type type
-  !!
-  !!   NOTES
-  !!
-  !!
-  !!   INPUTS
-  !!     - error: variable to control error logging, stopping,...
-  !!       see module cp_error_handling
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     12.2004 created [tlaino]
-  !!
-  !!*************************************************************************
+! *****************************************************************************
+!> \brief this routine sets up all variables of the add_set_type type
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      12.2004 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
    SUBROUTINE set_add_set_type(added_charges, icount, Index1, Index2, alpha, radius, c_radius, charge,&
         mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr, mm_atom_index, move, ind1, error)
     TYPE(add_set_type), POINTER              :: added_charges
@@ -1416,30 +1210,16 @@ CPSourceFileRef,&
      END IF
    END SUBROUTINE set_add_set_type
 
-   !!****f* qmmm_init/setup_origin_mm_cell [1.0] *
-   !!
-   !!   NAME
-   !!     setup_origin_mm_cell
-   !!
-   !!   FUNCTION
-   !!     this routine sets up the origin of the MM cell respect to the
-   !!     origin of the QM cell. The origin of the QM cell is assumed to be
-   !!     in (0.0,0.0,0.0)...
-   !!
-   !!   NOTES
-   !!
-   !!
-   !!   INPUTS
-   !!     - error: variable to control error logging, stopping,...
-   !!       see module cp_error_handling
-   !!
-   !!   AUTHOR
-   !!     Teodoro Laino
-   !!
-   !!   MODIFICATION HISTORY
-   !!     02.2005 created [tlaino]
-   !!
-   !!*************************************************************************
+! *****************************************************************************
+!> \brief this routine sets up the origin of the MM cell respect to the
+!>      origin of the QM cell. The origin of the QM cell is assumed to be
+!>      in (0.0,0.0,0.0)...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      02.2005 created [tlaino]
+!> \author Teodoro Laino
+! *****************************************************************************
    SUBROUTINE setup_origin_mm_cell(qmmm_section, qmmm_env, mm_cell, qm_cell_small, &
         dr, error)
     TYPE(section_vals_type), POINTER         :: qmmm_section

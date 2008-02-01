@@ -2,25 +2,14 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2006 - 2008 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
-!!****m* cp2k/qs_epr_hyp *
-!!
-!!   NAME
-!!     qs_linres_epr_hyp
-!!
-!!   FUNCTION
-!!     Calculates hyperfine values
-!!
-!!   NOTE
-!!  
-!!   AUTHOR
-!!     R. Declerck (Reinout.Declerck@UGent.be)
-!!
-!!   MODIFICATION HISTORY
-!!     created 04-2006 [RD]
-!!     adapted 02-2007 [JGH]
-!!  
-!!****
 
+! *****************************************************************************
+!> \brief Calculates hyperfine values
+!> \par History
+!>      created 04-2006 [RD]
+!>      adapted 02-2007 [JGH]
+!> \author R. Declerck (Reinout.Declerck@UGent.be)
+! *****************************************************************************
 MODULE qs_epr_hyp
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -76,12 +65,9 @@ MODULE qs_epr_hyp
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_epr_hyp'
 
-!*******************************************************************************
-
 CONTAINS
 
-!*******************************************************************************
-  
+! *****************************************************************************
   SUBROUTINE qs_epr_hyp_calc(qs_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -409,8 +395,5 @@ CONTAINS
 
   END SUBROUTINE qs_epr_hyp_calc
 
-!*******************************************************************************
-
 END MODULE  qs_epr_hyp
 
-!*******************************************************************************

@@ -4,23 +4,12 @@
 
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/semi_empirical_int_ana [1.0] *
-!!
-!!   NAME
-!!     semi_empirical_int_ana
-!!
-!!   FUNCTION
-!!     Analytical derivatives of Integrals for semi-empirical methods
-!!
-!!   AUTHOR
-!!     Teodoro Laino - Zurich University 04.2007 [tlaino]
-!!
-!!   MODIFICATION HISTORY
-!!     23.11.2007 jhu   short range version of integrals     
-!!     
-!!***
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief Analytical derivatives of Integrals for semi-empirical methods
+!> \par History
+!>      23.11.2007 jhu   short range version of integrals     
+!> \author Teodoro Laino - Zurich University 04.2007 [tlaino]
+! *****************************************************************************
 MODULE semi_empirical_int_ana
 
   USE f77_blas
@@ -50,43 +39,28 @@ MODULE semi_empirical_int_ana
        49,79,50,76,51,91,52,92,53,93,54,97,55,98,56,100,57,94,58,95,59,99,60,96,&
        84,87,85,88,86,90/)
 
-  ! *****************************************************************************
-
 CONTAINS
 
-!!****f* semi_empirical_int_ana/rotnuc_ana [1.0] *
-!!
-!!   NAME
-!!     rotnuc_ana
-!!
-!!   FUNCTION
-!!     Computes analytical gradients for semiempirical integrals
-!!
-!!   NOTES
-!!     Analytical version of the MOPAC rotnuc routine
-!!
-!!   INPUTS
-!!     on input  sepi   = Atomic parameters of first atom
-!!               sepj   = Atomic parameters of second atom
-!!               rijv   = Coordinate vector i -> j 
-!!   
-!!   on output e1b,e2a= Array of electron-nuclear attraction integrals,
-!!                      e1b = Electron on atom ni attracting nucleus of nj.
-!!                      e2a = Electron on atom nj attracting nucleus of ni.
-!!                      enuc= nuclear-nuclear repulsion term.
-!!   
-!!                     de1b = derivative of e1b term
-!!                     de2a = derivative of e2a term
-!!                     denuc= derivative of nuclear-nuclear repulsion term. 
-!!
-!!   AUTHOR
-!!     Teodoro Laino - Zurich University
-!!
-!!   MODIFICATION HISTORY
-!!     04.2007 created [tlaino]
-!!
-!!*** **********************************************************************
-
+! *****************************************************************************
+!> \brief Computes analytical gradients for semiempirical integrals
+!> \param on input  sepi   = Atomic parameters of first atom
+!>                sepj   = Atomic parameters of second atom
+!>                rijv   = Coordinate vector i -> j 
+!> 
+!>    on output e1b,e2a= Array of electron-nuclear attraction integrals,
+!>                       e1b = Electron on atom ni attracting nucleus of nj.
+!>                       e2a = Electron on atom nj attracting nucleus of ni.
+!>                       enuc= nuclear-nuclear repulsion term.
+!> 
+!>                      de1b = derivative of e1b term
+!>                      de2a = derivative of e2a term
+!>                      denuc= derivative of nuclear-nuclear repulsion term. 
+!> \note
+!>      Analytical version of the MOPAC rotnuc routine
+!> \par History
+!>      04.2007 created [tlaino]
+!> \author Teodoro Laino - Zurich University
+! *****************************************************************************
   RECURSIVE SUBROUTINE rotnuc_ana (sepi,sepj,rijv,itype,enuc,e1b,e2a,denuc,de1b,de2a,shortrange)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rijv
@@ -604,26 +578,12 @@ CONTAINS
     END IF
   END SUBROUTINE rotnuc_ana
 
-!!****f* semi_empirical_int_ana/invert_integral [1.0] *
-!!
-!!   NAME
-!!     invert_integral
-!!
-!!   FUNCTION
-!!     Exploits inversion symmetry to avoid divergence
-!!
-!!   NOTES
-!!    
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino - Zurich University
-!!
-!!   MODIFICATION HISTORY
-!!     04.2007 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Exploits inversion symmetry to avoid divergence
+!> \par History
+!>      04.2007 created [tlaino]
+!> \author Teodoro Laino - Zurich University
+! *****************************************************************************
   SUBROUTINE invert_integral(array, np)
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: array
     INTEGER, INTENT(IN)                      :: np
@@ -644,26 +604,12 @@ CONTAINS
 
   END SUBROUTINE invert_integral
 
-!!****f* semi_empirical_int_ana/invert_derivative [1.0] *
-!!
-!!   NAME
-!!     invert_derivative
-!!
-!!   FUNCTION
-!!     Exploits inversion symmetry to avoid divergence
-!!
-!!   NOTES
-!!    
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino - Zurich University
-!!
-!!   MODIFICATION HISTORY
-!!     04.2007 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Exploits inversion symmetry to avoid divergence
+!> \par History
+!>      04.2007 created [tlaino]
+!> \author Teodoro Laino - Zurich University
+! *****************************************************************************
   SUBROUTINE invert_derivative(array, np)
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: array
     INTEGER, INTENT(IN)                      :: np
@@ -691,26 +637,14 @@ CONTAINS
     ENDDO
   END SUBROUTINE invert_derivative
 
-!!****f* semi_empirical_int_ana/check_dnucint_ana [1.0] *
-!!
-!!   NAME
-!!     check_dnucint_ana
-!!
-!!   FUNCTION
-!!     Check Numerical Vs Analytical
-!!
-!!   NOTES
-!!     Debug routine
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino - Zurich University
-!!
-!!   MODIFICATION HISTORY
-!!     04.2007 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Check Numerical Vs Analytical
+!> \note
+!>      Debug routine
+!> \par History
+!>      04.2007 created [tlaino]
+!> \author Teodoro Laino - Zurich University
+! *****************************************************************************
   SUBROUTINE check_dnucint_ana (sepi,sepj,r,dssss,dccore,itype,shortrange)
 
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
@@ -757,39 +691,28 @@ CONTAINS
     END IF
   END SUBROUTINE check_dnucint_ana
 
-!!****f* semi_empirical_int_ana/dnucint_ana [1.0] *
-!!
-!!   NAME
-!!     dnucint_ana
-!!
-!!   FUNCTION
-!!     Calculates the nuclear attraction integrals.
-!!
-!!   NOTES
-!!     Analytical version - Analytical evaluation of gradients
-!!     Teodoro Laino - Zurich University 04.2007
-!!     routine adapted from mopac7 (repp)
-!!     vector version written by Ernest R. Davidson, Indiana University
-!!
-!!   INPUTS
-!!      on input rij     = interatomic distance
-!!               sepi    = paramters of atom i
-!!               sepj    = paramters of atom j
-!!               itype   = type of semi_empirical model
-!!                         extension to the original routine to compute qm/mm integrals
-!!     on output core    = derivative of 4 X 2 array of electron-core attraction integrals
-!!               ssss    = derivative of (ssss) integral
-!!                         derivatives are intended w.r.t. rij
-!!        The storage of the nuclear attraction integrals  core(kl/ij) iS
-!!        (SS/)=1,   (SO/)=2,   (OO/)=3,   (PP/)=4
-!!        where ij=1 if the orbitals centred on atom i,  =2 if on atom j.
-!!   AUTHOR
-!!     Teodoro Laino - Zurich University
-!!
-!!   MODIFICATION HISTORY
-!!     04.2007 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Calculates the nuclear attraction integrals.
+!> \param on input rij     = interatomic distance
+!>                sepi    = paramters of atom i
+!>                sepj    = paramters of atom j
+!>                itype   = type of semi_empirical model
+!>                          extension to the original routine to compute qm/mm integrals
+!>      on output core    = derivative of 4 X 2 array of electron-core attraction integrals
+!>                ssss    = derivative of (ssss) integral
+!>                          derivatives are intended w.r.t. rij
+!>         The storage of the nuclear attraction integrals  core(kl/ij) iS
+!>         (SS/)=1,   (SO/)=2,   (OO/)=3,   (PP/)=4
+!>         where ij=1 if the orbitals centred on atom i,  =2 if on atom j.
+!> \note
+!>      Analytical version - Analytical evaluation of gradients
+!>      Teodoro Laino - Zurich University 04.2007
+!>      routine adapted from mopac7 (repp)
+!>      vector version written by Ernest R. Davidson, Indiana University
+!> \par History
+!>      04.2007 created [tlaino]
+!> \author Teodoro Laino - Zurich University
+! *****************************************************************************
   SUBROUTINE dnucint_ana ( sepi, sepj, rij, ssss, core, dssss, dcore, itype, shortrange )
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
@@ -1323,6 +1246,7 @@ CONTAINS
 
   END SUBROUTINE dnucint_ana
 
+! *****************************************************************************
   FUNCTION dtaper_ana ( rij ) RESULT(dft)
     REAL(KIND=dp), INTENT(IN)                :: rij
     REAL(KIND=dp)                            :: dft
@@ -1340,34 +1264,22 @@ CONTAINS
 
   END FUNCTION dtaper_ana
 
-!!****f* semi_empirical_int_ana/rotint_ana [1.0] *
-!!
-!!   NAME
-!!     rotint_ana
-!!
-!!   FUNCTION
-!!     calculates the derivative of the two-particle interactions
-!!
-!!   NOTES
-!!     Analytical version - Analytical evaluation of gradients
-!!     Teodoro Laino - Zurich University 04.2007
-!!     routine adapted from mopac7 (repp)
-!!     vector version written by Ernest R. Davidson, Indiana University
-!!
-!!   INPUTS
-!!    on input  sepi   = Atomic parameters of first atom
-!!              sepj   = Atomic parameters of second atom
-!!              rijv   = Coordinate vector i -> j 
-!!    
-!!    on output w      = Array of two-electron repulsion integrals.
-!!
-!!   AUTHOR
-!!     Teodoro Laino - Zurich University
-!!
-!!   MODIFICATION HISTORY
-!!     04.2007 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief calculates the derivative of the two-particle interactions
+!> \param on input  sepi   = Atomic parameters of first atom
+!>               sepj   = Atomic parameters of second atom
+!>               rijv   = Coordinate vector i -> j 
+!> 
+!>     on output w      = Array of two-electron repulsion integrals.
+!> \note
+!>      Analytical version - Analytical evaluation of gradients
+!>      Teodoro Laino - Zurich University 04.2007
+!>      routine adapted from mopac7 (repp)
+!>      vector version written by Ernest R. Davidson, Indiana University
+!> \par History
+!>      04.2007 created [tlaino]
+!> \author Teodoro Laino - Zurich University
+! *****************************************************************************
   RECURSIVE SUBROUTINE rotint_ana (sepi,sepj,rijv,w,dw,shortrange)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rijv
@@ -2536,42 +2448,30 @@ CONTAINS
 
   END SUBROUTINE rotint_ana
 
-!!****f* semi_empirical_int_ana/dterep_ana [1.0] *
-!!
-!!   NAME
-!!     dterep_ana
-!!
-!!   FUNCTION
-!!     Calculates the derivative pf two-electron repulsion integrals and the
-!!     nuclear attraction integrals w.r.t. |r|
-!!
-!!   NOTES
-!!     Analytical version - Analytical evaluation of gradients
-!!     Teodoro Laino - Zurich University 04.2007
-!!     routine adapted from mopac7 (repp)
-!!     vector version written by Ernest R. Davidson, Indiana University
-!!
-!!   INPUTS
-!!     on input rij     = interatomic distance
-!!              sepi    = paramters of atom i
-!!              sepj    = paramters of atom j
-!!    on output ri      = array of two-electron repulsion integrals
-!!             dri      = array of derivatives of two-electron repulsion integrals
-!!       The two-centre repulsion integrals (over local coordinates) are
-!!       stored as follows (where p-sigma = O,  and p-pi = P and P* )
-!!       (SS/SS)=1,   (SO/SS)=2,   (OO/SS)=3,   (PP/SS)=4,   (SS/OS)=5,
-!!       (SO/SO)=6,   (SP/SP)=7,   (OO/SO)=8,   (PP/SO)=9,   (PO/SP)=10,
-!!       (SS/OO)=11,  (SS/PP)=12,  (SO/OO)=13,  (SO/PP)=14,  (SP/OP)=15,
-!!       (OO/OO)=16,  (PP/OO)=17,  (OO/PP)=18,  (PP/PP)=19,  (PO/PO)=20,
-!!       (PP/P*P*)=21,   (P*P/P*P)=22.
-!!
-!!   AUTHOR
-!!     Teodoro Laino - Zurich University
-!!
-!!   MODIFICATION HISTORY
-!!     04.2007 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Calculates the derivative pf two-electron repulsion integrals and the
+!>      nuclear attraction integrals w.r.t. |r|
+!> \param on input rij     = interatomic distance
+!>               sepi    = paramters of atom i
+!>               sepj    = paramters of atom j
+!>     on output ri      = array of two-electron repulsion integrals
+!>              dri      = array of derivatives of two-electron repulsion integrals
+!>        The two-centre repulsion integrals (over local coordinates) are
+!>        stored as follows (where p-sigma = O,  and p-pi = P and P* )
+!>        (SS/SS)=1,   (SO/SS)=2,   (OO/SS)=3,   (PP/SS)=4,   (SS/OS)=5,
+!>        (SO/SO)=6,   (SP/SP)=7,   (OO/SO)=8,   (PP/SO)=9,   (PO/SP)=10,
+!>        (SS/OO)=11,  (SS/PP)=12,  (SO/OO)=13,  (SO/PP)=14,  (SP/OP)=15,
+!>        (OO/OO)=16,  (PP/OO)=17,  (OO/PP)=18,  (PP/PP)=19,  (PO/PO)=20,
+!>        (PP/P*P*)=21,   (P*P/P*P)=22.
+!> \note
+!>      Analytical version - Analytical evaluation of gradients
+!>      Teodoro Laino - Zurich University 04.2007
+!>      routine adapted from mopac7 (repp)
+!>      vector version written by Ernest R. Davidson, Indiana University
+!> \par History
+!>      04.2007 created [tlaino]
+!> \author Teodoro Laino - Zurich University
+! *****************************************************************************
   SUBROUTINE dterep_ana ( sepi, sepj, rij, ri, dri, shortrange)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
@@ -3559,26 +3459,14 @@ CONTAINS
 
   END SUBROUTINE dterep_ana
 
-!!****f* semi_empirical_int_ana/check_dterep_ana [1.0] *
-!!
-!!   NAME
-!!     check_dterep_ana
-!!
-!!   FUNCTION
-!!     Check Numerical Vs Analytical
-!!
-!!   NOTES
-!!     Debug routine
-!!
-!!   INPUTS
-!!
-!!   AUTHOR
-!!     Teodoro Laino - Zurich University
-!!
-!!   MODIFICATION HISTORY
-!!     04.2007 created [tlaino]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Check Numerical Vs Analytical
+!> \note
+!>      Debug routine
+!> \par History
+!>      04.2007 created [tlaino]
+!> \author Teodoro Laino - Zurich University
+! *****************************************************************************
   SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,shortrange)
 
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj

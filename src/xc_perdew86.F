@@ -2,26 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/xc_perdew86 [1.0] *
-!!
-!!   NAME
-!!     xc_perdew86
-!!
-!!   FUNCTION
-!!     Calculate the Perdew Correlation from 1986
-!!
-!!   AUTHOR
-!!     JGH (03.03.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (26.02.2003) : OpenMP enabled
-!!     fawzi (04.2004)  : adapted to the new xc interface
-!!
-!******************************************************************************
-
-MODULE xc_perdew86
 
 ! *****************************************************************************
+!> \brief Calculate the Perdew Correlation from 1986
+!> \par History
+!>      JGH (26.02.2003) : OpenMP enabled
+!>      fawzi (04.2004)  : adapted to the new xc interface
+!> \author JGH (03.03.2002)
+! *****************************************************************************
+MODULE xc_perdew86
 
   USE f77_blas
   USE input_constants,                 ONLY: pz_orig
@@ -70,13 +59,9 @@ MODULE xc_perdew86
                           pci = pc1+pc2
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_perdew86'
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-
   SUBROUTINE p86_init ( cutoff, debug )
 
     REAL(KIND=dp), INTENT(IN)                :: cutoff
@@ -94,7 +79,6 @@ CONTAINS
   END SUBROUTINE p86_init
 
 ! *****************************************************************************
-
   SUBROUTINE p86_lda_info ( reference, shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
@@ -117,7 +101,6 @@ CONTAINS
   END SUBROUTINE p86_lda_info
 
 ! *****************************************************************************
-
   SUBROUTINE p86_lda_eval ( rho_set, deriv_set, order, p86_params, error )
 
     !   ---------------------------------------------------------------------------
@@ -232,7 +215,6 @@ CONTAINS
   END SUBROUTINE p86_lda_eval
 
 ! *****************************************************************************
-
   SUBROUTINE p86_u_0 ( rho, rs, grho, e_0, npoints, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, rs, grho
@@ -265,7 +247,6 @@ CONTAINS
   END SUBROUTINE p86_u_0
 
 ! *****************************************************************************
-
   SUBROUTINE p86_u_1 ( rho, grho, rs, e_rho, e_ndrho, npoints, error )
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, rs
@@ -308,7 +289,6 @@ CONTAINS
   END SUBROUTINE p86_u_1
 
 ! *****************************************************************************
-
   SUBROUTINE p86_u_2 ( rho, grho, rs, e_rho_rho, e_rho_ndrho, e_ndrho_ndrho,&
        npoints, error)
 
@@ -369,7 +349,6 @@ CONTAINS
   END SUBROUTINE p86_u_2
 
 ! *****************************************************************************
-
   SUBROUTINE p86_u_3 ( rho, grho, rs, e_rho_rho_rho,&
        e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho,&
        npoints, error)
@@ -460,8 +439,5 @@ CONTAINS
 
   END SUBROUTINE p86_u_3
 
-! *****************************************************************************
-
 END MODULE xc_perdew86
 
-! *****************************************************************************

@@ -3,22 +3,10 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****** cp2k/mixed_environment [1.0] *
-!!
-!!   NAME
-!!     mixed_environment
-!!
-!!   FUNCTION
-!!    initialize mixed environment
-!!
-!!   AUTHOR
-!!     fschiff
-!!
-!!   HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
+! *****************************************************************************
+!> \brief initialize mixed environment
+!> \author fschiff
+! *****************************************************************************
 MODULE mixed_environment
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
@@ -72,7 +60,6 @@ MODULE mixed_environment
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mixed_environment'
   PUBLIC :: mixed_init
 
-!!*****
 !-----------------------------------------------------------------------------!
 
 CONTAINS
@@ -80,25 +67,13 @@ CONTAINS
 !-----------------------------------------------------------------------------!
 !
 !-----------------------------------------------------------------------------!
-!!
-!!   NAME
-!!     mixed_init
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!   reads the input and database file for mixed
-!!
-!!   AUTHOR
-!!    fschiff
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   USED BY
-!!     mixed_main
-!!
-!!*** *************************************************************************
 
+! *****************************************************************************
+!> \brief reads the input and database file for mixed
+!> \par Used By
+!>      mixed_main
+!> \author fschiff
+! *****************************************************************************
 SUBROUTINE mixed_init ( mixed_env, root_section,para_env, globenv, force_env_section,&
                         use_motion_section, error )
 
@@ -187,7 +162,7 @@ SUBROUTINE mixed_init ( mixed_env, root_section,para_env, globenv, force_env_sec
 
 END SUBROUTINE mixed_init
 
-!   ***************************************************************************
+! *****************************************************************************
   SUBROUTINE mixed_init_subsys ( mixed_env, subsys, cell, cell_ref, use_ref_cell, &
                                 force_env_section, subsys_section, error )
 
@@ -196,7 +171,6 @@ END SUBROUTINE mixed_init
 
 !   History: - Creation (11.06,fschiff)
 
-!   ***************************************************************************
     TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(cell_type), POINTER                 :: cell, cell_ref
@@ -258,6 +232,4 @@ END SUBROUTINE mixed_init
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE mixed_init_subsys
-!******************************************************************************
 END MODULE mixed_environment
-!******************************************************************************

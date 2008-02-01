@@ -2,48 +2,38 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/semi_empirical_parameters [1.0] *
-!!
-!!   NAME
-!!     semi_empirical_parameters
-!!
-!!   FUNCTION
-!!     Default parameter sets for semi empirical models: sep%...
-!!     ad, am, aq,    a.u.      parameters for the multipole approximation to
-!!     dd, qq         a.u.      the two-centre, two-electron integrals.
-!!     alp            A**(-1)   the exponents used to calculate the core-core
-!!                              repulsion terms.
-!!     beta           eV        parameters for the two-centre, one-electron core
-!!                              resonance integrals.
-!!     z                        the CORE charge on each element.
-!!     eheat          kcal/mol  the experimental heat of formation for each element.
-!!     eisol          eV        the calculated electronic energies for each element.
-!!     fn1            A*eV      AM1/PM3 specific parameters
-!!     fn2            A**(-2)   for the core-core repulsion
-!!     fn3            A         interaction.                       
-!!     pre            eV        PDDG function                      
-!!     d              A         PDDG function                      
-!!     bfn1-3         special core-core interactions
-!!                        
-!!     gdd, gpd, gsd, eV        parameters for the Coulomb and exchange one-centre,
-!!     gp2, gpp, gsp, eV        two-electron integrals.
-!!     gss, hsp       eV
-!!     uss, upp, udd  eV        electron kinetic energy integrals.
-!!     sto_exponents  a.u.      the Slater exponents of the basis functions.
-!!
-!!     all dimensions will be converted to a.u. at the end of the routines
-!!
-!!   AUTHOR
-!!     JGH (14.08.2004)
-!!
-!!   MODIFICATION HISTORY
-!!     BK   (12.10.2004)
-!!     JGH  (36.03.2006) added PDDG function
-!!     Samuele Giani - Teo (28.01.2008) : Parameters for PM6
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Default parameter sets for semi empirical models: sep%...
+!>      ad, am, aq,    a.u.      parameters for the multipole approximation to
+!>      dd, qq         a.u.      the two-centre, two-electron integrals.
+!>      alp            A**(-1)   the exponents used to calculate the core-core
+!>                               repulsion terms.
+!>      beta           eV        parameters for the two-centre, one-electron core
+!>                               resonance integrals.
+!>      z                        the CORE charge on each element.
+!>      eheat          kcal/mol  the experimental heat of formation for each element.
+!>      eisol          eV        the calculated electronic energies for each element.
+!>      fn1            A*eV      AM1/PM3 specific parameters
+!>      fn2            A**(-2)   for the core-core repulsion
+!>      fn3            A         interaction.                       
+!>      pre            eV        PDDG function                      
+!>      d              A         PDDG function                      
+!>      bfn1-3         special core-core interactions
+!> 
+!>      gdd, gpd, gsd, eV        parameters for the Coulomb and exchange one-centre,
+!>      gp2, gpp, gsp, eV        two-electron integrals.
+!>      gss, hsp       eV
+!>      uss, upp, udd  eV        electron kinetic energy integrals.
+!>      sto_exponents  a.u.      the Slater exponents of the basis functions.
+!> 
+!>      all dimensions will be converted to a.u. at the end of the routines
+!> \par History
+!>      BK   (12.10.2004)
+!>      JGH  (36.03.2006) added PDDG function
+!>      Samuele Giani - Teo (28.01.2008) : Parameters for PM6
+!> \author JGH (14.08.2004)
+! *****************************************************************************
 MODULE semi_empirical_parameters
   USE f77_blas
   USE input_constants,                 ONLY: do_method_am1,&
@@ -174,8 +164,6 @@ MODULE semi_empirical_parameters
                                6, 6, 6, 6, 6, 6, 6, 6, 6,    6, 6, 6,-1,-1,-1,&
        -1,-1,-1,-1,-1,-1,     -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /)
 
-
-
     !           PM6 specific basis set : n quantum number for s,p,d,f orbitals
     !          H           Initial "s" Orbital Occupancies                     He
     !          Li Be                                            B  C  N  O  F  Ne
@@ -221,9 +209,6 @@ MODULE semi_empirical_parameters
                               -1,-1,-1,-1,-1,-1,-1,-1,-1,  -1,-1,-1,-1,-1,-1, &!   86
       -1,-1,-1,-1,-1,-1,      -1,-1,-1,-1,-1,-1,-1,-1,-1,  -1,-1,-1,-1,-1 /)
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
@@ -256,7 +241,6 @@ CONTAINS
   END SUBROUTINE pcharge_default_parameter
 
 ! *****************************************************************************
-
   SUBROUTINE mndo_default_parameter ( sep, z )
 
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -638,7 +622,6 @@ CONTAINS
   END SUBROUTINE mndo_default_parameter
 
 ! *****************************************************************************
-
   SUBROUTINE am1_default_parameter ( sep, z )
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
@@ -1142,7 +1125,6 @@ CONTAINS
   END SUBROUTINE am1_default_parameter
 
 ! *****************************************************************************
-
   SUBROUTINE rm1_default_parameter ( sep, z )
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
@@ -1374,7 +1356,6 @@ CONTAINS
   END SUBROUTINE rm1_default_parameter
 
 ! *****************************************************************************
-
   SUBROUTINE pm3_default_parameter ( sep, z )
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
@@ -2183,7 +2164,6 @@ CONTAINS
   END SUBROUTINE pm3_default_parameter
 
 ! *****************************************************************************
-
   SUBROUTINE pm6_default_parameter ( sep, z )
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
@@ -3567,7 +3547,6 @@ CONTAINS
   END SUBROUTINE pm6_default_parameter
 
 ! *****************************************************************************
-
   SUBROUTINE pdg_default_parameter ( sep, z )
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
@@ -3986,7 +3965,6 @@ CONTAINS
   END FUNCTION get_pm6_basis
 
 ! *****************************************************************************
-
   SUBROUTINE init_pm6_pair_params
 
     INTEGER                                  :: i, j
@@ -4926,7 +4904,6 @@ CONTAINS
       xab_pm6( 83, 35)=        0.3811700046_dp
       xab_pm6( 83, 53)=        0.8623769879_dp
       xab_pm6( 83, 83)=        1.1682139635_dp
-
 
       aab_pm6(  1,  1)=        3.5409419537_dp
       aab_pm6(  2,  1)=        2.9898810387_dp
@@ -5873,7 +5850,6 @@ CONTAINS
   END SUBROUTINE init_pm6_pair_params
 
 ! *****************************************************************************
-  
   SUBROUTINE valence_electrons ( z, zeff, natorb )
     INTEGER, INTENT(IN)                      :: z
     REAL(KIND=dp)                            :: zeff
@@ -5907,7 +5883,6 @@ CONTAINS
   END SUBROUTINE valence_electrons 
 
 ! *****************************************************************************
-
   SUBROUTINE slater_exponents (z,norb,sto,itype) 
     INTEGER, INTENT(IN)                      :: z
     INTEGER, DIMENSION(0:3), INTENT(IN)      :: norb
@@ -5975,7 +5950,6 @@ CONTAINS
   END SUBROUTINE slater_exponents  
 
 ! *****************************************************************************
-
   FUNCTION srules(z,ne,n,l)
     ! Slater rules
     INTEGER                                  :: z
@@ -6030,7 +6004,6 @@ CONTAINS
   END FUNCTION srules
 
 ! *****************************************************************************
-
   SUBROUTINE calpar(z,sep)
     INTEGER                                  :: z
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -6133,4 +6106,3 @@ CONTAINS
   
 END MODULE semi_empirical_parameters
 
-! *****************************************************************************

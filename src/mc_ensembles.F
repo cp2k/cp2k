@@ -2,24 +2,15 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/mc_ensembles [2.0] *
-!!
-!!   NAME
-!!     mc_ensembles
-!!
-!!   FUNCTION
-!!     Used to run the bulk of the MC simulation, doing things like
-!!     choosing move types and writing data to files
-!!
-!!   AUTHOR
-!!     Matthew J. McGrath  (09.26.2003)
-!!
-!!   REVISIONS
-!!     09.10.05  MJM combined the two subroutines in this module into one
-!!
-!******************************************************************************
 
-
+! *****************************************************************************
+!> \brief Used to run the bulk of the MC simulation, doing things like
+!>      choosing move types and writing data to files
+!> \author Matthew J. McGrath  (09.26.2003)
+!> 
+!>    REVISIONS
+!>      09.10.05  MJM combined the two subroutines in this module into one
+! *****************************************************************************
 MODULE mc_ensembles
   USE cell_types,                      ONLY: cell_p_type,&
                                              get_cell
@@ -103,37 +94,21 @@ MODULE mc_ensembles
 
   PUBLIC :: mc_run_ensemble,mc_compute_virial
 
-!!***
-! *****************************************************************************
-
 CONTAINS
 
 ! *****************************************************************************
-!!****s* mc_ensembles.F/mc_run_ensemble
-!!
-!!   NAME
-!!     mc_run_ensemble
-!!
-!!   FUNCTION
-!!     directs the program in running one or two box MC simulations
-!!
-!!   ARGUMENTS
-!!     - mc_env: a pointer that contains all mc_env for all the simulation
-!!         boxes
-!!     - globenv: the global environment for the simulation
-!!     - nboxes: the number of simulation boxes
-!!     - error: the error type
-!!     - rng_stream: the stream we pull random numbers from
-!!
-!!   Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!**************************************************************************
+!> \brief directs the program in running one or two box MC simulations
+!> \param mc_env a pointer that contains all mc_env for all the simulation
+!>          boxes
+!> \param globenv the global environment for the simulation
+!> \param nboxes the number of simulation boxes
+!> \param error the error type
+!> \param rng_stream the stream we pull random numbers from
+!> 
+!>    Suitable for parallel.
+!> \author MJM
+! *****************************************************************************
   SUBROUTINE mc_run_ensemble ( mc_env, para_env, globenv, nboxes, error, rng_stream)
-
-!   ***************************************************************************
 
     TYPE(mc_environment_p_type), &
       DIMENSION(:), POINTER                  :: mc_env
@@ -300,7 +275,6 @@ CONTAINS
       ALLOCATE (r_old(3,SUM(nunits_tot),1:nboxes),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "r_old",3*SUM(nunits_tot)*dp_size*nboxes)
-
 
 ! figure out what the default write unit is
       iw = cp_logger_get_default_unit_nr()
@@ -538,7 +512,6 @@ CONTAINS
                     rng_stream,error=error)
             END SELECT
             
-
 ! we need a new biasing environment now, if we're into that sort of thing
             IF(lbias) THEN
                DO ibox=1,nboxes
@@ -1180,37 +1153,24 @@ CONTAINS
   END SUBROUTINE mc_run_ensemble
 
 ! *****************************************************************************
-!!****s* mc_ensembles.F/mc_compute_virial
-!!
-!!   NAME
-!!     mc_compute_virial
-!!
-!!   FUNCTION
-!!     Computes the second virial coefficient of a molecule by using the integral form
-!!     of the second virial coefficient found in McQuarrie "Statistical Thermodynamics", 
-!!     B2(T) = -2Pi Int 0toInf [ Exp[-beta*u(r)] -1] r^2 dr     Eq. 15-25
-!!     I use trapazoidal integration with various step sizes
-!!     (the integral is broken up into three parts, currently, but that's easily
-!!     changed by the first variables found below).  It generates nvirial configurations,
-!!     doing the integration for each one, and then averages all the B2(T) to produce
-!!     the final answer.
-!!
-!!   ARGUMENTS
-!!     - mc_env: a pointer that contains all mc_env for all the simulation
-!!         boxes
-!!     - globenv: the global environment for the simulation
-!!     - error: the error type
-!!     - rng_stream: the stream we pull random numbers from
-!!
-!!   Suitable for parallel.
-!!
-!!   AUTHOR
-!!     MJM
-!!
-!!**************************************************************************
+!> \brief Computes the second virial coefficient of a molecule by using the integral form
+!>      of the second virial coefficient found in McQuarrie "Statistical Thermodynamics", 
+!>      B2(T) = -2Pi Int 0toInf [ Exp[-beta*u(r)] -1] r^2 dr     Eq. 15-25
+!>      I use trapazoidal integration with various step sizes
+!>      (the integral is broken up into three parts, currently, but that's easily
+!>      changed by the first variables found below).  It generates nvirial configurations,
+!>      doing the integration for each one, and then averages all the B2(T) to produce
+!>      the final answer.
+!> \param mc_env a pointer that contains all mc_env for all the simulation
+!>          boxes
+!> \param globenv the global environment for the simulation
+!> \param error the error type
+!> \param rng_stream the stream we pull random numbers from
+!> 
+!>    Suitable for parallel.
+!> \author MJM
+! *****************************************************************************
   SUBROUTINE mc_compute_virial ( mc_env, error, rng_stream)
-
-!   ***************************************************************************
 
     TYPE(mc_environment_p_type), &
       DIMENSION(:), POINTER                  :: mc_env
@@ -1246,7 +1206,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: particles
 
 ! *** local
-!***********************************************************************
 ! these are current magic numbers for how we compute the virial...
 ! we break it up into three parts to integrate the function so provide
 ! better statistics
@@ -1271,7 +1230,6 @@ CONTAINS
 
 ! figure out what the default write unit is
     iw = cp_logger_get_default_unit_nr()
-
 
 ! allocate a whole bunch of stuff based on how many boxes we have
       ALLOCATE (force_env(1:1),STAT=istat)
@@ -1536,6 +1494,4 @@ CONTAINS
 
   END SUBROUTINE mc_compute_virial
 END MODULE mc_ensembles
-
-!**********************************************************************
 

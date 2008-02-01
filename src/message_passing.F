@@ -2,35 +2,26 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/message_passing [1.0] *
-!!
-!!   NAME
-!!     message_passing
-!!
-!!   FUNCTION
-!!     Interface to the message passing library MPI
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (02-Jan-2001): New error handling
-!!                        Performance tools
-!!     JGH (14-Jan-2001): New routines mp_comm_compare, mp_cart_coords, 
-!!                                     mp_rank_compare, mp_alltoall
-!!     JGH (06-Feb-2001): New routines mp_comm_free
-!!     JGH (22-Mar-2001): New routines mp_comm_dup
-!!     fawzi (04-NOV-2004): storable performance info (for f77 interface)
-!!     Wrapper routine for mpi_gatherv added (22.12.2005,MK)
-!!     JGH (13-Feb-2006): Flexibel precision
-!!     JGH (15-Feb-2006): single precision mp_alltoall
-!!
-!!   SOURCE
-!******************************************************************************
+
+! *****************************************************************************
+!> \brief Interface to the message passing library MPI
+!> \par History
+!>      JGH (02-Jan-2001): New error handling
+!>                         Performance tools
+!>      JGH (14-Jan-2001): New routines mp_comm_compare, mp_cart_coords, 
+!>                                      mp_rank_compare, mp_alltoall
+!>      JGH (06-Feb-2001): New routines mp_comm_free
+!>      JGH (22-Mar-2001): New routines mp_comm_dup
+!>      fawzi (04-NOV-2004): storable performance info (for f77 interface)
+!>      Wrapper routine for mpi_gatherv added (22.12.2005,MK)
+!>      JGH (13-Feb-2006): Flexibel precision
+!>      JGH (15-Feb-2006): single precision mp_alltoall
+!> \author JGH
 #ifndef __mp_timeset__
 ! #define __mp_timeset__  
 #endif
 
+! *****************************************************************************
 MODULE message_passing
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
@@ -72,7 +63,6 @@ MODULE message_passing
   INTEGER, PARAMETER, PUBLIC :: mp_any_tag=-1
   INTEGER, PARAMETER, PUBLIC :: mp_any_source=-2
 #endif
-
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'message_passing'
   
@@ -207,6 +197,7 @@ MODULE message_passing
   END INTERFACE
 
   ! type internally used to store message passing performance indicators
+! *****************************************************************************
   TYPE mp_perf_type
     CHARACTER ( LEN = 20 ) :: name
     INTEGER :: count
@@ -216,12 +207,14 @@ MODULE message_passing
 
   INTEGER, PARAMETER :: MAX_PERF = 14
 
+! *****************************************************************************
   TYPE mp_perf_env_type
      !private
      INTEGER :: ref_count, id_nr
      TYPE(mp_perf_type), DIMENSION(MAX_PERF) :: mp_perfs
   END TYPE mp_perf_env_type
 
+! *****************************************************************************
   TYPE mp_perf_env_p_type
      TYPE(mp_perf_env_type), POINTER :: mp_perf_env
   END TYPE mp_perf_env_p_type
@@ -245,32 +238,17 @@ MODULE message_passing
   INTEGER, SAVE, PRIVATE :: last_mp_perf_env_id=0
 
   ! Store the default type for Real and Complex in a special variable
-!!*****
-!******************************************************************************
 
 CONTAINS
 
-!******************************************************************************
-
-!!****f* message_passing/mp_world_init *
-!!
-!!   NAME
-!!     mp_world_init
-!!
-!!   FUNCTION
-!!     initializes the system default communicator
-!!
-!!   NOTES
-!!     should only be called once 
-!!
-!!   INPUTS
-!!    -mp_comm [output] : handle of the default communicator
-!!
-!!   MODIFICATION HISTORY
-!!     2.2004 created [Joost VandeVondele ]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief initializes the system default communicator
+!> \param mp_comm [output] : handle of the default communicator
+!> \note
+!>      should only be called once 
+!> \par History
+!>      2.2004 created [Joost VandeVondele ]
+! *****************************************************************************
 SUBROUTINE mp_world_init(mp_comm)
   INTEGER, INTENT(OUT) :: mp_comm
 #if defined(__parallel)
@@ -285,23 +263,11 @@ SUBROUTINE mp_world_init(mp_comm)
 #endif
 END SUBROUTINE mp_world_init
 
-!!****f* message_passing/mp_world_finalize *
-!!
-!!   NAME
-!!     mp_world_finalize
-!!
-!!   FUNCTION
-!!     finalizes the system default communicator
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     2.2004 created [Joost VandeVondele]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief finalizes the system default communicator
+!> \par History
+!>      2.2004 created [Joost VandeVondele]
+! *****************************************************************************
 SUBROUTINE mp_world_finalize()
 #if defined(__parallel)
   INTEGER :: ierr
@@ -312,33 +278,20 @@ SUBROUTINE mp_world_finalize()
 #endif
 END SUBROUTINE
 
-!******************************************************************************
 ! all the following routines should work for a given communicator, not MPI_WORLD
-!******************************************************************************
 
-!!****f* message_passing/mp_perf_start/mp_perf_stop *
-!!
-!!   NAME
-!!     mp_perf_start  / mp_perf_stop
-!!
-!!   FUNCTION
-!!     start and stop the performance indicators
-!!     for every call to start there has to be (exactly) one call to stop
-!!
-!!   NOTES
-!!     can be used to measure performance of a sub-part of a program. 
-!!     timings measured here will not show up in the outer start/stops
-!!     Doesn't need a fresh communicator
-!!
-!!   INPUTS
-!!     - mp_comm : the mpi communicator
-!!     - scr     : output unit
-!!
-!!   MODIFICATION HISTORY
-!!     2.2004 created [Joost VandeVondele]
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief start and stop the performance indicators
+!>      for every call to start there has to be (exactly) one call to stop
+!> \param mp_comm the mpi communicator
+!> \param scr output unit
+!> \note
+!>      can be used to measure performance of a sub-part of a program. 
+!>      timings measured here will not show up in the outer start/stops
+!>      Doesn't need a fresh communicator
+!> \par History
+!>      2.2004 created [Joost VandeVondele]
+! *****************************************************************************
 SUBROUTINE add_mp_perf_env(perf_env)
     TYPE(mp_perf_env_type), OPTIONAL, &
       POINTER                                :: perf_env
@@ -357,6 +310,7 @@ SUBROUTINE add_mp_perf_env(perf_env)
   END IF
 END SUBROUTINE add_mp_perf_env
 
+! *****************************************************************************
 SUBROUTINE mp_perf_env_create(perf_env)
     TYPE(mp_perf_env_type), OPTIONAL, &
       POINTER                                :: perf_env
@@ -380,6 +334,7 @@ SUBROUTINE mp_perf_env_create(perf_env)
 
 END SUBROUTINE mp_perf_env_create
 
+! *****************************************************************************
 SUBROUTINE mp_perf_env_release(perf_env)
     TYPE(mp_perf_env_type), POINTER          :: perf_env
 
@@ -401,6 +356,7 @@ SUBROUTINE mp_perf_env_release(perf_env)
   NULLIFY(perf_env)
 END SUBROUTINE mp_perf_env_release
 
+! *****************************************************************************
 SUBROUTINE mp_perf_env_retain(perf_env)
     TYPE(mp_perf_env_type), POINTER          :: perf_env
 
@@ -414,6 +370,7 @@ SUBROUTINE mp_perf_env_retain(perf_env)
 END SUBROUTINE mp_perf_env_retain
 
 !.. reports the performance counters for the MPI run
+! *****************************************************************************
 SUBROUTINE mp_perf_env_describe ( perf_env, iw )
     TYPE(mp_perf_env_type), POINTER          :: perf_env
     INTEGER, INTENT(IN)                      :: iw
@@ -462,6 +419,7 @@ SUBROUTINE mp_perf_env_describe ( perf_env, iw )
 #endif
 END SUBROUTINE mp_perf_env_describe
 
+! *****************************************************************************
 SUBROUTINE rm_mp_perf_env ()
   IF (stack_pointer<1) THEN
      CALL mp_abort ( "no perf_env in the stack : message_passing @ rm_mp_perf_env" )   
@@ -470,6 +428,7 @@ SUBROUTINE rm_mp_perf_env ()
   stack_pointer = stack_pointer - 1
 END SUBROUTINE rm_mp_perf_env
 
+! *****************************************************************************
 FUNCTION get_mp_perf_env () RESULT(res)
     TYPE(mp_perf_env_type), POINTER          :: res
 
@@ -480,6 +439,7 @@ FUNCTION get_mp_perf_env () RESULT(res)
 
 END FUNCTION get_mp_perf_env
 
+! *****************************************************************************
 SUBROUTINE describe_mp_perf_env(scr)
     INTEGER, INTENT(in)                      :: scr
 
@@ -489,22 +449,12 @@ SUBROUTINE describe_mp_perf_env(scr)
   CALL mp_perf_env_describe(perf_env, scr)
 END SUBROUTINE describe_mp_perf_env
 
-!!****f* message_passing/add_perf *
-!!
-!!   NAME
-!!     add_perf
-!!   FUNCTION
-!!     adds the performance informations of one call
-!!   NOTES
-!!     -
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** *********************************************************************
+! *****************************************************************************
+!> \brief adds the performance informations of one call
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE add_perf(perf_id,count,time,msg_size)
   INTEGER, INTENT(in) :: perf_id
   INTEGER, INTENT(in), OPTIONAL :: count,msg_size
@@ -527,21 +477,10 @@ SUBROUTINE add_perf(perf_id,count,time,msg_size)
 
 END SUBROUTINE add_perf
 
-!!****f* message_passing/mp_abort *
-!!
-!!   NAME
-!!      mp_abort
-!!   FUNCTION
-!!      globally stops all tasks, can optionally print a message.
-!!      this is intended to be low level, most of CP2K should rather use cp_error_handling
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief globally stops all tasks, can optionally print a message.
+!>       this is intended to be low level, most of CP2K should rather use cp_error_handling
+! *****************************************************************************
 SUBROUTINE mp_abort (message)
   CHARACTER ( LEN=* ), INTENT(IN), OPTIONAL :: message
 
@@ -567,21 +506,12 @@ SUBROUTINE mp_abort (message)
   STOP 1
 END SUBROUTINE mp_abort
 
-!!****f* message_passing/mp_stop  
-!!
-!!   NAME
-!!      mp_stop 
-!!   FUNCTION
-!!      stops *after an mpi error* translating the error code
-!!   NOTES
-!!      this function is private to message_passing.F
-!!   INPUTS
-!!      - ierr: an error code * returned by an mpi call *
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief stops *after an mpi error* translating the error code
+!> \param ierr an error code * returned by an mpi call *
+!> \note
+!>       this function is private to message_passing.F
+! *****************************************************************************
 SUBROUTINE mp_stop ( ierr, prg_code )
 
   IMPLICIT NONE
@@ -608,21 +538,10 @@ SUBROUTINE mp_stop ( ierr, prg_code )
 
 END SUBROUTINE mp_stop
 
-!!****f* message_passing/mp_sync *
-!!
-!!   NAME
-!!      mp_sync
-!!   FUNCTION
-!!      synchronizes with a barrier a given group of mpi tasks
-!!   NOTES
-!!
-!!   INPUTS
-!!    - group : mpi communicator
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief synchronizes with a barrier a given group of mpi tasks
+!> \param group mpi communicator
+! *****************************************************************************
 SUBROUTINE mp_sync ( group )
 
   IMPLICIT NONE
@@ -652,23 +571,13 @@ SUBROUTINE mp_sync ( group )
 
 END SUBROUTINE mp_sync
 
-
-!!****f* message_passing/mp_environ *
-!!
-!!   NAME
-!!      mp_environ_l / mp_environ_c
-!!   FUNCTION
-!!      returns number of tasks and task id for a given mpi group
-!!      simple and cartesian version
-!!   NOTES
-!!        ..mp_world_setup is gone, use mp_environ instead (i.e. give a groupid explicitly)
-!!   INPUTS
-!!    - groupid : mpi communicator
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns number of tasks and task id for a given mpi group
+!>       simple and cartesian version
+!> \param groupid mpi communicator
+!> \note
+!>         ..mp_world_setup is gone, use mp_environ instead (i.e. give a groupid explicitly)
+! *****************************************************************************
 SUBROUTINE mp_environ_l ( numtask, taskid, groupid )
 
     INTEGER, INTENT(OUT)                     :: numtask, taskid
@@ -698,8 +607,8 @@ SUBROUTINE mp_environ_l ( numtask, taskid, groupid )
 
 END SUBROUTINE mp_environ_l
 
+! *****************************************************************************
 SUBROUTINE mp_environ_c ( numtask, dims, task_coor, groupid )
-
 
     INTEGER, INTENT(OUT)                     :: numtask, dims( 2 ), &
                                                 task_coor( 2 )
@@ -731,8 +640,8 @@ SUBROUTINE mp_environ_c ( numtask, dims, task_coor, groupid )
 
 END SUBROUTINE mp_environ_c
 
+! *****************************************************************************
 SUBROUTINE mp_environ_c2 ( comm, ndims, dims, task_coor, periods )
-
 
     INTEGER, INTENT(IN)                      :: comm, ndims
     INTEGER, INTENT(OUT)                     :: dims( ndims ), &
@@ -761,12 +670,9 @@ SUBROUTINE mp_environ_c2 ( comm, ndims, dims, task_coor, periods )
 
 END SUBROUTINE mp_environ_c2
 
-!******************************************************************************
-
-
 !..mp_cart_create
+! *****************************************************************************
 SUBROUTINE mp_cart_create ( comm_old, ndims, dims, pos, comm_cart )
-
 
     INTEGER, INTENT(IN)                      :: comm_old, ndims
     INTEGER, INTENT(INOUT)                   :: dims( : )
@@ -820,11 +726,9 @@ SUBROUTINE mp_cart_create ( comm_old, ndims, dims, pos, comm_cart )
   
 END SUBROUTINE mp_cart_create
 
-!******************************************************************************
-
 !..mp_cart_coords 
+! *****************************************************************************
 SUBROUTINE mp_cart_coords ( comm, rank, coords)
-
 
     INTEGER, INTENT(IN)                      :: comm, rank
     INTEGER, DIMENSION(:), INTENT(OUT)       :: coords
@@ -851,11 +755,9 @@ SUBROUTINE mp_cart_coords ( comm, rank, coords)
 
 END SUBROUTINE mp_cart_coords
 
-!******************************************************************************
-
 !..mp_cart_shift
+! *****************************************************************************
 SUBROUTINE mp_cart_shift ( comm, dir, disp, source, dest )
-
 
     INTEGER, INTENT(IN)                      :: comm, dir, disp
     INTEGER, INTENT(OUT)                     :: source, dest
@@ -882,11 +784,9 @@ SUBROUTINE mp_cart_shift ( comm, dir, disp, source, dest )
 
 END SUBROUTINE mp_cart_shift
 
-!******************************************************************************
-
 !..mp_comm_compare
+! *****************************************************************************
 SUBROUTINE mp_comm_compare ( comm1, comm2, RESULT)
-
 
     INTEGER, INTENT(IN)                      :: comm1, comm2
     INTEGER, INTENT(OUT)                     :: RESULT
@@ -923,11 +823,9 @@ SUBROUTINE mp_comm_compare ( comm1, comm2, RESULT)
 
 END SUBROUTINE mp_comm_compare
 
-!******************************************************************************
-
 !..mp_cart_sub
+! *****************************************************************************
 SUBROUTINE mp_cart_sub ( comm, rdim, sub_comm )
-
 
     INTEGER, INTENT(IN)                      :: comm
     LOGICAL, DIMENSION(:), INTENT(IN)        :: rdim
@@ -953,11 +851,9 @@ SUBROUTINE mp_cart_sub ( comm, rdim, sub_comm )
 
 END SUBROUTINE mp_cart_sub
 
-!******************************************************************************
-
 !..mp_comm_free
+! *****************************************************************************
 SUBROUTINE mp_comm_free ( comm )
-
 
     INTEGER, INTENT(IN)                      :: comm
 
@@ -980,11 +876,9 @@ SUBROUTINE mp_comm_free ( comm )
 
 END SUBROUTINE mp_comm_free
 
-!******************************************************************************
-
 !..mp_comm_dup
+! *****************************************************************************
 SUBROUTINE mp_comm_dup ( comm1, comm2 )
-
 
     INTEGER, INTENT(IN)                      :: comm1
     INTEGER, INTENT(OUT)                     :: comm2
@@ -1010,11 +904,9 @@ SUBROUTINE mp_comm_dup ( comm1, comm2 )
 
 END SUBROUTINE mp_comm_dup
 
-!******************************************************************************
-
 !..mp_rank_compare
+! *****************************************************************************
 SUBROUTINE mp_rank_compare ( comm1, comm2, rank )
-
 
     INTEGER, INTENT(IN)                      :: comm1, comm2
     INTEGER, DIMENSION(:), INTENT(OUT)       :: rank
@@ -1057,9 +949,8 @@ SUBROUTINE mp_rank_compare ( comm1, comm2, rank )
 
 END SUBROUTINE mp_rank_compare
 
-!******************************************************************************
-
 !..mp_dims_create
+! *****************************************************************************
 SUBROUTINE mp_dims_create ( nodes, dims )
 
   IMPLICIT NONE
@@ -1090,14 +981,11 @@ SUBROUTINE mp_dims_create ( nodes, dims )
 
 END SUBROUTINE mp_dims_create
 
-!******************************************************************************
-
-!******************************************************************************
 ! this routine will shift around the data in msg
 ! i.e. msg will be moved from rank to rank+displ_in (in a circular way)
 ! displ_in will be 1 by default (others not tested)
 ! the message array needs to be the same size on all processes
-!*****************************************************************************
+! *****************************************************************************
 SUBROUTINE mp_shift_im( msg, group, displ_in)
 
   IMPLICIT NONE
@@ -1144,6 +1032,7 @@ SUBROUTINE mp_shift_im( msg, group, displ_in)
 
 END SUBROUTINE mp_shift_im
 
+! *****************************************************************************
 SUBROUTINE mp_shift_rm( msg, group, displ_in)
 
   IMPLICIT NONE
@@ -1190,6 +1079,7 @@ SUBROUTINE mp_shift_rm( msg, group, displ_in)
 
 END SUBROUTINE mp_shift_rm
 
+! *****************************************************************************
 SUBROUTINE mp_shift_r1( msg, group, displ_in)
 
   IMPLICIT NONE
@@ -1236,9 +1126,8 @@ SUBROUTINE mp_shift_r1( msg, group, displ_in)
 
 END SUBROUTINE mp_shift_r1
 
-!******************************************************************************
-
 !..mp_cart_rank
+! *****************************************************************************
 SUBROUTINE mp_cart_rank ( group, pos, rank )
 
   IMPLICIT NONE
@@ -1268,11 +1157,10 @@ SUBROUTINE mp_cart_rank ( group, pos, rank )
 #endif
 
 END SUBROUTINE mp_cart_rank
-!******************************************************************************
 !..mp_alltoall
 
+! *****************************************************************************
 SUBROUTINE mp_alltoall_i11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
-
 
     INTEGER, DIMENSION(:), INTENT(IN)        :: sb, scount, sdispl
     INTEGER, DIMENSION(:), INTENT(OUT)       :: rb
@@ -1305,8 +1193,8 @@ SUBROUTINE mp_alltoall_i11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
 END SUBROUTINE mp_alltoall_i11v
 
+! *****************************************************************************
 SUBROUTINE mp_alltoall_i8v ( sb, scount, sdispl, rb, rcount, rdispl, group )
-
 
     INTEGER(kind=int_8), DIMENSION(:), INTENT(IN)        :: sb 
     INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
@@ -1345,6 +1233,7 @@ SUBROUTINE mp_alltoall_i8v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
 END SUBROUTINE mp_alltoall_i8v
 
+! *****************************************************************************
 SUBROUTINE mp_alltoall_z11v ( sb, scount, sdispl, rb, rcount, rdispl,len_string, group )
 
     INTEGER,INTENT(IN)                       :: len_string
@@ -1383,8 +1272,8 @@ SUBROUTINE mp_alltoall_z11v ( sb, scount, sdispl, rb, rcount, rdispl,len_string,
 
   END SUBROUTINE mp_alltoall_z11v
 
+! *****************************************************************************
 SUBROUTINE mp_alltoall_r11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
-
 
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: sb
     INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
@@ -1418,10 +1307,9 @@ SUBROUTINE mp_alltoall_r11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
 END SUBROUTINE mp_alltoall_r11v
 
-
 !..mp_alltoall
+! *****************************************************************************
 SUBROUTINE mp_alltoall_c22v ( sb, scount, sdispl, rb, rcount, rdispl, group )
-
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: sb
@@ -1458,6 +1346,7 @@ SUBROUTINE mp_alltoall_c22v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 END SUBROUTINE mp_alltoall_c22v
 
 #if defined(__SGL)
+! *****************************************************************************
 SUBROUTINE mp_alltoall_c22v_sgl ( dummy )
     LOGICAL, INTENT(IN)                      :: dummy
 
@@ -1475,8 +1364,8 @@ SUBROUTINE mp_alltoall_c22v_sgl ( dummy )
 #endif
 END SUBROUTINE mp_alltoall_c22v_sgl
 #else
+! *****************************************************************************
 SUBROUTINE mp_alltoall_c22v_sgl ( sb, scount, sdispl, rb, rcount, rdispl, group )
-
 
     COMPLEX(KIND=sp), DIMENSION(:, :), &
       INTENT(IN)                             :: sb
@@ -1513,8 +1402,8 @@ SUBROUTINE mp_alltoall_c22v_sgl ( sb, scount, sdispl, rb, rcount, rdispl, group 
 END SUBROUTINE mp_alltoall_c22v_sgl
 #endif
 
+! *****************************************************************************
 SUBROUTINE mp_alltoall_i ( sb, rb, count, group )
-
 
     INTEGER, DIMENSION(:), INTENT(IN)        :: sb
     INTEGER, DIMENSION(:), INTENT(OUT)       :: rb
@@ -1548,8 +1437,8 @@ SUBROUTINE mp_alltoall_i ( sb, rb, count, group )
 
 END SUBROUTINE mp_alltoall_i
 
+! *****************************************************************************
 SUBROUTINE mp_alltoall_r45 ( sb, rb, count, group )
-
 
     REAL(kind=dp), DIMENSION(:,:,:,:), INTENT(IN)  :: sb
     REAL(kind=dp), DIMENSION(:,:,:,:,:), INTENT(OUT) :: rb
@@ -1583,8 +1472,8 @@ SUBROUTINE mp_alltoall_r45 ( sb, rb, count, group )
 
   END SUBROUTINE mp_alltoall_r45
 
+! *****************************************************************************
 SUBROUTINE mp_alltoall_r34 ( sb, rb, count, group )
-
 
     REAL(kind=dp), DIMENSION(:,:,:), INTENT(IN)  :: sb
     REAL(kind=dp), DIMENSION(:,:,:,:), INTENT(OUT) :: rb
@@ -1618,8 +1507,8 @@ SUBROUTINE mp_alltoall_r34 ( sb, rb, count, group )
 
   END SUBROUTINE mp_alltoall_r34
 
+! *****************************************************************************
 SUBROUTINE mp_alltoall_r54 ( sb, rb, count, group )
-
 
     REAL(kind=dp), DIMENSION(:,:,:,:,:), INTENT(IN)  :: sb
     REAL(kind=dp), DIMENSION(:,:,:,:), INTENT(OUT) :: rb
@@ -1653,9 +1542,8 @@ SUBROUTINE mp_alltoall_r54 ( sb, rb, count, group )
 
   END SUBROUTINE mp_alltoall_r54
 
-!******************************************************************************
-
 ! ..mp_send
+! *****************************************************************************
 SUBROUTINE mp_send_iv(msg,dest,tag,gid)
     INTEGER                                  :: msg( : ), dest, gid,tag
 
@@ -1681,6 +1569,7 @@ SUBROUTINE mp_send_iv(msg,dest,tag,gid)
 #endif
 END SUBROUTINE mp_send_iv
 
+! *****************************************************************************
 SUBROUTINE mp_send_rv(msg,dest,tag,gid)
     INTEGER                                  :: dest, gid,tag
     REAL(KIND=dp)                            :: msg( : )
@@ -1707,6 +1596,7 @@ SUBROUTINE mp_send_rv(msg,dest,tag,gid)
 #endif
 END SUBROUTINE mp_send_rv
 
+! *****************************************************************************
 SUBROUTINE mp_send_i(msg,dest,tag,gid)
     INTEGER                                  :: msg, dest, gid,tag
 
@@ -1732,8 +1622,8 @@ SUBROUTINE mp_send_i(msg,dest,tag,gid)
 #endif
 END SUBROUTINE mp_send_i
 
-
 ! ..mp_recv
+! *****************************************************************************
 SUBROUTINE mp_recv_iv(msg,source,tag,gid)
     INTEGER, INTENT(INOUT)                   :: msg( : ), source, tag
     INTEGER, INTENT(IN)                      :: gid
@@ -1765,6 +1655,7 @@ SUBROUTINE mp_recv_iv(msg,source,tag,gid)
 #endif
 END SUBROUTINE mp_recv_iv
 
+! *****************************************************************************
 SUBROUTINE mp_recv_rv(msg,source,tag,gid)
     INTEGER, INTENT(INOUT)                   :: source, tag
     REAL(KIND=dp), INTENT(INOUT)             :: msg( : )
@@ -1797,6 +1688,7 @@ SUBROUTINE mp_recv_rv(msg,source,tag,gid)
 #endif
 END SUBROUTINE mp_recv_rv
 
+! *****************************************************************************
 SUBROUTINE mp_recv_i(msg,source,tag,gid)
     INTEGER, INTENT(INOUT)                   :: msg, source, tag
     INTEGER, INTENT(IN)                      :: gid
@@ -1828,9 +1720,8 @@ SUBROUTINE mp_recv_i(msg,source,tag,gid)
 #endif
 END SUBROUTINE mp_recv_i
 
-
-
 !..mp_bcast
+! *****************************************************************************
 SUBROUTINE mp_bcast_i1(msg,source,gid)
     INTEGER                                  :: msg, source, gid
 
@@ -1855,6 +1746,7 @@ SUBROUTINE mp_bcast_i1(msg,source,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_bcast_i1
+! *****************************************************************************
 SUBROUTINE mp_bcast_iv(msg,source,gid)
     INTEGER                                  :: msg( : ), source, gid
 
@@ -1879,6 +1771,7 @@ SUBROUTINE mp_bcast_iv(msg,source,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_bcast_iv
+! *****************************************************************************
 SUBROUTINE mp_bcast_im(msg,source,gid)
     INTEGER                                  :: msg( :, : ), source, gid
 
@@ -1903,6 +1796,7 @@ SUBROUTINE mp_bcast_im(msg,source,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_bcast_im
+! *****************************************************************************
 SUBROUTINE mp_bcast_r1(msg,source,gid)
     REAL(KIND=dp)                            :: msg
     INTEGER                                  :: source, gid
@@ -1928,6 +1822,7 @@ SUBROUTINE mp_bcast_r1(msg,source,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_bcast_r1
+! *****************************************************************************
 SUBROUTINE mp_bcast_rv(msg,source,gid)
     REAL(KIND=dp)                            :: msg( : )
     INTEGER                                  :: source, gid
@@ -1953,6 +1848,7 @@ SUBROUTINE mp_bcast_rv(msg,source,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_bcast_rv
+! *****************************************************************************
 SUBROUTINE mp_bcast_rm(msg,source,gid)
     REAL(KIND=dp)                            :: msg( :, : )
     INTEGER                                  :: source, gid
@@ -1978,6 +1874,7 @@ SUBROUTINE mp_bcast_rm(msg,source,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_bcast_rm
+! *****************************************************************************
 SUBROUTINE mp_bcast_rm3(msg,source,gid)
     REAL(KIND=dp)                            :: msg( :, :, : )
     INTEGER                                  :: source, gid
@@ -2003,6 +1900,7 @@ SUBROUTINE mp_bcast_rm3(msg,source,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_bcast_rm3
+! *****************************************************************************
 SUBROUTINE mp_bcast_c1(msg,source,gid)
     COMPLEX(KIND=dp)                         :: msg
     INTEGER                                  :: source, gid
@@ -2028,6 +1926,7 @@ SUBROUTINE mp_bcast_c1(msg,source,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_bcast_c1
+! *****************************************************************************
 SUBROUTINE mp_bcast_cv(msg,source,gid)
     COMPLEX(KIND=dp)                         :: msg( : )
     INTEGER                                  :: source, gid
@@ -2053,6 +1952,7 @@ SUBROUTINE mp_bcast_cv(msg,source,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_bcast_cv
+! *****************************************************************************
 SUBROUTINE mp_bcast_cm(msg,source,gid)
     COMPLEX(KIND=dp)                         :: msg( :, : )
     INTEGER                                  :: source, gid
@@ -2078,6 +1978,7 @@ SUBROUTINE mp_bcast_cm(msg,source,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_bcast_cm
+! *****************************************************************************
 SUBROUTINE mp_bcast_l(msg,source,gid)
     LOGICAL                                  :: msg
     INTEGER                                  :: source, gid
@@ -2103,6 +2004,7 @@ SUBROUTINE mp_bcast_l(msg,source,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_bcast_l
+! *****************************************************************************
 SUBROUTINE mp_bcast_z(msg,source,gid)
     CHARACTER(LEN=*)                         :: msg
     INTEGER                                  :: source, gid
@@ -2143,9 +2045,8 @@ SUBROUTINE mp_bcast_z(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_z
 
-!******************************************************************************
-
 !..mp_sum
+! *****************************************************************************
 SUBROUTINE mp_sum_i1(msg,gid)
     INTEGER, INTENT(INOUT)                   :: msg
     INTEGER, INTENT(IN)                      :: gid
@@ -2172,6 +2073,7 @@ SUBROUTINE mp_sum_i1(msg,gid)
 #endif
 END SUBROUTINE mp_sum_i1
 
+! *****************************************************************************
 SUBROUTINE mp_sum_8i1(msg,gid)
     INTEGER(KIND=int_8), INTENT(INOUT)                   :: msg
     INTEGER, INTENT(IN)                      :: gid
@@ -2199,7 +2101,7 @@ SUBROUTINE mp_sum_8i1(msg,gid)
 #endif
 END SUBROUTINE mp_sum_8i1
 
-
+! *****************************************************************************
 SUBROUTINE mp_sum_iv(msg,gid)
   IMPLICIT NONE
   INTEGER, INTENT ( INOUT ) :: msg ( : )
@@ -2229,6 +2131,7 @@ SUBROUTINE mp_sum_iv(msg,gid)
 #endif
 END SUBROUTINE mp_sum_iv
 
+! *****************************************************************************
 SUBROUTINE mp_sum_8iv(msg,gid)
   IMPLICIT NONE
   INTEGER(KIND=int_8), INTENT ( INOUT ) :: msg ( : )
@@ -2258,7 +2161,7 @@ SUBROUTINE mp_sum_8iv(msg,gid)
 #endif
 END SUBROUTINE mp_sum_8iv
 
-
+! *****************************************************************************
 SUBROUTINE mp_sum_im(msg,gid)
   IMPLICIT NONE
   INTEGER, INTENT ( INOUT ) :: msg ( :, : )
@@ -2289,6 +2192,7 @@ SUBROUTINE mp_sum_im(msg,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_sum_im
+! *****************************************************************************
 SUBROUTINE mp_sum_im3(msg,gid)
   IMPLICIT NONE
   INTEGER, INTENT ( INOUT ) :: msg ( :, :, : )
@@ -2320,6 +2224,7 @@ SUBROUTINE mp_sum_im3(msg,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_sum_im3
+! *****************************************************************************
 SUBROUTINE mp_sum_r1(msg,gid)
     REAL(KIND=dp), INTENT(INOUT)             :: msg
     INTEGER, INTENT(IN)                      :: gid
@@ -2346,6 +2251,7 @@ SUBROUTINE mp_sum_r1(msg,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_sum_r1
+! *****************************************************************************
 SUBROUTINE mp_sum_rv(msg,gid)
   IMPLICIT NONE
   REAL (KIND=dp), INTENT ( INOUT ) :: msg ( : )
@@ -2374,6 +2280,7 @@ SUBROUTINE mp_sum_rv(msg,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_sum_rv
+! *****************************************************************************
 SUBROUTINE mp_sum_root_rv(msg,root,gid)
   IMPLICIT NONE
   REAL (KIND=dp), INTENT ( INOUT ) :: msg ( : )
@@ -2408,6 +2315,7 @@ SUBROUTINE mp_sum_root_rv(msg,root,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_sum_root_rv
+! *****************************************************************************
 SUBROUTINE mp_sum_rm(msg,gid)
   IMPLICIT NONE
   REAL (KIND=dp), INTENT ( INOUT ) :: msg ( :, : )
@@ -2438,6 +2346,7 @@ SUBROUTINE mp_sum_rm(msg,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_sum_rm
+! *****************************************************************************
 SUBROUTINE mp_sum_root_rm(msg,root,gid)
   IMPLICIT NONE
   REAL (KIND=dp), INTENT ( INOUT ) :: msg ( :, : )
@@ -2472,6 +2381,7 @@ SUBROUTINE mp_sum_root_rm(msg,root,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_sum_root_rm
+! *****************************************************************************
 SUBROUTINE mp_sum_rm3(msg,gid)
   IMPLICIT NONE
   REAL (KIND=dp), INTENT ( INOUT ) :: msg ( :, :, : )
@@ -2503,6 +2413,7 @@ SUBROUTINE mp_sum_rm3(msg,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_sum_rm3
+! *****************************************************************************
 SUBROUTINE mp_sum_root_rm3(msg,root,gid)
   IMPLICIT NONE
   REAL (KIND=dp), INTENT ( INOUT ) :: msg ( :, :, : )
@@ -2538,6 +2449,7 @@ SUBROUTINE mp_sum_root_rm3(msg,root,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_sum_root_rm3
+! *****************************************************************************
 SUBROUTINE mp_sum_c1(msg,gid)
     COMPLEX(KIND=dp), INTENT(INOUT)          :: msg
     INTEGER, INTENT(IN)                      :: gid
@@ -2564,6 +2476,7 @@ SUBROUTINE mp_sum_c1(msg,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_sum_c1
+! *****************************************************************************
 SUBROUTINE mp_sum_cv(msg,gid)
   IMPLICIT NONE
   COMPLEX (KIND=dp), INTENT ( INOUT ) :: msg ( : )
@@ -2592,6 +2505,7 @@ SUBROUTINE mp_sum_cv(msg,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_sum_cv
+! *****************************************************************************
 SUBROUTINE mp_sum_cm(msg,gid)
   IMPLICIT NONE
   COMPLEX (KIND=dp), INTENT ( INOUT ) :: msg ( :, : )
@@ -2622,6 +2536,7 @@ SUBROUTINE mp_sum_cm(msg,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_sum_cm
+! *****************************************************************************
 SUBROUTINE mp_sum_cm3(msg,gid)
   IMPLICIT NONE
   COMPLEX (KIND=dp), INTENT ( INOUT ) :: msg ( :, :, : )
@@ -2654,8 +2569,7 @@ SUBROUTINE mp_sum_cm3(msg,gid)
 #endif
 END SUBROUTINE mp_sum_cm3
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE mp_max_i(msg,gid)
   IMPLICIT NONE
   INTEGER, INTENT ( INOUT ) :: msg
@@ -2681,6 +2595,7 @@ SUBROUTINE mp_max_i(msg,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_max_i
+! *****************************************************************************
 SUBROUTINE mp_max_iv(msg,gid)
   IMPLICIT NONE
   INTEGER, INTENT ( INOUT ) :: msg ( : )
@@ -2709,6 +2624,7 @@ SUBROUTINE mp_max_iv(msg,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_max_iv
+! *****************************************************************************
 SUBROUTINE mp_max_r(msg,gid)
   IMPLICIT NONE
   REAL (KIND=dp), INTENT ( INOUT ) :: msg
@@ -2735,6 +2651,7 @@ SUBROUTINE mp_max_r(msg,gid)
 #endif
 END SUBROUTINE mp_max_r
 
+! *****************************************************************************
 SUBROUTINE mp_maxloc_i(msg,gid)
   IMPLICIT NONE
   INTEGER, INTENT ( INOUT ) :: msg ( : )
@@ -2764,6 +2681,7 @@ SUBROUTINE mp_maxloc_i(msg,gid)
 #endif
 END SUBROUTINE mp_maxloc_i
 
+! *****************************************************************************
 SUBROUTINE mp_minloc_rv(msg,gid)
   IMPLICIT NONE
   REAL (KIND=dp), INTENT ( INOUT ) :: msg ( : )
@@ -2793,6 +2711,7 @@ SUBROUTINE mp_minloc_rv(msg,gid)
 #endif
 END SUBROUTINE mp_minloc_rv
 
+! *****************************************************************************
 SUBROUTINE mp_max_rv(msg,gid)
   IMPLICIT NONE
   REAL (KIND=dp), INTENT ( INOUT ) :: msg ( : )
@@ -2822,8 +2741,7 @@ SUBROUTINE mp_max_rv(msg,gid)
 #endif
 END SUBROUTINE mp_max_rv
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE mp_min_i(msg,gid)
   IMPLICIT NONE
   INTEGER, INTENT ( INOUT ) :: msg
@@ -2849,6 +2767,7 @@ SUBROUTINE mp_min_i(msg,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_min_i
+! *****************************************************************************
 SUBROUTINE mp_min_iv(msg,gid)
   IMPLICIT NONE
   INTEGER, INTENT ( INOUT ) :: msg ( : )
@@ -2877,6 +2796,7 @@ SUBROUTINE mp_min_iv(msg,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_min_iv
+! *****************************************************************************
 SUBROUTINE mp_min_r(msg,gid)
   IMPLICIT NONE
   REAL (KIND=dp), INTENT ( INOUT ) :: msg
@@ -2903,6 +2823,7 @@ SUBROUTINE mp_min_r(msg,gid)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_min_r
+! *****************************************************************************
 SUBROUTINE mp_min_rv(msg,gid)
   IMPLICIT NONE
   REAL (KIND=dp), INTENT ( INOUT ) :: msg ( : )
@@ -2932,8 +2853,7 @@ SUBROUTINE mp_min_rv(msg,gid)
 #endif
 END SUBROUTINE mp_min_rv
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE mp_gather_i(msg,msg_gather,root,gid)
   IMPLICIT NONE
   INTEGER, INTENT ( IN ) :: msg
@@ -2963,6 +2883,7 @@ SUBROUTINE mp_gather_i(msg,msg_gather,root,gid)
 #endif
 END SUBROUTINE mp_gather_i
 
+! *****************************************************************************
 SUBROUTINE mp_gather_iv(msg,msg_gather,root,gid)
   IMPLICIT NONE
   INTEGER, INTENT ( IN ) :: msg ( : )
@@ -2992,6 +2913,7 @@ SUBROUTINE mp_gather_iv(msg,msg_gather,root,gid)
 #endif
 END SUBROUTINE mp_gather_iv
 
+! *****************************************************************************
 SUBROUTINE mp_gather_r(msg,msg_gather,root,gid)
   IMPLICIT NONE
   REAL (KIND=dp), INTENT ( IN ) :: msg
@@ -3021,6 +2943,7 @@ SUBROUTINE mp_gather_r(msg,msg_gather,root,gid)
 #endif
 END SUBROUTINE mp_gather_r
 
+! *****************************************************************************
 SUBROUTINE mp_gather_rv(msg,msg_gather,root,gid)
   IMPLICIT NONE
   REAL (KIND=dp), INTENT ( IN ) :: msg ( : )
@@ -3050,8 +2973,7 @@ SUBROUTINE mp_gather_rv(msg,msg_gather,root,gid)
 #endif
 END SUBROUTINE mp_gather_rv
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE mp_gatherv_iv(sendbuf,recvbuf,recvcounts,displs,root,comm)
 
     INTEGER, DIMENSION(:), INTENT(IN)        :: sendbuf
@@ -3086,8 +3008,7 @@ END SUBROUTINE mp_gather_rv
 #endif
   END SUBROUTINE mp_gatherv_iv
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE mp_gatherv_rv(sendbuf,recvbuf,recvcounts,displs,root,comm)
 
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: sendbuf
@@ -3124,11 +3045,10 @@ END SUBROUTINE mp_gather_rv
 
   END SUBROUTINE mp_gatherv_rv
 
-  ! ***************************************************************************
-
 ! wrapper for MPI_ALLGATHERV subroutine
 ! one dimensional real arrays
 
+! *****************************************************************************
 SUBROUTINE mp_allgather_i1(msgout,msgin,gid)
   IMPLICIT NONE
   INTEGER, INTENT ( IN ) :: msgout
@@ -3159,6 +3079,7 @@ SUBROUTINE mp_allgather_i1(msgout,msgin,gid)
 #endif
 END SUBROUTINE mp_allgather_i1
 
+! *****************************************************************************
 SUBROUTINE mp_allgatherv_rv(msgout,msgin,rcount,rdispl,gid)
   IMPLICIT NONE
   REAL (KIND=dp), INTENT ( IN ) :: msgout ( : )
@@ -3188,9 +3109,9 @@ SUBROUTINE mp_allgatherv_rv(msgout,msgin,rcount,rdispl,gid)
 #endif
 END SUBROUTINE mp_allgatherv_rv
 
-!******************************************************************************
 ! wrapper for MPI_REDUCE_SCATTER subroutine
 ! one dimensional real arrays
+! *****************************************************************************
 SUBROUTINE mp_sum_scatter_rv(msgout,msgin,rcount,gid)
   IMPLICIT NONE
   REAL (KIND=dp), INTENT ( IN ) :: msgout ( : )
@@ -3224,8 +3145,7 @@ SUBROUTINE mp_sum_scatter_rv(msgout,msgin,rcount,gid)
 #endif
 END SUBROUTINE mp_sum_scatter_rv
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE mp_sendrecv_rm3(msgin,dest,msgout,source,comm)
   IMPLICIT NONE
   REAL (KIND=dp), INTENT ( IN ) :: msgin ( :, :, : )
@@ -3262,8 +3182,7 @@ SUBROUTINE mp_sendrecv_rm3(msgin,dest,msgout,source,comm)
 #endif
 END SUBROUTINE mp_sendrecv_rm3
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE mp_sendrecv_rm2(msgin,dest,msgout,source,comm)
   IMPLICIT NONE
   REAL (KIND=dp), INTENT ( IN ) :: msgin ( :, : )
@@ -3297,8 +3216,8 @@ SUBROUTINE mp_sendrecv_rm2(msgin,dest,msgout,source,comm)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_sendrecv_rm2
-!******************************************************************************
 
+! *****************************************************************************
 SUBROUTINE mp_sendrecv_rv(msgin,dest,msgout,source,comm)
   IMPLICIT NONE
   REAL (KIND=dp), INTENT ( IN ) :: msgin ( : )
@@ -3335,24 +3254,14 @@ SUBROUTINE mp_sendrecv_rv(msgin,dest,msgout,source,comm)
 #endif
 END SUBROUTINE mp_sendrecv_rv
 
-!******************************************************************************
-
-!!****f* message_passing/mp_isendrecv_rv [1.0] *
-!!
-!!   NAME
-!!     mp_isendrecv_rv
-!!
-!!   FUNCTION
-!!     non blocking send of real arrays
-!!
-!!   NOTES
-!!     the arguments must be pointers to be sure that we do not get a temporaries.
-!!     they must point to contiguous memory
-!!
-!!   MODIFICATION HISTORY
-!!     11.2004 created [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief non blocking send of real arrays
+!> \note
+!>      the arguments must be pointers to be sure that we do not get a temporaries.
+!>      they must point to contiguous memory
+!> \par History
+!>      11.2004 created [Joost VandeVondele]
+! *****************************************************************************
 SUBROUTINE mp_isendrecv_rv(msgin,dest,msgout,source,comm,send_request,&
                            recv_request,tag)
   IMPLICIT NONE
@@ -3409,24 +3318,14 @@ SUBROUTINE mp_isendrecv_rv(msgin,dest,msgout,source,comm,send_request,&
 #endif
 END SUBROUTINE mp_isendrecv_rv
 
-!******************************************************************************
-
-!!****f* message_passing/mp_isendrecv_8iv [1.0] *
-!!
-!!   NAME
-!!     mp_isendrecv_8iv
-!!
-!!   FUNCTION
-!!     non blocking send of int_8 arrays
-!!
-!!   NOTES
-!!     the arguments must be pointers to be sure that we do not get a temporaries.
-!!     they must point to contiguous memory
-!!
-!!   MODIFICATION HISTORY
-!!     11.2007 created [Manuel Guidon]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief non blocking send of int_8 arrays
+!> \note
+!>      the arguments must be pointers to be sure that we do not get a temporaries.
+!>      they must point to contiguous memory
+!> \par History
+!>      11.2007 created [Manuel Guidon]
+! *****************************************************************************
 SUBROUTINE mp_isendrecv_8iv(msgin,dest,msgout,source,comm,send_request,&
                             recv_request,tag)
   IMPLICIT NONE
@@ -3483,25 +3382,15 @@ SUBROUTINE mp_isendrecv_8iv(msgin,dest,msgout,source,comm,send_request,&
 #endif
 END SUBROUTINE mp_isendrecv_8iv
 
-!!****f* message_passing/mp_isendrecv_rm2 [1.0] *
-!!
-!!   NAME
-!!     mp_isendrecv_rm2
-!!
-!!   FUNCTION
-!!     non blocking send of real arrays 
-!!
-!!   NOTES
-!!     the arguments must be pointers to be sure that we do not get a temporaries.
-!!     they must point to contiguous memory
-!!     
-!!   AUTHOR
-!!     joost & fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [f&j]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief non blocking send of real arrays 
+!> \note
+!>      the arguments must be pointers to be sure that we do not get a temporaries.
+!>      they must point to contiguous memory
+!> \par History
+!>      08.2003 created [f&j]
+!> \author joost & fawzi
+! *****************************************************************************
 SUBROUTINE mp_isendrecv_rm2(msgin,dest,msgout,source,comm,send_request,&
      recv_request,tag)
   IMPLICIT NONE
@@ -3560,23 +3449,13 @@ SUBROUTINE mp_isendrecv_rm2(msgin,dest,msgout,source,comm,send_request,&
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_isendrecv_rm2
-!***************************************************************************
 
-!!****f* message_passing/mp_isend_rm2 [1.0] *
-!!
-!!   NAME
-!!     mp_isend_rm2
-!!
-!!   FUNCTION
-!!     non blocking send of real arrays 
-!!
-!!   NOTES
-!!     the arguments must be pointers to be sure that we do not get a temporaries.
-!!     
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief non blocking send of real arrays 
+!> \note
+!>      the arguments must be pointers to be sure that we do not get a temporaries.
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE mp_isend_rm2(msgin,dest,comm,request,tag)
   IMPLICIT NONE
   REAL (KIND=dp), POINTER, DIMENSION (:,:) :: msgin
@@ -3621,23 +3500,13 @@ SUBROUTINE mp_isend_rm2(msgin,dest,comm,request,tag)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_isend_rm2
-!***************************************************************************
 
-!!****f* message_passing/mp_irecv_rm2 [1.0] *
-!!
-!!   NAME
-!!     mp_irecv_rm2
-!!
-!!   FUNCTION
-!!     non blocking recieve of real arrays 
-!!
-!!   NOTES
-!!     the arguments must be pointers to be sure that we do not get a temporaries.
-!!     
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief non blocking recieve of real arrays 
+!> \note
+!>      the arguments must be pointers to be sure that we do not get a temporaries.
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE mp_irecv_rm2(msgout,source,comm,request,tag)
   IMPLICIT NONE
   REAL (KIND=dp), POINTER, DIMENSION (:,:) :: msgout
@@ -3680,26 +3549,15 @@ SUBROUTINE mp_irecv_rm2(msgout,source,comm,request,tag)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_irecv_rm2
-!***************************************************************************
 
-!!****f* message_passing/mp_wait [1.0] *
-!!
-!!   NAME
-!!     mp_wait
-!!
-!!   FUNCTION
-!!     waits for completion of the given request
-!!
-!!   NOTES
-!!     see isendrecv
-!!
-!!   AUTHOR
-!!     joost & fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [f&j]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief waits for completion of the given request
+!> \note
+!>      see isendrecv
+!> \par History
+!>      08.2003 created [f&j]
+!> \author joost & fawzi
+! *****************************************************************************
 SUBROUTINE mp_wait(request)
   INTEGER, INTENT(inout) :: request
 
@@ -3728,26 +3586,15 @@ SUBROUTINE mp_wait(request)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_wait
-!***************************************************************************
 
-!!****f* message_passing/mp_waitall [1.0] *
-!!
-!!   NAME
-!!     mp_waitall
-!!
-!!   FUNCTION
-!!     waits for completion of the given requests
-!!
-!!   NOTES
-!!     see isendrecv
-!!
-!!   AUTHOR
-!!     joost & fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     08.2003 created [f&j]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief waits for completion of the given requests
+!> \note
+!>      see isendrecv
+!> \par History
+!>      08.2003 created [f&j]
+!> \author joost & fawzi
+! *****************************************************************************
 SUBROUTINE mp_waitall(requests)
   INTEGER, INTENT(inout), DIMENSION(:) :: requests
 
@@ -3777,43 +3624,30 @@ SUBROUTINE mp_waitall(requests)
     CALL timestop(handle)
 #endif
 END SUBROUTINE mp_waitall
-!***************************************************************************
 
-!!****f* message_passing/mp_comm_split [1.0] *
-!!
-!!   NAME
-!!     mp_comm_split
-!!
-!!   FUNCTION
-!!     splits the given communicator in group in subgroups trying to organize
-!!     them in a way that the communication within each subgroup is
-!!     efficent (but not necessarily the comunication between subgroups)
-!!
-!!   NOTES
-!!     at least one of subgroup_min_size and n_subgroups is needed,
-!!     the other default to the value needed to use most processors.
-!!     if less cpus are present than needed for subgroup min size, n_subgroups,
-!!     just one comm is created that contains all cpus
-!!
-!!   INPUTS
-!!     - comm: the mpi communicator that you want to split
-!!     - sub_comm: the communicator for the subgroup (created, needs to be freed later)
-!!     - ngroups: actual number of groups
-!!     - group_distribution  input  : allocated with array with the nprocs entries (0 .. nprocs-1)
-!!                           output : the number of the group the proc belongs to (0..ngroups-1)
-!!     - subgroup_min_size: the minimum size of the subgroup
-!!     - n_subgroups: the number of subgroups wanted
-!!     - group_partition: n_subgroups sized array containing the number of cpus wanted per group.
-!!                        should match the total number of cpus (only used if present and associated) (0..ngroups-1)
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     10.2003 created [fawzi]
-!!     02.2004 modified [Joost VandeVondele]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief splits the given communicator in group in subgroups trying to organize
+!>      them in a way that the communication within each subgroup is
+!>      efficent (but not necessarily the comunication between subgroups)
+!> \param comm the mpi communicator that you want to split
+!> \param sub_comm the communicator for the subgroup (created, needs to be freed later)
+!> \param ngroups actual number of groups
+!> \param group_distribution input  : allocated with array with the nprocs entries (0 .. nprocs-1)
+!> \param output the number of the group the proc belongs to (0..ngroups-1)
+!> \param subgroup_min_size the minimum size of the subgroup
+!> \param n_subgroups the number of subgroups wanted
+!> \param group_partition n_subgroups sized array containing the number of cpus wanted per group.
+!>                         should match the total number of cpus (only used if present and associated) (0..ngroups-1)
+!> \note
+!>      at least one of subgroup_min_size and n_subgroups is needed,
+!>      the other default to the value needed to use most processors.
+!>      if less cpus are present than needed for subgroup min size, n_subgroups,
+!>      just one comm is created that contains all cpus
+!> \par History
+!>      10.2003 created [fawzi]
+!>      02.2004 modified [Joost VandeVondele]
+!> \author Fawzi Mohamed
+! *****************************************************************************
 SUBROUTINE mp_comm_split(comm,sub_comm,ngroups, group_distribution, &
                     subgroup_min_size, n_subgroups, group_partition)
     INTEGER, INTENT(in)                      :: comm
@@ -3907,12 +3741,10 @@ SUBROUTINE mp_comm_split(comm,sub_comm,ngroups, group_distribution, &
 
 END SUBROUTINE mp_comm_split
 
-!***************************************************************************
 ! a bunch of currently unused features
-!***************************************************************************
 !..mp_group
+! *****************************************************************************
 SUBROUTINE mp_group(group_list,group_size,base_group,groupid)
-
 
     INTEGER, INTENT(IN)                      :: group_list( : ), group_size, &
                                                 base_group

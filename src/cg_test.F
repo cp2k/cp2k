@@ -2,26 +2,14 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/cg_test [1.0] *
-!!
-!!   NAME
-!!     cg_test
-!!
-!!   FUNCTION
-!!     Test of Clebsch-Gordon Coefficients
-!!
-!!   AUTHOR
-!!     JGH (28.02.2002)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*****
-!******************************************************************************
-
-MODULE cg_test
 
 ! *****************************************************************************
+!> \brief Test of Clebsch-Gordon Coefficients
+!> \par History
+!>      none
+!> \author JGH (28.02.2002)
+! *****************************************************************************
+MODULE cg_test
 
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -42,11 +30,9 @@ MODULE cg_test
 
   PUBLIC :: clebsch_gordon_test
 
-! *****************************************************************************
-
 CONTAINS
 
-!******************************************************************************
+! *****************************************************************************
 SUBROUTINE clebsch_gordon_test (error)
 
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -177,8 +163,5 @@ SUBROUTINE clebsch_gordon_test (error)
 
 END SUBROUTINE clebsch_gordon_test
 
-! *****************************************************************************
-
 END MODULE cg_test
 
-! *****************************************************************************

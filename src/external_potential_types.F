@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/external_potential_types [1.0] *
-!!
-!!   NAME
-!!     external_potential_types
-!!
-!!   FUNCTION
-!!     Definition of the atomic potential types.
-!!
-!!   AUTHOR
-!!     Matthias Krack (04.07.2000)
-!!
-!!   MODIFICATION HISTORY
-!!     GT, 22.09.2002: added elp_potential_types
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Definition of the atomic potential types.
+!> \par History
+!>      GT, 22.09.2002: added elp_potential_types
+!> \author Matthias Krack (04.07.2000)
+! *****************************************************************************
 MODULE external_potential_types
   USE bibliography,                    ONLY: Goedecker1996,&
                                              Hartwigsen1998,&
@@ -75,6 +65,7 @@ MODULE external_potential_types
   ! Literature: M. Krack and M. Parrinello,
   !             Phys. Chem. Chem. Phys. 2, 2105 (2000)
 
+! *****************************************************************************
   TYPE all_potential_type
      !MK PRIVATE
      CHARACTER(LEN=default_string_length)   :: name
@@ -99,6 +90,7 @@ MODULE external_potential_types
   !             - M. Krack,
   !               Theor. Chem. Acc. 114, 145 (2005)
 
+! *****************************************************************************
   TYPE gth_potential_type
      PRIVATE
      CHARACTER(LEN=default_string_length)       :: name
@@ -120,6 +112,7 @@ MODULE external_potential_types
   END TYPE gth_potential_type
 
   ! Define the effective point charge potential type
+! *****************************************************************************
   TYPE elp_potential_type
      PRIVATE
      CHARACTER(LEN=default_string_length)   :: name
@@ -152,9 +145,6 @@ MODULE external_potential_types
   PUBLIC :: all_potential_type,&
             elp_potential_type,&
             gth_potential_type
-
-  !!***
-  ! *****************************************************************************
 
   INTERFACE allocate_potential
      MODULE PROCEDURE allocate_all_potential,&
@@ -197,19 +187,14 @@ MODULE external_potential_types
                       write_gth_potential
   END INTERFACE
 
-  ! *****************************************************************************
-
 CONTAINS
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE allocate_all_potential(potential,error)
 
     !   Purpose: Allocate an atomic all-electron potential data set.
 
     !   History: Creation (25.07.2000,MK)
-
-    !   ***************************************************************************
 
     TYPE(all_potential_type), POINTER        :: potential
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -235,14 +220,11 @@ CONTAINS
 
   END SUBROUTINE allocate_all_potential
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE allocate_elp_potential(potential,error)
 
     !   Purpose: Allocate an effective charge potential data set.
     !   History: Creation (22.09.2002, gt)
-
-    !   ***************************************************************************
 
     TYPE(elp_potential_type), POINTER        :: potential
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -267,15 +249,12 @@ CONTAINS
 
   END SUBROUTINE allocate_elp_potential
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE allocate_gth_potential(potential,error)
 
     !   Purpose: Allocate an atomic GTH potential data set.
 
     !   History: Creation (25.07.2000,MK)
-
-    !   ***************************************************************************
 
     TYPE(gth_potential_type), POINTER        :: potential
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -308,15 +287,12 @@ CONTAINS
 
   END SUBROUTINE allocate_gth_potential
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE deallocate_all_potential(potential,error)
 
     !   Purpose: Deallocate an atomic all-electron potential data set.
 
     !   History: Creation (03.11.2000,MK)
-
-    !   ***************************************************************************
 
     TYPE(all_potential_type), POINTER        :: potential
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -345,14 +321,11 @@ CONTAINS
 
   END SUBROUTINE deallocate_all_potential
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE deallocate_elp_potential(potential,error)
 
     !   Purpose: deallocate an effective charge potential data set.
     !   History: Creation (22.09.2002, gt)
-
-    !   ***************************************************************************
 
     TYPE(elp_potential_type), POINTER        :: potential
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -390,15 +363,12 @@ CONTAINS
 
   END SUBROUTINE deallocate_elp_potential
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE deallocate_gth_potential(potential,error)
 
     !   Purpose: Deallocate an atomic GTH potential data set.
 
     !   History: Creation (03.11.2000,MK)
-
-    !   ***************************************************************************
 
     TYPE(gth_potential_type), POINTER        :: potential
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -449,8 +419,7 @@ CONTAINS
 
   END SUBROUTINE deallocate_gth_potential
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE get_all_potential(potential,name,alpha_core_charge,&
        ccore_charge,core_charge_radius,z,zeff,&
        zeff_correction, elec_conf)
@@ -458,8 +427,6 @@ CONTAINS
     !   Purpose: Get informations about an all-electron potential data set.
 
     !   History: Creation (11.01.2002,MK)
-
-    !   ***************************************************************************
 
     TYPE(all_potential_type), POINTER        :: potential
     CHARACTER(LEN=default_string_length), &
@@ -499,8 +466,7 @@ CONTAINS
 
   END SUBROUTINE get_all_potential
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE get_elp_potential(potential,name,alpha_core_charge,&
        alpha_ppl,cerf_ppl,cexp_ppl,nalpha_ppl,&
        ccore_charge,core_charge_radius,&
@@ -510,8 +476,6 @@ CONTAINS
     !   Purpose: Get informations about effective pint charge potential.
     !   History: 22-09-2002 GT
     !            28-11-2003 gt: supports a local gth-like analytical form
-
-    !   ***************************************************************************
 
     TYPE(elp_potential_type), POINTER        :: potential
     CHARACTER(LEN=default_string_length), &
@@ -565,8 +529,7 @@ CONTAINS
 
   END SUBROUTINE get_elp_potential
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE get_gth_potential(potential,name,alpha_core_charge,&
        alpha_ppl,ccore_charge,cerf_ppl,&
        core_charge_radius,ppl_radius,ppnl_radius,&
@@ -579,8 +542,6 @@ CONTAINS
     !   Purpose: Get informations about a GTH potential data set.
 
     !   History: Creation (11.01.2002,MK)
-
-    !   ***************************************************************************
 
     TYPE(gth_potential_type), POINTER        :: potential
     CHARACTER(LEN=default_string_length), &
@@ -646,8 +607,7 @@ CONTAINS
 
   END SUBROUTINE get_gth_potential
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE init_cprj_ppnl(potential,error)
 
     !   Purpose: Initialise the coefficients of the projectors of the non-local
@@ -656,8 +616,6 @@ CONTAINS
     !            functions and the projector functions.
 
     !   History: - Creation (16.10.2000,MK)
-
-    !   ***************************************************************************
 
     TYPE(gth_potential_type), POINTER        :: potential
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -705,15 +663,12 @@ CONTAINS
 
   END SUBROUTINE init_cprj_ppnl
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE init_gth_potential(potential,error)
 
     !   Purpose: Initialise a GTH potential data set structure.
 
     !   History: Creation (27.10.2000,MK)
-
-    !   ***************************************************************************
 
     TYPE(gth_potential_type), POINTER        :: potential
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -742,16 +697,13 @@ CONTAINS
 
   END SUBROUTINE init_gth_potential
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE init_vprj_ppnl(potential,error)
 
     !   Purpose: Initialise the h(i,j) projector coefficients of the non-local part
     !            of the GTH pseudopotential.
 
     !   History: - Creation (24.10.2000,MK)
-
-    !   ***************************************************************************
 
     TYPE(gth_potential_type), POINTER        :: potential
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -792,8 +744,7 @@ CONTAINS
 
   END SUBROUTINE init_vprj_ppnl
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE init_all_potential(potential,itype,zeff,zeff_correction,error)
 
     TYPE(all_potential_type), POINTER        :: potential
@@ -887,16 +838,13 @@ CONTAINS
 
   END SUBROUTINE init_all_potential
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE read_all_potential(element_symbol,potential_name,potential,zeff_correction,&
        para_env, dft_section, potential_section, error)
 
     !   Purpose: Read an atomic all-electron potential data set.
 
     !   History: - Creation (14.05.2000,MK)
-
-    !   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(all_potential_type), POINTER        :: potential
@@ -1063,15 +1011,12 @@ CONTAINS
     END IF
   END SUBROUTINE read_all_potential
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE read_elp_potential(element_symbol,potential_name,potential,para_env,&
        dft_section,potential_section,error)
 
     !   Purpose: Read an effective charge potential data set.
     !   History: creation 22-09-2002, GT
-
-    !   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(elp_potential_type), POINTER        :: potential
@@ -1285,8 +1230,7 @@ CONTAINS
     END IF
   END SUBROUTINE read_elp_potential
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE read_gth_potential(element_symbol,potential_name,potential,zeff_correction,&
        para_env, dft_section, potential_section, error)
 
@@ -1298,8 +1242,6 @@ CONTAINS
     !                 Phys. Rev. B 58, 3641 (1998)
 
     !   History: - Creation (14.05.2000,MK)
-
-    !   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(gth_potential_type), POINTER        :: potential
@@ -1661,8 +1603,7 @@ CONTAINS
     END IF
   END SUBROUTINE read_gth_potential
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE set_default_all_potential(potential,z,zeff_correction,error)
 
     TYPE(all_potential_type), POINTER        :: potential
@@ -1707,8 +1648,7 @@ CONTAINS
 
   END SUBROUTINE set_default_all_potential
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE set_all_potential(potential,name,alpha_core_charge,&
        ccore_charge,core_charge_radius,z,zeff,&
        zeff_correction,elec_conf)
@@ -1716,8 +1656,6 @@ CONTAINS
     !   Purpose: Set the components of an all-electron potential data set.
 
     !   History: Creation (11.01.2002,MK)
-
-    !   ***************************************************************************
 
     TYPE(all_potential_type), POINTER        :: potential
     CHARACTER(LEN=default_string_length), &
@@ -1760,16 +1698,13 @@ CONTAINS
 
   END SUBROUTINE set_all_potential
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE set_elp_potential(potential,name,alpha_core_charge,ccore_charge,&
        core_charge_radius,ccore_charge_radius,cexp_ppl,cerf_ppl,qeff,&
        ppl_radius,alpha_ppl,nexp_ppl,nalpha_ppl,description)
 
     !   Purpose: Set the effective charge in the elp potential data set.
     !   History: creation (22-09-2002, GT)
-
-    !   ***************************************************************************
 
     TYPE(elp_potential_type), POINTER        :: potential
     CHARACTER(LEN=default_string_length), &
@@ -1822,8 +1757,7 @@ CONTAINS
 
   END SUBROUTINE set_elp_potential
 
-  ! *****************************************************************************
-
+! *****************************************************************************
   SUBROUTINE set_gth_potential(potential,name,alpha_core_charge,alpha_ppl,&
        ccore_charge,cerf_ppl,core_charge_radius,&
        ppl_radius,ppnl_radius,lppnl,lprj_ppnl_max,&
@@ -1834,8 +1768,6 @@ CONTAINS
     !   Purpose: Get the components of a GTH potential data set.
 
     !   History: Creation (11.01.2002,MK)
-
-    !   ***************************************************************************
 
     TYPE(gth_potential_type), POINTER        :: potential
     CHARACTER(LEN=default_string_length), &
@@ -1898,8 +1830,7 @@ CONTAINS
 
   END SUBROUTINE set_gth_potential
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE write_all_potential(potential,output_unit,error)
 
     ! Write an atomic all-electron potential data set to the output unit.
@@ -1933,8 +1864,7 @@ CONTAINS
 
   END SUBROUTINE write_all_potential
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE write_elp_potential(potential,output_unit,error)
 
     ! Write an effective-point-charge potential data set to the output unit.
@@ -1963,8 +1893,7 @@ CONTAINS
 
   END SUBROUTINE write_elp_potential
 
-  ! ***************************************************************************
-
+! *****************************************************************************
   SUBROUTINE write_gth_potential(potential,output_unit,error)
 
     ! Write an atomic GTH potential data set to the output unit.
@@ -2022,7 +1951,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE write_gth_potential
-
-  ! ***************************************************************************
 
 END MODULE external_potential_types

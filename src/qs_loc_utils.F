@@ -2,26 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/qs_loc_utils [1.0] *
-!!
-!!   NAME
-!!     qs_loc_utils
-!!
-!!   FUNCTION
-!!     Some utilities for the construction of
-!!     the localization environment
-!!
-!!   AUTHORS
-!!     MI (05-2005)
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
-MODULE qs_loc_utils
 
 ! *****************************************************************************
+!> \brief Some utilities for the construction of
+!>      the localization environment
+!> \author MI (05-2005)
+! *****************************************************************************
+MODULE qs_loc_utils
 
   USE ai_moments,                      ONLY: contract_cossin,&
                                              cossin
@@ -83,31 +70,18 @@ MODULE qs_loc_utils
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_utils'
 
-
 ! *** Public ***
   PUBLIC ::  jacobi_rotation_pipek, qs_loc_env_init
 
 CONTAINS
-!******************************************************************************
-!!****f* qs_loc_types/jacpbi_rotation_pipek [1.0] *
-!!
-!!   NAME
-!!     jacobi_rotation_pipek
-!!
-!!   FUNCTION
-!!      2by2 rotation for the pipek operator
-!!      in this case the z_ij numbers are reals
-!!
-!!   ARGUMENTS
-!!
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   HISTORY
-!!      05-2005 created
-!!
-!!*** **********************************************************************
+
+! *****************************************************************************
+!> \brief 2by2 rotation for the pipek operator
+!>       in this case the z_ij numbers are reals
+!> \par History
+!>       05-2005 created
+!> \author MI
+! *****************************************************************************
   SUBROUTINE jacobi_rotation_pipek(zij_fm_set, vectors, sweeps, error)
 
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
@@ -181,25 +155,11 @@ CONTAINS
 
   END SUBROUTINE jacobi_rotation_pipek
 
-!******************************************************************************
-!!****f* qs_loc_types/rotate_rmat_real [1.0] *
-!!
-!!   NAME
-!!    rotate_rmat_real 
-!!
-!!   FUNCTION
-!!      
-!!
-!!   NOTES
-!!     
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     04.2005 created [MI]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \par History
+!>      04.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE rotate_rmat_real(istate,jstate,st,ct,rmat,error)
 
     INTEGER, INTENT(IN)                      :: istate, jstate
@@ -226,25 +186,11 @@ CONTAINS
 
   END SUBROUTINE rotate_rmat_real
 
-!******************************************************************************
-!!****f* qs_loc_types/rotate_zij_real [1.0] *
-!!
-!!   NAME
-!!     rotate_zij_real
-!!
-!!   FUNCTION
-!!      
-!!
-!!   NOTES
-!!     
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     04.2005 created [MI]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \par History
+!>      04.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE rotate_zij_real(istate,jstate,st,ct,zij,error)
 
     INTEGER, INTENT(IN)                      :: istate, jstate
@@ -283,25 +229,11 @@ CONTAINS
 
   END SUBROUTINE rotate_zij_real
 
-!******************************************************************************
-!!****f* qs_loc_types/check_tolerance_real [1.0] *
-!!
-!!   NAME
-!!     check_tolerance_real
-!!
-!!   FUNCTION
-!!      
-!!
-!!   NOTES
-!!     
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     04.2005 created [MI]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \par History
+!>      04.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE check_tolerance_real(zij_fm_set,tolerance,error)
 
     TYPE(cp_fm_p_type), DIMENSION(:, :)      :: zij_fm_set
@@ -358,32 +290,19 @@ CONTAINS
 
   END SUBROUTINE check_tolerance_real
 
-!******************************************************************************
-!!****f* qs_loc_types/qs_loc_env_init [1.0] *
-!!
-!!   NAME
-!!     qs_loc_env_init
-!!
-!!   FUNCTION
-!!      allocates the data, and initializes the operators
-!!
-!!   NOTES
-!!     similar to the old one, but not quite
-!!
-!!   ARGUMENTS
-!!     - qs_loc_env: new environment for the localization calculations
-!!     - localized_wfn_control: variables and directives for the localization
-!!     - qs_env: the qs_env in which the qs_env lives
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     04.2005 created [MI]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief allocates the data, and initializes the operators
+!> \param qs_loc_env new environment for the localization calculations
+!> \param localized_wfn_control variables and directives for the localization
+!> \param qs_env the qs_env in which the qs_env lives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      similar to the old one, but not quite
+!> \par History
+!>      04.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE qs_loc_env_init(qs_loc_env,localized_wfn_control,qs_env,myspin,do_localize,error)
 
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
@@ -558,45 +477,31 @@ CONTAINS
 
        ENDIF
 
-
        qs_loc_env%molecular_states = .FALSE.
     END IF
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qs_loc_env_init
 
-!******************************************************************************
-!!****f* qs_loc_types/get_berry_operator [1.0] *
-!!
-!!   NAME
-!!     get_berry_operator
-!!
-!!   FUNCTION
-!!      Computes the Berry operator for periodic systems
-!!      used to define the spread of the MOS
-!!      Here the matrix elements of the type <mu|cos(kr)|nu> and  <mu|sin(kr)|nu>
-!!      are computed, where mu and nu are the contracted basis functions.
-!!      Namely the Berry operator is exp(ikr)
-!!      k is defined somewhere
-!!      the pair lists are exploited and sparse matrixes are constructed
-!!
-!!   NOTES
-!!     The intgrals are computed analytically  using the primitives GTO
-!!     The contraction is performed block-wise
-!!
-!!   ARGUMENTS
-!!     - qs_loc_env: new environment for the localization calculations
-!!     - qs_env: the qs_env in which the qs_env lives
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     MI
-!!
-!!   MODIFICATION HISTORY
-!!     04.2005 created [MI]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief Computes the Berry operator for periodic systems
+!>       used to define the spread of the MOS
+!>       Here the matrix elements of the type <mu|cos(kr)|nu> and  <mu|sin(kr)|nu>
+!>       are computed, where mu and nu are the contracted basis functions.
+!>       Namely the Berry operator is exp(ikr)
+!>       k is defined somewhere
+!>       the pair lists are exploited and sparse matrixes are constructed
+!> \param qs_loc_env new environment for the localization calculations
+!> \param qs_env the qs_env in which the qs_env lives
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \note
+!>      The intgrals are computed analytically  using the primitives GTO
+!>      The contraction is performed block-wise
+!> \par History
+!>      04.2005 created [MI]
+!> \author MI
+! *****************************************************************************
   SUBROUTINE get_berry_operator ( qs_loc_env, qs_env, error )
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -655,7 +560,6 @@ CONTAINS
     NULLIFY (cosabt,sinabt, workt,cosab,sinab, work)
     NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb)
     NULLIFY (set_radius_a,set_radius_b,rpgfa, rpgfb, sphi_a,sphi_b,zeta, zetb )
-
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set, sab_orb=sab_orb,error=error)
@@ -872,7 +776,6 @@ CONTAINS
                     cosab = 0.0_dp
                     sinab = 0.0_dp
 
-
                     CALL cossin(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                               lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
                               ra,rb,kvec,cosab,sinab)
@@ -887,7 +790,6 @@ CONTAINS
                     kvec(3) = twopoLz
                     cosab = 0.0_dp
                     sinab = 0.0_dp
-
 
                     CALL cossin(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                               lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&

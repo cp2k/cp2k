@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/xc_derivative_set_types [1.0] *
-!!
-!!   NAME
-!!     xc_derivative_set_types
-!!
-!!   FUNCTION
-!!     represent a group ofunctional derivatives
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     fawzi & thomas
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief represent a group ofunctional derivatives
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi & thomas
+! *****************************************************************************
 MODULE xc_derivative_set_types
   USE cp_linked_list_xc_deriv,         ONLY: cp_sll_xc_deriv_dealloc,&
                                              cp_sll_xc_deriv_insert_ordered,&
@@ -59,19 +45,11 @@ MODULE xc_derivative_set_types
   PUBLIC :: xc_derivative_set_type
   PUBLIC :: xc_dset_create, xc_dset_release, xc_dset_retain, &
             xc_dset_get_derivative, xc_dset_zero_all
-!!***
-!****************************************************************************
 
-!!****t* xc_derivative_set_types/xc_derivative_set_type  *
-!!
-!!   NAME
-!!     xc_derivative_set_type
-!!
-!!   FUNCTION
-!!     A derivative set contains the different derivatives of a xc-functional
-!!     in form of a linked list
-!!
-!!****
+! *****************************************************************************
+!> \brief A derivative set contains the different derivatives of a xc-functional
+!>      in form of a linked list
+! *****************************************************************************
   TYPE xc_derivative_set_type
      INTEGER :: ref_count, id_nr
      TYPE(pw_pool_type), POINTER :: pw_pool
@@ -80,36 +58,15 @@ MODULE xc_derivative_set_types
 
 CONTAINS
 
-!!****f* xc_derivative_set_types/xc_dset_get_derivative [1.0] *
-!!
-!!   NAME
-!!     xc_dset_get_derivative
-!!
-!!   SYNOPSIS
-!!     Function xc_dset_get_derivative(derivative_set, description,&
-!!         allocate_deriv, error) Result(res)
-!!       Type(xc_derivative_set_type), Pointer:: derivative_set
-!!       Character(Len=*), Intent (IN):: description
-!!       Logical, Intent (IN), Optional:: allocate_deriv
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Type(xc_derivative_type), Pointer:: res
-!!     End Function xc_dset_get_derivative
-!!
-!!   FUNCTION
-!!     returns the requested xc_derivative
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - derivative_set: the set where to search for the derivative
-!!     - description   : the description of the derivative you want to have
-!!     - allocate_deriv: if the derivative should be allocated when not present
-!!                       Defaults to false.
-!!     - error         : variable to control error logging, stopping,...
-!!                       see module cp_error_handling
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief returns the requested xc_derivative
+!> \param derivative_set the set where to search for the derivative
+!> \param description the description of the derivative you want to have
+!> \param allocate_deriv if the derivative should be allocated when not present
+!>                        Defaults to false.
+!> \param error variable to control error logging, stopping,...
+!>                        see module cp_error_handling
+! *****************************************************************************
   FUNCTION xc_dset_get_derivative(derivative_set, description, allocate_deriv, error) &
        RESULT(res)
 
@@ -158,31 +115,15 @@ CONTAINS
        END IF
     END IF
   END FUNCTION xc_dset_get_derivative
-  !***************************************************************************
 
-!!****f* xc_derivative_set_types/xc_dset_create [1.0] *
-!!
-!!   NAME
-!!     xc_dset_create
-!!
-!!   SYNOPSIS
-!!     Subroutine xc_dset_create(derivative_set, pw_pool, error)
-!!       Type(xc_derivative_set_type), Pointer:: derivative_set
-!!       Type(pw_pool_type), Pointer:: pw_pool
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine xc_dset_create
-!!
-!!   FUNCTION
-!!     creates a derivative set object
-!!
-!!   INPUTS
-!!     - derivative_set : the set where to search for the derivative
-!!     - pw_pool: pool where to get the cr3d arrays needed to store the
-!!       derivatives
-!!     - error   : variable to control error logging, stopping,...
-!!                 see module cp_error_handling
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief creates a derivative set object
+!> \param derivative_set the set where to search for the derivative
+!> \param pw_pool pool where to get the cr3d arrays needed to store the
+!>        derivatives
+!> \param error variable to control error logging, stopping,...
+!>                  see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE xc_dset_create(derivative_set, pw_pool, local_bounds, error)
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
@@ -229,28 +170,13 @@ CONTAINS
     END IF
 
   END SUBROUTINE xc_dset_create
-  !***************************************************************************
 
-!!****f* xc_derivative_set_types/xc_dset_release [1.0] *
-!!
-!!   NAME
-!!     xc_dset_release
-!!
-!!   SYNOPSIS
-!!     Subroutine xc_dset_release(derivative_set, error)
-!!       Type(xc_derivative_set_type), Pointer:: derivative_set
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine xc_dset_release
-!!
-!!   FUNCTION
-!!     releases a derivative set
-!!
-!!   INPUTS
-!!     - set     : the set to release
-!!     - error   : variable to control error logging, stopping,...
-!!                 see module cp_error_handling
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases a derivative set
+!> \param set the set to release
+!> \param error variable to control error logging, stopping,...
+!>                  see module cp_error_handling
+! *****************************************************************************
   SUBROUTINE xc_dset_release(derivative_set, error)
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
@@ -288,37 +214,16 @@ CONTAINS
     NULLIFY(derivative_set)
 
   END SUBROUTINE xc_dset_release
-  !***************************************************************************
 
-!!****f* xc_derivative_set_types/xc_dset_retain [1.0] *
-!!
-!!   NAME
-!!     xc_dset_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine xc_dset_retain(deriv_set, error)
-!!       Type(xc_derivative_set_type), Pointer:: deriv_set
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine xc_dset_retain
-!!
-!!   FUNCTION
-!!     retains the given derivative set
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - deriv_set: the derivative set to retain
-!!     - error: variable to control error logging, stopping,...
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains the given derivative set
+!> \param deriv_set the derivative set to retain
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \par History
+!>      11.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE xc_dset_retain(deriv_set,error)
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -336,8 +241,8 @@ SUBROUTINE xc_dset_retain(deriv_set,error)
      deriv_set%ref_count=deriv_set%ref_count+1
   END IF
 END SUBROUTINE xc_dset_retain
-!***************************************************************************
 
+! *****************************************************************************
 SUBROUTINE xc_dset_zero_all(deriv_set, error)
 
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -362,8 +267,5 @@ SUBROUTINE xc_dset_zero_all(deriv_set, error)
   END IF
 
 END SUBROUTINE xc_dset_zero_all
-
-!***************************************************************************
-
 
 END MODULE xc_derivative_set_types

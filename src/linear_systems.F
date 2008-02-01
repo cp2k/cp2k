@@ -2,28 +2,17 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/linear_systems [1.0] *
-!!
-!!   NAME
-!!     linear_systems
-!!
-!!   FUNCTION
-!!     Provides interfaces to LAPACK routines for factorisation and
-!!     linear system solving
-!!
-!!   AUTHOR
-!!     JGH (30-5-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   NOTES
-!!     We are using LAPACK interfaces, so please make sure in IBM/AIX you have
-!!     the lapack library before essl: "xlf90 ... -llapack -lessl" !!!
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Provides interfaces to LAPACK routines for factorisation and
+!>      linear system solving
+!> \note
+!>      We are using LAPACK interfaces, so please make sure in IBM/AIX you have
+!>      the lapack library before essl: "xlf90 ... -llapack -lessl" !!!
+!> \par History
+!>      none
+!> \author JGH (30-5-2001)
+! *****************************************************************************
 MODULE linear_systems
 
   USE f77_blas
@@ -47,15 +36,10 @@ MODULE linear_systems
      MODULE PROCEDURE ch_inv_pdher
   END INTERFACE
 
-!!*****
-!******************************************************************************
-
 CONTAINS
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE ch_inv_pdsym ( matrix, mysize, storageform )
-
 
     REAL(KIND=dp), INTENT(INOUT)             :: matrix( :, : )
     INTEGER, INTENT(IN)                      :: mysize
@@ -91,10 +75,8 @@ SUBROUTINE ch_inv_pdsym ( matrix, mysize, storageform )
 
 END SUBROUTINE ch_inv_pdsym
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE ch_inv_pdher ( matrix, mysize, storageform )
-
 
     COMPLEX(KIND=dp), INTENT(INOUT)          :: matrix( :, : )
     INTEGER, INTENT(IN)                      :: mysize
@@ -130,9 +112,8 @@ SUBROUTINE ch_inv_pdher ( matrix, mysize, storageform )
 
 END SUBROUTINE ch_inv_pdher
 
-!******************************************************************************
+! *****************************************************************************
 SUBROUTINE solve_system ( matrix, mysize, eigenvectors )
-
 
     REAL(KIND=dp), INTENT(INOUT)             :: matrix( :, : )
     INTEGER, INTENT(IN)                      :: mysize
@@ -153,8 +134,5 @@ SUBROUTINE solve_system ( matrix, mysize, eigenvectors )
 
 END SUBROUTINE solve_system
 
-!******************************************************************************
-
 END MODULE linear_systems
 
-!******************************************************************************

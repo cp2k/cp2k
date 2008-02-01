@@ -3,26 +3,12 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-
-!!****h* cp2k/qs_diis_types [1.0] *
-!!
-!!   NAME
-!!     qs_diis_types
-!!
-!!   FUNCTION
-!!     buffer for the diis of the scf
-!!
-!!   NOTES
-!!     -
-!!
-!!   AUTHOR
-!!     Matthias Krack
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 rewamped [fawzi]
-!!
-!!   SOURCE
-!****************************************************************************
+! *****************************************************************************
+!> \brief buffer for the diis of the scf
+!> \par History
+!>      02.2003 rewamped [fawzi]
+!> \author Matthias Krack
+! *****************************************************************************
 MODULE qs_diis_types
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
@@ -39,93 +25,42 @@ MODULE qs_diis_types
 
   PUBLIC :: qs_diis_buffer_type
   PUBLIC :: qs_diis_b_retain, qs_diis_b_release
-!!***
-!****************************************************************************
 
-  !!****s* qs_diis_types/qs_diis_buffer_type [1.0] *
-  !!
-  !!   NAME
-  !!     qs_diis_buffer_type
-  !!
-  !!   FUNCTION
-  !!     keeps a buffer with the previous values of s,p,k
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     -
-  !!
-  !!   AUTHOR
-  !!     Matthias Krack
-  !!
-  !!   MODIFICATION HISTORY
-  !!     02.2003 rewamped [fawzi]
-  !!
-  !!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief keeps a buffer with the previous values of s,p,k
+!> \par History
+!>      02.2003 rewamped [fawzi]
+!> \author Matthias Krack
+! *****************************************************************************
   TYPE qs_diis_buffer_type
     INTEGER                                          :: nbuffer,ncall,&
          id_nr,ref_count
     TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: error,PARAMETER
     REAL(KIND = dp), DIMENSION(:,:), POINTER                :: b_matrix
   END TYPE qs_diis_buffer_type
-  !!***
-  !****************************************************************************
 
-  !!****s* qs_diis_types/qs_diis_buffer_p_type [1.0] *
-  !!
-  !!   NAME
-  !!     qs_diis_buffer_p_type
-  !!
-  !!   FUNCTION
-  !!     build array of pointers to diis buffers
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     - diis_buffer: the diis buffer pointer
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!   MODIFICATION HISTORY
-  !!     02.2003 created [fawzi]
-  !!
-  !!   SOURCE
-  !***************************************************************************
+! *****************************************************************************
+!> \brief build array of pointers to diis buffers
+!> \param diis_buffer the diis buffer pointer
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
   TYPE qs_diis_buffer_p_type
      TYPE(qs_diis_buffer_type), POINTER :: diis_buffer
   END TYPE qs_diis_buffer_p_type
-  !!***
-  !****************************************************************************
 
 CONTAINS
 
-!!****f* qs_diis_types/qs_diis_b_retain [1.0] *
-!!
-!!   NAME
-!!     qs_diis_b_retain
-!!
-!!   FUNCTION
-!!     retains a diis buffer (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - diis_buffer: the buffer to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief retains a diis buffer (see doc/ReferenceCounting.html)
+!> \param diis_buffer the buffer to retain
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE qs_diis_b_retain(diis_buffer,error)
     TYPE(qs_diis_buffer_type), POINTER       :: diis_buffer
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -143,31 +78,16 @@ SUBROUTINE qs_diis_b_retain(diis_buffer,error)
      diis_buffer%ref_count=diis_buffer%ref_count+1
   END IF
 END SUBROUTINE qs_diis_b_retain
-!***************************************************************************
 
-!!****f* qs_diis_types/qs_diis_b_release [1.0] *
-!!
-!!   NAME
-!!     qs_diis_b_release
-!!
-!!   FUNCTION
-!!     releases the given diis buffer (see doc/ReferenceCounting.html)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - diis_buffer: the buffer to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief releases the given diis buffer (see doc/ReferenceCounting.html)
+!> \param diis_buffer the buffer to release
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \par History
+!>      02.2003 created [fawzi]
+!> \author fawzi
+! *****************************************************************************
 SUBROUTINE qs_diis_b_release(diis_buffer,error)
     TYPE(qs_diis_buffer_type), POINTER       :: diis_buffer
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -212,6 +132,5 @@ SUBROUTINE qs_diis_b_release(diis_buffer,error)
      END IF
   END IF
 END SUBROUTINE qs_diis_b_release
-!***************************************************************************
 
 END MODULE qs_diis_types
