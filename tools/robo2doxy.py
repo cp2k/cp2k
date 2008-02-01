@@ -1,4 +1,4 @@
-import sys,re,os.path
+import sys,re,os.path,StringIO
 import normalizeFortranFile
 from normalizeFortranFile import readFortranLine
 """script to convert robodoc headers to doxygen headers
@@ -133,9 +133,6 @@ def printRoboDoc(info,outF=sys.stdout,isspace=0):
     #    outF.write("!> \struct %s\n"%(info['name'][0].strip()))
     lines=drop_trailing(info['brief'])
     if len(lines)>0:
-        if not isspace:
-            outF.write('\n')
-        outF.write('! '+(77*'*')+'\n')
         outF.write(pre)
         outF.write('\\brief ')
         i0=len(lines)
@@ -253,7 +250,16 @@ if __name__=='__main__':
             if basicFluff2Re.match(lines[0]):
                 continue
             (jline,comments,lines,info)=parseRoboDoc(lines,inFile)
-            didDocAtt=printRoboDoc(info,outF,isspace)
+            output = StringIO.StringIO()
+            didDocAtt=printRoboDoc(info,output,isspace)
+            doc=output.getvalue()
+            if not doc:
+                didDocAtt=0
+            if didDocAtt:
+                if not isspace:
+                    outF.write('\n')
+                outF.write('! '+(77*'*')+'\n')
+            outF.write(doc)
             if didDocAtt:
                 didDoc=1
                 if inBody:
