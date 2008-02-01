@@ -828,7 +828,7 @@ CONTAINS
            enuc=enuc+(sepj%a*EXP(-sepj%b*(rij-sepj%c)**2))*sepi%zeff*sepj%zeff/rij
            ! Hard core repulsion
            enuc=enuc+1.e-8_dp/evolt &
-              * ( (sepi%zeff**(1._dp/3._dp) + sepj%zeff**(1._dp/3._dp))/rija )**12
+              * ( (REAL(sepi%z,dp)**(1._dp/3._dp) + REAL(sepj%z,dp)**(1._dp/3._dp))/rija )**12
          END IF
  
       END IF

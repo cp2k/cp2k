@@ -122,5 +122,7 @@ h2po4.inp
 st.inp
 #  
 h2po4.inp
-# numerics
+#
+hcn_pm6.inp
 b2h6_pm6.inp
+ch2o_pm6.inp
