@@ -93,6 +93,10 @@ MODULE xc_derivatives
                                              xb88_lr_lda_info,&
                                              xb88_lr_lsd_eval,&
                                              xb88_lr_lsd_info
+  USE xc_xbecke88_lr_adiabatic,        ONLY: xb88_lr_adiabatic_lda_eval,&
+                                             xb88_lr_adiabatic_lda_info,&
+                                             xb88_lr_adiabatic_lsd_eval,&
+                                             xb88_lr_adiabatic_lsd_info
   USE xc_xwpbe,                        ONLY: xwpbe_lda_eval,&
                                              xwpbe_lda_info,&
                                              xwpbe_lsd_eval,&
@@ -161,6 +165,14 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
   CPPrecondition(ASSOCIATED(functional),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      SELECT CASE(functional%section%name)
+     CASE("BECKE88_LR_ADIABATIC")
+        IF (lsd) THEN
+           CALL xb88_lr_adiabatic_lsd_info(reference=reference,shortform=shortform,&
+                needs=needs, max_deriv=max_deriv, error=error)
+        ELSE
+           CALL xb88_lr_adiabatic_lda_info(reference=reference,shortform=shortform,&
+                needs=needs, max_deriv=max_deriv, error=error)
+        END IF
      CASE("LYP_ADIABATIC")
         IF (lsd) THEN
            CALL lyp_adiabatic_lsd_info(reference=reference,shortform=shortform,&
@@ -360,6 +372,12 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
      END IF
 
      SELECT CASE(functional%section%name)
+     CASE("BECKE88_LR_ADIABATIC")
+        IF (lsd) THEN
+           CALL xb88_lr_adiabatic_lsd_eval(rho_set,deriv_set,deriv_order,functional,error=error)
+        ELSE
+           CALL xb88_lr_adiabatic_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
+        END IF
      CASE("LYP_ADIABATIC")
         IF (lsd) THEN
            CALL lyp_adiabatic_lsd_eval(rho_set,deriv_set,deriv_order,functional,error=error)

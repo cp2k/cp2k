@@ -6,22 +6,28 @@
 !!****h* cp2k/xc_lyp_adiabatic [1.0] *
 !!
 !!   NAME
-!!     xc_lyp
+!!     xc_lyp_adiabatic
 !!
 !!   FUNCTION
-!!     calculates the lyp correlation functional
+!!     Calculates the density_scaled Lyp functional when used in adiabatic hybrids.
+!!     The energy is given as
+!!
+!!       Ec = 2*lambda*Ec(rho/lambda) + lambda^2*d/dlambda(Ec(rho/lambda)), 
+!!   
+!!     where rho/lambda is the scaled density 
 !!
 !!   NOTES
 !!     -
 !!
 !!   AUTHOR
-!!     fawzi
+!!     Manuel Guidon 
 !!
 !!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
+!!     1.2008 created [mguidon]
 !!
 !!   SOURCE
 !****************************************************************************
+
 MODULE xc_lyp_adiabatic
   USE bibliography,                    ONLY: Lee1988,&
                                              cite_reference

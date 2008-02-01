@@ -321,6 +321,7 @@ CONTAINS
   !!
   !!   NOTES
   !!     - Just took the lsd code and scaled rho and ndrho by 1/2 (e_0 with 2.0)
+  !!     - Derivatives higher than 1 not tested
   !!
   !!   ARGUMENTS
   !!     - rho: alpha or beta spin density
@@ -1133,7 +1134,7 @@ CONTAINS
   !!     low level calculation of the becke 88 exchange functional for lsd
   !!
   !!   NOTES
-  !!     -
+  !!     - Derivatives higher than one not tested
   !!
   !!   ARGUMENTS
   !!     - rho_spin: alpha or beta spin density
