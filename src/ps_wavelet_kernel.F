@@ -57,8 +57,8 @@ CONTAINS
 !!    calculating the convolution with the kernel expressed in the interpolating scaling
 !!    function basis. The kernel pointer is unallocated on input, allocated on output.
 !!
-!! SYNOPSIS
-!!    geocode  Indicates the boundary conditions (BC) of the problem:
+!! ARGUMENTS
+!!   - geocode:  Indicates the boundary conditions (BC) of the problem:
 !!            'F' free BC, isolated systems.
 !!                The program calculates the solution as if the given density is
 !!                "alone" in R^3 space.
@@ -70,12 +70,12 @@ CONTAINS
 !!                The density is supposed to be periodic in all the three directions,
 !!                then all the dimensions must be compatible with the FFT.
 !!                No need for setting up the kernel.
-!!    iproc,nproc number of process, number of processes
-!!    n01,n02,n03 dimensions of the real space grid to be hit with the Poisson Solver
-!!    itype_scf   order of the interpolating scaling functions used in the decomposition
-!!    hx,hy,hz    grid spacings. For the isolated BC case for the moment they are supposed to 
+!!    - iproc,nproc: number of process, number of processes
+!!    - n01,n02,n03; dimensions of the real space grid to be hit with the Poisson Solver
+!!    - itype_scf:   order of the interpolating scaling functions used in the decomposition
+!!    - hx,hy,hz:    grid spacings. For the isolated BC case for the moment they are supposed to 
 !!                be equal in the three directions
-!!    kernel      pointer for the kernel FFT. Unallocated on input, allocated on output.
+!!    - kernel:      pointer for the kernel FFT. Unallocated on input, allocated on output.
 !!                Its dimensions are equivalent to the region of the FFT space for which the
 !!                kernel is injective. This will divide by two each direction, 
 !!                since the kernel for the zero-padded convolution is real and symmetric.
@@ -233,14 +233,14 @@ END SUBROUTINE createKernel
 !!    in an interpolating scaling functions basis.
 !!    Beware of the fact that the nonperiodic direction is y!
 !!
-!! SYNOPSIS
-!!    n1,n2,n3           Dimensions for the FFT
-!!    m3                 Actual dimension in non-periodic direction
-!!    nker1,nker2,nker3  Dimensions of the kernel (nker3=n3/2+1) nker(1,2)=n(1,2)/2+1
-!!    h1,h2,h3           Mesh steps in the three dimensions
-!!    itype_scf          Order of the scaling function
-!!    iproc,nproc        Number of process, number of processes
-!!    karray             output array
+!! ARGUMENTS
+!!    - n1,n2,n3         :  Dimensions for the FFT
+!!    - m3               :  Actual dimension in non-periodic direction
+!!    - nker1,nker2,nker3:  Dimensions of the kernel (nker3=n3/2+1) nker(1,2)=n(1,2)/2+1
+!!    - h1,h2,h3         :  Mesh steps in the three dimensions
+!!    - itype_scf        :  Order of the scaling function
+!!    - iproc,nproc      :  Number of process, number of processes
+!!    - karray           :  output array
 !!
 !! AUTHOR
 !!    L. Genovese
@@ -879,16 +879,16 @@ END SUBROUTINE indices
 !!    Do the parallel HalFFT of the symmetrized function and stores into
 !!    memory only 1/8 of the grid divided by the number of processes nproc
 !!
-!! SYNOPSIS
 !!    Build the kernel (karray) of a gaussian function
 !!    for interpolating scaling functions
 !!    $$ K(j) = \sum_k \omega_k \int \int \phi(x) g_k(x'-x) \delta(x'- j) dx dx' $$
 !!
-!!    n01,n02,n03        Mesh dimensions of the density
-!!    nfft1,nfft2,nfft3  Dimensions of the FFT grid (HalFFT in the third direction)
-!!    n1k,n2k,n3k        Dimensions of the kernel FFT
-!!    hgrid              Mesh step
-!!    itype_scf          Order of the scaling function (8,14,16)
+!!    ARGUMENTS
+!!    - n01,n02,n03       : Mesh dimensions of the density
+!!    - nfft1,nfft2,nfft3 : Dimensions of the FFT grid (HalFFT in the third direction)
+!!    - n1k,n2k,n3k       : Dimensions of the kernel FFT
+!!    - hgrid             : Mesh step
+!!    - itype_scf         : Order of the scaling function (8,14,16)
 !!
 !! AUTHORS
 !!    T. Deutsch, L. Genovese
@@ -1134,20 +1134,20 @@ END SUBROUTINE inserthalf
 !!     (Based on suitable modifications of S.Goedecker routines)
 !!     Calculates the FFT of the distributed kernel
 !!
-!! SYNOPSIS
-!!     zf:          Real kernel (input)
+!! ARGUMENTS
+!!     - zf:          Real kernel (input)
 !!                  zf(i1,i2,i3)
-!!     zr:          Distributed Kernel FFT 
+!!     - zr:          Distributed Kernel FFT 
 !!                  zr(2,i1,i2,i3)
-!!     nproc:       number of processors used as returned by MPI_COMM_SIZE
-!!     iproc:       [0:nproc-1] number of processor as returned by MPI_COMM_RANK
-!!     n1,n2,n3:    logical dimension of the transform. As transform lengths 
+!!     - nproc:       number of processors used as returned by MPI_COMM_SIZE
+!!     - iproc:       [0:nproc-1] number of processor as returned by MPI_COMM_RANK
+!!     - n1,n2,n3:    logical dimension of the transform. As transform lengths 
 !!                  most products of the prime factors 2,3,5 are allowed.
 !!                  The detailed table with allowed transform lengths can 
 !!                  be found in subroutine CTRIG
-!!     nd1,nd2,nd3: Dimensions of work arrays
+!!     - nd1,nd2,nd3: Dimensions of work arrays
 !!
-!! RESTRICTIONS on USAGE
+!! RESTRICTIONS
 !!     Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
 !!     Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1999
 !!     Copyright (C) 2002 Stefan Goedecker, CEA Grenoble
