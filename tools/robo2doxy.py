@@ -104,7 +104,7 @@ def drop_trailing(linee):
         del lines[0]
     return lines
 
-def printRoboDoc(info,outF=sys.stdout):
+def printRoboDoc(info,outF=sys.stdout,isspace=0):
     # print info['name'],info['pname']
     toRm=['trash','pname','name']
     pre=['brief','special','params']
@@ -130,6 +130,9 @@ def printRoboDoc(info,outF=sys.stdout):
     #    outF.write("!> \struct %s\n"%(info['name'][0].strip()))
     lines=drop_trailing(info['brief'])
     if len(lines)>0:
+        if not isspace:
+            outF.write('\n')
+        outF.write('! '+(77*'*')+'\n')
         outF.write(pre)
         outF.write('\\brief ')
         i0=len(lines)
@@ -222,8 +225,11 @@ if __name__=='__main__':
     outF=file(sys.argv[1][:-1]+'f90','w')
     roboDocRe=re.compile(" *!!")
     # fluffRe=re.compile(r" *![+=* ]+$")
-    basicFluffRe=re.compile(r" *!\** *\** *$")
+    basicFluffRe=re.compile(r" *!\** *\*+ *$")
     basicFluff2Re=re.compile(r" *!! *\** *\** *$")
+    separatePreRe=re.compile(r" *(?:(?:end +)?module +[a-zA-Z]|type +[a-zA-Z]|(?:recursive +|pure +|elemental +)*(?:subroutine|function) +[a-zA-Z])",re.IGNORECASE)
+    #separatePostRe=re.compile(r" *end +(?:subroutine|function|type|module)",re.IGNORECASE)
+    isspace=1
     while 1:
         (jline,comments,lines)=readFortranLine(inFile)
         if not lines: break
@@ -231,8 +237,23 @@ if __name__=='__main__':
             if basicFluff2Re.match(lines[0]):
                 continue
             (jline,comments,lines,info)=parseRoboDoc(lines,inFile)
-            printRoboDoc(info,outF)
+            printRoboDoc(info,outF,isspace)
+            isspace=1
+        if separatePreRe.match(lines[0]):
+            outF.write('! '+(77*'*')+'\n')
+            for l in lines:
+                outF.write(l)
+            isspace=0
+            continue
+        #if separatePostRe.match(lines[0]):
+        #    for l in lines:
+        #        outF.write(l)
+        #    outF.write('! '+(77*'*')+'\n')
+        #    isspace=1
+        #    continue
         for l in lines:
             if not basicFluffRe.match(l):
-                outF.write(l)
+                if not isspace or not l.isspace():
+                    outF.write(l)
+                isspace=l.isspace()
     outF.close()
