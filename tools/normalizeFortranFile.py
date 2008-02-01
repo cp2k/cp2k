@@ -848,7 +848,7 @@ def rewriteFortranFile(inFile,outFile,logFile=sys.stdout,orig_filename=None):
     """rewrites the use statements and declarations of inFile to outFile.
     It sorts them and removes the repetitions."""
     import os.path
-    moduleRe=re.compile(r" *(?:module|program) (?P<moduleName>[a-zA-Z_][a-zA-Z_0-9]*) *(?:!.*)?$",
+    moduleRe=re.compile(r" *(?:module|program) +(?P<moduleName>[a-zA-Z_][a-zA-Z_0-9]*) *(?:!.*)?$",
                         flags=re.IGNORECASE)
     commonUsesIncludeFilepath=os.path.join(
         os.path.split(os.path.abspath(inFile.name))[0],"cp_common_uses.h")
