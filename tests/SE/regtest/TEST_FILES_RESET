@@ -126,3 +126,5 @@ h2po4.inp
 hcn_pm6.inp
 b2h6_pm6.inp
 ch2o_pm6.inp
+# reset after bug on core PM6
+b2h6_pm6.inp
