@@ -18,7 +18,8 @@
 !!   MODIFICATION HISTORY
 !!   SOURCE
 !!
-!!   REFERENCE LIST: a list of papers for the theory behind various MC moves
+!!   REFERENCES
+!!   a list of papers for the theory behind various MC moves
 !!   Books:
 !!      D. Frenkel, B. Smit: Understanding Molecular Simulation (1996)
 !!      M.P. Allen, D.J. Tildesley: Computer Simulations of Liquids (1987)
