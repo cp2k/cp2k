@@ -6,7 +6,7 @@
 
 !!****h* cp2k/qmmm_links_methods [1.0] *
 !!
-!!   NAME MODULE
+!!   NAME
 !!     qmmm_links_methods
 !!
 !!   FUNCTION

@@ -5,7 +5,7 @@
 
 !!****h* cp2k/qmmm_gpw_energy [1.0] *
 !!
-!!   NAME MODULE
+!!   NAME
 !!     qmmm_gpw_energy
 !!
 !!   FUNCTION

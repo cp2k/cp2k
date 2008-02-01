@@ -72,8 +72,8 @@ CONTAINS
 !!     Return some info on the functionals.
 !!
 !!   ARGUMENTS
-!!     reference - CHARACTER(*), INTENT(OUT), OPTIONAL - full reference
-!!     shortform - CHARACTER(*), INTENT(OUT), OPTIONAL - short reference
+!!     - reference : full reference
+!!     - shortform : short reference
 !!
 !!****
   SUBROUTINE perdew_wang_info ( method, lsd, reference, shortform, needs, &
@@ -152,8 +152,8 @@ CONTAINS
 !!     Initializes the functionals
 !!
 !!   ARGUMENTS
-!!     method - CHARACTER(3) - name of the method used for parameters
-!!     cutoff - REAL(KIND=dp) - the cutoff density
+!!     - method : name of the method used for parameters
+!!     - cutoff : the cutoff density
 !!
 !!****
   SUBROUTINE perdew_wang_init(method, cutoff)
@@ -238,8 +238,7 @@ CONTAINS
 !!     just the energy.
 !!
 !!   ARGUMENTS
-!!     order - INTEGER - order of derivatives to calculate
-!!
+!!     - order : order of derivatives to calculate
 !!     order must lie between -3 and 3. If it is negative then only
 !!     that order will be calculated, otherwise all derivatives up to
 !!     that order will be calculated.
@@ -395,8 +394,7 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
 !!     just the energy.
 !!
 !!   ARGUMENTS
-!!     order - INTEGER, OPTIONAL - order of derivatives to calculate
-!!
+!!     - order : order of derivatives to calculate
 !!     order must lie between -3 and 3. If it is negative then only
 !!     that order will be calculated, otherwise all derivatives up to
 !!     that order will be calculated.

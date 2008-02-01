@@ -283,7 +283,6 @@ CONTAINS
 !!     -
 !!
 !!   ARGUMENTS
-!!     to do
 !!     - error: variable to control error logging, stopping,...
 !!       see module cp_error_handling
 !!

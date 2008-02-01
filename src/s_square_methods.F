@@ -77,9 +77,9 @@ CONTAINS
 !!
 !!
 !!   INPUTS
-!!      mos, matrix_s : input
-!!      s_square, s_square_ideal : out
-!!      mo_derivs     : inout if present, add the derivative of s_square wrt mos to mo_derivs
+!!      - mos, matrix_s : input
+!!      - s_square, s_square_ideal : out
+!!      - mo_derivs     : inout if present, add the derivative of s_square wrt mos to mo_derivs
 !!
 !!
 !!   MODIFICATION HISTORY
