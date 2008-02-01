@@ -13,8 +13,7 @@
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     September 2005 - Introduced the Born-Mayer-Huggins-Fumi-Tosi  Potential
-!!                      BMHTF
+!!     September 2005 - Introduced the Born-Mayer-Huggins-Fumi-Tosi  Potential (BMHTF)
 !!     2006 - Major rewriting of the routines.. Linear scaling setup of splines
 !!     2007 - Teodoro Laino - University of Zurich - Multiple potential 
 !!            Major rewriting nr.2

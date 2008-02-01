@@ -1001,7 +1001,7 @@ END SUBROUTINE make_full_single_inverse
 !!     from the c0 used in the OT setup, there will be a bug).
 !!
 !!   INPUTS
-!!     energy_gap, should be a slight underestimate of the physical energy gap for almost all systems
+!!     - energy_gap:  should be a slight underestimate of the physical energy gap for almost all systems
 !!     the c0 are already ritz states of (h,s)
 !!
 !!   MODIFICATION HISTORY

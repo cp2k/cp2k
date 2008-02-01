@@ -56,8 +56,8 @@ CONTAINS
   !!    from a given $\rho$, for different boundary conditions an for different data distributions.
   !!    Following the boundary conditions, it applies the Poisson Kernel previously calculated.
   !!
-  !! SYNOPSIS
-  !!    geocode  Indicates the boundary conditions (BC) of the problem:
+  !! ARGUMENTS
+  !!    -geocode:  Indicates the boundary conditions (BC) of the problem:
   !!            'F' free BC, isolated systems.
   !!                The program calculates the solution as if the given density is
   !!                "alone" in R^3 space.
@@ -69,7 +69,7 @@ CONTAINS
   !!                The density is supposed to be periodic in all the three directions,
   !!                then all the dimensions must be compatible with the FFT.
   !!                No need for setting up the kernel.
-  !!    datacode Indicates the distribution of the data of the input/output array:
+  !!    -datacode: Indicates the distribution of the data of the input/output array:
   !!            'G' global data. Each process has the whole array of the density 
   !!                which will be overwritten with the whole array of the potential
   !!            'D' distributed data. Each process has only the needed part of the density
@@ -78,19 +78,19 @@ CONTAINS
   !!                gradient, needed for XC part, and for the White-Bird correction, which
   !!                may lead up to 8 planes more on each side. Due to this fact, the information
   !!                between the processors may overlap.
-  !!    nproc       number of processors
-  !!    iproc       label of the process,from 0 to nproc-1
-  !!    n01,n02,n03 global dimension in the three directions. They are the same no matter if the 
+  !!    -nproc:       number of processors
+  !!    -iproc:       label of the process,from 0 to nproc-1
+  !!    -n01,n02,n03: global dimension in the three directions. They are the same no matter if the 
   !!                datacode is in 'G' or in 'D' position.
-  !!    hx,hy,hz    grid spacings. For the isolated BC case for the moment they are supposed to 
+  !!    -hx,hy,hz:    grid spacings. For the isolated BC case for the moment they are supposed to 
   !!                be equal in the three directions
-  !!    rhopot      main input/output array.
+  !!    -rhopot:      main input/output array.
   !!                On input, it represents the density values on the grid points
   !!                On output, it is the Hartree potential, namely the solution of the Poisson 
   !!                equation PLUS (when ixc/=0) the XC potential PLUS (again for ixc/=0) the 
   !!                pot_ion array. The output is non overlapping, in the sense that it does not
   !!                consider the points that are related to gradient and WB calculation
-  !!    karray      kernel of the poisson equation. It is provided in distributed case, with
+  !!    -karray:      kernel of the poisson equation. It is provided in distributed case, with
   !!                dimensions that are related to the output of the PS_dim4allocation routine
   !!                it MUST be created by following the same geocode as the Poisson Solver.
   !! WARNING
@@ -253,18 +253,18 @@ CONTAINS
   !!    Calculate four sets of dimension needed for the calculation of the
   !!    convolution for the periodic system
   !!
-  !! SYNOPSIS
-  !!    n01,n02,n03 original real dimensions (input)
+  !! ARGUMENTS
+  !!    -n01,n02,n03: original real dimensions (input)
   !!
-  !!    m1,m2,m3 original real dimension, with m2 and m3 exchanged
+  !!    -m1,m2,m3: original real dimension, with m2 and m3 exchanged
   !!
-  !!    n1,n2,n3 the first FFT dimensions, for the moment supposed to be even
+  !!    -n1,n2,n3: the first FFT dimensions, for the moment supposed to be even
   !!
-  !!    md1,md2,md3 the n1,n2,n3 dimensions. They contain the real unpadded space,
+  !!    -md1,md2,md3: the n1,n2,n3 dimensions. They contain the real unpadded space,
   !!                properly enlarged to be compatible with the FFT dimensions n_i.
   !!                md2 is further enlarged to be a multiple of nproc
   !!
-  !!    nd1,nd2,nd3 fourier dimensions for which the kernel is injective,
+  !!    -nd1,nd2,nd3: fourier dimensions for which the kernel is injective,
   !!                formally 1/8 of the fourier grid. Here the dimension nd3 is
   !!                enlarged to be a multiple of nproc
   !!
@@ -354,21 +354,21 @@ CONTAINS
   !!    Calculate four sets of dimension needed for the calculation of the
   !!    convolution for the surface system
   !!
-  !! SYNOPSIS
-  !!    n01,n02,n03 original real dimensions (input)
+  !! ARGUMENTS
+  !!    -n01,n02,n03: original real dimensions (input)
   !!
-  !!    m1,m2,m3 original real dimension, with 2 and 3 exchanged
+  !!    -m1,m2,m3: original real dimension, with 2 and 3 exchanged
   !!
-  !!    n1,n2 the first FFT dimensions, for the moment supposed to be even
-  !!    n3    the double of the first FFT even dimension greater than m3
+  !!    -n1,n2: the first FFT dimensions, for the moment supposed to be even
+  !!    -n3:    the double of the first FFT even dimension greater than m3
   !!          (improved for the HalFFT procedure)
   !!
-  !!    md1,md2     the n1,n2 dimensions. 
-  !!    md3         half of n3 dimension. They contain the real unpadded space,
+  !!    -md1,md2:     the n1,n2 dimensions. 
+  !!    -md3:         half of n3 dimension. They contain the real unpadded space,
   !!                properly enlarged to be compatible with the FFT dimensions n_i.
   !!                md2 is further enlarged to be a multiple of nproc
   !!
-  !!    nd1,nd2,nd3 fourier dimensions for which the kernel FFT is injective,
+  !!    -nd1,nd2,nd3: fourier dimensions for which the kernel FFT is injective,
   !!                formally 1/8 of the fourier grid. Here the dimension nd3 is
   !!                enlarged to be a multiple of nproc
   !!
@@ -467,20 +467,20 @@ CONTAINS
   !!    Calculate four sets of dimension needed for the calculation of the
   !!    zero-padded convolution
   !!
-  !! SYNOPSIS
-  !!    n01,n02,n03 original real dimensions (input)
+  !! ARGUMENTS
+  !!    -n01,n02,n03: original real dimensions (input)
   !!
-  !!    m1,m2,m3 original real dimension with the dimension 2 and 3 exchanged
+  !!    -m1,m2,m3: original real dimension with the dimension 2 and 3 exchanged
   !!
-  !!    n1,n2 the first FFT even dimensions greater that 2*m1, 2*m2
-  !!    n3    the double of the first FFT even dimension greater than m3
+  !!    -n1,n2: the first FFT even dimensions greater that 2*m1, 2*m2
+  !!    -n3:    the double of the first FFT even dimension greater than m3
   !!          (improved for the HalFFT procedure)
   !!
-  !!    md1,md2,md3 half of n1,n2,n3 dimension. They contain the real unpadded space,
+  !!    -md1,md2,md3: half of n1,n2,n3 dimension. They contain the real unpadded space,
   !!                properly enlarged to be compatible with the FFT dimensions n_i.
   !!                md2 is further enlarged to be a multiple of nproc
   !!
-  !!    nd1,nd2,nd3 fourier dimensions for which the kernel FFT is injective,
+  !!    -nd1,nd2,nd3: fourier dimensions for which the kernel FFT is injective,
   !!                formally 1/8 of the fourier grid. Here the dimension nd3 is
   !!                enlarged to be a multiple of nproc
   !!

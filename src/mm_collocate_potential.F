@@ -6,7 +6,7 @@
 
 !!****h* cp2k/mm_collocate_potential [1.0] *
 !!
-!!   NAME MODULE
+!!   NAME
 !!     mm_collocate_potential
 !!
 !!   FUNCTION

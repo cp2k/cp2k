@@ -4,7 +4,24 @@
 !-----------------------------------------------------------------------------!
 
 #if !defined(__DEBUG__)
-
+!!****** cp2k/machine_nag [1.0] *
+!!
+!!   NAME
+!!     machine_nag
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     APSI & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     - m_flush added (12.06.2002,MK)
+!!     - print_memory changed (24.09.2002,MK)
+!!     - adapted for g95 (29.05.2003,JVdV)
+!!
+!!   SOURCE
+!!*****
+!******************************************************************************
 MODULE machine_nag
 
   USE f90_unix
@@ -225,7 +242,24 @@ END SUBROUTINE m_getarg
 END MODULE machine_nag
 
 #else
-
+!!****** cp2k/machine_nag [1.0] *
+!!
+!!   NAME
+!!     machine_nag
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     APSI & JGH
+!!
+!!   MODIFICATION HISTORY
+!!     - m_flush added (12.06.2002,MK)
+!!     - print_memory changed (24.09.2002,MK)
+!!     - adapted for g95 (29.05.2003,JVdV)
+!!
+!!   SOURCE
+!!*****
+!******************************************************************************
 MODULE machine_nag
 
   USE kinds,                           ONLY: dp, int_8

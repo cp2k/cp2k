@@ -2,7 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/machine_pgi [1.0] *
+!!****** cp2k/machine_g95 [1.0] *
 !!
 !!   NAME
 !!     machine_g95
