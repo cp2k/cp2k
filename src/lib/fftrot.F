@@ -1049,7 +1049,7 @@ SUBROUTINE fftrot ( mm, nfft, m, nn, n, zin, zout, &
     END DO
   ELSE
     STOP 'Error fftrot'
-  END If
+  END IF
 
 !-----------------------------------------------------------------------------!
 

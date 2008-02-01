@@ -68,7 +68,7 @@ SUBROUTINE ctrig ( n, trig, after, before, now, isign, ic )
       WRITE ( *, '(A,i5,A)' ) " Value of ",n, &
             " not allowed for fft, allowed values are:"
       WRITE ( *, '(15i5)' ) ( idata ( 1, j ), j = 1, nt )
-      stop 'ctrig'
+      STOP 'ctrig'
     END IF
   END DO mloop
 
@@ -84,8 +84,8 @@ SUBROUTINE ctrig ( n, trig, after, before, now, isign, ic )
   trig ( 1, 1 ) = 1._dbl
   trig ( 2, 1 ) = 0._dbl
   DO i = 1, n - 1
-    trig ( 1, i + 1 ) = cos ( REAL ( i, dbl ) * angle )
-    trig ( 2, i + 1 ) = sin ( REAL ( i, dbl ) * angle )
+    trig ( 1, i + 1 ) = COS ( REAL ( i, dbl ) * angle )
+    trig ( 2, i + 1 ) = SIN ( REAL ( i, dbl ) * angle )
   END DO
 
 !-----------------------------------------------------------------------------!

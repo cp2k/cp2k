@@ -1048,7 +1048,7 @@ SUBROUTINE fftstp ( mm, nfft, m, nn, n, zin, zout, &
     END DO
   ELSE
     STOP 'Error fftstp'
-  END If
+  END IF
 
 !-----------------------------------------------------------------------------!
 

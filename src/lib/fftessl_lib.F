@@ -19,11 +19,11 @@
 !!
 !******************************************************************************
 
-SUBROUTINE fftessl_get_lengths ( data, max_length )
+SUBROUTINE fftessl_get_lengths ( DATA, max_length )
 
   IMPLICIT NONE 
 
-  INTEGER, DIMENSION(*)                    :: data
+  INTEGER, DIMENSION(*)                    :: DATA
   INTEGER, INTENT(INOUT)                   :: max_length
 
   INTEGER, PARAMETER                       :: rlen =135
@@ -43,7 +43,7 @@ SUBROUTINE fftessl_get_lengths ( data, max_length )
 !------------------------------------------------------------------------------
 
   ndata = MIN ( rlen, max_length )
-  data(1:ndata) = radix(1:ndata)
+  DATA(1:ndata) = RADIX(1:ndata)
   max_length = ndata
 
 END SUBROUTINE fftessl_get_lengths

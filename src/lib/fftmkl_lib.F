@@ -27,11 +27,11 @@
 #endif
 !******************************************************************************
 
-SUBROUTINE fftmkl_get_lengths ( data, max_length )
+SUBROUTINE fftmkl_get_lengths ( DATA, max_length )
 
   IMPLICIT NONE 
 
-  INTEGER, DIMENSION(*)                    :: data
+  INTEGER, DIMENSION(*)                    :: DATA
   INTEGER, INTENT(INOUT)                   :: max_length
 
   INTEGER, DIMENSION(:), ALLOCATABLE       :: dlocal, idx
@@ -99,7 +99,7 @@ SUBROUTINE fftmkl_get_lengths ( data, max_length )
 
   CALL sortint ( dlocal, ndata, idx )
   ndata = MIN ( ndata, max_length )
-  data(1:ndata) = dlocal(1:ndata)
+  DATA(1:ndata) = dlocal(1:ndata)
   max_length = ndata
 
   DEALLOCATE ( dlocal, idx )
@@ -203,7 +203,7 @@ SUBROUTINE fftmkl1dm ( fsign, trans, n, m, zin, zout, scale )
 #endif
 #endif
   INTEGER                                              :: status
-  INTEGER                                            :: ii(3),di,io(3),do
+  INTEGER                                            :: ii(3),di,io(3),DO
 
 !------------------------------------------------------------------------------
 
@@ -216,13 +216,13 @@ SUBROUTINE fftmkl1dm ( fsign, trans, n, m, zin, zout, scale )
   io(1) = 0
   io(2) = 1
   io(3) = 0
-  do = n
+  DO = n
   IF ( fsign == +1 .AND. trans ) THEN
     ii(2) = m
     di = 1
   ELSEIF ( fsign == -1 .AND. trans ) THEN
     io(2) = m
-    do = 1
+    DO = 1
   END IF
 
   status = DftiCreateDescriptor( desc, dft_prec, DFTI_COMPLEX, 1, n )
@@ -230,7 +230,7 @@ SUBROUTINE fftmkl1dm ( fsign, trans, n, m, zin, zout, scale )
   status = DftiSetValue( desc, DFTI_OUTPUT_STRIDES, io )
   status = DftiSetValue( desc, DFTI_NUMBER_OF_TRANSFORMS, m )
   status = DftiSetValue( desc, DFTI_INPUT_DISTANCE, di )
-  status = DftiSetValue( desc, DFTI_OUTPUT_DISTANCE, do )
+  status = DftiSetValue( desc, DFTI_OUTPUT_DISTANCE, DO )
   status = DftiSetValue( desc, DFTI_PLACEMENT, DFTI_NOT_INPLACE )
   IF (fsign == +1) THEN
     IF ( scale /= 1.0_dp ) status = DftiSetValue( desc, DFTI_FORWARD_SCALE, scale )

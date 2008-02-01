@@ -20,11 +20,11 @@
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE fftw2_get_lengths ( data, max_length )
+SUBROUTINE fftw2_get_lengths ( DATA, max_length )
 
   IMPLICIT NONE 
 
-  INTEGER, DIMENSION(*)                    :: data
+  INTEGER, DIMENSION(*)                    :: DATA
   INTEGER, INTENT(INOUT)                   :: max_length
 
   INTEGER, DIMENSION(:), ALLOCATABLE       :: dlocal, idx
@@ -95,7 +95,7 @@ SUBROUTINE fftw2_get_lengths ( data, max_length )
 
   CALL sortint ( dlocal, ndata, idx )
   ndata = MIN ( ndata, max_length )
-  data(1:ndata) = dlocal(1:ndata)
+  DATA(1:ndata) = dlocal(1:ndata)
   max_length = ndata
 
   DEALLOCATE ( dlocal, idx )
@@ -128,28 +128,28 @@ SUBROUTINE fftw23d ( fft_in_place, fsign, scale, n, zin, zout )
 !     routines (either directly or with an #include statement
 !     if you use the C preprocessor).
 
-      integer FFTW_FORWARD,FFTW_BACKWARD
-      parameter (FFTW_FORWARD=-1,FFTW_BACKWARD=1)
+      INTEGER FFTW_FORWARD,FFTW_BACKWARD
+      PARAMETER (FFTW_FORWARD=-1,FFTW_BACKWARD=1)
 
-      integer FFTW_REAL_TO_COMPLEX,FFTW_COMPLEX_TO_REAL
-      parameter (FFTW_REAL_TO_COMPLEX=-1,FFTW_COMPLEX_TO_REAL=1)
+      INTEGER FFTW_REAL_TO_COMPLEX,FFTW_COMPLEX_TO_REAL
+      PARAMETER (FFTW_REAL_TO_COMPLEX=-1,FFTW_COMPLEX_TO_REAL=1)
 
-      integer FFTW_ESTIMATE,FFTW_MEASURE
-      parameter (FFTW_ESTIMATE=0,FFTW_MEASURE=1)
+      INTEGER FFTW_ESTIMATE,FFTW_MEASURE
+      PARAMETER (FFTW_ESTIMATE=0,FFTW_MEASURE=1)
 
-      integer FFTW_OUT_OF_PLACE,FFTW_IN_PLACE,FFTW_USE_WISDOM
-      parameter (FFTW_OUT_OF_PLACE=0)
-      parameter (FFTW_IN_PLACE=8,FFTW_USE_WISDOM=16)
+      INTEGER FFTW_OUT_OF_PLACE,FFTW_IN_PLACE,FFTW_USE_WISDOM
+      PARAMETER (FFTW_OUT_OF_PLACE=0)
+      PARAMETER (FFTW_IN_PLACE=8,FFTW_USE_WISDOM=16)
 
-      integer FFTW_THREADSAFE
-      parameter (FFTW_THREADSAFE=128)
+      INTEGER FFTW_THREADSAFE
+      PARAMETER (FFTW_THREADSAFE=128)
 
 !     Constants for the MPI wrappers:
-      integer FFTW_TRANSPOSED_ORDER, FFTW_NORMAL_ORDER
-      integer FFTW_SCRAMBLED_INPUT, FFTW_SCRAMBLED_OUTPUT
-      parameter(FFTW_TRANSPOSED_ORDER=1, FFTW_NORMAL_ORDER=0)
-      parameter(FFTW_SCRAMBLED_INPUT=8192)
-      parameter(FFTW_SCRAMBLED_OUTPUT=16384)
+      INTEGER FFTW_TRANSPOSED_ORDER, FFTW_NORMAL_ORDER
+      INTEGER FFTW_SCRAMBLED_INPUT, FFTW_SCRAMBLED_OUTPUT
+      PARAMETER(FFTW_TRANSPOSED_ORDER=1, FFTW_NORMAL_ORDER=0)
+      PARAMETER(FFTW_SCRAMBLED_INPUT=8192)
+      PARAMETER(FFTW_SCRAMBLED_OUTPUT=16384)
 ! end include fftw_f77.i
 
 
@@ -242,28 +242,28 @@ SUBROUTINE fftw21dm ( fsign, trans, n, m, zin, zout, scale )
 !     routines (either directly or with an #include statement
 !     if you use the C preprocessor).
 
-      integer FFTW_FORWARD,FFTW_BACKWARD
-      parameter (FFTW_FORWARD=-1,FFTW_BACKWARD=1)
+      INTEGER FFTW_FORWARD,FFTW_BACKWARD
+      PARAMETER (FFTW_FORWARD=-1,FFTW_BACKWARD=1)
 
-      integer FFTW_REAL_TO_COMPLEX,FFTW_COMPLEX_TO_REAL
-      parameter (FFTW_REAL_TO_COMPLEX=-1,FFTW_COMPLEX_TO_REAL=1)
+      INTEGER FFTW_REAL_TO_COMPLEX,FFTW_COMPLEX_TO_REAL
+      PARAMETER (FFTW_REAL_TO_COMPLEX=-1,FFTW_COMPLEX_TO_REAL=1)
 
-      integer FFTW_ESTIMATE,FFTW_MEASURE
-      parameter (FFTW_ESTIMATE=0,FFTW_MEASURE=1)
+      INTEGER FFTW_ESTIMATE,FFTW_MEASURE
+      PARAMETER (FFTW_ESTIMATE=0,FFTW_MEASURE=1)
 
-      integer FFTW_OUT_OF_PLACE,FFTW_IN_PLACE,FFTW_USE_WISDOM
-      parameter (FFTW_OUT_OF_PLACE=0)
-      parameter (FFTW_IN_PLACE=8,FFTW_USE_WISDOM=16)
+      INTEGER FFTW_OUT_OF_PLACE,FFTW_IN_PLACE,FFTW_USE_WISDOM
+      PARAMETER (FFTW_OUT_OF_PLACE=0)
+      PARAMETER (FFTW_IN_PLACE=8,FFTW_USE_WISDOM=16)
 
-      integer FFTW_THREADSAFE
-      parameter (FFTW_THREADSAFE=128)
+      INTEGER FFTW_THREADSAFE
+      PARAMETER (FFTW_THREADSAFE=128)
 
 !     Constants for the MPI wrappers:
-      integer FFTW_TRANSPOSED_ORDER, FFTW_NORMAL_ORDER
-      integer FFTW_SCRAMBLED_INPUT, FFTW_SCRAMBLED_OUTPUT
-      parameter(FFTW_TRANSPOSED_ORDER=1, FFTW_NORMAL_ORDER=0)
-      parameter(FFTW_SCRAMBLED_INPUT=8192)
-      parameter(FFTW_SCRAMBLED_OUTPUT=16384)
+      INTEGER FFTW_TRANSPOSED_ORDER, FFTW_NORMAL_ORDER
+      INTEGER FFTW_SCRAMBLED_INPUT, FFTW_SCRAMBLED_OUTPUT
+      PARAMETER(FFTW_TRANSPOSED_ORDER=1, FFTW_NORMAL_ORDER=0)
+      PARAMETER(FFTW_SCRAMBLED_INPUT=8192)
+      PARAMETER(FFTW_SCRAMBLED_OUTPUT=16384)
 ! end include fftw_f77.i
 
 
@@ -285,7 +285,7 @@ SUBROUTINE fftw21dm ( fsign, trans, n, m, zin, zout, scale )
   COMPLEX (KIND=dp), DIMENSION(*), INTENT ( OUT )    :: zout
   REAL (KIND=dp), INTENT ( IN )                      :: scale
 
-  INTEGER                                  :: di, do, ii, io
+  INTEGER                                  :: di, DO, ii, io
   INTEGER(KIND=integer_pointer_kind)       :: plan
 
 !------------------------------------------------------------------------------
@@ -295,20 +295,20 @@ SUBROUTINE fftw21dm ( fsign, trans, n, m, zin, zout, scale )
   ii = 1
   di = n
   io = 1
-  do = n
+  DO = n
   IF ( fsign == +1 .AND. trans ) THEN
     ii = m
     di = 1
   ELSEIF ( fsign == -1 .AND. trans ) THEN
     io = m
-    do = 1
+    DO = 1
   END IF
   IF ( fsign == +1 ) THEN
     CALL fftw_f77_create_plan(plan,n,FFTW_FORWARD,FFTW_ESTIMATE)
   ELSE
     CALL fftw_f77_create_plan(plan,n,FFTW_BACKWARD,FFTW_ESTIMATE)
   END IF
-  CALL fftw_f77(plan,m,zin,ii,di,zout,io,do)
+  CALL fftw_f77(plan,m,zin,ii,di,zout,io,DO)
   CALL fftw_f77_destroy_plan(plan)
 #if defined(__SGL) || defined(__FFTSGL)
   IF ( scale /= 1.0_dp ) CALL csscal(n*m,scale,zout,1)

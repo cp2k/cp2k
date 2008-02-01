@@ -19,11 +19,11 @@
 !!*****
 !******************************************************************************
 
-SUBROUTINE fftacml_get_lengths ( data, max_length )
+SUBROUTINE fftacml_get_lengths ( DATA, max_length )
 
   IMPLICIT NONE 
 
-  INTEGER, DIMENSION(*)                    :: data
+  INTEGER, DIMENSION(*)                    :: DATA
   INTEGER, INTENT(INOUT)                   :: max_length
 
   INTEGER, DIMENSION(:), ALLOCATABLE       :: dlocal, idx
@@ -91,7 +91,7 @@ SUBROUTINE fftacml_get_lengths ( data, max_length )
 
   CALL sortint ( dlocal, ndata, idx )
   ndata = MIN ( ndata, max_length )
-  data(1:ndata) = dlocal(1:ndata)
+  DATA(1:ndata) = dlocal(1:ndata)
   max_length = ndata
 
   DEALLOCATE ( dlocal, idx )

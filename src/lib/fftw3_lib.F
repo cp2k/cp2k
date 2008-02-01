@@ -19,11 +19,11 @@
 !!*****
 !******************************************************************************
 
-SUBROUTINE fftw3_get_lengths ( data, max_length )
+SUBROUTINE fftw3_get_lengths ( DATA, max_length )
 
   IMPLICIT NONE 
 
-  INTEGER, DIMENSION(*)                    :: data
+  INTEGER, DIMENSION(*)                    :: DATA
   INTEGER, INTENT(INOUT)                   :: max_length
 
   INTEGER, DIMENSION(:), ALLOCATABLE       :: dlocal, idx
@@ -94,7 +94,7 @@ SUBROUTINE fftw3_get_lengths ( data, max_length )
 
   CALL sortint ( dlocal, ndata, idx )
   ndata = MIN ( ndata, max_length )
-  data(1:ndata) = dlocal(1:ndata)
+  DATA(1:ndata) = dlocal(1:ndata)
   max_length = ndata
 
   DEALLOCATE ( dlocal, idx )
@@ -227,7 +227,7 @@ SUBROUTINE fftw31dm ( fsign, trans, n, m, zin, zout, scale )
 #else
   INTEGER, PARAMETER :: integer8_kind = 8
 #endif
-  INTEGER                                            :: ii,di,io,do
+  INTEGER                                            :: ii,di,io,DO
   INTEGER(KIND=integer8_kind)                        :: plan
 
 !------------------------------------------------------------------------------
@@ -237,22 +237,22 @@ SUBROUTINE fftw31dm ( fsign, trans, n, m, zin, zout, scale )
   ii = 1
   di = n
   io = 1
-  do = n
+  DO = n
   IF ( fsign == +1 .AND. trans ) THEN
     ii = m
     di = 1
   ELSEIF ( fsign == -1 .AND. trans ) THEN
     io = m
-    do = 1
+    DO = 1
   END IF
 
 #if defined(__SGL) || defined(__FFTSGL)
   IF ( fsign == +1 ) THEN
     CALL sfftw_plan_many_dft(plan,1,n,m,zin,0,ii,di,&
-              zout,0,io,do,FFTW_FORWARD,fftw_plan_type)
+              zout,0,io,DO,FFTW_FORWARD,fftw_plan_type)
   ELSE
     CALL sfftw_plan_many_dft(plan,1,n,m,zin,0,ii,di,&
-              zout,0,io,do,FFTW_BACKWARD,fftw_plan_type)
+              zout,0,io,DO,FFTW_BACKWARD,fftw_plan_type)
   END IF
   CALL sfftw_execute(plan)
   CALL sfftw_destroy_plan(plan)
@@ -260,10 +260,10 @@ SUBROUTINE fftw31dm ( fsign, trans, n, m, zin, zout, scale )
 #else
   IF ( fsign == +1 ) THEN
     CALL dfftw_plan_many_dft(plan,1,n,m,zin,0,ii,di,&
-              zout,0,io,do,FFTW_FORWARD,fftw_plan_type)
+              zout,0,io,DO,FFTW_FORWARD,fftw_plan_type)
   ELSE
     CALL dfftw_plan_many_dft(plan,1,n,m,zin,0,ii,di,&
-              zout,0,io,do,FFTW_BACKWARD,fftw_plan_type)
+              zout,0,io,DO,FFTW_BACKWARD,fftw_plan_type)
   END IF
   CALL dfftw_execute(plan)
   CALL dfftw_destroy_plan(plan)
@@ -311,25 +311,25 @@ END SUBROUTINE fftw31dm
 !     
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-      subroutine fftw_write_char(c, iunit)
+      SUBROUTINE fftw_write_char(c, iunit)
          IMPLICIT NONE
-         character c
-         integer iunit
-         write(iunit,'(a)',ADVANCE="NO") c
-      end      
+         CHARACTER c
+         INTEGER iunit
+         WRITE(iunit,'(a)',ADVANCE="NO") c
+      END      
 
-      subroutine fftw_export_wisdom_to_file(iunit)
+      SUBROUTINE fftw_export_wisdom_to_file(iunit)
          IMPLICIT NONE
-         integer iunit
-         external fftw_write_char
+         INTEGER iunit
+         EXTERNAL fftw_write_char
 #if defined ( __FFTW3 )
 #if defined (__SGL) || defined(__FFTSGL)
-         call sfftw_export_wisdom(fftw_write_char, iunit)
+         CALL sfftw_export_wisdom(fftw_write_char, iunit)
 #else
-         call dfftw_export_wisdom(fftw_write_char, iunit)
+         CALL dfftw_export_wisdom(fftw_write_char, iunit)
 #endif
 #endif
-      end
+      END
 
 !     Fortran 77 does not have any portable way to read an arbitrary
 !     file one character at a time [needs to wait for stream IO of F2003].
@@ -339,40 +339,40 @@ END SUBROUTINE fftw31dm
 !     then the lines will be truncated and the wisdom import should
 !     simply fail.)  Ugh (and not thread safe).
 
-      subroutine fftw_read_char(ic, iunit)
+      SUBROUTINE fftw_read_char(ic, iunit)
          IMPLICIT NONE
-         integer ic
-         integer iunit
-         character*256 buf
-         save buf
-         integer ibuf
-         data ibuf/257/
-         save ibuf
-         if (ibuf .lt. 257) then
-            ic = ichar(buf(ibuf:ibuf))
+         INTEGER ic
+         INTEGER iunit
+         CHARACTER*256 buf
+         SAVE buf
+         INTEGER ibuf
+         DATA ibuf/257/
+         SAVE ibuf
+         IF (ibuf .LT. 257) THEN
+            ic = ICHAR(buf(ibuf:ibuf))
             ibuf = ibuf + 1
-            return
-         endif
-         read(iunit,123,end=666) buf
-         ic = ichar(buf(1:1))
+            RETURN
+         ENDIF
+         READ(iunit,123,END=666) buf
+         ic = ICHAR(buf(1:1))
          ibuf = 2
-         return
+         RETURN
  666     ic = -1
          ibuf = 257
- 123     format(a256)
-      end
+ 123     FORMAT(a256)
+      END
       
-      subroutine fftw_import_wisdom_from_file(isuccess, iunit)
+      SUBROUTINE fftw_import_wisdom_from_file(isuccess, iunit)
          IMPLICIT NONE
-         integer isuccess
-         integer iunit
-         external fftw_read_char
+         INTEGER isuccess
+         INTEGER iunit
+         EXTERNAL fftw_read_char
          isuccess=0
 #if defined ( __FFTW3 )
 #if defined (__SGL) || defined(__FFTSGL)
-         call sfftw_import_wisdom(isuccess, fftw_read_char, iunit)
+         CALL sfftw_import_wisdom(isuccess, fftw_read_char, iunit)
 #else
-         call dfftw_import_wisdom(isuccess, fftw_read_char, iunit)
+         CALL dfftw_import_wisdom(isuccess, fftw_read_char, iunit)
 #endif
 #endif
-      end
+      END

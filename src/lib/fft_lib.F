@@ -47,29 +47,29 @@ END FUNCTION fft_library
 
 !******************************************************************************
 
-SUBROUTINE fft_get_lengths ( fft_type, data, max_length )
+SUBROUTINE fft_get_lengths ( fft_type, DATA, max_length )
 
   INTEGER, INTENT(IN)              :: fft_type
-  INTEGER, DIMENSION(*)            :: data
+  INTEGER, DIMENSION(*)            :: DATA
   INTEGER, INTENT(INOUT)           :: max_length
 
   SELECT CASE ( fft_type )
     CASE DEFAULT
       STOP "fft_get_lengths"
     CASE ( 1 )
-      CALL fftsg_get_lengths ( data, max_length )
+      CALL fftsg_get_lengths ( DATA, max_length )
     CASE ( 2 )
-      CALL fftw2_get_lengths ( data, max_length )
+      CALL fftw2_get_lengths ( DATA, max_length )
     CASE ( 3 )
-      CALL fftw3_get_lengths ( data, max_length )
+      CALL fftw3_get_lengths ( DATA, max_length )
     CASE ( 4 )
-      CALL fftessl_get_lengths ( data, max_length )
+      CALL fftessl_get_lengths ( DATA, max_length )
     CASE ( 5 )
-      CALL fftacml_get_lengths ( data, max_length )
+      CALL fftacml_get_lengths ( DATA, max_length )
     CASE ( 6 )
-      CALL fftmkl_get_lengths ( data, max_length )
+      CALL fftmkl_get_lengths ( DATA, max_length )
     CASE ( 7 )
-      CALL fftsci_get_lengths ( data, max_length )
+      CALL fftsci_get_lengths ( DATA, max_length )
   END SELECT
 
 END SUBROUTINE fft_get_lengths
@@ -166,7 +166,7 @@ SUBROUTINE sortint ( iarr, n, index )
 
     INTEGER, INTENT(IN)                      :: n
     INTEGER, INTENT(INOUT)                   :: iarr(1:n)
-    INTEGER, INTENT(OUT)                     :: index(1:n)
+    INTEGER, INTENT(OUT)                     :: INDEX(1:n)
 
     INTEGER, PARAMETER                       :: m = 7, nstack = 50
 
@@ -177,7 +177,7 @@ SUBROUTINE sortint ( iarr, n, index )
 !------------------------------------------------------------------------------
 
   DO i = 1, n
-     index(i) = i
+     INDEX(i) = i
   END DO
   jstack = 0
   l = 1
@@ -185,15 +185,15 @@ SUBROUTINE sortint ( iarr, n, index )
 1 IF (ir-l<m) THEN
      DO j = l + 1, ir
         a = iarr(j)
-        ib = index(j)
+        ib = INDEX(j)
         DO i = j - 1, 1, -1
            IF (iarr(i)<=a) GO TO 2
            iarr(i+1) = iarr(i)
-           index(i+1) = index(i)
+           INDEX(i+1) = INDEX(i)
         END DO
         i = 0
 2       iarr(i+1) = a
-        index(i+1) = ib
+        INDEX(i+1) = ib
      END DO
      IF (jstack==0) RETURN
      ir = istack(jstack)
@@ -204,37 +204,37 @@ SUBROUTINE sortint ( iarr, n, index )
      temp = iarr(k)
      iarr(k) = iarr(l+1)
      iarr(l+1) = temp
-     itemp = index(k)
-     index(k) = index(l+1)
-     index(l+1) = itemp
+     itemp = INDEX(k)
+     INDEX(k) = INDEX(l+1)
+     INDEX(l+1) = itemp
      IF (iarr(l+1)>iarr(ir)) THEN
         temp = iarr(l+1)
         iarr(l+1) = iarr(ir)
         iarr(ir) = temp
-        itemp = index(l+1)
-        index(l+1) = index(ir)
-        index(ir) = itemp
+        itemp = INDEX(l+1)
+        INDEX(l+1) = INDEX(ir)
+        INDEX(ir) = itemp
      END IF
      IF (iarr(l)>iarr(ir)) THEN
         temp = iarr(l)
         iarr(l) = iarr(ir)
         iarr(ir) = temp
-        itemp = index(l)
-        index(l) = index(ir)
-        index(ir) = itemp
+        itemp = INDEX(l)
+        INDEX(l) = INDEX(ir)
+        INDEX(ir) = itemp
      END IF
      IF (iarr(l+1)>iarr(l)) THEN
         temp = iarr(l+1)
         iarr(l+1) = iarr(l)
         iarr(l) = temp
-        itemp = index(l+1)
-        index(l+1) = index(l)
-        index(l) = itemp
+        itemp = INDEX(l+1)
+        INDEX(l+1) = INDEX(l)
+        INDEX(l) = itemp
      END IF
      i = l + 1
      j = ir
      a = iarr(l)
-     ib = index(l)
+     ib = INDEX(l)
 3    CONTINUE
      i = i + 1
      IF (iarr(i)<a) GO TO 3
@@ -245,14 +245,14 @@ SUBROUTINE sortint ( iarr, n, index )
      temp = iarr(i)
      iarr(i) = iarr(j)
      iarr(j) = temp
-     itemp = index(i)
-     index(i) = index(j)
-     index(j) = itemp
+     itemp = INDEX(i)
+     INDEX(i) = INDEX(j)
+     INDEX(j) = itemp
      GO TO 3
 5    iarr(l) = iarr(j)
      iarr(j) = a
-     index(l) = index(j)
-     index(j) = ib
+     INDEX(l) = INDEX(j)
+     INDEX(j) = ib
      jstack = jstack + 2
      IF (jstack>nstack) STOP ' Nstack too small in sortr'
      IF (ir-i+1>=j-l) THEN

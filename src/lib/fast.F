@@ -145,9 +145,9 @@ SUBROUTINE copy_cr ( n, z, r1 )
   INTEGER :: i
 
 !$OMP PARALLEL DO
-  do i=1,n
+  DO i=1,n
        r1(i)=z(1,i)
-  enddo
+  ENDDO
 
 END SUBROUTINE copy_cr
 
@@ -170,10 +170,10 @@ SUBROUTINE copy_rc ( n, r1, z )
   REAL ( dbl ), INTENT ( OUT ) :: z(2,n)
   INTEGER :: i
 !$OMP PARALLEL DO
-  do i=1,n
+  DO i=1,n
        z(1,i)=r1(i)
        z(2,i)=0._dbl
-  enddo
+  ENDDO
 
 END SUBROUTINE copy_rc
 
@@ -197,9 +197,9 @@ SUBROUTINE copy_cz ( n, c, z )
   COMPLEX ( dbl ), INTENT ( OUT ) :: z(n)
   INTEGER :: i
 !$OMP PARALLEL DO
-  do i=1,n
+  DO i=1,n
     z(i)=c(i)
-  enddo
+  ENDDO
 
 END SUBROUTINE copy_cz
 

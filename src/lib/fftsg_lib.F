@@ -18,10 +18,10 @@
 !!*****
 !******************************************************************************
 
-SUBROUTINE fftsg_get_lengths ( data, max_length )
+SUBROUTINE fftsg_get_lengths ( DATA, max_length )
 
   IMPLICIT NONE
-  INTEGER, DIMENSION(*)                    :: data
+  INTEGER, DIMENSION(*)                    :: DATA
   INTEGER, INTENT(INOUT)                   :: max_length
 
   INTEGER, PARAMETER                       :: rlen = 81
@@ -38,7 +38,7 @@ SUBROUTINE fftsg_get_lengths ( data, max_length )
 !------------------------------------------------------------------------------
 
   ndata = MIN ( max_length, rlen )
-  data ( 1:ndata ) = radix ( 1:ndata )
+  DATA ( 1:ndata ) = RADIX ( 1:ndata )
   max_length = ndata
 
 END SUBROUTINE fftsg_get_lengths

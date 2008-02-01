@@ -1048,7 +1048,7 @@ SUBROUTINE fftpre ( mm, nfft, m, nn, n, zin, zout, &
     END DO
   ELSE
     STOP 'Error fftpre'
-  END If
+  END IF
 
 !-----------------------------------------------------------------------------!
 

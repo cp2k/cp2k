@@ -14,18 +14,22 @@ CONTAINS
 ! *****************************************************
 
   SUBROUTINE matmov ( n, m, a, lda, b, ldb )
-    IMPLICIT NONE
-    INTEGER :: n, m, lda, ldb
-    COMPLEX (dbl) :: a ( lda, * ), b ( ldb, * )
+    INTEGER                                  :: n, m, lda
+    COMPLEX(dbl)                             :: a( lda, * )
+    INTEGER                                  :: ldb
+    COMPLEX(dbl)                             :: b( ldb, * )
+
     b ( 1:n , 1:m ) = a ( 1:n, 1:m )
   END SUBROUTINE matmov
   
 ! *****************************************************
 
   SUBROUTINE zgetmo ( a, lda, m, n, b, ldb )
-    IMPLICIT NONE
-    INTEGER  :: lda, m, n, ldb
-    COMPLEX(dbl) :: a ( lda, n ), b ( ldb, m )
+    INTEGER                                  :: lda, m, n
+    COMPLEX(dbl)                             :: a( lda, n )
+    INTEGER                                  :: ldb
+    COMPLEX(dbl)                             :: b( ldb, m )
+
     b ( 1:n, 1:m ) = TRANSPOSE ( a ( 1:m, 1:n ) )
   END SUBROUTINE zgetmo
   
