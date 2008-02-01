@@ -149,7 +149,6 @@ SUBROUTINE dyn_coeff_set_create(dyn_coeff_set,atomic_kind_set,&
             CALL get_atomic_kind(atomic_kind,aux_basis_set=aux_basis_set)
             n_els = distribution%n_el(ikind)
             IF ((.NOT.ASSOCIATED(aux_basis_set)).OR.(n_els ==0)) CYCLE
-!dbg           write(6,*) 'dyncoeffsetcreate: n_els, ikind', n_els, ikind
             CALL dyn_coeff_create(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs,&
                              error=error)
             CALL setup_dyn_coeff(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs,&

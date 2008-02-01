@@ -108,6 +108,7 @@ OBJECTS_GENERIC =\
  distribution_methods.o\
  distribution_optimize.o\
  dynamical_coeff_types.o\
+ dynamical_coeff_methods.o\
  eigenvalueproblems.o\
  environment.o\
  erf_fn.o\

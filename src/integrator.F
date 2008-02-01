@@ -46,10 +46,9 @@ MODULE integrator
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_p_type,&
-                                             dyn_coeff_set_type,&
-                                             dyn_coeff_type,&
-                                             get_dyn_coeff_set
+  USE dynamical_coeff_methods,         ONLY: dynamical_coeff_verlet1,&
+                                             dynamical_coeff_verlet2
+  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
   USE eigenvalueproblems,              ONLY: diagonalise
   USE extended_system_dynamics,        ONLY: shell_scale_comv
   USE extended_system_types,           ONLY: debug_isotropic_limit,&
@@ -60,10 +59,11 @@ MODULE integrator
                                              force_env_set_cell
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE input_constants,                 ONLY: &
-       dyn_coeff_mass_atom, dyn_coeff_mass_coeff, dyn_coeff_mass_global, &
-       dyn_coeff_mass_kind, nph_ensemble, nph_uniaxial_damped_ensemble, &
-       nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble
+  USE input_constants,                 ONLY: nph_ensemble,&
+                                             nph_uniaxial_damped_ensemble,&
+                                             nph_uniaxial_ensemble,&
+                                             npt_f_ensemble,&
+                                             npt_i_ensemble
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: matmul_3x3,&
                                              matvec_3x3,&
@@ -93,7 +93,6 @@ MODULE integrator
   USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: stop_program
   USE thermostat_methods,              ONLY: apply_thermostat_baro,&
-                                             apply_thermostat_coeff,&
                                              apply_thermostat_particles,&
                                              apply_thermostat_shells
   USE thermostat_types,                ONLY: thermostat_type
@@ -375,14 +374,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'nve', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
-      mass_storage, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
-      nparticle_local, nshell, shell_index
+    INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, nmolecule, &
+      nmolecule_kind, nparticle, nparticle_kind, nparticle_local, nshell, &
+      shell_index
     LOGICAL                                  :: failure, is_shell, &
                                                 shell_adiabatic, shell_present
-    REAL(KIND=dp)                            :: dm, dmc, dmcoef, dms, dt, &
-                                                fac_massc, fac_masss, &
-                                                global_mass, mass
+    REAL(KIND=dp)                            :: dm, dmc, dms, dt, fac_massc, &
+                                                fac_masss, mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: core_pos, core_vel, pos, &
                                                 shell_pos, shell_vel, vel
@@ -395,10 +393,7 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
-    TYPE(dyn_coeff_p_type), DIMENSION(:), &
-      POINTER                                :: coeffs_of_kind
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
@@ -422,7 +417,7 @@ CONTAINS
 
     failure = .FALSE. 
 
-    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs, thermostat_coeff)
+    NULLIFY (dyn_coeff_set, thermostat_coeff)
     NULLIFY (subsys, simpar, para_env, cell, gci, force_env, virial)
     NULLIFY (atomic_kinds, local_particles, molecules, molecule_kind_set, molecule_set, particle_set)
     NULLIFY (shell, shell_particles, shell_particle_set, core_particles, &
@@ -579,34 +574,8 @@ CONTAINS
     END IF
 
     !     *** coefficients
-    IF(ASSOCIATED(dyn_coeff_set)) THEN
-       CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set,&
-            coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
-            mass_storage=mass_storage,error=error)
-       CALL apply_thermostat_coeff(thermostat_coeff, dyn_coeff_set, para_env%group, error)
-       IF(mass_storage==dyn_coeff_mass_global) dmcoef=0.5_dp*dt/global_mass
-       DO iparticle_kind=1,nparticle_kind
-          IF (ASSOCIATED(coeffs_of_kind(iparticle_kind)%coeffs)) THEN
-             coeffs=>coeffs_of_kind(iparticle_kind)%coeffs
-             IF(mass_storage==dyn_coeff_mass_kind) dmcoef=0.5_dp*dt/coeffs%masses(1,1)
-             DO iparticle_local=1,coeffs%n_els
-                DO icoef=1,coeffs%ncoef_atom
-                   SELECT CASE (mass_storage)
-                   CASE(dyn_coeff_mass_global,dyn_coeff_mass_kind)
-                      coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+&
-                           dmcoef*coeffs%forces(iparticle_local,icoef)
-                   CASE(dyn_coeff_mass_atom,dyn_coeff_mass_coeff)
-                      coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+0.5_dp*dt/ &
-                           coeffs%masses(iparticle_local,icoef)*coeffs%forces(iparticle_local,icoef)
-                   END SELECT
-                   coeffs%pos(iparticle_local,icoef)=coeffs%pos(iparticle_local,icoef)+ &
-                        dt*coeffs%vel(iparticle_local,icoef)
-                END DO
-             END DO
-          END IF
-       END DO
-    END IF
-
+    CALL dynamical_coeff_verlet1(dyn_coeff_set, thermostat_coeff, para_env, dt, error)
+    
     !     *** Update forces ***
     CALL force_env_calc_energy_force(force_env,error=error)
     CALL metadyn_forces(force_env, vel, error=error)
@@ -706,31 +675,7 @@ CONTAINS
     END IF
 
     !     *** coefficients
-    IF(ASSOCIATED(dyn_coeff_set)) THEN
-       CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set,&
-            coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
-            mass_storage=mass_storage,error=error)
-       IF(mass_storage==dyn_coeff_mass_global) dmcoef=0.5_dp*dt/global_mass
-       DO iparticle_kind=1,nparticle_kind
-          IF (ASSOCIATED(coeffs_of_kind(iparticle_kind)%coeffs)) THEN
-             coeffs=>coeffs_of_kind(iparticle_kind)%coeffs
-             IF(mass_storage==dyn_coeff_mass_kind) dmcoef=0.5_dp*dt/coeffs%masses(1,1)
-             DO iparticle_local=1,coeffs%n_els
-                DO icoef=1,coeffs%ncoef_atom
-                   SELECT CASE (mass_storage)
-                   CASE(dyn_coeff_mass_global,dyn_coeff_mass_kind)
-                      coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+&
-                           dmcoef*coeffs%forces(iparticle_local,icoef)
-                   CASE(dyn_coeff_mass_atom,dyn_coeff_mass_coeff)
-                      coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+0.5_dp*dt/ &
-                           coeffs%masses(iparticle_local,icoef)*coeffs%forces(iparticle_local,icoef)
-                   END SELECT
-                END DO
-             END DO
-          END IF
-       END DO
-       CALL apply_thermostat_coeff(thermostat_coeff, dyn_coeff_set, para_env%group, error)
-    END IF
+    CALL dynamical_coeff_verlet2(dyn_coeff_set, thermostat_coeff, para_env, dt, error)
 
     !     *** Update virial ***
     IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
@@ -777,8 +722,7 @@ CONTAINS
     INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, nparticle, &
       nparticle_kind, nparticle_local
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: a, b, dm, ds, dt, K, mass, &
-                                                rb, s
+    REAL(KIND=dp)                            :: dm, ds, dt, mass, s
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -827,8 +771,9 @@ CONTAINS
 
     work(:,:) = 0.0_dp
 
-    ! compute K,a,b,s,ds
-    CALL get_s_ds()
+    ! compute s,ds
+    CALL get_s_ds(s, ds, nparticle_kind, atomic_kind_set,  local_particles, particle_set,&
+       dt, para_env, error)
 
     !     *** 'Velocity Verlet' (first part) ***
     DO iparticle_kind=1,nparticle_kind
@@ -856,8 +801,9 @@ CONTAINS
     CALL force_env_calc_energy_force(force_env,error=error)
     CALL metadyn_forces(force_env, error=error)
 
-    ! compute K,a,b,s,ds
-    CALL get_s_ds()
+    ! compute s,ds
+    CALL get_s_ds(s, ds, nparticle_kind, atomic_kind_set,  local_particles, particle_set,&
+       dt, para_env, error)
 
     !     *** Velocity Verlet (second part) ***
 
@@ -885,33 +831,6 @@ CONTAINS
 
     DEALLOCATE (work,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-  CONTAINS
-
-    SUBROUTINE get_s_ds()
-      K=0.0_dp
-      a=0.0_dp
-      b=0.0_dp
-      DO iparticle_kind=1,nparticle_kind
-         atomic_kind => atomic_kind_set(iparticle_kind)
-         CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-         nparticle_local = local_particles%n_el(iparticle_kind)
-         DO iparticle_local=1,nparticle_local
-            iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-            K=K+ 0.5_dp*mass *DOT_PRODUCT(particle_set(iparticle)%v(:),particle_set(iparticle)%v(:))
-            a=a+              DOT_PRODUCT(particle_set(iparticle)%v(:),particle_set(iparticle)%f(:))
-            b=b+(1.0_dp/mass)*DOT_PRODUCT(particle_set(iparticle)%f(:),particle_set(iparticle)%f(:))
-         END DO
-      END DO
-      CALL mp_sum(K,para_env % group)
-      CALL mp_sum(a,para_env % group)
-      CALL mp_sum(b,para_env % group)
-      a=a/(2.0_dp*K)
-      b=b/(2.0_dp*K)
-      rb=SQRT(b)
-      s =(a/b)*(COSH(dt*rb/2.0_dp)-1) +SINH(dt*rb/2.0_dp)/rb
-      ds=(a/b)*(SINH(dt*rb/2.0_dp)*rb)+COSH(dt*rb/2.0_dp)
-    END SUBROUTINE get_s_ds
 
   END SUBROUTINE isokin
 
@@ -941,14 +860,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'nvt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
-      mass_storage, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
-      nparticle_local, nshell, shell_index
+    INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, nmolecule, &
+      nmolecule_kind, nparticle, nparticle_kind, nparticle_local, nshell, &
+      shell_index
     LOGICAL                                  :: failure, is_shell, &
                                                 shell_adiabatic, shell_present
-    REAL(KIND=dp)                            :: dm, dmc, dmcoef, dms, dt, &
-                                                fac_massc, fac_masss, &
-                                                global_mass, mass
+    REAL(KIND=dp)                            :: dm, dmc, dms, dt, fac_massc, &
+                                                fac_masss, mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: core_pos, core_vel, pos, &
                                                 shell_pos, shell_vel, vel
@@ -961,10 +879,7 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
-    TYPE(dyn_coeff_p_type), DIMENSION(:), &
-      POINTER                                :: coeffs_of_kind
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
@@ -989,9 +904,9 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(gci,force_env,dyn_coeff_set,coeffs_of_kind,coeffs, thermostat_coeff, thermostat_part,&
-         thermostat_shell, cell, shell, shell_particles, shell_particle_set, core_particles,&
-         core_particle_set)
+    NULLIFY(gci, force_env, dyn_coeff_set, thermostat_coeff, &
+         thermostat_part, thermostat_shell, cell, shell, shell_particles, &
+         shell_particle_set, core_particles, core_particle_set)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env, thermostat_part=thermostat_part,&
          thermostat_coeff=thermostat_coeff,thermostat_shell=thermostat_shell,para_env=para_env,&
          error=error)
@@ -1150,34 +1065,7 @@ CONTAINS
 
 
     !     *** coefficients
-
-    IF(ASSOCIATED(dyn_coeff_set)) THEN
-       CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set,&
-            coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
-            mass_storage=mass_storage,error=error)
-       CALL apply_thermostat_coeff(thermostat_coeff, dyn_coeff_set, para_env%group, error)
-       IF(mass_storage==dyn_coeff_mass_global) dmcoef=0.5_dp*dt/global_mass
-       DO iparticle_kind=1,nparticle_kind
-          IF (ASSOCIATED(coeffs_of_kind(iparticle_kind)%coeffs)) THEN
-             coeffs=>coeffs_of_kind(iparticle_kind)%coeffs
-             IF(mass_storage==dyn_coeff_mass_kind) dmcoef=0.5_dp*dt/coeffs%masses(1,1)
-             DO iparticle_local=1,coeffs%n_els
-                DO icoef=1,coeffs%ncoef_atom
-                   SELECT CASE (mass_storage)
-                   CASE(dyn_coeff_mass_global,dyn_coeff_mass_kind)
-                      coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+&
-                           dmcoef*coeffs%forces(iparticle_local,icoef)
-                   CASE(dyn_coeff_mass_atom,dyn_coeff_mass_coeff)
-                      coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+0.5_dp*dt/ &
-                           coeffs%masses(iparticle_local,icoef)*coeffs%forces(iparticle_local,icoef)
-                   END SELECT
-                   coeffs%pos(iparticle_local,icoef)=coeffs%pos(iparticle_local,icoef)+ &
-                        dt*coeffs%vel(iparticle_local,icoef)
-                END DO
-             END DO
-          END IF
-       END DO
-    END IF
+    CALL dynamical_coeff_verlet1 ( dyn_coeff_set, thermostat_coeff, para_env, dt, error)
 
     !     *** Update forces ***
     CALL force_env_calc_energy_force(force_env,error=error)
@@ -1293,32 +1181,9 @@ CONTAINS
     END IF
 
     !     *** coefficients
-    IF(ASSOCIATED(dyn_coeff_set)) THEN
-       CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set,&
-            coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
-            mass_storage=mass_storage,error=error)
-       IF(mass_storage==dyn_coeff_mass_global) dmcoef=0.5_dp*dt/global_mass
-       DO iparticle_kind=1,nparticle_kind
-          IF (ASSOCIATED(coeffs_of_kind(iparticle_kind)%coeffs)) THEN
-             coeffs=>coeffs_of_kind(iparticle_kind)%coeffs
-             IF(mass_storage==dyn_coeff_mass_kind) dmcoef=0.5_dp*dt/coeffs%masses(1,1)
-             DO iparticle_local=1,coeffs%n_els
-                DO icoef=1,coeffs%ncoef_atom
-                   SELECT CASE (mass_storage)
-                   CASE(dyn_coeff_mass_global,dyn_coeff_mass_kind)
-                      coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+&
-                           dmcoef*coeffs%forces(iparticle_local,icoef)
-                   CASE(dyn_coeff_mass_atom,dyn_coeff_mass_coeff)
-                      coeffs%vel(iparticle_local,icoef)=coeffs%vel(iparticle_local,icoef)+0.5_dp*dt/ &
-                           coeffs%masses(iparticle_local,icoef)*coeffs%forces(iparticle_local,icoef)
-                   END SELECT
-                END DO
-             END DO
-          END IF
-       END DO
-       CALL apply_thermostat_coeff(thermostat_coeff, dyn_coeff_set, para_env%group, error)
-    END IF
+    CALL dynamical_coeff_verlet2 ( dyn_coeff_set, thermostat_coeff, para_env, dt, error)
 
+    !     **  Evaluate Virial
     CALL virial_evaluate ( atomic_kind_set, particle_set,  &
          local_particles, virial, para_env % group, error=error)
 
@@ -2505,6 +2370,73 @@ CONTAINS
 
 END SUBROUTINE nph_uniaxial_damped
 
+
+!******************************************************************************
+!!****** integrator/get_s_ds [1.0] *
+!!
+!!   NAME
+!!     get_s_ds
+!!
+!!   FUNCTION
+!!     
+!!
+!!   NOTES
+!!
+!!
+!!   AUTHOR
+!!     Joost VandeVondele
+!!
+!!   MODIFICATION HISTORY
+!!     - Created [2004-07]
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE get_s_ds(s, ds, nparticle_kind, atomic_kind_set,  local_particles, particle_set,&
+       dt, para_env, error)
+    REAL(KIND=dp)                            :: s, ds
+    INTEGER                                  :: nparticle_kind
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    REAL(KIND=dp)                            :: dt
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_s_ds', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iparticle, iparticle_kind, &
+                                                iparticle_local, &
+                                                nparticle_local
+    REAL(KIND=dp)                            :: a, b, K, mass, rb
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+
+    K=0.0_dp
+    a=0.0_dp
+    b=0.0_dp
+    DO iparticle_kind=1,nparticle_kind
+       atomic_kind => atomic_kind_set(iparticle_kind)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+       nparticle_local = local_particles%n_el(iparticle_kind)
+       DO iparticle_local=1,nparticle_local
+          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+          K=K+ 0.5_dp*mass *DOT_PRODUCT(particle_set(iparticle)%v(:),particle_set(iparticle)%v(:))
+          a=a+              DOT_PRODUCT(particle_set(iparticle)%v(:),particle_set(iparticle)%f(:))
+          b=b+(1.0_dp/mass)*DOT_PRODUCT(particle_set(iparticle)%f(:),particle_set(iparticle)%f(:))
+       END DO
+    END DO
+    CALL mp_sum(K,para_env % group)
+    CALL mp_sum(a,para_env % group)
+    CALL mp_sum(b,para_env % group)
+    a=a/(2.0_dp*K)
+    b=b/(2.0_dp*K)
+    rb=SQRT(b)
+    s =(a/b)*(COSH(dt*rb/2.0_dp)-1) +SINH(dt*rb/2.0_dp)/rb
+    ds=(a/b)*(SINH(dt*rb/2.0_dp)*rb)+COSH(dt*rb/2.0_dp)
+
+  END SUBROUTINE get_s_ds
 
 !******************************************************************************
 !!****** integrator/set [1.0] *
