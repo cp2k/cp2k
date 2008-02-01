@@ -399,7 +399,6 @@ CPSourceFileRef,&
 !!
 !!   FUNCTION
 !!     computes matrix_c = beta * matrix_c + alpha *  matrix_a  *  matrix_b 
-!!     OR
 !!     computes matrix_c = beta * matrix_c + alpha *  matrix_b  *  matrix_a 
 !!     where matrix_a is symmetric
 !!
