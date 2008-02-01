@@ -83,8 +83,8 @@ CONTAINS
 !!     Return some info on the functionals.
 !!
 !!   ARGUMENTS
-!!     reference - CHARACTER(*), INTENT(OUT), OPTIONAL - full reference
-!!     shortform - CHARACTER(*), INTENT(OUT), OPTIONAL - short reference
+!!     - reference : CHARACTER(*), INTENT(OUT), OPTIONAL - full reference
+!!     - shortform : CHARACTER(*), INTENT(OUT), OPTIONAL - short reference
 !!
 !!   MODIFICATION HISTORY
 !!     18-MAR-2002, TCH, working version
@@ -165,11 +165,10 @@ CONTAINS
 !!     just the energy.
 !!
 !!   ARGUMENTS
-!!     order - INTEGER, OPTIONAL - order of derivatives to calculate
-!!
-!!     order must lie between -3 and 3. If it is negative then only
-!!     that order will be calculated, otherwise all derivatives up to
-!!     that order will be calculated.
+!!     - order : INTEGER, OPTIONAL - order of derivatives to calculate
+!!       order must lie between -3 and 3. If it is negative then only
+!!       that order will be calculated, otherwise all derivatives up to
+!!       that order will be calculated.
 !!     - pz_params: input paramter (scaling)
 !!
 !!    MODIFICATION HISTORY
@@ -324,11 +323,10 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
 !!     just the energy.
 !!
 !!   ARGUMENTS
-!!     order - INTEGER, OPTIONAL - order of derivatives to calculate
-!!
-!!     order must lie between -3 and 3. If it is negative then only
-!!     that order will be calculated, otherwise all derivatives up to
-!!     that order will be calculated.
+!!     - order: INTEGER, OPTIONAL - order of derivatives to calculate
+!!       order must lie between -3 and 3. If it is negative then only
+!!       that order will be calculated, otherwise all derivatives up to
+!!       that order will be calculated.
 !!     - pz_params: input paramter (scaling)
 !!
 !!   MODIFICATION HISTORY
@@ -512,8 +510,8 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
 !!     Initializes the functionals
 !!
 !!   ARGUMENTS
-!!     method - CHARACTER(3) - name of the method used for parameters
-!!     cutoff - REAL(KIND=dp) - the cutoff density
+!!     - method : CHARACTER(3) - name of the method used for parameters
+!!     - cutoff : REAL(KIND=dp) - the cutoff density
 !!
 !!   MODIFICATION HISTORY
 !!     18-MAR-2002, TCH, working version
