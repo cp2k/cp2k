@@ -68,8 +68,8 @@ MODULE qs_ks_atom
 CONTAINS
 
 !******************************************************************************
-!!
-!!
+!! NAME
+!! update_ks_atom
 !!
 !!   FUNCTION
 !!     The correction to the KS matrix due to the GAPW local terms to the hartree and
@@ -88,7 +88,7 @@ CONTAINS
 !!      p_env : perturbation theory environment
 !!      error : cp_error_type
 !!
-!!   HISTOTY
+!!   HISTORY
 !!     created [MI]
 !!     the loop over the spins is done internally [03-05,MI]
 !!
