@@ -506,14 +506,14 @@ CONTAINS
 !!     (Based on suitable modifications of S.Goedecker routines)
 !!     Restore data into output array
 !!
-!! SYNOPSIS
-!!     zf:          Original distributed density as well as
+!! ARGUMENTS
+!!     - zf:          Original distributed density as well as
 !!                  Distributed solution of the poisson equation (inout)
-!!     zw:          FFT work array
-!!     n3:          (twice the) dimension of the last FFTtransform.
-!!     md1,md3:     Dimensions of the undistributed part of the real grid
-!!     nfft:        number of planes
-!!     scal:        Needed to achieve unitarity and correct dimensions
+!!     - zw:          FFT work array
+!!     - n3:          (twice the) dimension of the last FFTtransform.
+!!     - md1,md3:     Dimensions of the undistributed part of the real grid
+!!     - nfft:        number of planes
+!!     - scal:        Needed to achieve unitarity and correct dimensions
 !!
 !! WARNING
 !!     Assuming that high frequencies are in the corners 
@@ -581,12 +581,12 @@ CONTAINS
 !!     Assign the correct planes to the work array zmpi2
 !!     in order to prepare for interprocessor data transposition.
 !!
-!! SYNOPSIS
-!!     zmpi2:          Work array for multiprocessor manipulation (output)
-!!     zw:             Work array (input)
-!!     n1,n3:          logical dimension of the FFT transform, reference for work arrays
-!!     md2,nd3:        Dimensions of real grid and of the kernel, respectively
-!!     i1,j2,lot,nfft: Starting points of the plane and number of remaining lines
+!! ARGUMENTS
+!!     - zmpi2:          Work array for multiprocessor manipulation (output)
+!!     - zw:             Work array (input)
+!!     - n1,n3:          logical dimension of the FFT transform, reference for work arrays
+!!     - md2,nd3:        Dimensions of real grid and of the kernel, respectively
+!!     - i1,j2,lot,nfft: Starting points of the plane and number of remaining lines
 !!
 !! RESTRICTIONS on USAGE
 !!     Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
@@ -632,12 +632,12 @@ CONTAINS
 !!     Insert the correct planes of the work array zmpi2
 !!     in order to prepare for backward FFT transform
 !!
-!! SYNOPSIS
-!!     zmpi2:          Work array for multiprocessor manipulation (input)
-!!     zw:             Work array (output)
-!!     n1,n3:          logical dimension of the FFT transform, reference for work arrays
-!!     md2,nd3:        Dimensions of real grid and of the kernel, respectively
-!!     i1,j2,lot,nfft: Starting points of the plane and number of remaining lines
+!! ARGUMENTS
+!!     - zmpi2:          Work array for multiprocessor manipulation (input)
+!!     - zw:             Work array (output)
+!!     - n1,n3:          logical dimension of the FFT transform, reference for work arrays
+!!     - md2,nd3:        Dimensions of real grid and of the kernel, respectively
+!!     - i1,j2,lot,nfft: Starting points of the plane and number of remaining lines
 !!
 !! RESTRICTIONS on USAGE
 !!     Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
@@ -692,7 +692,7 @@ CONTAINS
 !!     Multiply with the kernel taking into account its symmetry
 !!     Conceived to be used into convolution loops
 !!
-!! SYNOPSIS
+!! ARGUMENTS
 !!     zw:         Work array (input/output)
 !!     n1,n2:      logical dimension of the FFT transform, reference for zw
 !!     nd1,nd2:    Dimensions of POT
@@ -755,7 +755,7 @@ CONTAINS
 !!     Multiply with the kernel taking into account its symmetry
 !!     Conceived to be used into convolution loops
 !!
-!! SYNOPSIS
+!! ARGUMENTS
 !!     pot:      Kernel, symmetric and real, half the length
 !!     zw:       Work array (input/output)
 !!     n1,n2:    logical dimension of the FFT transform, reference for zw
@@ -829,7 +829,7 @@ CONTAINS
 !!     Applies the local FFT space Kernel to the density in Real space.
 !!     Does NOT calculate the LDA exchange-correlation terms
 !!
-!! SYNOPSIS
+!! ARGUMENTS
 !!     zf:          Density (input/output)
 !!                  ZF(i1,i3,i2)
 !!                  i1=1,md1 , i2=1,md2/nproc , i3=1,md3 
@@ -1370,7 +1370,7 @@ CONTAINS
 !!     Restore data into output array, calculating in the meanwhile
 !!     Hartree energy of the potential 
 !!
-!! SYNOPSIS
+!! ARGUMENTS
 !!     zf:          Original distributed density as well as
 !!                  Distributed solution of the poisson equation (inout)
 !!     zw:          FFT work array
@@ -1458,13 +1458,13 @@ CONTAINS
 !!     In the meanwhile, it unpacks the data of the HalFFT in order to prepare for
 !!     multiplication with the kernel
 !!
-!! SYNOPSIS
-!!     zmpi2:          Work array for multiprocessor manipulation (output)
-!!     zw:             Work array (input)
-!!     cosinarr:      Array of the phases needed for unpacking
-!!     n1,n3:          logical dimension of the FFT transform, reference for work arrays
-!!     md2,nd3:        Dimensions of real grid and of the kernel, respectively
-!!     i1,j2,lot,nfft: Starting points of the plane and number of remaining lines
+!! ARGUMENTS
+!!     - zmpi2:          Work array for multiprocessor manipulation (output)
+!!     - zw:             Work array (input)
+!!     - cosinarr:      Array of the phases needed for unpacking
+!!     - n1,n3:          logical dimension of the FFT transform, reference for work arrays
+!!     - md2,nd3:        Dimensions of real grid and of the kernel, respectively
+!!     - i1,j2,lot,nfft: Starting points of the plane and number of remaining lines
 !!
 !! RESTRICTIONS on USAGE
 !!     Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
@@ -1541,13 +1541,13 @@ CONTAINS
 !!     In the meanwhile, it packs the data in order to be transformed with the HalFFT 
 !!     procedure
 !!
-!! SYNOPSIS
-!!     zmpi2:          Work array for multiprocessor manipulation (input)
-!!     zw:             Work array (output)
-!!     cosinarr:       Array of the phases needed for packing
-!!     n1,n3:          logical dimension of the FFT transform, reference for work arrays
-!!     md2,nd3:        Dimensions of real grid and of the kernel, respectively
-!!     i1,j2,lot,nfft: Starting points of the plane and number of remaining lines
+!! ARGUMENTS
+!!     - zmpi2:          Work array for multiprocessor manipulation (input)
+!!     - zw:             Work array (output)
+!!     - cosinarr:       Array of the phases needed for packing
+!!     - n1,n3:          logical dimension of the FFT transform, reference for work arrays
+!!     - md2,nd3:        Dimensions of real grid and of the kernel, respectively
+!!     - i1,j2,lot,nfft: Starting points of the plane and number of remaining lines
 !!
 !! RESTRICTIONS on USAGE
 !!     Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
@@ -1612,7 +1612,7 @@ CONTAINS
 !!     Applies the local FFT space Kernel to the density in Real space.
 !!     Calculates also the LDA exchange-correlation terms
 !!
-!! SYNOPSIS
+!! ARGUMENTS
 !!     zf:          Density (input/output)
 !!                  ZF(i1,i3,i2)
 !!                  i1=1,md1 , i2=1,md2/nproc , i3=1,md3 
@@ -2154,15 +2154,15 @@ CONTAINS
 !!     Restore data into output array, calculating in the meanwhile
 !!     Hartree energy of the potential 
 !!
-!! SYNOPSIS
-!!     zf:          Original distributed density as well as
+!! ARGUMENTS
+!!     - zf:          Original distributed density as well as
 !!                  Distributed solution of the poisson equation (inout)
-!!     zw:          FFT work array
-!!     n3:          (twice the) dimension of the last FFTtransform.
-!!     md1,md3:     Dimensions of the undistributed part of the real grid
-!!     nfft:        number of planes
-!!     scal:        Needed to achieve unitarity and correct dimensions
-!!     ehartreetmp: Hartree energy
+!!     - zw:          FFT work array
+!!     - n3:          (twice the) dimension of the last FFTtransform.
+!!     - md1,md3:     Dimensions of the undistributed part of the real grid
+!!     - nfft:        number of planes
+!!     - scal:        Needed to achieve unitarity and correct dimensions
+!!     - ehartreetmp: Hartree energy
 !!
 !! WARNING
 !!     Assuming that high frequencies are in the corners 

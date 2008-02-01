@@ -51,30 +51,7 @@ MODULE dimer_types
             dimer_env_retain,&
             dimer_env_release
 
-!!****s* dimer_types/dimer_env_type [1.0] *
-!!
-!!   NAME
-!!     dimer_env_type
-!!
-!!   FUNCTION
-!!     Defines the environment for a Dimer Method calculation
-!!
-!!   NOTES
-!!     -
-!!
-!!   ATTRIBUTES
-!!     -
-!!
-!!   AUTHOR
-!!     Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!***************************************************************************
-
-  ! Type containing all informations abour the rotation of the Dimer
+! Type containing all informations abour the rotation of the Dimer
   TYPE dimer_rotational_type
      ! Rotational parameters
      INTEGER                                    :: rotation_step
@@ -95,7 +72,27 @@ MODULE dimer_types
      REAL(KIND=dp), POINTER, DIMENSION(:)       :: nvec_old
   END TYPE dimer_cg_rot_type
 
-  ! Dimer Environment  Type
+  !!****s* dimer_types/dimer_env_type [1.0] *
+  !!
+  !!   NAME
+  !!     dimer_env_type
+  !!
+  !!   FUNCTION
+  !!     Defines the environment for a Dimer Method calculation
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ATTRIBUTES
+  !!     -
+  !!
+  !!   AUTHOR
+  !!     Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+  !!
+  !!   MODIFICATION HISTORY
+  !!     none
+  !!
+  !***************************************************************************
   TYPE dimer_env_type
      INTEGER                                    :: ref_count, id_nr
      REAL(KIND=dp)                              :: dr

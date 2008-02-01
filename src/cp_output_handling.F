@@ -1163,13 +1163,12 @@ CONTAINS
 !!     cp_print_key_unit_nr, so that the file that might have been opened
 !!     can be closed.
 !!
+!!     the inputs should be exactly the same of the corresponding
+!!     cp_print_key_unit_nr
+!!
 !!   NOTES
 !!     closes if the corresponding filename of the printkey is
 !!     not __STD_OUT__
-!!
-!!   INPUTS
-!!     the inputs should be exactly the same of the corresponding
-!!     cp_print_key_unit_nr
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed

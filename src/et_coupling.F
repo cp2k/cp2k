@@ -316,7 +316,7 @@ CONTAINS
 !!     becke_constraint
 !!
 !!   ATTRIBUTES
-!!      calc_pot=logical if potential has to be calculated or only_energy
+!!      - calc_pot: logical if potential has to be calculated or only_energy
 !!
 !!   FUNCTION
 !!     calculates a becke contraint
@@ -492,7 +492,6 @@ END SUBROUTINE becke_constraint
 !!   NAME
 !!     becke_forces
 !!
-!!   ATTRIBUTES
 !!      calculates the forces due to the becke constraint
 !!
 !!   FUNCTION
