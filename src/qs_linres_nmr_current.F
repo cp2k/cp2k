@@ -162,10 +162,7 @@ CONTAINS
 !!      Spline interpolation is used
 !!
 !!  ARGUMENTS
-!!      nmr_env
-!!      qs_env
-!!      psi1, p_psi1 : scratch MOS coefficients
-!!      error
+!!      - psi1, p_psi1 : scratch MOS coefficients
 !!
 !!  NOTES
 !!      The susceptibility is needed to compute the G=0 term of the shift
