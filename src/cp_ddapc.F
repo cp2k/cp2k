@@ -3,7 +3,6 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-MODULE cp_ddapc
 !!****h* cp2k/cp_ddapc *
 !!
 !!   NAME
@@ -24,6 +23,7 @@ MODULE cp_ddapc
 !!
 !!   SOURCE
 !****************************************************************************  
+MODULE cp_ddapc
   USE cell_types,                      ONLY: cell_type
   USE cp_ddapc_forces,                 ONLY: ewald_ddapc_force,&
                                              reset_ch_pulay,&

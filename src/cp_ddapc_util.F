@@ -3,7 +3,6 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-MODULE cp_ddapc_util
 !!****h* cp2k/cp_ddapc_util *
 !!
 !!   NAME
@@ -24,6 +23,7 @@ MODULE cp_ddapc_util
 !!
 !!   SOURCE
 !****************************************************************************  
+MODULE cp_ddapc_util
   USE atomic_charges,                  ONLY: print_atomic_charges
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: ddapc_restraint_type,&

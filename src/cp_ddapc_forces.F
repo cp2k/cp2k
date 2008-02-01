@@ -3,7 +3,6 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-MODULE cp_ddapc_forces
 !!****h* cp2k/cp_ddapc_forces *
 !!
 !!   NAME
@@ -24,6 +23,7 @@ MODULE cp_ddapc_forces
 !!
 !!   SOURCE
 !****************************************************************************
+MODULE cp_ddapc_forces
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
