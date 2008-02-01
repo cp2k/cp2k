@@ -79,7 +79,8 @@ def parseRoboDoc(lines,inFile):
                 break
             else:
                 for l in lines:
-                    print "ingnoring",repr(l)
+                    if not l.isspace():
+                        print "ignoring",repr(l)
         if not lines:
             break
         if jline!=None and jline!="" and not jline.isspace():
@@ -125,7 +126,7 @@ def printRoboDoc(info,outF=sys.stdout,isspace=0):
         for l in info['origLines']:
             print repr(l)
             outF.write(l)
-        return
+        return 0
     #if info['name'][0].strip()[-5:]=='_type':
     #    outF.write("!> \struct %s\n"%(info['name'][0].strip()))
     lines=drop_trailing(info['brief'])
@@ -157,6 +158,8 @@ def printRoboDoc(info,outF=sys.stdout,isspace=0):
                     outF.write('\\par\n')
                 else:
                     outF.write(line)
+        else:
+            print "removing empty special label",label
     paramRe=re.compile(r" *- *(?P<param>[a-zA-Z_]+) *:? *(?P<rest>.+)")
     param2Re=re.compile(r" *(?P<param>[a-zA-Z_]+) *: *(?P<rest>.+)")
     lines=drop_trailing(info['params'])
@@ -219,28 +222,50 @@ def printRoboDoc(info,outF=sys.stdout,isspace=0):
     for l in info['trash']:
         if l and not basicFluffRe.match(l):
             print 'rmvd ',repr(l)
+    return 1
             
 if __name__=='__main__':
     inFile=file(sys.argv[1])
     outF=file(sys.argv[1][:-1]+'f90','w')
     roboDocRe=re.compile(" *!!")
     # fluffRe=re.compile(r" *![+=* ]+$")
-    basicFluffRe=re.compile(r" *!\** *\*+ *$")
+    basicFluffRe=re.compile(r" *! *\** *\*{20,} *$")
     basicFluff2Re=re.compile(r" *!! *\** *\** *$")
-    separatePreRe=re.compile(r" *(?:(?:end +)?module +[a-zA-Z]|type +[a-zA-Z]|(?:recursive +|pure +|elemental +)*(?:subroutine|function) +[a-zA-Z])",re.IGNORECASE)
+    separatePreRe=re.compile(r" *(?:(?:end +)?(?:(?P<module>module)|program) +[a-zA-Z]|type +[a-zA-Z]|(?:recursive +|pure +|elemental +)*(?:subroutine|function) +[a-zA-Z])",re.IGNORECASE)
     #separatePostRe=re.compile(r" *end +(?:subroutine|function|type|module)",re.IGNORECASE)
+    bodyRe=re.compile(r" *(?P<end>end +)(?:type *(?![ ()])|subroutine|function).")
     isspace=1
+    didDoc=0
+    inBody=0
+    didModule=0
     while 1:
         (jline,comments,lines)=readFortranLine(inFile)
         if not lines: break
+        m=bodyRe.match(lines[0])
+        if m:
+            if m.group('end'):
+                inBody=None
+            else:
+                inBody=bodyRe.group()
         if roboDocRe.match(lines[0]):
             if basicFluff2Re.match(lines[0]):
                 continue
             (jline,comments,lines,info)=parseRoboDoc(lines,inFile)
-            printRoboDoc(info,outF,isspace)
+            didDocAtt=printRoboDoc(info,outF,isspace)
+            if didDocAtt:
+                didDoc=1
+                if inBody:
+                    print '* documentation in body',inBody
             isspace=1
         if separatePreRe.match(lines[0]):
-            outF.write('! '+(77*'*')+'\n')
+            if separatePreRe.match(lines[0]).group('module'):
+                if not didModule:
+                    didModule=1
+                    outF.write('! '+(77*'*')+'\n')
+                elif not didDoc :
+                    print "* module without documentation, documentation at wrong place?"
+            else:
+                outF.write('! '+(77*'*')+'\n')
             for l in lines:
                 outF.write(l)
             isspace=0
