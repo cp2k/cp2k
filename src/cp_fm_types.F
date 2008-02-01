@@ -963,9 +963,6 @@ CPSourceFileRef,&
 !!      - nrow_local, ncol_local, row_indices, col_indices, local_data are hooks for efficient
 !!        access to the local blacs block
 !!
-!!   INPUTS
-!!      matrix_a
-!!
 !!   AUTHOR
 !!
 !!   MODIFICATION HISTORY

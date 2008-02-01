@@ -84,13 +84,6 @@ CONTAINS
 !!     optimized for alpha == 1.0 (just add beta*B) and beta == 0.0 (just
 !!     scale A)
 !!
-!!   ARGUMENTS
-!!      TYPE(cp_fm_type), POINTER           :: matrix_a
-!!      REAL(KIND = dp), INTENT(IN)                         :: alpha
-!!      REAL(KIND = dp), INTENT(in), OPTIONAL               :: beta
-!!      TYPE(cp_fm_type), POINTER, OPTIONAL :: matrix_b
-!!      TYPE(cp_error_type), INTENT(inout)  :: error
-!!
 !!****
   SUBROUTINE cp_fm_scale_and_add(alpha,matrix_a,beta,matrix_b,error)
 
