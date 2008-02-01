@@ -117,6 +117,7 @@ CONTAINS
       POINTER                                :: particle_set
 
 ! *****************************************************************************
+
     TYPE cexp_ppl_type
       REAL(KIND=dp), DIMENSION(:,:), POINTER :: c
     END TYPE cexp_ppl_type
@@ -629,6 +630,7 @@ CONTAINS
       POINTER                                :: particle_set
 
 ! *****************************************************************************
+
     TYPE cexp_ppl_type
       REAL(KIND=dp), DIMENSION(:,:), POINTER :: c
     END TYPE cexp_ppl_type

@@ -25,7 +25,6 @@ MODULE qs_tddfpt_utils
                                              cp_fm_to_fm
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: evolt
   USE qs_environment_types,            ONLY: qs_environment_type
@@ -77,9 +76,8 @@ CONTAINS
 !> \param t_env tddfpt environment to be initialized
 !> \param qs_env Quickstep environment with the results of a
 !>                   ground state calcualtion
-!> \param glob_env global environment
 ! *****************************************************************************
-  SUBROUTINE tddfpt_init(p_env, t_env, qs_env,error)
+  SUBROUTINE tddfpt_init(p_env, t_env, qs_env, error)
 
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(tddfpt_env_type), INTENT(out)       :: t_env
