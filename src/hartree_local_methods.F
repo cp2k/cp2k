@@ -17,51 +17,49 @@
 MODULE  hartree_local_methods
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-       get_atomic_kind,&
-       get_atomic_kind_set
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
-       gto_basis_set_type
+                                             gto_basis_set_type
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type,&
-       gapw_control_type
-  USE input_constants,                 ONLY: tddfpt_singlet,use_periodic
+                                             gapw_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type
   USE hartree_local_types,             ONLY: allocate_ecoul_1center,&
-       ecoul_1center_type,&
-       get_ecoul_1c,&
-       set_ecoul_1c
-  USE kinds,                           ONLY: default_string_length,&
-       dp,&
-       dp_size, int_size
-  USE mathconstants,                   ONLY: fourpi,pi
+                                             ecoul_1center_type,&
+                                             set_ecoul_1c
+  USE input_constants,                 ONLY: tddfpt_singlet,&
+                                             use_periodic
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
+  USE mathconstants,                   ONLY: fourpi,&
+                                             pi
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: indso,&
-       nsoset
+                                             nsoset
   USE pw_env_types,                    ONLY: pw_env_get,&
-       pw_env_type
+                                             pw_env_type
   USE pw_poisson_types,                ONLY: pw_poisson_type
   USE qs_charges_types,                ONLY: qs_charges_type
-  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-       qs_environment_type,&
-       set_qs_env
+                                             qs_environment_type,&
+                                             set_qs_env
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
-  USE qs_p_env_types,                  ONLY: qs_p_env_type
-  USE qs_rho_atom_types,               ONLY: get_rho_atom,&
-       rho_atom_coeff,&
-       rho_atom_type
-  USE qs_rho0_types,                   ONLY: get_rho0_mpole, &
-       rho0_mpole_type, &
-       rho0_atom_type
   USE qs_local_rho_types,              ONLY: rhoz_type
+  USE qs_p_env_types,                  ONLY: qs_p_env_type
+  USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
+                                             rho0_atom_type,&
+                                             rho0_mpole_type
+  USE qs_rho_atom_types,               ONLY: get_rho_atom,&
+                                             rho_atom_coeff,&
+                                             rho_atom_type
   USE qs_util,                         ONLY: trace_r_AxB
   USE termination,                     ONLY: stop_memory,&
-       stop_program
+                                             stop_program
   USE timings,                         ONLY: timeset,&
-       timestop
+                                             timestop
   USE util,                            ONLY: get_limit
 #include "cp_common_uses.h"
 
@@ -71,7 +69,7 @@ MODULE  hartree_local_methods
 
   ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "hartree_local_methods"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hartree_local_methods'
 
   ! *** Define multipole type ***
 
@@ -90,24 +88,22 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(gapw_control_type), POINTER         :: gapw_control
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
-    TYPE(qs_p_env_type), POINTER, OPTIONAL   :: p_env
+    TYPE(qs_p_env_type), OPTIONAL, POINTER   :: p_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_coulomb_local', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-
-    TYPE(atomic_kind_type), DIMENSION(:), &
-         POINTER   :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
-    TYPE(ecoul_1center_type), DIMENSION(:),&
-         POINTER      :: ecoul_1c
+    INTEGER                                  :: handle, iat, iatom, ikind, &
+                                                max_iso_not0, nat, natom, &
+                                                nkind, nr
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  ::  my_tddft
-
-    INTEGER                                  :: handle, iat, iatom, ikind, istat,&
-         max_iso_not0, maxso, nat,&
-         natom, nkind, nr
+    LOGICAL                                  :: my_tddft
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(ecoul_1center_type), DIMENSION(:), &
+      POINTER                                :: ecoul_1c
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -160,27 +156,26 @@ CONTAINS
 
   SUBROUTINE calculate_Vh_1center(vrad_h,vrad_s,rrad_h,rrad_s,rrad_0,rrad_z,grid_atom)
 
-    REAL(dp), DIMENSION(:,:), INTENT(INOUT)    :: vrad_h, vrad_s
-    REAL(dp), DIMENSION(:,:), INTENT(IN)       :: rrad_0
-    REAL(dp), DIMENSION(:), INTENT(IN)         :: rrad_z
-    TYPE (rho_atom_coeff), DIMENSION(:),&
-         INTENT(IN)     :: rrad_h, rrad_s
-    TYPE (grid_atom_type), POINTER             :: grid_atom
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: vrad_h, vrad_s
+    TYPE(rho_atom_coeff), DIMENSION(:), &
+      INTENT(IN)                             :: rrad_h, rrad_s
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: rrad_0
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: rrad_z
+    TYPE(grid_atom_type), POINTER            :: grid_atom
 
-    REAL(dp)                                   :: I1_up, I1_down,&
-         I2_up, I2_down, &
-         prefactor, sum
-    REAL(dp), ALLOCATABLE, DIMENSION(:, :)     :: rho_1, rho_2
-    REAL(dp), DIMENSION(:), POINTER             :: wr
-    REAL(dp), DIMENSION(:,:), POINTER          :: r2l, oor2l
-    INTEGER                                    :: handle, ir, iso, ispin, l_ang, &
-         max_s_harm, nchannels, &
-         nr, nspins
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_mix', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_Vh_1center', &
       routineP = moduleN//':'//routineN
 
-    !   ---------------------------------------------------------------------------
+    INTEGER                                  :: handle, ir, iso, ispin, &
+                                                l_ang, max_s_harm, nchannels, &
+                                                nr, nspins
+    REAL(dp)                                 :: I1_down, I1_up, I2_down, &
+                                                I2_up, prefactor
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rho_1, rho_2
+    REAL(dp), DIMENSION(:), POINTER          :: wr
+    REAL(dp), DIMENSION(:, :), POINTER       :: oor2l, r2l
+
+!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -260,78 +255,60 @@ CONTAINS
 
   SUBROUTINE Vh_1c_gg_integrals(qs_env,energy_hartree_1c,tddft,p_env,error)
 
-    TYPE(qs_environment_type), POINTER         :: qs_env
-    REAL(kind=dp), INTENT(out)                 :: energy_hartree_1c
-    LOGICAL, INTENT(IN), OPTIONAL              :: tddft
-    TYPE(qs_p_env_type), POINTER, OPTIONAL     :: p_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    REAL(kind=dp), INTENT(out)               :: energy_hartree_1c
+    LOGICAL, INTENT(IN), OPTIONAL            :: tddft
+    TYPE(qs_p_env_type), OPTIONAL, POINTER   :: p_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER         :: routineN = "Vh_1c_gg_integrals",&
-         routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'Vh_1c_gg_integrals', &
+      routineP = moduleN//':'//routineN
 
+    INTEGER :: bo(2), handle, iat, iatom, icg, ikind, ipgf1, ipgf2, ir, is1, &
+      is2, iset1, iset2, iso, iso1, iso2, ispin, istat, l_ang, lmax0, lmax_0, &
+      m1, m2, max_iso, max_iso_not0, max_nr, maxso, mepos, n1, n2, nat, &
+      nchan_0, nkind, nr, nset, nsotot, nspins, num_pe
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
+    LOGICAL                                  :: my_periodic, my_tddft, &
+                                                paw_atom
+    REAL(dp)                                 :: back_ch, ec_tmp, ecoul_1_0, &
+                                                ecoul_1_h, ecoul_1_s, &
+                                                ecoul_1_z, factor, gVg_0, &
+                                                gVg_h, gVg_s
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: gexp, sqrtwr
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: aVh1b_00, aVh1b_hh, aVh1b_ss, &
+                                                g0_h_w
+    REAL(dp), DIMENSION(:), POINTER          :: rrad_z, vrrad_z
+    REAL(dp), DIMENSION(:, :), POINTER       :: g0_h, gsph, rrad_0, Vh1_h, &
+                                                Vh1_s, vrrad_0, zet
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG, Qlm_gg
     TYPE(atomic_kind_type), DIMENSION(:), &
-         POINTER            :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER            :: atom_kind
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER            :: para_env
-    TYPE(gto_basis_set_type), POINTER          :: orb_basis
-    TYPE(grid_atom_type), POINTER              :: grid_atom
-    TYPE(harmonics_atom_type), &
-         POINTER             :: harmonics
-    TYPE(dft_control_type), POINTER            :: dft_control
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(ecoul_1center_type), DIMENSION(:), &
-         POINTER       :: ecoul_1c
-    TYPE(pw_poisson_type), POINTER             :: poisson_env
-    TYPE(pw_env_type), POINTER                 :: pw_env
-    TYPE(qs_charges_type), POINTER             :: qs_charges
-    TYPE(rho_atom_type), DIMENSION(:), &
-         POINTER   :: rho_atom_set
-    TYPE(rho_atom_type),       POINTER         :: rho_atom
-    TYPE(rho0_mpole_type), POINTER             :: rho0_mpole
+      POINTER                                :: ecoul_1c
+    TYPE(grid_atom_type), POINTER            :: grid_atom
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis
+    TYPE(harmonics_atom_type), POINTER       :: harmonics
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(rho0_atom_type), DIMENSION(:), &
-         POINTER      :: rho0_atom_set
-    TYPE(rhoz_type), DIMENSION(:), POINTER     :: rhoz_set
-    TYPE(rho_atom_coeff),DIMENSION(:),&
-         POINTER       :: r_h,r_s
-    TYPE(rho_atom_coeff),DIMENSION(:),&
-         POINTER       :: vr_h,vr_s
-    TYPE(rho_atom_coeff), DIMENSION(:),&
-         POINTER  :: cpc_h, cpc_s
-    TYPE(rho_atom_coeff), DIMENSION(:),&
-         POINTER  :: int_local_h,int_local_s
-    REAL(dp)                                   :: back_ch,ec_tmp,es_tmp,&
-         e_1_h,e_1_s,&
-         factor,&
-         gVg_h, gVg_s,&
-         gVg_0,&
-         ecoul_1_0,&
-         ecoul_1_z,&
-         ecoul_1_h,&
-         ecoul_1_s
-    REAL(dp), DIMENSION(:),      POINTER       :: rrad_z, vrrad_z
-    REAL(dp), DIMENSION(:),  ALLOCATABLE       :: gexp, sqrtwr
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: g0_h_w
-    REAL(dp), DIMENSION(:,:), POINTER          :: gsph
-    REAL(dp), DIMENSION(:,:),    POINTER       :: Vh1_h, Vh1_s
-    REAL(dp), DIMENSION(:,:),    POINTER       :: rrad_0, vrrad_0
-    REAL(dp), DIMENSION(:,:),  ALLOCATABLE     :: aVh1b_hh, aVh1b_ss,&
-         aVh1b_00
-    REAL(dp), DIMENSION(:,:), POINTER          :: zet
-    REAL(dp), DIMENSION(:,:), POINTER          :: g0_h
-    REAL(dp), DIMENSION(:,:,:),  POINTER       :: Qlm_gg
-    REAL(dp), DIMENSION(:,:,:), POINTER        :: my_CG
+      POINTER                                :: rho0_atom_set
+    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
+    TYPE(rho_atom_coeff), DIMENSION(:), &
+      POINTER                                :: cpc_h, cpc_s, int_local_h, &
+                                                int_local_s, r_h, r_s, vr_h, &
+                                                vr_s
+    TYPE(rho_atom_type), DIMENSION(:), &
+      POINTER                                :: rho_atom_set
+    TYPE(rho_atom_type), POINTER             :: rho_atom
+    TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
 
-    INTEGER                                    :: bo(2), handle, iat, iatom, icg, ikind, &
-         ipgf1, ipgf2, ir, iset1, iset2, &
-         is1, is2, iso, iso1, iso2, ispin, istat, &
-         l_ang, lmax_0, lmax0, m1, m2, max_nr, &
-         max_iso, max_iso_not0, maxso, mepos, n1,&
-         n2, nat, nchan_0, nkind, nr, nset, &
-         nsotot, nspins, num_pe
-    INTEGER, DIMENSION(:),        POINTER      :: atom_list, lmin, lmax, npgf
-    LOGICAL                                    :: my_periodic,my_tddft, paw_atom
-
-    !   -----------------------------------------------------------------------------
+!   -----------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 

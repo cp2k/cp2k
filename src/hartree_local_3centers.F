@@ -20,58 +20,52 @@ MODULE  hartree_local_3centers
 
   USE ai_coulomb,                      ONLY: coulomb3
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-       get_atomic_kind,&
-       get_atomic_kind_set
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
-       gto_basis_set_type
-  USE input_constants,                 ONLY: tddfpt_singlet
+                                             gto_basis_set_type
+  USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: dp,dp_size,&
-       int_size
-  USE mathconstants,                   ONLY: dfac,fourpi,pi
+  USE input_constants,                 ONLY: tddfpt_singlet
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
+                                             int_size
+  USE mathconstants,                   ONLY: dfac,&
+                                             fourpi,&
+                                             pi
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: coset,&
-       indco,&
-       nco,&
-       ncoset,&
-       nso,&
-       nsoset
+                                             indco,&
+                                             nco,&
+                                             ncoset,&
+                                             nso,&
+                                             nsoset
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE particle_types,                  ONLY: particle_type
-  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-       qs_environment_type
+                                             qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
-       first_list,&
-       first_node,&
-       get_neighbor_list,&
-       get_neighbor_list_set,&
-       get_neighbor_node,&
-       neighbor_list_p_type,&
-       neighbor_list_set_p_type,&
-       neighbor_list_set_type,&
-       neighbor_list_type,&
-       neighbor_node_type,&
-       next,&
-       reduced_3c_list_type
+  USE qs_neighbor_list_types,          ONLY: &
+       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
+       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
+       neighbor_node_type, next, reduced_3c_list_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
-       rho0_mpole_type
+                                             rho0_mpole_type
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
-       rho_atom_coeff,&
-       rho_atom_type
-  USE qs_util,                         ONLY: trace_r_AxB, trace_r_AxB_new
-  USE cell_types,                      ONLY: cell_type,&
-       pbc
+                                             rho_atom_coeff,&
+                                             rho_atom_type
+  USE qs_util,                         ONLY: trace_r_AxB,&
+                                             trace_r_AxB_new
   USE sparse_matrix_types,             ONLY: get_block_node,&
-       real_matrix_p_type
+                                             real_matrix_p_type
   USE termination,                     ONLY: stop_memory,&
-       stop_program
+                                             stop_program
   USE timings,                         ONLY: timeset,&
-       timestop
-  USE util,                            ONLY: get_limit!, &
+                                             timestop
+  USE util,                            ONLY: get_limit
+!, &
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -80,7 +74,7 @@ MODULE  hartree_local_3centers
 
   ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "hartree_local_3centers"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hartree_local_3centers'
 
   ! Public Subroutine
 
@@ -123,92 +117,83 @@ CONTAINS
   SUBROUTINE integrate_a_vhg0_b(qs_env,h_mat,p_mat,energy_hartree_3c,just_energy,&
        calculate_forces,tddft,p_env,error)
 
-    REAL(kind=dp), INTENT(INOUT)               :: energy_hartree_3c
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-         INTENT(IN)                               :: p_mat
+      INTENT(INOUT)                          :: h_mat
     TYPE(real_matrix_p_type), DIMENSION(:), &
-         INTENT(INOUT)                            :: h_mat
-    TYPE(qs_environment_type), POINTER         :: qs_env
-    LOGICAL, INTENT(IN)                        :: calculate_forces,&
-         just_energy
-    LOGICAL, INTENT(IN), OPTIONAL              :: tddft
-    TYPE(qs_p_env_type), POINTER, OPTIONAL     :: p_env
-    TYPE(cp_error_type), INTENT(inout)  &
-         :: error
+      INTENT(IN)                             :: p_mat
+    REAL(kind=dp), INTENT(INOUT)             :: energy_hartree_3c
+    LOGICAL, INTENT(IN)                      :: just_energy, calculate_forces
+    LOGICAL, INTENT(IN), OPTIONAL            :: tddft
+    TYPE(qs_p_env_type), OPTIONAL, POINTER   :: p_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_a_vhg0_b', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
+    REAL(dp), PARAMETER                      :: EPS_a_vhg0_b = 1.E-8_dp 
 
-    REAL(dp), PARAMETER         :: EPS_a_vhg0_b = 1.E-8_dp ! other parameter for input ?
-
-    TYPE(atomic_kind_type), DIMENSION(:),&
-         POINTER      :: atomic_kind_set
-    TYPE(atomic_kind_type),       POINTER      :: atom_kind
-    TYPE(cell_type),              POINTER      :: cell
-    TYPE(cp_logger_type), POINTER              :: logger
-    TYPE(gto_basis_set_type),     POINTER      :: orb_basis
+    INTEGER :: ab, bo(2), handle, i, i_atom, iatom, ic, ic1, ic1_max, &
+      ic1_min_m1, ic2, ic2_max, ic2_min_m1, ico, idir, ifs1, ifs2, ikind, &
+      ilist, inode, ip1, ip2, is, iset1, iset2, iso, ispin, istat, j_atom, &
+      jatom, jkind, k_atom, kat, katom, kkind, knode, l0_kkind, ldcpc1, &
+      ldcpc2, ldhab1, ldhab2, ldintab1, ldintab2, lmax_0, lshell, lx, ly, lz, &
+      m1, m2, maxch0, maxco_global, maxcoa, maxcob, maxder, maxlgto, &
+      maxlgto1, maxsgf, maxsgf_set, maxsoc, mepos, n1, n2, nat, natom, &
+      nchan0_car, nchan0_sph, nco1, nco2, ncotota, ncotota_old, ncototb, &
+      ncototb_old, nkind, nlist, nn1, nn2, nnode, nnode_c, ns1, ns2, nseta, &
+      nsetb
+    INTEGER :: nsetc, nsgfa, nsgfb, nsototc, nspins, num_pe, nz1, nz2, &
+      output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
+                                                lb_max, lb_min, npgfa, npgfb, &
+                                                nsgfa_set, nsgfb_set
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+    LOGICAL                                  :: ionode, my_tddft, paw_atom
+    REAL(dp)                                 :: alpha_core, c1, dab, fac, &
+                                                ieqj, r_V0, rab(3), rab2, &
+                                                rac(3), rac2, rbc(3), rbc2, &
+                                                trace, z0_h, z0_s, zhard
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ff, normhard, QN_h_c, &
+                                                sum_ab_sph
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: sum_ab_car, work
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: int_tmpp
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :, :)                  :: vv
+    REAL(dp), DIMENSION(:), POINTER          :: ng0_h, ng0_s, Qlm, QN_h, QN_s
+    REAL(dp), DIMENSION(:, :), POINTER :: h_block, h_block2, hab, Int_ab_sum, &
+      p_block, p_block2, rpgfa, rpgfb, set_radius_3c, sphi_a, sphi_b, zeta, &
+      zetb
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: CPC_ab, Int_abc, Int_adb_sum, &
+                                                Int_dab_sum, Qlm_gg
+    REAL(KIND=dp)                            :: zeff
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(neighbor_list_set_p_type), &
-         DIMENSION(:), POINTER :: sab_orb,sbc_3c
-    TYPE(neighbor_list_type),     POINTER      :: sab_orb_neighbor_list,&
-         sab_orb_neighbor_list_local
-    TYPE(neighbor_node_type),     POINTER      :: sab_orb_neighbor_node
-    TYPE(cp_para_env_type), POINTER            :: para_env
+      DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
+                                                sab_orb_neighbor_list_local
+    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(particle_type), DIMENSION(:), &
-         POINTER   :: particle_set
-    TYPE(qs_force_type), DIMENSION(:), POINTER :: force
-    TYPE(reduced_3c_list_type), DIMENSION(:), &
-         POINTER      :: reduced_3c_rho0
-    TYPE(rho0_mpole_type),        POINTER      :: rho0_mpole
-    TYPE(rho_atom_type), DIMENSION(:), &
-         POINTER   :: rho_atom_set
-    TYPE(rho_atom_type),       POINTER         :: rho_atom
+      POINTER                                :: particle_set
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    TYPE(reduced_3c_list_type), &
+      DIMENSION(:), POINTER                  :: reduced_3c_rho0
+    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(rho_atom_coeff), DIMENSION(:), &
-         POINTER                                :: int_local_h,int_local_s
-    REAL(dp) :: alpha_core, c1, dab, fac, ieqj, rab(3), rab2, rac(3), rac2, &
-         rbc(3), rbc2, r_V0, trace, z0_h, z0_s, zhard , e3
-    REAL(dp), DIMENSION(:),       POINTER      :: ng0_h, ng0_s
-    REAL(dp), DIMENSION(:),   ALLOCATABLE      :: normhard, ff
-    REAL(dp), DIMENSION(:),   ALLOCATABLE      :: sum_ab_sph
-    REAL(dp), DIMENSION(:),       POINTER      :: QN_h, QN_s,Qlm
-    REAL(dp), DIMENSION(:),   ALLOCATABLE      :: QN_h_c
-    REAL(dp), DIMENSION(:,:),   ALLOCATABLE    ::  work
-    REAL(dp), DIMENSION(:,:),   ALLOCATABLE  :: sum_ab_car
-    REAL(dp), DIMENSION(:,:),     POINTER      :: h_block,p_block
-    REAL(dp), DIMENSION(:,:),     POINTER      :: h_block2,p_block2
-    REAL(dp), DIMENSION(:,:),     POINTER      :: rpgfa,rpgfb,&
-         sphi_a,sphi_b,&
-         zeta,zetb
-    REAL(dp), DIMENSION(:,:),     POINTER      :: set_radius_3c
-    REAL(dp), DIMENSION(:,:),     POINTER      :: hab
-    REAL(dp), DIMENSION(:,:,:),    POINTER      :: CPC_ab
-    REAL(dp), DIMENSION(:,:),     POINTER      :: Int_ab_sum
-    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE    :: int_tmpp
-    REAL(dp), DIMENSION(:,:,:),   POINTER      :: Qlm_gg
-    REAL(dp), DIMENSION(:,:,:),   POINTER      :: Int_abc
-    REAL(dp), DIMENSION(:,:,:), POINTER        :: Int_dab_sum, Int_adb_sum
-    REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE  :: vv
+      POINTER                                :: int_local_h, int_local_s
+    TYPE(rho_atom_type), DIMENSION(:), &
+      POINTER                                :: rho_atom_set
+    TYPE(rho_atom_type), POINTER             :: rho_atom
 
-    INTEGER :: ab, bo(2), handle, iatom,  i_atom, i, ic, ico, icol, &
-         idir, ifs1, ifs2, ikind, ilist, inode, irow, iset1, iset2,&
-         is, iso, istat, ispin, jatom, j_atom, jkind, katom, kat, k_atom, &
-         kkind, knode, l0_kkind, lmax_0, lshell, lx, ly, lz,&
-         m1, m2, maxch0, maxco_global, maxcoa, &
-         maxcob, maxder, maxlgto, maxlgto1, &
-         maxsoc, maxsgf, maxsgf_set, mepos, nat, natom, nchan0_car,&
-         nchan0_sph, nco1, nco2, ncotota, ncotota_old, &
-         ncototb, ncototb_old, nkind, nlist, nnode, nnode_c,&
-         ns1, ns2, nsgfa, nsgfb, nseta, nsetb, nsetc, &
-         nsototc, nspins, num_pe, nz1, nz2, output_unit
-    INTEGER, DIMENSION(:),        POINTER      :: atom_list,la_max,la_min,&
-         lb_max,lb_min,&
-         npgfa,npgfb,nsgfa_set,nsgfb_set
-    INTEGER, DIMENSION(:),        ALLOCATABLE  :: atom_of_kind
-    INTEGER, DIMENSION(:,:),      POINTER      :: first_sgfa,first_sgfb
-    LOGICAL                                    :: ionode, paw_atom, my_tddft
-    INTEGER  :: ic1, ic1_min_m1, ic1_max, ic2, ic2_min_m1, ic2_max, &
-         ip1,ip2, ldcpc1, ldcpc2, ldhab1, ldhab2, ldintab1, ldintab2, &
-         n1, n2, nn1, nn2,jc
-    REAL(KIND=dp) :: zeff
+! other parameter for input ?
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -1119,41 +1104,40 @@ CONTAINS
        r12,r122,r13,r132,r23,r232,vabc,Int_abc,maxder,&
        vdabc,vadbc,int_tmp,vv,ff)
 
-    INTEGER, INTENT(IN)                :: l1_max, l1_min, m1, nco1, nz1
-    INTEGER, INTENT(IN)                :: l2_max, l2_min, m2, nco2, nz2
-    INTEGER, INTENT(IN)                :: l0_max, maxder
-    REAL(dp), INTENT(IN)               :: rp0_h, rp0_s, z0_h, z0_s
-    REAL(dp), DIMENSION(:), INTENT(IN) :: rp1, z1
-    REAL(dp), DIMENSION(:), INTENT(IN) :: rp2, z2
-    REAL(dp), DIMENSION(0:),INTENT(IN) :: ng0_h, ng0_s
-    REAL(dp), DIMENSION(:), INTENT(IN) :: Qlm
-    REAL(dp), DIMENSION(:), INTENT(IN) :: QN_h, QN_s
-    REAL(dp), INTENT(IN)               :: r122, r132, r232
-    REAL(dp), DIMENSION(3), INTENT(IN) :: r12, r13, r23
-    REAL(dp), DIMENSION(0:)            :: ff
-    REAL(dp), DIMENSION(:, :), &
-         INTENT(INOUT)                    :: vabc
-    REAL(dp), DIMENSION(:,:,:)         :: int_tmp
-    REAL(dp), DIMENSION(:,:,:), &
-         POINTER                         :: Int_abc,vdabc,vadbc
-    REAL(dp), DIMENSION(:,:,:,:)       :: vv
+    INTEGER, INTENT(IN)                      :: l1_max, l1_min, nco1, m1
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: rp1, z1
+    INTEGER, INTENT(IN)                      :: nz1, l2_max, l2_min, nco2, m2
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: rp2, z2
+    INTEGER, INTENT(IN)                      :: nz2, l0_max
+    REAL(dp), DIMENSION(0:), INTENT(IN)      :: ng0_h, ng0_s
+    REAL(dp), INTENT(IN)                     :: rp0_h, rp0_s
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: QN_h, QN_s, Qlm
+    REAL(dp), INTENT(IN)                     :: z0_h, z0_s
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: r12
+    REAL(dp), INTENT(IN)                     :: r122
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: r13
+    REAL(dp), INTENT(IN)                     :: r132
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: r23
+    REAL(dp), INTENT(IN)                     :: r232
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: vabc
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: Int_abc
+    INTEGER, INTENT(IN)                      :: maxder
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: vdabc, vadbc
+    REAL(dp), DIMENSION(:, :, :)             :: int_tmp
+    REAL(dp), DIMENSION(:, :, :, :)          :: vv
+    REAL(dp), DIMENSION(0:)                  :: ff
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sumup_3c_integrals', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
+    INTEGER :: handle, ico, ico1, ico1m, ico1p, ico2, ico2m, idir, idx_1, &
+      idx_1_L, idx_1m_L, idx_1p_L, idx_2, idx_2m, ipgf1, ipgf2, istat, l, n1, &
+      n1_plus, n1L, n2, n2_plus, nch0, npgf1, npgf2
+    INTEGER, DIMENSION(3)                    :: l1, l1m, l1p, l2, l2m
+    REAL(dp)                                 :: z1x2, z2x2
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: vabc_plus
 
-    INTEGER     ::  handle,ico, ico1, ico1m, ico1p, ico2, ico2m, &
-         idir, idx_1, idx_2, idx_1_L, idx_1m_L, idx_1p_L,&
-         idx_2m, ipgf1, ipgf2, istat, l, n1,&
-         n1_plus, n1L, n2, n2_plus, nch0, npgf1, npgf2
-
-    INTEGER, DIMENSION(3)              :: l1,l1m,l1p,l2,l2m
-    REAL(dp)                           :: z1x2, z2x2
-
-    REAL(dp), DIMENSION(:,:),&
-         ALLOCATABLE        :: vabc_plus
-
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I"," ",handle)
     nch0 = ncoset(l0_max)

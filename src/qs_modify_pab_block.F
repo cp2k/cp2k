@@ -24,9 +24,9 @@ MODULE  qs_modify_pab_block
 
 ! *****************************************************************************
 
+  USE f77_blas
   USE kinds,                           ONLY: dp
   USE orbital_pointers,                ONLY: coset
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -66,17 +66,16 @@ CONTAINS
 
   SUBROUTINE prepare_dadb(pab_local,pab,lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
 
-   REAL(dp),DIMENSION(:,:), INTENT(INOUT) :: pab_local
-   REAL(dp),DIMENSION(:,:), INTENT(IN)    :: pab
-   INTEGER, INTENT(IN)                    :: lxa, lya, lza
-   INTEGER, INTENT(IN)                    :: lxb, lyb, lzb
-   INTEGER, INTENT(IN)                    :: o1, o2
-   REAL(dp), INTENT(IN)                   :: zeta, zetb
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: pab_local
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab
+    INTEGER, INTENT(IN)                      :: lxa, lya, lza, lxb, lyb, lzb, &
+                                                o1, o2
+    REAL(dp), INTENT(IN)                     :: zeta, zetb
 
-   INTEGER :: ico,ico_l,jco,jco_l
+    INTEGER                                  :: ico, ico_l, jco, jco_l
 
-   ! this element of pab results in 12 elements of pab_local
-  
+! this element of pab results in 12 elements of pab_local
+
      ico=coset(lxa,lya,lza)
      jco=coset(lxb,lyb,lzb)
      ! x  (all safe if lxa = 0, as the spurious added terms have zero prefactor)
@@ -144,17 +143,15 @@ CONTAINS
 
   SUBROUTINE prepare_adb_m_dab(pab_local,pab,idir,lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
 
-   REAL(dp),DIMENSION(:,:), INTENT(INOUT) :: pab_local
-   REAL(dp),DIMENSION(:,:), INTENT(IN)    :: pab
-   INTEGER, INTENT(IN)                    :: idir
-   INTEGER, INTENT(IN)                    :: lxa, lya, lza
-   INTEGER, INTENT(IN)                    :: lxb, lyb, lzb
-   INTEGER, INTENT(IN)                    :: o1, o2
-   REAL(dp), INTENT(IN)                   :: zeta, zetb
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: pab_local
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab
+    INTEGER, INTENT(IN)                      :: idir, lxa, lya, lza, lxb, &
+                                                lyb, lzb, o1, o2
+    REAL(dp), INTENT(IN)                     :: zeta, zetb
 
-   INTEGER :: ico,ico_l,jco,jco_l
+    INTEGER                                  :: ico, ico_l, jco, jco_l
 
-   ! this element of pab results in 4 elements of pab_local
+! this element of pab results in 4 elements of pab_local
 
      ico=coset(lxa,lya,lza)
      jco=coset(lxb,lyb,lzb)
@@ -222,18 +219,15 @@ CONTAINS
 
   SUBROUTINE prepare_ardb_m_darb(pab_local,pab,idir,ir,lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
 
-   REAL(dp),DIMENSION(:,:), INTENT(INOUT) :: pab_local
-   REAL(dp),DIMENSION(:,:), INTENT(IN)    :: pab
-   INTEGER, INTENT(IN)                    :: idir
-   INTEGER, INTENT(IN)                    :: ir
-   INTEGER, INTENT(IN)                    :: lxa, lya, lza
-   INTEGER, INTENT(IN)                    :: lxb, lyb, lzb
-   INTEGER, INTENT(IN)                    :: o1, o2
-   REAL(dp), INTENT(IN)                   :: zeta, zetb
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: pab_local
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab
+    INTEGER, INTENT(IN)                      :: idir, ir, lxa, lya, lza, lxb, &
+                                                lyb, lzb, o1, o2
+    REAL(dp), INTENT(IN)                     :: zeta, zetb
 
-   INTEGER :: ico,ico_l,jco,jco_l
+    INTEGER                                  :: ico, ico_l, jco, jco_l
 
-   ! this element of pab results in 4 elements of pab_local
+! this element of pab results in 4 elements of pab_local
 
      ico=coset(lxa,lya,lza)
      jco=coset(lxb,lyb,lzb)

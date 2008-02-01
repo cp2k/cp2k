@@ -17,55 +17,47 @@
 MODULE  hartree_local_2centers
   USE ai_coulomb,                      ONLY: coulomb2
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-       get_atomic_kind,&
-       get_atomic_kind_set
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
-       gto_basis_set_type
-  USE input_constants,                 ONLY: tddfpt_singlet
+                                             gto_basis_set_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: dp,dp_size,&
-       int_size
-  USE mathconstants,                   ONLY: dfac,fourpi,pi
-  USE memory_utilities,                ONLY: reallocate
+  USE f77_blas
+  USE input_constants,                 ONLY: tddfpt_singlet
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
+                                             int_size
+  USE mathconstants,                   ONLY: dfac,&
+                                             fourpi,&
+                                             pi
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: coset,&
-       indco,&
-       nco,&
-       ncoset,&
-       nso,&
-       nsoset
+                                             indco,&
+                                             nco,&
+                                             ncoset,&
+                                             nso,&
+                                             nsoset
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE particle_types,                  ONLY: particle_type
-  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-       qs_environment_type
+                                             qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
-       first_list,&
-       first_node,&
-       get_neighbor_list,&
-       get_neighbor_list_set,&
-       get_neighbor_node,&
-       neighbor_list_p_type,&
-       neighbor_list_set_p_type,&
-       neighbor_list_set_type,&
-       neighbor_list_type,&
-       neighbor_node_type,&
-       next
+  USE qs_neighbor_list_types,          ONLY: &
+       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
+       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
+       neighbor_node_type, next
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
-       rho0_mpole_type
+                                             rho0_mpole_type
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
-       rho_atom_coeff,&
-       rho_atom_type
-  USE cell_types,                 ONLY: cell_type,&
-       pbc
-  USE termination,                     ONLY: stop_memory,&
-       stop_program
+                                             rho_atom_coeff,&
+                                             rho_atom_type
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
-       timestop
+                                             timestop
   USE util,                            ONLY: get_limit
-  USE f77_blas
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -74,7 +66,7 @@ MODULE  hartree_local_2centers
 
   ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "hartree_local_3centers"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hartree_local_2centers'
 
   ! Public Subroutine
 
@@ -89,60 +81,57 @@ CONTAINS
   SUBROUTINE integrate_vhg0_g0(qs_env,energy_hartree_2c,just_energy,calculate_forces, &
        tddft, p_env, error)
 
-    REAL(kind=dp), INTENT(INOUT)               :: energy_hartree_2c
-    TYPE(qs_environment_type), POINTER         :: qs_env
-    LOGICAL, INTENT(IN)                        :: calculate_forces,&
-         just_energy
-    LOGICAL, INTENT(IN), OPTIONAL              :: tddft
-    TYPE(qs_p_env_type), POINTER, OPTIONAL     :: p_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    REAL(kind=dp), INTENT(INOUT)             :: energy_hartree_2c
+    LOGICAL, INTENT(IN)                      :: just_energy, calculate_forces
+    LOGICAL, INTENT(IN), OPTIONAL            :: tddft
+    TYPE(qs_p_env_type), OPTIONAL, POINTER   :: p_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_vhg0_g0', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    TYPE(atomic_kind_type), DIMENSION(:),&
-         POINTER      :: atomic_kind_set
-    TYPE(atomic_kind_type),       POINTER      :: atom_kind
-    TYPE(cell_type),              POINTER      :: cell
-    TYPE(gto_basis_set_type),     POINTER      :: orb_basis
+    INTEGER :: ab, bo(2), handle, i_atom, iat, iatom, ic, ico, idir, ikind, &
+      ilist, inode, is, iso, ispin, istat, j_atom, jatom, jkind, l0_a, l0_b, &
+      lmax_0, lmax_01, lshell, lx, ly, lz, maxch0, maxder, maxso, mepos, nat, &
+      natom, nch0_sph, nkind, nlist, nnode, nset, nsotot, num_pe
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: my_tddft, paw_atom_a, &
+                                                paw_atom_b
+    REAL(dp) :: alpha_core, c1, ene_2c, force_a(3), ieqj, r0cut_a, r0cut_b, &
+      ra(3), rab(3), rab2, rb(3), rpgf0_s_a, rpgf0_s_b, z0_h, z0_h_a, z0_h_b, &
+      z0_s
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ff, Isum_a_sph, nhard_a, &
+                                                nhard_b, QN_h_a, QN_h_b, &
+                                                QN_s_a, QN_s_b
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: Isum_a_car, vab
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: vv
+    REAL(dp), DIMENSION(:), POINTER          :: ng0_h, ng0_s, QN_h, QN_s
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: Qlm_gg
+    REAL(KIND=dp)                            :: zeff_a, zeff_b
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(neighbor_list_set_p_type), &
-         DIMENSION(:), POINTER :: sab_2c
-    TYPE(neighbor_list_type),     POINTER      :: sab_2c_neighbor_list,&
-         sab_2c_neighbor_list_local
-    TYPE(neighbor_node_type),     POINTER      :: sab_2c_neighbor_node
-    TYPE(cp_para_env_type), POINTER            :: para_env
+      DIMENSION(:), POINTER                  :: sab_2c
+    TYPE(neighbor_list_type), POINTER        :: sab_2c_neighbor_list, &
+                                                sab_2c_neighbor_list_local
+    TYPE(neighbor_node_type), POINTER        :: sab_2c_neighbor_node
     TYPE(particle_type), DIMENSION(:), &
-         POINTER   :: particle_set
-    TYPE(qs_force_type), DIMENSION(:), POINTER :: force
-    TYPE(rho0_mpole_type),        POINTER      :: rho0_mpole
-    TYPE(rho_atom_type), DIMENSION(:), &
-         POINTER   :: rho_atom_set
-    TYPE(rho_atom_type),       POINTER         :: rho_atom
+      POINTER                                :: particle_set
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(rho_atom_coeff), DIMENSION(:), &
-         POINTER                                :: int_local_h,int_local_s
-
-    REAL(dp) :: alpha_core, c1, ene_2c, force_a(3), ieqj, ra(3), rab(3), rab2, rb(3),&
-         r0cut_a, r0cut_b,  rpgf0_s_a, rpgf0_s_b, z0_h, z0_h_a, z0_h_b, z0_s
-    REAL(dp), DIMENSION(:),       POINTER      :: ng0_h, ng0_s
-    REAL(dp), DIMENSION(:),       ALLOCATABLE  :: nhard_a, nhard_b
-    REAL(dp), DIMENSION(:),       POINTER      :: QN_h,QN_s
-    REAL(dp), DIMENSION(:),       ALLOCATABLE  :: QN_h_a,QN_s_a,&
-         QN_h_b,QN_s_b
-    REAL(dp), DIMENSION(:),       ALLOCATABLE  :: Isum_a_sph
-    REAL(dp), DIMENSION(:),       ALLOCATABLE  :: ff
-    REAL(dp), DIMENSION(:,:),     ALLOCATABLE  :: Isum_a_car
-    REAL(dp), DIMENSION(:,:),     ALLOCATABLE  :: vab
-    REAL(dp), DIMENSION(:,:,:),   ALLOCATABLE  :: vv
-    REAL(dp), DIMENSION(:,:,:),   POINTER      :: Qlm_gg
-
-    INTEGER :: ab, bo(2), handle, i_atom, iat, iatom, ic, ico, idir, ikind, ilist, &
-         inode, is, iso, ispin, istat, j_atom, jatom, jkind, l0_a, l0_b, &
-         lmax_0, lmax_01, lshell, lx, ly, lz, maxch0, maxder, maxso, &
-         mepos, nat, natom, nch0_sph, nkind, nlist, nnode, nset, nsotot, num_pe
-    REAL(KIND=dp) ::  zeff_a, zeff_b
-    INTEGER, DIMENSION(:),        POINTER      :: atom_list
-    INTEGER, DIMENSION(:),        ALLOCATABLE  :: atom_of_kind
-    LOGICAL                                    :: paw_atom_a, paw_atom_b, my_tddft
+      POINTER                                :: int_local_h, int_local_s
+    TYPE(rho_atom_type), DIMENSION(:), &
+      POINTER                                :: rho_atom_set
+    TYPE(rho_atom_type), POINTER             :: rho_atom
 
     NULLIFY(atomic_kind_set,cell)
     NULLIFY(para_env,particle_set,rho0_mpole)
@@ -497,33 +486,35 @@ CONTAINS
        l0_b,r0_b,QN_h_b,QN_s_b,&
        rab,rab2,ieqj,ene_2c,Isum_a,Isum_b,maxder,force_a,&
        vab,vv,ff)
-    INTEGER, INTENT(IN)                   :: l0_a, l0_b
-    INTEGER, INTENT(IN)                   :: maxder
-    REAL(dp), INTENT(IN)                  :: z0_h_a, z0_h_b ,z0_s
-    REAL(dp), INTENT(IN)                  :: r0_a
-    REAL(dp), INTENT(IN)                  :: r0_b
-    REAL(dp), INTENT(IN)                  :: ieqj,rab2
-    REAL(dp)                              :: ene_2c
-    REAL(dp), DIMENSION(3), INTENT(IN)    :: rab
-    REAL(dp), DIMENSION(3), INTENT(OUT)   :: force_a
-    REAL(dp), DIMENSION(0:), INTENT(IN)   :: ng0_h_a, ng0_h_b, ng0_s
-    REAL(dp), DIMENSION(:), INTENT(IN)    :: QN_h_a,QN_s_a
-    REAL(dp), DIMENSION(:), INTENT(IN)    :: QN_h_b,QN_s_b
-    REAL(dp), DIMENSION(:), INTENT(INOUT) :: Isum_a, Isum_b
-    REAL(dp), DIMENSION(0:)               :: ff
-    REAL(dp), DIMENSION(:,:)              :: vab
-    REAL(dp), DIMENSION(:,:,:)            :: vv
+    REAL(dp), INTENT(IN)                     :: z0_h_a, z0_h_b, z0_s
+    REAL(dp), DIMENSION(0:), INTENT(IN)      :: ng0_h_a, ng0_h_b, ng0_s
+    INTEGER, INTENT(IN)                      :: l0_a
+    REAL(dp), INTENT(IN)                     :: r0_a
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: QN_h_a, QN_s_a
+    INTEGER, INTENT(IN)                      :: l0_b
+    REAL(dp), INTENT(IN)                     :: r0_b
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: QN_h_b, QN_s_b
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: rab
+    REAL(dp), INTENT(IN)                     :: rab2, ieqj
+    REAL(dp)                                 :: ene_2c
+    REAL(dp), DIMENSION(:), INTENT(INOUT)    :: Isum_a, Isum_b
+    INTEGER, INTENT(IN)                      :: maxder
+    REAL(dp), DIMENSION(3), INTENT(OUT)      :: force_a
+    REAL(dp), DIMENSION(:, :)                :: vab
+    REAL(dp), DIMENSION(:, :, :)             :: vv
+    REAL(dp), DIMENSION(0:)                  :: ff
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sumup_2c_integrals', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-
-    INTEGER  :: icoa, icoap, icoam, icob, idir, l, la(3), lam(3), lap(3), &
-         istat, nch_a, nch_a_p, nch_b
-    REAL(dp) :: sumb, zx2, zx2_a
-    REAL(dp), DIMENSION(:), ALLOCATABLE   :: I_tmp
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE :: vab_plus
-    REAL(dp), DIMENSION(1)                :: zet_a,zet_b,rad_a,rad_b
+    INTEGER                                  :: icoa, icoam, icoap, icob, &
+                                                idir, istat, l, la(3), &
+                                                lam(3), lap(3), nch_a, &
+                                                nch_a_p, nch_b
+    REAL(dp)                                 :: sumb, zx2, zx2_a
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: I_tmp
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: vab_plus
+    REAL(dp), DIMENSION(1)                   :: rad_a, rad_b, zet_a, zet_b
 
     nch_a = ncoset(l0_a)
     nch_b = ncoset(l0_b)

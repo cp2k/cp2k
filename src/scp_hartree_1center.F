@@ -18,42 +18,38 @@
 !!   SOURCE
 !******************************************************************************
 MODULE  scp_hartree_1center
-  USE ai_coulomb,                      ONLY: coulomb3, coulomb2
+  USE ai_coulomb,                      ONLY: coulomb2,&
+                                             coulomb3
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-       get_atomic_kind,&
-       get_atomic_kind_set
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
-       gto_basis_set_type
+                                             gto_basis_set_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE kinds,                           ONLY: dp,dp_size,&
-       int_size
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum
-  USE orbital_pointers,                ONLY: ncoset, &
-       nco, &
-       indco, &
-       nsoset, &
-       nso
-  USE orbital_transformation_matrices, ONLY: orbtramat
+  USE orbital_pointers,                ONLY: ncoset
   USE qs_environment_types,            ONLY: get_qs_env,&
-       qs_environment_type
-  USE qs_util,                         ONLY: trace_r_AxB_new, trace_r_AxB
-  USE scp_environment_types,           ONLY: scp_environment_type, &
-       get_scp_env
-  USE scp_coeff_types,                 ONLY: aux_coeff_set_type, & 
-       aux_coeff_type, &
-       aux_coeff_zero_fc
+                                             qs_environment_type
+  USE qs_util,                         ONLY: trace_r_AxB,&
+                                             trace_r_AxB_new
+  USE scp_coeff_types,                 ONLY: aux_coeff_set_type,&
+                                             aux_coeff_type,&
+                                             aux_coeff_zero_fc
   USE scp_energy_types,                ONLY: scp_energy_type
-  USE sparse_matrix_types,             ONLY: get_block_node,&
-       real_matrix_p_type, &
-       create_dbm_from_sm, &
-       deallocate_dbm_from_sm,&
-       allocate_matrix_set
-  USE termination,                     ONLY: stop_memory,&
-       stop_program
+  USE scp_environment_types,           ONLY: get_scp_env,&
+                                             scp_environment_type
+  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
+                                             create_dbm_from_sm,&
+                                             deallocate_dbm_from_sm,&
+                                             get_block_node,&
+                                             real_matrix_p_type
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
-       timestop
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -62,7 +58,7 @@ MODULE  scp_hartree_1center
 
   ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "scp_hartree_1center"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_hartree_1center'
 
   ! Public Subroutine
 
@@ -92,68 +88,54 @@ CONTAINS
 
   SUBROUTINE integrate_a_vhscp_b (qs_env,h_mat,p_mat, just_energy, error, debug)
 
-    TYPE(qs_environment_type), POINTER         :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-         INTENT(IN)                               :: p_mat
+      INTENT(INOUT)                          :: h_mat
     TYPE(real_matrix_p_type), DIMENSION(:), &
-         INTENT(INOUT)                            :: h_mat
-    LOGICAL, INTENT ( IN )                     :: just_energy
-    LOGICAL, INTENT ( IN ), OPTIONAL           :: debug
-    TYPE(cp_error_type), INTENT(inout)  &
-         :: error
+      INTENT(IN)                             :: p_mat
+    LOGICAL, INTENT(IN)                      :: just_energy
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_a_vhscp_b', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-
-    TYPE(atomic_kind_type), POINTER            :: atomic_kind_set ( : )
-    TYPE(atomic_kind_type),       POINTER      :: atomic_kind
-    TYPE(distribution_1d_type), POINTER        :: local_particles
-    TYPE(aux_coeff_type), POINTER              :: local_coeffs
-    TYPE(cp_logger_type), POINTER              :: logger
-    TYPE(gto_basis_set_type),     POINTER      :: aux_basis, orb_basis
-    TYPE(aux_coeff_set_type),     POINTER      :: aux_coeff_set
-    TYPE(scp_environment_type ),  POINTER      :: scp_env
-    TYPE(scp_energy_type),        POINTER      :: energy
-    TYPE(cp_para_env_type), POINTER            :: para_env
+    INTEGER :: handle, i, iatom, ic1, ic1_max, ic1_min_m1, ic2, ic2_max, &
+      ic2_min_m1, ico1, icoscp, ifs1, ifs2, ikind, ip1, ip2, iparticle_local, &
+      ipgf_scp, iset_scp, iseta, isetb, ispin, istat, ldcpc1, ldcpc2, ldhab1, &
+      ldhab2, ldintab1, ldintab2, m1, m2, maxco, maxco_global, maxco_scp, &
+      maxlgto, maxsgf_set, n1, n2, nco1, nco2, nco_scp, ncotot, ncotot_scp, &
+      nkind, nn1, nn2, nparticle_local, ns1, ns2, nset, nset_scp, nsgf, &
+      nsgf_scp, nspins, nz1, nz2, offset, output_unit, sgf_scp
+    INTEGER, DIMENSION(:), POINTER           :: l_max, l_min, lscp_max, &
+                                                lscp_min, npgf, npgf_scp, &
+                                                nsgf_scp_set, nsgf_set
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, first_sgf_scp
+    LOGICAL                                  :: ionode, my_debug
+    REAL(dp)                                 :: e_hartree_1c, fac, rpgfc, &
+                                                trace, zetc
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ff
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :, :)                  :: vv
+    REAL(dp), DIMENSION(:), POINTER          :: rpgfa, rpgfb, zeta, zetb
+    REAL(dp), DIMENSION(:, :), POINTER :: fcoeff, gccc, h_block, h_block2, &
+      hab, Int_ab_sum, p_block, p_block2, rpgf, rpgf_scp, sphi, sphi_scp, &
+      work, work_scp, zet, zet_scp
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: CPC_ab, Int_abc, int_tmp
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind, &
+                                                atomic_kind_set( : )
+    TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
+    TYPE(aux_coeff_type), POINTER            :: local_coeffs
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(gto_basis_set_type), POINTER        :: aux_basis, orb_basis
     TYPE(real_matrix_p_type), DIMENSION(:), &
-         POINTER                                :: diagmat_ks, diagmat_p
-    REAL(dp), DIMENSION(:,:),     POINTER      :: gccc
-    REAL(dp), DIMENSION(:,:),     POINTER      :: h_block,p_block
-    REAL(dp), DIMENSION(:,:),     POINTER      :: h_block2,p_block2
-    REAL(dp), DIMENSION(:,:),     POINTER      :: rpgf, sphi
-    REAL(dp), DIMENSION(:,:),     POINTER      :: hab, fcoeff, work, work_scp
-    REAL(dp)                                   :: e_hartree_1c, fac, zetc, rpgfc, trace
-    REAL(dp), DIMENSION ( :, : ), POINTER      :: rpgf_scp
-    REAL(dp), DIMENSION ( :, : ), POINTER      :: sphi_scp, zet, zet_scp
-    REAL(dp), DIMENSION(:,:,:),    POINTER     :: CPC_ab, Int_abc, int_tmp
-    REAL(dp), DIMENSION(:,:),     POINTER      :: Int_ab_sum
-    REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE  :: vv
-    REAL(dp), DIMENSION(:),   ALLOCATABLE      :: ff
-    REAL(dp), DIMENSION(:), POINTER            :: rpgfa, rpgfb
-    REAL(dp), DIMENSION(:),     POINTER        :: zeta,zetb
+      POINTER                                :: diagmat_ks, diagmat_p
+    TYPE(scp_energy_type), POINTER           :: energy
+    TYPE(scp_environment_type), POINTER      :: scp_env
 
-    INTEGER :: handle, iatom,  i, istat
-    INTEGER :: ic1, ic1_min_m1, ic1_max
-    INTEGER :: ic2, ic2_min_m1, ic2_max
-    INTEGER :: ip1, ip2, m1, m2, ifs1, ifs2, nz1, nz2
-    INTEGER :: ns1, ns2, nco1, nco2, n1, n2, nn1, nn2
-    INTEGER :: ldintab1, ldintab2, ldhab1, ldhab2, ldcpc1, ldcpc2
-    INTEGER :: iparticle_local, nparticle_local, ikind, nkind, nspins, ispin
-    INTEGER :: iseta, isetb, ico1, ipgf_scp, iset_scp
-    INTEGER :: ncotot, maxco, nset, nsgf
-    INTEGER :: ncotot_scp,maxco_scp,nset_scp,nsgf_scp
-    INTEGER :: nco_scp, sgf_scp, icoscp, offset
-    INTEGER :: maxco_global, maxlgto, maxsgf_set, output_unit
-    INTEGER :: lshell, is, iso, ic, ico
-
-    INTEGER, DIMENSION ( : ), POINTER :: l_max, l_min, npgf, nsgf_set
-    INTEGER, DIMENSION ( : ), POINTER :: lscp_max, lscp_min, npgf_scp, nsgf_scp_set
-    INTEGER, DIMENSION ( :, : ), POINTER :: first_sgf_scp, first_sgf
-
-    LOGICAL                                    :: ionode, my_debug
-
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -633,48 +615,40 @@ CONTAINS
 
   SUBROUTINE integrate_vhscp_gscp ( scp_env, atomic_kind_set, local_particles, just_energy, error, debug )
 
-    TYPE(scp_environment_type), POINTER                 :: scp_env
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER       :: atomic_kind_set
-    TYPE(distribution_1d_type), POINTER                 :: local_particles
-    LOGICAL, INTENT ( IN ), OPTIONAL                    :: just_energy
-    TYPE(cp_error_type), INTENT(inout)                  :: error
-    LOGICAL, INTENT ( IN ), OPTIONAL                    :: debug
+    TYPE(scp_environment_type), POINTER      :: scp_env
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    LOGICAL, INTENT(IN), OPTIONAL            :: just_energy
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_vhscp_gscp', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
+    INTEGER :: handle, i, iatom, icoa, icob, ikind, iparticle_local, iseta, &
+      isetb, istat, ldvab1, ldvab2, maxco, maxco_global, maxlgto, ncoa, ncob, &
+      ncotot, nkind, nparticle_local, nset, nza, nzb, offseta, offsetb, sgfa, &
+      sgfb
+    INTEGER, DIMENSION(:), POINTER           :: l_max, l_min, npgf, nsgf_set
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgf
+    LOGICAL                                  :: energy_only, my_debug
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ff
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: fcoeff, gcca, gccb, work
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: vv
+    REAL(dp), DIMENSION(:), POINTER          :: rpgfa, rpgfb, zeta, zetb
+    REAL(dp), DIMENSION(:, :), POINTER       :: rpgf, sphi, vab, zet
+    REAL(kind=dp)                            :: e_scp
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
+    TYPE(aux_coeff_type), POINTER            :: local_coeffs
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(gto_basis_set_type), POINTER        :: aux_basis
+    TYPE(scp_energy_type), POINTER           :: energy
 
-    TYPE(atomic_kind_type),       POINTER      :: atomic_kind
-    TYPE(gto_basis_set_type),     POINTER      :: aux_basis
-    TYPE(cp_para_env_type), POINTER            :: para_env
-    TYPE ( aux_coeff_set_type ), POINTER       :: aux_coeff_set
-    TYPE ( aux_coeff_type ), POINTER           :: local_coeffs
-    TYPE ( scp_energy_type ), POINTER          :: energy
-    REAL(kind=dp)                              :: e_scp
+!   ---------------------------------------------------------------------------
 
-    REAL(dp), DIMENSION(:,:),       ALLOCATABLE  :: work, gcca, gccb,fcoeff
-    REAL(dp), DIMENSION(:,:,:),   ALLOCATABLE  :: vv
-    REAL(dp), DIMENSION ( :, : ), POINTER      :: vab
-
-    REAL(dp), DIMENSION ( :, : ), POINTER      :: sphi, zet, rpgf
-    REAL(dp), DIMENSION ( : ), POINTER         :: zeta, zetb, rpgfa, rpgfb
-    REAL(dp), DIMENSION(:),   ALLOCATABLE      :: ff
-
-    INTEGER :: handle, iatom,  i, istat
-    INTEGER :: icoa, icob, ncoa, ncob
-    INTEGER :: iparticle_local, nparticle_local, ikind, nkind
-    INTEGER :: iseta, isetb, sgfa, sgfb
-    INTEGER :: ncotot, maxco, nset
-    INTEGER :: offseta, offsetb, nza, nzb, ldvab1, ldvab2
-    INTEGER :: maxco_global, maxlgto, maxsgf_set, output_unit
-    INTEGER, DIMENSION ( : ), POINTER :: l_max, l_min, npgf, nsgf_set
-    INTEGER, DIMENSION ( :, : ), POINTER :: first_sgf
-
-    LOGICAL :: ionode, my_debug, energy_only
-
-
-
-    !   ---------------------------------------------------------------------------
     my_debug = .FALSE.
     IF ( PRESENT ( debug ) ) my_debug = debug
     energy_only = .FALSE.
@@ -859,47 +833,38 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE integrate_vhscp_gcore ( scp_env, atomic_kind_set, local_particles, just_energy, error, debug )
 
-    TYPE(scp_environment_type), POINTER                 :: scp_env
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER       :: atomic_kind_set
-    TYPE(distribution_1d_type), POINTER                 :: local_particles
-    TYPE(cp_error_type), INTENT(inout)                  :: error
-    LOGICAL, INTENT ( IN ), OPTIONAL                    :: debug, just_energy
+    TYPE(scp_environment_type), POINTER      :: scp_env
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    LOGICAL, INTENT(IN), OPTIONAL            :: just_energy
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_vhscp_gcore', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
+    INTEGER :: handle, i, iatom, icoa, ikind, iparticle_local, iseta, istat, &
+      ldvab1, maxco, maxco_global, maxlgto, ncoa, ncotot, nkind, &
+      nparticle_local, nset, nza, offseta, sgfa
+    INTEGER, DIMENSION(:), POINTER           :: l_max, l_min, npgf, nsgf_set
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgf
+    LOGICAL                                  :: energy_only, my_debug
+    REAL(dp)                                 :: e_scp, gccore
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ff
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: fcoeff, gcca, work
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: vv
+    REAL(dp), DIMENSION(:), POINTER          :: rpgfa, rpgfcore, zeta, zetcore
+    REAL(dp), DIMENSION(:, :), POINTER       :: rpgf, sphi, vab, zet
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
+    TYPE(aux_coeff_type), POINTER            :: local_coeffs
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(gto_basis_set_type), POINTER        :: aux_basis
+    TYPE(scp_energy_type), POINTER           :: energy
 
-    TYPE(atomic_kind_type),       POINTER      :: atomic_kind
-    TYPE(gto_basis_set_type),     POINTER      :: aux_basis
-    TYPE(aux_coeff_set_type),     POINTER      :: aux_coeff_set
-    TYPE(aux_coeff_type),     POINTER          :: local_coeffs
-    TYPE(scp_energy_type),    POINTER          :: energy
-    TYPE(cp_para_env_type), POINTER            :: para_env
-
-    REAL(dp), DIMENSION(:),       ALLOCATABLE  :: ff
-    REAL(dp), DIMENSION(:,:),       ALLOCATABLE  :: zetacore
-    REAL(dp), DIMENSION(:,:),       ALLOCATABLE  :: work, gcca, fcoeff
-    REAL(dp), DIMENSION(:,:),   POINTER          ::  vab
-    REAL(dp), DIMENSION(:,:,:),   ALLOCATABLE  :: vv
-    REAL(dp) :: e_scp, gccore
-
-    REAL(dp), DIMENSION ( :, : ), POINTER      :: sphi, zet, rpgf
-    REAL(dp), DIMENSION ( : ), POINTER         :: zeta, zetcore, rpgfa, rpgfcore
-
-    INTEGER :: handle, iatom,  i, istat
-    INTEGER :: icoa, ncoa, ldvab1
-    INTEGER :: iparticle_local, nparticle_local, ikind, nkind
-    INTEGER :: iseta, sgfa
-    INTEGER :: ncotot, maxco, nset
-    INTEGER :: offseta, nza
-    INTEGER :: maxco_global, maxlgto, maxsgf_set, output_unit
-    INTEGER, DIMENSION ( : ), POINTER :: l_max, l_min, npgf, nsgf_set
-    INTEGER, DIMENSION ( :, : ), POINTER :: first_sgf
-
-    LOGICAL :: ionode, my_debug, energy_only
-
-
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     NULLIFY(para_env, atomic_kind, aux_basis)
     NULLIFY(aux_coeff_set,local_coeffs,energy)
