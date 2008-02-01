@@ -27,6 +27,7 @@ def parseRoboDoc(lines,inFile):
     headerRe=re.compile(r" *!!\*+[cdfhmstuv]?\** *(?P<name>[a-zA-Z_0-9/]+) *(?:\[(?P<version>[0-9.a-zA-Z_ ]+)\])?")
     labelRe=re.compile(" +(?P<label>NAME|COPYRIGHT|USAGE|FUNCTION|DESCRIPTION|PURPOSE|AUTHOR|CREATION DATE|MODIFICATION HISTORY|HISTORY|INPUTS|ARGUMENTS|OPTIONS|PARAMETERS|SWITCHES|OUTPUT|SYNOPSIS|SIDE EFFECTS|RESULT|RETURN VALUE|EXAMPLE|NOTES?|WARNINGS?|ERROR|DIAGNOSTICS|BUGS|TODO|IDEAS|PORTABILITY|SEE ALSO|METHODS|ATTRIBUTES|SOURCE|LITERATURE|TAGS|USED BY|[A-Z]+ ?[A-Z]* ?[A-Z]*) *$")
     fluffRe=re.compile(r" *([-+*#!= ]{3,})? *$")
+    preprocessorRe=re.compile(r" *#")
     m=headerRe.match(lines[0])
     if m:
         if m.group('version'):
@@ -73,17 +74,18 @@ def parseRoboDoc(lines,inFile):
             (jline,comments,lines)=readFortranLine(inFile)
             if not lines:
                 break
-            if jline!=None and jline!="" and not jline.isspace():
+            if jline!=None and jline!="" and not jline.isspace() or preprocessorRe.match(lines[0]):
                 break
             if roboDocRe.match(lines[0]):
                 break
             else:
                 for l in lines:
                     if not l.isspace():
-                        print "ignoring",repr(l)
+                        print "rmv",repr(l)
+            info['origLines'].extend(lines)
         if not lines:
             break
-        if jline!=None and jline!="" and not jline.isspace():
+        if jline!=None and jline!="" and not jline.isspace() or preprocessorRe.match(lines[0]):
             break
     if not info['name'] and info['pname']:
         info['name'].append(os.path.basename(info['pname'][0]))
