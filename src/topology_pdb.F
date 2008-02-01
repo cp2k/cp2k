@@ -8,13 +8,8 @@
 !!     topology_pdb
 !!
 !!   FUNCTION
+!!    Handles pdb files
 !!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
 !PDB Format Description Version 2.2 from http://www.rcsb.org
 !COLUMNS       DATA TYPE       FIELD         DEFINITION
 !-------------------------------------------------------------------------------

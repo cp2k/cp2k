@@ -420,7 +420,7 @@ CONTAINS
 !!   NOTES
 !!     -
 !!
-!!   INPUTS
+!!   HISTORY
 !!     Creation (25.06.2003,MK) 
 !!
 !!   AUTHOR
