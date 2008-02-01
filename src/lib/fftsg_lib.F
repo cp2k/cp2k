@@ -2,22 +2,12 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/fftsg_lib [1.0] *
-!!
-!!   NAME
-!!     fftsg_lib
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     Adapted to new interface structure
-!!
-!!*****
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      Adapted to new interface structure
+!> \author JGH
+! *****************************************************************************
 SUBROUTINE fftsg_get_lengths ( DATA, max_length )
 
   IMPLICIT NONE
@@ -43,8 +33,7 @@ SUBROUTINE fftsg_get_lengths ( DATA, max_length )
 
 END SUBROUTINE fftsg_get_lengths
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE fftsg3d ( fft_in_place, fsign, scale, n, zin, zout )
 
   IMPLICIT NONE
@@ -107,8 +96,7 @@ SUBROUTINE fftsg3d ( fft_in_place, fsign, scale, n, zin, zout )
 
 END SUBROUTINE fftsg3d
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE fftsg1dm ( fsign, trans, n, m, zin, zout, scale )
   
   IMPLICIT NONE
@@ -148,4 +136,3 @@ SUBROUTINE fftsg1dm ( fsign, trans, n, m, zin, zout, scale )
 
 END SUBROUTINE fftsg1dm
 
-!******************************************************************************

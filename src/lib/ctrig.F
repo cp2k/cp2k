@@ -6,6 +6,7 @@
 ! without the explicit permission of the author.
 !-----------------------------------------------------------------------------!
 
+! *****************************************************************************
 SUBROUTINE ctrig ( n, trig, after, before, now, isign, ic )
 
   IMPLICIT NONE

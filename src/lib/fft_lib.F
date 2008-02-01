@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2006 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/fft_lib [1.0] *
-!!
-!!   NAME
-!!     fft_lib
-!!
-!!   FUNCTION
-!!     Interface to FFT libraries
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*****
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Interface to FFT libraries
+!> \par History
+!>      none
+!> \author JGH
+! *****************************************************************************
 FUNCTION fft_library ( fftlib ) RESULT ( flib )
 
   CHARACTER ( len=* ), INTENT(IN)        :: fftlib
@@ -45,8 +35,7 @@ FUNCTION fft_library ( fftlib ) RESULT ( flib )
 
 END FUNCTION fft_library 
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE fft_get_lengths ( fft_type, DATA, max_length )
 
   INTEGER, INTENT(IN)              :: fft_type
@@ -74,8 +63,7 @@ SUBROUTINE fft_get_lengths ( fft_type, DATA, max_length )
 
 END SUBROUTINE fft_get_lengths
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE fft_3d ( fft_type, fft_in_place, fsign, scale, n, zin, zout )
 
   IMPLICIT NONE
@@ -117,8 +105,7 @@ SUBROUTINE fft_3d ( fft_type, fft_in_place, fsign, scale, n, zin, zout )
 
 END SUBROUTINE fft_3d
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE fft_1dm ( fft_type, fsign, trans, n, m, zin, zout, scale )
   
   IMPLICIT NONE
@@ -160,8 +147,7 @@ SUBROUTINE fft_1dm ( fft_type, fsign, trans, n, m, zin, zout, scale )
 
 END SUBROUTINE fft_1dm
 
-!******************************************************************************
-!******************************************************************************
+! *****************************************************************************
 SUBROUTINE sortint ( iarr, n, index )
 
     INTEGER, INTENT(IN)                      :: n

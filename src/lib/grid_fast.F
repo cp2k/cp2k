@@ -2,6 +2,7 @@
 
 #include "integrate_fast.F"
 
+! *****************************************************************************
   SUBROUTINE collocate_gf_npbc(grid,xdat,ydat,zdat,bo1,bo2,zlb,zub,ylb,yub,xlb,xub)
     IMPLICIT NONE
     ! Arguments
@@ -33,6 +34,7 @@
 
   END SUBROUTINE
 
+! *****************************************************************************
   SUBROUTINE integrate_gf_npbc(grid,xdat,ydat,zdat,bo,zlb,zub,ylb,yub,xlb,xub,force)
     IMPLICIT NONE
     ! Arguments

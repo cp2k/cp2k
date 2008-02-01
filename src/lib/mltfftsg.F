@@ -3,6 +3,7 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
+! *****************************************************************************
 SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, &
                       n, m, isign, scale )
 
@@ -123,6 +124,4 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, &
      B(M+1:LDBX,1:N) = CMPLX(0._dbl,0._dbl,dbl)
   ENDIF
     
-!******************************************************************************
-
 END SUBROUTINE mltfftsg

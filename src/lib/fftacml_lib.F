@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2006 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/fftacml_lib [1.0] *
-!!
-!!   NAME
-!!     fftacml_lib
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     JGH 3-Feb-2006 : initial version
-!!     Adapted for new interface 
-!!
-!!*****
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      JGH 3-Feb-2006 : initial version
+!>      Adapted for new interface 
+!> \author JGH
+! *****************************************************************************
 SUBROUTINE fftacml_get_lengths ( DATA, max_length )
 
   IMPLICIT NONE 
@@ -98,8 +88,7 @@ SUBROUTINE fftacml_get_lengths ( DATA, max_length )
 
 END SUBROUTINE fftacml_get_lengths
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE fftacml3d ( fft_in_place, fsign, scale, n, zin, zout )
 
   IMPLICIT NONE
@@ -149,8 +138,7 @@ SUBROUTINE fftacml3d ( fft_in_place, fsign, scale, n, zin, zout )
 
 END SUBROUTINE fftacml3d
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE fftacml1dm ( fsign, trans, n, m, zin, zout, scale )
 
   IMPLICIT NONE
@@ -213,4 +201,3 @@ SUBROUTINE fftacml1dm ( fsign, trans, n, m, zin, zout, scale )
 
 END SUBROUTINE fftacml1dm
 
-!******************************************************************************

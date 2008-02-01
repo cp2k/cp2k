@@ -4,6 +4,7 @@
 !Commercial use is prohibited without the explicit permission of the author.
 !-----------------------------------------------------------------------------!
 
+! *****************************************************************************
 SUBROUTINE fftrot ( mm, nfft, m, nn, n, zin, zout, &
                     trig, now, after, before, isign )
 
@@ -14,7 +15,6 @@ SUBROUTINE fftrot ( mm, nfft, m, nn, n, zin, zout, &
 #else
   INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
 #endif
-
 
 ! Arguments
   INTEGER, INTENT ( IN ) :: mm, nfft, m, nn, n, now, after, before, isign

@@ -2,24 +2,14 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/fftw2_lib [1.0] *
-!!
-!!   NAME
-!!     fftw2_lib
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     JGH 20-Feb-2001 : mltfft, mfft2d routines added
-!!                       integer_pointer_kind
-!!     Adapted to new interface style
-!!
-!!   SOURCE
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      JGH 20-Feb-2001 : mltfft, mfft2d routines added
+!>                        integer_pointer_kind
+!>      Adapted to new interface style
+!> \author JGH
+! *****************************************************************************
 SUBROUTINE fftw2_get_lengths ( DATA, max_length )
 
   IMPLICIT NONE 
@@ -102,8 +92,7 @@ SUBROUTINE fftw2_get_lengths ( DATA, max_length )
 
 END SUBROUTINE fftw2_get_lengths
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE fftw23d ( fft_in_place, fsign, scale, n, zin, zout )
 
   IMPLICIT NONE
@@ -151,8 +140,6 @@ SUBROUTINE fftw23d ( fft_in_place, fsign, scale, n, zin, zout )
       PARAMETER(FFTW_SCRAMBLED_INPUT=8192)
       PARAMETER(FFTW_SCRAMBLED_OUTPUT=16384)
 ! end include fftw_f77.i
-
-
 
 ! integer_pointer_kind: kind parameter for pointer variables (addresses)
 !                       this is usually an integer with 32 or 64 bit size
@@ -222,8 +209,7 @@ SUBROUTINE fftw23d ( fft_in_place, fsign, scale, n, zin, zout )
 
 END SUBROUTINE fftw23d
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE fftw21dm ( fsign, trans, n, m, zin, zout, scale )
 
   IMPLICIT NONE
@@ -265,8 +251,6 @@ SUBROUTINE fftw21dm ( fsign, trans, n, m, zin, zout, scale )
       PARAMETER(FFTW_SCRAMBLED_INPUT=8192)
       PARAMETER(FFTW_SCRAMBLED_OUTPUT=16384)
 ! end include fftw_f77.i
-
-
 
 ! integer_pointer_kind: kind parameter for pointer variables (addresses)
 !                       this is usually an integer with 32 or 64 bit size

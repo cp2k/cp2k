@@ -4,6 +4,7 @@
 !Commercial use is prohibited without the explicit permission of the author.
 !-----------------------------------------------------------------------------!
 
+! *****************************************************************************
 SUBROUTINE fftpre ( mm, nfft, m, nn, n, zin, zout, &
                     trig, now, after, before, isign )
 

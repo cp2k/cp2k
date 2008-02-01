@@ -1,3 +1,4 @@
+! *****************************************************************************
   SUBROUTINE collocate_core_default(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,lp,cmax,gridbounds)
 
     IMPLICIT NONE
@@ -95,6 +96,7 @@
     END DO
   
   END SUBROUTINE collocate_core_default
+! *****************************************************************************
   SUBROUTINE collocate_core_0(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
 
     IMPLICIT NONE
@@ -175,6 +177,7 @@
     END DO
   
   END SUBROUTINE collocate_core_0
+! *****************************************************************************
   SUBROUTINE collocate_core_1(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
 
     IMPLICIT NONE
@@ -265,6 +268,7 @@
     END DO
   
   END SUBROUTINE collocate_core_1
+! *****************************************************************************
   SUBROUTINE collocate_core_2(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
 
     IMPLICIT NONE
@@ -385,6 +389,7 @@
     END DO
   
   END SUBROUTINE collocate_core_2
+! *****************************************************************************
   SUBROUTINE collocate_core_3(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
 
     IMPLICIT NONE
@@ -545,6 +550,7 @@
     END DO
   
   END SUBROUTINE collocate_core_3
+! *****************************************************************************
   SUBROUTINE collocate_core_4(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
 
     IMPLICIT NONE
@@ -759,6 +765,7 @@
     END DO
   
   END SUBROUTINE collocate_core_4
+! *****************************************************************************
   SUBROUTINE collocate_core_5(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
 
     IMPLICIT NONE
@@ -1043,6 +1050,7 @@
     END DO
   
   END SUBROUTINE collocate_core_5
+! *****************************************************************************
   SUBROUTINE collocate_core_6(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
 
     IMPLICIT NONE
@@ -1415,6 +1423,7 @@
     END DO
   
   END SUBROUTINE collocate_core_6
+! *****************************************************************************
   SUBROUTINE collocate_core_7(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
 
     IMPLICIT NONE

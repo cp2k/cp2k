@@ -2,23 +2,14 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/fftessl_lib [1.0] *
-!!
-!!   NAME
-!!     fftessl_lib
-!!
-!!   FUNCTION
-!!     Interface to FFT routines in ESSL library
-!!
-!!   AUTHOR
-!!     JGH 30-Nov-2000
-!!
-!!   MODIFICATION HISTORY
-!!     JGH 20-Feb-2001 : mltfft, mfft2d routines added
-!!     Adapted for new interface
-!!
-!******************************************************************************
 
+! *****************************************************************************
+!> \brief Interface to FFT routines in ESSL library
+!> \par History
+!>      JGH 20-Feb-2001 : mltfft, mfft2d routines added
+!>      Adapted for new interface
+!> \author JGH 30-Nov-2000
+! *****************************************************************************
 SUBROUTINE fftessl_get_lengths ( DATA, max_length )
 
   IMPLICIT NONE 
@@ -48,8 +39,7 @@ SUBROUTINE fftessl_get_lengths ( DATA, max_length )
 
 END SUBROUTINE fftessl_get_lengths
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE fftessl3d ( fft_in_place, fsign, scale, n, zin, zout )
 
   IMPLICIT NONE
@@ -131,8 +121,7 @@ SUBROUTINE fftessl3d ( fft_in_place, fsign, scale, n, zin, zout )
 
 END SUBROUTINE fftessl3d
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE fftessl1dm ( fsign, trans, n, m, zin, zout, scale )
 
   IMPLICIT NONE
@@ -207,4 +196,3 @@ SUBROUTINE fftessl1dm ( fsign, trans, n, m, zin, zout, scale )
 
 END SUBROUTINE fftessl1dm
 
-!******************************************************************************

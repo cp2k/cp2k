@@ -2,31 +2,20 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2006 - 2008 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/fftmkl_lib [1.0] *
-!!
-!!   NAME
-!!     fftmkl_lib
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     JGH 10-Feb-2006 : initial version
-!!
-!!*****
-!******************************************************************************
-!
-! This file is part of the mkl distribution and can be found in the 
-! corresponding include directory
-! add this to the path to the -I flags of the CPP
-!
+
+! *****************************************************************************
+!> \par History
+!>      JGH 10-Feb-2006 : initial version
+!> \par
+!>  This file is part of the mkl distribution and can be found in the 
+!>  corresponding include directory
+!>  add this to the path to the -I flags of the CPP
+!> \author JGH
 #if defined ( __FFTMKL )
 #include "mkl_dfti.f90"
 #endif
-!******************************************************************************
 
+! *****************************************************************************
 SUBROUTINE fftmkl_get_lengths ( DATA, max_length )
 
   IMPLICIT NONE 
@@ -106,8 +95,7 @@ SUBROUTINE fftmkl_get_lengths ( DATA, max_length )
 
 END SUBROUTINE fftmkl_get_lengths
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE fftmkl3d ( fft_in_place, fsign, scale, n, zin, zout )
 
 #if defined ( __FFTMKL )
@@ -173,8 +161,7 @@ SUBROUTINE fftmkl3d ( fft_in_place, fsign, scale, n, zin, zout )
 
 END SUBROUTINE fftmkl3d
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE fftmkl1dm ( fsign, trans, n, m, zin, zout, scale )
 
 #if defined ( __FFTMKL )
@@ -251,4 +238,3 @@ SUBROUTINE fftmkl1dm ( fsign, trans, n, m, zin, zout, scale )
 
 END SUBROUTINE fftmkl1dm
 
-!******************************************************************************

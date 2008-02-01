@@ -2,23 +2,13 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2006 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/fftw3_lib [1.0] *
-!!
-!!   NAME
-!!     fftw3_lib
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     JGH 23-Jan-2006 : initial version
-!!     Adapted for new interface
-!!
-!!*****
-!******************************************************************************
 
+! *****************************************************************************
+!> \par History
+!>      JGH 23-Jan-2006 : initial version
+!>      Adapted for new interface
+!> \author JGH
+! *****************************************************************************
 SUBROUTINE fftw3_get_lengths ( DATA, max_length )
 
   IMPLICIT NONE 
@@ -101,8 +91,7 @@ SUBROUTINE fftw3_get_lengths ( DATA, max_length )
 
 END SUBROUTINE fftw3_get_lengths
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE fftw33d ( fft_in_place, fsign, scale, n, zin, zout )
 
   IMPLICIT NONE
@@ -196,8 +185,7 @@ SUBROUTINE fftw33d ( fft_in_place, fsign, scale, n, zin, zout )
 
 END SUBROUTINE fftw33d
 
-!******************************************************************************
-
+! *****************************************************************************
 SUBROUTINE fftw31dm ( fsign, trans, n, m, zin, zout, scale )
 
   IMPLICIT NONE
@@ -278,7 +266,6 @@ SUBROUTINE fftw31dm ( fsign, trans, n, m, zin, zout, scale )
 
 END SUBROUTINE fftw31dm
 
-!******************************************************************************
 !     Copyright (c) 2003, 2006 Matteo Frigo
 !     Copyright (c) 2003, 2006 Massachusetts Institute of Technology
 !     
@@ -311,6 +298,7 @@ END SUBROUTINE fftw31dm
 !     
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
+! *****************************************************************************
       SUBROUTINE fftw_write_char(c, iunit)
          IMPLICIT NONE
          CHARACTER c
@@ -318,6 +306,7 @@ END SUBROUTINE fftw31dm
          WRITE(iunit,'(a)',ADVANCE="NO") c
       END      
 
+! *****************************************************************************
       SUBROUTINE fftw_export_wisdom_to_file(iunit)
          IMPLICIT NONE
          INTEGER iunit
@@ -339,6 +328,7 @@ END SUBROUTINE fftw31dm
 !     then the lines will be truncated and the wisdom import should
 !     simply fail.)  Ugh (and not thread safe).
 
+! *****************************************************************************
       SUBROUTINE fftw_read_char(ic, iunit)
          IMPLICIT NONE
          INTEGER ic
@@ -362,6 +352,7 @@ END SUBROUTINE fftw31dm
  123     FORMAT(a256)
       END
       
+! *****************************************************************************
       SUBROUTINE fftw_import_wisdom_from_file(isuccess, iunit)
          IMPLICIT NONE
          INTEGER isuccess
