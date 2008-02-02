@@ -1,16 +1,8 @@
-!!****f* module/name *
-!!
-!!   NAME
-!!
-!!   FUNCTION
-!!
-!!   NOTES
-!!
-!!   INPUTS
-!!    -
-!!    -
-!!
-!!   MODIFICATION HISTORY
-!!     XX.2008 created [ ]
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief   [BRIEF DESCRIPTION OF SUBROUTINE/FUNCTION]
+!> \par     [ADDITIONAL FIELD]
+!>          
+!> \author  [AUTHOR]
+!> \date    [DATE]
+!> \version 1.0
+! *****************************************************************************
