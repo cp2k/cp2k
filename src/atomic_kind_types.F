@@ -3,6 +3,7 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
+! *****************************************************************************
 !> \brief   Define the atomic kind types and their sub types
 !> \author  Matthias Krack (MK)
 !> \date    02.01.2002
@@ -89,14 +90,14 @@ MODULE atomic_kind_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atomic_kind_types'
 
-  !> Input parameters for the DFT+U method
+!> Input parameters for the DFT+U method
 ! *****************************************************************************
   TYPE dft_plus_u_type
      INTEGER                                :: l
      REAL(KIND=dp)                          :: u_minus_j
   END TYPE dft_plus_u_type
 
-  !> Provides all information about an atomic kind
+!> Provides all information about an atomic kind
 ! *****************************************************************************
   TYPE atomic_kind_type
      TYPE(all_potential_type), POINTER      :: all_potential
@@ -136,7 +137,7 @@ MODULE atomic_kind_types
      TYPE(dft_plus_u_type), POINTER         :: dft_plus_u
   END TYPE atomic_kind_type
 
-  !> Provides a vector of pointers of type atomic_kind_type
+!> Provides a vector of pointers of type atomic_kind_type
 ! *****************************************************************************
   TYPE atomic_kind_p_type
      TYPE(atomic_kind_type),DIMENSION(:),&
@@ -165,10 +166,10 @@ MODULE atomic_kind_types
 
 CONTAINS
 
-  !> \brief   Constructor routine for a set of atomic kinds
-  !> \author  Matthias Krack (MK)
-  !> \date    02.01.2002
-  !> \version 2.0
+!> \brief   Constructor routine for a set of atomic kinds
+!> \author  Matthias Krack (MK)
+!> \date    02.01.2002
+!> \version 2.0
 ! *****************************************************************************
   SUBROUTINE allocate_atomic_kind_set(atomic_kind_set,nkind,error)
 
@@ -230,10 +231,10 @@ CONTAINS
 
   END SUBROUTINE allocate_atomic_kind_set
 
-  !> \brief   Destructor routine for a set of atomic kinds
-  !> \author  Matthias Krack (MK)
-  !> \date    02.01.2002
-  !> \version 2.0
+!> \brief   Destructor routine for a set of atomic kinds
+!> \author  Matthias Krack (MK)
+!> \date    02.01.2002
+!> \version 2.0
 ! *****************************************************************************
   SUBROUTINE deallocate_atomic_kind_set(atomic_kind_set,error)
 

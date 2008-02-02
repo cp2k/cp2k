@@ -38,7 +38,11 @@ MODULE dimer_types
             dimer_env_retain,&
             dimer_env_release
 
-! Type containing all informations abour the rotation of the Dimer
+! *****************************************************************************
+!> \brief Type containing all informations abour the rotation of the Dimer
+!> \par History
+!>      none
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! *****************************************************************************
   TYPE dimer_rotational_type
      ! Rotational parameters
@@ -48,14 +52,22 @@ MODULE dimer_types
      REAL(KIND=dp), POINTER, DIMENSION(:)       :: g0, g1, g1p
   END TYPE dimer_rotational_type
   
-  ! Type containing all informations abour the translation of the Dimer
+! *****************************************************************************
+!> \brief Type containing all informations abour the translation of the Dimer
+!> \par History
+!>      none
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! *****************************************************************************
   TYPE dimer_translational_type
      ! Translational parameters
      REAL(KIND=dp), POINTER, DIMENSION(:)       :: tls_vec
   END TYPE dimer_translational_type
 
-  ! Conjugate Directions type
+! *****************************************************************************
+!> \brief Conjugate Directions type
+!> \par History
+!>      none
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! *****************************************************************************
   TYPE dimer_cg_rot_type
      REAL(KIND=dp)                              :: norm_theta, norm_theta_old, norm_h

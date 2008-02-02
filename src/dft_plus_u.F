@@ -52,15 +52,15 @@ MODULE dft_plus_u
 
 CONTAINS
 
-  !> \brief         Add the DFT+U contribution to the Hamiltonian matrix.\n
-  !>                Wrapper routine for all "+U" methods
-  !> \param[in]     qs_env Quickstep environment
-  !> \param[in,out] matrix_h Hamiltonian matrices for each spin
-  !> \param[in,out] matrix_w Energy weighted density matrices for each spin
-  !> \param[in]     error environment
-  !> \author        Matthias Krack (MK)
-  !> \date          14.01.2008
-  !> \version       1.0
+!> \brief         Add the DFT+U contribution to the Hamiltonian matrix.\n
+!>                Wrapper routine for all "+U" methods
+!> \param[in]     qs_env Quickstep environment
+!> \param[in,out] matrix_h Hamiltonian matrices for each spin
+!> \param[in,out] matrix_w Energy weighted density matrices for each spin
+!> \param[in]     error environment
+!> \author        Matthias Krack (MK)
+!> \date          14.01.2008
+!> \version       1.0
 ! *****************************************************************************
   SUBROUTINE plus_u(qs_env,matrix_h,matrix_w,error)
 
@@ -74,10 +74,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-! -------------------------------------------------------------------------
-
     failure = .FALSE.
-
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
     CALL cite_reference(Dudarev1997)
@@ -93,35 +90,35 @@ CONTAINS
 
   END SUBROUTINE plus_u
 
-  !> \brief         Add a DFT+U contribution to the Hamiltonian matrix\n
-  !>                using a method based on Mulliken charges
-  !>                \f[q_\mu = \sum_\nu P_{\mu\nu} S_{\nu\mu}\f]
-  !>                where \b P and \b S are the density and the
-  !>                overlap matrix, respectively.
-  !> \details
-  !>  \f{eqnarray*}
-  !>   E^{\rm DFT+U} & = & E^{\rm DFT} +  E^{\rm U}\\\
-  !>                 & = & E^{\rm DFT} +  \frac{1}{2}(U - J)\sum_\mu (q_\mu - q_\mu^2)\\[1ex]
-  !>   V_{\mu\nu}^{\rm DFT+U} & = & V_{\mu\nu}^{\rm DFT} + V_{\mu\nu}^{\rm U}\\\
-  !>                          & = & \frac{\partial E^{\rm DFT}}
-  !>                                     {\partial P_{\mu\nu}} +
-  !>                                \frac{\partial E^{\rm U}}
-  !>                                     {\partial P_{\mu\nu}}\\\
-  !>                          & = & H_{\mu\nu} +
-  !>                                \frac{\partial E^{\rm U}}{\partial q_\mu}
-  !>                                \frac{\partial q_\mu}{\partial P_{\mu\nu}}\\\
-  !>                          & = & H_{\mu\nu} +
-  !>                                \frac{1}{2}(U - J)(1 - q_\mu - q_\nu) S_{\mu\nu}\\\
-  !>  \f}
-  !> \param[in]     qs_env Quickstep environment
-  !> \param[in,out] matrix_h Hamiltonian matrices for each spin
-  !> \param[in,out] matrix_w Energy weighted density matrices for each spin
-  !> \param[in]     error environment
-  !> \author        Matthias Krack (MK)
-  !> \date          11.01.2008
-  !> \version       1.0
-  !> \note          The use of any full matrices was avoided. Thus no ScaLAPACK
-  !>                calls are performed
+!> \brief         Add a DFT+U contribution to the Hamiltonian matrix\n
+!>                using a method based on Mulliken charges
+!>                \f[q_\mu = \sum_\nu P_{\mu\nu} S_{\nu\mu}\f]
+!>                where \b P and \b S are the density and the
+!>                overlap matrix, respectively.
+!> \details
+!>  \f{eqnarray*}
+!>   E^{\rm DFT+U} & = & E^{\rm DFT} +  E^{\rm U}\\\
+!>                 & = & E^{\rm DFT} +  \frac{1}{2}(U - J)\sum_\mu (q_\mu - q_\mu^2)\\[1ex]
+!>   V_{\mu\nu}^{\rm DFT+U} & = & V_{\mu\nu}^{\rm DFT} + V_{\mu\nu}^{\rm U}\\\
+!>                          & = & \frac{\partial E^{\rm DFT}}
+!>                                     {\partial P_{\mu\nu}} +
+!>                                \frac{\partial E^{\rm U}}
+!>                                     {\partial P_{\mu\nu}}\\\
+!>                          & = & H_{\mu\nu} +
+!>                                \frac{\partial E^{\rm U}}{\partial q_\mu}
+!>                                \frac{\partial q_\mu}{\partial P_{\mu\nu}}\\\
+!>                          & = & H_{\mu\nu} +
+!>                                \frac{1}{2}(U - J)(1 - q_\mu - q_\nu) S_{\mu\nu}\\\
+!>  \f}
+!> \param[in]     qs_env Quickstep environment
+!> \param[in,out] matrix_h Hamiltonian matrices for each spin
+!> \param[in,out] matrix_w Energy weighted density matrices for each spin
+!> \param[in]     error environment
+!> \author        Matthias Krack (MK)
+!> \date          11.01.2008
+!> \version       1.0
+!> \note          The use of any full matrices was avoided. Thus no ScaLAPACK
+!>                calls are performed
 ! *****************************************************************************
   SUBROUTINE plus_u_mulliken(qs_env,matrix_h,matrix_w,error)
 

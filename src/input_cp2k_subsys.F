@@ -1595,10 +1595,10 @@ CONTAINS
     END IF
   END SUBROUTINE connectivity_framework
 
-  !> \brief      Create CP2K input section for the DFT+U method parameters
-  !> \author     Matthias Krack (MK)
-  !> \date       01.11.2007
-  !> \version    1.0
+!> \brief      Create CP2K input section for the DFT+U method parameters
+!> \author     Matthias Krack (MK)
+!> \date       01.11.2007
+!> \version    1.0
 ! *****************************************************************************
   SUBROUTINE create_dft_plus_u_section(section,error)
 
@@ -1610,8 +1610,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
