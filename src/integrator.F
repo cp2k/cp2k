@@ -312,12 +312,11 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ! Update virial
-    IF (simpar%constraint) THEN
-       CALL pv_constraint(gci,local_molecules,molecule_set,molecule_kind_set,&
-            particle_set,virial,para_env%group)
-       CALL virial_evaluate(atomic_kind_set,particle_set,local_particles,&
-            virial,para_env%group, error=error)
-    END IF
+    IF (simpar%constraint) CALL pv_constraint(gci,local_molecules,molecule_set,&
+       molecule_kind_set, particle_set,virial,para_env%group)
+  
+    CALL virial_evaluate(atomic_kind_set,particle_set,local_particles,&
+         virial,para_env%group, error=error)
 
   END SUBROUTINE langevin
 
