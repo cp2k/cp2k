@@ -695,33 +695,31 @@ CONTAINS
   END SUBROUTINE qs_dftb_param_init
 
 ! *****************************************************************************
+!> \brief   Transform Slako format in l1/l2/m format
+!> \par Notes
+!>         Slako tables from Dresden/Paderborn/Heidelberg groups are
+!>         stored in the following native format:
+!>        
+!>         Convention: Higher angular momenta are always on the right-hand side
+!>        
+!>         1: d - d - delta
+!>         2: d - d - pi
+!>         3: d - d - sigma
+!>         4: p - d - pi
+!>         5: p - d - sigma
+!>         6: p - p - pi
+!>         7: p - p - sigma
+!>         8: d - s - sigma
+!>         9: p - s - sigma
+!>        10: s - s - sigma
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE skreorder(xmat,la,lb)
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: xmat
     INTEGER, INTENT(IN)                      :: la, lb
 
     INTEGER                                  :: i, l1, l2, llm, m
     REAL(dp)                                 :: skllm(0:3,0:3,0:3)
-
-!
-! Purpose: Transform Slako format in l1/l2/m format
-!
-! Slako tables from Dresden/Paderborn/Heidelberg groups are
-! stored in the following native format:
-!
-! Convention: Higher angular momenta are always on the right-hand side
-!
-! 1: d - d - delta
-! 2: d - d - pi
-! 3: d - d - sigma
-! 4: p - d - pi
-! 5: p - d - sigma
-! 6: p - p - pi
-! 7: p - p - sigma
-! 8: d - s - sigma
-! 9: p - s - sigma
-!10: s - s - sigma
-!
-!
 
       DO i=1,SIZE(xmat,1)
         skllm = 0._dp

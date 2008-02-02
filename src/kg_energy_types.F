@@ -42,12 +42,12 @@ MODULE kg_energy_types
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Allocate and/or initialise a KG energy data structure.
+!> \author  MK
+!> \date    13.06.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE allocate_kg_energy(kg_energy)
-
-!   Purpose: Allocate and/or initialise a Quickstep energy data structure.
-
-!   History: - Creation (13.06.2002,MK)
-
     TYPE(kg_energy_type), POINTER            :: kg_energy
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_kg_energy', &
@@ -67,12 +67,12 @@ CONTAINS
   END SUBROUTINE allocate_kg_energy
 
 ! *****************************************************************************
+!> \brief   Deallocate a KG energy data structure.
+!> \author  MK
+!> \date    13.06.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_kg_energy(kg_energy)
-
-!   Purpose: Deallocate a Quickstep energy data structure.
-
-!   History: - Creation (13.06.2002,MK)
-
     TYPE(kg_energy_type), POINTER            :: kg_energy
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_kg_energy', &
@@ -93,12 +93,12 @@ CONTAINS
   END SUBROUTINE deallocate_kg_energy
 
 ! *****************************************************************************
+!> \brief   Initialise a KG energy data structure.
+!> \author  MK
+!> \date    13.06.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE init_kg_energy(kg_energy)
-
-!   Purpose: Initialise a Quickstep energy data structure.
-
-!   History: - Creation (13.06.2002,MK)
-
     TYPE(kg_energy_type), POINTER            :: kg_energy
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_kg_energy', &

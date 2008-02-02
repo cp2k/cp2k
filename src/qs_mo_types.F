@@ -143,13 +143,9 @@ CONTAINS
 !> \par History
 !>      11.2002 splitted initialization in two phases [fawzi]
 !> \author Matthias Krack
+!> \date 15.05.2001
 ! *****************************************************************************
   SUBROUTINE allocate_mo_set(mo_set,nao,nmo,nelectron,maxocc, error)
-
-!   Purpose: Allocate a wavefunction data structure.
-
-!   History: - Creation (15.05.2001, MK)
-
     TYPE(mo_set_type), POINTER               :: mo_set
     INTEGER, INTENT(IN)                      :: nao, nmo, nelectron
     REAL(KIND=dp), INTENT(IN)                :: maxocc
@@ -265,11 +261,12 @@ CONTAINS
   END SUBROUTINE mo_set_restrict
 
 ! *****************************************************************************
+!> \brief   Correct MO eigenvalues after MO level shifting.
+!> \author  MK
+!> \date    19.04.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE correct_mo_eigenvalues(mo_set,level_shift)
-
-!   Purpose: Correct MO eigenvalues after MO level shifting.
-
-!   History: - Creation (19.04.2002, MK)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp), INTENT(IN)                :: level_shift
@@ -288,11 +285,12 @@ CONTAINS
   END SUBROUTINE correct_mo_eigenvalues
 
 ! *****************************************************************************
+!> \brief   Deallocate a wavefunction data structure.
+!> \author  MK
+!> \date    15.05.2001
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_mo_set(mo_set,error)
-
-!   Purpose: Deallocate a wavefunction data structure.
-
-!   History: - Creation (15.05.2001,MK)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -324,13 +322,14 @@ CONTAINS
   END SUBROUTINE deallocate_mo_set
 
 ! *****************************************************************************
+!> \brief   Get the components of a MO set data structure.
+!> \author  MK
+!> \date    22.04.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE get_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,nmo,&
                         eigenvalues,occupation_numbers,mo_coeff,&
                         uniform_occupation)
-
-!   Purpose: Get the components of a MO set data structure.
-
-!   History: - Creation (22.04.2002, MK)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: maxocc
@@ -360,12 +359,13 @@ CONTAINS
   END SUBROUTINE get_mo_set
 
 ! *****************************************************************************
+!> \brief  Smearing of the MO occupation due to the given smear value. 
+!> \author  MK
+!> \date    17.04.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE set_mo_occupation(occupation,eigenvalues,homo,lfomo,maxocc,nelectron,&
                                uocc,smear)
-
-!   Purpose: Smearing of the MO occupation due to the given smear value.
-
-!   History: - Creation (17.04.2002, MK)
 
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation, eigenvalues
     INTEGER, INTENT(OUT)                     :: homo, lfomo
@@ -453,13 +453,14 @@ CONTAINS
   END SUBROUTINE set_mo_occupation
 
 ! *****************************************************************************
+!> \brief   Set the components of a MO set data structure.
+!> \author  MK
+!> \date    22.04.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE set_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,nmo,&
                         eigenvalues,occupation_numbers,mo_coeff,&
                         uniform_occupation)
-
-!   Purpose: Set the components of a MO set data structure.
-
-!   History: - Creation (22.04.2002, MK)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: maxocc
@@ -1093,22 +1094,20 @@ CPSourceFileRef,&
   END SUBROUTINE read_mos_restart_low
 
 ! *****************************************************************************
+!> \brief   Write the MO eigenvalues, MO occupation numbers and
+!>          MO mo_coeff.
+!> \author  MK
+!> \date    15.05.2001
+!> \par History: 
+!>       - Optionally print Cartesian MOs (20.04.2005,MK)
+!> \par Variables
+!>       - after : Number of digits after point.
+!>       - before: Number of digits before point.
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE write_mo_set_to_output_unit(mo_set,atomic_kind_set,particle_set,&
                                          before,after,dft_section,spin,last,&
                                          error)
-
-    ! Purpose: Write the MO eigenvalues, MO occupation numbers and
-    !          MO mo_coeff.
-
-    ! History: - Creation (15.05.2001,MK)
-    !          - Optionally print Cartesian MOs (20.04.2005,MK)
-
-    ! List of variables:
-
-    ! after : Number of digits after point.
-    ! before: Number of digits before point.
-
-    ! -------------------------------------------------------------------------
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(atomic_kind_type), DIMENSION(:), &

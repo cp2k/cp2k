@@ -98,12 +98,12 @@ MODULE cp_parser
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Broadcast the input information.
+!> \author  MK
+!> \date    02.03.2001
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE broadcast_input_information(parser,error)
-
-!   Purpose: Broadcast the input information.
-
-!   History: - Creation (02.03.2001,MK)
-
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -155,12 +155,12 @@ SUBROUTINE parser_retain(parser,error)
 END SUBROUTINE parser_retain
 
 ! *****************************************************************************
+!> \brief   releases the parser
+!> \author  MK
+!> \date    14.02.2001
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE parser_release(parser, error)
-
-!   Purpose: releases the parser
-
-!   History: - Creation (14.02.2001,MK)
-
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -187,13 +187,13 @@ END SUBROUTINE parser_retain
   END SUBROUTINE parser_release
 
 ! *****************************************************************************
+!> \brief   Read the next input line and broadcast the input information.
+!>          Skip (nline-1) lines and skip also all comment lines.
+!> \author  MK
+!> \date    22.11.1999
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE parser_get_next_line(parser,nline,at_end,error)
-
-!   Purpose: Read the next input line and broadcast the input information.
-!            Skip (nline-1) lines and skip also all comment lines.
-
-!   History: - Creation (22.11.1999,MK)
-
     TYPE(cp_parser_type), POINTER            :: parser
     INTEGER, INTENT(IN)                      :: nline
     LOGICAL, INTENT(out), OPTIONAL           :: at_end
@@ -264,10 +264,12 @@ FUNCTION parser_location(parser,error) RESULT(res)
 END FUNCTION parser_location
 
 ! *****************************************************************************
+!> \brief   skips the whitespaces
+!> \author  MK
+!> \date    02.03.2001
+!> \version 1.0
+! *****************************************************************************
 SUBROUTINE parser_skip_space(parser,multiline,error)
-
-  !   Purpose: skips the whitespaces
-
     TYPE(cp_parser_type), POINTER            :: parser
     LOGICAL, INTENT(in), OPTIONAL            :: multiline
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -355,12 +357,12 @@ SUBROUTINE parser_skip_space(parser,multiline,error)
 END SUBROUTINE parser_skip_space
 
 ! *****************************************************************************
+!> \brief   Get the next input string from the input line.
+!> \author  MK
+!> \date    19.02.2001
+!> \version 1.0
+! *****************************************************************************
 SUBROUTINE parser_next_token(parser,string_length,error)
-
-  !   Purpose: Get the next input string from the input line.
-
-  !   History: - Creation (19.02.2001,MK)
-
     TYPE(cp_parser_type), POINTER            :: parser
     INTEGER, INTENT(IN), OPTIONAL            :: string_length
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -526,11 +528,12 @@ SUBROUTINE parser_next_token(parser,string_length,error)
 END SUBROUTINE parser_next_token
 
 ! *****************************************************************************
+!> \brief   Check, if the string object contains an object of type integer.
+!> \author  MK
+!> \date    22.11.1999
+!> \version 1.0
+! *****************************************************************************
   FUNCTION integer_object(string,error) RESULT(contains_integer_object)
-
-!   Purpose: Check, if the string object contains an object of type integer.
-
-!   History: - Creation (22.11.1999,MK)
 
     CHARACTER(LEN=*), INTENT(IN)             :: string
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -569,13 +572,13 @@ END SUBROUTINE parser_next_token
   END FUNCTION integer_object
 
 ! *****************************************************************************
+!> \brief   Read an integer number.
+!> \author  MK
+!> \date    22.11.1999
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE parser_get_integer(parser,object,lower_to_upper,newline,skip_lines,&
        string_length, at_end,error)
-
-    !   Purpose: Read an integer number.
-
-    !   History: - Creation (22.11.1999,MK)
-
     TYPE(cp_parser_type), POINTER            :: parser
     INTEGER, INTENT(OUT)                     :: object
     LOGICAL, INTENT(IN), OPTIONAL            :: lower_to_upper, newline
@@ -645,14 +648,15 @@ END SUBROUTINE parser_next_token
   END SUBROUTINE parser_get_integer
 
 ! *****************************************************************************
+!> \brief   Read a string representing logical object.
+!> \author  FM
+!> \date    01.04.2003
+!> \par History
+!>      - New version (08.07.2003,MK)
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE parser_get_logical(parser,object,newline,skip_lines,string_length,&
        at_end,error)
-
-    !   Purpose: Read a string representing logical object.
-
-    !   History: - Creation (01.04.2003,FM)
-    !            - New version (08.07.2003,MK)
-
     TYPE(cp_parser_type), POINTER            :: parser
     LOGICAL, INTENT(OUT)                     :: object
     LOGICAL, INTENT(IN), OPTIONAL            :: newline
@@ -734,13 +738,13 @@ END SUBROUTINE parser_next_token
   END SUBROUTINE parser_get_logical
 
 ! *****************************************************************************
+!> \brief   Read the next line from a logical unit "unit" (I/O node only).
+!>          Skip (nline-1) lines and skip also all comment lines.
+!> \author  MK
+!> \date    22.11.1999
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE parser_read_line(parser,nline,at_end,error)
-
-    !   Purpose: Read the next line from a logical unit "unit" (I/O node only).
-    !            Skip (nline-1) lines and skip also all comment lines.
-
-    !   History: - Creation (22.11.1999,MK)
-
     TYPE(cp_parser_type), POINTER            :: parser
     INTEGER, INTENT(IN)                      :: nline
     LOGICAL, INTENT(out), OPTIONAL           :: at_end
@@ -830,13 +834,13 @@ END SUBROUTINE parser_next_token
   END SUBROUTINE parser_read_line
 
 ! *****************************************************************************
+!> \brief   Read a floating point number.
+!> \author  MK
+!> \date    22.11.1999
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE parser_get_real(parser,object,lower_to_upper,newline,skip_lines,&
        string_length,multiline,at_end,error)
-
-    !   Purpose: Read a floating point number.
-
-    !   History: - Creation (22.11.1999,MK)
-
     TYPE(cp_parser_type), POINTER            :: parser
     REAL(KIND=dp), INTENT(OUT)               :: object
     LOGICAL, INTENT(IN), OPTIONAL            :: lower_to_upper, newline
@@ -948,13 +952,13 @@ END SUBROUTINE parser_next_token
   END SUBROUTINE parser_get_real
 
 ! *****************************************************************************
+!> \brief   Read a string.
+!> \author  MK
+!> \date    22.11.1999
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE parser_get_string(parser,object,lower_to_upper,newline,skip_lines,&
                                 string_length,at_end,error)
-
-!   Purpose: Read a string.
-
-!   History: - Creation (22.11.1999,MK)
-
     TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=*), INTENT(OUT)            :: object
     LOGICAL, INTENT(IN), OPTIONAL            :: lower_to_upper, newline
@@ -1026,16 +1030,16 @@ END SUBROUTINE parser_next_token
   END SUBROUTINE parser_get_string
 
 ! *****************************************************************************
+!> \brief   Search a string pattern in a file defined by its logical unit
+!>          number "unit". A case sensitive search is performed, if
+!>          ignore_case is .FALSE..
+!>          begin_line: give back the parser at the beginning of the line
+!>          matching the search
+!> \author  MK
+!> \date    05.10.1999
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE parser_search_string(parser,string,ignore_case,found,line,begin_line,error)
-
-    !   Purpose: Search a string pattern in a file defined by its logical unit
-    !            number "unit". A case sensitive search is performed, if
-    !            ignore_case is .FALSE..
-    !            begin_line: give back the parser at the beginning of the line
-    !            matching the search
-
-    !   History: - Creation (05.10.1999,MK)
-
     TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=*), INTENT(IN)             :: string
     LOGICAL, INTENT(IN)                      :: ignore_case
@@ -1127,14 +1131,14 @@ END SUBROUTINE parser_next_token
   END SUBROUTINE parser_search_string
 
 ! *****************************************************************************
+!> \brief   Start a parser run.
+!> \author  MK
+!> \date    14.02.2001
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE parser_create(parser,file_name,unit_nr,para_env, &
        end_section_label,separator_chars,comment_char,continuation_char, section_char, &
           error)
-
-    !   Purpose: Start a parser run.
-
-    !   History: - Creation (14.02.2001,MK)
-
     TYPE(cp_parser_type), POINTER            :: parser
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: file_name
     INTEGER, INTENT(in), OPTIONAL            :: unit_nr
@@ -1224,20 +1228,19 @@ CPSourceFileRef,&
   END SUBROUTINE parser_create
 
 ! *****************************************************************************
+!> \brief   Test next input object.
+!>           -  test_result : "EOF": End of file
+!>           -  test_result : "EOL": End of line
+!>           -  test_result : "EOS": End of section
+!>           -  test_result : "FLT": Floating point number
+!>           -  test_result : "INT": Integer number
+!>           -  test_result : "STR": String
+!> \author  MK
+!> \date    23.11.1999
+!> \version 1.0
+! *****************************************************************************
   FUNCTION parser_test_next_token(parser,newline,skip_lines,string_length,error)&
        RESULT(test_result)
-
-    !   Purpose: Test next input object.
-
-    !            test_result = "EOF": End of file
-    !            test_result = "EOL": End of line
-    !            test_result = "EOS": End of section
-    !            test_result = "FLT": Floating point number
-    !            test_result = "INT": Integer number
-    !            test_result = "STR": String
-
-    !   History: - Creation (23.11.1999,MK)
-
     TYPE(cp_parser_type), POINTER            :: parser
     LOGICAL, INTENT(IN), OPTIONAL            :: newline
     INTEGER, INTENT(IN), OPTIONAL            :: skip_lines, string_length

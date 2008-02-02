@@ -37,9 +37,10 @@ MODULE scp_force_types
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Allocate a scp force data structure.
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE allocate_scp_force(scp_forces,natom_of_kind)
-
-!   Purpose: Allocate a scp force data structure.
 
     TYPE(scp_force_type), DIMENSION(:), &
       POINTER                                :: scp_forces
@@ -80,9 +81,10 @@ CONTAINS
   END SUBROUTINE allocate_scp_force 
 
 ! *****************************************************************************
+!> \brief   Deallocate a scp force data structure.
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_scp_force(scp_forces)
-
-!   Purpose: Deallocate a scp force data structure.
 
     TYPE(scp_force_type), DIMENSION(:), &
       POINTER                                :: scp_forces
@@ -125,9 +127,10 @@ CONTAINS
   END SUBROUTINE deallocate_scp_force
 
 ! *****************************************************************************
+!> \brief   Initialize a scp force data structure. 
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE init_scp_force(scp_forces)
-
-!   Purpose: Initialize a scp force data structure.
 
     TYPE(scp_force_type), DIMENSION(:), &
       POINTER                                :: scp_forces

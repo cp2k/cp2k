@@ -36,10 +36,6 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE allocate_scp_energy(scp_energy)
 
-!   Purpose: Allocate and/or initialise a Quickstep energy data structure.
-
-!   History: - Creation (13.06.2002,MK)
-
     TYPE(scp_energy_type), POINTER           :: scp_energy
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_scp_energy', &
@@ -60,10 +56,6 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE deallocate_scp_energy(scp_energy)
-
-!   Purpose: Deallocate a Quickstep energy data structure.
-
-!   History: - Creation (13.06.2002,MK)
 
     TYPE(scp_energy_type), POINTER           :: scp_energy
 
@@ -86,10 +78,6 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE init_scp_energy(scp_energy)
-
-!   Purpose: Initialise a Quickstep energy data structure.
-
-!   History: - Creation (13.06.2002,MK)
 
     TYPE(scp_energy_type), POINTER           :: scp_energy
 

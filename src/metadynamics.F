@@ -240,7 +240,7 @@ CONTAINS
        WRITE ( iw, '( A,T71,I10)' )    ' METADYN| Number of collective variables',meta_env%n_colvar
 
        DO i=1,n_colvar
-          WRITE ( iw, '( A )')'          ----------------------------------------------------------------------'
+          WRITE ( iw, '( A )')'          '//'----------------------------------------------------------------------'
           WRITE ( iw, '( A,T71,I10)' )      ' METAVARS| Collective Variable Number',meta_env%metavar(i)%icolvar
           IF (meta_env%extended_lagrange) THEN
              WRITE ( iw, '( A,T71,F10.6)' )    ' METAVARS| Lambda Parameter',meta_env%metavar(i)%lambda
@@ -284,7 +284,7 @@ CONTAINS
                      meta_env%metavar(i)%walls(j)%pos
              END DO
           END IF
-          WRITE ( iw, '( A )')'          ----------------------------------------------------------------------'
+          WRITE ( iw, '( A )')'          '//'----------------------------------------------------------------------'
        ENDDO
     END IF
     CALL section_release(section,error=error)

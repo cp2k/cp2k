@@ -3,7 +3,7 @@
 !> \note
 !>      http://www.ece.nwu.edu/~ciyou/index.html#lbfgs
 !>      converted to f90 and put in a module by Fawzi Mohamed
-!>      I tryed to do minimal changes 
+!>      I tryed to do minimal changes. Routine Documentation not coverted. 
 !>      (so that migrating to the next version should be easy)
 !>      L-BFGS-B (version 2.4)
 !> \par History

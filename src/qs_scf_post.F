@@ -284,7 +284,7 @@ CONTAINS
                 IF (homo .NE. nmo) THEN
                    IF (ionode) WRITE(output_unit,*)" and ",nmo-homo," added MO eigenvalues"
                 ENDIF
-                IF (ionode) WRITE(output_unit,*) " ---------------------------------------------"
+                IF (ionode) WRITE(output_unit,*) "---------------------------------------------"
                 ! Also rotate the OT derivs, since they are needed for force calculations
                 IF (ASSOCIATED(qs_env%mo_derivs)) THEN
                    mo_coeff_deriv=>qs_env%mo_derivs(ispin)%matrix
@@ -359,7 +359,7 @@ CPSourceFileRef,&
                    IF (homo .NE. nmo) THEN
                       IF (ionode) WRITE(output_unit,*) " and ",nmo-homo," added MO eigenvalues"
                    ENDIF
-                   IF (ionode) WRITE(output_unit,*) " ---------------------------------------------"
+                   IF (ionode) WRITE(output_unit,*) "---------------------------------------------"
                    ! Also rotate the OT derivs, since they are needed for force calculations
                    IF (ASSOCIATED(qs_env%mo_derivs)) THEN
                       mo_coeff_deriv=>qs_env%mo_derivs(ispin)%matrix
@@ -416,7 +416,7 @@ CPSourceFileRef,&
              ! Always write eigenvalues
              IF (ionode) WRITE(output_unit,*) " "
              IF (ionode) WRITE(output_unit,*) " Lowest Eigenvalues of the unoccupied subspace spin ",ispin
-             IF (ionode) WRITE(output_unit,*) " -----------------------------------------------------"
+             IF (ionode) WRITE(output_unit,FMT='(1X,A)') "-----------------------------------------------------"
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,homo=homo,nao=nao,nmo=nmo)
              CALL cp_fm_get_info(mo_coeff, nrow_global=n,error=error)
              nlumos=MAX(1,MIN(section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO",error=error),nao-homo))

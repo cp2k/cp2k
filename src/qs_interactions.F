@@ -65,12 +65,13 @@ MODULE qs_interactions
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Initialize all the atomic kind radii for a given threshold value.
+!> \author  GT
+!> \date    24.09.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE init_interaction_radii(qs_control,cell,atomic_kind_set,&
-                                    subsys_section,error)
-
-!   Purpose: Initialize all the atomic kind radii for a given threshold value.
-
-!   History: - Creation (24.09.2002, gt)
+       subsys_section,error)
 
     TYPE(qs_control_type), INTENT(IN)        :: qs_control
     TYPE(cell_type), POINTER                 :: cell
@@ -549,13 +550,13 @@ CONTAINS
   END SUBROUTINE write_kind_radii
 
 ! *****************************************************************************
+!> \brief  Write the radii of the core charge distributions to the output
+!>         unit. 
+!> \author  MK
+!> \date    15.09.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE write_core_charge_radii(cell,atomic_kind_set,subsys_section,error)
-
-!   Purpose: Write the radii of the core charge distributions to the output
-!            unit.
-
-!   History: - Creation (15.09.2000,MK)
-
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -615,11 +616,12 @@ CONTAINS
   END SUBROUTINE write_core_charge_radii
 
 ! *****************************************************************************
+!> \brief   Write the orbital basis function radii to the output unit.
+!> \author  MK
+!> \date    05.06.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE write_pgf_orb_radii(basis,cell,atomic_kind_set,subsys_section,error)
-
-!   Purpose: Write the orbital basis function radii to the output unit.
-
-!   History: - Creation (05.06.2000,MK)
 
     CHARACTER(len=*)                         :: basis
     TYPE(cell_type), POINTER                 :: cell
@@ -796,13 +798,14 @@ CONTAINS
   END SUBROUTINE write_pgf_orb_radii
 
 ! *****************************************************************************
+!> \brief   Write the radii of the exponential functions of the Goedecker
+!>           pseudopotential (GTH, local part) to the logical unit number
+!>          "output_unit".
+!> \author  MK
+!> \date    06.10.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE write_ppl_radii(cell,atomic_kind_set,subsys_section,error)
-
-!   Purpose: Write the radii of the exponential functions of the Goedecker
-!            pseudopotential (GTH, local part) to the logical unit number
-!            "output_unit".
-
-!   History: - Creation (06.10.2000,MK)
 
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -855,13 +858,14 @@ CONTAINS
   END SUBROUTINE write_ppl_radii
 
 ! *****************************************************************************
+!> \brief  Write the radii of the projector functions of the Goedecker
+!>          pseudopotential (GTH, non-local part) to the logical unit number
+!>          "output_unit".  
+!> \author  MK
+!> \date    06.10.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE write_ppnl_radii(cell,atomic_kind_set,subsys_section,error)
-
-!   Purpose: Write the radii of the projector functions of the Goedecker
-!            pseudopotential (GTH, non-local part) to the logical unit number
-!            "output_unit".
-
-!   History: - Creation (06.10.2000,MK)
 
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -907,9 +911,10 @@ CONTAINS
   END SUBROUTINE write_ppnl_radii
 
 ! *****************************************************************************
+!> \brief   Write the radii of the one center projector 
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE write_paw_radii(cell,atomic_kind_set,subsys_section,error)
-  
-!   Purpose: Write the radii of the one center projector 
 
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &

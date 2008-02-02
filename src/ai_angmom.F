@@ -73,7 +73,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(ncoset(la_max),&
       ncoset(lb_max), 3)                     :: as
 
-!   ---------------------------------------------------------------------------
 !   *** Calculate the distance between the centers a and b ***
 
     rab = rbc - rac
@@ -923,8 +922,6 @@ CONTAINS
       POINTER                                :: mab
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       POINTER                                :: dmab
-
-!   ---------------------------------------------------------------------------
 
     dab = SQRT( SUM ((rac - rbc)**2) )
 

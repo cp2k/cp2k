@@ -54,13 +54,15 @@ MODULE qs_energy
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   QUICKSTEP single point wavefunction optimization.
+!> \author  MK
+!> \date    29.10.2002
+!> \par History
+!>          - consistent_energies option added (25.08.2005, TdK)
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE qs_energies (qs_env, globenv, consistent_energies, calc_forces, &
                           error)
-!   Purpose: QUICKSTEP single point wavefunction optimization.
-
-!   History: - Creation (29.10.2002,MK)
-!            - consistent_energies option added (25.08.2005, TdK)
-
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN), OPTIONAL            :: consistent_energies, &

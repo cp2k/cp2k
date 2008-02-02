@@ -38,6 +38,9 @@ MODULE cell_types
   INTEGER, SAVE, PRIVATE :: last_cell_id=0
 
 ! *****************************************************************************
+!> \brief   Type defining parameters related to the simulation cell
+!> \version 1.0
+! *****************************************************************************
   TYPE cell_type
      !FM to rm
      CHARACTER(LEN=8)           :: unit_of_length_name
@@ -151,14 +154,14 @@ CONTAINS
   END SUBROUTINE cell_clone
 
 ! *****************************************************************************
+!> \brief   Get informations about a simulation cell.
+!> \author  MK
+!> \date    16.01.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE get_cell(cell,unit_of_length_name,alpha,beta,deth,gamma,&
                       subcells,unit_of_length,orthorhombic,scaled_coordinates,&
                       abc,periodic,h,h_inv, id_nr)
-
-!   Purpose: Get informations about a simulation cell.
-
-!   History: - Creation (16.01.2002,MK)
-
     TYPE(cell_type), POINTER                 :: cell
     CHARACTER(LEN=8), INTENT(OUT), OPTIONAL  :: unit_of_length_name
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha, beta, deth, gamma, &
@@ -220,12 +223,12 @@ CONTAINS
   END SUBROUTINE get_cell
 
 ! *****************************************************************************
+!> \brief   Access internal type variables
+!> \author  MK
+!> \date    04.04.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE get_cell_param(box,cell_length,cell_angle)
-
-!   Purpose: Compatibility routine.
-
-!   History: - Creation (04.04.2002,MK)
-
     TYPE(cell_type), POINTER                 :: box
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: cell_length
     REAL(KIND=dp), DIMENSION(3), &
@@ -248,9 +251,12 @@ CONTAINS
   END SUBROUTINE get_cell_param
 
 ! *****************************************************************************
+!> \brief   Calculate the inverse of the h matrix.
+!> \author  MK
+!> \date    16.01.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE get_hinv(box)
-!   Purpose: Calculate the inverse of the h matrix.
-!   History: - Creation (16.01.2002, CJM,JGH,MK)
     TYPE(cell_type), POINTER                 :: box
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_hinv', &
@@ -269,12 +275,12 @@ CONTAINS
   END SUBROUTINE get_hinv
 
 ! *****************************************************************************
+!> \brief   Initialise a simulation cell.
+!> \author  MK
+!> \date    16.01.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE init_cell(cell,hmat,periodic,orthorhombic)
-
-!   Purpose: Initialise a simulation cell.
-
-!   History: - Creation (16.01.2002, CJM,JGH,MK)
-
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN), OPTIONAL                   :: hmat
@@ -317,13 +323,13 @@ CONTAINS
   END SUBROUTINE init_cell
 
 ! *****************************************************************************
+!> \brief   Calculate the distance between two lattice planes as defined by
+!>          a triple of Miller indices (hkl).
+!> \author  MK
+!> \date    18.11.2004
+!> \version 1.0
+! *****************************************************************************
   FUNCTION plane_distance(h,k,l,cell) RESULT(distance)
-
-!   Purpose: Calculate the distance between two lattice planes as defined by
-!            a triple of Miller indices (hkl).
-
-!   History: - Creation (18.11.2004,MK)
-
     INTEGER, INTENT(IN)                      :: h, k, l
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp)                            :: distance
@@ -379,13 +385,13 @@ CONTAINS
   END FUNCTION plane_distance
 
 ! *****************************************************************************
+!> \brief   Apply the periodic boundary conditions defined by a simulation
+!>          cell to a position vector r.
+!> \author  MK
+!> \date    16.01.2002
+!> \version 1.0
+! *****************************************************************************
   FUNCTION pbc1(r,cell) RESULT(r_pbc)
-
-!   Purpose: Apply the periodic boundary conditions defined by a simulation
-!            cell to a position vector r.
-
-!   History: - Creation (16.01.2002, Matthias Krack)
-
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: r
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(3)              :: r_pbc
@@ -413,13 +419,13 @@ CONTAINS
   END FUNCTION pbc1
 
 ! *****************************************************************************
+!> \brief   Apply the periodic boundary conditions defined by a simulation
+!>          cell to a position vector r subtracting nl from the periodic images
+!> \author  MK
+!> \date    16.01.2002
+!> \version 1.0
+! *****************************************************************************
   FUNCTION pbc2(r,cell,nl) RESULT(r_pbc)
-
-!   Purpose: Apply the periodic boundary conditions defined by a simulation
-!            cell to a position vector r.
-
-!   History: - Creation (16.01.2002, Matthias Krack)
-
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: r
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, DIMENSION(3), INTENT(IN)        :: nl
@@ -451,13 +457,13 @@ CONTAINS
   END FUNCTION pbc2
 
 ! *****************************************************************************
+!> \brief   Apply the periodic boundary conditions defined by the simulation
+!>          cell cell to the vector pointing from atom a to atom b.
+!> \author  MK
+!> \date    11.03.2004
+!> \version 1.0
+! *****************************************************************************
   FUNCTION pbc3(ra,rb,cell) RESULT(rab_pbc)
-
-!   Purpose: Apply the periodic boundary conditions defined by the simulation
-!            cell cell to the vector pointing from atom a to atom b.
-
-!   History: - Creation (11.03.2004,MK)
-
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra, rb
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(3)              :: rab_pbc
@@ -628,12 +634,13 @@ CONTAINS
   END SUBROUTINE read_cell
 
 ! *****************************************************************************
+!> \brief   Transform real to scaled cell coordinates.
+!>          s=h_inv*r
+!> \author  MK
+!> \date    16.01.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE real_to_scaled(s,r,cell)
-!            s=h_inv*r
-!   Purpose: Transform real to scaled cell coordinates.
-
-!   History: - Creation (16.01.2002, Matthias Krack)
-
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: s
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: r
     TYPE(cell_type), POINTER                 :: cell
@@ -653,12 +660,13 @@ CONTAINS
   END SUBROUTINE real_to_scaled
 
 ! *****************************************************************************
+!> \brief   Transform scaled cell coordinates real coordinates.
+!>          r=h*s
+!> \author  MK
+!> \date    16.01.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE scaled_to_real(r,s,cell)
-!            r=h*s
-!   Purpose: Transform scaled cell coordinates real coordinates.
-
-!   History: - Creation (16.01.2002, Matthias Krack)
-
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: r
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: s
     TYPE(cell_type), POINTER                 :: cell
@@ -678,12 +686,12 @@ CONTAINS
   END SUBROUTINE scaled_to_real
 
 ! *****************************************************************************
+!> \brief   Write the cell parameters to the output unit.
+!> \author  MK
+!> \date    02.06.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE write_cell(cell,subsys_section,cell_ref,error)
-
-!   Purpose: Write the cell parameters to the output unit.
-
-!   History: - Creation (02.06.2000, Matthias Krack)
-
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref

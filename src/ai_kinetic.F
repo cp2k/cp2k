@@ -12,24 +12,23 @@
 !>      S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
 !> \par History
 !>      - Derivatives added (10.05.2002,MK)
+!> \par Parameters
+!>      - ax,ay,az  : Angular momentum index numbers of orbital a.
+!>      - bx,by,bz  : Angular momentum index numbers of orbital b.
+!>      - coset     : Cartesian orbital set pointer.
+!>      - dab       : Distance between the atomic centers a and b.
+!>      - l{a,b}    : Angular momentum quantum number of shell a or b.
+!>      - l{a,b}_max: Maximum angular momentum quantum number of shell a or b.
+!>      - l{a,b}_min: Minimum angular momentum quantum number of shell a or b.
+!>      - ncoset    : Number of Cartesian orbitals up to l.
+!>      - rab       : Distance vector between the atomic centers a and b.
+!>      - rpgf{a,b} : Radius of the primitive Gaussian-type function a or b.
+!>      - sab       : Shell set of overlap integrals.
+!>      - tab       : Shell set of kinetic energy integrals.
+!>      - zet{a,b}  : Exponents of the Gaussian functions.
 !> \author Matthias Krack (31.07.2000)
 ! *****************************************************************************
 MODULE ai_kinetic
-
-! ax,ay,az  : Angular momentum index numbers of orbital a.
-! bx,by,bz  : Angular momentum index numbers of orbital b.
-! coset     : Cartesian orbital set pointer.
-! dab       : Distance between the atomic centers a and b.
-! l{a,b}    : Angular momentum quantum number of shell a or b.
-! l{a,b}_max: Maximum angular momentum quantum number of shell a or b.
-! l{a,b}_min: Minimum angular momentum quantum number of shell a or b.
-! ncoset    : Number of Cartesian orbitals up to l.
-! rab       : Distance vector between the atomic centers a and b.
-! rpgf{a,b} : Radius of the primitive Gaussian-type function a or b.
-! sab       : Shell set of overlap integrals.
-! tab       : Shell set of kinetic energy integrals.
-! zet{a,b}  : Exponents of the Gaussian functions.
-
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE orbital_pointers,                ONLY: coset,&
@@ -49,16 +48,16 @@ MODULE ai_kinetic
 CONTAINS
 
 ! *****************************************************************************
+!> \brief    Calculation of the two-center kinetic energy integrals [a|T|b]
+!>           over Cartesian Gaussian-type functions.
+!> \author  Matthias Krack
+!> \date    22.09.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE kinetic(la_max_set,la_min_set,npgfa,rpgfa,zeta,&
                      lb_max_set,lb_min_set,npgfb,rpgfb,zetb,&
                      rab,dab,sdab,tab,da_max,return_derivatives,&
                      t,ldt,pab,force_a)
-
-!   Purpose: Calculation of the two-center kinetic energy integrals [a|T|b]
-!            over Cartesian Gaussian-type functions.
-
-!   History: - Creation (22.09.2000, Matthias Krack)
-
     INTEGER, INTENT(IN)                      :: la_max_set, la_min_set, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa, zeta
     INTEGER, INTENT(IN)                      :: lb_max_set, lb_min_set, npgfb
@@ -91,8 +90,6 @@ CONTAINS
     REAL(KIND=dp)                            :: f0, f1, f2, f3, f4, fax, fay, &
                                                 faz, ftz, xi, zetp
     REAL(KIND=dp), DIMENSION(3)              :: rap, rbp
-
-!   ---------------------------------------------------------------------------
 
     IF (PRESENT(pab).AND.PRESENT(force_a)) THEN
       calculate_force_a = .TRUE.

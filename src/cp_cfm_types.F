@@ -255,12 +255,12 @@ CPSourceFileRef,&
   END SUBROUTINE CP_cFM_INIT_RANDOM
 
 ! *****************************************************************************
+!> \brief   Set the FULL matrix elements to alpha.
+!> \author  Matthias Krack
+!> \date    12.06.2001
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE cp_cfm_set_all(matrix,alpha,beta,error)
-
-!   Purpose: Set the FULL matrix elements to alpha.
-
-!   History: - Creation (12.06.2001, Matthias Krack)
-
     TYPE(cp_cfm_type), POINTER               :: matrix
     COMPLEX(KIND=dp), INTENT(IN)             :: alpha
     COMPLEX(KIND=dp), INTENT(IN), OPTIONAL   :: beta
@@ -326,10 +326,12 @@ CPSourceFileRef,&
   END SUBROUTINE cp_cfm_get_element
 
 ! *****************************************************************************
+!> \brief   Set the FULL matrix element (irow_global,icol_global) to alpha.
+!> \author  Matthias Krack
+!> \date    12.06.2001
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE cp_cfm_set_element(matrix,irow_global,icol_global,alpha,error)
-
-!   Purpose: Set the FULL matrix element (irow_global,icol_global) to alpha.
-
     TYPE(cp_cfm_type), POINTER               :: matrix
     INTEGER, INTENT(IN)                      :: irow_global, icol_global
     COMPLEX(KIND=dp), INTENT(IN)             :: alpha
@@ -372,17 +374,19 @@ CPSourceFileRef,&
   END SUBROUTINE cp_cfm_set_element
 
 ! *****************************************************************************
+!> \brief   Return informations about the specified FULL matrix.
+!>          the indices vectors are cached.
+!>          indices is an array that maps the local indices to the global ones
+!>          local data is a little hole to access the blacs block, needed in some rare cases
+!>          for efficient use
+!> \author  Matthias Krack
+!> \date    12.06.2001
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE cp_cfm_get_info(matrix,name,nrow_global,ncol_global,&
        nrow_block,ncol_block,nrow_local,ncol_local,&
        row_indices,col_indices,local_data,context,&
        matrix_struct,para_env,error)
-
-!   Purpose: Return informations about the specified FULL matrix.
-!   the indices vectors are cached.
-!   indices is an array that maps the local indices to the global ones
-!   local data is a little hole to access the blacs block, needed in some rare cases
-!   for efficient use
-
     TYPE(cp_cfm_type), POINTER        :: matrix
     CHARACTER(LEN=*), OPTIONAL, INTENT(OUT) :: name
     INTEGER, OPTIONAL, INTENT(OUT)          :: ncol_block,ncol_global,&

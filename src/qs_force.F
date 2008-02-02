@@ -88,11 +88,12 @@ MODULE qs_force
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Calculate the Quickstep forces.
+!> \author  MK
+!> \date    29.10.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE qs_forces(qs_env,globenv,error)
-
-!   Purpose: Calculate the Quickstep forces.
-
-!   History: - Creation (29.10.2002,MK)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -446,12 +447,13 @@ CONTAINS
   END SUBROUTINE qs_forces
 
 ! *****************************************************************************
+!> \brief   Write a Quickstep force data structure to output unit
+!> \author  MK
+!> \date    05.06.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE write_forces(qs_force,atomic_kind_set,ftype,virial,output_unit,&
        print_section, error)
-
-!   Purpose: Write a Quickstep force data structure to
-
-!   History: - Creation (05.06.2002,MK)
 
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: qs_force

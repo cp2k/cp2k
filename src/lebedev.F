@@ -4,66 +4,55 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
+!> \brief   Generation of the spherical Lebedev grids.
+!>          All Lebedev grids were generated with a precision of at least
+!>          33 digits (Mathematica). Thus the Lebedev abscissas and weights
+!>          are accurate to 32 digits (quadruple precision).
+!> \version 1.0
+!>
+!> \par Literature
+!>          - V. I. Lebedev, Zh. Vychisl. Mat. Mat. Fiz. 15, 48 (1975)
+!>          - V. I. Lebedev, Zh. Vychisl. Mat. Mat. Fiz. 16, 293 (1976)
+!>          - V. I. Lebedev, Sibirsk Mat. Zh. 18, 132 (1977)
+!>          - V. I. Lebedev and A. L. Skorokhodov, Russ. Acad. Sci. Dokl.
+!>            Math. 45, 587 (1992)
+!>          - V. I. Lebedev, Russ. Acad. Sci. Dokl. Math. 50, 283 (1995)
+!> \par Notes
+!>          Implemented Lebedev grids:
+!>            No.    l    n(nonred.)    n(total)
+!>             1     3         1             6
+!>             2     5         2            14
+!>             3     7         3            26
+!>             4     9         3            38
+!>             5    11         4            50
+!>             6    15         5            86
+!>             7    17         6           110
+!>             8    19         7           146
+!>             9    23         9           194
+!>            10    29        12           302
+!>            11    35        16           434
+!>            12    41        20           590
+!>            13    47        25           770
+!>            14    53        30           974
+!> \par Variables:
+!>        - lebedev_grid: Lebedev grids.
+!>                        l: Angular momentum quantum number l.
+!>                        n: Number of grid points.
+!>                        w: Grid point weights.
+!>                        r: Abscissas (grid point coordinates)
+!>        - max_np      : Maximum number of nonredundant grid points.
+!>        - na1         : Number of point for subsystem A1.
+!>        - na2         : Number of point for subsystem A2.
+!>        - na3         : Number of point for subsystem A3.
+!>        - nb          : Number of point for subsystem B.
+!>        - nc          : Number of point for subsystem C.
+!>        - nd          : Number of point for subsystem D.
+!>        - nlg         : Number of implemented Lebedev grids.
+!>        - nlgp        : Grid point counter.
+!>        - r           : Working storage (grid point coordinates).
+!>        - w           : Working storage (grid point weights).
+! *****************************************************************************
 MODULE lebedev
-
-! Purpose: Generation of the spherical Lebedev grids.
-
-!          All Lebedev grids were generated with a precision of at least
-!          33 digits (Mathematica). Thus the Lebedev abscissas and weights
-!          are accurate to 32 digits (quadruple precision).
-
-! Literature: - V. I. Lebedev, Zh. Vychisl. Mat. Mat. Fiz. 15, 48 (1975)
-!             - V. I. Lebedev, Zh. Vychisl. Mat. Mat. Fiz. 16, 293 (1976)
-!             - V. I. Lebedev, Sibirsk Mat. Zh. 18, 132 (1977)
-!             - V. I. Lebedev and A. L. Skorokhodov, Russ. Acad. Sci. Dokl.
-!               Math. 45, 587 (1992)
-!             - V. I. Lebedev, Russ. Acad. Sci. Dokl. Math. 50, 283 (1995)
-
-! History: - Creation (04.05.99, Matthias Krack)
-
-! Implemented Lebedev grids:
-
-!   No.    l    n(nonred.)    n(total)
-
-!    1     3         1             6
-!    2     5         2            14
-!    3     7         3            26
-!    4     9         3            38
-!    5    11         4            50
-!    6    15         5            86
-!    7    17         6           110
-!    8    19         7           146
-!    9    23         9           194
-!   10    29        12           302
-!   11    35        16           434
-!   12    41        20           590
-!   13    47        25           770
-!   14    53        30           974
-
-! Index:
-
-! FUNCTION get_number_of_lebedev_grid(l,n) RESULT(number_of_lebedev_grid)
-! SUBROUTINE load_sub_grid(subsystem,lgnum,np)
-! SUBROUTINE init_lebedev_grids
-
-! Global variables:
-
-! lebedev_grid: Lebedev grids.
-!               l: Angular momentum quantum number l.
-!               n: Number of grid points.
-!               w: Grid point weights.
-!               r: Abscissas (grid point coordinates)
-! max_np      : Maximum number of nonredundant grid points.
-! na1         : Number of point for subsystem A1.
-! na2         : Number of point for subsystem A2.
-! na3         : Number of point for subsystem A3.
-! nb          : Number of point for subsystem B.
-! nc          : Number of point for subsystem C.
-! nd          : Number of point for subsystem D.
-! nlg         : Number of implemented Lebedev grids.
-! nlgp        : Grid point counter.
-! r           : Working storage (grid point coordinates).
-! w           : Working storage (grid point weights).
 
   USE f77_blas
   USE kinds,                           ONLY: dp
@@ -109,15 +98,16 @@ MODULE lebedev
 CONTAINS
 
 ! *****************************************************************************
+!> \brief  Get the number of the Lebedev grid, which has the requested
+!          angular momentum quantnum number l or size n. 
+!> \author Matthias Krack 
+!> \date   05.05.99
+!> \par Variables
+!       - l : Minimal angular momentum quantum number of the requested Lebedev grid.
+!       - n : Minimal size of the requested Lebedev grid.
+!> \version 1.0
+! *****************************************************************************
   FUNCTION get_number_of_lebedev_grid(l,n) RESULT(number_of_lebedev_grid)
-
-!   Purpose: Get the number of the Lebedev grid, which has the requested
-!            angular momentum quantnum number l or size n.
-
-!   History: - Creation (05.05.99, Matthias Krack)
-
-!   l: Minimal angular momentum quantum number of the requested Lebedev grid.
-!   n: Minimal size of the requested Lebedev grid.
 
     INTEGER, INTENT(IN), OPTIONAL            :: l, n
     INTEGER                                  :: number_of_lebedev_grid
@@ -125,8 +115,6 @@ CONTAINS
     INTEGER                                  :: i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ll, nn
     INTEGER, DIMENSION(1)                    :: lgnum
-
-!   ---------------------------------------------------------------------------
 
     IF (.NOT.init_lebedev_grids_done) CALL init_lebedev_grids
 
@@ -155,16 +143,17 @@ CONTAINS
   END FUNCTION get_number_of_lebedev_grid
 
 ! *****************************************************************************
+!> \brief  Load the Lebedev grid points of a subsystem. 
+!> \author  Matthias Krack
+!> \date    06.05.99
+!> \par Variables
+!>       - subsystem: String, which specifies the selected subsystem.
+!>       - lgnum    : Number of the current Lebedev grid.
+!>       - np       : Number of the nonredundant grid points.
+!> \version 1.0
+! *****************************************************************************
+! *****************************************************************************
   SUBROUTINE load_sub_grid(subsystem,lgnum,np)
-
-!   Purpose: Load the Lebedev grid points of a subsystem.
-
-!   History: - Creation (06.05.99, Matthias Krack)
-
-!   subsystem: String, which specifies the selected subsystem.
-!   lgnum    : Number of the current Lebedev grid.
-!   np       : Number of the nonredundant grid points.
-
     CHARACTER(*), INTENT(IN)                 :: subsystem
     INTEGER, INTENT(IN)                      :: lgnum, np
 
@@ -174,7 +163,6 @@ CONTAINS
     INTEGER                                  :: i, j
     REAL(KIND=dp)                            :: x, y, z
 
-!   ---------------------------------------------------------------------------
 !   *** Check argument values ***
 
     IF ((lgnum < 1).OR.(lgnum > nlg)) THEN
@@ -342,16 +330,15 @@ CONTAINS
   END SUBROUTINE deallocate_lebedev_grids
 
 ! *****************************************************************************
+!> \brief Load the coordinates and weights of the nonredundant Lebedev grid
+!         points.  
+!> \author  Matthias Krack
+!> \date    04.05.99
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE init_lebedev_grids
 
-!   Purpose: Load the coordinates and weights of the nonredundant Lebedev grid
-!            points.
-
-!   History: - Creation (04.05.99, Matthias Krack)
-
     INTEGER                                  :: ilg
-
-!   ---------------------------------------------------------------------------
 
     DO ilg=1,nlg
       IF(ASSOCIATED(lebedev_grid(ilg)%r)) DEALLOCATE(lebedev_grid(ilg)%r)
@@ -385,8 +372,6 @@ CONTAINS
       ALLOCATE (lebedev_grid(ilg)%r(3,lebedev_grid(ilg)%n),&
                 lebedev_grid(ilg)%w(lebedev_grid(ilg)%n))
     END DO
-
-!   ---------------------------------------------------------------------------
 
 !   *** Load the coordinates and weights of the Lebedev grid points ***
 
@@ -858,8 +843,6 @@ CONTAINS
     r(35) = 5.67499754607437348401393912269671E-1_dp
     r(36) = 7.16591845467023718833743633176626E-1_dp
     CALL load_sub_grid("D",14,36)
-
-!   ---------------------------------------------------------------------------
 
     init_lebedev_grids_done = .TRUE.
 

@@ -87,12 +87,12 @@ CONTAINS
   END SUBROUTINE allocate_grid_atom
 
 ! *****************************************************************************
+!> \brief   Deallocate a Gaussian-type orbital (GTO) basis set data set.
+!> \author  MK
+!> \date    03.11.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_grid_atom(grid_atom,error)
-
-    !   Purpose: Deallocate a Gaussian-type orbital (GTO) basis set data set.
-
-    !   History: - Creation (03.11.2000,MK)
-
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -243,16 +243,17 @@ CONTAINS
   END SUBROUTINE create_grid_atom
 
 ! *****************************************************************************
+!> \brief   Generate a radial grid with n points by a quadrature rule.
+!> \author  Matthias Krack
+!> \date    20.09.1999
+!> \par Literature
+!>           - A. D. Becke, J. Chem. Phys. 88, 2547 (1988)
+!>           - J. M. Perez-Jorda, A. D. Becke and E. San-Fabian,
+!>             J. Chem. Phys. 100, 6520 (1994)
+!>           - M. Krack and A. M. Koester, J. Chem. Phys. 108, 3226 (1998)
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE radial_grid(n,r,r2,wr,radial_quadrature)
-
-    !   Purpose: Generate a radial grid with n points by a quadrature rule.
-
-    !   Literature: - A. D. Becke, J. Chem. Phys. 88, 2547 (1988)
-    !               - J. M. Perez-Jorda, A. D. Becke and E. San-Fabian,
-    !                 J. Chem. Phys. 100, 6520 (1994)
-    !               - M. Krack and A. M. Koester, J. Chem. Phys. 108, 3226 (1998)
-
-    !   History: - Creation (20.09.1999, Matthias Krack)
 
     INTEGER, INTENT(IN)                      :: n
     REAL(dp), DIMENSION(:), POINTER          :: r, r2, wr

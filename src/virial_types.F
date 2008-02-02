@@ -45,9 +45,10 @@ MODULE virial_types
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   copy virial_in into virial_out
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE cp_virial ( virial_in, virial_out )
-
-!   Purpose:  copy virial_in into virial_out
 
     TYPE(virial_type), POINTER               :: virial_in, virial_out
 

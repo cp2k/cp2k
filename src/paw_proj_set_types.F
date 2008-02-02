@@ -84,9 +84,10 @@ MODULE paw_proj_set_types
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Allocate projector type for GAPW 
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE allocate_paw_proj_set(paw_proj_set,error)
-
-    !  Purpose: Allocate projector type for GAPW 
 
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -132,10 +133,10 @@ CONTAINS
   END SUBROUTINE allocate_paw_proj_set
 
 ! *****************************************************************************
+!> \brief   Deallocate a projector-type set data set.
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_paw_proj_set(paw_proj_set,error)
-
-    !   Purpose: Deallocate a projector-type set data set.
-
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -198,10 +199,11 @@ CONTAINS
   END SUBROUTINE deallocate_paw_proj_set
 
 ! *****************************************************************************
+!> \brief   Initialize the projector-type set data set.
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE projectors(paw_proj,orb_basis,rc,qs_control,max_rad_local_type,&
        force_env_section,error)
-
-    !   Purpose: initialize the projector-type set data set.
 
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
@@ -232,10 +234,11 @@ CONTAINS
   END SUBROUTINE  projectors
 
 ! *****************************************************************************
+!> \brief   initialize the projector-type set data set.
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE build_projector(paw_proj,orb_basis,eps_fit,eps_iso,eps_svd, &
        rc,eps_orb,max_rad_local,force_env_section,error)
-
-    !   Purpose: initialize the projector-type set data set.
 
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
@@ -771,13 +774,14 @@ CONTAINS
   END SUBROUTINE  build_projector
 
 ! *****************************************************************************
+!> \brief   Get informations about a paw projectors set.
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE get_paw_proj_set(paw_proj_set,cprj,cprj_s,&
        first_prj,first_prjs,last_prj, & 
        local_oce_sphi_h,local_oce_sphi_s,&
        maxl,ncgauprj,nsgauprj,nprj,&
        rcprj,rzetprj,zisomin,zetprj)
-
-    !   Purpose: Get informations about a paw projectors set.
 
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
@@ -827,9 +831,10 @@ CONTAINS
   END SUBROUTINE get_paw_proj_set
 
 ! *****************************************************************************
+!> \brief   Set informations about a paw projectors set.
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE set_paw_proj_set(paw_proj_set, rzetprj, rcprj)
-
-    !   Purpose: Set informations about a paw projectors set.
 
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
     REAL(dp), DIMENSION(:, :), OPTIONAL, &

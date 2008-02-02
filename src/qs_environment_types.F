@@ -354,6 +354,11 @@ MODULE qs_environment_types
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Get the QUICKSTEP environment.
+!> \author  MK
+!> \date    23.01.2002
+!> \version 1.0
+! *****************************************************************************
  SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,super_cell,cell_ref,use_ref_cell,&
                         dft_control,mos,sab_orb,sab_all,qmmm,qmmm_periodic,&
                         sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
@@ -374,11 +379,6 @@ CONTAINS
                         virial,cp_ddapc_env,cp_ddapc_ewald,outer_scf_history, &
                         outer_scf_ihistory,ep_qs_env,x_data,et_coupling,&
                         dftb_potential,results,scp_env,error)
-
-!   Purpose: Get the QUICKSTEP environment.
-
-!   History: - Creation (23.01.2002,MK)
-
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
@@ -610,9 +610,7 @@ CONTAINS
     IF (PRESENT(x_data)) x_data => qs_env%x_data
     IF (PRESENT(et_coupling)) et_coupling => qs_env%et_coupling    
     IF (PRESENT(dftb_potential)) dftb_potential => qs_env%dftb_potential    
-! **SCP
     IF (PRESENT(scp_env)) scp_env => qs_env%scp_env
-! **SCP
 
     IF (PRESENT(results)) results => qs_env%results
     IF (PRESENT(task_list)) task_list => qs_env%task_list
@@ -620,11 +618,12 @@ CONTAINS
   END SUBROUTINE get_qs_env
 
 ! *****************************************************************************
+!> \brief  Initialise the QUICKSTEP environment. 
+!> \author  MK
+!> \date    25.01.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE init_qs_env(qs_env,para_env,error)
-
-!   Purpose: Initialise the QUICKSTEP environment.
-
-!   History: - Creation (25.01.2002,MK)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -721,6 +720,11 @@ CONTAINS
   END SUBROUTINE init_qs_env
 
 ! *****************************************************************************
+!> \brief   Set the QUICKSTEP environment.
+!> \author  MK
+!> \date    23.01.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE set_qs_env(qs_env,cell,super_cell,cell_ref,use_ref_cell, &
                         dft_control,mos,qmmm,qmmm_periodic,&
                         sab_orb,sab_all,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
@@ -738,10 +742,6 @@ CONTAINS
                         cp_ddapc_env,cp_ddapc_ewald,outer_scf_history,&
                         outer_scf_ihistory,ep_qs_env,x_data,et_coupling,&
                         dftb_potential,scp_env,error)
-
-!   Purpose: Set the QUICKSTEP environment.
-
-!   History: - Creation (23.01.2002,MK)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, super_cell, cell_ref

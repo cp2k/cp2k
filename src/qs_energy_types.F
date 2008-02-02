@@ -66,11 +66,12 @@ MODULE qs_energy_types
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Allocate and/or initialise a Quickstep energy data structure.
+!> \author  MK
+!> \date    13.06.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE allocate_qs_energy(qs_energy)
-
-!   Purpose: Allocate and/or initialise a Quickstep energy data structure.
-
-!   History: - Creation (13.06.2002,MK)
 
     TYPE(qs_energy_type), POINTER            :: qs_energy
 
@@ -91,12 +92,12 @@ CONTAINS
   END SUBROUTINE allocate_qs_energy
 
 ! *****************************************************************************
+!> \brief   Deallocate a Quickstep energy data structure.
+!> \author  MK
+!> \date    13.06.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_qs_energy(qs_energy)
-
-!   Purpose: Deallocate a Quickstep energy data structure.
-
-!   History: - Creation (13.06.2002,MK)
-
     TYPE(qs_energy_type), POINTER            :: qs_energy
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_qs_energy', &
@@ -117,11 +118,12 @@ CONTAINS
   END SUBROUTINE deallocate_qs_energy
 
 ! *****************************************************************************
+!> \brief   Initialise a Quickstep energy data structure.
+!> \author  MK
+!> \date    13.06.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE init_qs_energy(qs_energy)
-
-!   Purpose: Initialise a Quickstep energy data structure.
-
-!   History: - Creation (13.06.2002,MK)
 
     TYPE(qs_energy_type), POINTER            :: qs_energy
 

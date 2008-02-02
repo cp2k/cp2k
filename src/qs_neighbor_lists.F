@@ -123,14 +123,15 @@ MODULE qs_neighbor_lists
 CONTAINS
 
 ! *****************************************************************************
+!> \brief    Build all the required neighbor lists for Quickstep.
+!> \author  MK
+!> \date    28.08.2000
+!> \par History
+!>          - Parallized version (16.06.2003,MK) 
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE build_qs_neighbor_lists(qs_env,para_env,molecular,&
                                      force_env_section,error)
-
-    ! Purpose: Build all the required neighbor lists for Quickstep.
-
-    ! History: - Creation (28.08.2000,MK)
-    !          - Parallized version (16.06.2003,MK)
-
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, OPTIONAL                        :: molecular
@@ -1217,15 +1218,16 @@ CONTAINS
   END SUBROUTINE build_qs_neighbor_lists
 
 ! *****************************************************************************
+!> \brief  Build simple pair neighbor lists. 
+!> \author  MK
+!> \date    20.03.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE build_neighbor_lists(ab,atom,cell,r_skin,maxatom_local,&
                                   print_subcell_grid,output_unit,&
                                   present_a,present_b,radius_a,radius_b,&
                                   pair_radius,&
                                   name,l3c_oce,l3c_rho0,mic,symmetric)
-
-    ! Purpose: Build simple pair neighbor lists.
-
-    ! History: - Creation (20.03.2002,MK)
 
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ab
@@ -1603,13 +1605,13 @@ CONTAINS
   END SUBROUTINE build_neighbor_lists
 
 ! *****************************************************************************
+!> \brief   Build simple pair neighbor lists restricted to molecules.
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE build_restricted_neighbor_lists(ab,atom,cell,r_skin,&
                                              maxatom_local,print_subcell_grid,&
                                              output_unit,present_a,present_b,&
                                              radius_a,radius_b,name)
-
-    ! Purpose: Build simple pair neighbor lists restricted to molecules.
-
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ab
     TYPE(local_atoms_type), DIMENSION(:), &
@@ -1883,17 +1885,18 @@ CONTAINS
   END SUBROUTINE build_restricted_neighbor_lists
 
 ! *****************************************************************************
+!> \brief   Build the neighbor lists for the calculation of the local part of
+!>          the GTH pseudo potential (PPL). Atom c is a PPL operator atom,
+!>          atom a is an atom in the cell(0,0,0). 
+!> \author  MK
+!> \date    20.03.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE build_gth_ppl_neighbor_lists(ac,atom,cell,r_skin,maxatom_local,&
                                           print_subcell_grid,output_unit,&
                                           present_a,present_c,&
                                           radius_a,radius_c,name,&
                                           particle_set)
-
-    ! Purpose: Build the neighbor lists for the calculation of the local part of
-    !          the GTH pseudo potential (PPL). Atom c is a PPL operator atom,
-    !          atom a is an atom in the cell(0,0,0).
-
-    ! History: - Creation (20.03.2002,MK)
 
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ac
@@ -2252,18 +2255,19 @@ CONTAINS
   END SUBROUTINE build_gth_ppl_neighbor_lists
 
 ! *****************************************************************************
+!> \brief   Build the neighbor lists for the calculation of the non-local
+!>          part of the GTH pseudo potential (PPNL). Atom c is a PPNL
+!>          operator atom, atom a is an atom in the cell(0,0,0), and atom b
+!>          is an atom in any cell(i,j,k). 
+!> \author  MK
+!> \date    30.05.2003
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE build_gth_ppnl_neighbor_lists(ac,bc,atom,cell,r_skin,&
                                            maxatom,maxatom_local,&
                                            print_subcell_grid,output_unit,&
                                            present_a,present_c,&
                                            radius_a,radius_c,name)
-
-    ! Purpose: Build the neighbor lists for the calculation of the non-local
-    !          part of the GTH pseudo potential (PPNL). Atom c is a PPNL
-    !          operator atom, atom a is an atom in the cell(0,0,0), and atom b
-    !          is an atom in any cell(i,j,k).
-
-    ! History: - Creation (30.05.2003,MK)
 
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ac, bc
@@ -2746,12 +2750,12 @@ CONTAINS
   END SUBROUTINE build_gth_ppnl_neighbor_lists
 
 ! *****************************************************************************
+!> \brief Allocate and initialize a subcell grid structure for the atomic neighbor search.  
+!> \author MK 
+!> \date    12.06.2003
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE allocate_subcell(subcell,nsubcell,maxatom,cell)
-
-    ! Purpose: Allocate and initialize a subcell grid structure for the atomic
-    !          neighbor search.
-
-    ! History: - Creation (12.06.2003,MK)
 
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
@@ -2824,11 +2828,12 @@ CONTAINS
   END SUBROUTINE allocate_subcell
 
 ! *****************************************************************************
+!> \brief   Deallocate a subcell grid structure.
+!> \author  MK
+!> \date    16.06.2003
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_subcell(subcell)
-
-    ! Purpose: Deallocate a subcell grid structure.
-
-    ! History: - Creation (16.06.2003,MK)
 
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
@@ -2868,12 +2873,12 @@ CONTAINS
   END SUBROUTINE deallocate_subcell
 
 ! *****************************************************************************
+!> \brief   Print the distribution of the simple pair neighbor list.
+!> \author  MK
+!> \date    19.06.2003
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE write_distribution(ab,atomic_kind_set,output_unit,para_env,error)
-
-    ! Purpose: Print the distribution of the simple pair neighbor list.
-
-    ! History: - Creation (19.06.2003,MK)
-
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: ab
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -2995,14 +3000,16 @@ CONTAINS
   END SUBROUTINE write_distribution
 
 ! *****************************************************************************
+!> \brief   Write a set of neighbor lists to the output unit.
+!> \author  MK
+!> \date    04.03.2002
+!> \par History
+!>       - Adapted to the new parallelized neighbor list version
+!>         (26.06.2003,MK) 
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE write_neighbor_lists(ab,particle_set,cell,para_env,output_unit,&
                                   name,error)
-
-    ! Purpose: Write a set of neighbor lists to the output unit.
-
-    ! History: - Creation (04.03.2002,MK)
-    !          - Adapted to the new parallelized neighbor list version
-    !            (26.06.2003,MK)
 
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), INTENT(IN)               :: ab

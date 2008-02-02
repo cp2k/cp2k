@@ -71,12 +71,12 @@ MODULE qs_overlap
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Calculation of the overlap matrix over Cartesian Gaussian functions.
+!> \author  MK
+!> \date    11.03.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE build_overlap_matrix(qs_env,para_env,nderivative,error)
-
-!   Purpose: Calculation of the overlap matrix over Cartesian Gaussian
-!            functions.
-
-!   History: - Creation (11.03.2002, MK)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env

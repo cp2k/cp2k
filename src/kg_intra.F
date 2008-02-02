@@ -45,12 +45,11 @@ MODULE kg_intra
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Calculate the overlap energy of the core charge distribution.
+!> \date    24.10.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE calculate_ebond_corr(kg_env,e_bc,calculate_forces,error)
-
-!   Purpose: Calculate the overlap energy of the core charge distribution.
-
-!   History: - Creation (24.10.2002)
-
     TYPE(kg_environment_type), POINTER       :: kg_env
     REAL(KIND=dp), INTENT(out)               :: e_bc
     LOGICAL, INTENT(IN)                      :: calculate_forces

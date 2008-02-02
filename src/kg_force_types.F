@@ -45,10 +45,10 @@ MODULE kg_force_types
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Allocate a kg force data structure.
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE allocate_kg_force(kg_forces,natom_of_kind)
-
-!   Purpose: Allocate a kg force data structure.
-
     TYPE(kg_force_type), DIMENSION(:), &
       POINTER                                :: kg_forces
     INTEGER, DIMENSION(:), INTENT(IN)        :: natom_of_kind
@@ -118,12 +118,12 @@ CONTAINS
   END SUBROUTINE allocate_kg_force 
 
 ! *****************************************************************************
+!> \brief   Deallocate a kg force data structure.
+!> \author  gt
+!> \date    30.09.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_kg_force(kg_forces)
-
-!   Purpose: Deallocate a kg force data structure.
-
-!   History: - Creation (30.09.2002,gt)
-
     TYPE(kg_force_type), DIMENSION(:), &
       POINTER                                :: kg_forces
 
@@ -207,12 +207,12 @@ CONTAINS
   END SUBROUTINE deallocate_kg_force
 
 ! *****************************************************************************
+!> \brief   Initialize a kg force data structure.
+!> \author  gt
+!> \date    01.10.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE init_kg_force(kg_forces)
-
-!   Purpose: Initialize a kg force data structure.
-
-!   History: - Creation (01.10.2002,gt)
-
     TYPE(kg_force_type), DIMENSION(:), &
       POINTER                                :: kg_forces
 

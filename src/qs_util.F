@@ -119,20 +119,20 @@ MODULE qs_util
 CONTAINS
 
 ! *****************************************************************************
+!> \brief  The exponent of a primitive Gaussian function for a given radius
+!>         and threshold is calculated. 
+!> \author MK 
+!> \date   07.03.1999
+!> \par Variables
+!>      - exponent : Exponent of the primitive Gaussian function.
+!>      - l        : Angular momentum quantum number l.
+!>      - prefactor: Prefactor of the Gaussian function (e.g. a contraction
+!>                   coefficient).
+!>      - radius   : Calculated radius of the Gaussian function.
+!>      - threshold: Threshold for radius. 
+!> \version 1.0
+! *****************************************************************************
   FUNCTION gauss_exponent(l,radius,threshold,prefactor) RESULT(exponent)
-
-    !   Purpose: The exponent of a primitive Gaussian function for a given radius
-    !            and threshold is calculated.
-
-    !   History: - Creation (07.03.1999,MK)
-
-    !   exponent : Exponent of the primitive Gaussian function.
-    !   l        : Angular momentum quantum number l.
-    !   prefactor: Prefactor of the Gaussian function (e.g. a contraction
-    !              coefficient).
-    !   radius   : Calculated radius of the Gaussian function.
-    !   threshold: Threshold for radius.
-
     INTEGER, INTENT(IN)                      :: l
     REAL(KIND=dp), INTENT(IN)                :: radius, threshold, prefactor
     REAL(KIND=dp)                            :: exponent
@@ -149,29 +149,28 @@ CONTAINS
   END FUNCTION gauss_exponent
 
 ! *****************************************************************************
+!> \brief  The radius of a primitive Gaussian function for a given threshold
+!>         is calculated. 
+!>               g(r) = prefactor*r**l*exp(-alpha*r**2) - threshold = 0
+!> \par History
+!>            - Modified to bisection to avoid division by zero (01.2002, Joost)
+!>            - that means the old version contains bugs .......(04.2002, Joost)
+!>              so keep this one ...
+!> \author  MK
+!> \date    26.02.1999
+!> \par Variables
+!>        - alpha    : Exponent of the primitive Gaussian function.
+!>        - l        : Angular momentum quantum number l.
+!>        - prefactor: Prefactor of the Gaussian function (e.g. a contraction
+!>                     coefficient).
+!>        - radius   : Calculated radius of the Gaussian function.
+!>        - threshold: Threshold for radius.
+!>        - epsiter: Convergence criterion.
+!>        - g      : The function g(r).
+!>        - maxiter: Maximum number of iterations.
+!> \version 1.0
+! *****************************************************************************
   FUNCTION exp_radius(l,alpha,threshold,prefactor,epsin) RESULT(radius)
-
-    !   Purpose: The radius of a primitive Gaussian function for a given threshold
-    !            is calculated.
-
-    !            g(r) = prefactor*r**l*exp(-alpha*r**2) - threshold = 0
-
-    !   History: - Creation (26.02.1999,MK)
-    !            - Modified to bisection to avoid division by zero (01.2002, Joost)
-    !            - that means the old version contains bugs .......(04.2002, Joost)
-    !              so keep this one ...
-
-    !   alpha    : Exponent of the primitive Gaussian function.
-    !   l        : Angular momentum quantum number l.
-    !   prefactor: Prefactor of the Gaussian function (e.g. a contraction
-    !              coefficient).
-    !   radius   : Calculated radius of the Gaussian function.
-    !   threshold: Threshold for radius.
-
-    !   epsiter: Convergence criterion.
-    !   g      : The function g(r).
-    !   maxiter: Maximum number of iterations.
-
     INTEGER, INTENT(IN)                      :: l
     REAL(KIND=dp), INTENT(IN)                :: alpha, threshold, prefactor
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: epsin

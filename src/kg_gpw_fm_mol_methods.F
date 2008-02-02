@@ -73,10 +73,6 @@ CONTAINS
                                  nao_max, nmo_max, &
                                  maxocc_global,mol_charge,mol_multiplicity,error)
 
-!   Purpose:
-
-!   History: - Creation (20.11.2004,MI)
-
     TYPE(kg_fm_mol_set_type), TARGET         :: fm_mol_set
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     INTEGER, INTENT(IN)                      :: imolkind
@@ -428,17 +424,16 @@ CONTAINS
   END SUBROUTINE mol_density_matrix
 
 ! *****************************************************************************
+!> \brief   Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
+!>          vectors and MO eigenvalues.
+!> \author  Matthias Krack
+!> \date    01.12.2004
+!> \version 1.0
+! *****************************************************************************
    SUBROUTINE fm_mol_eigensolver(ks_mol_block, mo_set, ortho, aux_nxn,ldaux,&
                                  do_level_shift, level_shift, use_cholesky, &
                                  use_jacobi, jacobi_threshold ,&
                                  smear, error)
-!
-!   Purpose: Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
-!            vectors and MO eigenvalues.
-!   ks will be modified
-
-!   History: - Creation (01.12.2004, Matthias Krack)
-!
 
     REAL(dp), DIMENSION(:, :), POINTER       :: ks_mol_block
     TYPE(mol_mo_set_type), POINTER           :: mo_set

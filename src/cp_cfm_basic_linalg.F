@@ -69,12 +69,12 @@ CONTAINS
   END SUBROUTINE cp_cfm_schur_product
 
 ! *****************************************************************************
+!> \brief   Scale and add two BLACS matrices (a <- alpha*a + beta*b).
+!> \author  Matthias Krack
+!> \date    11.06.2001
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE cp_cfm_add(alpha,matrix_a,beta,matrix_b,error)
-
-    !   Purpose: Scale and add two BLACS matrices (a <- alpha*a + beta*b).
-
-    !   History: - Creation (11.06.2001, Matthias Krack)
-
     COMPLEX(KIND=dp), INTENT(IN)             :: alpha
     TYPE(cp_cfm_type), POINTER               :: matrix_a
     COMPLEX(KIND=dp), INTENT(in), OPTIONAL   :: beta
@@ -161,11 +161,15 @@ CPSourceFileRef,&
 
   END SUBROUTINE cp_cfm_add
 
-! computes the LU decomposition of a given matrix
-! the actual purpose right now is to compute the determinant of a given matrix
-! which is most efficiently done this way, but, indeed, destroys the matrix
-! SERIOUS WARNING (KNOWN BUG) : the sign of the determinant depends on ipivot
-! one should be able to find out if ipivot is an even or an odd permutation...
+! *****************************************************************************
+!> \brief   Computes the LU decomposition of a given matrix
+!>          the actual purpose right now is to compute the determinant of a given matrix
+!>          which is most efficiently done this way, but, indeed, destroys the matrix
+!>          SERIOUS WARNING (KNOWN BUG) : the sign of the determinant depends on ipivot
+!>          one should be able to find out if ipivot is an even or an odd permutation...
+!> \author  Matthias Krack
+!> \date    11.06.2001
+!> \version 1.0
 ! *****************************************************************************
   SUBROUTINE cp_cfm_lu_decompose(matrix_a,almost_determinant)
     TYPE(cp_cfm_type), POINTER               :: matrix_a
@@ -219,13 +223,13 @@ CPSourceFileRef,&
   END SUBROUTINE
 
 ! *****************************************************************************
+!> \brief   BLACS interface to the BLAS routine dgemm.
+!> \author  Matthias Krack
+!> \date    07.06.2001
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE cp_cfm_gemm(transa,transb,m,n,k,alpha,matrix_a,matrix_b,beta,&
        matrix_c,error,b_first_col)
-
-!   Purpose: BLACS interface to the BLAS routine dgemm.
-
-!   History: - Creation (07.06.2001, Matthias Krack)
-
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     INTEGER, INTENT(IN)                      :: m, n, k
     COMPLEX(KIND=dp), INTENT(IN)             :: alpha

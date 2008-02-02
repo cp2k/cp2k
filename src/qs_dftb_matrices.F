@@ -1009,13 +1009,22 @@ CONTAINS
   END SUBROUTINE extrapol  
 
 ! *****************************************************************************
+!> \brief   Turn matrix element from z-axis to orientation of dxv
+!> \author  TH
+!> \date    13. Jan 2004
+!> \par Notes
+!>          These routines are taken from an old TB code (unknown to TH). 
+!>          They are highly optimised and taken because they are time critical. 
+!>          They are explicit, so not recursive, and work up to d functions.
+!>         
+!>          Set variables necessary for rotation of matrix elements
+!>        
+!>          r_i^2/r, replicated in rr2(4:6) for index convenience later
+!>          r_i/r, direction vector, rr(4:6) are replicated from 1:3 
+!>          lmax of A and B
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE turnsk(mat,skab1,skab2,dxv,dx,lmaxa,lmaxb)
-    !
-    ! Purpose: Turn matrix element from z-axis to orientation of dxv
-    !
-    ! History: Creation 13. Jan 2004, TH
-    !
-    !
     REAL(dp), INTENT(inout)                  :: mat(:,:)
     REAL(dp), INTENT(in)                     :: skab1(:), skab2(:), dxv(3), dx
     INTEGER, INTENT(in)                      :: lmaxa, lmaxb
@@ -1023,27 +1032,8 @@ CONTAINS
     INTEGER                                  :: lmaxab, minlmaxab
     REAL(dp)                                 :: rinv, rr(6), rr2(6)
 
-! distance vector and distance
-! Integrals on z-axis (ij)
-! Integrals on z-axis (ji)
-! final integrals
-! max angular momentum
-!
-! These routines are taken from an old TB code (unknown to TH). 
-! They are highly optimised and taken because they are time critical. 
-! They are explicit, so not recursive, and work up to d functions.
-! 
-! Set variables necessary for rotation of matrix elements
-!
-! r_i^2/r, replicated in rr2(4:6) for index convenience later
-! r_i/r, direction vector, rr(4:6) are replicated from 1:3 
-! lmax of A and B
-! min of lmaxa and lmaxb
-!
-! Determine l quantum limits. 
-!
-
     lmaxab = MAX(lmaxa,lmaxb)
+    ! Determine l quantum limits. 
     IF (lmaxab.gt.2)  STOP 'lmax=2'
     minlmaxab = MIN(lmaxa,lmaxb)
     !
@@ -1134,26 +1124,22 @@ CONTAINS
     ! into the matrix block
     !
 ! *****************************************************************************
+!> \brief   s-s interaction (no rotation necessary)
+!> \version 1.0
+! *****************************************************************************
     SUBROUTINE skss(skpar,mat)
-      !
-      ! Purpose: s-s interaction (no rotation necessary)
-      !
-      !
     REAL(dp), INTENT(in)                     :: skpar(:)
     REAL(dp), INTENT(inout)                  :: mat(:,:)
-
-!
 
       mat(1,1) = mat(1,1) + skpar(1)
       !
     END SUBROUTINE skss
     
 ! *****************************************************************************
+!> \brief  s-p interaction (simple rotation) 
+!> \version 1.0
+! *****************************************************************************
     SUBROUTINE sksp(skpar,mat,ind,transposed)
-      !
-      ! s-p interaction (simple rotation)
-      !
-      !
     REAL(dp), INTENT(in)                     :: skpar(:)
     REAL(dp), INTENT(inout)                  :: mat(:,:)
     INTEGER, INTENT(in)                      :: ind(0:,0:,0:)
@@ -1161,9 +1147,6 @@ CONTAINS
 
     INTEGER                                  :: l
     REAL(dp)                                 :: skp
-
-!
-!
 
       skp = skpar(ind(1,0,0))
       IF (transposed) THEN
@@ -1189,9 +1172,6 @@ CONTAINS
 
     INTEGER                                  :: ii, ir, is, k, l
     REAL(dp)                                 :: epp(6), matel(6), skppp, skpps
-
-!
-!
 
       epp(1:3) = rr2(1:3)
       DO l = 1,3
@@ -1575,16 +1555,14 @@ CONTAINS
 
   END SUBROUTINE urep_egr
 
-! gamma************************************************************************
-
+! *****************************************************************************
+!> \brief  Computes the short-range gamma parameter from exact Coulomb 
+!>         interaction of normalized exp(-a*r) charge distribution - 1/r 
+!> \par Literature
+!>         Elstner et al, PRB 58 (1998) 7260 
+!> \version 1.0
 ! *****************************************************************************
   FUNCTION gamma_rab_sr(r,ga,gb) RESULT(gamma)
-    !
-    ! Purpose: Computes the short-range gamma parameter from exact Coulomb 
-    !          interaction of normalized exp(-a*r) charge distribution - 1/r
-    !
-    !          Documentation refers to the Elstner et al, PRB 58 (1998) 7260 paper
-    !
     REAL(dp), INTENT(in)                     :: r, ga, gb
     REAL(dp)                                 :: gamma
 

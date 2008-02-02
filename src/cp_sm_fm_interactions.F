@@ -58,15 +58,17 @@ MODULE cp_sm_fm_interactions
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Copy a BLACS matrix to a sparse matrix.
+!>          real_matrix=beta*real_matrix+alpha*fm
+!>          beta defaults to 0, beta to 1
+!> \author  Matthias Krack
+!> \date    06.06.2001
+!> \par History
+!>          08.2002 adapted to local_data, could be optimized
+!>          08.2003 imported form qs_blacs
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE copy_fm_to_sm(fm,real_matrix,alpha,beta)
-
-    !   Purpose: Copy a BLACS matrix to a sparse matrix.
-    !   real_matrix=beta*real_matrix+alpha*fm
-    !   beta defaults to 0, beta to 1
-    !   History: - Creation (06.06.2001, Matthias Krack)
-    !   08.2002 adapted to local_data, could be optimized
-    !   08.2003 imported form qs_blacs
-
     TYPE(cp_fm_type), POINTER          :: fm
     TYPE(real_matrix_type), POINTER    :: real_matrix
     REAL(kind=dp), INTENT(in), OPTIONAL :: alpha,beta
@@ -244,13 +246,17 @@ CONTAINS
   END SUBROUTINE copy_fm_to_sm
 
 ! *****************************************************************************
+!> \brief   Copy a real_matrix to a fm. It assumes that a block is at most
+!>          present once in the real_matrix.
+!> \author  Matthias Krack
+!> \date    06.06.2001
+!> \par History
+!>          2003-08 Joost VandeVondele, Rewrite of the original routines for 
+!>                  improved efficiency
+!>          MM.YYYY imported from qs_blacs
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE copy_sm_to_fm(real_matrix,fm,error)
-
-    !   Purpose: Copy a real_matrix to a fm. It assumes that a block is at most
-    !   present once in the real_matrix.
-    !   Rewrite of the original routines for improved efficiency (Joost VandeVondele, 2003-08)
-    !   imported from qs_blacs
-
     TYPE(real_matrix_type), POINTER    :: real_matrix ! the matrix to copy FROM
     TYPE(cp_fm_type), POINTER :: fm ! the matrix to copy TO
     TYPE(cp_error_type), INTENT(inout)  :: error

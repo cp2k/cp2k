@@ -70,17 +70,19 @@ MODULE qs_core_energies
 CONTAINS
 
 ! *****************************************************************************
+!> \brief  Calculate the core Hamiltonian energy which includes the kinetic
+!>          and the potential energy of the electrons. It is assumed, that
+!>          the core Hamiltonian matrix h and the density matrix p have the
+!>          same sparse matrix structure (same atomic blocks and block
+!>          ordering) 
+!> \author  MK
+!> \date    03.05.2001
+!> \par History
+!>         - simplified taking advantage of new non-redundant matrix
+!>           structure (27.06.2003,MK)
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE calculate_ecore(h,p,ecore,para_env)
-
-    ! Purpose: Calculate the core Hamiltonian energy which includes the kinetic
-    !          and the potential energy of the electrons. It is assumed, that
-    !          the core Hamiltonian matrix h and the density matrix p have the
-    !          same sparse matrix structure (same atomic blocks and block
-    !          ordering)
-
-    ! History: - Creation (03.05.2001,MK)
-    !          - simplified taking advantage of new non-redundant matrix
-    !            structure (27.06.2003,MK)
 
     TYPE(real_matrix_type), POINTER          :: h, p
     REAL(KIND=dp), INTENT(OUT)               :: ecore
@@ -153,16 +155,17 @@ CONTAINS
   END SUBROUTINE calculate_ecore
 
 ! *****************************************************************************
+!> \brief   Calculate the overlap energy of the core charge distribution.
+!> \author  MK
+!> \date    30.04.2001
+!> \par History
+!>       - Force calculation added (03.06.2002,MK)
+!>       - Parallelized using a list of local atoms for rows and
+!>         columns (19.07.2003,MK)
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE calculate_ecore_overlap(qs_env,para_env,calculate_forces,molecular, &
                                      E_overlap_core,error)
-
-    ! Purpose: Calculate the overlap energy of the core charge distribution.
-
-    !   History: - Creation (30.04.2001,MK)
-    !            - Force calculation added (03.06.2002,MK)
-    !            - Parallelized using a list of local atoms for rows and
-    !              columns (19.07.2003,MK)
-
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
@@ -748,12 +751,12 @@ CONTAINS
   END SUBROUTINE calculate_ecore_overlap
 
 ! *****************************************************************************
+!> \brief   Calculate the self energy of the core charge distribution.
+!> \author  MK
+!> \date    27.04.2001
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE calculate_ecore_self(qs_env,E_self_core,error)
-
-    ! Purpose: Calculate the self energy of the core charge distribution.
-
-    ! History: - Creation (27.04.2001,MK)
-
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: E_self_core
     TYPE(cp_error_type), INTENT(inout)       :: error

@@ -663,13 +663,14 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
 END SUBROUTINE val_write
 
 ! *****************************************************************************
+!> \brief   Write values to an internal file, i.e. string variable.
+!> \author  MK
+!> \date    10.03.2005
+!> \par History
+!>          17.01.2006, MK, Optional argument unit for the conversion to the external unit added
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE val_write_internal(val,string,unit,error)
-
-    ! Purpose: Write values to an internal file, i.e. string variable.
-
-    ! History: - Creation (10.03.2005,MK)
-    !          - Optional argument unit for the conversion to the external unit
-    !            added (17.01.2006,MK)
 
     TYPE(val_type), POINTER                  :: val
     CHARACTER(LEN=*), INTENT(OUT)            :: string

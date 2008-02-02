@@ -2552,14 +2552,15 @@ CONTAINS
   END SUBROUTINE potential_nonbond
 
 ! *****************************************************************************
+!> \brief   Build all the required neighbor lists for FIST.
+!> \author  MK
+!> \date    19.11.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE force_nonbond_numer (fist_nonbond_env,atomic_kind_set,particle_set,&
        local_particles, ewald_env, cell, &
        potparm, delta, f_numer,    &
        energy_numer, error )
-
-!   Purpose: Build all the required neighbor lists for FIST.
-
-!   History: - Creation (19.11.2002,MK)
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -2688,13 +2689,14 @@ CONTAINS
   END SUBROUTINE force_nonbond_numer
 
 ! *****************************************************************************
+!> \brief   Build simple pair neighbor lists.
+!> \author  MK
+!> \date    20.03.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE force_nonbond_evaluate ( fist_nonbond_env, atomic_kind_set, local_particles, &
        particle_set, atom, ewald_env, cell, potparm, energy_numer, f_numer, numerical_shift,&
        maxatom_local, error )
-
-!   Purpose: Build simple pair neighbor lists.
-
-!   History: - Creation (20.03.2002,MK)
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(atomic_kind_type), DIMENSION(:), &

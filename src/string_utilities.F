@@ -419,12 +419,13 @@ PURE FUNCTION s2a_29(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14,s15, &
 END FUNCTION
 
 ! *****************************************************************************
+!> \brief Convert a sequence of integer numbers (ASCII code) to a string.
+!>         Blanks are inserted for invalid ASCII code numbers.  
+!> \author  MK
+!> \date    19.10.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE ascii_to_string(nascii,string)
-
-!   Purpose: Convert a sequence of integer numbers (ASCII code) to a string.
-!            Blanks are inserted for invalid ASCII code numbers.
-
-!   History: - Creation (19.10.2000,MK)
 
     INTEGER, DIMENSION(:), INTENT(IN)        :: nascii
     CHARACTER(LEN=*), INTENT(OUT)            :: string
@@ -446,12 +447,13 @@ END FUNCTION
   END SUBROUTINE ascii_to_string
 
 ! *****************************************************************************
+!> \brief   Eliminate multiple space characters in a string.
+!>          If full is .TRUE., then all spaces are eliminated.  
+!> \author  MK
+!> \date    23.06.1998
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE compress(string,full)
-
-!   Purpose: Eliminate multiple space characters in a string.
-!            If full is .TRUE., then all spaces are eliminated.
-
-!   History: - Creation (23.06.1998,MK)
 
     CHARACTER(LEN=*), INTENT(INOUT)          :: string
     LOGICAL, INTENT(IN), OPTIONAL            :: full
@@ -488,14 +490,15 @@ END FUNCTION
   END SUBROUTINE compress
 
 ! *****************************************************************************
+!> \brief   Converts an integer number to a string.
+!>          The WRITE statement will return an error message, if the number of
+!>          digits of the integer number is larger the than the length of the
+!>          supplied string.  
+!> \author  MK
+!> \date    05.01.2004
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE integer_to_string(inumber,string)
-
-!   Purpose: Converts an integer number to a string.
-!            The WRITE statement will return an error message, if the number of
-!            digits of the integer number is larger the than the length of the
-!            supplied string.
-
-!   History: - Creation (05.01.2004,MK)
 
     INTEGER, INTENT(IN)                      :: inumber
     CHARACTER(LEN=*), INTENT(OUT)            :: string
@@ -504,11 +507,12 @@ END FUNCTION
   END SUBROUTINE integer_to_string
 
 ! *****************************************************************************
+!> \brief   Convert a string to sequence of integer numbers.
+!> \author  MK
+!> \date    19.10.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE string_to_ascii(string,nascii)
-
-!   Purpose: Convert a string to sequence of integer numbers.
-
-!   History: - Creation (19.10.2000,MK)
 
     CHARACTER(LEN=*), INTENT(IN)             :: string
     INTEGER, DIMENSION(:), INTENT(OUT)       :: nascii
@@ -526,17 +530,16 @@ END FUNCTION
   END SUBROUTINE string_to_ascii
 
 ! *****************************************************************************
+!> \brief   remove a word from a string (words are separated by white spaces)
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE remove_word(string)
-
-!   Purpose: remove a word from a string (words are separated by white spaces)
-
     CHARACTER(LEN=*), INTENT(INOUT)          :: string
 
     INTEGER                                  :: i
 
-! possibly clean white spaces
-
     i = 1
+    ! possibly clean white spaces
     DO WHILE(string(i:i)==" ")
        i = i + 1
     END DO
@@ -549,13 +552,14 @@ END FUNCTION
   END SUBROUTINE remove_word
 
 ! *****************************************************************************
+!> \brief  Substitute special XML tokens like "<" or ">" in inp_string.
+!>           Optionally convert also all lowercase characters to uppercase, if
+!>           ltu is true.  
+!> \author  MK
+!> \date    10.03.2005
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE substitute_special_xml_tokens(inp_string,out_string,ltu)
-
-!   Purpose: Substitute special XML tokens like "<" or ">" in inp_string.
-!            Optionally convert also all lowercase characters to uppercase, if
-!            ltu is true.
-
-!   History: - Creation (10.03.2005,MK)
 
     CHARACTER(LEN=*), INTENT(IN)             :: inp_string
     CHARACTER(LEN=*), INTENT(OUT)            :: out_string
@@ -596,12 +600,12 @@ END FUNCTION
   END SUBROUTINE substitute_special_xml_tokens
 
 ! *****************************************************************************
+!> \brief   Convert all lower case characters in a string to upper case.
+!> \author  MK
+!> \date    22.06.1998
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE uppercase(string)
-
-!   Purpose: Convert all lower case characters in a string to upper case.
-
-!   History: - Creation (22.06.1998,MK)
-
     CHARACTER(LEN=*), INTENT(INOUT)          :: string
 
     INTEGER                                  :: i, iascii

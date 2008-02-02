@@ -63,11 +63,10 @@ MODULE qs_harmonics_atom
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Allocate a spherical harmonics set for the atom grid.
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE allocate_harmonics_atom(harmonics,error)
-
-    !   Purpose: Allocate a spherical harmonics set for the atom grid.
-
-    !   History: - Creation ()
 
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -112,11 +111,10 @@ CONTAINS
   END SUBROUTINE allocate_harmonics_atom
 
 ! *****************************************************************************
+!> \brief   Deallocate the spherical harmonics set for the atom grid.
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_harmonics_atom(harmonics,error)
-
-    !   Purpose: Deallocate the spherical harmonics set for the atom grid.
-
-    !   History: - Creation ()
 
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(cp_error_type), INTENT(inout)       :: error

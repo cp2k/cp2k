@@ -69,12 +69,13 @@ MODULE mathlib
 CONTAINS
 
 ! *****************************************************************************
+!> \brief  Calculation of the angle between the vectors a and b.
+!>         The angle is returned in radians. 
+!> \author  MK
+!> \date    14.10.1998
+!> \version 1.0
+! *****************************************************************************
   FUNCTION angle(a,b) RESULT(angle_ab)
-
-    !   Purpose: Calculation of the angle between the vectors a and b.
-    !            The angle is returned in radians.
-
-    !   History: - Creation (14.10.1998,MK)
 
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: a, b
     REAL(KIND=dp)                            :: angle_ab
@@ -98,12 +99,13 @@ CONTAINS
   END FUNCTION angle
 
 ! *****************************************************************************
+!> \brief   The binomial coefficient n over k for 0 <= k <= n is calculated,
+!>            otherwise zero is returned.
+!> \author  MK
+!> \date    08.03.1999
+!> \version 1.0
+! *****************************************************************************
   FUNCTION binomial(n,k) RESULT(n_over_k)
-
-    !   Purpose: The binomial coefficient n over k for 0 <= k <= n is calculated,
-    !            otherwise zero is returned.
-
-    !   History: - Creation (08.03.1999,MK)
 
     INTEGER, INTENT(IN)                      :: n, k
     REAL(KIND=dp)                            :: n_over_k
@@ -119,14 +121,14 @@ CONTAINS
   END FUNCTION binomial
 
 ! *****************************************************************************
+!> \brief   The rotation matrix rotmat which rotates a vector about a
+!>          rotation axis defined by the vector a is build up.
+!>          The rotation angle is phi (radians).
+!> \author  MK
+!> \date    16.10.1998
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE build_rotmat(phi,a,rotmat)
-
-    !   Purpose: The rotation matrix rotmat which rotates a vector about a
-    !            rotation axis defined by the vector a is build up.
-    !            The rotation angle is phi (radians).
-
-    !   History: - Creation (16.10.1998,MK)
-
     REAL(KIND=dp), INTENT(IN)                :: phi
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: a
     REAL(KIND=dp), DIMENSION(3, 3), &
@@ -167,12 +169,12 @@ CONTAINS
   END SUBROUTINE build_rotmat
 
 ! *****************************************************************************
+!> \brief   Returns the determinante of the 3x3 matrix a.
+!> \author  MK
+!> \date    13.03.2004
+!> \version 1.0
+! *****************************************************************************
   FUNCTION det_3x3_1(a) RESULT(det_a)
-
-    !   Purpose: Returns the determinante of the 3x3 matrix a.
-
-    !   History: - Creation (13.03.2004,MK)
-
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: a
     REAL(KIND=dp)                            :: det_a
@@ -186,12 +188,12 @@ CONTAINS
   END FUNCTION det_3x3_1
 
 ! *****************************************************************************
+!> \brief   Returns the determinante of the 3x3 matrix a given by its columns.
+!> \author  MK
+!> \date    13.03.2004
+!> \version 1.0
+! *****************************************************************************
   FUNCTION det_3x3_2(a1,a2,a3) RESULT(det_a)
-
-    !   Purpose: Returns the determinante of the 3x3 matrix a given by its columns.
-
-    !   History: - Creation (13.03.2004,MK)
-
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: a1, a2, a3
     REAL(KIND=dp)                            :: det_a
 
@@ -204,18 +206,19 @@ CONTAINS
   END FUNCTION det_3x3_2
 
 ! *****************************************************************************
+!> \brief Diagonalize the symmetric n by n matrix a using the LAPACK
+!>        library. Only the upper triangle of matrix a is used.
+!>        Externals (LAPACK 3.0)
+!> \author  MK
+!> \date    29.03.1999
+!> \par Variables
+!>      - a       : Symmetric matrix to be diagonalized (input; upper triangle) ->
+!>      -           eigenvectors of the matrix a (output).
+!>      - dac     : If true, then the divide-and-conquer algorithm is applied.
+!>      - eigval  : Eigenvalues of the matrix a (output).
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE diamat_all(a,eigval,dac)
-
-    !   Purpose: Diagonalize the symmetric n by n matrix a using the LAPACK
-    !            library. Only the upper triangle of matrix a is used.
-
-    !   History: - Creation (29.03.1999,MK)
-
-    !   a       : Symmetric matrix to be diagonalized (input; upper triangle) ->
-    !             eigenvectors of the matrix a (output).
-    !   dac     : If true, then the divide-and-conquer algorithm is applied.
-    !   eigval  : Eigenvalues of the matrix a (output).
-
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: a
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigval
@@ -230,8 +233,6 @@ CONTAINS
     INTEGER, EXTERNAL                        :: ilaenv
     LOGICAL                                  :: divide_and_conquer
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
-
-!   *** Externals (LAPACK 3.0) ***
 
     EXTERNAL dsyev,dsyevd
 
@@ -319,14 +320,14 @@ CONTAINS
   END SUBROUTINE diamat_all
 
 ! *****************************************************************************
+!> \brief   Returns the dihedral angle, i.e. the angle between the planes
+!>          defined by the vectors (-ab,bc) and (cd,-bc).
+!>          The dihedral angle is returned in radians.
+!> \author  MK  
+!> \date    13.03.2004
+!> \version 1.0
+! *****************************************************************************
   FUNCTION dihedral_angle(ab,bc,cd) RESULT(dihedral_angle_abcd)
-
-    !   Purpose: Returns the dihedral angle, i.e. the angle between the planes
-    !            defined by the vectors (-ab,bc) and (cd,-bc).
-    !            The dihedral angle is returned in radians.
-
-    !   History: - Creation (13.03.2004,MK)
-
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ab, bc, cd
     REAL(KIND=dp)                            :: dihedral_angle_abcd
 
@@ -347,20 +348,20 @@ CONTAINS
   END FUNCTION dihedral_angle
 
 ! *****************************************************************************
+!> \brief   The exponent of a primitive Gaussian function for a given radius
+!>          and threshold is calculated.
+!> \author  MK
+!> \date    07.03.1999
+!> \par Variables
+!>      - exponent : Exponent of the primitive Gaussian function.
+!>      - l        : Angular momentum quantum number l.
+!>      - prefactor: Prefactor of the Gaussian function (e.g. a contraction
+!>      -            coefficient).
+!>      - radius   : Calculated radius of the Gaussian function.
+!>      - threshold: Threshold for radius.
+!> \version 1.0
+! *****************************************************************************
   FUNCTION gauss_exponent(l,radius,threshold,prefactor) RESULT(exponent)
-
-    !   Purpose: The exponent of a primitive Gaussian function for a given radius
-    !            and threshold is calculated.
-
-    !   History: - Creation (07.03.1999,MK)
-
-    !   exponent : Exponent of the primitive Gaussian function.
-    !   l        : Angular momentum quantum number l.
-    !   prefactor: Prefactor of the Gaussian function (e.g. a contraction
-    !              coefficient).
-    !   radius   : Calculated radius of the Gaussian function.
-    !   threshold: Threshold for radius.
-
     INTEGER, INTENT(IN)                      :: l
     REAL(KIND=dp), INTENT(IN)                :: radius, threshold, prefactor
     REAL(KIND=dp)                            :: exponent
@@ -377,12 +378,12 @@ CONTAINS
   END FUNCTION gauss_exponent
 
 ! *****************************************************************************
+!> \brief   Return the diagonal elements of matrix a as a vector. 
+!> \author  MK
+!> \date    20.11.1998
+!> \version 1.0
+! *****************************************************************************
   FUNCTION get_diag(a) RESULT(a_diag)
-
-    !   Purpose: Return the diagonal elements of matrix a as a vector.
-
-    !   History: - Creation (20.11.1998,MK)
-
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: a
     REAL(KIND=dp), &
@@ -401,11 +402,12 @@ CONTAINS
   END FUNCTION get_diag
 
 ! *****************************************************************************
+!> \brief   Returns the inverse of the 3 x 3 matrix a.
+!> \author  MK
+!> \date    13.03.2004
+!> \version 1.0
+! *****************************************************************************
   FUNCTION inv_3x3(a) RESULT(a_inv)
-
-    !   Purpose: Returns the inverse of the 3 x 3 matrix a.
-
-    !   History: - Creation (13.03.2004,MK)
 
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: a
@@ -432,22 +434,22 @@ CONTAINS
   END FUNCTION inv_3x3
 
 ! *****************************************************************************
+!> \brief  Compute the inverse of the n by n matrix a using the LAPACK
+!>         library. 
+!> \author  MK
+!> \date    23.03.1999
+!> \par Variables
+!>       - a        : Matrix to be inverted (input).
+!>       - a_inverse: Inverse of the matrix a (output).
+!>       - a_lu     : LU factorization of matrix a.
+!>       - a_norm   : Norm of matrix a.
+!>       - error    : Estimated error of the inversion.
+!>       - r_cond   : Reciprocal condition number of the matrix a.
+!>       - trans    : "N" => invert a
+!>       -            "T" => invert transpose(a)
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE invert_matrix(a,a_inverse,error,option)
-
-    !   Purpose: Compute the inverse of the n by n matrix a using the LAPACK
-    !            library.
-
-    !   History: - Creation (23.03.1999,MK)
-
-    !   a        : Matrix to be inverted (input).
-    !   a_inverse: Inverse of the matrix a (output).
-    !   a_lu     : LU factorization of matrix a.
-    !   a_norm   : Norm of matrix a.
-    !   error    : Estimated error of the inversion.
-    !   r_cond   : Reciprocal condition number of the matrix a.
-    !   trans    : "N" => invert a
-    !              "T" => invert transpose(a)
-
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: a
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -634,24 +636,24 @@ CONTAINS
   END SUBROUTINE invert_matrix
 
 ! *****************************************************************************
+!> \brief  Raise the real symmetric n by n matrix a to the power given by
+!>         exponent. All eigenvectors with a corresponding eigenvalue lower
+!>         than threshold are quenched. Only the upper triangle of matrix a
+!>         is used. 
+!> \author  MK
+!> \date    29.03.1999
+!> \par Variables
+!>       - a          : Symmetric matrix to be powered (input; upper triangle) ->
+!>       -              Destroyed on exit.
+!>       - a_power    : Power of matrix a => a**exponent (output).
+!>       - dac        : Use the divide-and-conquer algorithm for the diagonalization.
+!>       - exponent   : Matrix exponent (input).
+!>       - n_dependent: Number of the eigenvectors which are linear dependent due to
+!>       -              the defined eigval_eps (output).
+!>       - threshold  : Threshold value for eigenvector quenching (input).
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE power_matrix(a,a_power,exponent,threshold,n_dependent,dac)
-
-    !   Purpose: Raise the real symmetric n by n matrix a to the power given by
-    !            exponent. All eigenvectors with a corresponding eigenvalue lower
-    !            than threshold are quenched. Only the upper triangle of matrix a
-    !            is used.
-
-    !   History: - Creation (29.03.1999,MK)
-
-    !   a          : Symmetric matrix to be powered (input; upper triangle) ->
-    !                Destroyed on exit.
-    !   a_power    : Power of matrix a => a**exponent (output).
-    !   dac        : Use the divide-and-conquer algorithm for the diagonalization.
-    !   exponent   : Matrix exponent (input).
-    !   n_dependent: Number of the eigenvectors which are linear dependent due to
-    !                the defined eigval_eps (output).
-    !   threshold  : Threshold value for eigenvector quenching (input).
-
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: a
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -753,12 +755,13 @@ CONTAINS
   END SUBROUTINE power_matrix
 
 ! *****************************************************************************
+!> \brief  Reflection of the vector a through a mirror plane defined by the
+!>         normal vector b. The reflected vector a is stored in a_mirror. 
+!> \author  MK
+!> \date    16.10.1998
+!> \version 1.0
+! *****************************************************************************
   FUNCTION reflect_vector(a,b) RESULT(a_mirror)
-
-    !   Purpose: Reflection of the vector a through a mirror plane defined by the
-    !            normal vector b. The reflected vector a is stored in a_mirror.
-
-    !   History: - Creation (16.10.1998,MK)
 
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: a, b
     REAL(KIND=dp), DIMENSION(3)              :: a_mirror
@@ -789,14 +792,14 @@ CONTAINS
   END FUNCTION reflect_vector
 
 ! *****************************************************************************
+!> \brief   Rotation of the vector a about an rotation axis defined by the
+!>          vector b. The rotation angle is phi (radians). The rotated vector
+!>          a is stored in a_rot.
+!> \author  MK
+!> \date    16.10.1998
+!> \version 1.0
+! *****************************************************************************
   FUNCTION rotate_vector(a,phi,b) RESULT(a_rot)
-
-    !   Purpose: Rotation of the vector a about an rotation axis defined by the
-    !            vector b. The rotation angle is phi (radians). The rotated vector
-    !            a is stored in a_rot.
-
-    !   History: - Creation (16.10.1998,MK)
-
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: a
     REAL(KIND=dp), INTENT(IN)                :: phi
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: b
@@ -828,12 +831,12 @@ CONTAINS
   END FUNCTION rotate_vector
 
 ! *****************************************************************************
+!> \brief   Set the diagonal elements of matrix a to b.
+!> \author  MK
+!> \date    20.11.1998
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE set_diag_scalar(a,b)
-
-    !   Purpose: Set the diagonal elements of matrix a to b.
-
-    !   History: - Creation (20.11.1998,MK)
-
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: a
     REAL(KIND=dp), INTENT(IN)                :: b
@@ -851,12 +854,12 @@ CONTAINS
   END SUBROUTINE set_diag_scalar
 
 ! *****************************************************************************
+!> \brief   Set the diagonal elements of matrix a to the values of vector b.
+!> \author  MK
+!> \date    20.11.1998
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE set_diag_vector(a,b)
-
-    !   Purpose: Set the diagonal elements of matrix a to the values of vector b.
-
-    !   History: - Creation (20.11.1998,MK)
-
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: a
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: b
@@ -882,12 +885,12 @@ CONTAINS
   END SUBROUTINE set_diag_vector
 
 ! *****************************************************************************
+!> \brief   Symmetrize the matrix a.
+!> \author  MK
+!> \date    16.10.1998
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE symmetrize_matrix(a,option)
-
-    !   Purpose: Symmetrize the matrix a.
-
-    !   History: - Creation (16.10.1998,MK)
-
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: a
     CHARACTER(LEN=*), INTENT(IN)             :: option
@@ -927,12 +930,12 @@ CONTAINS
   END SUBROUTINE symmetrize_matrix
 
 ! *****************************************************************************
+!> \brief   Set the matrix a to be a unit matrix.
+!> \author  MK
+!> \date    16.10.1998
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE unit_matrix(a)
-
-    !   Purpose: Set the matrix a to be a unit matrix.
-
-    !   History: - Creation (16.10.1998,MK)
-
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: a
 
@@ -945,12 +948,12 @@ CONTAINS
   END SUBROUTINE unit_matrix
 
 ! *****************************************************************************
+!> \brief   Calculation of the vector product c = a x b.
+!> \author  MK
+!> \date    16.10.1998
+!> \version 1.0
+! *****************************************************************************
   FUNCTION vector_product(a,b) RESULT(c)
-
-    !   Purpose: Calculation of the vector product c = a x b.
-
-    !   History: - Creation (16.10.1998,MK)
-
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: a, b
     REAL(KIND=dp), DIMENSION(3)              :: c
 

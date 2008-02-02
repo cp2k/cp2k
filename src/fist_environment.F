@@ -246,14 +246,15 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
   END SUBROUTINE fist_init
 
 ! *****************************************************************************
+!> \brief   Read the input and the database files for the setup of the
+!>          FIST environment.
+!> \author  MK
+!> \date    22.05.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE fist_init_subsys ( fist_env, subsys, cell, cell_ref, use_ref_cell, &
                                 fist_nonbond_env, ewald_env, force_env_section,&
                                 subsys_section, error )
-
-!   Purpose: Read the input and the database files for the setup of the
-!            FIST environment.
-
-!   History: - Creation (22.05.2000,MK)
 
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(cp_subsys_type), POINTER            :: subsys

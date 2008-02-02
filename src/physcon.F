@@ -83,15 +83,16 @@ MODULE physcon
 CONTAINS
 
 ! *****************************************************************************
+!> \brief  Initialize all basic physical constants used by CP2K using
+!>         the recommended fundamental constants of physics and chemistry
+!>         based on the 1998 adjustment (CODATA 1998) 
+!> \author  JGH
+!> \date    14.11.2000
+!> \par History
+!>       - Updated to CODATA 1998 and cleaned (05.09.2003,MK)
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE init_physcon()
-
-!   Purpose: Initialize all basic physical constants used by CP2K using
-!            the recommended fundamental constants of physics and chemistry
-!            based on the 1998 adjustment (CODATA 1998)
-                                                        
-!   History: - Creation (14.11.2000,JGH)
-!            - Updated to CODATA 1998 and cleaned (05.09.2003,MK)
-
     INTEGER                                  :: i
 
 !   ---------------------------------------------------------------------------
@@ -239,14 +240,15 @@ CONTAINS
   END SUBROUTINE init_physcon
 
 ! *****************************************************************************
+!> \brief  Write all basic physical constants used by CP2K to a logical
+!>           output unit. 
+!> \author  JGH
+!> \date    14.11.2000
+!> \par History
+!>       - Updated to CODATA 1998 and cleaned (05.09.2003,MK)
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE write_physcon(output_unit)
-
-!   Purpose: Write all basic physical constants used by CP2K to a logical
-!            output unit.
-
-!   History: - Creation (14.11.2000,JGH)
-!            - Updated to CODATA 1998 and cleaned (05.09.2003,MK)
-
     INTEGER, INTENT(IN)                      :: output_unit
 
 !   ---------------------------------------------------------------------------

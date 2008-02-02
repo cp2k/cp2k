@@ -314,7 +314,7 @@ CONTAINS
     IF (iw>0) THEN
        tag = "ATOMS: "
        IF (colvar%use_points) tag = "POINTS:"
-       WRITE ( iw, '( A )')'          ----------------------------------------------------------------------'
+       WRITE ( iw, '( A )')'          '//'----------------------------------------------------------------------'
        WRITE ( iw, '( A,I8)' )   ' COLVARS| COLVAR INPUT INDEX: ',icol
        SELECT CASE(colvar%type_id)
        CASE(angle_colvar_id)
@@ -391,7 +391,7 @@ CONTAINS
              END IF
           END DO
        END IF
-       WRITE ( iw, '( A )')'          ----------------------------------------------------------------------'
+       WRITE ( iw, '( A )')'          '//'----------------------------------------------------------------------'
     END IF
     CALL cp_print_key_finished_output(iw,logger,colvar_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)    

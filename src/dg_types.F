@@ -41,14 +41,13 @@ MODULE dg_types
             dg_set, dg_retain, dg_release,  &
             dg_create
 
-  CONTAINS
+CONTAINS
 
-!-----------------------------------------------------------------------------!
 ! *****************************************************************************
- SUBROUTINE dg_get ( dg, id_nr, grid_index, dg_rho0 )
-
-!   Purpose: Get the dg_type
-
+!> \brief   Get the dg_type
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE dg_get ( dg, id_nr, grid_index, dg_rho0 )
     TYPE(dg_type), POINTER                   :: dg
     INTEGER, OPTIONAL                        :: id_nr, grid_index
     TYPE(dg_rho0_type), OPTIONAL, POINTER    :: dg_rho0
@@ -65,10 +64,10 @@ MODULE dg_types
   END SUBROUTINE dg_get
 
 ! *****************************************************************************
+!> \brief   create the dg structure
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE dg_create ( dg, error )
-
-!   Purpose: create the dg structure
-
     TYPE(dg_type), POINTER                   :: dg
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -102,7 +101,7 @@ MODULE dg_types
 !>      04.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE dg_retain ( dg, error)
+  SUBROUTINE dg_retain ( dg, error)
     TYPE(dg_type), POINTER                   :: dg
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -111,14 +110,14 @@ SUBROUTINE dg_retain ( dg, error)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(dg),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPreconditionNoFail(dg%ref_count>0,cp_failure_level,routineP,error)
-     dg%ref_count=dg%ref_count+1
-  END IF
-END SUBROUTINE dg_retain
+    CPPrecondition(ASSOCIATED(dg),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CPPreconditionNoFail(dg%ref_count>0,cp_failure_level,routineP,error)
+       dg%ref_count=dg%ref_count+1
+    END IF
+  END SUBROUTINE dg_retain
 
 ! *****************************************************************************
 !> \brief releases the given dg_type
@@ -131,7 +130,7 @@ END SUBROUTINE dg_retain
 !>      04.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE dg_release(dg, error)
+  SUBROUTINE dg_release(dg, error)
     TYPE(dg_type), POINTER                   :: dg
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -141,25 +140,25 @@ SUBROUTINE dg_release(dg, error)
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  IF (ASSOCIATED(dg)) THEN
-     CPPreconditionNoFail(dg%ref_count>0,cp_failure_level,routineP,error)
-     dg%ref_count=dg%ref_count-1
-     IF (dg%ref_count==0) THEN
-        CALL dg_rho0_release ( dg % dg_rho0, error = error )
-        DEALLOCATE (  dg, stat = stat )
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-     END IF
-  END IF
-  NULLIFY(dg)
-END SUBROUTINE dg_release
+    IF (ASSOCIATED(dg)) THEN
+       CPPreconditionNoFail(dg%ref_count>0,cp_failure_level,routineP,error)
+       dg%ref_count=dg%ref_count-1
+       IF (dg%ref_count==0) THEN
+          CALL dg_rho0_release ( dg % dg_rho0, error = error )
+          DEALLOCATE (  dg, stat = stat )
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END IF
+    END IF
+    NULLIFY(dg)
+  END SUBROUTINE dg_release
 
 ! *****************************************************************************
+!> \brief   Set the double grid environment
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE dg_set ( dg, dg_rho0, grid_index, error )
-
-!   Purpose: Set the double grid environment
-
     TYPE(dg_type), POINTER                   :: dg
     TYPE(dg_rho0_type), OPTIONAL, POINTER    :: dg_rho0
     INTEGER, OPTIONAL                        :: grid_index
@@ -174,8 +173,6 @@ END SUBROUTINE dg_release
        dg % dg_rho0 => dg_rho0
     END IF
     IF ( PRESENT ( grid_index ) ) dg % grid_index = grid_index
-!---------------------------------------------------------------------------
   END SUBROUTINE dg_set
-!-----------------------------------------------------------------------------!
+
 END MODULE dg_types
-!-----------------------------------------------------------------------------!

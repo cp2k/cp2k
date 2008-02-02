@@ -60,11 +60,12 @@ MODULE qs_force_types
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Allocate a Quickstep force data structure.
+!> \author  MK
+!> \date    05.06.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE allocate_qs_force(qs_force,natom_of_kind)
-
-!   Purpose: Allocate a Quickstep force data structure.
-
-!   History: - Creation (05.06.2002,MK)
 
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: qs_force
@@ -171,11 +172,12 @@ CONTAINS
   END SUBROUTINE allocate_qs_force
 
 ! *****************************************************************************
+!> \brief   Deallocate a Quickstep force data structure.
+!> \author  MK
+!> \date    05.06.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_qs_force(qs_force)
-
-!   Purpose: Deallocate a Quickstep force data structure.
-
-!   History: - Creation (05.06.2002,MK)
 
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: qs_force
@@ -337,11 +339,12 @@ CONTAINS
   END SUBROUTINE deallocate_qs_force
 
 ! *****************************************************************************
+!> \brief    Initialize a Quickstep force data structure.
+!> \author  MK
+!> \date    15.07.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE zero_qs_force(qs_force)
-
-!   Purpose: Initialize a Quickstep force data structure.
-
-!   History: - Creation (15.07.2002,MK)
 
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: qs_force

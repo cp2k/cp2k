@@ -66,12 +66,12 @@ MODULE orbital_pointers
 CONTAINS
 
 ! *****************************************************************************
+!> \brief  Allocate and initialize the orbital pointers. 
+!> \author MK
+!> \date   20.05.2004 
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE create_orbital_pointers(maxl)
-
-!   Purpose: Allocate and initialize the orbital pointers.
-
-!   History: - Creation (20.05.2004,MK)
-
     INTEGER, INTENT(IN)                      :: maxl
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_orbital_pointers', &
@@ -236,11 +236,12 @@ CONTAINS
   END SUBROUTINE create_orbital_pointers
 
 ! *****************************************************************************
+!> \brief   Deallocate the orbital pointers.
+!> \author  MK
+!> \date    20.05.2005
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_orbital_pointers()
-
-!   Purpose: Deallocate the orbital pointers.
-
-!   History: - Creation (20.05.2005,MK)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_orbital_pointers', &
       routineP = moduleN//':'//routineN
@@ -308,12 +309,12 @@ CONTAINS
   END SUBROUTINE deallocate_orbital_pointers
 
 ! *****************************************************************************
+!> \brief   Initialize or update the orbital pointers.
+!> \author  MK
+!> \date    07.06.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE init_orbital_pointers(maxl)
-
-!   Purpose: Initialize or update the orbital pointers.
-
-!   History: - Creation (07.06.2000,MK)
-
     INTEGER, INTENT(IN)                      :: maxl
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_orbital_pointers', &

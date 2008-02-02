@@ -44,16 +44,17 @@ MODULE cp_blacs_env
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Return informations about the specified BLACS context.
+!> \author  Matthias Krack
+!> \date    19.06.2001
+!> \par     History
+!>          MM.YYYY moved here from qs_blacs (Joost VandeVondele)
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE get_blacs_info(blacs_env,my_process_row,my_process_column,&
                             my_process_number,number_of_process_rows,&
                             number_of_process_columns,number_of_processes,&
                             para_env, blacs2mpi, mpi2blacs)
-
-!   Purpose: Return informations about the specified BLACS context.
-
-!   History: - Creation (19.06.2001, Matthias Krack)
-!   moved here from qs_blacs (Joost VandeVondele)
-
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     INTEGER, INTENT(OUT), OPTIONAL :: my_process_row, my_process_column, &
       my_process_number, number_of_process_rows, number_of_process_columns, &

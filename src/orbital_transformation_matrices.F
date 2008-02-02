@@ -65,13 +65,14 @@ MODULE orbital_transformation_matrices
 CONTAINS
 
 ! *****************************************************************************
+!> \brief  Allocate and initialize the orbital transformation matrices for
+!>         the transformation and for the backtransformation of orbitals
+!>         from the Cartesian representation to the spherical representation. 
+!> \author  MK
+!> \date    20.05.2004
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE create_spherical_harmonics(maxl)
-
-!   Purpose: Allocate and initialize the orbital transformation matrices for
-!            the transformation and for the backtransformation of orbitals
-!            from the Cartesian representation to the spherical representation.
-!
-!   History: - Creation (20.05.2004,MK)
 
     INTEGER, INTENT(IN)                      :: maxl
 
@@ -242,12 +243,12 @@ CONTAINS
   END SUBROUTINE create_spherical_harmonics
 
 ! *****************************************************************************
+!> \brief   Deallocate the orbital transformation matrices.
+!> \author  MK
+!> \date    20.05.2004
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_spherical_harmonics()
-
-!   Purpose: Deallocate the orbital transformation matrices.
-
-!   History: - Creation (20.05.2004,MK)
-
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'deallocate_spherical_harmonics', &
       routineP = moduleN//':'//routineN
@@ -293,17 +294,14 @@ CONTAINS
   END SUBROUTINE deallocate_spherical_harmonics
 
 ! *****************************************************************************
+!> \brief  Initialize or update the orbital transformation matrices. 
+!> \author MK 
+!> \date     09.07.1999
+!> \par Variables
+!>      - maxl   : Maximum angular momentum quantum number
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE init_spherical_harmonics(maxl,root_section,error)
-
-!   Purpose: Initialize or update the orbital transformation matrices.
-
-!   History: - Creation (09.07.1999,MK)
-
-!   List of variables:
-
-!   maxl   : Maximum angular momentum quantum number
-
-!   ---------------------------------------------------------------------------
 
     INTEGER, INTENT(IN)                      :: maxl
     TYPE(section_vals_type), POINTER         :: root_section
@@ -365,20 +363,17 @@ CONTAINS
   END SUBROUTINE init_spherical_harmonics
 
 ! *****************************************************************************
+!> \brief   Print a matrix to the logical unit "lunit".
+!> \author  MK
+!> \date    07.06.2000
+!> \par Variables
+!>      - matrix  : Matrix to be printed.
+!>      - l       : Angular momentum quantum number
+!>      - lunit   : Logical unit number.
+!>      - headline: Headline of the matrix.
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE write_matrix(matrix,l,lunit,headline)
-
-!   Purpose: Print a matrix to the logical unit "lunit".
-
-!   History: - Creation (07.06.2000,MK)
-
-!   List of variables:
-
-!   matrix  : Matrix to be printed.
-!   l       : Angular momentum quantum number
-!   lunit   : Logical unit number.
-!   headline: Headline of the matrix.
-
-!   ---------------------------------------------------------------------------
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
     INTEGER, INTENT(IN)                      :: l, lunit

@@ -90,12 +90,10 @@ MODULE qs_oce_types
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Allocate and initialize the matrix set of oce coefficients.
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE allocate_oce_set(oce_set,natom,nkind,ndim,error)
-
-!   Purpose: Allocate and initialize the matrix set of oce coefficients.
-
-!   History:
-
     TYPE(oce_matrix_type), POINTER           :: oce_set
     INTEGER, INTENT(IN)                      :: natom, nkind, ndim
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -167,10 +165,12 @@ CONTAINS
   END SUBROUTINE create_oce_set
 
 ! *****************************************************************************
+!> \brief  Deallocate the matrix set of oce coefficients 
+!> \author  
+!> \date    
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_oce_set(oce_set,error)
-
-!   Purpose: Deallocate the matrix set of oce coefficients
-
     TYPE(oce_matrix_type), POINTER           :: oce_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -254,13 +254,12 @@ CONTAINS
   END SUBROUTINE deallocate_vtriple
 
 ! *****************************************************************************
-  SUBROUTINE prepare_oce_coeff(particle_set,oce,natom,nsgf, &
-                               first_sgf,last_sgf,distribution_2d, error)
-
-!   Purpose: Create the structure for the matrix for oce coefficients
-
-!   History: - Creation (5-02-04 MI)
-
+!> \brief  Create the structure for the matrix for oce coefficients 
+!> \author  MI
+!> \date    5-02-04
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE prepare_oce_coeff(particle_set,oce,natom,nsgf,first_sgf,last_sgf,distribution_2d, error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(oce_matrix_type), POINTER           :: oce

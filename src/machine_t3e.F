@@ -80,12 +80,12 @@ SUBROUTINE m_datum(cal_date)
 END SUBROUTINE m_datum
 
 ! *****************************************************************************
+!> \brief   Flush the output to a logical unit.
+!> \author  MK
+!> \date    14.10.1999
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE m_flush(lunit)
-
-!   Purpose: Flush the output to a logical unit.
-
-!   History: - Creation (14.10.1999,MK)
-
     INTEGER, INTENT(IN)                      :: lunit
 
 !   ---------------------------------------------------------------------------

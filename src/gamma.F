@@ -51,17 +51,18 @@ MODULE gamma
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Build a table of F_n(t) values in the range tmin <= t <= tmax
+!>          with a stepsize of tdelta up to n equal to nmax.
+!> \author  MK
+!> \date    11.01.1999
+!> \par Parameters
+!>       - nmax  : Maximum n value of F_n(t).
+!>       - tdelta: Difference between two consecutive t abcissas (step size).
+!>       - tmax  : Maximum t value.
+!>       - tmin  : Minimum t value.
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE create_md_ftable(nmax,tmin,tmax,tdelta)
-
-!   Purpose: Build a table of F_n(t) values in the range tmin <= t <= tmax
-!            with a stepsize of tdelta up to n equal to nmax.
-
-!   History: - Creation (11.01.1999,MK)
-
-!   nmax  : Maximum n value of F_n(t).
-!   tdelta: Difference between two consecutive t abcissas (step size).
-!   tmax  : Maximum t value.
-!   tmin  : Minimum t value.
 
     INTEGER, INTENT(IN)                      :: nmax
     REAL(KIND=dp), INTENT(IN)                :: tmin, tmax, tdelta
@@ -122,11 +123,12 @@ CONTAINS
   END SUBROUTINE create_md_ftable
 
 ! *****************************************************************************
+!> \brief   Deallocate the table of F_n(t) values.
+!> \author  MK
+!> \date    24.05.2004
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_md_ftable()
-
-!   Purpose: Deallocate the table of F_n(t) values.
-
-!   History: - Creation (24.05.2004,MK)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_md_ftable', &
       routineP = moduleN//':'//routineN
@@ -149,29 +151,24 @@ CONTAINS
   END SUBROUTINE deallocate_md_ftable
 
 ! *****************************************************************************
+!> \brief   Calculation of the incomplete Gamma function F(t) for multicenter
+!>          integrals over Gaussian functions. f returns a vector with all
+!>          F_n(t) values for 0 <= n <= nmax.
+!> \author  MK
+!> \date    08.01.1999,
+!> \par History
+!>          09.06.1999, MK : Changed from a FUNCTION to a SUBROUTINE
+!> \par Literature
+!>       L. E. McMurchie, E. R. Davidson, J. Comp. Phys. 26, 218 (1978)
+!> \par Parameters
+!>       - f   : The incomplete Gamma function F_n(t).
+!>       - nmax: Maximum n value of F_n(t).
+!>       - t   : Argument of the incomplete Gamma function.
+!>       - kmax: Maximum number of iterations.
+!>       - expt: Exponential term in the upward recursion of F_n(t).
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE fgamma_0(nmax,t,f)
-
-!   Purpose: Calculation of the incomplete Gamma function F(t) for multicenter
-!            integrals over Gaussian functions. f returns a vector with all
-!            F_n(t) values for 0 <= n <= nmax.
-
-!   Literature: L. E. McMurchie, E. R. Davidson, J. Comp. Phys. 26, 218 (1978)
-
-!   History: - Creation (08.01.1999,MK)
-!            - Changed from a FUNCTION to a SUBROUTINE
-!              (09.06.1999,MK)
-
-!   f   : The incomplete Gamma function F_n(t).
-!   nmax: Maximum n value of F_n(t).
-!   t   : Argument of the incomplete Gamma function.
-
-!   List of local parameters:
-
-!   kmax: Maximum number of iterations.
-
-!   List of local variables:
-
-!   expt: Exponential term in the upward recursion of F_n(t).
 
     INTEGER, INTENT(IN)                      :: nmax
     REAL(KIND=dp), INTENT(IN)                :: t
@@ -282,19 +279,20 @@ CONTAINS
   END SUBROUTINE fgamma_0
 
 ! *****************************************************************************
+!> \brief   Calculation of the incomplete Gamma function F(t) for multicenter
+!>          integrals over Gaussian functions. f returns a vector with all
+!>          F_n(t) values for 0 <= n <= nmax.
+!> \author  MK
+!> \date    08.01.1999
+!> \par Literature
+!>       L. E. McMurchie, E. R. Davidson, J. Comp. Phys. 26, 218 (1978)
+!> \par Parameters
+!>       - f   : The incomplete Gamma function F_n(t).
+!>       - nmax: Maximum n value of F_n(t).
+!>       - t   : Argument of the incomplete Gamma function.
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE fgamma_1(nmax,t,f)
-
-!   Purpose: Calculation of the incomplete Gamma function F(t) for multicenter
-!            integrals over Gaussian functions. f returns a vector with all
-!            F_n(t) values for 0 <= n <= nmax.
-
-!   Literature: L. E. McMurchie, E. R. Davidson, J. Comp. Phys. 26, 218 (1978)
-
-!   History: - Creation (08.01.1999,MK)
-
-!   f   : The incomplete Gamma function F_n(t).
-!   nmax: Maximum n value of F_n(t).
-!   t   : Argument of the incomplete Gamma function.
 
     INTEGER, INTENT(IN)                      :: nmax
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: t
@@ -411,33 +409,29 @@ CONTAINS
   END SUBROUTINE fgamma_1
 
 ! *****************************************************************************
+!> \brief   Calculation of the incomplete Gamma function F_n(t) using a
+!>          spherical Bessel function expansion. fgamma_ref returns a
+!>          vector with all F_n(t) values for 0 <= n <= nmax.
+!>          For t values greater than 50 an asymptotic formula is used.
+!>          This function is expected to return accurate F_n(t) values
+!>          for any combination of n and t, but the calculation is slow
+!>          and therefore the function may only be used for a pretabulation
+!>          of F_n(t) values or for reference calculations.
+!> \author  MK
+!> \date    07.01.1999
+!> \par Literature
+!>        F. E. Harris, Int. J. Quant. Chem. 23, 1469 (1983)
+!> \par Parameters
+!>       - expt   : Exponential term in the downward recursion of F_n(t).
+!>       - factor : Prefactor of the Bessel function expansion.
+!>       - nmax   : Maximum n value of F_n(t).
+!>       - p      : Product of the Bessel function quotients.
+!>       - r      : Quotients of the Bessel functions.
+!>       - sumterm: One term in the sum over products of Bessel functions.
+!>       - t      : Argument of the incomplete Gamma function.
+!> \version 1.0
+! *****************************************************************************
   FUNCTION fgamma_ref(nmax,t) RESULT(f)
-
-!   Purpose: Calculation of the incomplete Gamma function F_n(t) using a
-!            spherical Bessel function expansion. fgamma_ref returns a
-!            vector with all F_n(t) values for 0 <= n <= nmax.
-!            For t values greater than 50 an asymptotic formula is used.
-!            This function is expected to return accurate F_n(t) values
-!            for any combination of n and t, but the calculation is slow
-!            and therefore the function may only be used for a pretabulation
-!            of F_n(t) values or for reference calculations.
-
-!   Literature: F. E. Harris, Int. J. Quant. Chem. 23, 1469 (1983)
-
-!   History: - Creation (07.01.1999,MK)
-
-!   eps : Numerical convergence criterion.
-!   kmax: Maximum number of iterations.
-
-!   List of local variables:
-
-!   expt   : Exponential term in the downward recursion of F_n(t).
-!   factor : Prefactor of the Bessel function expansion.
-!   nmax   : Maximum n value of F_n(t).
-!   p      : Product of the Bessel function quotients.
-!   r      : Quotients of the Bessel functions.
-!   sumterm: One term in the sum over products of Bessel functions.
-!   t      : Argument of the incomplete Gamma function.
 
     INTEGER, INTENT(IN)                      :: nmax
     REAL(KIND=dp), INTENT(IN)                :: t
@@ -548,18 +542,16 @@ CONTAINS
   END FUNCTION fgamma_ref
 
 ! *****************************************************************************
-  SUBROUTINE init_md_ftable(nmax)
-
-!   Purpose: Initalize a table of F_n(t) values in the range 0 <= t <= 12 with
+!> \brief   Initalize a table of F_n(t) values in the range 0 <= t <= 12 with
 !            a stepsize of 0.1 up to n equal to nmax for the Taylor series
 !            expansion used by McMurchie-Davidson (MD).
-
-!   History: - Creation (10.06.1999,MK)
-
-!   nmax: Maximum n value of F_n(t)
-
-!   ---------------------------------------------------------------------------
-
+!> \author  MK
+!> \date    10.06.1999
+!> \par Parameters
+!>       - nmax   : Maximum n value of F_n(t).
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE init_md_ftable(nmax)
     INTEGER, INTENT(IN)                      :: nmax
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_md_ftable', &

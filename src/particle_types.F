@@ -133,12 +133,12 @@ SUBROUTINE clone_particle(p_in,p_out,nullify_non_owned_pointers,error)
 END SUBROUTINE clone_particle
 
 ! *****************************************************************************
+!> \brief   Allocate a particle set.
+!> \author  MK
+!> \date    14.01.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE allocate_particle_set(particle_set,nparticle,error)
-
-!   Purpose: Allocate a particle set.
-
-!   History: - Creation (14.01.2002,MK)
-
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: nparticle
@@ -171,12 +171,12 @@ END SUBROUTINE clone_particle
   END SUBROUTINE allocate_particle_set
 
 ! *****************************************************************************
+!> \brief   Deallocate a particle set.
+!> \author  MK
+!> \date    14.01.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_particle_set(particle_set,error)
-
-!   Purpose: Deallocate a particle set.
-
-!   History: - Creation (14.01.2002,MK)
-
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -226,14 +226,16 @@ END SUBROUTINE clone_particle
   END SUBROUTINE deallocate_particle_set
 
 ! *****************************************************************************
+!> \brief   Get the components of a particle set.
+!> \author  MK
+!> \date    14.01.2002
+!> \par History
+!>      - particle type cleaned (13.10.2003,MK)
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE get_particle_set(particle_set,first_cgf,first_nco,first_nso,&
                               first_sgf,last_cgf,last_nco,last_nso,&
                               last_sgf,ncgf,ncotot,nsotot,nsgf,r)
-
-!   Purpose: Get the components of a particle set.
-
-!   History: - Creation (14.01.2002,MK)
-!            - particle type cleaned (13.10.2003,MK)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -599,11 +601,12 @@ END SUBROUTINE clone_particle
   END SUBROUTINE write_particle_coordinates
 
 ! *****************************************************************************
+!> \brief   Write the atomic coordinates to the output unit.
+!> \author  MK
+!> \date    05.06.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE write_fist_particle_coordinates(particle_set,cell,subsys_section,error)
-
-!   Purpose: Write the atomic coordinates to the output unit.
-!   History: - Creation (05.06.2000,MK)
-
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
@@ -654,10 +657,12 @@ END SUBROUTINE clone_particle
   END SUBROUTINE write_fist_particle_coordinates
 
 ! *****************************************************************************
+!> \brief   Write the atomic coordinates to the output unit.
+!> \author  MK
+!> \date    05.06.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE write_qs_particle_coordinates(particle_set,cell,subsys_section,label,error)
-
-!   Purpose: Write the atomic coordinates to the output unit.
-!   History: - Creation (05.06.2000,MK)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -711,11 +716,12 @@ END SUBROUTINE clone_particle
   END SUBROUTINE write_qs_particle_coordinates
 
 ! *****************************************************************************
+!> \brief   Write the matrix of the particle distances to the output unit.
+!> \author  Matthias Krack
+!> \date    06.10.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE write_particle_distances(particle_set,cell,subsys_section,error)
-
-!   Purpose: Write the matrix of the particle distances to the output unit.
-
-!   History: - Creation (06.10.2000, Matthias Krack)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set

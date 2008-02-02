@@ -19,27 +19,26 @@
 !>      C. Hartwigsen, S. Goedecker and J. Hutter, Phys. Rev. B 58, 3641 (1998)
 !> \par History
 !>      - Derivatives added (17.05.2002,MK)
+!> \par Parameters
+!>      -  ax,ay,az   : Angular momentum index numbers of orbital a.
+!>      -  bx,by,bz   : Angular momentum index numbers of orbital b.
+!>      -  coset      : Cartesian orbital set pointer.
+!>      -  dab        : Distance between the atomic centers a and b.
+!>      -  dac        : Distance between the atomic centers a and c.
+!>      -  dbc        : Distance between the atomic centers b and c.
+!>      -  l{a,b,c}   : Angular momentum quantum number of shell a, b or c.
+!>      -  l{a,b}_max : Maximum angular momentum quantum number of shell a, b or c.
+!>      -  ncoset     : Number of Cartesian orbitals up to l.
+!>      -  rab        : Distance vector between the atomic centers a and b.
+!>      -  rac        : Distance vector between the atomic centers a and c.
+!>      -  rbc        : Distance vector between the atomic centers b and c.
+!>      -  rpgf{a,b,c}: Radius of the primitive Gaussian-type function a or b.
+!>      -  zet{a,b,c} : Exponents of the Gaussian-type functions a or b.
+!>      -  zetg       : Reciprocal of the sum of the exponents of orbital a, b and c.
+!>      -  zetp       : Reciprocal of the sum of the exponents of orbital a and b.
 !> \author Matthias Krack (04.10.2000)
 ! *****************************************************************************
 MODULE ai_overlap_ppl
-
-! ax,ay,az   : Angular momentum index numbers of orbital a.
-! bx,by,bz   : Angular momentum index numbers of orbital b.
-! coset      : Cartesian orbital set pointer.
-! dab        : Distance between the atomic centers a and b.
-! dac        : Distance between the atomic centers a and c.
-! dbc        : Distance between the atomic centers b and c.
-! l{a,b,c}   : Angular momentum quantum number of shell a, b or c.
-! l{a,b}_max : Maximum angular momentum quantum number of shell a, b or c.
-! ncoset     : Number of Cartesian orbitals up to l.
-! rab        : Distance vector between the atomic centers a and b.
-! rac        : Distance vector between the atomic centers a and c.
-! rbc        : Distance vector between the atomic centers b and c.
-! rpgf{a,b,c}: Radius of the primitive Gaussian-type function a or b.
-! zet{a,b,c} : Exponents of the Gaussian-type functions a or b.
-! zetg       : Reciprocal of the sum of the exponents of orbital a, b and c.
-! zetp       : Reciprocal of the sum of the exponents of orbital a and b.
-
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
@@ -60,23 +59,21 @@ MODULE ai_overlap_ppl
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Calculation of three-center overlap integrals <a|c|b> over
+!           Cartesian Gaussian functions for the local part of the Goedecker
+!           pseudopotential (GTH). c is a primitive Gaussian-type function
+!           with a set of even angular momentum indices.
+
+!           <a|V(ppl)|b> = <a| (C1 + C2*(alpha*r)**2 + C3*(alpha*r)**4 +
+!                               C4*(alpha*r)**6)*exp(-(alpha*r)**2/2))|b>
+!> \author  Matthias Krack
+!> \date    04.10.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE overlap_ppl(la_max_set,la_min_set,npgfa,rpgfa,zeta,&
-                         lb_max_set,lb_min_set,npgfb,rpgfb,zetb,&
-                         cexp_ppl,zetc,rpgfc,&
-                         rab,dab,rac,dac,rbc,dbc,&
-                         vab,da_max,db_max,return_derivatives,s,&
-                         pab,force_a,force_b)
-
-!   Purpose: Calculation of three-center overlap integrals <a|c|b> over
-!            Cartesian Gaussian functions for the local part of the Goedecker
-!            pseudopotential (GTH). c is a primitive Gaussian-type function
-!            with a set of even angular momentum indices.
-
-!            <a|V(ppl)|b> = <a| (C1 + C2*(alpha*r)**2 + C3*(alpha*r)**4 +
-!                                C4*(alpha*r)**6)*exp(-(alpha*r)**2/2))|b>
-
-!   History: - Creation (04.10.2000, Matthias Krack)
-
+       lb_max_set,lb_min_set,npgfb,rpgfb,zetb,cexp_ppl,zetc,rpgfc,&
+       rab,dab,rac,dac,rbc,dbc,vab,da_max,db_max,return_derivatives,s,&
+       pab,force_a,force_b)
     INTEGER, INTENT(IN)                      :: la_max_set, la_min_set, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa, zeta
     INTEGER, INTENT(IN)                      :: lb_max_set, lb_min_set, npgfb

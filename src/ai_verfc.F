@@ -35,34 +35,33 @@
 !>                    nuclear        coulomb
 !> \par Literature
 !>      S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
+!> \par Parameters
+!>      -  ax,ay,az  : Angular momentum index numbers of orbital a.
+!>      -  bx,by,bz  : Angular momentum index numbers of orbital b.
+!>      -  coset     : Cartesian orbital set pointer.
+!>      -  dab       : Distance between the atomic centers a and b.
+!>      -  dac       : Distance between the atomic centers a and c.
+!>      -  dbc       : Distance between the atomic centers b and c.
+!>      -  l{a,b}    : Angular momentum quantum number of shell a or b.
+!>      -  l{a,b}_max: Maximum angular momentum quantum number of shell a or b.
+!>      -  l{a,b}_min: Minimum angular momentum quantum number of shell a or b.
+!>      -  ncoset    : Number of orbitals in a Cartesian orbital set.
+!>      -  npgf{a,b} : Degree of contraction of shell a or b.
+!>      -  rab       : Distance vector between the atomic centers a and b.
+!>      -  rab2      : Square of the distance between the atomic centers a and b.
+!>      -  rac       : Distance vector between the atomic centers a and c.
+!>      -  rac2      : Square of the distance between the atomic centers a and c.
+!>      -  rbc       : Distance vector between the atomic centers b and c.
+!>      -  rbc2      : Square of the distance between the atomic centers b and c.
+!>      -  rpgf{a,b} : Radius of the primitive Gaussian-type function a or b.
+!>      -  zet{a,b}  : Exponents of the Gaussian-type functions a or b.
+!>      -  zetp      : Reciprocal of the sum of the exponents of orbital a and b.
+!>      -  zetw        : Reciprocal of the sum of the exponents of orbital a, b and c.
 !> \par History
 !>      none
 !> \author Matthias Krack (04.10.2000)
 ! *****************************************************************************
 MODULE ai_verfc
-
-! ax,ay,az  : Angular momentum index numbers of orbital a.
-! bx,by,bz  : Angular momentum index numbers of orbital b.
-! coset     : Cartesian orbital set pointer.
-! dab       : Distance between the atomic centers a and b.
-! dac       : Distance between the atomic centers a and c.
-! dbc       : Distance between the atomic centers b and c.
-! l{a,b}    : Angular momentum quantum number of shell a or b.
-! l{a,b}_max: Maximum angular momentum quantum number of shell a or b.
-! l{a,b}_min: Minimum angular momentum quantum number of shell a or b.
-! ncoset    : Number of orbitals in a Cartesian orbital set.
-! npgf{a,b} : Degree of contraction of shell a or b.
-! rab       : Distance vector between the atomic centers a and b.
-! rab2      : Square of the distance between the atomic centers a and b.
-! rac       : Distance vector between the atomic centers a and c.
-! rac2      : Square of the distance between the atomic centers a and c.
-! rbc       : Distance vector between the atomic centers b and c.
-! rbc2      : Square of the distance between the atomic centers b and c.
-! rpgf{a,b} : Radius of the primitive Gaussian-type function a or b.
-! zet{a,b}  : Exponents of the Gaussian-type functions a or b.
-! zetp      : Reciprocal of the sum of the exponents of orbital a and b.
-! zetw        : Reciprocal of the sum of the exponents of orbital a, b and c.
-
   USE f77_blas
   USE gamma,                           ONLY: fgamma
   USE kinds,                           ONLY: dp
@@ -82,18 +81,16 @@ MODULE ai_verfc
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE verfc(la_max,npgfa,zeta,rpgfa,la_min,&
-                   lb_max,npgfb,zetb,rpgfb,lb_min,&
-                   zetc,rpgfc,zc,cerf,&
-                   rab,rab2,rac,rac2,rbc,rbc2,vabc,verf,vnuc,f,&
-                   maxder,vabc_plus)
-
-!   Purpose: Calculation of the primitive three-center nuclear potential
-!            integrals <a|Z*erfc(r)/r|b> over Cartesian Gaussian-type
-!            functions.
-
-!   History: - Creation (04.10.2000, Matthias Krack)
-
+!> \brief   Calculation of the primitive three-center nuclear potential
+!>          integrals <a|Z*erfc(r)/r|b> over Cartesian Gaussian-type
+!>          functions.
+!> \author  Matthias Krack
+!> \date    04.10.2000
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE verfc(la_max,npgfa,zeta,rpgfa,la_min,lb_max,npgfb,zetb,rpgfb,lb_min,&
+       zetc,rpgfc,zc,cerf,rab,rab2,rac,rac2,rbc,rbc2,vabc,verf,vnuc,f,&
+       maxder,vabc_plus)
     INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
     INTEGER, INTENT(IN)                      :: la_min, lb_max, npgfb

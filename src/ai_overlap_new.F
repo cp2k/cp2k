@@ -10,23 +10,22 @@
 !>      S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
 !> \par History
 !>      - Derivatives added (02.05.2002,MK)
+!> \par Parameters
+!>      - ax,ay,az  : Angular momentum index numbers of orbital a.
+!>      - bx,by,bz  : Angular momentum index numbers of orbital b.
+!>      - coset     : Cartesian orbital set pointer.
+!>      - dab       : Distance between the atomic centers a and b.
+!>      - l{a,b}    : Angular momentum quantum number of shell a or b.
+!>      - l{a,b}_max: Maximum angular momentum quantum number of shell a or b.
+!>      - l{a,b}_min: Minimum angular momentum quantum number of shell a or b.
+!>      - rab       : Distance vector between the atomic centers a and b.
+!>      - rpgf{a,b} : Radius of the primitive Gaussian-type function a or b.
+!>      - sab       : Shell set of overlap integrals.
+!>      - zet{a,b}  : Exponents of the Gaussian-type functions a or b.
+!>      - zetp      : Reciprocal of the sum of the exponents of orbital a and b.
 !> \author Matthias Krack (08.10.1999)
 ! *****************************************************************************
 MODULE ai_overlap_new
-
-! ax,ay,az  : Angular momentum index numbers of orbital a.
-! bx,by,bz  : Angular momentum index numbers of orbital b.
-! coset     : Cartesian orbital set pointer.
-! dab       : Distance between the atomic centers a and b.
-! l{a,b}    : Angular momentum quantum number of shell a or b.
-! l{a,b}_max: Maximum angular momentum quantum number of shell a or b.
-! l{a,b}_min: Minimum angular momentum quantum number of shell a or b.
-! rab       : Distance vector between the atomic centers a and b.
-! rpgf{a,b} : Radius of the primitive Gaussian-type function a or b.
-! sab       : Shell set of overlap integrals.
-! zet{a,b}  : Exponents of the Gaussian-type functions a or b.
-! zetp      : Reciprocal of the sum of the exponents of orbital a and b.
-
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
@@ -41,22 +40,21 @@ MODULE ai_overlap_new
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_overlap_new'
 
 ! *** Public subroutines ***
-
   PUBLIC :: overlap
 
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Purpose: Calculation of the two-center overlap integrals [a|b] over
+!>          Cartesian Gaussian-type functions.
+!> \author  MK
+!> \date    19.09.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE overlap(la_max_set,la_min_set,npgfa,rpgfa,zeta,&
                      lb_max_set,lb_min_set,npgfb,rpgfb,zetb,&
                      rab,dab,sab,da_max_set,return_derivatives,s,lds,&
                      sdab,pab,force_a)
-
-!   Purpose: Calculation of the two-center overlap integrals [a|b] over
-!            Cartesian Gaussian-type functions.
-
-!   History: - Creation (19.09.2000,MK)
-
     INTEGER, INTENT(IN)                      :: la_max_set, la_min_set, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa, zeta
     INTEGER, INTENT(IN)                      :: lb_max_set, lb_min_set, npgfb

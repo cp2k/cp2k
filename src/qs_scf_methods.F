@@ -150,16 +150,15 @@ CONTAINS
   END SUBROUTINE scf_env_density_mixing
 
 ! *****************************************************************************
+!> \brief   Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
+!>          vectors and MO eigenvalues. ks will be modified
+!> \author  Matthias Krack
+!> \date    01.05.2001
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE eigensolver(matrix_ks,mo_set,ortho,work,do_level_shift,&
                          level_shift,use_cholesky,work_syevx,use_jacobi,&
                          jacobi_threshold,smear,error)
-
-!   Purpose: Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
-!            vectors and MO eigenvalues.
-!   ks will be modified
-
-!   History: - Creation (01.05.2001, Matthias Krack)
-
     TYPE(cp_fm_type), POINTER                :: matrix_ks
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: ortho, work

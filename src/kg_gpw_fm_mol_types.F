@@ -467,10 +467,6 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE  kg_fm_mol_set_create(kg_fm,nmolecule_kind,error)
 
-!   Purpose: 
-
-!   History: - Creation (20.11.2004,MI)
-
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
     INTEGER                                  :: nmolecule_kind
     TYPE(cp_error_type), INTENT(inout)       :: error

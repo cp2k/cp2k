@@ -4,7 +4,8 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \author fschiff 11.06
+!> \author fschiff 
+!> \date   11.06
 ! *****************************************************************************
 MODULE mixed_energy_types
 
@@ -44,12 +45,12 @@ MODULE mixed_energy_types
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Allocate and/or initialise a mixed energy data structure.
+!> \author  fschiff
+!> \date    11.06
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE allocate_mixed_energy(mixed_energy)
-
-!   Purpose: Allocate and/or initialise a mixed energy data structure.
-
-!   History: - Creation (11.06,fschiff)
-
     TYPE(mixed_energy_type), POINTER         :: mixed_energy
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_mixed_energy', &
@@ -69,12 +70,12 @@ CONTAINS
   END SUBROUTINE allocate_mixed_energy
 
 ! *****************************************************************************
+!> \brief   Deallocate a mixed energy data structure.
+!> \author  fschiff
+!> \date    11.06
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_mixed_energy(mixed_energy)
-
-!   Purpose: Deallocate a mixed energy data structure.
-
-!   History: - Creation (11.06,fschiff)
-
     TYPE(mixed_energy_type), POINTER         :: mixed_energy
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_mixed_energy', &
@@ -96,11 +97,6 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE init_mixed_energy(mixed_energy)
-
-!   Purpose: Initialise a mixed energy data structure.
-
-!   History: - Creation (13.06.2002,MK)
-
     TYPE(mixed_energy_type), POINTER         :: mixed_energy
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_mixed_energy', &

@@ -46,10 +46,11 @@ MODULE soft_basis_set
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   create the soft basis from a GTO basis 
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE create_soft_basis(orb_basis,soft_basis,gapw,rc,paw_atom,gpw_type_forced,&
        error)
-   
-!   Purpose: create the soft basis from a GTO basis 
 
     TYPE(gto_basis_set_type), POINTER        :: orb_basis, soft_basis
     TYPE(gapw_control_type), POINTER         :: gapw

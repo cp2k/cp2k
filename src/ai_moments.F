@@ -128,8 +128,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(ncoset(la_max),&
       ncoset(lb_max))                        :: sc, ss
 
-!   ---------------------------------------------------------------------------
-
     rab = rbc - rac
     rab2= SUM( rab**2 )
     dab = SQRT(rab2)
@@ -679,8 +677,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(ncoset(la_max),&
       ncoset(lb_max), ncoset(lc_max))        :: s
 
-!   ---------------------------------------------------------------------------
-
     rab = rbc - rac
     rab2= SUM( rab**2 )
     dab = SQRT(rab2)
@@ -1201,8 +1197,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(npgfa*ncoset(&
       la_max+1), npgfb*ncoset(lb_max+1))     :: sab
 
-!   ---------------------------------------------------------------------------
-
     rab2= SUM( rab**2 )
     dab = SQRT(rab2)
 
@@ -1259,10 +1253,6 @@ CONTAINS
       DIMENSION(:, :, :)                     :: difmab_tmp
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: mab
-
-!dbg
-!dbg
-!   ---------------------------------------------------------------------------
 
     rab = rbc - rac
     rab2= SUM( rab**2 )

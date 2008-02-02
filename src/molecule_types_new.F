@@ -127,12 +127,12 @@ MODULE molecule_types_new
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Allocate a molecule set.
+!> \author  MK
+!> \date    29.08.2003
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE allocate_molecule_set(molecule_set,nmolecule,error)
-
-!   Purpose: Allocate a molecule set.
-
-!   History: - Creation (29.08.2003,MK)
-
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     INTEGER, INTENT(IN)                      :: nmolecule
@@ -165,12 +165,12 @@ CONTAINS
   END SUBROUTINE allocate_molecule_set
 
 ! *****************************************************************************
+!> \brief   Deallocate a molecule set.
+!> \author  MK
+!> \date    29.08.2003
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_molecule_set(molecule_set,error)
-
-!   Purpose: Deallocate a molecule set.
-
-!   History: - Creation (29.08.2003,MK)
-
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -237,12 +237,13 @@ CONTAINS
   END SUBROUTINE deallocate_molecule_set
 
 ! *****************************************************************************
+!> \brief   Get components from a molecule data set.
+!> \author  MK
+!> \date    29.08.2003
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE get_molecule(molecule,molecule_kind,lmi,lg3x3,lg4x6,lcolv,&
        first_atom,last_atom,first_shell,last_shell)
-
-!   Purpose: Get components from a molecule data set.
-
-!   History: - Creation (29.08.2003,MK)
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(molecule_kind_type), OPTIONAL, &
@@ -306,12 +307,12 @@ CONTAINS
   END SUBROUTINE get_molecule
 
 ! *****************************************************************************
+!> \brief   Set a molecule data set.
+!> \author  MK
+!> \date    29.08.2003
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE set_molecule(molecule,molecule_kind,lmi,lci,lcolv,lg3x3,lg4x6)
-
-!   Purpose: Set a molecule data set.
-
-!   History: - Creation (29.08.2003,MK)
-
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(molecule_kind_type), OPTIONAL, &
       POINTER                                :: molecule_kind
@@ -370,12 +371,12 @@ CONTAINS
   END SUBROUTINE set_molecule
 
 ! *****************************************************************************
+!> \brief   Set a molecule data set.
+!> \author  MK
+!> \date    29.08.2003
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE set_molecule_set(molecule_set,first_atom,last_atom)
-
-!   Purpose: Set a molecule data set.
-
-!   History: - Creation (29.08.2003,MK)
-
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     INTEGER, DIMENSION(:), INTENT(IN), &

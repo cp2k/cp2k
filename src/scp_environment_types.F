@@ -83,8 +83,6 @@ CONTAINS
                           rho_scp, rspw, para_env, blacs_env, ks_scp_env, & 
                           distribution_2d, eps_gvg_rspace, eps_rho_rspace, error)
 
-!   Purpose: Get the KG environment.
-
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(aux_coeff_set_type), OPTIONAL, &
       POINTER                                :: aux_coeff_set
@@ -131,9 +129,10 @@ CONTAINS
   END SUBROUTINE get_scp_env
 
 ! *****************************************************************************
+!> \brief   Initialise the SCP environment
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE init_scp_env ( scp_env, error )
-
-!   Purpose: Initialise the SCP environment
 
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -159,12 +158,13 @@ CONTAINS
   END SUBROUTINE init_scp_env
 
 ! *****************************************************************************
+!> \brief  set the SCP environment. 
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE set_scp_env( scp_env, aux_coeff_set, energy, force, ks_scp_env,&
                           input, rho_scp, rspw, para_env, blacs_env, &
                           distribution_2d, eps_gvg_rspace, eps_rho_rspace, &
                           error)
-
-!   Purpose: set the SCP environment.
 
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(aux_coeff_set_type), OPTIONAL, &

@@ -381,13 +381,13 @@ CONTAINS
   END SUBROUTINE kg_init
 
 ! *****************************************************************************
+!> \brief   Write the total number of kinds, atoms, etc. to the logical unit
+!>          number lunit.
+!> \author  Matthias Krack
+!> \date    06.10.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE write_total_numbers(atomic_kind_set,particle_set,force_env_section,error)
-
-!   Purpose: Write the total number of kinds, atoms, etc. to the logical unit
-!            number lunit.
-
-!   History: - Creation (06.10.2000, Matthias Krack)
-
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &

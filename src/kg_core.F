@@ -57,9 +57,10 @@ MODULE kg_core
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Calculate the overlap energy of the core charge distribution.
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE calculate_ecore_rspace(kg_env,para_env,calculate_forces,error)
-
-    ! Purpose: Calculate the overlap energy of the core charge distribution.
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -613,12 +614,11 @@ CONTAINS
   END SUBROUTINE calculate_ecore_rspace
 
 ! *****************************************************************************
+!> \brief   Calculate the self energy of the core charge distribution.
+!> \date    14.10.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE calculate_eself(kg_env,ecore_self,error)
-
-    ! Purpose: Calculate the self energy of the core charge distribution.
-
-    ! History: - Creation (14.10.2002)
-
     TYPE(kg_environment_type), POINTER       :: kg_env
     REAL(KIND=dp), INTENT(OUT)               :: ecore_self
     TYPE(cp_error_type), INTENT(inout)       :: error

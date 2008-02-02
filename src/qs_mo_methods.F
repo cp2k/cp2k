@@ -264,12 +264,13 @@ CONTAINS
   END SUBROUTINE make_basis_simple
 
 ! *****************************************************************************
+!> \brief  Calculate the density matrix from the MO coeff and the
+!>         MO occupation numbers. 
+!> \author  MK
+!> \date    01.05.2001
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE calculate_density_matrix_blacs(mo_set,density_matrix,error)
-
-!   Purpose: Calculate the density matrix from the MO coeff and the
-!            MO occupation numbers.
-
-!   History: - Creation (01.05.2001,MK)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: density_matrix
@@ -301,12 +302,14 @@ CONTAINS
   END SUBROUTINE calculate_density_matrix_blacs
 
 ! *****************************************************************************
+!> \brief   Calculate the density matrix
+!> \author  Joost VandeVondele
+!> \date    06.2002
+!> \par History
+!>       - Fractional occupied orbitals (MK)
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE calculate_density_matrix_sparse(mo_set,density_matrix,error)
-
-!   Purpose: Calculate the density matrix
-
-!   History: - Creation (06.2002, Joost VandeVondele)
-!            - Fractional occupied orbitals (MK)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(real_matrix_type), POINTER          :: density_matrix
@@ -365,12 +368,8 @@ CONTAINS
 !> \par History
 !>      08.2004 documented and added do_rotation [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE subspace_eigenvalues_ks(orbitals,ks_matrix,evals_arg,para_env,ionode,scr,do_rotation,co_rotate,error)
-
-!   Purpose: Calculates the eigenvalues (ritz values) for a set of orbitals
-!            and rotates them to make them eigenvectors
-!            if evals_arg is present its filled
-!            if scr and ionode are present they go to the screen as well.
+  SUBROUTINE subspace_eigenvalues_ks(orbitals,ks_matrix,evals_arg,para_env,ionode,scr,&
+       do_rotation,co_rotate,error)
 
     TYPE(cp_fm_type), POINTER                :: orbitals
     TYPE(real_matrix_type), POINTER          :: ks_matrix

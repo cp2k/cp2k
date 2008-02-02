@@ -324,14 +324,14 @@ SUBROUTINE cp_sm_scale_and_add(matrix_a,alpha,matrix_b,beta,error)
 END SUBROUTINE cp_sm_scale_and_add
 
 ! *****************************************************************************
+!> \brief  Calculate the sum of the sparse matrices a and b which have the
+!>           same structure.
+!>           c = alpha*a + beta*b 
+!> \author  MK
+!> \date    10.04.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE add_real_matrices(c,alpha,a,beta,b)
-
-!   Purpose: Calculate the sum of the sparse matrices a and b which have the
-!            same structure.
-
-!            c = alpha*a + beta*b
-
-!   History: - Creation (10.04.2002, MK)
 
     TYPE(real_matrix_type), POINTER          :: c
     REAL(KIND=dp), INTENT(IN)                :: alpha
@@ -452,12 +452,12 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE add_real_matrices
 
 ! *****************************************************************************
-  SUBROUTINE add_real_matrix_block(matrix,block_row,block_col,BLOCK,&
-       error)
-
-!   Purpose: Allocate and initialize a new block node.
-
-!   History: - Creation (28.07.2000, MK)
+!> \brief   Allocate and initialize a new block node.
+!> \author  MK
+!> \date    28.07.2000
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE add_real_matrix_block(matrix,block_row,block_col,BLOCK, error)
 
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(IN)                      :: block_row, block_col
@@ -565,9 +565,10 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE add_real_matrix_block
 
 ! *****************************************************************************
+!> \brief   Allocate and initialize a new block node in the oce matrix
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE  add_1d_block_node(matrix,block_row,block_col,BLOCK,error)
-
-!   Purpose: Allocate and initialize a new block node in the oce matrix
 
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(IN)                      :: block_row, block_col
@@ -691,17 +692,16 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE write_blocks_maxabsval
 
 ! *****************************************************************************
+!> \brief   Allocate and initialize a real matrix at the real_matrix_type level.
+!>          distribution_2d if present and not NULL, implies that this matrix has
+!>          a distribution_2d compatible shape
+!> \author  MK
+!> \date    16.06.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE allocate_real_matrix(matrix,nrow,ncol,nblock_row,nblock_col,&
-                                  first_row,last_row,first_col,last_col,&
-                                  matrix_name,matrix_symmetry,sparsity_id,distribution_2d,error)
-
-!   Purpose: Allocate and initialize a real matrix at the real_matrix_type
-!            level.
-
-!   distribution_2d if present and not NULL, implies that this matrix has a distribution_2d compatible shape
-
-!   History: - Creation (16.06.2000, MK)
-
+       first_row,last_row,first_col,last_col,matrix_name,matrix_symmetry,&
+       sparsity_id,distribution_2d,error)
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(IN)                      :: nrow, ncol, nblock_row, &
                                                 nblock_col
@@ -789,11 +789,12 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE allocate_real_matrix
 
 ! *****************************************************************************
+!> \brief   Allocate and initialize a real matrix set.
+!> \author  MK
+!> \date    13.03.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE allocate_real_matrix_set(matrix_set,nmatrix,error)
-
-!   Purpose: Allocate and initialize a real matrix set.
-
-!   History: - Creation (13.03.2002, MK)
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_set
@@ -819,12 +820,12 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE allocate_real_matrix_set
 
 ! *****************************************************************************
+!> \brief   Allocate and initialize a real matrix set.
+!> \author  MK
+!> \date    13.03.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE allocate_real_matrix_set_2d(matrix_set,nmatrix,mmatrix,error)
-
-!   Purpose: Allocate and initialize a real matrix set.
-
-!   History: - Creation (13.03.2002, MK)
-
     TYPE(real_matrix_p_type), &
       DIMENSION(:, :), POINTER               :: matrix_set
     INTEGER, INTENT(IN)                      :: nmatrix, mmatrix
@@ -851,12 +852,14 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE allocate_real_matrix_set_2d
 
 ! *****************************************************************************
+!> \brief  copy to local blocks of a sparse matrix in a replicated full matrix 
+!> \par Personal Opinion  
+!>          according to me this routine is a bug in parallel JVDV 
+!> \author  MK
+!> \date    19.06.2001
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE copy_local_sm_to_replicated_fm(sparse_matrix,fm)
-
-!   Purpose: copy to local blocks of a sparse matrix in a replicated full matrix (why ??)
-!            ! according to me this routine is a bug in parallel JVDV
-
-!   History: - Creation (19.06.2001, MK)
 
     TYPE(real_matrix_type), POINTER          :: sparse_matrix
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fm
@@ -1150,11 +1153,12 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE sparse_plus_loc_loct
 
 ! *****************************************************************************
+!> \brief   Copy the real matrix source to the existing real matrix target.
+!> \author  MK
+!> \date    07.07.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE copy_real_matrix(source,TARGET)
-
-!   Purpose: Copy the real matrix source to the existing real matrix target.
-
-!   History: - Creation (07.07.2000, MK)
 
     TYPE(real_matrix_type), POINTER          :: source, TARGET
 
@@ -1265,11 +1269,12 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE copy_real_matrix
 
 ! *****************************************************************************
+!> \brief  Deallocate a real matrix at the real_matrix_type level. 
+!> \author MK 
+!> \date   11.07.2000 
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_real_matrix(matrix,error)
-
-!   Purpose: Deallocate a real matrix at the real_matrix_type level.
-
-!   History: - Creation (11.07.2000, MK)
 
     TYPE(real_matrix_type), POINTER          :: matrix
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1310,11 +1315,12 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE deallocate_real_matrix
 
 ! *****************************************************************************
+!> \brief   Deallocate a matrix row.
+!> \author  MK
+!> \date    30.11.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_real_matrix_row(matrix,block_row)
-
-!   Purpose: Deallocate a matrix row.
-
-!   History: - Creation (30.11.2000, MK)
 
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(IN)                      :: block_row
@@ -1347,11 +1353,12 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE deallocate_real_matrix_row
 
 ! *****************************************************************************
+!> \brief   Deallocate a real matrix set.
+!> \author  MK
+!> \date    13.03.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_real_matrix_set(matrix_set,error)
-
-!   Purpose: Deallocate a real matrix set.
-
-!   History: - Creation (13.03.2002, MK)
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_set
@@ -1375,11 +1382,12 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE deallocate_real_matrix_set
 
 ! *****************************************************************************
+!> \brief  Deallocate a real matrix set. 
+!> \author MK 
+!> \date   13.03.2002 
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_real_matrix_set_2d(matrix_set,error)
-
-!   Purpose: Deallocate a real matrix set.
-
-!   History: - Creation (13.03.2002, MK)
 
     TYPE(real_matrix_p_type), &
       DIMENSION(:, :), POINTER               :: matrix_set
@@ -1406,11 +1414,12 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE deallocate_real_matrix_set_2d
 
 ! *****************************************************************************
+!> \brief   Return a pointer to the requested block node. 
+!> \author  MK
+!> \date    23.06.2000
+!> \version 1.0
+! *****************************************************************************
   FUNCTION find_real_block_node(matrix,block_row,block_col) RESULT(block_node)
-
-!   Purpose: Return a pointer to the requested block node.
-
-!   History: - Creation (23.06.2000, MK)
 
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(IN)                      :: block_row, block_col
@@ -1446,11 +1455,12 @@ END SUBROUTINE cp_sm_scale_and_add
   END FUNCTION find_real_block_node
 
 ! *****************************************************************************
+!> \brief  Return a pointer to the first block node of a block list. 
+!> \author MK 
+!> \date   23.06.2000 
+!> \version 1.0
+! *****************************************************************************
   FUNCTION first_real_block_node(matrix,block_row) RESULT(first_block_node)
-
-!   Purpose: Return a pointer to the first block node of a block list.
-
-!   History: - Creation (23.06.2000, MK)
 
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(IN)                      :: block_row
@@ -1463,14 +1473,15 @@ END SUBROUTINE cp_sm_scale_and_add
   END FUNCTION first_real_block_node
 
 ! *****************************************************************************
+!> \brief   Return the requested matrix information.
+!> \author  MK
+!> \date    10.07.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE get_matrix_info(matrix,matrix_name,matrix_symmetry,&
                              nblock_row,nblock_col,nrow,ncol,&
                              first_row,last_row,first_col,last_col,&
                              nblock_allocated,nelement_allocated,sparsity_id)
-
-!   Purpose: Return the requested matrix information.
-
-!   History: - Creation (10.07.2000, MK)
 
     TYPE(real_matrix_type), POINTER          :: matrix
     CHARACTER(LEN=80), INTENT(OUT), OPTIONAL :: matrix_name
@@ -1524,11 +1535,12 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE get_matrix_info
 
 ! *****************************************************************************
+!> \brief  Get the the column and/or matrix-block for a given sparse matrix block node. 
+!> \author MK 
+!> \date   28.05.2000 
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE get_real_block_node(block_node,block_col,BLOCK)
-
-!   Purpose: Get the the column and/or matrix-block for a given sparse matrix block node.
-
-!   History: - Creation (28.05.2000, MK)
 
     TYPE(real_block_node_type), INTENT(IN)   :: block_node
     INTEGER, INTENT(OUT), OPTIONAL           :: block_col
@@ -1543,14 +1555,14 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE get_real_block_node
 
 ! *****************************************************************************
+!> \brief  Get a specific (block_row,block_col)-block from the real matrix 
+!> \author  MK
+!> \date   28.05.2000 
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE get_real_matrix_block(matrix,block_row,block_col,&
                                    first_row,last_row,first_col,last_col,&
                                    block_node,BLOCK)
-
-!   Purpose: Get a specific (block_row,block_col)-block from the real matrix
-
-!   History: - Creation (28.05.2000, MK)
-
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(IN)                      :: block_row, block_col
     INTEGER, INTENT(OUT), OPTIONAL           :: first_row, last_row, &
@@ -1583,11 +1595,12 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE get_real_matrix_block
 
 ! *****************************************************************************
+!> \brief   Set the diagonal elements of matrix to the values of vector.
+!> \author  MK
+!> \date    06.11.2003
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE get_real_matrix_diagonal(matrix,vector)
-
-!   Purpose: Set the diagonal elements of matrix to the values of vector.
-
-!   History: - Creation (06.11.2003,MK)
 
     TYPE(real_matrix_type), POINTER          :: matrix
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: vector
@@ -1637,11 +1650,12 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE get_real_matrix_diagonal
 
 ! *****************************************************************************
+!> \brief   Return a pointer to the next block node of a block list.
+!> \author  MK
+!> \date    28.06.2000
+!> \version 1.0
+! *****************************************************************************
   FUNCTION next_real_block_node(block_node) RESULT(next_block_node)
-
-!   Purpose: Return a pointer to the next block node of a block list.
-
-!   History: - Creation (28.06.2000, MK)
 
     TYPE(real_block_node_type), POINTER      :: block_node, next_block_node
 
@@ -1658,13 +1672,12 @@ END SUBROUTINE cp_sm_scale_and_add
   END FUNCTION next_real_block_node
 
 ! *****************************************************************************
-  SUBROUTINE put_real_block_node(block_node,matrix,block_row,block_col,BLOCK,&
-                                 add)
-
-!   Purpose: Set block node data set.
-
-!   History: - Creation (27.07.2000, MK)
-
+!> \brief   Set block node data set.
+!> \author  MK
+!> \date    27.07.2000
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE put_real_block_node(block_node,matrix,block_row,block_col,BLOCK,add)
     TYPE(real_block_node_type), POINTER      :: block_node
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(IN)                      :: block_row
@@ -1715,12 +1728,12 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE put_real_block_node
 
 ! *****************************************************************************
+!> \brief Allocate and initialize a new block node or update an existing block node.  
+!> \author  MK
+!> \date    07.07.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE put_real_matrix_block(matrix,block_row,block_col,BLOCK,add,error)
-
-!   Purpose: Allocate and initialize a new block node or update an existing
-!            block node.
-
-!   History: - Creation (07.07.2000, MK)
 
     TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(IN)                      :: block_row, block_col
@@ -1792,14 +1805,15 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE put_real_matrix_block
 
 ! *****************************************************************************
+!> \brief  Replicate the existing matrix source. The replicated matrix is
+!>         target with the name target_name.
+!>         by default copies the data blocks,
+!>         if optional allocate_blocks=false then no blocks are allocated  
+!> \author MK 
+!> \date    17.11.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE replicate_real_matrix(source,TARGET,target_name,allocate_blocks,error)
-
-!   Purpose: Replicate the existing matrix source. The replicated matrix is
-!            target with the name target_name.
-!            by default copies the data blocks,
-!            if optional allocate_blocks=false then no blocks are allocated
-
-!   History: - Creation (17.11.2000, MK)
 
     TYPE(real_matrix_type), POINTER          :: source, TARGET
     CHARACTER(LEN=*), INTENT(IN)             :: target_name
@@ -1875,15 +1889,15 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE replicate_real_matrix
 
 ! *****************************************************************************
+!> \brief  Replicate the matrix structure of the existing matrix source. The
+!>          new matrix target with the name target_name has the same
+!>          structure. 
+!> \author  MK
+!> \date    17.11.2000
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE replicate_real_matrix_structure(source,TARGET,target_name,&
                                              target_symmetry,error)
-
-!   Purpose: Replicate the matrix structure of the existing matrix source. The
-!            new matrix target with the name target_name has the same
-!            structure.
-
-!   History: - Creation (17.11.2000, MK)
-
     TYPE(real_matrix_type), POINTER          :: source, TARGET
     CHARACTER(LEN=*), INTENT(IN)             :: target_name
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: target_symmetry
@@ -1959,13 +1973,13 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE replicate_real_matrix_structure
 
 ! *****************************************************************************
+!> \brief  Multiply the sparse matrix a with alpha.
+!>            a <- alpha*a 
+!> \author MK 
+!> \date    17.07.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE scale_real_matrix(a,alpha)
-
-!   Purpose: Multiply the sparse matrix a with alpha.
-
-!            a <- alpha*a
-
-!   History: - Creation (17.07.2002,MK)
 
     TYPE(real_matrix_type), POINTER          :: a
     REAL(KIND=dp), INTENT(IN)                :: alpha
@@ -2051,12 +2065,12 @@ END SUBROUTINE cp_sm_scale_and_add
   END FUNCTION checksum_real_matrix
 
 ! *****************************************************************************
+!> \brief   Set all elements of matrix to value.
+!> \author  MK
+!> \date    10.04.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE set_real_matrix(matrix,value)
-
-!   Purpose: Set all elements of matrix to value.
-
-!   History: - Creation (10.04.2002, MK)
-
     TYPE(real_matrix_type), POINTER          :: matrix
     REAL(KIND=dp), INTENT(IN)                :: value
 
@@ -2096,11 +2110,12 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE set_real_matrix
 
 ! *****************************************************************************
+!> \brief  Set the diagonal elements of matrix to the values of vector. 
+!> \author MK 
+!> \date   06.11.2003 
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE set_real_matrix_diagonal(matrix,vector)
-
-!   Purpose: Set the diagonal elements of matrix to the values of vector.
-
-!   History: - Creation (06.11.2003,MK)
 
     TYPE(real_matrix_type), POINTER          :: matrix
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: vector
@@ -2662,10 +2677,11 @@ SUBROUTINE cp_sm_sm_trace_vector(matrix1, matrix2, trace_vec, para_env, error)
 END SUBROUTINE cp_sm_sm_trace_vector
 
 ! *****************************************************************************
+!> \brief  Create a diagonal block matrix from a real sparse matrix
+!>         same structure. 
+!> \version 1.0
+! *****************************************************************************
 SUBROUTINE create_dbm_from_sm(dbm,sm,matrix_name,copy_in,para_env,error)
-
-!   Purpose: Create a diagonal block matrix from a real sparse matrix
-!            same structure.
 
     TYPE(real_matrix_type), POINTER          :: dbm, sm
     CHARACTER(LEN=*), INTENT(IN)             :: matrix_name
@@ -2736,10 +2752,10 @@ SUBROUTINE create_dbm_from_sm(dbm,sm,matrix_name,copy_in,para_env,error)
 END SUBROUTINE create_dbm_from_sm
 
 ! *****************************************************************************
+!> \brief   Deallocate a diagonal block matrix
+!> \version 1.0
+! *****************************************************************************
 SUBROUTINE deallocate_dbm_from_sm(dbm,sm,copy_out,para_env,error)
-
-!   Purpose: Deallocate a diagonal block matrix
-
     TYPE(real_matrix_type), POINTER          :: dbm, sm
     LOGICAL, INTENT(IN)                      :: copy_out
     TYPE(cp_para_env_type), INTENT(IN), &

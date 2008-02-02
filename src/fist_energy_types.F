@@ -41,12 +41,12 @@ MODULE fist_energy_types
 CONTAINS
 
 ! *****************************************************************************
+!> \brief   Allocate and/or initialise a Fist energy data structure.
+!> \author  MK
+!> \date    13.06.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE allocate_fist_energy(fist_energy)
-
-!   Purpose: Allocate and/or initialise a Fist energy data structure.
-
-!   History: - Creation (13.06.2002,MK)
-
     TYPE(fist_energy_type), POINTER          :: fist_energy
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_fist_energy', &
@@ -66,12 +66,12 @@ CONTAINS
   END SUBROUTINE allocate_fist_energy
 
 ! *****************************************************************************
+!> \brief   Deallocate a Fist energy data structure.
+!> \author  MK
+!> \date    13.06.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_fist_energy(fist_energy)
-
-!   Purpose: Deallocate a Fist energy data structure.
-
-!   History: - Creation (13.06.2002,MK)
-
     TYPE(fist_energy_type), POINTER          :: fist_energy
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_fist_energy', &
@@ -92,12 +92,12 @@ CONTAINS
   END SUBROUTINE deallocate_fist_energy
 
 ! *****************************************************************************
+!> \brief   Initialise a Fist energy data structure.
+!> \author  MK
+!> \date    13.06.2002
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE init_fist_energy(fist_energy)
-
-!   Purpose: Initialise a Fist energy data structure.
-
-!   History: - Creation (13.06.2002,MK)
-
     TYPE(fist_energy_type), POINTER          :: fist_energy
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_fist_energy', &

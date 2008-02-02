@@ -274,12 +274,12 @@ CONTAINS
   END SUBROUTINE setup_colvar_counters
 
 ! *****************************************************************************
+!> \brief   Allocate and initialize a molecule kind set.
+!> \author  MK
+!> \date    22.08.2003
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE allocate_molecule_kind_set(molecule_kind_set,nmolecule_kind,error)
-
-!   Purpose: Allocate and initialize a molecule kind set.
-
-!   History: - Creation (22.08.2003,MK)
-
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     INTEGER, INTENT(IN)                      :: nmolecule_kind
@@ -346,11 +346,12 @@ CONTAINS
   END SUBROUTINE allocate_molecule_kind_set
 
 ! *****************************************************************************
+!> \brief   Deallocate a molecule kind set.
+!> \author  MK
+!> \date    22.08.2003
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE deallocate_molecule_kind_set(molecule_kind_set,error)
-
-!   Purpose: Deallocate a molecule kind set.
-
-!   History: - Creation (22.08.2003,MK)
 
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
@@ -466,6 +467,11 @@ CONTAINS
   END SUBROUTINE deallocate_molecule_kind_set
 
 ! *****************************************************************************
+!> \brief   Get informations about a molecule kind.
+!> \author  MK
+!> \date    27.08.2003
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE get_molecule_kind(molecule_kind,atom_list,bond_list,bend_list,&
                                ub_list,impr_list,onfo_list,colv_list,fixd_list,&
                                g3x3_list,g4x6_list,torsion_list,shell_list,&
@@ -476,10 +482,6 @@ CONTAINS
                                molecule_list,nelectron, bond_kind_set,bend_kind_set,&
                                ub_kind_set,impr_kind_set,onfo_kind_set,torsion_kind_set,&
                                molname_generated)
-
-!   Purpose: Get informations about a molecule kind.
-
-!   History: - Creation (27.08.2003,MK)
 
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(atom_type), DIMENSION(:), &
@@ -618,13 +620,14 @@ CONTAINS
   END SUBROUTINE get_molecule_kind
 
 ! *****************************************************************************
+!> \brief   Get informations about a molecule kind set.
+!> \author  MK
+!> \date    27.08.2003
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE get_molecule_kind_set(molecule_kind_set,maxatom,natom,&
                                    nbond,nbend,nub,ntorsion,nimpr,nonfo,&
                                    nconstraint,nmolecule,nrestraints)
-
-!   Purpose: Get informations about a molecule kind set.
-
-!   History: - Creation (27.08.2003,MK)
 
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
@@ -702,11 +705,12 @@ CONTAINS
   END SUBROUTINE get_molecule_kind_set
 
 ! *****************************************************************************
+!> \brief   Read a molecule kind data set from the input file.
+!> \author  MI
+!> \date    22.11.2004
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE num_ao_el_per_molecule(molecule_kind_set,charge_x_mol)
-
-!   Purpose: Read a molecule kind data set from the input file.
-
-!   History: - Creation (22.11.2004,MI)
 
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
@@ -777,7 +781,12 @@ CONTAINS
   END SUBROUTINE num_ao_el_per_molecule
 
 ! *****************************************************************************
-  SUBROUTINE set_molecule_kind(molecule_kind,name,mass,charge,kind_number,&
+!> \brief   Set the components of a molecule kind.
+!> \author  MK
+!> \date    27.08.2003
+!> \version 1.0
+! *****************************************************************************
+ SUBROUTINE set_molecule_kind(molecule_kind,name,mass,charge,kind_number,&
                                molecule_list,atom_list,nbond,bond_list,&
                                nbend,bend_list,nub,ub_list,nimpr,impr_list,&
                                nonfo,onfo_list,ntorsion,torsion_list,fixd_list,&
@@ -787,10 +796,6 @@ CONTAINS
                                bond_kind_set,bend_kind_set,ub_kind_set,&
                                torsion_kind_set,impr_kind_set,onfo_kind_set,&
                                nelectron,nsgf,molname_generated)
-
-!   Purpose: Set the components of a molecule kind.
-
-!   History: - Creation (27.08.2003,MK)
 
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: name
@@ -917,12 +922,12 @@ CONTAINS
   END SUBROUTINE set_molecule_kind
 
 ! *****************************************************************************
+!> \brief   Write a molecule kind data set to the output unit.
+!> \author  MK
+!> \date    24.09.2003
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE write_molecule_kind(molecule_kind,output_unit,error)
-
-!   Purpose: Write a molecule kind data set to the output unit.
-
-!   History: - Creation (24.09.2003,MK)
-
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     INTEGER, INTENT(in)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -999,12 +1004,12 @@ CONTAINS
   END SUBROUTINE write_molecule_kind
 
 ! *****************************************************************************
+!> \brief   Write a moleculeatomic kind set data set to the output unit.
+!> \author  MK
+!> \date    24.09.2003
+!> \version 1.0
+! *****************************************************************************
   SUBROUTINE write_molecule_kind_set(molecule_kind_set,subsys_section,error)
-
-!   Purpose: Write a moleculeatomic kind set data set to the output unit.
-
-!   History: - Creation (24.09.2003,MK)
-
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(section_vals_type), POINTER         :: subsys_section
