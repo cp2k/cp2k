@@ -3,6 +3,7 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
+! *****************************************************************************
 !> \brief   Add the DFT+U contribution to the Hamiltonian matrix
 !> \details The implemented methods refers to:\n
 !>          S. L. Dudarev, D. Nguyen Manh, and A. P. Sutton,
@@ -52,6 +53,7 @@ MODULE dft_plus_u
 
 CONTAINS
 
+! *****************************************************************************
 !> \brief         Add the DFT+U contribution to the Hamiltonian matrix.\n
 !>                Wrapper routine for all "+U" methods
 !> \param[in]     qs_env Quickstep environment
@@ -90,6 +92,7 @@ CONTAINS
 
   END SUBROUTINE plus_u
 
+! *****************************************************************************
 !> \brief         Add a DFT+U contribution to the Hamiltonian matrix\n
 !>                using a method based on Mulliken charges
 !>                \f[q_\mu = \sum_\nu P_{\mu\nu} S_{\nu\mu}\f]

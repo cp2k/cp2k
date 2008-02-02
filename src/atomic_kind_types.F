@@ -166,6 +166,7 @@ MODULE atomic_kind_types
 
 CONTAINS
 
+! *****************************************************************************
 !> \brief   Constructor routine for a set of atomic kinds
 !> \author  Matthias Krack (MK)
 !> \date    02.01.2002
@@ -231,6 +232,7 @@ CONTAINS
 
   END SUBROUTINE allocate_atomic_kind_set
 
+! *****************************************************************************
 !> \brief   Destructor routine for a set of atomic kinds
 !> \author  Matthias Krack (MK)
 !> \date    02.01.2002

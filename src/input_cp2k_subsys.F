@@ -1595,6 +1595,7 @@ CONTAINS
     END IF
   END SUBROUTINE connectivity_framework
 
+! *****************************************************************************
 !> \brief      Create CP2K input section for the DFT+U method parameters
 !> \author     Matthias Krack (MK)
 !> \date       01.11.2007
