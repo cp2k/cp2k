@@ -22,12 +22,12 @@ MODULE cp_lbfgs_geo
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE gopt_f_methods,                  ONLY: print_geo_opt_header,&
+  USE gopt_f_methods,                  ONLY: geo_opt_io,&
+                                             print_geo_opt_header,&
                                              print_geo_opt_nc,&
                                              write_final_info
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
-  USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: external_control
@@ -109,8 +109,9 @@ CONTAINS
              CALL cp_opt_gopt_stop(optimizer, error=error)
              EXIT
           END IF
-          CALL write_restart(force_env=force_env,root_section=root_section,&
-               force_env_section=force_env_section,error=error)
+          ! Some IO
+          CALL geo_opt_io(force_env=force_env, root_section=root_section, force_env_section=force_env_section,&
+               motion_section=gopt_env%motion_section, its=its, opt_energy=optimizer%f, error=error)
           IF (its==gopt_param%max_iter) EXIT
        END DO
 

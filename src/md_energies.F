@@ -79,7 +79,8 @@ MODULE md_energies
             md_energy,&
             md_ener_reftraj,&
             md_write_output,&
-            get_output_format
+            get_output_format,&
+            write_stress_tensor
 
 CONTAINS
 
@@ -283,7 +284,7 @@ END SUBROUTINE  md_ener_reftraj
                                                 title
     INTEGER :: box, cocrd, cofrc, covel, crd, delta_t, ene, ener_mix, frc, &
       handle, i, iskip, iw, nat, nkind, nshell, outformat, shcrd, shene, &
-      shfrc, shvel, str, tempkind, tempshellkind, trsl, vel
+      shfrc, shvel, tempkind, tempshellkind, trsl, vel
     INTEGER, POINTER                         :: itimes
     LOGICAL :: failure, init, init_coforce, init_cotraj, init_covel, &
       init_force, init_shforce, init_shtraj, init_shvel, init_traj, init_vel, &
@@ -661,13 +662,6 @@ END SUBROUTINE  md_ener_reftraj
             extension=my_ext, file_position=my_pos, file_action=my_act,&
             file_form=my_form, middle_name="force", is_new_file=init_force,&
             error=error)
-       IF( virial % pv_availability ) THEN
-         str = cp_print_key_unit_nr(logger,motion_section,"PRINT%STRESS",&
-              extension=".stress", file_position=my_pos, file_action=my_act,&
-              file_form="FORMATTED", error=error)
-       ELSE
-         str = 0
-       END IF
        IF(shell_present) THEN
          CALL force_env_get(force_env,harmonic_shell=harm_shell,error=error)
          shene=cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%SHELL_ENERGY",&
@@ -780,9 +774,9 @@ END SUBROUTINE  md_ener_reftraj
                outformat,"POS",title,cell)
           CALL m_flush(crd)
        END IF
-       !------------------
+       !--------------------------------------------------
        ! Print Simulation Cell (only if constant pressure)
-       !------------------
+       !--------------------------------------------------
        IF ( box > 0 ) THEN
           WRITE(UNIT=box,FMT="(I8, F12.3,10F20.10)") itimes,time*femtoseconds,&
              cell%hmat(1,1)*angstrom,cell%hmat(2,1)*angstrom,cell%hmat(3,1)*angstrom,&
@@ -792,22 +786,11 @@ END SUBROUTINE  md_ener_reftraj
       
           CALL m_flush(box)
        END IF
-       !------------------
-       ! Print the Stress tensor
-       !------------------
-       IF ( str > 0 ) THEN
-          WRITE(UNIT=str,FMT="(I10,F12.3,9F20.10)") itimes,time*femtoseconds,&
-                        virial%pv_total(1,1)/cell%deth*unit%bar,&
-                        virial%pv_total(1,2)/cell%deth*unit%bar,&
-                        virial%pv_total(1,3)/cell%deth*unit%bar,&
-                        virial%pv_total(2,1)/cell%deth*unit%bar,&
-                        virial%pv_total(2,2)/cell%deth*unit%bar,&
-                        virial%pv_total(2,3)/cell%deth*unit%bar,& 
-                        virial%pv_total(3,1)/cell%deth*unit%bar,&
-                        virial%pv_total(3,2)/cell%deth*unit%bar,&
-                        virial%pv_total(3,3)/cell%deth*unit%bar
-          CALL m_flush(str)
-       END IF
+       !--------------------
+       ! Print Stress Tensor
+       !--------------------
+       CALL write_stress_tensor(virial, cell, motion_section, unit, itimes, time*femtoseconds,&
+            my_pos, my_act, error)
        !------------------
        ! Print Velocities
        !------------------
@@ -1113,10 +1096,6 @@ END SUBROUTINE  md_ener_reftraj
            CALL cp_print_key_finished_output(ener_mix,logger,motion_section,&
                 "PRINT%MIXED_ENERGIES", error=error)
        ENDIF
-       IF( virial % pv_availability ) THEN
-         CALL cp_print_key_finished_output(str,logger,motion_section,&
-              "PRINT%STRESS", error=error)
-       END IF
        IF(shell_present) THEN
          CALL cp_print_key_finished_output(shene,logger,motion_section,&
             "MD%PRINT%SHELL_ENERGY", error=error)
@@ -1178,5 +1157,62 @@ END SUBROUTINE  md_ener_reftraj
        my_ext  = ".dcd"
     END IF
   END SUBROUTINE get_output_format
- 
+
+! *****************************************************************************
+!> \brief   Prints the Stress Tensor
+!> \author  Teodoro Laino [tlaino] - University of Zurich
+!> \date    02.2008
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE write_stress_tensor(virial, cell, motion_section, unit, itimes, time, pos, act, error)
+    TYPE(virial_type), POINTER               :: virial
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(section_vals_type), POINTER         :: motion_section
+    TYPE(unit_convert_type), POINTER         :: unit
+    INTEGER, INTENT(IN)                      :: itimes
+    REAL(KIND=dp), INTENT(IN)                :: time
+    CHARACTER(LEN=default_string_length), &
+      INTENT(IN), OPTIONAL                   :: pos, act
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_stress_tensor', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: my_act, my_pos
+    INTEGER                                  :: str
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    
+    IF( virial % pv_availability ) THEN
+      my_pos = "APPEND"
+      my_act = "WRITE"
+      IF (PRESENT(pos)) my_pos = pos
+      IF (PRESENT(act)) my_act = act
+      str = cp_print_key_unit_nr(logger,motion_section,"PRINT%STRESS",&
+           extension=".stress", file_position=my_pos, file_action=my_act,&
+           file_form="FORMATTED", error=error)
+    ELSE
+      str = 0
+    END IF
+    IF ( str > 0 ) THEN
+       WRITE(UNIT=str,FMT="(I10,F12.3,9F20.10)") itimes,time,&
+                     virial%pv_total(1,1)/cell%deth*unit%bar,&
+                     virial%pv_total(1,2)/cell%deth*unit%bar,&
+                     virial%pv_total(1,3)/cell%deth*unit%bar,&
+                     virial%pv_total(2,1)/cell%deth*unit%bar,&
+                     virial%pv_total(2,2)/cell%deth*unit%bar,&
+                     virial%pv_total(2,3)/cell%deth*unit%bar,& 
+                     virial%pv_total(3,1)/cell%deth*unit%bar,&
+                     virial%pv_total(3,2)/cell%deth*unit%bar,&
+                     virial%pv_total(3,3)/cell%deth*unit%bar
+       CALL m_flush(str)
+    END IF
+    IF( virial % pv_availability ) THEN
+      CALL cp_print_key_finished_output(str,logger,motion_section,&
+           "PRINT%STRESS", error=error)
+    END IF
+  END SUBROUTINE write_stress_tensor
+
 END MODULE md_energies

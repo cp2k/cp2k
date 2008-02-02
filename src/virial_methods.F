@@ -62,7 +62,7 @@ SUBROUTINE virial_evaluate ( atomic_kind_set, particle_set, &
 
    IF ( virial % pv_availability ) THEN
 
-     CALL timeset ( 'PRESSURE', 'E', 'Mflops', handle )
+     CALL timeset (routineN, 'E', 'Mflops', handle )
 
      NULLIFY(atomic_kind)
      mfl = 0.0_dp

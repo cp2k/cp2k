@@ -51,8 +51,7 @@ MODULE cp_lbfgs_optimizer_gopt
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_type
   USE gopt_f_methods,                  ONLY: check_converg,&
-                                             write_cycle_infos,&
-                                             write_geo_traj
+                                             write_cycle_infos
   USE gopt_f_types,                    ONLY: gopt_f_release,&
                                              gopt_f_retain,&
                                              gopt_f_type
@@ -650,8 +649,6 @@ CPSourceFileRef,&
                 CALL cp_iterate(logger%iter_info,iter_nr=optimizer%isave(30),error=error)
                 its = optimizer%isave(30)
              END IF
-             CALL mp_bcast(its,optimizer%master,optimizer%para_env%group)
-             CALL write_geo_traj(force_env, input, its, optimizer%f, error)
           END IF
           !
           SELECT CASE (optimizer%status)

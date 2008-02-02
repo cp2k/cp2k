@@ -10,13 +10,18 @@
 !>      none
 ! *****************************************************************************
 MODULE gopt_f_methods
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
+  USE cp2k_units,                      ONLY: get_cp2k_units,&
+                                             unit_convert_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE dimer_types,                     ONLY: dimer_env_type
+  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
@@ -33,7 +38,8 @@ MODULE gopt_f_methods
                                              dp,&
                                              sp
   USE machine,                         ONLY: m_flush
-  USE md_energies,                     ONLY: get_output_format
+  USE md_energies,                     ONLY: get_output_format,&
+                                             write_stress_tensor
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_coordinates,&
@@ -41,6 +47,8 @@ MODULE gopt_f_methods
   USE qmmm_util,                       ONLY: apply_qmmm_translate
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_methods,                  ONLY: virial_evaluate
+  USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -52,7 +60,7 @@ MODULE gopt_f_methods
 
   PUBLIC :: gopt_f_create_x0, write_cycle_infos, check_converg, write_final_info,&
        write_geo_traj, print_geo_opt_header, check_rot_conv, write_rot_cycle_infos,&
-       print_geo_opt_nc
+       print_geo_opt_nc, geo_opt_io
 
 CONTAINS
 
@@ -158,7 +166,8 @@ CONTAINS
   END SUBROUTINE write_cycle_infos
 
 ! *****************************************************************************
-!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino]
+!> \data  01.2008
 ! *****************************************************************************
   SUBROUTINE write_rot_cycle_infos(output_unit,it,etot,ediff,emin,dimer_env,wildcard)
 
@@ -319,7 +328,8 @@ CONTAINS
   END SUBROUTINE check_converg
 
 ! *****************************************************************************
-!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino]
+!> \data  01.2008
 ! *****************************************************************************
   SUBROUTINE check_rot_conv(dimer_env, output_unit, conv, error)
 
@@ -362,7 +372,8 @@ CONTAINS
   END SUBROUTINE check_rot_conv
 
 ! *****************************************************************************
-!> \author Teodoro Laino [tlaino] - University of Zurich - 11.2007
+!> \author Teodoro Laino [tlaino] - University of Zurich 
+!> \data  11.2007
 ! *****************************************************************************
   SUBROUTINE write_final_info(conv, it, gopt_env, x0, master, para_env, force_env,&
     motion_section, root_section, force_env_section, error)
@@ -413,7 +424,8 @@ CONTAINS
   END SUBROUTINE write_final_info
 
 ! *****************************************************************************
-!> \author Teodoro Laino [tlaino] - University of Zurich - 11.2007
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \data  11.2007
 ! *****************************************************************************
   SUBROUTINE write_geo_traj(force_env,  root_section, it, etot, error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -482,7 +494,8 @@ CONTAINS
   END SUBROUTINE write_geo_traj
 
 ! *****************************************************************************
-!> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \data  01.2008
 ! *****************************************************************************
   SUBROUTINE print_geo_opt_header(gopt_env, output_unit, label)
     TYPE(gopt_f_type), POINTER               :: gopt_env
@@ -519,7 +532,8 @@ CONTAINS
   END SUBROUTINE print_geo_opt_header
 
 ! *****************************************************************************
-!> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
+!> \author Teodoro Laino [tlaino] - University of Zurich 
+!> \data  01.2008
 ! *****************************************************************************
   SUBROUTINE print_geo_opt_nc(gopt_env,output_unit)
     TYPE(gopt_f_type), POINTER               :: gopt_env
@@ -538,5 +552,61 @@ CONTAINS
        CALL m_flush(output_unit)
     END IF
   END SUBROUTINE print_geo_opt_nc
+
+! *****************************************************************************
+!> \brief   Prints information during GEO_OPT common to all optimizers
+!> \author  Teodoro Laino [tlaino] - University of Zurich
+!> \date    02.2008
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE geo_opt_io(force_env, root_section, force_env_section, motion_section, its, opt_energy, error)
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(section_vals_type), POINTER         :: root_section, &
+                                                force_env_section, &
+                                                motion_section
+    INTEGER, INTENT(IN)                      :: its
+    REAL(KIND=dp), INTENT(IN)                :: opt_energy
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'geo_opt_io', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_subsys_type), POINTER            :: subsys
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(unit_convert_type), POINTER         :: unit
+    TYPE(virial_type), POINTER               :: virial
+
+    failure = .FALSE.
+    NULLIFY(unit, para_env, atomic_kind_set, subsys, particle_set, local_particles,&
+            atomic_kinds, particles)
+    CALL get_cp2k_units(unit)
+
+    ! Write Restart File
+    CALL write_restart(force_env=force_env,root_section=root_section,&
+         force_env_section=force_env_section,error=error)
+
+    ! Write Trajectory
+    CALL write_geo_traj(force_env,  root_section, its, opt_energy, error)
+
+    ! Write the stress Tensor
+    CALL force_env_get(force_env, cell=cell, virial=virial, para_env=para_env, &
+         subsys=subsys, error=error)
+    CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,local_particles=local_particles,&
+         particles=particles, error=error)
+    atomic_kind_set => atomic_kinds%els
+    particle_set => particles%els
+    CALL virial_evaluate(atomic_kind_set, particle_set,  local_particles, &
+         virial, para_env%group, error=error)
+    CALL write_stress_tensor(virial, cell, motion_section, unit, its, 0.0_dp, error=error)
+  END SUBROUTINE geo_opt_io
 
 END MODULE gopt_f_methods

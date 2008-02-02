@@ -67,8 +67,7 @@ MODULE cp_lbfgs_optimizer_[nametype1]
   USE machine,                         ONLY: m_flush
   USE gopt_param_types,                    ONLY: gopt_param_type
   USE gopt_f_methods,                    ONLY: write_cycle_infos,&
-                                             check_converg,&
-                                             write_geo_traj
+                                             check_converg
   USE particle_list_types,             ONLY: particle_list_type
 #include "cp_common_uses.h"
   [USE]
@@ -656,8 +655,6 @@ CPSourceFileRef,&
                 CALL cp_iterate(logger%iter_info,iter_nr=optimizer%isave(30),error=error)
                 its = optimizer%isave(30)
              END IF
-             CALL mp_bcast(its,optimizer%master,optimizer%para_env%group)
-             CALL write_geo_traj(force_env, input, its, optimizer%f, error)
           END IF
           !
           SELECT CASE (optimizer%status)

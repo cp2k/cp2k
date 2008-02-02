@@ -24,11 +24,11 @@ MODULE cg_optimizer
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_methods,                  ONLY: check_converg,&
                                              check_rot_conv,&
+                                             geo_opt_io,&
                                              print_geo_opt_header,&
                                              print_geo_opt_nc,&
                                              write_cycle_infos,&
                                              write_final_info,&
-                                             write_geo_traj,&
                                              write_rot_cycle_infos
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
@@ -198,11 +198,10 @@ CONTAINS
           
           ! Some IO and Convergence check
           IF (.NOT.gopt_env%dimer_rotation) THEN
-             CALL write_restart(force_env=force_env,root_section=root_section,&
-                  force_env_section=force_env_section,error=error)
+             CALL geo_opt_io(force_env=force_env, root_section=root_section, force_env_section=force_env_section,&
+                  motion_section=gopt_env%motion_section, its=its, opt_energy=opt_energy, error=error)
              CALL write_cycle_infos(output_unit,its,opt_energy,opt_energy-eold,emin=emin, wildcard=wildcard)
              CALL check_converg(SIZE(x0),x0-xold,xi,output_unit,conv,gopt_param)
-             CALL write_geo_traj(force_env,  root_section, its, opt_energy, error)
           ELSE
              CALL update_dimer_vec(gopt_env%dimer_env, motion_section, error)
              CALL write_restart(force_env=force_env,root_section=root_section,&

@@ -22,14 +22,13 @@ MODULE bfgs_optimizer
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_methods,                  ONLY: check_converg,&
+                                             geo_opt_io,&
                                              print_geo_opt_header,&
                                              print_geo_opt_nc,&
                                              write_cycle_infos,&
-                                             write_final_info,&
-                                             write_geo_traj
+                                             write_final_info
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
-  USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
@@ -199,9 +198,8 @@ CONTAINS
        ! check for an external exit command
        CALL external_control(should_stop,"GEO",globenv,error)
        IF(should_stop) EXIT
-       CALL write_restart(force_env=force_env,root_section=root_section,&
-            force_env_section=force_env_section,error=error)
-       CALL write_geo_traj(force_env,  root_section, its, etot, error)
+       CALL geo_opt_io(force_env=force_env, root_section=root_section, force_env_section=force_env_section,&
+            motion_section=gopt_env%motion_section, its=its, opt_energy=etot, error=error)
 
        IF ( output_unit > 0) THEN
           WRITE(UNIT=output_unit,FMT="(/,T2,26('-'))")
