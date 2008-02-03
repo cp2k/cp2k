@@ -67,3 +67,5 @@ hf_z.inp
 NO2-ROKS.inp
 #  
 NO2-ROKS.inp
+# switching to analytical gradients.. 
+h2o_meta.inp

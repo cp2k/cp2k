@@ -19,6 +19,8 @@ MODULE semi_empirical_int_ana
                                              do_method_pm3,&
                                              do_method_pm6
   USE kinds,                           ONLY: dp
+  USE physcon,                         ONLY: angstrom,&
+                                             evolt
   USE semi_empirical_integrals,        ONLY: &
        al, drotint, drotnuc, nucint, r0, rotint, rotnuc, taper, &
        taper_fn_init, terep
@@ -78,10 +80,10 @@ CONTAINS
                                                 l_enuc, lgrad, si, sj
     REAL(dp) :: a, aab, alpi, alpj, apdg, ax, cppp1, cppp2, cpps1, cpps2, &
       csp1, csp2, css1, css2, dai, daj, dax, dbi, dbj, delta, denuc_loc, &
-      dqcorr, dscale, dssss, dzz, enuc2, enuc_loc, pai, paj, pbi, pbj, qcorr, &
-      rij, scale, ssss, xab, xtmp, xx11, xx21, xx22, xx31, xx32, xx33, yy11, &
-      yy21, yy22, yyzz11, yyzz21, yyzz22, zaf, zbf, zz, zz11, zz21, zz22, &
-      zz31, zz32, zz33
+      dqcorr, drija, dscale, dssss, dzz, enuc2, enuc_loc, pai, paj, pbi, pbj, &
+      qcorr, rij, rija, scale, ssss, tmp, xab, xtmp, xx11, xx21, xx22, xx31, &
+      xx32, xx33, yy11, yy21, yy22, yyzz11, yyzz21, yyzz22, zaf, zbf, zz, &
+      zz11, zz21, zz22, zz31, zz32, zz33
     REAL(dp), DIMENSION(3) :: da, dcppp1, dcppp2, dcpps1, dcpps2, dcsp1, &
       dcsp2, dcss1, dcss2, drij, dx1, dx2, dx3, dxx11, dxx21, dxx22, dxx31, &
       dxx32, dxx33, dyy11, dyy21, dyy22, dyyzz11, dyyzz21, dyyzz22, dzz11, &
@@ -305,180 +307,218 @@ CONTAINS
        ! Specifically for nuclear interaction
        ! ------------------------------------ 
        IF (l_enuc.OR.l_denuc) THEN
+          ! Zeroing local method dependent core-core corrections
+          qcorr = 0.0_dp
+          scale = 0.0_dp
+          dscale= 0.0_dp
+          dqcorr= 0.0_dp
+          ! Method dependent code
           IF(itype /= do_method_pm6) THEN
-            alpi = sepi%alp
-            alpj = sepj%alp
-            scale = EXP(-alpi*rij)+EXP(-alpj*rij)
-            IF (l_denuc) THEN
-               dscale= -alpi* EXP(-alpi*rij)-alpj*EXP(-alpj*rij)
-            END IF
-            nt=sepi%z+sepj%z
-            IF(nt == 8 .OR. nt == 9) THEN
-               IF(sepi%z == 7.OR.sepi%z == 8) THEN
-                  scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpi*rij)
-                  IF (l_denuc) THEN
-                     dscale=dscale+0.5291772083_dp*EXP(-alpi*rij)-&
-                          (0.5291772083_dp*rij-1._dp)*alpi*EXP(-alpi*rij)
-                  END IF
-               END IF
-               IF(sepj%z == 7.OR.sepj%z == 8) THEN
-                  scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpj*rij)
-                  IF (l_denuc) THEN
-                     dscale=dscale+0.5291772083_dp*EXP(-alpj*rij)-&
-                          (0.5291772083_dp*rij-1._dp)*alpj*EXP(-alpj*rij)
-                  END IF
-               END IF
-            ENDIF
-            zz = sepi%zeff*sepj%zeff
-            enuc_loc = zz*ssss
-            IF (l_denuc) THEN
-               denuc_loc= zz*dssss
-               dscale=SIGN(1.0_dp,scale*enuc_loc)*(dscale*enuc_loc+scale*denuc_loc)
-               dzz=-zz/rij**2
-            END IF
-            scale=ABS(scale*enuc_loc)
-            zz=zz/rij
-            IF(itype == do_method_am1 .OR. itype == do_method_pm3 .OR. itype == do_method_pdg) THEN
-               IF(itype == do_method_am1 .AND. sepi%z == 5) THEN
-                  !special case AM1 Boron
-                  SELECT CASE (sepj%z)
-                  CASE DEFAULT
-                     nt=1
-                  CASE (1)
-                     nt=2
-                  CASE (6)
-                     nt=3
-                  CASE (9,17,35,53)
-                     nt=4
-                  END SELECT
-                  fni1(:) = sepi%bfn1(:,nt)
-                  fni2(:) = sepi%bfn2(:,nt)
-                  fni3(:) = sepi%bfn3(:,nt)
-               ELSE
-                  fni1(:) = sepi%fn1(:)
-                  fni2(:) = sepi%fn2(:)
-                  fni3(:) = sepi%fn3(:)
-               END IF
-               IF(itype == do_method_am1 .AND. sepj%z == 5) THEN
-                  !special case AM1 Boron
-                  SELECT CASE (sepi%z)
-                  CASE DEFAULT
-                     nt=1
-                  CASE (1)
-                     nt=2
-                  CASE (6)
-                     nt=3
-                  CASE (9,17,35,53)
-                     nt=4
-                  END SELECT
-                  fnj1(:) = sepj%bfn1(:,nt)
-                  fnj2(:) = sepj%bfn2(:,nt)
-                  fnj3(:) = sepj%bfn3(:,nt)
-               ELSE
-                  fnj1(:) = sepj%fn1(:)
-                  fnj2(:) = sepj%fn2(:)
-                  fnj3(:) = sepj%fn3(:)
-               END IF
-               ! AM1/PM3/PDG correction to nuclear repulsion
-               DO ig=1,SIZE(fni1)
-                  IF(ABS(fni1(ig)) > 0._dp) THEN
-                     ax = fni2(ig)*(rij-fni3(ig))**2
-                     IF(ax <= 25._dp) THEN
-                        scale=scale +zz*fni1(ig)*EXP(-ax)
-                        IF (l_denuc) THEN
-                           dax = fni2(ig)*2.0_dp*(rij-fni3(ig))
-                           dscale = dscale + dzz*fni1(ig)*EXP(-ax)-dax*zz*fni1(ig)*EXP(-ax)
-                        END IF
-                     ENDIF
-                  ENDIF
-                  IF(ABS(fnj1(ig)) > 0._dp) THEN
-                     ax = fnj2(ig)*(rij-fnj3(ig))**2
-                     IF(ax <= 25._dp) THEN
-                        scale=scale +zz*fnj1(ig)*EXP(-ax)
-                        IF (l_denuc) THEN
-                           dax = fnj2(ig)*2.0_dp*(rij-fnj3(ig))
-                           dscale = dscale + dzz*fnj1(ig)*EXP(-ax)-dax*zz*fnj1(ig)*EXP(-ax)
-                        END IF
-                     ENDIF
-                  ENDIF
-               END DO
-            ENDIF
-            IF(itype == do_method_pdg) THEN
-               ! PDDG function 
-               zaf=sepi%zeff/nt
-               zbf=sepj%zeff/nt
-               pai=sepi%pre(1)
-               pbi=sepi%pre(2)
-               paj=sepj%pre(1)
-               pbj=sepj%pre(2)
-               dai=sepi%d(1)
-               dbi=sepi%d(2)
-               daj=sepj%d(1)
-               dbj=sepj%d(2)
-               apdg=10._dp*0.5291772083_dp*0.5291772083_dp
-               qcorr = (zaf*pai+zbf*paj)*EXP(-apdg*(rij-dai-daj)**2)+ &
-                       (zaf*pai+zbf*pbj)*EXP(-apdg*(rij-dai-dbj)**2)+ &
-                       (zaf*pbi+zbf*paj)*EXP(-apdg*(rij-dbi-daj)**2)+ &
-                       (zaf*pbi+zbf*pbj)*EXP(-apdg*(rij-dbi-dbj)**2)
-               IF (l_denuc) THEN
-                  dqcorr = (zaf*pai+zbf*paj)*EXP(-apdg*(rij-dai-daj)**2)*(-2.0_dp*apdg*(rij-dai-daj))+ &
-                           (zaf*pai+zbf*pbj)*EXP(-apdg*(rij-dai-dbj)**2)*(-2.0_dp*apdg*(rij-dai-dbj))+ &
-                           (zaf*pbi+zbf*paj)*EXP(-apdg*(rij-dbi-daj)**2)*(-2.0_dp*apdg*(rij-dbi-daj))+ &
-                           (zaf*pbi+zbf*pbj)*EXP(-apdg*(rij-dbi-dbj)**2)*(-2.0_dp*apdg*(rij-dbi-dbj))
-               END IF
-            ELSEIF (itype==do_method_pchg) THEN
-               qcorr = 0.0_dp
-               scale = 0.0_dp
-               dscale= 0.0_dp
-               dqcorr= 0.0_dp
-            ELSE
-               qcorr = 0.0_dp
-               dqcorr= 0.0_dp
-            END IF
-            IF (l_enuc) THEN
-               enuc=enuc_loc+scale+qcorr
-            END IF
-            IF (l_denuc) THEN
-               denuc = (denuc_loc + dscale + dqcorr)*drij
-               IF (invert) THEN
-                  xtmp=denuc(2)
-                  denuc(2)=denuc(3)
-                  denuc(3)=xtmp
-               END IF
-            END IF
+             alpi = sepi%alp
+             alpj = sepj%alp
+             scale = EXP(-alpi*rij)+EXP(-alpj*rij)
+             IF (l_denuc) THEN
+                dscale= -alpi* EXP(-alpi*rij)-alpj*EXP(-alpj*rij)
+             END IF
+             nt=sepi%z+sepj%z
+             IF(nt == 8 .OR. nt == 9) THEN
+                IF(sepi%z == 7.OR.sepi%z == 8) THEN
+                   scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpi*rij)
+                   IF (l_denuc) THEN
+                      dscale=dscale+0.5291772083_dp*EXP(-alpi*rij)-&
+                           (0.5291772083_dp*rij-1._dp)*alpi*EXP(-alpi*rij)
+                   END IF
+                END IF
+                IF(sepj%z == 7.OR.sepj%z == 8) THEN
+                   scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpj*rij)
+                   IF (l_denuc) THEN
+                      dscale=dscale+0.5291772083_dp*EXP(-alpj*rij)-&
+                           (0.5291772083_dp*rij-1._dp)*alpj*EXP(-alpj*rij)
+                   END IF
+                END IF
+             ENDIF
+             zz = sepi%zeff*sepj%zeff
+             enuc_loc = zz*ssss
+             IF (l_denuc) THEN
+                denuc_loc= zz*dssss
+                dscale=SIGN(1.0_dp,scale*enuc_loc)*(dscale*enuc_loc+scale*denuc_loc)
+                dzz=-zz/rij**2
+             END IF
+             scale=ABS(scale*enuc_loc)
+             zz=zz/rij
+             IF(itype == do_method_am1 .OR. itype == do_method_pm3 .OR. itype == do_method_pdg) THEN
+                IF(itype == do_method_am1 .AND. sepi%z == 5) THEN
+                   !special case AM1 Boron
+                   SELECT CASE (sepj%z)
+                   CASE DEFAULT
+                      nt=1
+                   CASE (1)
+                      nt=2
+                   CASE (6)
+                      nt=3
+                   CASE (9,17,35,53)
+                      nt=4
+                   END SELECT
+                   fni1(:) = sepi%bfn1(:,nt)
+                   fni2(:) = sepi%bfn2(:,nt)
+                   fni3(:) = sepi%bfn3(:,nt)
+                ELSE
+                   fni1(:) = sepi%fn1(:)
+                   fni2(:) = sepi%fn2(:)
+                   fni3(:) = sepi%fn3(:)
+                END IF
+                IF(itype == do_method_am1 .AND. sepj%z == 5) THEN
+                   !special case AM1 Boron
+                   SELECT CASE (sepi%z)
+                   CASE DEFAULT
+                      nt=1
+                   CASE (1)
+                      nt=2
+                   CASE (6)
+                      nt=3
+                   CASE (9,17,35,53)
+                      nt=4
+                   END SELECT
+                   fnj1(:) = sepj%bfn1(:,nt)
+                   fnj2(:) = sepj%bfn2(:,nt)
+                   fnj3(:) = sepj%bfn3(:,nt)
+                ELSE
+                   fnj1(:) = sepj%fn1(:)
+                   fnj2(:) = sepj%fn2(:)
+                   fnj3(:) = sepj%fn3(:)
+                END IF
+                ! AM1/PM3/PDG correction to nuclear repulsion
+                DO ig=1,SIZE(fni1)
+                   IF(ABS(fni1(ig)) > 0._dp) THEN
+                      ax = fni2(ig)*(rij-fni3(ig))**2
+                      IF(ax <= 25._dp) THEN
+                         scale=scale +zz*fni1(ig)*EXP(-ax)
+                         IF (l_denuc) THEN
+                            dax = fni2(ig)*2.0_dp*(rij-fni3(ig))
+                            dscale = dscale + dzz*fni1(ig)*EXP(-ax)-dax*zz*fni1(ig)*EXP(-ax)
+                         END IF
+                      ENDIF
+                   ENDIF
+                   IF(ABS(fnj1(ig)) > 0._dp) THEN
+                      ax = fnj2(ig)*(rij-fnj3(ig))**2
+                      IF(ax <= 25._dp) THEN
+                         scale=scale +zz*fnj1(ig)*EXP(-ax)
+                         IF (l_denuc) THEN
+                            dax = fnj2(ig)*2.0_dp*(rij-fnj3(ig))
+                            dscale = dscale + dzz*fnj1(ig)*EXP(-ax)-dax*zz*fnj1(ig)*EXP(-ax)
+                         END IF
+                      ENDIF
+                   ENDIF
+                END DO
+             ENDIF
+             IF(itype == do_method_pdg) THEN
+                ! PDDG function 
+                zaf=sepi%zeff/nt
+                zbf=sepj%zeff/nt
+                pai=sepi%pre(1)
+                pbi=sepi%pre(2)
+                paj=sepj%pre(1)
+                pbj=sepj%pre(2)
+                dai=sepi%d(1)
+                dbi=sepi%d(2)
+                daj=sepj%d(1)
+                dbj=sepj%d(2)
+                apdg=10._dp*0.5291772083_dp*0.5291772083_dp
+                qcorr = (zaf*pai+zbf*paj)*EXP(-apdg*(rij-dai-daj)**2)+ &
+                        (zaf*pai+zbf*pbj)*EXP(-apdg*(rij-dai-dbj)**2)+ &
+                        (zaf*pbi+zbf*paj)*EXP(-apdg*(rij-dbi-daj)**2)+ &
+                        (zaf*pbi+zbf*pbj)*EXP(-apdg*(rij-dbi-dbj)**2)
+                IF (l_denuc) THEN
+                   dqcorr = (zaf*pai+zbf*paj)*EXP(-apdg*(rij-dai-daj)**2)*(-2.0_dp*apdg*(rij-dai-daj))+ &
+                            (zaf*pai+zbf*pbj)*EXP(-apdg*(rij-dai-dbj)**2)*(-2.0_dp*apdg*(rij-dai-dbj))+ &
+                            (zaf*pbi+zbf*paj)*EXP(-apdg*(rij-dbi-daj)**2)*(-2.0_dp*apdg*(rij-dbi-daj))+ &
+                            (zaf*pbi+zbf*pbj)*EXP(-apdg*(rij-dbi-dbj)**2)*(-2.0_dp*apdg*(rij-dbi-dbj))
+                END IF
+             ELSEIF (itype==do_method_pchg) THEN
+                qcorr = 0.0_dp
+                scale = 0.0_dp
+                dscale= 0.0_dp
+                dqcorr= 0.0_dp
+             ELSE
+                qcorr = 0.0_dp
+                dqcorr= 0.0_dp
+             END IF
           ELSE
-            !PM6 core-core function
-!
-! CHECK UNITS of FIXED PARAMETERS!!!!!!!!!!!
-!
-! Derivatives still missing
-   
-           STOP "PM6 analytic integrals"
-!
-           ! PM6 core-core terms
-           xab = sepi%xab(sepj%z)
-           aab = sepi%aab(sepj%z)
-           scale = sepi%zeff*sepj%zeff*ssss
-           IF ( (sepi%z == 1 .AND. (sepj%z == 7 .OR. sepj%z == 8)) .OR. &
-                (sepj%z == 1 .AND. (sepi%z == 7 .OR. sepi%z == 8)) ) THEN
-             ! Special Case O-H or N-H
-             IF (l_enuc) enuc=enuc+scale*(1._dp+xab*EXP(-aab*rij*rij))
-           ELSEIF ( sepi%z == 6 .AND. sepj%z == 6 ) THEN
-             ! Special Case C-C
-              IF (l_enuc) enuc=enuc+scale*(1._dp+xab*EXP(-(aab*rij+0.0003_dp*rij**6))+9.28_dp*EXP(-5.98*rij))
-           ELSEIF ( (sepi%z == 8 .AND. sepj%z == 14) .OR. &
-                    (sepj%z == 8 .AND. sepi%z == 14) ) THEN
-             ! Special Case Si-O
-              IF (l_enuc) enuc=enuc+scale*(1._dp+xab*EXP(-(aab*rij+0.0003_dp*rij**6)) &
-                                   -0.0007_dp*EXP(-(rij-2.9_dp)**2) )
-           ELSE
-             ! General Case
-              IF (l_enuc) enuc=enuc+scale*(1._dp+xab*EXP(-(aab*rij+0.0003_dp*rij**6)))
-           END IF 
-           ! Hard core repulsion
-            IF (l_enuc) enuc=enuc+1.e-8_dp*( (sepi%zeff**(1._dp/3._dp) + sepj%zeff**(1._dp/3._dp))/rij )**12
-
+             ! PM6 core-core terms
+             drija  = angstrom
+             rija   = rij*drija
+             xab    = sepi%xab(sepj%z)
+             aab    = sepi%aab(sepj%z)
+             scale  = sepi%zeff*sepj%zeff*ssss
+             dscale = sepi%zeff*sepj%zeff*dssss
+             IF ( (sepi%z == 1 .AND. (sepj%z == 6 .OR. sepj%z == 7 .OR. sepj%z == 8)) .OR. &
+                  (sepj%z == 1 .AND. (sepi%z == 6 .OR. sepi%z == 7 .OR. sepi%z == 8)) ) THEN
+                ! Special Case O-H or N-H or C-H
+                enuc_loc=scale*(1._dp+2._dp*xab*EXP(-aab*rija*rija))
+                IF (l_denuc) THEN
+                   denuc_loc = dscale*(1._dp+2._dp*xab*EXP(-aab*rija*rija))-&
+                        scale*2._dp*xab*EXP(-aab*rija*rija)*(2.0_dp*aab*rija)*drija
+                END IF
+             ELSEIF ( sepi%z == 6 .AND. sepj%z == 6 ) THEN
+                ! Special Case C-C
+                enuc_loc=scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))+9.28_dp*EXP(-5.98*rija))
+                IF (l_denuc) THEN
+                   denuc_loc = dscale * (1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))+9.28_dp*EXP(-5.98*rija))&
+                        -scale*2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))*(aab+6.0_dp*0.0003_dp*rija**5)*drija &
+                        -scale*9.28_dp*EXP(-5.98*rija)*5.98_dp*drija
+                END IF
+             ELSEIF ( (sepi%z == 8 .AND. sepj%z == 14) .OR. &
+                  (sepj%z == 8 .AND. sepi%z == 14) ) THEN
+                ! Special Case Si-O
+                enuc_loc=scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))-0.0007_dp*EXP(-(rija-2.9_dp)**2))
+                IF (l_denuc) THEN
+                   denuc_loc = dscale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))-0.0007_dp*EXP(-(rija-2.9_dp)**2))&
+                        -scale*2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))*(aab+6.0_dp*0.0003_dp*rija**5)*drija+&
+                        scale*0.0007_dp*EXP(-(rija-2.9_dp)**2)*(2.0_dp*(rija-2.9_dp)*drija)
+                END IF
+             ELSE
+                ! General Case
+                ! Factor of 2 found by experiment 
+                enuc_loc=scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)))
+                IF (l_denuc) THEN
+                   denuc_loc = dscale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)))&
+                        -scale*2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))*(aab+6.0_dp*0.0003_dp*rija**5)*drija
+                END IF
+             END IF
+             ! General correction term a*exp(-b*(rij-c)^2)
+             enuc_loc=enuc_loc+(sepi%a*EXP(-sepi%b*(rij-sepi%c)**2))*sepi%zeff*sepj%zeff/rij
+             IF (l_denuc) THEN
+                denuc_loc=denuc_loc+(sepi%a*EXP(-sepi%b*(rij-sepi%c)**2)*(-2.0_dp*sepi%b*(rij-sepi%c)))&
+                     *sepi%zeff*sepj%zeff/rij-(sepi%a*EXP(-sepi%b*(rij-sepi%c)**2))*sepi%zeff*sepj%zeff/rij**2
+             END IF
+             enuc_loc=enuc_loc+(sepj%a*EXP(-sepj%b*(rij-sepj%c)**2))*sepi%zeff*sepj%zeff/rij
+             IF (l_denuc) THEN
+                denuc_loc=denuc_loc+(sepj%a*EXP(-sepj%b*(rij-sepj%c)**2)*(-2.0_dp*sepj%b*(rij-sepj%c)))&
+                     *sepi%zeff*sepj%zeff/rij-(sepj%a*EXP(-sepj%b*(rij-sepj%c)**2))*sepi%zeff*sepj%zeff/rij**2
+             END IF
+             ! Hard core repulsion
+             tmp = 1.e-8_dp/evolt * ( (REAL(sepi%z,dp)**(1._dp/3._dp) + REAL(sepj%z,dp)**(1._dp/3._dp))/rija )**12
+             enuc_loc=enuc_loc+tmp
+             IF (l_denuc) THEN
+                denuc_loc=denuc_loc-12.0_dp*tmp/rija*drija
+             END IF
+             scale  = 0.0_dp
+             dscale = 0.0_dp
           ENDIF
+
+          ! Only at the very end let's sum-up the several contributions energy/derivatives
+          ! This assignment should be method indipendent
+          IF (l_enuc) THEN
+             enuc=enuc_loc+scale+qcorr
+          END IF
+          IF (l_denuc) THEN
+             denuc = (denuc_loc + dscale + dqcorr)*drij
+             IF (invert) THEN
+                xtmp=denuc(2)
+                denuc(2)=denuc(3)
+                denuc(3)=xtmp
+             END IF
+          END IF
        ENDIF
        !
        ! Debug for integral values and derivatives
@@ -514,7 +554,9 @@ CONTAINS
           END IF
           IF (l_enuc) THEN
              IF (ABS(enuc-enuc2)>1.0E-7) THEN
+                WRITE(*,*)"enuc"
                 WRITE(*,*)invert,enuc-enuc2
+                STOP
              END IF
           END IF
           ! Check derivatives

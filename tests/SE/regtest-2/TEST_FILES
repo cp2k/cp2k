@@ -26,3 +26,7 @@ hf_z.inp        3
 h2o_meta.inp    2
 # PDG
 H2O-PDDG.inp    3
+# PM6
+b2h6_pm6.inp    3
+ch2o_pm6.inp    3
+hcn_pm6.inp     3
