@@ -8,7 +8,7 @@
 !>      user defined output files
 !> \author Joost VandeVondele (copy from md_fist_energies)
 !> 
-!>    MODIFICATIONS
+!> \par History
 !>      - New MD data are appended to the old data (15.09.2003,MK)
 ! *****************************************************************************
 MODULE md_energies
@@ -20,7 +20,9 @@ MODULE md_energies
                                              get_cell
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
@@ -29,17 +31,17 @@ MODULE md_energies
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              use_mixed_force
-  USE input_constants,                 ONLY: &
-       dump_dcd, dump_xmol, ensemble_name_types, nph_ensemble, &
-       nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
-       npt_i_ensemble, reftraj_ensemble
-  USE input_section_types,             ONLY: section_get_ival,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
+  USE input_constants,                 ONLY: ensemble_name_types,&
+                                             nph_ensemble,&
+                                             nph_uniaxial_damped_ensemble,&
+                                             nph_uniaxial_ensemble,&
+                                             npt_f_ensemble,&
+                                             npt_i_ensemble,&
+                                             reftraj_ensemble
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
-                                             sp
+                                             dp
   USE machine,                         ONLY: m_flush
   USE md,                              ONLY: simulation_parameters_type
   USE md_conserved_quantities,         ONLY: compute_conserved_quantity
@@ -48,9 +50,10 @@ MODULE md_energies
                                              md_environment_type,&
                                              set_md_env,&
                                              zero_md_ener
+  USE motion_utils,                    ONLY: write_stress_tensor,&
+                                             write_trajectory
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: write_particle_coordinates,&
-                                             write_structure_data
+  USE particle_types,                  ONLY: write_structure_data
   USE physcon,                         ONLY: angstrom,&
                                              femtoseconds,&
                                              kelvin
@@ -78,9 +81,7 @@ MODULE md_energies
   PUBLIC :: initialize_md_ener,&
             md_energy,&
             md_ener_reftraj,&
-            md_write_output,&
-            get_output_format,&
-            write_stress_tensor
+            md_write_output
 
 CONTAINS
 
@@ -221,10 +222,10 @@ CONTAINS
     ! Initialize V0 properly for nph calculations
     !---------------------------------------------
     IF (init) THEN
-       IF ( simpar % ensemble == nph_ensemble .OR.&
-            simpar % ensemble == nph_uniaxial_ensemble .OR.&
-            simpar % ensemble == nph_uniaxial_damped_ensemble ) THEN
-          IF ( simpar % v0 == 0.0_dp ) simpar % v0 = cell_ref % deth
+       IF ( simpar%ensemble == nph_ensemble .OR.&
+            simpar%ensemble == nph_uniaxial_ensemble .OR.&
+            simpar%ensemble == nph_uniaxial_damped_ensemble ) THEN
+          IF ( simpar%v0 == 0.0_dp ) simpar%v0 = cell_ref%deth
        ENDIF
     ENDIF
 
@@ -240,7 +241,7 @@ CONTAINS
 !>      10.2007 created 
 !> \author MI
 ! *****************************************************************************
-SUBROUTINE md_ener_reftraj(md_env,md_ener,error)
+  SUBROUTINE md_ener_reftraj(md_env,md_ener,error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -254,21 +255,23 @@ SUBROUTINE md_ener_reftraj(md_env,md_ener,error)
     CALL zero_md_ener(md_ener, tkind=.FALSE., tshell=.FALSE., error=error)
 
     CALL get_md_env(md_env=md_env,  force_env=force_env, reftraj=reftraj, error=error)
-    
+
     IF(reftraj%info%eval_ef) THEN
-      CALL force_env_get(force_env, potential_energy=md_ener%epot, error=error)
+       CALL force_env_get(force_env, potential_energy=md_ener%epot, error=error)
     ELSE
-      md_ener%epot = reftraj%epot
-      md_ener%delta_epot = (reftraj%epot - reftraj%epot0)/REAL(reftraj%natom, kind=dp)*kelvin
+       md_ener%epot = reftraj%epot
+       md_ener%delta_epot = (reftraj%epot - reftraj%epot0)/REAL(reftraj%natom, kind=dp)*kelvin
     END IF
-    
-END SUBROUTINE  md_ener_reftraj
+
+  END SUBROUTINE  md_ener_reftraj
 
 ! *****************************************************************************
 !> \brief This routine computes the conserved quantity, temperature
 !>      and things like that and prints them out
 !> \par History
 !>      - New MD data are appended to the old data (15.09.2003,MK)
+!>      - 02.2008 - Teodoro Laino [tlaino] - University of Zurich
+!>                  Cleaning code and collecting the many commons routines..
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE md_write_output(md_env, error)
@@ -279,16 +282,14 @@ END SUBROUTINE  md_ener_reftraj
     CHARACTER(len=*), PARAMETER :: routineN = 'md_write_output', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: fmd, my_act, my_ext, my_form, &
-                                                my_pos, remark1, remark2, &
-                                                title
-    INTEGER :: box, cocrd, cofrc, covel, crd, delta_t, ene, ener_mix, frc, &
-      handle, i, iskip, iw, nat, nkind, nshell, outformat, shcrd, shene, &
-      shfrc, shvel, tempkind, tempshellkind, trsl, vel
+    CHARACTER(LEN=default_string_length)     :: fmd, my_act, my_pos
+    INTEGER                                  :: box, delta_t, ene, ener_mix, &
+                                                handle, i, iw, nat, nkind, &
+                                                shene, tempkind, trsl
     INTEGER, POINTER                         :: itimes
-    LOGICAL :: failure, init, init_coforce, init_cotraj, init_covel, &
-      init_force, init_shforce, init_shtraj, init_shvel, init_traj, init_vel, &
-      is_mixed, qmmm, shell_adiabatic, shell_present
+    LOGICAL                                  :: failure, init, is_mixed, &
+                                                new_file, qmmm, &
+                                                shell_adiabatic, shell_present
     REAL(dp)                                 :: abc( 3 ), cell_angle( 3 ), &
                                                 econs, pv_scalar, pv_xx
     REAL(KIND=dp)                            :: harm_shell, hugoniot
@@ -301,14 +302,14 @@ END SUBROUTINE  md_ener_reftraj
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(reftraj_type), POINTER              :: reftraj
-    TYPE(section_vals_type), POINTER         :: motion_section, root_section
+    TYPE(section_vals_type), POINTER         :: motion_section, print_key, &
+                                                root_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(unit_convert_type), POINTER         :: unit
@@ -325,9 +326,9 @@ END SUBROUTINE  md_ener_reftraj
     econs = 0.0_dp
     shell_adiabatic = .FALSE.
     shell_present   = .FALSE.
-    NULLIFY(dyn_coeff_set,motion_section, atomic_kinds, atomic_kind_set)
+    NULLIFY(motion_section, atomic_kinds, atomic_kind_set)
     NULLIFY(cell, subsys, force_env, md_ener, qmmm_env, reftraj)
-    NULLIFY(core_particles, particles,shell_particles)
+    NULLIFY(core_particles, particles,shell_particles, print_key)
     NULLIFY(root_section,simpar,virial)
 
     CALL get_md_env(md_env=md_env, itimes=itimes, constant=constant,&
@@ -338,8 +339,7 @@ END SUBROUTINE  md_ener_reftraj
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
 
     CALL force_env_get(force_env, cell=cell, subsys=subsys,&
-         dyn_coeff_set=dyn_coeff_set, qmmm_env=qmmm_env, virial=virial, &
-         error=error)
+         qmmm_env=qmmm_env, virial=virial, error=error)
     qmmm = .FALSE.
     IF (md_ener%nfree_qm>0) qmmm = .TRUE.
 
@@ -349,13 +349,13 @@ END SUBROUTINE  md_ener_reftraj
     nat=particles%n_els
 
     ! Computing the scalar pressure
-    IF ( virial % pv_availability ) THEN
+    IF ( virial%pv_availability ) THEN
        pv_scalar = 0._dp
        DO i = 1, 3
           pv_scalar = pv_scalar + virial%pv_total(i,i)
        END DO
        pv_scalar = pv_scalar/3._dp/cell%deth
-       pv_scalar = pv_scalar * unit % bar
+       pv_scalar = pv_scalar * unit%bar
        pv_xx = virial%pv_total(1,1)/cell%deth*unit%bar
     ENDIF
 
@@ -364,8 +364,8 @@ END SUBROUTINE  md_ener_reftraj
     CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, error=error)
     atomic_kind_set => atomic_kinds%els
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
-                             shell_present=shell_present, &
-                             shell_adiabatic=shell_adiabatic)
+         shell_present=shell_present, &
+         shell_adiabatic=shell_adiabatic)
 
     CALL get_cell ( cell, abc = abc,  &
          alpha = cell_angle ( 3 ), &
@@ -378,23 +378,20 @@ END SUBROUTINE  md_ener_reftraj
        my_pos = "REWIND"
        my_act = "WRITE"
     END IF
+    ! Performing protocol relevant to the first step of an MD run
     IF (init) THEN
-       !-------------------------------------------------------------
-       ! Performing protocol relevant to the first step of an MD run
-       !-------------------------------------------------------------
-       ! Print to the screen no matter what (e.g. ignore_should_output = .TRUE.)
+       ! Print to the screen info about MD
        iw = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%PROGRAM_RUN_INFO",&
-           extension=".mdLog",ignore_should_output=.TRUE.,file_position=my_pos,    &
-           file_action=my_act,error=error)
+            extension=".mdLog",file_position=my_pos,file_action=my_act,error=error)
        ! Computing the Hugoniot for NPH calculations
-       IF ( simpar % ensemble == nph_ensemble .OR.&
-            simpar % ensemble == nph_uniaxial_ensemble .OR.&
-            simpar % ensemble == nph_uniaxial_damped_ensemble ) THEN
-          IF ( simpar % e0 == 0._dp ) simpar % e0 = md_ener%epot + md_ener%ekin
-          hugoniot = md_ener%epot + md_ener%ekin - simpar % e0 -  &
-               .5_dp * ( pv_xx/unit%bar + simpar % p0 ) * &
-               ( simpar % v0 - cell % deth )
+       IF ( simpar%ensemble == nph_ensemble .OR.&
+            simpar%ensemble == nph_uniaxial_ensemble .OR.&
+            simpar%ensemble == nph_uniaxial_damped_ensemble ) THEN
+          IF (simpar%e0 == 0._dp ) simpar%e0 = md_ener%epot + md_ener%ekin
+          hugoniot = md_ener%epot + md_ener%ekin - simpar%e0 - 0.5_dp*(pv_xx/unit%bar + simpar%p0)*&
+               (simpar%v0-cell%deth)
        ENDIF
+
        ! Assigning the initial time-step and time
        itimes_old = itimes
        t_old      = time
@@ -404,7 +401,7 @@ END SUBROUTINE  md_ener_reftraj
           t_old = reftraj%time0
           reftraj%init = init
        END IF
-       
+
        ! Write initial values of quantities of interest
        IF (iw>0) THEN
           WRITE (iw,*)
@@ -414,66 +411,64 @@ END SUBROUTINE  md_ener_reftraj
           WRITE ( iw, '( A,A )' ) ' ******************************** ', &
                'GO CP2K GO! **********************************'
           WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL POTENTIAL ENERGY', &
-               ADJUSTL( unit % e_label), '= ', md_ener%epot
+               ADJUSTL( unit%e_label), '= ', md_ener%epot
           IF (simpar%ensemble/=reftraj_ensemble) THEN
-            IF (.NOT.qmmm) THEN
-              ! NO QM/MM info
-              WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL KINETIC ENERGY', &
-                  ADJUSTL( unit % e_label), '= ', md_ener%ekin
-              WRITE ( iw, '( A,A,T40,A,T60,1(1X,F20.3) )' ) ' INITIAL TEMPERATURE', &
-                  ADJUSTL( unit % temp_label ), '= ', md_ener%temp_part
-            ELSE
-              WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' MM INITIAL KINETIC ENERGY', &
-                  ADJUSTL( unit % e_label), '= ', md_ener%ekin
-              WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' QM INITIAL KINETIC ENERGY', &
-                  ADJUSTL( unit % e_label), '= ', md_ener%ekin_qm
-              WRITE ( iw, '( A,A,T40,A,T60,1(1X,F20.3) )' ) ' MM INITIAL TEMPERATURE', &
-                  ADJUSTL( unit % temp_label ), '= ', md_ener%temp_part
-              WRITE ( iw, '( A,A,T40,A,T60,1(1X,F20.3) )' ) ' QM INITIAL TEMPERATURE', &
-                  ADJUSTL( unit % temp_label ), '= ', md_ener%temp_qm
-            END IF
+             IF (.NOT.qmmm) THEN
+                ! NO QM/MM info
+                WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL KINETIC ENERGY', &
+                     ADJUSTL( unit%e_label), '= ', md_ener%ekin
+                WRITE ( iw, '( A,A,T40,A,T60,1(1X,F20.3) )' ) ' INITIAL TEMPERATURE', &
+                     ADJUSTL( unit%temp_label ), '= ', md_ener%temp_part
+             ELSE
+                WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' MM INITIAL KINETIC ENERGY', &
+                     ADJUSTL( unit%e_label), '= ', md_ener%ekin
+                WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' QM INITIAL KINETIC ENERGY', &
+                     ADJUSTL( unit%e_label), '= ', md_ener%ekin_qm
+                WRITE ( iw, '( A,A,T40,A,T60,1(1X,F20.3) )' ) ' MM INITIAL TEMPERATURE', &
+                     ADJUSTL( unit%temp_label ), '= ', md_ener%temp_part
+                WRITE ( iw, '( A,A,T40,A,T60,1(1X,F20.3) )' ) ' QM INITIAL TEMPERATURE', &
+                     ADJUSTL( unit%temp_label ), '= ', md_ener%temp_qm
+             END IF
           END IF
-          IF ( simpar % ensemble == nph_ensemble .OR.&
-               simpar % ensemble == nph_uniaxial_ensemble .OR.&
-               simpar % ensemble == nph_uniaxial_damped_ensemble.OR.&
-               simpar % ensemble == npt_i_ensemble.OR.&
-               simpar % ensemble == npt_f_ensemble ) &
+          IF ( simpar%ensemble == nph_ensemble .OR.&
+               simpar%ensemble == nph_uniaxial_ensemble .OR.&
+               simpar%ensemble == nph_uniaxial_damped_ensemble.OR.&
+               simpar%ensemble == npt_i_ensemble.OR.&
+               simpar%ensemble == npt_f_ensemble ) &
                WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL BAROSTAT TEMP', &
-               ADJUSTL( unit % temp_label), '= ', md_ener%temp_baro
-          IF ( virial % pv_availability ) &
+               ADJUSTL( unit%temp_label), '= ', md_ener%temp_baro
+          IF ( virial%pv_availability ) &
                WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL PRESSURE', &
-               ADJUSTL( unit % pres_label), '= ', pv_scalar
-          IF ( simpar % ensemble == nph_ensemble .OR.&
-               simpar % ensemble == nph_uniaxial_ensemble .OR.&
-               simpar % ensemble == nph_uniaxial_damped_ensemble)&
+               ADJUSTL( unit%pres_label), '= ', pv_scalar
+          IF ( simpar%ensemble == nph_ensemble .OR.&
+               simpar%ensemble == nph_uniaxial_ensemble .OR.&
+               simpar%ensemble == nph_uniaxial_damped_ensemble)&
                WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL HUGONIOT CONSTRAINT', &
-               ADJUSTL( unit % temp_label), '= ', hugoniot
-          IF ( simpar % ensemble == nph_ensemble .OR.&
-               simpar % ensemble == nph_uniaxial_ensemble .OR.&
-               simpar % ensemble == nph_uniaxial_damped_ensemble)&
+               ADJUSTL( unit%temp_label), '= ', hugoniot
+          IF ( simpar%ensemble == nph_ensemble .OR.&
+               simpar%ensemble == nph_uniaxial_ensemble .OR.&
+               simpar%ensemble == nph_uniaxial_damped_ensemble)&
                WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL E0', &
-               ADJUSTL( unit % e_label), '= ', simpar % e0
+               ADJUSTL( unit%e_label), '= ', simpar%e0
           WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL VOLUME', &
-               ADJUSTL( unit % vol_label), '= ', cell%deth
+               ADJUSTL( unit%vol_label), '= ', cell%deth
           WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL LNTHS', &
-               ADJUSTL(unit % l_label), '= ', abc(1), abc(2), abc(3)
+               ADJUSTL(unit%l_label), '= ', abc(1), abc(2), abc(3)
           WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL ANGLS', &
-               ADJUSTL(unit % angl_label), '= ', cell_angle(3), cell_angle(2), cell_angle(1)
+               ADJUSTL(unit%angl_label), '= ', cell_angle(3), cell_angle(2), cell_angle(1)
           WRITE ( iw, '( A,A )' ) ' ******************************** ', &
                'GO CP2K GO! **********************************'
        ENDIF
        CALL cp_print_key_finished_output(iw,logger,motion_section,&
-            "MD%PRINT%PROGRAM_RUN_INFO",ignore_should_output=.TRUE., error=error)
+            "MD%PRINT%PROGRAM_RUN_INFO", error=error)
     ELSE
-       !-------------------------------------------------------------
        ! Performing protocol for anything beyond the first step of MD
-       !-------------------------------------------------------------
-       IF ( simpar % ensemble == nph_ensemble .OR.&
-            simpar % ensemble == nph_uniaxial_ensemble .OR.&
-            simpar % ensemble == nph_uniaxial_damped_ensemble)&
-            hugoniot = md_ener%epot + md_ener%ekin - simpar % e0 -  &
-            .5_dp * ( pv_xx/unit%bar + simpar % p0 ) * &
-            ( simpar % v0 - cell % deth )
+       IF ( simpar%ensemble == nph_ensemble .OR.&
+            simpar%ensemble == nph_uniaxial_ensemble .OR.&
+            simpar%ensemble == nph_uniaxial_damped_ensemble)&
+            hugoniot = md_ener%epot + md_ener%ekin - simpar%e0 -  &
+            .5_dp * ( pv_xx/unit%bar + simpar%p0 ) * &
+            ( simpar%v0 - cell%deth )
 
        IF (simpar%ensemble==reftraj_ensemble) THEN
           time = reftraj%time
@@ -487,9 +482,9 @@ END SUBROUTINE  md_ener_reftraj
        ! average quantities:
        delta_t = itimes - itimes_old
        SELECT CASE (delta_t)
-          CASE (1)
-          IF ( virial % pv_availability ) averages%avepress = pv_scalar
-          IF ( virial % pv_availability ) averages%avepxx = pv_xx
+       CASE (1)
+          IF ( virial%pv_availability ) averages%avepress = pv_scalar
+          IF ( virial%pv_availability ) averages%avepxx = pv_xx
           averages%avecpu = used_time
           averages%avehugoniot = hugoniot
           averages%avetemp_baro = md_ener%temp_baro
@@ -498,7 +493,7 @@ END SUBROUTINE  md_ener_reftraj
           averages%avetemp = md_ener%temp_part
           averages%avekin_qm  = md_ener%ekin_qm
           averages%avetemp_qm = md_ener%temp_qm
-          averages%avevol = cell % deth
+          averages%avevol = cell%deth
           averages%aveca = abc ( 1 )
           averages%avecb = abc ( 2 )
           averages%avecc = abc ( 3 )
@@ -507,10 +502,10 @@ END SUBROUTINE  md_ener_reftraj
           averages%avega = cell_angle ( 1 )
           econs_avg =  0._dp
        CASE DEFAULT
-          IF ( virial % pv_availability ) &
+          IF ( virial%pv_availability ) &
                averages%avepress = (averages%avepress*REAL(delta_t-1,dp)+pv_scalar)/ &
                REAL ( delta_t, dp )
-          IF ( virial % pv_availability ) &
+          IF ( virial%pv_availability ) &
                averages%avepxx = (averages%avepxx*REAL(delta_t-1,dp)+pv_xx)/ &
                REAL ( delta_t, dp )
           averages%avecpu = (averages%avecpu*REAL(delta_t-1,dp)+used_time)/ &
@@ -545,7 +540,7 @@ END SUBROUTINE  md_ener_reftraj
 
        ! Print to the screen
        iw = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%PROGRAM_RUN_INFO",&
-            extension=".mdLog",file_position=my_pos, file_action=my_act,error=error)
+            extension=".mdLog" ,file_position=my_pos, file_action=my_act,error=error)
        IF ( iw>0  ) THEN
           WRITE ( iw, '( )' )
           WRITE ( iw, '( A,A )' ) ' **************************************', &
@@ -563,57 +558,57 @@ END SUBROUTINE  md_ener_reftraj
           WRITE ( iw, '( A,T39,2(1X,E20.12) )' ) ' {E-E0}/{k_b*N_at}            = ', &
                econs, econs_avg/REAL( delta_t,dp)
           WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' POTENTIAL ENERGY', &
-               ADJUSTL(unit % e_label), '= ', md_ener%epot, averages%avepot
+               ADJUSTL(unit%e_label), '= ', md_ener%epot, averages%avepot
           IF(simpar%ensemble/=reftraj_ensemble) THEN
-            IF (.NOT.qmmm) THEN
-              ! No QM/MM info
-              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' KINETIC ENERGY', &
-                  ADJUSTL(unit % e_label), '= ', md_ener%ekin, averages%avekin
-              WRITE ( iw, '( A,A,T31,A,T39,2(1X,F20.3) )' ) ' TEMPERATURE', &
-                  ADJUSTL(unit % temp_label), '= ', md_ener%temp_part, averages%avetemp
-            ELSE
-              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' MM KINETIC ENERGY', &
-                  ADJUSTL(unit % e_label), '= ', md_ener%ekin, averages%avekin
-              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' QM KINETIC ENERGY', &
-                  ADJUSTL(unit % e_label), '= ', md_ener%ekin_qm, averages%avekin_qm
-              WRITE ( iw, '( A,A,T31,A,T39,2(1X,F20.3) )' ) ' MM TEMPERATURE', &
-                  ADJUSTL(unit % temp_label), '= ', md_ener%temp_part, averages%avetemp
-              WRITE ( iw, '( A,A,T31,A,T39,2(1X,F20.3) )' ) ' QM TEMPERATURE', &
-                  ADJUSTL(unit % temp_label), '= ', md_ener%temp_qm, averages%avetemp_qm
-            END IF
+             IF (.NOT.qmmm) THEN
+                ! No QM/MM info
+                WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' KINETIC ENERGY', &
+                     ADJUSTL(unit%e_label), '= ', md_ener%ekin, averages%avekin
+                WRITE ( iw, '( A,A,T31,A,T39,2(1X,F20.3) )' ) ' TEMPERATURE', &
+                     ADJUSTL(unit%temp_label), '= ', md_ener%temp_part, averages%avetemp
+             ELSE
+                WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' MM KINETIC ENERGY', &
+                     ADJUSTL(unit%e_label), '= ', md_ener%ekin, averages%avekin
+                WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' QM KINETIC ENERGY', &
+                     ADJUSTL(unit%e_label), '= ', md_ener%ekin_qm, averages%avekin_qm
+                WRITE ( iw, '( A,A,T31,A,T39,2(1X,F20.3) )' ) ' MM TEMPERATURE', &
+                     ADJUSTL(unit%temp_label), '= ', md_ener%temp_part, averages%avetemp
+                WRITE ( iw, '( A,A,T31,A,T39,2(1X,F20.3) )' ) ' QM TEMPERATURE', &
+                     ADJUSTL(unit%temp_label), '= ', md_ener%temp_qm, averages%avetemp_qm
+             END IF
           END IF
-          IF ( virial % pv_availability ) &
+          IF ( virial%pv_availability ) &
                WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' PRESSURE', &
-               ADJUSTL(unit % pres_label), '= ', pv_scalar, averages%avepress
-          IF ( simpar % ensemble == nph_ensemble .OR.&
-               simpar % ensemble == nph_uniaxial_ensemble .OR.&
-               simpar % ensemble == nph_uniaxial_damped_ensemble) THEN
+               ADJUSTL(unit%pres_label), '= ', pv_scalar, averages%avepress
+          IF ( simpar%ensemble == nph_ensemble .OR.&
+               simpar%ensemble == nph_uniaxial_ensemble .OR.&
+               simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' P_XX', &
-                  ADJUSTL(unit % pres_label), '= ', pv_xx, averages%avepxx
+                  ADJUSTL(unit%pres_label), '= ', pv_xx, averages%avepxx
              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' HUGONIOT', &
-                  ADJUSTL(unit % temp_label), '= ', hugoniot/3._dp/nat*kelvin,&
+                  ADJUSTL(unit%temp_label), '= ', hugoniot/3._dp/nat*kelvin,&
                   averages%avehugoniot/3._dp/nat*kelvin
           END IF
-          IF ( simpar % ensemble == nph_ensemble .OR.&
-               simpar % ensemble == nph_uniaxial_ensemble .OR.&
-               simpar % ensemble == nph_uniaxial_damped_ensemble.OR.&
-               simpar % ensemble == npt_i_ensemble.OR.&
-               simpar % ensemble == npt_f_ensemble ) THEN
+          IF ( simpar%ensemble == nph_ensemble .OR.&
+               simpar%ensemble == nph_uniaxial_ensemble .OR.&
+               simpar%ensemble == nph_uniaxial_damped_ensemble.OR.&
+               simpar%ensemble == npt_i_ensemble.OR.&
+               simpar%ensemble == npt_f_ensemble ) THEN
              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' BAROSTAT TEMP', &
-                  ADJUSTL(unit % temp_label), '= ', md_ener%temp_baro, averages%avetemp_baro
+                  ADJUSTL(unit%temp_label), '= ', md_ener%temp_baro, averages%avetemp_baro
              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' VOLUME', &
-                  ADJUSTL(unit % vol_label), '= ', cell%deth, averages%avevol
+                  ADJUSTL(unit%vol_label), '= ', cell%deth, averages%avevol
              WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' CELL LNTHS', &
-                  ADJUSTL(unit % l_label), '= ', abc(1), abc(2), abc(3)
+                  ADJUSTL(unit%l_label), '= ', abc(1), abc(2), abc(3)
              WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' AVE. CELL LNTHS', &
-                  ADJUSTL(unit % l_label), '= ', averages%aveca, averages%avecb, &
+                  ADJUSTL(unit%l_label), '= ', averages%aveca, averages%avecb, &
                   averages%avecc
           END IF
           IF (simpar%ensemble==npt_f_ensemble) THEN
              WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' CELL ANGLS', &
-                  ADJUSTL(unit % angl_label), '= ', cell_angle(3), cell_angle(2), cell_angle(1)
+                  ADJUSTL(unit%angl_label), '= ', cell_angle(3), cell_angle(2), cell_angle(1)
              WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' AVE. CELL ANGLS', &
-                  ADJUSTL(unit % angl_label), '= ', averages%aveal, averages%avebe, &
+                  ADJUSTL(unit%angl_label), '= ', averages%aveal, averages%avebe, &
                   averages%avega
           END IF
           WRITE ( iw, '( A,A )' ) ' **************************************', &
@@ -624,116 +619,39 @@ END SUBROUTINE  md_ener_reftraj
             "MD%PRINT%PROGRAM_RUN_INFO", error=error)
     END IF
 
+    ! Real Ouput driven by the PRINT sections
     IF ((.NOT.init).OR.(itimes==0)) THEN
+       ! Print Energy
        ene = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%ENERGY",&
-            extension=".ener",file_position=my_pos, file_action=my_act,error=error)
-
-       CALL get_output_format(motion_section,"PRINT%TRAJECTORY",my_form,my_ext,error)
-       crd = cp_print_key_unit_nr(logger,motion_section,"PRINT%TRAJECTORY",&
-            extension=my_ext, file_position=my_pos, file_action=my_act,&
-            file_form=my_form, middle_name="pos", is_new_file=init_traj,&
+            extension=".ener",file_position=my_pos, file_action=my_act, is_new_file=new_file,&
             error=error)
-       IF (is_mixed) THEN
-           ener_mix=cp_print_key_unit_nr(logger,motion_section,"PRINT%MIXED_ENERGIES",&
-                extension=".ener", file_position=my_pos, file_action=my_act,&
-                middle_name="mix", error=error)
-       ELSE
-           ener_mix=-1
-       ENDIF
-       IF    ( simpar % ensemble == nph_ensemble .OR.&
-               simpar % ensemble == nph_uniaxial_ensemble .OR.&
-               simpar % ensemble == nph_uniaxial_damped_ensemble.OR.&
-               simpar % ensemble == npt_i_ensemble.OR.&
-               simpar % ensemble == npt_f_ensemble ) THEN
-         box = cp_print_key_unit_nr(logger,motion_section,"PRINT%CELL",&
-              extension=".cell", file_position=my_pos, file_action=my_act,&
-              file_form="FORMATTED", error=error)
-
-       ELSE
-         box = 0
-       END IF
-       CALL get_output_format(motion_section,"PRINT%VELOCITIES",my_form,my_ext,error)
-       vel = cp_print_key_unit_nr(logger,motion_section,"PRINT%VELOCITIES",&
-            extension=my_ext, file_position=my_pos, file_action=my_act,&
-            file_form=my_form, middle_name="vel", is_new_file=init_vel,&
-            error=error)
-       CALL get_output_format(motion_section,"PRINT%FORCES",my_form,my_ext,error)
-       frc = cp_print_key_unit_nr(logger,motion_section,"PRINT%FORCES",&
-            extension=my_ext, file_position=my_pos, file_action=my_act,&
-            file_form=my_form, middle_name="force", is_new_file=init_force,&
-            error=error)
-       IF(shell_present) THEN
-         CALL force_env_get(force_env,harmonic_shell=harm_shell,error=error)
-         shene=cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%SHELL_ENERGY",&
-            extension=".shener",file_position=my_pos, file_action=my_act,error=error)
-
-         CALL get_output_format(motion_section,"PRINT%SHELL_TRAJECTORY",my_form,my_ext,error)
-         shcrd =  cp_print_key_unit_nr(logger,motion_section,"PRINT%SHELL_TRAJECTORY",&
-            extension=my_ext, file_position=my_pos, file_action=my_act,&
-            file_form=my_form, middle_name="shpos", is_new_file=init_shtraj,&
-            error=error)
-
-         CALL cp_subsys_get(subsys,shell_particles=shell_particles,error=error)
-         nshell=shell_particles%n_els
-       ELSE
-         shene = 0
-         shcrd = 0
-       END IF
-       IF(shell_adiabatic) THEN
-         CALL get_output_format(motion_section,"PRINT%CORE_TRAJECTORY",my_form,my_ext,error)
-         cocrd = cp_print_key_unit_nr(logger,motion_section,"PRINT%CORE_TRAJECTORY",&
-            extension=my_ext, file_position=my_pos, file_action=my_act,&
-            file_form=my_form, middle_name="copos", is_new_file=init_cotraj,&
-            error=error)
-
-         CALL get_output_format(motion_section,"PRINT%SHELL_VELOCITIES",my_form,my_ext,error)
-         shvel = cp_print_key_unit_nr(logger,motion_section,"PRINT%SHELL_VELOCITIES",&
-            extension=my_ext, file_position=my_pos, file_action=my_act,&
-            file_form=my_form, middle_name="shvel", is_new_file=init_shvel,&
-            error=error)
-         
-         CALL get_output_format(motion_section,"PRINT%CORE_VELOCITIES",my_form,my_ext,error)
-         covel = cp_print_key_unit_nr(logger,motion_section,"PRINT%CORE_VELOCITIES",&
-            extension=my_ext, file_position=my_pos, file_action=my_act,&
-            file_form=my_form, middle_name="covel", is_new_file=init_covel,&
-            error=error)
-
-         CALL get_output_format(motion_section,"PRINT%SHELL_FORCES",my_form,my_ext,error)
-         shfrc = cp_print_key_unit_nr(logger,motion_section,"PRINT%SHELL_FORCES",&
-            extension=my_ext, file_position=my_pos, file_action=my_act,&
-            file_form=my_form, middle_name="shfrc", is_new_file=init_shforce,&
-            error=error)
-
-         CALL get_output_format(motion_section,"PRINT%CORE_FORCES",my_form,my_ext,error)
-         cofrc = cp_print_key_unit_nr(logger,motion_section,"PRINT%CORE_FORCES",&
-            extension=my_ext, file_position=my_pos, file_action=my_act,&
-            file_form=my_form, middle_name="cofrc", is_new_file=init_coforce,&
-            error=error)
-
-       ELSE
-         cocrd = 0 
-         shvel = 0 
-         covel = 0
-         shfrc = 0 
-         cofrc = 0
-       END IF
-       IF(simpar%temperature_per_kind) THEN
-          tempkind=cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%TEMP_KIND",&
-                   extension=".temp",file_position=my_pos, file_action=my_act,error=error)
-          tempshellkind = 0
-          IF(shell_adiabatic) THEN
-             tempshellkind=cp_print_key_unit_nr(logger,motion_section,&
-                           "MD%PRINT%TEMP_SHELL_KIND",extension=".shtemp",&
-                           file_position=my_pos, file_action=my_act,error=error)
+       IF (ene>0) THEN
+          IF (new_file) THEN
+             ! Please change also the corresponding format explaination below 
+             ! keep the constant of motion the true constant of motion !
+             WRITE (ene,'("#",5X,A,10X,A,8X,A,10X,A,12X,A,2(8X,A))')"Step Nr.","Time[fs]","Kin.[a.u.]","Temp[K]",&
+                  "Pot.[a.u.]","Cons Qty[a.u.]","UsedTime[s]"
           END IF
-       ELSE
-          tempkind = 0
-          tempshellkind = 0
+          WRITE (ene,"(I10,F20.3,F20.9,F20.9,F20.9,F20.9,F20.9)")&
+               itimes,time*femtoseconds,md_ener%ekin,md_ener%temp_part, md_ener%epot,md_ener%constant,used_time
+          CALL m_flush(ene)
        END IF
-       
-       !-------------------------------------------
+       CALL cp_print_key_finished_output(ene,logger,motion_section,"MD%PRINT%ENERGY", error=error)
+
+       ! Possibly Print MIXED Energy 
+       IF (is_mixed) THEN
+          ener_mix=cp_print_key_unit_nr(logger,motion_section,"PRINT%MIXED_ENERGIES",&
+               extension=".ener", file_position=my_pos, file_action=my_act,&
+               middle_name="mix", error=error)
+          IF (ener_mix>0) THEN
+             WRITE (ener_mix,"(I8,F12.3,F20.9,"//cp_to_string(SIZE(force_env%mixed_env%energies))//"F20.9,F20.9)")&
+                  itimes,time*femtoseconds,md_ener%epot,force_env%mixed_env%energies,md_ener%constant
+             CALL m_flush(ener_mix)
+          END IF
+          CALL cp_print_key_finished_output(ener_mix,logger,motion_section,"PRINT%MIXED_ENERGIES", error=error)
+       ENDIF
+
        ! Print QMMM translation vector if requested
-       !-------------------------------------------
        IF (qmmm) THEN
           trsl = cp_print_key_unit_nr(logger,motion_section,"PRINT%TRANSLATION_VECTOR",&
                extension=".translation", middle_name="qmmm", error=error)
@@ -743,476 +661,145 @@ END SUBROUTINE  md_ener_reftraj
           CALL cp_print_key_finished_output(trsl,logger,motion_section,&
                "PRINT%TRANSLATION_VECTOR", error=error)
        END IF
-       !------------------
-       ! Print Coordinates
-       !------------------
+
+       ! Write Structure data
        CALL write_structure_data(particles%els,cell,motion_section,error)
-       IF ( crd > 0 ) THEN
-         CALL section_vals_val_get(motion_section,"PRINT%TRAJECTORY%FORMAT",i_val=outformat,error=error)
-          IF(outformat==dump_dcd) THEN
-             IF ( init_traj ) THEN
-                !Lets write the header for the coordinate dcd
-                iskip = section_get_ival(motion_section,"PRINT%TRAJECTORY%EACH%MD",error=error)
-                WRITE(crd) "CORD",0,itimes,iskip,&
-                     0,0,0,0,0,0,&
-                     REAL(simpar%dt*femtoseconds,KIND=sp),1,0,0,0,0,0,0,0,0,24
-                remark1= "REMARK FILETYPE CORD DCD GENERATED BY CP2K"
-                remark2= "REMARK Support new DCD format with cell information"
-                WRITE(crd) 2,remark1,remark2
-                WRITE(crd) nat
-                CALL m_flush(crd)
-             ENDIF
-          ELSEIF(outformat==dump_xmol) THEN
-             !         *** This information can be digested by Molden ***
-             WRITE (UNIT=title,FMT="(A,I8,A,F20.10,A,F12.3)")&
-                  " i = ",itimes," , E =",md_ener%epot,", Time (fs)=",time*femtoseconds
-          ELSE
-             title = ""
-          END IF
-          CALL cp_subsys_get(subsys,particles=particles,error=error)
-          CALL write_particle_coordinates(particles%els,crd,&
-               outformat,"POS",title,cell)
-          CALL m_flush(crd)
-       END IF
-       !--------------------------------------------------
+
+       ! Print Coordinates
+       CALL write_trajectory(force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
+            pos=my_pos, act=my_act, error=error)
+
+       ! Print Velocities
+       CALL write_trajectory(force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
+            "VELOCITIES", my_pos, my_act, middle_name="vel", error=error)
+
+       ! Print Force
+       CALL write_trajectory(force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
+            "FORCES", my_pos, my_act, middle_name="frc", error=error)
+
        ! Print Simulation Cell (only if constant pressure)
-       !--------------------------------------------------
-       IF ( box > 0 ) THEN
-          WRITE(UNIT=box,FMT="(I8, F12.3,10F20.10)") itimes,time*femtoseconds,&
-             cell%hmat(1,1)*angstrom,cell%hmat(2,1)*angstrom,cell%hmat(3,1)*angstrom,&
-             cell%hmat(1,2)*angstrom,cell%hmat(2,2)*angstrom,cell%hmat(3,2)*angstrom,&
-             cell%hmat(1,3)*angstrom,cell%hmat(2,3)*angstrom,cell%hmat(3,3)*angstrom,&
-             cell%deth*angstrom*angstrom*angstrom
-      
-          CALL m_flush(box)
+       IF  (simpar%ensemble == nph_ensemble .OR.&
+            simpar%ensemble == nph_uniaxial_ensemble .OR.&
+            simpar%ensemble == nph_uniaxial_damped_ensemble.OR.&
+            simpar%ensemble == npt_i_ensemble.OR.&
+            simpar%ensemble == npt_f_ensemble) THEN
+          box = cp_print_key_unit_nr(logger,motion_section,"PRINT%CELL",&
+               extension=".cell", file_position=my_pos, file_action=my_act,&
+               file_form="FORMATTED", error=error)
+          IF ( box > 0 ) THEN
+             WRITE(UNIT=box,FMT="(I8, F12.3,10F20.10)") itimes,time*femtoseconds,&
+                  cell%hmat(1,1)*angstrom,cell%hmat(2,1)*angstrom,cell%hmat(3,1)*angstrom,&
+                  cell%hmat(1,2)*angstrom,cell%hmat(2,2)*angstrom,cell%hmat(3,2)*angstrom,&
+                  cell%hmat(1,3)*angstrom,cell%hmat(2,3)*angstrom,cell%hmat(3,3)*angstrom,&
+                  cell%deth*angstrom*angstrom*angstrom
+             CALL m_flush(box)
+          END IF
+          CALL cp_print_key_finished_output(box,logger,motion_section,"PRINT%CELL", error=error)
        END IF
-       !--------------------
+
        ! Print Stress Tensor
-       !--------------------
        CALL write_stress_tensor(virial, cell, motion_section, unit, itimes, time*femtoseconds,&
             my_pos, my_act, error)
-       !------------------
-       ! Print Velocities
-       !------------------
-       IF ( vel > 0 ) THEN
-          CALL section_vals_val_get(motion_section,"PRINT%VELOCITIES%FORMAT",i_val=outformat,error=error)
-          IF(outformat==dump_dcd) THEN
-             IF ( init_vel ) THEN
-                iskip = section_get_ival(motion_section,"PRINT%VELOCITIES%EACH%MD",error=error)
-                WRITE(vel) "VEL ",0,itimes,iskip,&
-                     0,0,0,0,0,0,&
-                     REAL(simpar%dt*femtoseconds,KIND=sp), 1,0,0,0,0,0,0,0,0,24
-                remark1= "REMARK FILETYPE VEL  DCD GENERATED BY CP2K"
-                remark2= "REMARK Support new DCD format with cell information"
-                WRITE(vel) 2,remark1,remark2
-                WRITE(vel) nat
-                CALL m_flush(vel)
-             END IF
-          ELSEIF(outformat==dump_xmol) THEN
-             !         *** This information can be digested by Molden ***
-             WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
-                  " i =",itimes,", E =",md_ener%epot
-          ELSE
-             title = ""
-          END IF
-          CALL cp_subsys_get(subsys,particles=particles,error=error)
-          CALL write_particle_coordinates(particles%els,vel,&
-               outformat,"VEL",title,cell)
-          CALL m_flush(vel)
-       END IF
-       !------------------
-       ! Print Force
-       !------------------
-       IF ( frc > 0 ) THEN
-          CALL section_vals_val_get(motion_section,"PRINT%FORCES%FORMAT",i_val=outformat,error=error)
-          IF(outformat==dump_dcd) THEN
-             IF ( init_force ) THEN
-                iskip = section_get_ival(motion_section,"PRINT%FORCES%EACH%MD",error=error)
-                WRITE(frc) "FRC ",0,itimes,iskip,&
-                     0,0,0,0,0,0,&
-                     REAL(simpar%dt*femtoseconds,KIND=sp), 1,0,0,0,0,0,0,0,0,24
-                remark1= "REMARK FILETYPE FRC  DCD GENERATED BY CP2K"
-                remark2= "REMARK Support new DCD format with cell information"
-                WRITE(frc) 2,remark1,remark2
-                WRITE(frc) nat
-                CALL m_flush(frc)
-             END IF
-          ELSEIF(outformat==dump_xmol) THEN
-             !         *** This information can be digested by Molden ***
-             WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
-                  " i =",itimes,", E =",md_ener%epot
-          ELSE
-             title = ""
-          END IF
-          CALL cp_subsys_get(subsys,particles=particles,error=error)
-          CALL write_particle_coordinates(particles%els,frc,&
-               outformat,"FORCE",title,cell)
-          CALL m_flush(frc)
-       END IF
-       !------------------
-       ! Print MIXED Energy
-       !------------------
-       IF (ener_mix>0 .AND. is_mixed) THEN
-          WRITE (ener_mix,"(I8,F12.3,F20.9,"//&
-               cp_to_string(SIZE(force_env%mixed_env%energies))//"F20.9,F20.9)")&
-               itimes,time*femtoseconds,md_ener%epot,force_env%mixed_env%energies,md_ener%constant
-          CALL m_flush(ener_mix)
-       END IF
-       !------------------
-       ! Print Energy
-       !------------------
-       IF (ene>0) THEN
-          ! please change also the corresponding format explaination above
-          ! keep the constant of motion the true constant of motion !
-          ! "Step Nr.    Time[fs]  Kin.[a.u.]     Temp[K]  Pot.[a.u.]    Cons Qty UsedTime[s]"
-          !
-          WRITE (ene,"(I10,F20.3,F20.9,F20.9,F20.9,F20.9,F20.9)")&
-               itimes,time*femtoseconds,md_ener%ekin,md_ener%temp_part, md_ener%epot,md_ener%constant,used_time
-          CALL m_flush(ene)
-       END IF
-       !------------------
-       ! Print Shell Energy
-       !------------------
-       IF (shene>0) THEN
-          ! "Step Nr.    Time[fs]  Shell Kin.[a.u.]    Shell Temp[K]  Shell Pot.[a.u.] 
-          !
-          WRITE (shene,"(I8,F12.3,F20.9,F20.9,F20.9,F20.9 )")&
-               itimes,time*femtoseconds,md_ener%ekin_shell,md_ener%temp_shell,harm_shell
-          CALL m_flush(shene)
-       END IF
-       !------------------
-       !  Some additional printing for the shell-model (can be displaced in another routine)
-       !------------------
-       ! Print Shell Coordinates
-       !------------------
-       IF ( shcrd > 0 ) THEN
-          CALL section_vals_val_get(motion_section,"PRINT%SHELL_TRAJECTORY%FORMAT",i_val=outformat,error=error)
-          IF(outformat==dump_dcd) THEN
-             IF ( init_shtraj ) THEN
-                !Lets write the header for the coordinate dcd
-                iskip = section_get_ival(motion_section,"PRINT%SHELL_TRAJECTORY%EACH%MD",error=error)
-                WRITE(shcrd) "CORD",0,itimes,iskip,&
-                     0,0,0,0,0,0,&
-                     REAL(simpar%dt*femtoseconds,KIND=sp),1,0,0,0,0,0,0,0,0,24
-                remark1= "REMARK FILETYPE CORD DCD GENERATED BY CP2K"
-                remark2= "REMARK Support new DCD format with cell information"
-                WRITE(shcrd) 2,remark1,remark2
-                WRITE(shcrd) nshell
-                CALL m_flush(shcrd)
-             ENDIF
-          ELSEIF(outformat==dump_xmol) THEN
-             !         *** This information can be digested by Molden ***
-             WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
-                  " i =",itimes,", E =",md_ener%epot
-          ELSE
-             title = ""
-          END IF
-          CALL cp_subsys_get(subsys,shell_particles=shell_particles,error=error)
-          CALL write_particle_coordinates(shell_particles%els,shcrd,&
-               outformat,"POS",title,cell)
-          CALL m_flush(shcrd)
-       END IF
-       !------------------
-       ! Print Shell Velocities
-       !------------------
-       IF ( shvel > 0 ) THEN
-          CALL section_vals_val_get(motion_section,"PRINT%SHELL_VELOCITIES%FORMAT",i_val=outformat,error=error)
-          IF(outformat==dump_dcd) THEN
-             IF ( init_shvel ) THEN
-                iskip = section_get_ival(motion_section,"PRINT%SHELL_VELOCITIES%EACH%MD",error=error)
-                WRITE(vel) "VEL ",0,itimes,iskip,&
-                     0,0,0,0,0,0,&
-                     REAL(simpar%dt*femtoseconds,KIND=sp), 1,0,0,0,0,0,0,0,0,24
-                remark1= "REMARK FILETYPE VEL  DCD GENERATED BY CP2K"
-                remark2= "REMARK Support new DCD format with cell information"
-                WRITE(shvel) 2,remark1,remark2
-                WRITE(shvel) nshell
-                CALL m_flush(shvel)
-             END IF
-          ELSEIF(outformat==dump_xmol) THEN
-             !         *** This information can be digested by Molden ***
-             WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
-                  " i =",itimes,", E =",md_ener%epot
-          ELSE
-             title = ""
-          END IF
-          CALL cp_subsys_get(subsys,shell_particles=shell_particles,error=error)
-          CALL write_particle_coordinates(shell_particles%els,shvel,&
-               outformat,"VEL",title,cell)
-          CALL m_flush(shvel)
-       END IF
-       !------------------
-       ! Print Shell Force
-       !------------------
-       IF ( shfrc > 0 ) THEN
-          CALL section_vals_val_get(motion_section,"PRINT%SHELL_FORCES%FORMAT",i_val=outformat,error=error)
-          IF(outformat==dump_dcd) THEN
-             IF ( init_shforce ) THEN
-                iskip = section_get_ival(motion_section,"PRINT%SHELL_FORCES%EACH%MD",error=error)
-                WRITE(shfrc) "FRC ",0,itimes,iskip,&
-                     0,0,0,0,0,0,&
-                     REAL(simpar%dt*femtoseconds,KIND=sp), 1,0,0,0,0,0,0,0,0,24
-                remark1= "REMARK FILETYPE FRC  DCD GENERATED BY CP2K"
-                remark2= "REMARK Support new DCD format with cell information"
-                WRITE(shfrc) 2,remark1,remark2
-                WRITE(shfrc) nshell
-                CALL m_flush(shfrc)
-             END IF
-          ELSEIF(outformat==dump_xmol) THEN
-             !         *** This information can be digested by Molden ***
-             WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
-                  " i =",itimes,", E =",md_ener%epot
-          ELSE
-             title = ""
-          END IF
-          CALL cp_subsys_get(subsys,shell_particles=shell_particles,error=error)
-          CALL write_particle_coordinates(shell_particles%els,shfrc,&
-               outformat,"FORCE",title,cell)
-          CALL m_flush(shfrc)
-       END IF
-       !------------------
-       ! Print Core Coordinates
-       !------------------
-       IF ( cocrd > 0 ) THEN
-          CALL section_vals_val_get(motion_section,"PRINT%CORE_TRAJECTORY%FORMAT",i_val=outformat,error=error)
-          IF(outformat==dump_dcd) THEN
-             IF ( init_cotraj ) THEN
-                !Lets write the header for the coordinate dcd
-                iskip = section_get_ival(motion_section,"PRINT%CORE_TRAJECTORY%EACH%MD",error=error)
-                WRITE(cocrd) "CORD",0,itimes,iskip,&
-                     0,0,0,0,0,0,&
-                     REAL(simpar%dt*femtoseconds,KIND=sp),1,0,0,0,0,0,0,0,0,24
-                remark1= "REMARK FILETYPE CORD DCD GENERATED BY CP2K"
-                remark2= "REMARK Support new DCD format with cell information"
-                WRITE(cocrd) 2,remark1,remark2
-                WRITE(cocrd) nshell
-                CALL m_flush(cocrd)
-             ENDIF
-          ELSEIF(outformat==dump_xmol) THEN
-             !         *** This information can be digested by Molden ***
-             WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
-                  " i =",itimes,", E =",md_ener%epot
-          ELSE
-             title = ""
-          END IF
-          CALL cp_subsys_get(subsys,core_particles=core_particles,error=error)
-          CALL write_particle_coordinates(core_particles%els,cocrd,&
-               outformat,"POS",title,cell)
-          CALL m_flush(cocrd)
-       END IF
-       !------------------
-       ! Print core Velocities
-       !------------------
-       IF ( covel > 0 ) THEN
-          CALL section_vals_val_get(motion_section,"PRINT%CORE_VELOCITIES%FORMAT",i_val=outformat,error=error)
-          IF(outformat==dump_dcd) THEN
-             IF ( init_covel ) THEN
-                iskip = section_get_ival(motion_section,"PRINT%CORE_VELOCITIES%EACH%MD",error=error)
-                WRITE(vel) "VEL ",0,itimes,iskip,&
-                     0,0,0,0,0,0,&
-                     REAL(simpar%dt*femtoseconds,KIND=sp), 1,0,0,0,0,0,0,0,0,24
-                remark1= "REMARK FILETYPE VEL  DCD GENERATED BY CP2K"
-                remark2= "REMARK Support new DCD format with cell information"
-                WRITE(covel) 2,remark1,remark2
-                WRITE(covel) nshell
-                CALL m_flush(covel)
-             END IF
-          ELSEIF(outformat==dump_xmol) THEN
-             !         *** This information can be digested by Molden ***
-             WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
-                  " i =",itimes,", E =",md_ener%epot
-          ELSE
-             title = ""
-          END IF
-          CALL cp_subsys_get(subsys,core_particles=core_particles,error=error)
-          CALL write_particle_coordinates(core_particles%els,covel,&
-               outformat,"VEL",title,cell)
-          CALL m_flush(covel)
-       END IF
-       !------------------
-       ! Print core Force
-       !------------------
-       IF ( cofrc > 0 ) THEN
-          CALL section_vals_val_get(motion_section,"PRINT%CORE_FORCES%FORMAT",i_val=outformat,error=error)
-          IF(outformat==dump_dcd) THEN
-             IF ( init_coforce ) THEN
-                iskip = section_get_ival(motion_section,"PRINT%CORE_FORCES%EACH%MD",error=error)
-                WRITE(cofrc) "FRC ",0,itimes,iskip,&
-                     0,0,0,0,0,0,&
-                     REAL(simpar%dt*femtoseconds,KIND=sp), 1,0,0,0,0,0,0,0,0,24
-                remark1= "REMARK FILETYPE FRC  DCD GENERATED BY CP2K"
-                remark2= "REMARK Support new DCD format with cell information"
-                WRITE(cofrc) 2,remark1,remark2
-                WRITE(cofrc) nshell
-                CALL m_flush(cofrc)
-             END IF
-          ELSEIF(outformat==dump_xmol) THEN
-             !         *** This information can be digested by Molden ***
-             WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
-                  " i =",itimes,", E =",md_ener%epot
-          ELSE
-             title = ""
-          END IF
-          CALL cp_subsys_get(subsys,core_particles=core_particles,error=error)
-          CALL write_particle_coordinates(core_particles%els,cofrc,&
-               outformat,"FORCE",title,cell)
-          CALL m_flush(cofrc)
-       END IF
 
-       IF( tempkind > 0 ) THEN
-          nkind = SIZE(md_ener%temp_kind)
-          fmd="(I10,F20.3,"//TRIM(ADJUSTL(cp_to_string(nkind)))//"F20.9)"     
-          fmd=TRIM(fmd)
-          WRITE (tempkind,fmd)&
-               itimes,time*femtoseconds, md_ener%temp_kind(1:nkind)
-          CALL m_flush(tempkind)
-       END IF   
-       IF( tempshellkind > 0 ) THEN
-          nkind = SIZE(md_ener%temp_shell_kind)
-          fmd="(I10,F20.3,"//TRIM(ADJUSTL(cp_to_string(nkind)))//"F20.9)"     
-          fmd=TRIM(fmd)
-          WRITE (tempshellkind,fmd)&
-               itimes,time*femtoseconds, md_ener%temp_shell_kind(1:nkind)
-          CALL m_flush(tempshellkind)
-       END IF
-
-       CALL cp_print_key_finished_output(ene,logger,motion_section,&
-            "MD%PRINT%ENERGY", error=error)
-       CALL cp_print_key_finished_output(crd,logger,motion_section,&
-            "PRINT%TRAJECTORY", error=error)
-       IF ( simpar % ensemble == nph_ensemble .OR.&
-               simpar % ensemble == nph_uniaxial_ensemble .OR.&
-               simpar % ensemble == nph_uniaxial_damped_ensemble.OR.&
-               simpar % ensemble == npt_i_ensemble.OR.&
-               simpar % ensemble == npt_f_ensemble ) THEN
-         CALL cp_print_key_finished_output(box,logger,motion_section,&
-              "PRINT%CELL", error=error)
-       END IF
-       CALL cp_print_key_finished_output(vel,logger,motion_section,&
-            "PRINT%VELOCITIES", error=error)
-       CALL cp_print_key_finished_output(frc,logger,motion_section,&
-            "PRINT%FORCES", error=error)
-       IF (is_mixed) THEN
-           CALL cp_print_key_finished_output(ener_mix,logger,motion_section,&
-                "PRINT%MIXED_ENERGIES", error=error)
-       ENDIF
-       IF(shell_present) THEN
-         CALL cp_print_key_finished_output(shene,logger,motion_section,&
-            "MD%PRINT%SHELL_ENERGY", error=error)
-         CALL cp_print_key_finished_output(shcrd,logger,motion_section,&
-            "PRINT%SHELL_TRAJECTORY", error=error)
-       END IF
-       IF(shell_adiabatic) THEN
-         CALL cp_print_key_finished_output(cocrd,logger,motion_section,&
-            "PRINT%CORE_TRAJECTORY", error=error)
-         CALL cp_print_key_finished_output(shvel,logger,motion_section,&
-            "PRINT%SHELL_VELOCITIES", error=error)
-         CALL cp_print_key_finished_output(covel,logger,motion_section,&
-            "PRINT%CORE_VELOCITIES", error=error)
-         CALL cp_print_key_finished_output(shfrc,logger,motion_section,&
-            "PRINT%SHELL_FORCES", error=error)
-         CALL cp_print_key_finished_output(cofrc,logger,motion_section,&
-            "PRINT%CORE_FORCES", error=error)
-       END IF
+       ! Temperature per Kinds
        IF(simpar%temperature_per_kind) THEN
-         CALL cp_print_key_finished_output(tempkind,logger,motion_section,&
-              "MD%PRINT%TEMP_KIND", error=error) 
-         IF(shell_adiabatic) THEN
-           CALL cp_print_key_finished_output(tempshellkind,logger,motion_section,&
-              "MD%PRINT%TEMP_SHELL_KIND", error=error) 
-         END IF
+          tempkind=cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%TEMP_KIND",&
+               extension=".temp",file_position=my_pos, file_action=my_act,error=error)
+          IF( tempkind > 0 ) THEN
+             nkind = SIZE(md_ener%temp_kind)
+             fmd="(I10,F20.3,"//TRIM(ADJUSTL(cp_to_string(nkind)))//"F20.9)"     
+             fmd=TRIM(fmd)
+             WRITE (tempkind,fmd)&
+                  itimes,time*femtoseconds, md_ener%temp_kind(1:nkind)
+             CALL m_flush(tempkind)
+          END IF
+          CALL cp_print_key_finished_output(tempkind,logger,motion_section,"MD%PRINT%TEMP_KIND", error=error)
+       ELSE
+          print_key => section_vals_get_subs_vals(motion_section,"MD%PRINT%TEMP_KIND",error=error)
+          CALL cp_assert(.NOT.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file),&
+               cp_warning_level,cp_assertion_failed,routineP,&
+               "The print_key MD%PRINT%TEMP_KIND has been activated but the "//&
+               "calculation of the temperature per kind has not been requested. "//&
+               "Please switch on the keyword MD%TEMP_KIND. "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
        END IF
-    END IF  ! not init
+
+       ! Core/Shell Model
+       IF(shell_present) THEN
+          CALL force_env_get(force_env, harmonic_shell=harm_shell, error=error)
+          CALL cp_subsys_get(subsys, shell_particles=shell_particles, core_particles=core_particles, error=error)
+          shene=cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%SHELL_ENERGY",&
+               extension=".shener",file_position=my_pos, file_action=my_act,error=error)
+
+          ! Print Shell Energy
+          IF (shene>0) THEN
+             ! "Step Nr.    Time[fs]  Shell Kin.[a.u.]    Shell Temp[K]  Shell Pot.[a.u.] 
+             !
+             WRITE (shene,"(I8,F12.3,F20.9,F20.9,F20.9,F20.9 )")&
+                  itimes,time*femtoseconds,md_ener%ekin_shell,md_ener%temp_shell,harm_shell
+             CALL m_flush(shene)
+          END IF
+          CALL cp_print_key_finished_output(shene,logger,motion_section,"MD%PRINT%SHELL_ENERGY", error=error)
+
+          ! Print Shell Coordinates
+          CALL write_trajectory (force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
+               "SHELL_TRAJECTORY", my_pos, my_act, "shpos", shell_particles, error)
+
+          IF(shell_adiabatic) THEN
+             ! Print Shell Velocities
+             CALL write_trajectory (force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
+                  "SHELL_VELOCITIES", my_pos, my_act, "shvel", shell_particles, error)
+
+             ! Print Shell Forces
+             CALL write_trajectory (force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
+                  "SHELL_FORCES", my_pos, my_act, "shfrc", shell_particles, error)
+
+             ! Print Core Coordinates
+             CALL write_trajectory (force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
+                  "CORE_TRAJECTORY", my_pos, my_act, "copos", shell_particles, error)
+
+             ! Print Core Velocities
+             CALL write_trajectory (force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
+                  "CORE_VELOCITIES", my_pos, my_act, "covel", shell_particles, error)
+
+             ! Print Core Forces
+             CALL write_trajectory (force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
+                  "CORE_FORCES", my_pos, my_act, "cofrc", shell_particles, error)
+
+             ! Temperature per Kinds
+             IF(simpar%temperature_per_kind) THEN
+                tempkind=cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%TEMP_SHELL_KIND",&
+                     extension=".shtemp", file_position=my_pos, file_action=my_act,error=error)
+                IF( tempkind > 0 ) THEN
+                   nkind = SIZE(md_ener%temp_shell_kind)
+                   fmd="(I10,F20.3,"//TRIM(ADJUSTL(cp_to_string(nkind)))//"F20.9)"     
+                   fmd=TRIM(fmd)
+                   WRITE (tempkind,fmd)&
+                        itimes,time*femtoseconds, md_ener%temp_shell_kind(1:nkind)
+                   CALL m_flush(tempkind)
+                END IF
+                CALL cp_print_key_finished_output(tempkind, logger, motion_section,&
+                     "MD%PRINT%TEMP_SHELL_KIND", error=error) 
+             ELSE
+                print_key => section_vals_get_subs_vals(motion_section,"MD%PRINT%TEMP_SHELL_KIND",error=error)
+                CALL cp_assert(.NOT.BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file),&
+                     cp_warning_level,cp_assertion_failed,routineP,&
+                     "The print_key MD%PRINT%TEMP_SHELL_KIND has been activated but the "//&
+                     "calculation of the temperature per kind has not been requested. "//&
+                     "Please switch on the keyword MD%TEMP_KIND. "//&
+CPSourceFileRef,&
+                     only_ionode=.TRUE.)
+             END IF
+          END IF
+       END IF
+
+    END IF
     init = .FALSE.
     CALL set_md_env(md_env,init=init,error=error)
 
     CALL timestop(handle)
 
   END SUBROUTINE md_write_output
-
-! *****************************************************************************
-!> \brief Info on the unit to be opened to dump MD informations
-!> \author Teodoro Laino - University of Zurich - 07.2007
-! *****************************************************************************
-  SUBROUTINE get_output_format(section,path,my_form,my_ext,error)
-    TYPE(section_vals_type), POINTER         :: section
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: path
-    CHARACTER(LEN=*), INTENT(OUT)            :: my_form, my_ext
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_output_format', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: output_format
-
-    my_form = "FORMATTED"
-    my_ext  = ".xyz"
-    IF (PRESENT(path)) THEN
-       CALL section_vals_val_get(section,TRIM(path)//"%FORMAT",i_val=output_format,error=error)
-    ELSE
-       CALL section_vals_val_get(section,"FORMAT",i_val=output_format,error=error)
-    END IF
-    IF(output_format==dump_dcd) THEN
-       my_form = "UNFORMATTED"
-       my_ext  = ".dcd"
-    END IF
-  END SUBROUTINE get_output_format
-
-! *****************************************************************************
-!> \brief   Prints the Stress Tensor
-!> \author  Teodoro Laino [tlaino] - University of Zurich
-!> \date    02.2008
-!> \version 1.0
-! *****************************************************************************
-  SUBROUTINE write_stress_tensor(virial, cell, motion_section, unit, itimes, time, pos, act, error)
-    TYPE(virial_type), POINTER               :: virial
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(section_vals_type), POINTER         :: motion_section
-    TYPE(unit_convert_type), POINTER         :: unit
-    INTEGER, INTENT(IN)                      :: itimes
-    REAL(KIND=dp), INTENT(IN)                :: time
-    CHARACTER(LEN=default_string_length), &
-      INTENT(IN), OPTIONAL                   :: pos, act
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'write_stress_tensor', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=default_string_length)     :: my_act, my_pos
-    INTEGER                                  :: str
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-    
-    IF( virial % pv_availability ) THEN
-      my_pos = "APPEND"
-      my_act = "WRITE"
-      IF (PRESENT(pos)) my_pos = pos
-      IF (PRESENT(act)) my_act = act
-      str = cp_print_key_unit_nr(logger,motion_section,"PRINT%STRESS",&
-           extension=".stress", file_position=my_pos, file_action=my_act,&
-           file_form="FORMATTED", error=error)
-    ELSE
-      str = 0
-    END IF
-    IF ( str > 0 ) THEN
-       WRITE(UNIT=str,FMT="(I10,F12.3,9F20.10)") itimes,time,&
-                     virial%pv_total(1,1)/cell%deth*unit%bar,&
-                     virial%pv_total(1,2)/cell%deth*unit%bar,&
-                     virial%pv_total(1,3)/cell%deth*unit%bar,&
-                     virial%pv_total(2,1)/cell%deth*unit%bar,&
-                     virial%pv_total(2,2)/cell%deth*unit%bar,&
-                     virial%pv_total(2,3)/cell%deth*unit%bar,& 
-                     virial%pv_total(3,1)/cell%deth*unit%bar,&
-                     virial%pv_total(3,2)/cell%deth*unit%bar,&
-                     virial%pv_total(3,3)/cell%deth*unit%bar
-       CALL m_flush(str)
-    END IF
-    IF( virial % pv_availability ) THEN
-      CALL cp_print_key_finished_output(str,logger,motion_section,&
-           "PRINT%STRESS", error=error)
-    END IF
-  END SUBROUTINE write_stress_tensor
 
 END MODULE md_energies

@@ -15,8 +15,6 @@ MODULE gopt_f_methods
   USE cell_types,                      ONLY: cell_type
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
@@ -27,22 +25,15 @@ MODULE gopt_f_methods
                                              force_env_type
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
-  USE input_constants,                 ONLY: dump_atomic,&
-                                             dump_dcd,&
-                                             dump_xmol
   USE input_cp2k_restarts,             ONLY: write_restart
-  USE input_section_types,             ONLY: section_get_ival,&
-                                             section_vals_type,&
-                                             section_vals_val_get
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
-                                             sp
+                                             dp
   USE machine,                         ONLY: m_flush
-  USE md_energies,                     ONLY: get_output_format,&
-                                             write_stress_tensor
+  USE motion_utils,                    ONLY: write_stress_tensor,&
+                                             write_trajectory
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_coordinates,&
                                              write_structure_data
   USE qmmm_util,                       ONLY: apply_qmmm_translate
   USE timings,                         ONLY: timeset,&
@@ -424,8 +415,9 @@ CONTAINS
   END SUBROUTINE write_final_info
 
 ! *****************************************************************************
+!> \brief  Specific driver for dumping trajectory during a GEO_OPT
 !> \author Teodoro Laino [tlaino] - University of Zurich
-!> \data  11.2007
+!> \data   11.2007
 ! *****************************************************************************
   SUBROUTINE write_geo_traj(force_env,  root_section, it, etot, error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -437,60 +429,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_geo_traj', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: my_act, my_ext, my_form, &
-                                                my_pos, remark1, remark2, &
-                                                title
-    INTEGER                                  :: iskip, nat, outformat, &
-                                                traj_unit
-    LOGICAL                                  :: failure, init_traj
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
-    NULLIFY(logger, cell, subsys, particles, particle_set)
-    logger => cp_error_get_logger(error)
-    my_pos = "APPEND"
-    my_act = "WRITE"
+    CALL write_trajectory(force_env,  root_section, it, 0.0_dp, etot, error=error)
 
-    CALL force_env_get(force_env, cell=cell, subsys=subsys, error=error)
-    CALL cp_subsys_get(subsys=subsys, particles=particles,error=error)
-    particle_set => particles%els
-    nat=particles%n_els
-
-    CALL get_output_format(root_section,"MOTION%PRINT%TRAJECTORY",my_form,my_ext,error)
-    traj_unit = cp_print_key_unit_nr(logger,root_section,"MOTION%PRINT%TRAJECTORY",&
-            extension=my_ext, file_position=my_pos, file_action=my_act,&
-            file_form=my_form, middle_name="pos", is_new_file=init_traj,&
-            error=error)
-    IF (traj_unit > 0) THEN
-       CALL section_vals_val_get(root_section,"MOTION%PRINT%TRAJECTORY%FORMAT",i_val=outformat,error=error)
-       title = ""
-       IF     (outformat==dump_dcd) THEN
-          IF ( init_traj ) THEN
-             !Lets write the header for the coordinate dcd
-             iskip = section_get_ival(root_section,"MOTION%PRINT%TRAJECTORY%EACH%GEO_OPT",error=error)
-             WRITE(traj_unit) "CORD",0,it,iskip,0,0,0,0,0,0,REAL(it,KIND=sp),1,0,0,0,0,0,0,0,0,24
-             remark1= "REMARK FILETYPE CORD DCD GENERATED BY CP2K"
-             remark2= "REMARK Support new DCD format with cell information"
-             WRITE(traj_unit) 2,remark1,remark2
-             WRITE(traj_unit) nat
-             CALL m_flush(traj_unit)
-          ENDIF
-       ELSE IF(outformat==dump_xmol) THEN
-          !         *** This information can be digested by Molden ***
-          WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i = ",it," , E =",etot
-       ELSE IF(outformat==dump_atomic) THEN
-          ! Do Nothing..
-       ELSE
-          CPPostcondition(.FALSE.,cp_fatal_level,routineP,error,failure)
-       END IF
-       CALL write_particle_coordinates(particle_set,traj_unit,outformat,"POS",TRIM(title),cell)
-    END IF
-    CALL cp_print_key_finished_output(traj_unit,logger,root_section,"MOTION%PRINT%TRAJECTORY",error=error)
   END SUBROUTINE write_geo_traj
 
 ! *****************************************************************************

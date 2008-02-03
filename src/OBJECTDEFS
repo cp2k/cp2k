@@ -298,6 +298,7 @@ OBJECTS_GENERIC =\
  molecule_kind_types.o\
  molecule_types_new.o\
  moments_utils.o\
+ motion_utils.o\
  mt_util.o\
  mulliken.o\
  multipole_types.o\
