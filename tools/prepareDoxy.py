@@ -4,6 +4,9 @@ import glob,commands,os,shutil,re,os.path
 print """prepares for doxygen using the .F and .f90  from ../src and
 transferring them to ../docF.
 
+should be started from the tools or src directory (so that the relative
+paths are correct).
+
 It converts the extensions to .f90 and slightly changes them,
 so that doxygen can be easily applied to them."""
 
