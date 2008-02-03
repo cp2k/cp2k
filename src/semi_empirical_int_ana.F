@@ -450,7 +450,7 @@ CONTAINS
              xab    = sepi%xab(sepj%z)
              aab    = sepi%aab(sepj%z)
              scale  = sepi%zeff*sepj%zeff*ssss
-             dscale = sepi%zeff*sepj%zeff*dssss
+             IF (l_denuc) dscale = sepi%zeff*sepj%zeff*dssss
              IF ( (sepi%z == 1 .AND. (sepj%z == 6 .OR. sepj%z == 7 .OR. sepj%z == 8)) .OR. &
                   (sepj%z == 1 .AND. (sepi%z == 6 .OR. sepi%z == 7 .OR. sepi%z == 8)) ) THEN
                 ! Special Case O-H or N-H or C-H
