@@ -660,13 +660,13 @@ VERBATIM_HEADERS       = YES
 # of all compounds will be generated. Enable this if the project 
 # contains a lot of classes, structs, unions or interfaces.
 
-ALPHABETICAL_INDEX     = NO
+ALPHABETICAL_INDEX     = YES
 
 # If the alphabetical index is enabled (see ALPHABETICAL_INDEX) then 
 # the COLS_IN_ALPHA_INDEX tag can be used to specify the number of columns 
 # in which this list will be split (can be a number in the range [1..20])
 
-COLS_IN_ALPHA_INDEX    = 5
+COLS_IN_ALPHA_INDEX    = 3
 
 # In case all classes in a project start with a common prefix, all 
 # classes will be put under the same header in the alphabetical index. 
@@ -736,7 +736,7 @@ GENERATE_HTMLHELP      = NO
 # JavaScript and DHTML is required (for instance Mozilla 1.0+, Firefox 
 # Netscape 6.0+, Internet explorer 5.0+, Konqueror, or Safari).
 
-HTML_DYNAMIC_SECTIONS  = NO
+HTML_DYNAMIC_SECTIONS  = YES
 
 # If the GENERATE_HTMLHELP tag is set to YES, the CHM_FILE tag can 
 # be used to specify the file name of the resulting .chm file. You 
@@ -802,7 +802,7 @@ TREEVIEW_WIDTH         = 250
 # If the GENERATE_LATEX tag is set to YES (the default) Doxygen will 
 # generate Latex output.
 
-GENERATE_LATEX         = YES
+GENERATE_LATEX         = NO
 
 # The LATEX_OUTPUT tag is used to specify where the LaTeX docs will be put. 
 # If a relative path is entered the value of OUTPUT_DIRECTORY will be 
@@ -831,7 +831,7 @@ COMPACT_LATEX          = NO
 # by the printer. Possible values are: a4, a4wide, letter, legal and 
 # executive. If left blank a4wide will be used.
 
-PAPER_TYPE             = a4wide
+PAPER_TYPE             = a4
 
 # The EXTRA_PACKAGES tag can be to specify one or more names of LaTeX 
 # packages that should be included in the LaTeX output.
@@ -850,13 +850,13 @@ LATEX_HEADER           =
 # contain links (just like the HTML output) instead of page references 
 # This makes the output suitable for online browsing using a pdf viewer.
 
-PDF_HYPERLINKS         = NO
+PDF_HYPERLINKS         = YES
 
 # If the USE_PDFLATEX tag is set to YES, pdflatex will be used instead of 
 # plain latex in the generated Makefile. Set this option to YES to get a 
 # higher quality PDF documentation.
 
-USE_PDFLATEX           = NO
+USE_PDFLATEX           = YES
 
 # If the LATEX_BATCHMODE tag is set to YES, doxygen will add the \\batchmode. 
 # command to the generated LaTeX files. This will instruct LaTeX to keep 
