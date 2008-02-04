@@ -19,6 +19,7 @@ export WHAT   =_progr
 ### Dependent variables ###
 
 ARCHDIR      = $(CP2KHOME)/arch
+DOCDIR       = $(CP2KHOME)/doc
 MAINEXEDIR   = $(CP2KHOME)/exe
 MAINLIBDIR   = $(CP2KHOME)/lib
 MAINOBJDIR   = $(CP2KHOME)/obj
@@ -44,7 +45,7 @@ LIB_CP2K_ARCHIVE  = $(LIBDIR)/$(VERSION)/lib$(LIBCP2K).a
 SRCENTRY     = $(wildcard $(SRCDIR)/CVS/Entr*)
 LEAPOBJECTDEFS = $(TOOLSRC)/Fist/topology_converter/OBJECTDEFS
 FESOBJECTDEFS  = $(TOOLSRC)/metadyn/OBJECTDEFS
-
+DOXYGENDIR   = $(DOCDIR)/doxygen
 #
 ### Definition of the multiple targets ###
 #
@@ -276,7 +277,7 @@ realclean: clean
 # really remove all build files not in CVS
 #
 distclean:
-	rm -rf $(MAINEXEDIR) $(MAINLIBDIR) $(MAINOBJDIR)
+	rm -rf $(DOXYGENDIR) $(MAINEXEDIR) $(MAINLIBDIR) $(MAINOBJDIR)
 
 #
 # so far CP2K does not install, but give a hint to the user
@@ -285,7 +286,21 @@ install:
 	@echo ""
 	@echo "The CP2K executable is $(PROG)"
 	@echo ""
-
+#
+doxygen/clean:
+	-rm -rf $(DOXYGENDIR)
+#
+# Automatic source code documentation using Doxygen
+# Prerequisites:
+# - stable doxygen release 1.5.4 (Oct. 27, 2007)
+# - graphviz (2.16.1)
+# - webdot (2.16)
+#
+doxygen: doxygen/clean
+	@mkdir -p $(DOXYGENDIR)
+	{ cd $(SRCDIR); for f in $(OBJECTS:.o=); do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done }
+	{ cd $(SRCDIR)/lib; for f in $(LIB1_OBJECTS:.o=) $(LIB2_OBJECTS:.o=); do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done }
+	{ cd $(DOXYGENDIR) ; doxygen $(DOCDIR)/Doxyfile ; cd - ; }
 # 
 # an additional dependency of the CVS entries in the source directory
 # to recpp cp2k_info.F whenever the CVS/Entries file is updated (and exists)
