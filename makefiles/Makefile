@@ -298,9 +298,9 @@ doxygen/clean:
 #
 doxygen: doxygen/clean
 	@mkdir -p $(DOXYGENDIR)
-	{ cd $(SRCDIR); for f in $(OBJECTS:.o=); do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done }
-	{ cd $(SRCDIR)/lib; for f in $(LIB1_OBJECTS:.o=) $(LIB2_OBJECTS:.o=); do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done }
-	{ cd $(DOXYGENDIR) ; doxygen $(DOCDIR)/Doxyfile ; cd - ; }
+	{ cd $(SRCDIR) ; cp *.f90 *.h $(DOXYGENDIR) ; for f in $(OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
+	{ cd $(SRCDIR)/lib ; for f in $(LIB1_OBJECTS:.o=) $(LIB2_OBJECTS:.o=) ; do cp $${f}.F $(DOXYGENDIR)/$${f}.f90; done ; }
+	{ cd $(DOXYGENDIR) ; doxygen $(DOCDIR)/Doxyfile ; }
 # 
 # an additional dependency of the CVS entries in the source directory
 # to recpp cp2k_info.F whenever the CVS/Entries file is updated (and exists)
