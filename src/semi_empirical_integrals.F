@@ -590,7 +590,7 @@ CONTAINS
       csp1, csp2, css1, css2, dai, daj, dbi, dbj, pai, paj, pbi, pbj, qcorr, &
       rij, rija, scale, ssss, xab, xx11, xx21, xx22, xx31, xx32, xx33, yy11, &
       yy21, yy22, yyzz11, yyzz21, yyzz22, zaf, zbf, zz, zz11, zz21, zz22, &
-      zz31, zz32, zz33
+      zz31, zz32, zz33, poi, poj
     REAL(dp), DIMENSION(3)                   :: x, y, z
     REAL(dp), DIMENSION(4)                   :: fni1, fni2, fni3, fnj1, fnj2, &
                                                 fnj3
@@ -786,10 +786,21 @@ CONTAINS
          ELSE
            enuc = 0._dp
            rija = rij*angstrom
+           IF ( sepi%rho > 0._dp ) THEN
+             poi = sepi%rho
+           ELSE
+             poi = 0.5_dp/sepi%am
+           END IF
+           IF ( sepj%rho > 0._dp ) THEN
+             poj = sepj%rho
+           ELSE
+             poj = 0.5_dp/sepj%am
+           END IF
+           scale = sepi%zeff*sepj%zeff/SQRT(rij*rij+(poi+poj)**2)
+           IF(shortrange) scale = scale -  sepi%zeff*sepj%zeff/rij
            ! PM6 core-core terms
            xab = sepi%xab(sepj%z)
            aab = sepi%aab(sepj%z)
-           scale = sepi%zeff*sepj%zeff*ssss
            IF ( (sepi%z == 1 .AND. (sepj%z == 6 .OR. sepj%z == 7 .OR. sepj%z == 8)) .OR. &
                 (sepj%z == 1 .AND. (sepi%z == 6 .OR. sepi%z == 7 .OR. sepi%z == 8)) ) THEN
              ! Special Case O-H or N-H or C-H

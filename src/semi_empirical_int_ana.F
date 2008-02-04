@@ -83,7 +83,7 @@ CONTAINS
       dqcorr, drija, dscale, dssss, dzz, enuc2, enuc_loc, pai, paj, pbi, pbj, &
       qcorr, rij, rija, scale, ssss, tmp, xab, xtmp, xx11, xx21, xx22, xx31, &
       xx32, xx33, yy11, yy21, yy22, yyzz11, yyzz21, yyzz22, zaf, zbf, zz, &
-      zz11, zz21, zz22, zz31, zz32, zz33
+      zz11, zz21, zz22, zz31, zz32, zz33, poi, poj
     REAL(dp), DIMENSION(3) :: da, dcppp1, dcppp2, dcpps1, dcpps2, dcsp1, &
       dcsp2, dcss1, dcss2, drij, dx1, dx2, dx3, dxx11, dxx21, dxx22, dxx31, &
       dxx32, dxx33, dyy11, dyy21, dyy22, dyyzz11, dyyzz21, dyyzz22, dzz11, &
@@ -445,12 +445,26 @@ CONTAINS
              END IF
           ELSE
              ! PM6 core-core terms
+             IF ( sepi%rho > 0._dp ) THEN
+               poi = sepi%rho
+             ELSE
+               poi = 0.5_dp/sepi%am
+             END IF
+             IF ( sepj%rho > 0._dp ) THEN
+               poj = sepj%rho
+             ELSE
+               poj = 0.5_dp/sepj%am
+             END IF
+             scale = sepi%zeff*sepj%zeff/SQRT(rij*rij+(poi+poj)**2)
+             IF(shortrange) scale = scale - sepi%zeff*sepj%zeff/rij
+             IF (l_denuc) THEN
+               dscale = -rij*sepi%zeff*sepj%zeff/(rij*rij+(poi+poj)**2)**(1.5_dp)
+               IF(shortrange) dscale = dscale + sepi%zeff*sepj%zeff/rij/rij
+             END IF
              drija  = angstrom
              rija   = rij*drija
              xab    = sepi%xab(sepj%z)
              aab    = sepi%aab(sepj%z)
-             scale  = sepi%zeff*sepj%zeff*ssss
-             IF (l_denuc) dscale = sepi%zeff*sepj%zeff*dssss
              IF ( (sepi%z == 1 .AND. (sepj%z == 6 .OR. sepj%z == 7 .OR. sepj%z == 8)) .OR. &
                   (sepj%z == 1 .AND. (sepi%z == 6 .OR. sepi%z == 7 .OR. sepi%z == 8)) ) THEN
                 ! Special Case O-H or N-H or C-H
