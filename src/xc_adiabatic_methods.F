@@ -11,6 +11,7 @@
 ! *****************************************************************************
 MODULE xc_adiabatic_methods 
 
+  USE input_constants,                 ONLY: do_hf_potential_coulomb
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -54,7 +55,7 @@ MODULE xc_adiabatic_methods
                                scale_dEx2, total_energy_xc, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    REAL(dp), INTENT(IN)                     :: hf_energy(*)
+    REAL(dp), INTENT(INOUT)                  :: hf_energy(*)
     TYPE(qs_energy_type), POINTER            :: energy
     REAL(dp), INTENT(IN)                     :: adiabatic_lambda, &
                                                 adiabatic_omega
@@ -65,11 +66,22 @@ MODULE xc_adiabatic_methods
 
     INTEGER                                  :: nelec_a, nelec_b, nelectron, &
                                                 nspins
+    LOGICAL                                  :: do_swap_hf
     REAL(dp) :: a, b, c, c1, da_dDFA, da_ddW0, da_dEx1, da_dEx2, db_dDFA, &
       db_ddW0, db_dEx1, db_dEx2, dc_dDFA, dc_ddW0, dc_dEx1, dc_dEx2, dExc_da, &
-      dExc_db, dExc_dc, dfa_energy
+      dExc_db, dExc_dc, dfa_energy, swap_value
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
+
+    do_swap_hf = .FALSE.
+    !! Assume the first HF section is the Coulomb one
+    IF( qs_env%x_data(1)%potential_parameter%potential_type /= do_hf_potential_coulomb ) do_swap_hf = .TRUE.
+
+    IF( do_swap_hf ) THEN
+      swap_value = hf_energy(1)
+      hf_energy(1) = hf_energy(2)
+      hf_energy(2) = swap_value
+    END IF
 
     c1 = 0.23163_dp
 
@@ -112,6 +124,11 @@ MODULE xc_adiabatic_methods
     scale_dEx2 = dExc_da*da_dEx2 + dExc_db*db_dEx2 + dExc_dc*dc_dEx2
 
     total_energy_xc = a + b/(c*c)*(c-LOG(ABS(1.0_dp+c)))
+    IF( do_swap_hf ) THEN
+      swap_value = scale_dEx1
+      scale_dEx1 = scale_dEx2
+      scale_dEx2 = swap_value
+    END IF
   END SUBROUTINE rescale_MCY3_pade   
   
 END MODULE xc_adiabatic_methods
