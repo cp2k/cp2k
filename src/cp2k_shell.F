@@ -38,12 +38,14 @@ PROGRAM cp2k_shell
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_interface
   USE input_constants,                 ONLY: id_development_version
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp, default_path_length
   USE machine,                         ONLY: m_flush,&
                                              m_getcwd,&
                                              m_getlog,&
                                              m_getpid,&
-                                             m_hostnm
+                                             m_hostnm,&
+                                             m_chdir,&
+                                             m_getcwd
   USE message_passing,                 ONLY: mp_abort,&
                                              mp_bcast
   USE physcon,                         ONLY: angstrom,&
@@ -62,13 +64,13 @@ PROGRAM cp2k_shell
   TYPE(cp_error_type)                      :: error
   TYPE(cp_para_env_type), POINTER          :: para_env
   TYPE(cp_logger_type), POINTER            :: logger
-  CHARACTER(len=80)                        :: cmdStr
+  CHARACTER(len=default_path_length)       :: cmdStr
   CHARACTER(len=20)                        :: cmd,units
-  REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pos
-  REAL(KIND=dp)                            :: e_pot
+  REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pos,pos2
+  REAL(KIND=dp)                            :: e_pot,err
   REAL(KIND=dp)                            :: e_fact,pos_fact
   
-  CHARACTER(len=80), DIMENSION(32) :: helpMsg
+  CHARACTER(len=80), DIMENSION(33) :: helpMsg
   
   helpMsg=(/ &
   ll('Commands'),&
@@ -83,7 +85,8 @@ PROGRAM cp2k_shell
   ll(' LAST_ENV_ID: returns the env_id of the last environment loaded'),&
   ll(' NATOM [env_id]: returns the number of atoms in the environement env_id'),&
   ll(' SET_POS [env_id]: sets the positions of the atoms, should be followed'),&
-  ll('   by natom*3 (on a line) and then all the positions'),&
+  ll('   by natom*3 (on a line) and then all the positions. Returns the max'),&
+  ll('   change of the coordinates (useful to avoid extra calculations).'),&
   ll(' GET_POS [env_id]: gets the positions of the atoms, returns'),&
   ll('   natom*3 (on a line) and then all the positions then "* END" '),&
   ll('   (alone on a line)'),&
@@ -120,7 +123,9 @@ PROGRAM cp2k_shell
   eof=.FALSE.
   last_env_id=-1
   DO
-     WRITE (sout,'("* READY")')
+     IF (para_env%mepos==para_env%source) THEN
+        WRITE (sout,'("* READY")')
+     END IF
      CALL m_flush(sout)
      IF (para_env%mepos==para_env%source) THEN
         READ(*,'(a)',iostat=iostat)cmdStr
@@ -228,7 +233,7 @@ PROGRAM cp2k_shell
         CALL get_natom(env_id, n_atom, ierr)
         CALL my_assert(ierr==0,cmd//' failed get_natom',failure)
         IF (failure) GOTO 10
-        ALLOCATE(pos(3*n_atom),stat=stat)
+        ALLOCATE(pos(3*n_atom),pos2(3*n_atom),stat=stat)
         CALL my_assert(stat==0,cmd//' failed alloc',failure)
         IF (para_env%mepos==para_env%source) THEN
            READ (*,*,iostat=iostat) n_atom2
@@ -252,9 +257,18 @@ PROGRAM cp2k_shell
            CALL my_assert(cmdStr=='*END',' missing *END',failure)
         END IF
         CALL mp_bcast(pos,para_env%source,para_env%group)
+        CALL get_pos(env_id, pos2,n_el=3*n_atom,ierr=ierr)
+        CALL my_assert(ierr==0,'get_pos error',failure)
         CALL set_pos(env_id, new_pos=pos, n_el=3*n_atom, ierr=ierr)
         CALL my_assert(ierr==0,'set_pos error',failure)
-        DEALLOCATE(pos,stat=stat)
+        err=0.0_dp
+        DO i=1,SIZE(pos)
+           err=MAX(err,ABS(pos(i)-pos2(i)))
+        END DO
+        DEALLOCATE(pos,pos2,stat=stat)
+        IF (para_env%mepos==para_env%source) THEN
+           WRITE (sout,'(ES22.13)') err*pos_fact
+        END IF
         IF (stat/=0) CALL mp_abort('setpos failed dealloc')      
      CASE('GETPOS','GET_POS')
         env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
@@ -386,6 +400,24 @@ PROGRAM cp2k_shell
         harsh=.TRUE.
      CASE('PERMISSIVE')
         harsh=.FALSE.
+     CASE('CD','CHDIR')
+        shift=shift2+1
+        CALL my_assert(shift<=LEN(cmdStr),'cd without directory not accepted',failure)
+        IF (failure) GOTO 10
+        DO
+           IF (cmdStr(shift:shift)/=' ') EXIT
+           shift=shift+1
+           IF (shift>=LEN(cmdStr)) EXIT
+        END DO
+        CALL my_assert(cmdStr(shift:shift)/=' ',&
+             'cd without directory not accepted2',failure)
+        CALL m_chdir(cmdStr(shift:LEN_TRIM(cmdStr)),ierr)
+        CALL my_assert(ierr==0,'error changing directory',failure)
+     CASE('PWD','CWD')
+        IF (para_env%source==para_env%mepos) THEN
+           call m_getcwd(cmdStr)
+           WRITE (sout,'(a)')trim(cmdStr)
+        END IF
      CASE default
         CALL my_assert(.FALSE.,'unknown command '//cmd,failure)
      END SELECT
