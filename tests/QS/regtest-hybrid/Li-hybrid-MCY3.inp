@@ -1,0 +1,99 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    LSD
+    BASIS_SET_FILE_NAME ../EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME ../POTENTIAL
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &QS
+      METHOD GAPW
+    &END QS
+    &POISSON
+      PERIODIC NONE
+      PSOLVER MT
+    &END
+    &SCF
+      &OT on
+       PRECONDITIONER FULL_ALL
+      &END OT
+      EPS_SCF 1.0E-6
+      SCF_GUESS ATOMIC 
+      MAX_SCF 10
+      &OUTER_SCF
+        EPS_SCF 1.0E-6
+        MAX_SCF 10
+      &END
+    &END SCF
+    &XC
+      DENSITY_CUTOFF 1.0E-8
+      GRADIENT_CUTOFF 1.0E-8
+      &XC_FUNCTIONAL
+        &LYP_ADIABATIC
+          LAMBDA 0.71
+        &END
+        &BECKE88_LR_ADIABATIC
+          SCALE_X -0.94399
+          OMEGA 0.2
+          LAMBDA 0.71
+        &END
+        &BECKE88
+        &END
+      &END XC_FUNCTIONAL
+      &HF
+        &SCREENING
+          EPS_SCHWARZ 1.0E-10
+          EPS_BOX 1.0E-10
+        &END
+        &MEMORY
+          MAX_MEMORY 100
+        &END
+        &INTERACTION_POTENTIAL
+          POTENTIAL_TYPE COULOMB 
+        &END
+      &END
+      &HF
+        &SCREENING
+          EPS_SCHWARZ 1.0E-10
+          EPS_BOX 1.0E-10
+        &END
+        &MEMORY
+          MAX_MEMORY 100
+        &END
+        &INTERACTION_POTENTIAL
+          POTENTIAL_TYPE MIX_LG
+          OMEGA 0.142
+          SCALE_LONGRANGE 1.0
+          SCALE_GAUSSIAN 0.16022984
+        &END
+        FRACTION 1.05601
+      &END
+      &ADIABATIC_RESCALING
+        FUNCTIONAL_TYPE MCY3
+        FUNCTIONAL_MODEL PADE
+        LAMBDA 0.71
+        OMEGA 0.2
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      Li   0.0   0.0   0.0
+    &END COORD
+    &KIND Li
+      BASIS_SET 6-31Gxx
+      POTENTIAL ALL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT Li-MCY3
+  PRINT_LEVEL MEDIUM 
+  RUN_TYPE ENERGY
+&END GLOBAL
