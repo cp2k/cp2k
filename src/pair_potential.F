@@ -558,6 +558,14 @@ CPSourceFileRef,&
             locut,hicut
        WRITE(iw,'("SPLINE_INFO|",5X,A,2F12.6)')"RMIN and RMAX used to achieve spline accuracy (bohr):",&
             xsav,hicut
+       dx2 = (hicut - locut)/REAL(npoints+1,KIND=dp)
+       x  = locut + dx2
+       WRITE(iw,'("SPLINE_INFO|",5X,A,F15.9)')"Spline value at RMIN (Hartree):",&
+            potential_s(spl_p,x*x,xdum,spl_f,logger)
+       WRITE(iw,'("SPLINE_INFO|",5X,A,F15.9)')"Spline value at RMAX (Hartree):",&
+            potential_s(spl_p,hicut*hicut,xdum,spl_f,logger)
+       WRITE(iw,'("SPLINE_INFO|",5X,A,2F15.9)')"Electrostatic and Non-Bonded Cutoffs:",&
+            e_cutoff_coul, energy_cutoff
     END IF
     ! Print spline data on file if requested
     IF (iw2>0) THEN
@@ -705,7 +713,6 @@ CPSourceFileRef,&
           END DO
        END DO
        IF (ndim==0) CYCLE ! No potential of this kind found
-
        nvar = 0
        IF (my_ei_scale14 /=0.0_dp) nvar = nvar + 6
        SELECT CASE(pot_target)
@@ -835,8 +842,8 @@ CPSourceFileRef,&
                    IF (my_ei_scale14 /=0.0_dp) THEN
                       pot_par(nk,nvar-5)=qci
                       pot_par(nk,nvar-4)=qcj
-                      pot_par(nk,nvar-3)=qci
-                      pot_par(nk,nvar-2)=qcj
+                      pot_par(nk,nvar-3)=qsi
+                      pot_par(nk,nvar-2)=qsj
                       pot_par(nk,nvar-1)=qi
                       pot_par(nk,nvar  )=qj
                    END IF
@@ -844,9 +851,7 @@ CPSourceFileRef,&
                 END IF
              END DO
           END DO
-          !
-          ! MAIN SORTING LOOP
-          !
+          ! Main Sorting Loop
           ALLOCATE(Rwork(ndim),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(Iwork1(ndim),stat=stat)
@@ -1162,7 +1167,7 @@ CPSourceFileRef,&
        hicut0 = SQRT(pot%rcutsq)
        IF (ABS(hicut0) <= MIN_HICUT_VALUE) hicut0 = DEFAULT_HICUT_VALUE
     END IF
-    CALL init_genpot(potparm, ntype)
+    IF (pot_target==gp_type) CALL init_genpot(potparm, ntype)
     DO i = 1, nvalues
        value = my_index(i)
        CALL get_indexes(value,ntype,tmpij)
@@ -1308,7 +1313,7 @@ CPSourceFileRef,&
           END IF
        END DO
     END IF
-    CALL finalizef()
+    IF (pot_target==gp_type) CALL finalizef()
   END SUBROUTINE set_potparm_index
 
 ! *****************************************************************************
