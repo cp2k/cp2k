@@ -567,11 +567,11 @@ CONTAINS
                 WRITE ( iw, '( A,A,T31,A,T39,2(1X,F20.3) )' ) ' TEMPERATURE', &
                      ADJUSTL(unit%temp_label), '= ', md_ener%temp_part, averages%avetemp
              ELSE
-                WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' MM KINETIC ENERGY', &
+                WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' TOTAL KINETIC ENERGY', &
                      ADJUSTL(unit%e_label), '= ', md_ener%ekin, averages%avekin
                 WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' QM KINETIC ENERGY', &
                      ADJUSTL(unit%e_label), '= ', md_ener%ekin_qm, averages%avekin_qm
-                WRITE ( iw, '( A,A,T31,A,T39,2(1X,F20.3) )' ) ' MM TEMPERATURE', &
+                WRITE ( iw, '( A,A,T31,A,T39,2(1X,F20.3) )' ) ' TOTAL TEMPERATURE', &
                      ADJUSTL(unit%temp_label), '= ', md_ener%temp_part, averages%avetemp
                 WRITE ( iw, '( A,A,T31,A,T39,2(1X,F20.3) )' ) ' QM TEMPERATURE', &
                      ADJUSTL(unit%temp_label), '= ', md_ener%temp_qm, averages%avetemp_qm
