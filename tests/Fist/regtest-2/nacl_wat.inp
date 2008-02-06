@@ -1,0 +1,75 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      parm_file_name ../sample_pot/nacl_wat.pot
+      parmtype CHM
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .4
+        GMAX 60
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 30.0222460  30.5110950  30.2224290
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CONNECTIVITY GENERATE
+      COORD_FILE_NAME ../sample_pdb/nacl_wat.pdb
+      COORDINATE PDB
+      CHARGE_EXTENDED
+      &GENERATE
+         CREATE_MOLECULES
+         BONDLENGTH_MAX 7.0
+         &ISOLATED_ATOMS
+           LIST 1 2 3 4 5 6 7 8 9 10
+           LIST 11 12 13 14 15 16 17 18 19 20
+         &END
+      &END
+    &END TOPOLOGY
+    &PRINT
+       &TOPOLOGY_INFO
+          GENERATE_INFO
+       &END
+    &END
+  &END SUBSYS
+ &RESCALE_FORCES
+  MAX_FORCE 0.05
+ &END
+&END FORCE_EVAL
+&GLOBAL
+  PREFERRED_FFT_LIBRARY FFTSG
+  PRINT_LEVEL LOW
+  PROJECT FIST-RUN
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVT
+    STEPS 10
+    TIMESTEP 0.5
+    TEMPERATURE 300
+&THERMOSTAT
+    &NOSE
+      LENGTH 3
+      YOSHIDA 3
+      TIMECON 1000
+      MTS 2
+    &END NOSE
+&END THERMOSTAT
+  &END MD
+  &PRINT
+    &TRAJECTORY OFF
+    &END
+    &VELOCITIES OFF
+    &END
+  &END
+
+&END MOTION
+

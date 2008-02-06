@@ -1187,6 +1187,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="CHARGE_EXTENDED",&
+            description="Read MM charges from the very last field of PDB file (starting from column 81)."//&
+            " No limitations of number of digits.",&
+            usage="CHARGE_EXTENDED logical",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="PARA_RES",&
             description="For a protein, each residue is now considered a molecule",&
             usage="PARA_RES logical",&
@@ -1311,29 +1319,17 @@ CONTAINS
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(&
-             keyword=keyword,&
-             name="BONDLENGTH_MAX",&
+       CALL keyword_create(keyword=keyword,name="BONDLENGTH_MAX",&
              description="Maximum distance to generate neighbor lists to build connectivity",&
-             usage="BONDLENGTH_MAX <real>",&
-             default_r_val=cp_unit_to_cp2k(value=3.0_dp,&
-                                           unit_str="angstrom",&
-                                           error=error),&
-             unit_str="angstrom",&
-             error=error)
+             usage="BONDLENGTH_MAX <real>",default_r_val=cp_unit_to_cp2k(value=3.0_dp,&
+             unit_str="angstrom",error=error),unit_str="angstrom",error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(&
-             keyword=keyword,&
-             name="BONDLENGTH_MIN",&
+       CALL keyword_create(keyword=keyword,name="BONDLENGTH_MIN",&
              description="Minimum distance to generate neighbor lists to build connectivity",&
-             usage="BONDLENGTH_MIN <real>",&
-             default_r_val=cp_unit_to_cp2k(value=0.01_dp,&
-                                           unit_str="angstrom",&
-                                           error=error),&
-             unit_str="angstrom",&
-             error=error)
+             usage="BONDLENGTH_MIN <real>",default_r_val=cp_unit_to_cp2k(value=0.01_dp,&
+             unit_str="angstrom",error=error),unit_str="angstrom",error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1445,7 +1441,21 @@ CONTAINS
        
        CALL section_add_subsection(subsection, subsubsection, error=error)
        CALL section_release(subsubsection,error=error)
-
+       NULLIFY(subsubsection)
+       ! ISOLATED ATOMS
+       CALL section_create(subsubsection,name="ISOLATED_ATOMS",&
+            description=" This section specifies the  atoms that one considers isolated. Useful when present "//&
+            " ions in solution.",n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       CALL keyword_create(keyword, name="LIST",&
+            description="Specifies a list of atomic indexes of the isolated ion",&
+            usage="LIST {integer}", type_of_var=integer_t, n_var=-1,&
+            required=.TRUE., repeats=.TRUE.,error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(subsection, subsubsection, error=error)
+       CALL section_release(subsubsection,error=error)
+       !
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 

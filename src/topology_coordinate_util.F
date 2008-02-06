@@ -141,7 +141,11 @@ CONTAINS
     CALL timeset(routineN//'_1',handle2)
     counter=0
     NULLIFY(work,mass,element,charge)
-    ALLOCATE(work(topology%natoms),mass(topology%natoms),element(topology%natoms),STAT=stat)
+    ALLOCATE(work(topology%natoms),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(mass(topology%natoms),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(element(topology%natoms),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(charge(topology%natoms),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -170,8 +174,7 @@ CONTAINS
           ELSE
              found = .FALSE.
              DO k = 1, counter
-                IF( (str_comp(work(k),atom_list(j)%name)) .AND. &
-                     (charge(k)==atom_info%atm_charge(first+j-1)) ) THEN
+                IF((str_comp(work(k),atom_list(j)%name)).AND.(charge(k)==atom_info%atm_charge(first+j-1))) THEN
                    found = .TRUE.
                    EXIT
                 END IF
@@ -255,10 +258,9 @@ CONTAINS
     natom_of_kind(:) = 0
     DO i=1,topology%natom_type
        DO j=1,topology%natoms
-          IF( (atom_info%atom_names(i)==atom_info%label_atmname(j)) .AND. &
-               (charge(i)==atom_info%atm_charge(j)) ) THEN
+          IF((atom_info%atom_names(i)==atom_info%label_atmname(j)).AND.(charge(i)==atom_info%atm_charge(j))) THEN
              natom_of_kind(i)=natom_of_kind(i)+1
-             IF(kind_of(j)==0) kind_of(j)=i
+             IF (kind_of(j)==0) kind_of(j)=i
           END IF
        END DO
     END DO
@@ -578,8 +580,7 @@ CONTAINS
              IF(method_name_id == do_fist) THEN
                 CALL get_atomic_kind(atomic_kind=atomic_kind,elp_potential=elp_potential)
                 CALL get_potential(potential=elp_potential,qeff=qeff)
-                IF( (atom_list(j)%name == atmname) .AND. &
-                     (qeff==atom_info%atm_charge(first+j-1)) ) THEN
+                IF((atom_list(j)%name == atmname).AND.(qeff==atom_info%atm_charge(first+j-1)) ) THEN
                    atom_list(j)%atomic_kind => atomic_kind_set(k)
                    EXIT
                 END IF

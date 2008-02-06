@@ -18,3 +18,4 @@ sod2.inp                  2
 #Nose with constraints
 H2O-32_SPME_fixed.inp     2
 H2O-32_SPME_fixed_mol.inp 2
+nacl_wat.inp              2

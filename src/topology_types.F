@@ -152,6 +152,7 @@ MODULE topology_types
      LOGICAL                                   :: const_46
      LOGICAL                                   :: charge_occup
      LOGICAL                                   :: charge_beta
+     LOGICAL                                   :: charge_extended
      LOGICAL                                   :: para_res
   END TYPE topology_parameters_type
 
@@ -226,6 +227,7 @@ CONTAINS
     topology%const_46=.FALSE.
     topology%charge_occup=.FALSE.
     topology%charge_beta=.FALSE.
+    topology%charge_extended=.FALSE.
     topology%para_res=.FALSE.
     topology%molname_generated=.FALSE.
     topology%aa_element=.FALSE.

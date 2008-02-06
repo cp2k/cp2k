@@ -1600,14 +1600,14 @@ CPSourceFileRef,&
 !> \brief Set up atomic_kind_set()%elp_potentail%qeff (PART 2) and shell potential
 !>      parameters
 ! *****************************************************************************
-  SUBROUTINE force_field_pack_ch  ( atomic_kind_set, qmmm_env, fatal, iw,&
+  SUBROUTINE force_field_pack_ch  ( atomic_kind_set, qmmm_env, fatal, iw, iw4,&
        Ainfo, my_qmmm, chm_info, inp_info, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     LOGICAL                                  :: fatal
-    INTEGER                                  :: iw
+    INTEGER                                  :: iw, iw4
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: Ainfo
     LOGICAL                                  :: my_qmmm
@@ -1618,13 +1618,13 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_ch', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: atmname, name_atm_a
+    CHARACTER(LEN=default_string_length)     :: atmname
     INTEGER                                  :: handle2, i, ilink, j, stat
     INTEGER, DIMENSION(:), POINTER           :: my_atom_list
     LOGICAL                                  :: failure, found, found_p, &
                                                 is_link_atom, only_manybody, &
                                                 only_qm
-    REAL(KIND=dp)                            :: scale_factor
+    REAL(KIND=dp)                            :: chrg_tot, scale_factor
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(elp_potential_type), POINTER        :: elp_potential
@@ -1632,36 +1632,40 @@ CPSourceFileRef,&
     failure = .FALSE.
 
     CALL timeset(routineN,'I','',handle2)
+    chrg_tot = 0.0_dp
     ALLOCATE(charge(SIZE(atomic_kind_set)),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO i=1,SIZE(atomic_kind_set)
        atomic_kind => atomic_kind_set(i)
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-            elp_potential=elp_potential,&
-            atom_list=my_atom_list,&
-            name=atmname)
+                            elp_potential=elp_potential,&
+                            atom_list=my_atom_list,&
+                            name=atmname)
        CALL get_potential(potential=elp_potential,&
-            qeff=charge(i))
+                          qeff=charge(i))
 
        found = .FALSE.
        only_qm = qmmm_ff_precond_only_qm(id1=atmname,is_link=is_link_atom)
        CALL uppercase(atmname)
        IF(charge(i)/=-HUGE(0.0_dp)) found = .TRUE.
-       ! loop over params from charmm
-       IF(ASSOCIATED(chm_info%charge_atm)) THEN
-          DO j=1,SIZE(chm_info%charge_atm)
-             IF((chm_info%charge_atm(j))==atmname) THEN
-                charge(i) = chm_info%charge(j)
-                CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                     "Multiple charge declarations: "//TRIM(atmname)//&
-                     " overwriting! "//&
-CPSourceFileRef,&
-                     only_ionode=.TRUE.)
-                found = .TRUE.
-             END IF
-          END DO
-       END IF
+
+!TL THis should be deleted together with the chm_info%charge_atm
+!TL       ! loop over params from charmm
+!TL       IF(ASSOCIATED(chm_info%charge_atm)) THEN
+!TL          DO j=1,SIZE(chm_info%charge_atm)
+!TL             IF((chm_info%charge_atm(j))==atmname) THEN
+!TL                charge(i) = chm_info%charge(j)
+!TL                CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
+!TL                     "Multiple charge declarations: "//TRIM(atmname)//&
+!TL                     " overwriting! "//&
+!TLCPSourceFileRef,&
+!TL                     only_ionode=.TRUE.)
+!TL                found = .TRUE.
+!TL             END IF
+!TL          END DO
+!TL       END IF
        ! always have the input param last to overwrite all the other ones
+
        IF(ASSOCIATED(inp_info%charge_atm)) THEN
           DO j=1,SIZE(inp_info%charge_atm)
              IF (iw>0) WRITE(iw,*)"Charge Checking ::",TRIM(inp_info%charge_atm(j)),atmname
@@ -1701,7 +1705,7 @@ CPSourceFileRef,&
              END IF
           END IF
        END IF
-       IF (.NOT.found) CALL store_FF_missing_par(atm1=TRIM(name_atm_a),&
+       IF (.NOT.found) CALL store_FF_missing_par(atm1=TRIM(atmname),&
                                                  fatal=fatal,&
                                                  type_name="Charge",&
                                                  array=Ainfo,&
@@ -1726,12 +1730,14 @@ CPSourceFileRef,&
           END IF
        END IF
 
-       CALL set_potential(potential=elp_potential,&
-            qeff=charge(i))
-       CALL set_atomic_kind(atomic_kind=atomic_kind,&
-            elp_potential=elp_potential)
-
+       CALL set_potential(potential=elp_potential,qeff=charge(i))
+       CALL set_atomic_kind(atomic_kind=atomic_kind,elp_potential=elp_potential)
+       IF (found) chrg_tot = chrg_tot + atomic_kind%natom*charge(i)
     END DO
+    ! Print Total Charge of the system
+    IF (iw4>0) THEN
+       WRITE(iw4,FMT='(T2,"CHARGE_INFO| Total Charge of the Classical System: ",T69,F12.6)')chrg_tot
+    END IF
     DEALLOCATE (charge,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(0.0_dp,handle2)

@@ -411,11 +411,12 @@ CONTAINS
     CHARACTER(LEN=2), POINTER                :: atm_symbol(:)
     INTEGER :: cbond, handle, handle2, i, iatm1, iatm2, iatom, ibond, idim, &
       ielem, ielem_found, iw, j, jatom, k, n_bonds, n_heavy_bonds, &
-      n_hydr_bonds, natom, nelem, npairs, output_unit, stat
+      n_hydr_bonds, n_rep, natom, nelem, npairs, output_unit, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: bond_a, bond_b, list, map_nb
+    INTEGER, DIMENSION(:), POINTER           :: isolated_atoms, tmp_v
     LOGICAL                                  :: connectivity_ok, &
-                                                element_found, failure, &
-                                                ionode, print_info
+                                                element_found, explicit, &
+                                                failure, ionode, print_info
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: h_list
     REAL(KIND=dp)                            :: bondparm_factor, cell_v(3), &
                                                 dr(3), ksign, my_maxrad, r2, &
@@ -434,18 +435,35 @@ CONTAINS
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: bond_section
+    TYPE(section_vals_type), POINTER         :: bond_section, &
+                                                generate_section, &
+                                                isolated_section
 
     failure = .FALSE.    
-    NULLIFY(logger, particle_set, atomic_kind_set, nonbonded)
+    NULLIFY(logger, particle_set, atomic_kind_set, nonbonded, bond_section, generate_section)
+    NULLIFY(isolated_atoms, tmp_v)
+    CALL timeset(routineN,'I','',handle)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     output_unit = -1
     IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GENERATE_INFO",&
          extension=".subsysLog",error=error)
-    CALL timeset(routineN,'I','',handle)
     IF (.NOT.failure) THEN
+       ! Get atoms that one considers isolated (like ions in solution)
+       ALLOCATE(isolated_atoms(0), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       generate_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%GENERATE",error=error)
+       isolated_section => section_vals_get_subs_vals(generate_section,"ISOLATED_ATOMS",error=error)
+       CALL section_vals_get(isolated_section, explicit=explicit, error=error)
+       IF (explicit) THEN
+          CALL section_vals_val_get(isolated_section,"LIST", n_rep_val=n_rep, error=error)
+          DO i = 1, n_rep
+             CALL section_vals_val_get(isolated_section,"LIST", i_vals=tmp_v, i_rep_val=i, error=error)
+             CALL reallocate(isolated_atoms, 1, SIZE(isolated_atoms)+SIZE(tmp_v))
+             isolated_atoms(SIZE(isolated_atoms)-SIZE(tmp_v)+1:SIZE(isolated_atoms)) = tmp_v
+          END DO
+       END IF
        atom_info => topology%atom_info
        conn_info => topology%conn_info
        bondparm_factor = topology%bondparm_factor
@@ -502,9 +520,12 @@ CONTAINS
           ELSE
              CALL stop_program ("topology_generate_bond","illegal bondparm_type")
           END IF
+          ! isolated atoms? put the radius to 0.0_dp
+          IF (ANY(isolated_atoms==iatom)) radius(iatom) = 0.0_dp
           CALL convert_to_cp2k_units("ANGSTROM",length=radius(iatom))
-          IF(iw>0) WRITE(iw,'(T2,"GENERATE|",5X,A,T77,A5)') &
-               "In topology_generate_bond :: iatom = ",ptable(ielem_found)%symbol
+          IF(iw>0) WRITE(iw,'(T2,"GENERATE|",5X,A,T50,A5,T60,A,T69,F12.6)') &
+               "In topology_generate_bond :: iatom = ",ptable(ielem_found)%symbol,&
+               "radius:",radius(iatom)
        END DO
        CPPostcondition(.NOT.failure,cp_failure_level,routineP,error,failure)
        CALL timestop(0.0_dp,handle2)
@@ -520,7 +541,7 @@ CONTAINS
             name="XXX",element_symbol="XXX",mass=0.0_dp,atom_list=list)
        CALL section_vals_val_get(subsys_section,"TOPOLOGY%GENERATE%BONDLENGTH_MAX",r_val=tmp,&
             error=error)
-       r_max     = tmp
+       r_max = tmp
        IF (my_maxrad*bondparm_factor>r_max(1,1).AND.(.NOT.topology%molname_generated)) THEN
           IF (output_unit>0) THEN
              WRITE(output_unit,'(T2,"GENERATE|",A)')&
@@ -633,7 +654,9 @@ CONTAINS
                         "bond distance between atoms less then the smallest distance provided "//&
                         "in input "//cp_to_string(tmp)//" [bohr]")
                 END IF
-                
+                ! Screen isolated atoms
+                IF ((ANY(isolated_atoms==iatm1)).OR.(ANY(isolated_atoms==iatm2))) CYCLE
+
                 ! Screen neighbors
                 IF(topology%bondparm_type==do_bondparm_covalent) THEN
                    rbond = radius(iatm1) + radius(iatm2)
@@ -664,6 +687,9 @@ CONTAINS
                 print_info = .FALSE.
                 IF (atom_info%label_molname(iatm1)/=atom_info%label_molname(iatm2)) CYCLE
                 IF (h_list(iatm2).AND.(iatm2<=iatm1)) CYCLE
+                ! Screen isolated atoms
+                IF ((ANY(isolated_atoms==iatm1)).OR.(ANY(isolated_atoms==iatm2))) CYCLE
+
                 k     = bond_list(iatm1)%array2(j)
                 ksign = SIGN(1.0_dp,REAL(k,KIND=dp))
                 k     = ABS(k)
@@ -697,8 +723,7 @@ CONTAINS
                   " Preliminary Number of Bonds generated:",n_bonds
           END IF
           ! External defined bonds (useful for complex connectivity)
-          bond_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%GENERATE%BOND",&
-               error=error)
+          bond_section => section_vals_get_subs_vals(generate_section,"BOND",error=error)
           CALL connectivity_external_control(section=bond_section,&
                                              Iarray1=conn_info%bond_a,&
                                              Iarray2=conn_info%bond_b,&
@@ -796,6 +821,8 @@ CONTAINS
           END DO
        END IF
        CALL timestop(0.0_dp,handle2)
+       DEALLOCATE(isolated_atoms,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     CALL timestop(0.0_dp,handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&

@@ -28,6 +28,10 @@
 !> 73 - 76       LString(4)      segID         Segment identifier, left-justified.
 !> 77 - 78       LString(2)      element       Element symbol, right-justified.
 !> 79 - 80       LString(2)      charge        Charge on the atom.
+!>
+!> 81 -          Real(*)         Charge Ext.   This last field is an extenstion to
+!>                                             standard PDB to provide a full charge
+!>                                             without limitation of digits.
 ! *****************************************************************************
 MODULE topology_pdb
 
@@ -43,7 +47,8 @@ MODULE topology_pdb
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
-  USE kinds,                           ONLY: default_string_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE physcon,                         ONLY: angstrom
@@ -79,7 +84,8 @@ CONTAINS
     INTEGER, PARAMETER                       :: nblock_atom = 10
     REAL(KIND=dp), PARAMETER                 :: realloc_factor = 1.2_dp
 
-    CHARACTER(LEN=default_string_length)     :: line, record, root_mol_name
+    CHARACTER(LEN=default_path_length)       :: line
+    CHARACTER(LEN=default_string_length)     :: record, root_mol_name
     INTEGER                                  :: handle, i, inum_mol, istat, &
                                                 iw, natom, newsize
     LOGICAL                                  :: my_end
@@ -116,7 +122,7 @@ CONTAINS
        line = ''
        CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
        IF(my_end) EXIT
-       line   = parser%input_line(1:default_string_length)
+       line   = parser%input_line(1:default_path_length)
        record = line(1:6)
        record = TRIM(record)
        
@@ -154,10 +160,12 @@ CONTAINS
           READ(line(77:78),*,IOSTAT=istat) atom_info%element(natom)
           atom_info%atm_mass(natom)  = 0.0_dp
           atom_info%atm_charge(natom)= -HUGE(0.0_dp)
-          IF(topology%charge_occup) & 
-               atom_info%atm_charge(natom) = atom_info%occup(natom)
-          IF(topology%charge_beta) &
-               atom_info%atm_charge(natom) = atom_info%beta(natom)
+          IF(topology%charge_occup) atom_info%atm_charge(natom) = atom_info%occup(natom)
+          IF(topology%charge_beta)  atom_info%atm_charge(natom) = atom_info%beta(natom)
+          IF(topology%charge_extended) THEN
+             READ(line(81:),*,IOSTAT=istat) atom_info%atm_charge(natom)
+          END IF
+
           IF (TRIM(atom_info%element(natom))=="") THEN
              topology%aa_element      = .TRUE.
              atom_info%element(natom) = atom_info%label_atmname(natom)

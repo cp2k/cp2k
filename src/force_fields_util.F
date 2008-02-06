@@ -222,7 +222,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 12. Set up atomic_kind_set()%elp_potentail%qeff (PART 2)
     !-----------------------------------------------------------------------------
-    CALL force_field_pack_ch  (atomic_kind_set, qmmm_env, fatal, iw,&
+    CALL force_field_pack_ch  (atomic_kind_set, qmmm_env, fatal, iw, iw4,&
          Ainfo, my_qmmm, chm_info, inp_info, error)
 
     ! Give information only if charge is missing and abort..

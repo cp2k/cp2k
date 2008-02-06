@@ -20,7 +20,8 @@ MODULE topology_util
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_val_set
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mm_mapping_library,              ONLY: amber_map,&
@@ -93,12 +94,13 @@ CONTAINS
                                                 tlabel_molname(:), &
                                                 tlabel_resname(:)
     INTEGER :: handle, i, iatm, iindex, imol, imol_ref, iref, iund, iw, j, &
-      location, max_mol_num, n, natom, natom_loc, old_hash, old_mol, &
+      location, max_mol_num, n, n_rep, natom, natom_loc, old_hash, old_mol, &
       output_unit, stat, unique_mol
     INTEGER, POINTER :: atm_map1(:), atm_map2(:), atm_map3(:), &
       map_atom_type(:), map_mol_hash(:), mol_bnd(:,:), mol_hash(:), &
-      mol_num(:), new_position(:), order(:), wrk(:)
-    LOGICAL                                  :: failure, ionode, matches
+      mol_num(:), new_position(:), order(:), tmp_n(:), tmp_v(:), wrk(:)
+    LOGICAL                                  :: explicit, failure, ionode, &
+                                                matches
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tr
     REAL(KIND=dp), POINTER                   :: tatm_charge(:), tatm_mass(:)
     TYPE(array1_list_type), ALLOCATABLE, &
@@ -107,10 +109,12 @@ CONTAINS
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(graph_type), DIMENSION(:), POINTER  :: reference_set
+    TYPE(section_vals_type), POINTER         :: generate_section, &
+                                                isolated_section
     TYPE(vertex), DIMENSION(:), POINTER      :: reference, unordered
 
     failure = .FALSE.
-    NULLIFY(logger)
+    NULLIFY(logger,generate_section,isolated_section,tmp_v,tmp_n)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
@@ -382,6 +386,30 @@ CONTAINS
        atom_info%atm_charge(iatm)      = tatm_charge(iatm)
        atom_info%atm_mass(iatm)        = tatm_mass(iatm)
     END DO
+    ! Let's reorder all the list provided in the input..
+    ALLOCATE(wrk(SIZE(new_position)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL sort(new_position, SIZE(new_position), wrk)
+
+    ! NOTE: In the future the whole list of possible integers should be updated at this level..
+    ! Let's reorder the atoms wants to be isolated..
+    generate_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%GENERATE",error=error)
+    isolated_section => section_vals_get_subs_vals(generate_section,"ISOLATED_ATOMS",error=error)
+    CALL section_vals_get(isolated_section, explicit=explicit, error=error)
+    IF (explicit) THEN
+       CALL section_vals_val_get(isolated_section,"LIST", n_rep_val=n_rep, error=error)    
+       DO i = 1, n_rep
+          CALL section_vals_val_get(isolated_section,"LIST", i_vals=tmp_v, i_rep_val=i, error=error)
+          ALLOCATE(tmp_n(SIZE(tmp_v)),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO j = 1, SIZE(tmp_v)
+             tmp_n(j) = wrk(tmp_v(j))
+          END DO
+          CALL section_vals_val_set(isolated_section,"LIST", i_vals_ptr=tmp_n, i_rep_val=i, error=error)
+       END DO
+    END IF
+    DEALLOCATE(wrk,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     !DEALLOCATE all the temporary arrays needed for this routine
     DEALLOCATE(new_position,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

@@ -58,7 +58,7 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
     CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_section', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, ival
     LOGICAL                                  :: failure
 
   CALL timeset(routineN,handle)
@@ -66,6 +66,12 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
   IF (.NOT. failure) THEN
      CALL section_vals_val_get(topology_section,"CHARGE_OCCUP",l_val=topology%charge_occup,error=error)
      CALL section_vals_val_get(topology_section,"CHARGE_BETA",l_val=topology%charge_beta,error=error)
+     CALL section_vals_val_get(topology_section,"CHARGE_EXTENDED",l_val=topology%charge_extended,error=error)
+     ival = COUNT((/topology%charge_occup,topology%charge_beta,topology%charge_extended/))
+     CALL cp_assert(ival<=1,cp_failure_level,cp_assertion_failed,routineP,&
+          "Only one between <CHARGE_OCCUP,CHARGE_BETA,CHARGE_EXTENDED> can be defined! "//&
+CPSourceFileRef,&
+          only_ionode=.TRUE.)     
      CALL section_vals_val_get(topology_section,"PARA_RES",l_val=topology%para_res,error=error)
      CALL section_vals_val_get(topology_section,"GENERATE%REORDER",l_val=topology%reorder_atom,error=error)
      CALL section_vals_val_get(topology_section,"GENERATE%CREATE_MOLECULES",l_val=topology%create_molecules,error=error)
