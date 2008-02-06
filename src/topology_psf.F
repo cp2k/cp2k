@@ -826,7 +826,8 @@ CPSourceFileRef,&
                                                 my_tag3, record
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: charge_atm
-    INTEGER                                  :: handle, i, iw, j, nchg, stat
+    INTEGER                                  :: handle, i, iw, j, my_index, &
+                                                nchg, stat
     LOGICAL                                  :: explicit, failure, ldum
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge_inp, charges
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -894,7 +895,27 @@ CPSourceFileRef,&
     WRITE(file_unit,FMT='(A)') ""
 
     WRITE(file_unit,FMT='('//TRIM(c_int)//',A)')topology%natoms," !NATOM"
-    DO i=1,topology%natoms
+    my_index = 1
+    i        = 1
+    my_tag1 = atom_info%label_molname(i)
+    my_tag2 = atom_info%label_resname(i)
+    my_tag3 = atom_info%label_atmname(i)
+    ldum = qmmm_ff_precond_only_qm(my_tag1)
+    ldum = qmmm_ff_precond_only_qm(my_tag2)
+    ldum = qmmm_ff_precond_only_qm(my_tag3)
+    WRITE(file_unit,FMT=psf_format)&
+         i,&
+         TRIM(my_tag1),&
+         my_index,&
+         TRIM(my_tag2),&
+         TRIM(my_tag3),&
+         TRIM(my_tag3),&
+         charges(i),&
+         atom_info%atm_mass(i),&
+         0
+    DO i=2,topology%natoms
+       IF  ((atom_info%map_mol_num(i)/=atom_info%map_mol_num(i-1)).OR.&
+            (atom_info%map_mol_res(i)/=atom_info%map_mol_res(i-1))) my_index = my_index + 1
        my_tag1 = atom_info%label_molname(i)
        my_tag2 = atom_info%label_resname(i)
        my_tag3 = atom_info%label_atmname(i)
@@ -904,7 +925,7 @@ CPSourceFileRef,&
        WRITE(file_unit,FMT=psf_format)&
             i,&
             TRIM(my_tag1),&
-            atom_info%map_mol_num(i),&
+            my_index,&
             TRIM(my_tag2),&
             TRIM(my_tag3),&
             TRIM(my_tag3),&
