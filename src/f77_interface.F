@@ -72,7 +72,10 @@ MODULE f77_interface
                                              section_vals_val_get,&
                                              section_vals_write
   USE kg_main,                         ONLY: kg_create_force_env
-  USE kinds,                           ONLY: dp, default_path_length
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
+  USE machine,                         ONLY: m_chdir,&
+                                             m_getcwd
   USE message_passing,                 ONLY: &
        MPI_COMM_WORLD, add_mp_perf_env, get_mp_perf_env, mp_max, &
        mp_perf_env_release, mp_perf_env_retain, mp_perf_env_type, &
@@ -96,7 +99,6 @@ MODULE f77_interface
                                              timer_env_type,&
                                              timeset,&
                                              timestop
-  USE machine, ONLY: m_getcwd,m_chdir
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -282,8 +284,8 @@ RECURSIVE SUBROUTINE f_env_dealloc(f_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'f_env_dealloc', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: ierr
     LOGICAL                                  :: failure
-    integer :: ierr
 
   failure=.FALSE.
 
@@ -339,7 +341,7 @@ SUBROUTINE f_env_create(f_env,template_error,force_env, timer_env,mp_perf_env,&
      f_env%mp_perf_env => mp_perf_env
      CALL mp_perf_env_retain(f_env%mp_perf_env)
      f_env%id_nr=id_nr
-     call m_getcwd(f_env%my_path)
+     CALL m_getcwd(f_env%my_path)
      f_env%old_path=f_env%my_path
   END IF
 END SUBROUTINE f_env_create
@@ -370,7 +372,7 @@ SUBROUTINE f_env_add_defaults(f_env_id,f_env,new_error, failure, handle)
     CHARACTER(len=*), PARAMETER :: routineN = 'f_env_add_defaults', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: f_env_pos,ierr
+    INTEGER                                  :: f_env_pos, ierr
     LOGICAL                                  :: my_failure
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -428,11 +430,11 @@ SUBROUTINE f_env_rm_defaults(f_env,error,ierr,handle)
     CHARACTER(len=*), PARAMETER :: routineN = 'f_env_rm_defaults', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: ierr2
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: d_logger, logger
     TYPE(mp_perf_env_type), POINTER          :: d_mp_perf_env
     TYPE(timer_env_type), POINTER            :: d_timer_env
-    integer :: ierr2
 
   failure=.FALSE.
 

@@ -156,7 +156,7 @@ CONTAINS
           ener_coul = fac / r - e_cutoff_coul
        END IF
     ELSE
-       ! to avoid a large numberof points in the spline generation
+       ! to avoid a large number of points in the spline generation
        ! we evaluate the 1-4 interactions analytically..
        ener_coul = 0.0_dp
     ENDIF

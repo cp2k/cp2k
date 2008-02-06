@@ -61,7 +61,7 @@ MODULE qs_loc_methods
   USE machine,                         ONLY: m_flush
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
-  USE motion_utils,                                      ONLY: get_output_format
+  USE motion_utils,                    ONLY: get_output_format
   USE particle_types,                  ONLY: allocate_particle_set,&
                                              deallocate_particle_set,&
                                              get_particle_set,&

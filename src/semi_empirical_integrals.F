@@ -587,10 +587,10 @@ CONTAINS
     INTEGER                                  :: ig, nt
     LOGICAL                                  :: si, sj
     REAL(dp) :: a, aab, alpi, alpj, apdg, ax, cppp1, cppp2, cpps1, cpps2, &
-      csp1, csp2, css1, css2, dai, daj, dbi, dbj, pai, paj, pbi, pbj, qcorr, &
-      rij, rija, scale, ssss, xab, xx11, xx21, xx22, xx31, xx32, xx33, yy11, &
-      yy21, yy22, yyzz11, yyzz21, yyzz22, zaf, zbf, zz, zz11, zz21, zz22, &
-      zz31, zz32, zz33, poi, poj
+      csp1, csp2, css1, css2, dai, daj, dbi, dbj, pai, paj, pbi, pbj, poi, &
+      poj, qcorr, rij, rija, scale, ssss, xab, xx11, xx21, xx22, xx31, xx32, &
+      xx33, yy11, yy21, yy22, yyzz11, yyzz21, yyzz22, zaf, zbf, zz, zz11, &
+      zz21, zz22, zz31, zz32, zz33
     REAL(dp), DIMENSION(3)                   :: x, y, z
     REAL(dp), DIMENSION(4)                   :: fni1, fni2, fni3, fnj1, fnj2, &
                                                 fnj3

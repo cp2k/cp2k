@@ -81,9 +81,9 @@ CONTAINS
     REAL(dp) :: a, aab, alpi, alpj, apdg, ax, cppp1, cppp2, cpps1, cpps2, &
       csp1, csp2, css1, css2, dai, daj, dax, dbi, dbj, delta, denuc_loc, &
       dqcorr, drija, dscale, dssss, dzz, enuc2, enuc_loc, pai, paj, pbi, pbj, &
-      qcorr, rij, rija, scale, ssss, tmp, xab, xtmp, xx11, xx21, xx22, xx31, &
-      xx32, xx33, yy11, yy21, yy22, yyzz11, yyzz21, yyzz22, zaf, zbf, zz, &
-      zz11, zz21, zz22, zz31, zz32, zz33, poi, poj
+      poi, poj, qcorr, rij, rija, scale, ssss, tmp, xab, xtmp, xx11, xx21, &
+      xx22, xx31, xx32, xx33, yy11, yy21, yy22, yyzz11, yyzz21, yyzz22, zaf, &
+      zbf, zz, zz11, zz21, zz22, zz31, zz32, zz33
     REAL(dp), DIMENSION(3) :: da, dcppp1, dcppp2, dcpps1, dcpps2, dcsp1, &
       dcsp2, dcss1, dcss2, drij, dx1, dx2, dx3, dxx11, dxx21, dxx22, dxx31, &
       dxx32, dxx33, dyy11, dyy21, dyy22, dyyzz11, dyyzz21, dyyzz22, dzz11, &
