@@ -27,7 +27,9 @@ MODULE xas_tp_scf
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
+                                             cp_p_file,&
                                              cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -461,6 +463,9 @@ CONTAINS
           CALL timestop(0.0_dp,handle2)
           EXIT scf_loop     
        END IF
+
+       IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
+         xas_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()
 
        !   *** mixing methods have the new density matrix in p_mix_new
        IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN

@@ -149,7 +149,7 @@ CONTAINS
             extension=".nebLog",error=error)
           CALL build_replica_coords(neb_section, particle_set,&
                coords, vels, neb_env, rep_env%ndim, iw, globenv, &
-               rep_env%para_env, logger, error)
+               rep_env%para_env, error)
           CALL cp_print_key_finished_output(iw,logger,motion_section,&
                "BAND%PROGRAM_RUN_INFO/INITIAL_CONFIGURATION_INFO", error=error)
           IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Building initial set of coordinates. END"

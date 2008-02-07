@@ -45,9 +45,11 @@ MODULE reftraj_types
 
 ! *****************************************************************************
   TYPE reftraj_msd_type
-     INTEGER :: ref0_unit
-     LOGICAL :: msd_kind, msd_molecule, msd_region
-     REAL(KIND=dp) :: ref0_com(3)
+     INTEGER :: num_disp_atom, ref0_unit
+     INTEGER, POINTER, DIMENSION(:) :: disp_atom_index
+     LOGICAL :: disp_atom, msd_kind, msd_molecule, msd_region
+     REAL(KIND=dp) :: disp_atom_tol, ref0_com(3)
+     REAL(KIND=dp), POINTER, DIMENSION(:,:) :: disp_atom_dr
      REAL(KIND=dp), POINTER, DIMENSION(:,:) :: ref0_pos
      REAL(KIND=dp), POINTER, DIMENSION(:,:) :: ref0_com_molecule 
      REAL(KIND=dp), POINTER, DIMENSION(:,:) :: val_msd_kind
@@ -194,6 +196,12 @@ CONTAINS
                  DEALLOCATE(reftraj%msd%val_msd_molecule,STAT=istat)
                  CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
                  DEALLOCATE(reftraj%msd%ref0_com_molecule,STAT=istat)
+                 CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+             END IF
+             IF(reftraj%msd%disp_atom) THEN
+                 DEALLOCATE(reftraj%msd%disp_atom_index,STAT=istat)
+                 CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+                 DEALLOCATE(reftraj%msd%disp_atom_dr,STAT=istat)
                  CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
              END IF
 

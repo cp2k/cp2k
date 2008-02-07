@@ -112,7 +112,7 @@ CONTAINS
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
   SUBROUTINE build_replica_coords(neb_section, particle_set,&
-       coords, vels, neb_env, ndim, iw, globenv, para_env, logger, error)
+       coords, vels, neb_env, ndim, iw, globenv, para_env, error)
     TYPE(section_vals_type), POINTER         :: neb_section
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -121,7 +121,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ndim, iw
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_replica_coords', &
@@ -325,7 +324,7 @@ CPSourceFileRef,&
           END DO
           CALL rep_env_calc_e_f(rep_env,calc_f=.TRUE.,error=error)
           ! Free Energy case.. Work in progress - teo 01.2007
-          ! CALL perform_replica_md(rep_env, coords, irep, n_rep_neb, error)
+          ! CALL perform_replica_md(rep_env, irep, n_rep_neb, error)
           DO j = 0, n_rep-1
              IF (irep+j <= n_rep_neb) THEN
                 forces(:,irep+j) = rep_env%f(1:rep_env%ndim,j+1)
@@ -391,9 +390,8 @@ CPSourceFileRef,&
 !>      compute specifically Free Energies in a NEB scheme
 !> \author Teodoro Laino  01.2007
 ! *****************************************************************************
-  SUBROUTINE perform_replica_md(rep_env, coords, irep, n_rep_neb, error)
+  SUBROUTINE perform_replica_md(rep_env, irep, n_rep_neb, error)
     TYPE(replica_env_type), POINTER          :: rep_env
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: coords
     INTEGER, INTENT(IN)                      :: irep, n_rep_neb
     TYPE(cp_error_type), INTENT(inout)       :: error
 

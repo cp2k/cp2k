@@ -295,6 +295,7 @@ CONTAINS
        IF ( .NOT. ( should_stop .OR. dft_control%qs_control%semi_empirical .OR. &
                     dft_control%qs_control%dftb ) ) THEN
               CALL scf_post_calculation(dft_section, scf_env, qs_env, error)
+
        END IF
 
        ! *** cleanup

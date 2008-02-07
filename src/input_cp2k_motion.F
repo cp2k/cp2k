@@ -1453,7 +1453,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"TEMP_KIND",&
             description="Controls the output of the temperature"//&
             " computed separately for each kind",&
-            print_level=medium_print_level, common_iter_levels=1,&
+            print_level=high_print_level, common_iter_levels=1,&
             filename="",error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -1634,6 +1634,17 @@ CONTAINS
          CALL section_add_subsection(subsection,print_key,error=error)
          CALL section_release(print_key,error=error) 
        
+         CALL cp_print_key_section_create(print_key,"displaced_atom",&
+              description="Controls the output of index and dislacement of "//&
+              "atoms that moved away from the initial position of more than a"//&
+              "given distance (see msd%disp_tol)", &
+              print_level=low_print_level, common_iter_levels=1,&
+              filename="",error=error)
+         CALL section_add_subsection(subsection,print_key,error=error)
+         CALL section_release(print_key,error=error) 
+
+
+
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection, error=error)
 
@@ -1712,7 +1723,22 @@ CONTAINS
        CALL create_region_section(subsection,error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
-     
+
+       CALL keyword_create(keyword,name="DISPLACED_ATOM",&
+            description="Identify the atoms that moved from their initial"//&
+            "position of a distance larger than a given tolerance (see msd%displacement_tol).",&
+            usage="DISPLACED_ATOM <LOGICAL>",repeats=.FALSE.,&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    
+       CALL keyword_create(keyword, name="displacement_tol",&
+              description="Lower limit to define displaced atoms",&
+              usage="DISPLACEMENT_TOL real",&
+              default_r_val=0._dp, n_var=1, unit_str='bohr', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)  
+       
     END IF
 
   END SUBROUTINE create_msd_section

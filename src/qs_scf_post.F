@@ -1151,10 +1151,12 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_path_length)       :: filename
     INTEGER                                  :: handle, homo, ispin, iw, nmo, &
                                                 output_unit, unit_nr
+    INTEGER, DIMENSION(:), POINTER           :: stride_xyz
     LOGICAL                                  :: all_equal, failure, ionode
     REAL(KIND=dp)                            :: maxocc, s_square, &
                                                 s_square_ideal, &
-                                                total_abs_spin_dens
+                                                total_abs_spin_dens,&
+                                                udvol
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1337,16 +1339,27 @@ CPSourceFileRef,&
        !   *** write the hartree potential ***
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
             "DFT%PRINT%V_HARTREE_CUBE",error=error),cp_p_file)) THEN
+          NULLIFY(stride_xyz)
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
           CALL pw_env_get(pw_env, error=error)
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%V_HARTREE_CUBE",&
                extension=".cube",middle_name="v_hartree",error=error)
-          ! V_HARTREE  was scaled by dVol in qs_ks_methods.. rescale it now to print the correct thing..
-          CALL pw_scale(qs_env%ks_env%v_hartree_rspace%pw, 1.0_dp/qs_env%ks_env%v_hartree_rspace%pw%pw_grid%dvol)
-          CALL pw_to_cube(qs_env%ks_env%v_hartree_rspace%pw,&
-               unit_nr,unit_nr>0,"HARTREE POTENTIAL",particles=particles,&
-               stride=section_get_ival(dft_section,"PRINT%V_HARTREE_CUBE%STRIDE",error=error),&
-               error=error)
+          udvol = 1.0_dp/qs_env%ks_env%v_hartree_rspace%pw%pw_grid%dvol
+          CALL pw_scale(qs_env%ks_env%v_hartree_rspace%pw,udvol)
+
+          CALL section_vals_val_get(dft_section,"PRINT%V_HARTREE_CUBE%STRIDE_XYZ",&
+               i_vals=stride_xyz,error=error) 
+          IF(stride_xyz(1)==0) THEN
+             CALL pw_to_cube(qs_env%ks_env%v_hartree_rspace%pw,&
+                  unit_nr,unit_nr>0,"HARTREE POTENTIAL",particles=particles,&
+                  stride=section_get_ival(dft_section,&
+                  "PRINT%V_HARTREE_CUBE%STRIDE",error=error),&
+                  error=error)
+          ELSE
+              CALL pw_to_cube(qs_env%ks_env%v_hartree_rspace%pw,&
+                   unit_nr,unit_nr>0,"HARTREE POTENTIAL",particles=particles,&
+                   stride_xyz=stride_xyz,error=error)
+          END IF
           CALL cp_print_key_finished_output(unit_nr,logger,input,&
                "DFT%PRINT%V_HARTREE_CUBE",error=error)
        ENDIF

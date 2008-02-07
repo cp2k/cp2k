@@ -199,9 +199,9 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: filename
     CHARACTER(LEN=default_string_length)     :: name
     INTEGER :: first_atom, iatom, ikind, imol, istat, last_atom, natom, &
-      natom_read, nkind, nmol, nmolecule, nmolkind, total_mass
+      natom_read, nkind, nmol, nmolecule, nmolkind, npart, total_mass
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: com(3), mass, mass_mol, x, y, &
+    REAL(KIND=dp)                            :: com(3), mass, mass_mol, tol, x, y, &
                                                 z
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -232,12 +232,15 @@ CONTAINS
     NULLIFY(msd%ref0_com_molecule)
     NULLIFY(msd%val_msd_kind)
     NULLIFY(msd%val_msd_molecule)
+    NULLIFY(msd%disp_atom_index)
+    NULLIFY(msd%disp_atom_dr)
 
     CALL get_md_env(md_env=md_env, force_env=force_env, para_env=para_env,&
          error=error)
     CALL force_env_get(force_env=force_env,subsys=subsys,error=error)
     CALL cp_subsys_get(subsys=subsys, particles=particles,error=error)
     particle_set => particles%els
+    npart = SIZE(particle_set,1)
 
     msd%ref0_unit = -1
     CALL section_vals_val_get(msd_section,"REF0_FILENAME",c_val=filename,error=error)
@@ -279,6 +282,19 @@ CONTAINS
     CALL section_vals_val_get(msd_section,"MSD_PER_KIND",l_val=msd%msd_kind,error=error)
     CALL section_vals_val_get(msd_section,"MSD_PER_MOLKIND",l_val=msd%msd_molecule,error=error)
     CALL section_vals_val_get(msd_section,"MSD_PER_REGION",l_val=msd%msd_region,error=error)
+
+    CALL section_vals_val_get(msd_section,"DISPLACED_ATOM",l_val=msd%disp_atom,error=error)
+    IF(msd%disp_atom) THEN
+       ALLOCATE(msd%disp_atom_index(npart),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       msd%disp_atom_index = 0
+       ALLOCATE(msd%disp_atom_dr(3,npart),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       msd%disp_atom_dr = 0.0_dp
+       msd%msd_kind = .true.
+    END IF
+    CALL section_vals_val_get(msd_section,"DISPLACEMENT_TOL",r_val=tol,error=error)
+    msd%disp_atom_tol = tol*tol
 
     IF(msd%msd_kind) THEN
       CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds, error=error)
@@ -362,7 +378,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: com(3), diff2_com(4), dx, dy, &
-                                                dz, mass, mass_mol, &
+                                                dz, dr2, mass, mass_mol, &
                                                 msd_mkind(4)
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -393,22 +409,32 @@ CONTAINS
     
     IF(reftraj%msd%msd_kind)THEN
       reftraj%msd%val_msd_kind = 0.0_dp
+      reftraj%msd%num_disp_atom =  0
       DO ikind=1,atomic_kinds%n_els
           atomic_kind => atomic_kinds%els(ikind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                atom_list=atom_list,&
                                natom=natom_kind)
-    
           DO iatom = 1,natom_kind
             atom = atom_list(iatom)
             dx =  particle_set(atom)%r(1)-reftraj%msd%ref0_pos(1,atom)
             dy =  particle_set(atom)%r(2)-reftraj%msd%ref0_pos(2,atom)
             dz =  particle_set(atom)%r(3)-reftraj%msd%ref0_pos(3,atom)
+            dr2 = dx*dx +  dy*dy + dz*dz
+
             reftraj%msd%val_msd_kind(1,ikind) = reftraj%msd%val_msd_kind(1,ikind) + dx*dx 
             reftraj%msd%val_msd_kind(2,ikind) = reftraj%msd%val_msd_kind(2,ikind) + dy*dy 
             reftraj%msd%val_msd_kind(3,ikind) = reftraj%msd%val_msd_kind(3,ikind) + dz*dz 
-            reftraj%msd%val_msd_kind(4,ikind) = reftraj%msd%val_msd_kind(4,ikind) + &
-                  dx*dx +  dy*dy + dz*dz
+            reftraj%msd%val_msd_kind(4,ikind) = reftraj%msd%val_msd_kind(4,ikind) + dr2
+
+            IF(reftraj%msd%disp_atom) THEN
+              IF( dr2 > reftraj%msd%disp_atom_tol ) THEN
+                reftraj%msd%num_disp_atom  = reftraj%msd%num_disp_atom  +1
+                reftraj%msd%disp_atom_dr(1, reftraj%msd%num_disp_atom) = dx
+                reftraj%msd%disp_atom_dr(2, reftraj%msd%num_disp_atom) = dy
+                reftraj%msd%disp_atom_dr(3, reftraj%msd%num_disp_atom) = dz
+              END IF
+            END IF        
           END DO  !iatom
           reftraj%msd%val_msd_kind(1:4,ikind) = &
                      reftraj%msd%val_msd_kind(1:4,ikind)/REAL(natom_kind,KIND=dp)
@@ -486,7 +512,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: my_act, my_mittle, my_pos
-    INTEGER                                  :: ikind, nkind, out_msd
+    INTEGER                                  :: iat, ikind, nkind, out_msd
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(reftraj_type), POINTER              :: reftraj
@@ -553,6 +579,26 @@ CONTAINS
                 "PRINT%MSD_MOLECULE", error=error)
          END DO
       END IF        
+      IF(reftraj%msd%disp_atom) THEN
+
+         my_mittle ="disp_at"
+         out_msd = cp_print_key_unit_nr(logger,reftraj_section,"PRINT%DISPLACED_ATOM",&
+               extension=".msd", file_position=my_pos, file_action=my_act,&
+               file_form="FORMATTED", middle_name=TRIM(my_mittle), &
+               error=error)
+         IF(out_msd>0 .AND. reftraj%msd%num_disp_atom>0) THEN
+           WRITE(UNIT=out_msd,FMT="(I8, F12.3, I10)") reftraj%itimes, &
+                   reftraj%time*femtoseconds, reftraj%msd%num_disp_atom
+            DO iat = 1,reftraj%msd%num_disp_atom
+               WRITE(UNIT=out_msd,FMT="(I8, 3F20.10)") reftraj%msd%disp_atom_index(iat),&
+                    reftraj%msd%disp_atom_dr(1,iat)*angstrom, &
+                    reftraj%msd%disp_atom_dr(2,iat)*angstrom,&
+                    reftraj%msd%disp_atom_dr(3,iat)*angstrom
+            END DO
+         ENDIF       
+         CALL cp_print_key_finished_output(out_msd,logger,reftraj_section,&
+                "PRINT%DISPLACED_ATOM", error=error)
+      END IF
     ENDIF ! msd
     reftraj%init = .FALSE.
 
