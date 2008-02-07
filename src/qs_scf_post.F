@@ -72,7 +72,7 @@ MODULE qs_scf_post
                                              pw_pool_type
   USE pw_types,                        ONLY: &
        COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_axpy, &
-       pw_copy, pw_integrate_function, pw_p_type, pw_transfer
+       pw_copy, pw_integrate_function, pw_p_type, pw_scale, pw_transfer
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_conductivity,                 ONLY: optical_conductivity
   USE qs_electric_field_gradient,      ONLY: qs_efg_calc
@@ -1341,6 +1341,8 @@ CPSourceFileRef,&
           CALL pw_env_get(pw_env, error=error)
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%V_HARTREE_CUBE",&
                extension=".cube",middle_name="v_hartree",error=error)
+          ! V_HARTREE  was scaled by dVol in qs_ks_methods.. rescale it now to print the correct thing..
+          CALL pw_scale(qs_env%ks_env%v_hartree_rspace%pw, 1.0_dp/qs_env%ks_env%v_hartree_rspace%pw%pw_grid%dvol)
           CALL pw_to_cube(qs_env%ks_env%v_hartree_rspace%pw,&
                unit_nr,unit_nr>0,"HARTREE POTENTIAL",particles=particles,&
                stride=section_get_ival(dft_section,"PRINT%V_HARTREE_CUBE%STRIDE",error=error),&
