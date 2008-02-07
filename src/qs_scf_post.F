@@ -1155,8 +1155,7 @@ CPSourceFileRef,&
     LOGICAL                                  :: all_equal, failure, ionode
     REAL(KIND=dp)                            :: maxocc, s_square, &
                                                 s_square_ideal, &
-                                                total_abs_spin_dens,&
-                                                udvol
+                                                total_abs_spin_dens, udvol
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set

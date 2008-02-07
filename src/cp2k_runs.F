@@ -152,8 +152,7 @@ CONTAINS
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_type), POINTER              :: input_structure
-    TYPE(section_vals_type), POINTER         ::  &
-                                                glob_section, input_file, &
+    TYPE(section_vals_type), POINTER         :: glob_section, input_file, &
                                                 root_section
 
     cp2k_run_OK = .FALSE.

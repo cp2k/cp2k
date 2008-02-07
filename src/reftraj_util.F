@@ -201,8 +201,8 @@ CONTAINS
     INTEGER :: first_atom, iatom, ikind, imol, istat, last_atom, natom, &
       natom_read, nkind, nmol, nmolecule, nmolkind, npart, total_mass
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: com(3), mass, mass_mol, tol, x, y, &
-                                                z
+    REAL(KIND=dp)                            :: com(3), mass, mass_mol, tol, &
+                                                x, y, z
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -291,7 +291,7 @@ CONTAINS
        ALLOCATE(msd%disp_atom_dr(3,npart),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        msd%disp_atom_dr = 0.0_dp
-       msd%msd_kind = .true.
+       msd%msd_kind = .TRUE.
     END IF
     CALL section_vals_val_get(msd_section,"DISPLACEMENT_TOL",r_val=tol,error=error)
     msd%disp_atom_tol = tol*tol
@@ -377,8 +377,8 @@ CONTAINS
       natom_kind, nmol_per_kind, nmolecule, nmolkind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: com(3), diff2_com(4), dx, dy, &
-                                                dz, dr2, mass, mass_mol, &
+    REAL(KIND=dp)                            :: com(3), diff2_com(4), dr2, &
+                                                dx, dy, dz, mass, mass_mol, &
                                                 msd_mkind(4)
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind

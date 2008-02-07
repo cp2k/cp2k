@@ -36,16 +36,14 @@ CONTAINS
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
     TYPE(particle_list_type), OPTIONAL, &
       POINTER                                :: particles
-    INTEGER, INTENT(in), OPTIONAL            :: stride
-    INTEGER, INTENT(in), OPTIONAL            :: stride_xyz(3)
+    INTEGER, INTENT(in), OPTIONAL            :: stride, stride_xyz(3)
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_to_cube', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: dest, gid, handle, I1, I2, I3, iat, ionode_rank, ip, L1, L2, &
-      L3, my_rank, np, num_pe, source, stat, tag, U1, U2, U3, z
-    INTEGER :: my_stride(3)
+      L3, my_rank, my_stride(3), np, num_pe, source, stat, tag, U1, U2, U3, z
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: buf
     TYPE(particle_list_type), POINTER        :: my_particles
