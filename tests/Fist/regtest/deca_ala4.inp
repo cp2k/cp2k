@@ -26,24 +26,31 @@
       PARA_RES
     &END TOPOLOGY
   &END SUBSYS
+  STRESS_TENSOR ANALYTICAL
 &END FORCE_EVAL
 &GLOBAL
   PRINT_LEVEL LOW
-  PROJECT deca_ala_ref
+
+  PROJECT deca_ala
   RUN_TYPE md
 &END GLOBAL
 &MOTION
   &MD
-    ENSEMBLE REFTRAJ
-    STEPS 11
-    &REFTRAJ
-      TRAJ_FILE_NAME deca_ala-pos-1.xyz
-      EVAL_ENERGY_FORCES T
+    ENSEMBLE NPT_F
+    STEPS 10
+    TIMESTEP 2.5
+    TEMPERATURE 298
+    &THERMOSTAT
+       TYPE CSVR
+       &CSVR
+       &END
+    &END
+    &BAROSTAT
     &END
   &END MD
   &PRINT
-    &TRAJECTORY
-      FILENAME =reftraj1.xyz
-    &END
+     &CELL
+        FILENAME =cell-deca_ala
+     &END
   &END
 &END MOTION

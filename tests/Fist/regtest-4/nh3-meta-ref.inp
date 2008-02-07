@@ -46,7 +46,7 @@
     ENSEMBLE REFTRAJ
     STEPS 51
     &REFTRAJ
-      TRJFILENAME NH3-pos-1.xyz
+      TRAJ_FILE_NAME NH3-pos-1.xyz
       EVAL_ENERGY_FORCES F
     &END
   &END MD

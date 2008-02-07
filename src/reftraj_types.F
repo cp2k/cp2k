@@ -103,7 +103,7 @@ CONTAINS
     
     ! Some Initialization
     reftraj%info%trjfile_unit = -1
-    CALL section_vals_val_get(reftraj_section,"TRJFILENAME",c_val=filename,error=error)
+    CALL section_vals_val_get(reftraj_section,"TRAJ_FILE_NAME",c_val=filename,error=error)
     CALL open_file(TRIM(filename),unit_number=reftraj%info%trjfile_unit)
     !MI: It would be good to check the topology to be sure that it is the same of
     ! the input
@@ -112,7 +112,7 @@ CONTAINS
 
     reftraj%info%cellfile_unit = -1
     IF(reftraj%info%variable_volume) THEN
-       CALL section_vals_val_get(reftraj_section,"CELLFILENAME",c_val=filename,error=error)
+       CALL section_vals_val_get(reftraj_section,"CELL_FILE_NAME",c_val=filename,error=error)
        CALL open_file(TRIM(filename),unit_number=reftraj%info%cellfile_unit)
     END IF
 

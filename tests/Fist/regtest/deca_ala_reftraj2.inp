@@ -38,12 +38,14 @@
     STEPS 11
     &REFTRAJ
       TRAJ_FILE_NAME deca_ala-pos-1.xyz
+      CELL_FILE_NAME cell-deca_ala
+      VARIABLE_VOLUME
       EVAL_ENERGY_FORCES T
     &END
   &END MD
   &PRINT
     &TRAJECTORY
-      FILENAME =reftraj1.xyz
+      FILENAME =reftraj2.xyz
     &END
   &END
 &END MOTION
