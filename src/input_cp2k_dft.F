@@ -1059,6 +1059,14 @@ CONTAINS
             default_i_val=2, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="stride_xyz",&
+            description="the stride per each Cartesian direction "//&
+            "used to write the cube file ",&
+            n_var=3,default_i_vals=(/0,0,0/),&
+            type_of_var=integer_t, &
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)   
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 

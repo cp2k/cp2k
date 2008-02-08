@@ -680,11 +680,16 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(gci, force_env, dyn_coeff_set, thermostat_coeff, &
-         thermostat_part, thermostat_shell, cell, shell_particles, &
+    NULLIFY(gci, force_env)
+    NULLIFY( dyn_coeff_set, particles, particle_set, cell, shell_particles, &
          shell_particle_set, core_particles, core_particle_set)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env, thermostat_part=thermostat_part,&
-         thermostat_coeff=thermostat_coeff,thermostat_shell=thermostat_shell,para_env=para_env,&
+    NULLIFY(para_env, subsys, local_molecules, local_particles, molecule_kinds,&
+         molecules, molecule_kind_set, molecule_set)
+    NULLIFY(simpar, thermostat_coeff, thermostat_part, thermostat_shell)
+
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
+         thermostat_part=thermostat_part, thermostat_coeff=thermostat_coeff,&
+         thermostat_shell=thermostat_shell,para_env=para_env,&
          error=error)
     dt = simpar%dt
 
@@ -749,7 +754,6 @@ CONTAINS
                   core_particle_set, shell_particle_set, nparticle_kind, &
                   shell_adiabatic, dt)
 
-
     IF (simpar%constraint) CALL shake_control( gci, local_molecules, molecule_set,   &
          molecule_kind_set, particle_set,tmp%pos, tmp%vel, simpar%dt,simpar%shake_tol,&
          simpar%info_constraint,simpar%lagrange_multipliers,simpar%dump_lm,&
@@ -783,8 +787,8 @@ CONTAINS
             vel= tmp%vel, shell_vel= tmp%shell_vel, core_vel= tmp%core_vel, error=error)
 
        CALL apply_thermostat_shells(thermostat_shell,atomic_kind_set, particle_set,&
-            local_particles, para_env%group, vel= tmp%vel, shell_vel= tmp%shell_vel, core_vel= tmp%core_vel,&
-            error=error)
+            local_particles, para_env%group, vel= tmp%vel, shell_vel= tmp%shell_vel, &
+            core_vel= tmp%core_vel, error=error)
     ELSE
        CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
             particle_set, local_molecules, para_env%group, vel= tmp%vel, error=error)
@@ -1206,7 +1210,8 @@ CONTAINS
        reftraj_env%itimes0 = trj_itimes 
     END IF
 
-    IF (trj_itimes/=0.0_dp.AND.trj_time/=0.0_dp) simpar%dt = (trj_time/femtoseconds)/REAL(trj_itimes,KIND=dp)
+    IF (trj_itimes/=0.0_dp.AND.trj_time/=0.0_dp) simpar%dt = &
+       (trj_time/femtoseconds)/REAL(trj_itimes,KIND=dp)
     reftraj_env%epot   = trj_epot
     reftraj_env%itimes = trj_itimes
     reftraj_env%time   = trj_time/femtoseconds
@@ -1646,9 +1651,6 @@ CONTAINS
        ! perform damping on the barostat momentum
        CALL damp_veps ( npt ( 1, 1 ), gamma1, dt )
 
-       !
-       ! first half of velocity verlet
-       !
        arg_r = ( 0.5_dp * npt ( 1, 1 ) % v * dt ) * &
             ( 0.5_dp * npt ( 1, 1 ) % v * dt )
        poly_r(1) = 1._dp + e2*arg_r + e4*arg_r*arg_r + e6*arg_r**3 + e8*arg_r**4

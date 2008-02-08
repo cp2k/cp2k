@@ -1326,10 +1326,18 @@ CPSourceFileRef,&
              filename = "ELECTRON_DENSITY"
              unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
                   extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
-             CALL pw_to_cube(rho%rho_r(1)%pw,unit_nr,ionode,"ELECTRON DENSITY",&
-                  particles=particles,&
+             NULLIFY(stride_xyz)
+             CALL section_vals_val_get(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE_XYZ",&
+                  i_vals=stride_xyz,error=error) 
+             IF(stride_xyz(1)==0) THEN
+               CALL pw_to_cube(rho%rho_r(1)%pw,unit_nr,&
+                  ionode,"ELECTRON_DENSITY",particles=particles,&
                   stride=section_get_ival(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE",error=error),&
                   error=error)
+             ELSE
+               CALL pw_to_cube(rho%rho_r(1)%pw,unit_nr,ionode,"ELECTRON DENSITY",&
+                    particles=particles, stride_xyz=stride_xyz, error=error)
+             END IF
              CALL cp_print_key_finished_output(unit_nr,logger,input,&
                   "DFT%PRINT%E_DENSITY_CUBE",error=error)
           ENDIF
