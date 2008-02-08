@@ -420,11 +420,11 @@ CONTAINS
                 WRITE ( iw, '( A,A,T40,A,T60,1(1X,F20.3) )' ) ' INITIAL TEMPERATURE', &
                      ADJUSTL( unit%temp_label ), '= ', md_ener%temp_part
              ELSE
-                WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' MM INITIAL KINETIC ENERGY', &
+                WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' TOTAL INITIAL KINETIC ENERGY', &
                      ADJUSTL( unit%e_label), '= ', md_ener%ekin
                 WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' QM INITIAL KINETIC ENERGY', &
                      ADJUSTL( unit%e_label), '= ', md_ener%ekin_qm
-                WRITE ( iw, '( A,A,T40,A,T60,1(1X,F20.3) )' ) ' MM INITIAL TEMPERATURE', &
+                WRITE ( iw, '( A,A,T40,A,T60,1(1X,F20.3) )' ) ' TOTAL INITIAL TEMPERATURE', &
                      ADJUSTL( unit%temp_label ), '= ', md_ener%temp_part
                 WRITE ( iw, '( A,A,T40,A,T60,1(1X,F20.3) )' ) ' QM INITIAL TEMPERATURE', &
                      ADJUSTL( unit%temp_label ), '= ', md_ener%temp_qm
