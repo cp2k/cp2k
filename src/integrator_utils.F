@@ -172,7 +172,7 @@ CONTAINS
   END SUBROUTINE deallocate_old
 
 ! *****************************************************************************
-!> \brief allocate temporary variables to tore positions and velocities
+!> \brief allocate temporary variables to store positions and velocities
 !>        used by the velocity-verlet integrator
 !> \par History
 !>      none
