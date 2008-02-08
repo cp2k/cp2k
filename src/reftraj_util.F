@@ -21,6 +21,8 @@ MODULE reftraj_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_parser,                       ONLY: parser_get_next_line,&
+                                             parser_get_object
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -84,11 +86,10 @@ CONTAINS
     CHARACTER(LEN=10)                        :: AA
     CHARACTER(LEN=80)                        :: title
     CHARACTER(LEN=default_string_length)     :: name
-    INTEGER                                  :: cellunit, iatom, it, iter, &
-                                                natom, Natom_read, nskip, &
-                                                trjunit
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: hx, hy, hz, time, vol, x, y, z
+    INTEGER                                  :: iatom, iter, natom, &
+                                                Natom_read, nskip
+    LOGICAL                                  :: failure, my_end
+    REAL(KIND=dp)                            :: x, y, z
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(force_env_type), POINTER            :: force_env
@@ -109,71 +110,71 @@ CONTAINS
     natom = particles%n_els
     particle_set => particles%els
 
-    trjunit = reftraj%info%trjfile_unit
+    my_end = .FALSE.
+    CALL parser_get_next_line(reftraj%info%traj_parser,1,error=error)
+    nskip = reftraj%info%first_snapshot
+    CPPostcondition(nskip>=0,cp_failure_level,routineP,error,failure)
+    Frames: DO iter = 1,nskip
+       ! Trajectory File
+       CALL parser_get_object(reftraj%info%traj_parser,natom_read,error=error)
+       CPPostcondition(natom_read==natom,cp_failure_level,routineP,error,failure)
+       ! Digest title line
+       CALL parser_get_next_line(reftraj%info%traj_parser,2,error=error)    
+       DO iatom = 1,natom_read
+          READ(reftraj%info%traj_parser%input_line,*)AA, x, y, z
+          name=TRIM(particle_set(iatom)%atomic_kind%element_symbol)
+          CPPostcondition((TRIM(AA)==name),cp_failure_level,routineP,error,failure)
+          CALL parser_get_next_line(reftraj%info%traj_parser,1,at_end=my_end,error=error)
+          IF (my_end) THEN 
+             CALL cp_assert(iatom==natom,cp_fatal_level,cp_assertion_failed,routineP,&
+                  "Number of lines in XYZ format not equal to the number of atoms."//&
+                  " Error in XYZ format. Very probably the line with title is missing or is empty."//&
+                  " Please check the XYZ file and rerun your job!"//&
+CPSourceFileRef,&
+                  only_ionode=.TRUE.)
+             EXIT Frames
+          END IF
+       END DO
+    END DO Frames
 
-    IF (para_env%mepos==para_env%source) THEN
-      REWIND(trjunit)
-      !Check the first snapshot in the trajectory file
-      READ(trjunit,*,ERR=999,END=998) natom_read    
-      CPPostcondition(natom_read==natom,cp_failure_level,routineP,error,failure)
-      READ(trjunit,'(A)',ERR=999,END=998) title
-      DO iatom = 1,natom_read
-        READ(trjunit,*,ERR=999,END=998) AA, x, y, z
-        name=TRIM(particle_set(iatom)%atomic_kind%element_symbol)
-        CPPostcondition((TRIM(AA)==name),cp_failure_level,routineP,error,failure)
-      END DO
-      REWIND(trjunit)
+    reftraj%isnap = nskip-1
+    CALL cp_assert(.NOT.my_end,cp_fatal_level,cp_assertion_failed,routineP,&
+         "Reached the end of the trajectory file for REFTRAJ. Number of steps skipped "//&
+         "equal to the number of steps present in the file. "//&
+CPSourceFileRef,&
+         only_ionode=.TRUE.)
 
-      reftraj%isnap = -1 
-      IF(reftraj%info%first_snapshot>0) THEN
-        nskip = reftraj%info%first_snapshot
-        DO iter = 1,nskip
-          READ(trjunit,*,ERR=999,END=998) natom_read
-          READ(trjunit,'(A)',ERR=999,END=998) title
-          DO iatom = 1,natom_read
-            READ(trjunit,*,ERR=999,END=998)  AA, x, y, z 
-          END DO
-        END DO      
-        reftraj%isnap = nskip-1
-      END IF
-      IF(reftraj%info%variable_volume) THEN
-        cellunit = reftraj%info%cellfile_unit
-        IF(reftraj%info%first_snapshot>1) THEN
-          DO iter = 1,nskip
-            READ(cellunit,*,ERR=997,END=996) it, time, hx,hy,hz, hx,hy,hz, hx,hy,hz,vol
-          END DO
-        END IF
-      END IF
+    ! Cell File
+    IF(reftraj%info%variable_volume) THEN
+       CALL parser_get_next_line(reftraj%info%cell_parser,1,error=error)
+       DO iter = 1,nskip
+          CALL parser_get_next_line(reftraj%info%cell_parser,1,at_end=my_end,error=error)
+          IF (my_end) THEN
+             CALL cp_assert(iter==nskip,cp_fatal_level,cp_assertion_failed,routineP,&
+                  "Number of lines in cell file lesser than the amount of steps requested to "//&
+                  "skip!"//&
+CPSourceFileRef,&
+                  only_ionode=.TRUE.)
+             EXIT
+          END IF
+       END DO
+       CALL cp_assert(.NOT.my_end,cp_fatal_level,cp_assertion_failed,routineP,&
+            "Reached the end of the cell file for REFTRAJ. Number of steps skipped "//&
+            "equal to the number of steps present in the file. "//&
+CPSourceFileRef,&
+            only_ionode=.TRUE.)
     END IF
 
     reftraj%natom = natom
     IF(reftraj%info%last_snapshot>0) THEN
-      simpar%nsteps = (reftraj%info%last_snapshot - reftraj%info%first_snapshot)
+       simpar%nsteps = (reftraj%info%last_snapshot - reftraj%info%first_snapshot)
     END IF
 
-    IF(reftraj%info%eval_ef) THEN
-      ! set up and printout
-    END IF
-    
     IF(reftraj%info%msd) THEN
       msd_section =>  section_vals_get_subs_vals(reftraj_section,"MSD",error=error)
       ! set up and printout
       CALL initialize_msd_reftraj(reftraj%msd,msd_section,reftraj,md_env,error=error)
     END IF
-    
-    RETURN
-996 CONTINUE ! end of file
-    CALL stop_program(routineN,moduleN,__LINE__,&
-         "End of reference cell file reached")
-997 CONTINUE ! error
-    CALL stop_program(routineN,moduleN,__LINE__,&
-         "Error reading reference cell file")
-998 CONTINUE ! end of file
-    CALL stop_program(routineN,moduleN,__LINE__,&
-         "End of reference trajectory file reached")
-999 CONTINUE ! error
-    CALL stop_program(routineN,moduleN,__LINE__,&
-         "Error reading reference trajectory file")
 
   END SUBROUTINE initialize_reftraj
 

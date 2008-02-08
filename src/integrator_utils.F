@@ -4,17 +4,9 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Provides integrator routines (velocity verlet) for all the
-!>      ensemble types
+!> \brief Provides integrator utility routines for the integrators
 !> \par History
-!>      JGH (15-Mar-2001) : Pass logical for box change to force routine
-!>      Harald Forbert (Apr-2001): added path integral routine nvt_pimd
-!>      CJM (15-Apr-2001) : added coef integrators and energy routines
-!>      Joost VandeVondele (Juli-2003): simple version of isokinetic ensemble
-!>      Teodoro Laino [tlaino] 10.2007 - University of Zurich: Generalization to
-!>                                       different kind of thermostats
-!>      Teodoro Laino [tlaino] 11.2007 - Metadynamics: now part of the MD modules
-!> \author CJM
+!>      Teodoro Laino [tlaino] 02.2008 - Splitting from integrator and creation
 ! *****************************************************************************
 MODULE integrator_utils
 

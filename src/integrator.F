@@ -36,6 +36,8 @@ MODULE integrator
                                              pv_constraint
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_parser,                       ONLY: parser_get_next_line,&
+                                             parser_get_object
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -62,7 +64,6 @@ MODULE integrator
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type,&
                                              set_md_env
-  USE message_passing,                 ONLY: mp_bcast
   USE metadynamics,                    ONLY: metadyn_forces
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
@@ -551,13 +552,13 @@ CONTAINS
        END IF
     END IF
 
-    CALL allocate_tmp ( tmp, nparticle, nshell, shell_adiabatic, error=error)
+    CALL allocate_tmp (tmp, nparticle, nshell, shell_adiabatic, error=error)
 
     ! compute s,ds
     CALL get_s_ds(tmp, s, ds, nparticle_kind, atomic_kind_set, local_particles, particle_set,&
          dt, para_env)
 
-    ! 'Velocity Verlet' (first part)
+    ! Velocity Verlet (first part)
     scale_v(1:3) = SQRT(1.0_dp/ds)
     poly_v(1:3) = 2.0_dp*s/SQRT(ds)/dt
     CALL vv_first(tmp, atomic_kind_set, local_particles, particle_set, &
@@ -569,7 +570,7 @@ CONTAINS
          core_particle_set, para_env, shell_adiabatic, pos=.TRUE.,  error=error )
 
     CALL force_env_calc_energy_force(force_env,error=error)
-    CALL metadyn_forces(force_env, error=error)
+    CALL metadyn_forces(force_env, tmp%vel, error=error)
 
     ! compute s,ds
     CALL get_s_ds(tmp, s, ds, nparticle_kind, atomic_kind_set,  local_particles, particle_set,&
@@ -1092,10 +1093,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=10)                        :: AA
-    CHARACTER(LEN=80)                        :: title
     INTEGER                                  :: cell_itimes, I, istat, &
                                                 nparticle, Nread, trj_itimes
-    LOGICAL                                  :: failure, init
+    LOGICAL                                  :: failure, init, my_end
     REAL(KIND=dp)                            :: cell_time, h(3,3), trj_epot, &
                                                 trj_time, vol
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1119,6 +1119,7 @@ CONTAINS
 
     CALL force_env_get(force_env=force_env, cell=cell, subsys=subsys, &
          error=error)
+    reftraj_env%isnap = reftraj_env%isnap + 1
 
     ! Do some checks on coordinates and box
     CALL apply_qmmm_walls(force_env, error=error)
@@ -1129,47 +1130,49 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     ! SnapShots read from an external file
-    IF (para_env%mepos==para_env%source) THEN
-       READ(reftraj_env%info%trjfile_unit,*,ERR=999,END=998) Nread
-       READ(reftraj_env%info%trjfile_unit,'(A)',ERR=999,END=998) title
+    CALL parser_get_object(reftraj_env%info%traj_parser,Nread,error=error)
+    CALL parser_get_next_line(reftraj_env%info%traj_parser,1,error=error)
+    READ(reftraj_env%info%traj_parser%input_line,FMT="(T6,I8,T20,F20.10,T52,F12.3)")&
+         trj_itimes, trj_epot, trj_time
 
-       READ(UNIT=title,FMT="(T6,I8,T20,F20.10,T52,F12.3)") trj_itimes, trj_epot, trj_time
+    DO I=1,Nread
+       CALL parser_get_next_line(reftraj_env%info%traj_parser,1,error=error)
+       READ(reftraj_env%info%traj_parser%input_line,*) AA,particle_set(i)%r
+       CALL convert_to_cp2k_units("ANGSTROM",length=particle_set(i)%r(1))
+       CALL convert_to_cp2k_units("ANGSTROM",length=particle_set(i)%r(2))
+       CALL convert_to_cp2k_units("ANGSTROM",length=particle_set(i)%r(3))
+    ENDDO
+    CALL parser_get_next_line(reftraj_env%info%traj_parser,1,at_end=my_end,error=error)
+    IF (my_end) THEN
+       CALL cp_assert(reftraj_env%isnap==(simpar%nsteps-1),cp_fatal_level,cp_assertion_failed,routineP,&
+            "Reached the end of the geometry frames in the TRAJECTORY file. Number of "//&
+            "missing frames ("//cp_to_string((simpar%nsteps-1)-reftraj_env%isnap)//")."//& 
+CPSourceFileRef,&
+            only_ionode=.TRUE.)
+    END IF
 
-       DO I=1,Nread
-          READ(reftraj_env%info%trjfile_unit,*,ERR=999,END=998) AA,pos(:,I)
-          CALL convert_to_cp2k_units("ANGSTROM",length=pos(1,I))
-          CALL convert_to_cp2k_units("ANGSTROM",length=pos(2,I))
-          CALL convert_to_cp2k_units("ANGSTROM",length=pos(3,I))
-       ENDDO
-
-       IF(reftraj_env%info%variable_volume)THEN
-          READ(reftraj_env%info%cellfile_unit,*,ERR=997,END=996)  cell_itimes, cell_time,&
-          h(1,1),h(2,1),h(3,1), h(1,2),h(2,2),h(3,2), h(1,3),h(2,3),h(3,3),vol
-          CPPostcondition(trj_time==cell_time,cp_failure_level,routineP,error,failure)
-          CALL convert_to_cp2k_units("ANGSTROM",length=h(1,1))
-          CALL convert_to_cp2k_units("ANGSTROM",length=h(2,1))
-          CALL convert_to_cp2k_units("ANGSTROM",length=h(3,1))
-          CALL convert_to_cp2k_units("ANGSTROM",length=h(1,2))
-          CALL convert_to_cp2k_units("ANGSTROM",length=h(2,2))
-          CALL convert_to_cp2k_units("ANGSTROM",length=h(3,2))
-          CALL convert_to_cp2k_units("ANGSTROM",length=h(1,3))
-          CALL convert_to_cp2k_units("ANGSTROM",length=h(2,3))
-          CALL convert_to_cp2k_units("ANGSTROM",length=h(3,3))
+    IF(reftraj_env%info%variable_volume)THEN
+       READ(reftraj_env%info%cell_parser%input_line,*)cell_itimes, cell_time,&
+            h(1,1),h(2,1),h(3,1), h(1,2),h(2,2),h(3,2), h(1,3),h(2,3),h(3,3),vol
+       CPPostcondition(trj_time==cell_time,cp_failure_level,routineP,error,failure)
+       CALL convert_to_cp2k_units("ANGSTROM",length=h(1,1))
+       CALL convert_to_cp2k_units("ANGSTROM",length=h(2,1))
+       CALL convert_to_cp2k_units("ANGSTROM",length=h(3,1))
+       CALL convert_to_cp2k_units("ANGSTROM",length=h(1,2))
+       CALL convert_to_cp2k_units("ANGSTROM",length=h(2,2))
+       CALL convert_to_cp2k_units("ANGSTROM",length=h(3,2))
+       CALL convert_to_cp2k_units("ANGSTROM",length=h(1,3))
+       CALL convert_to_cp2k_units("ANGSTROM",length=h(2,3))
+       CALL convert_to_cp2k_units("ANGSTROM",length=h(3,3))
+       CALL parser_get_next_line(reftraj_env%info%cell_parser,1,at_end=my_end,error=error)
+       IF (my_end) THEN
+          CALL cp_assert(reftraj_env%isnap==(simpar%nsteps-1),cp_fatal_level,cp_assertion_failed,routineP,&
+               "Reached the end of the cell info frames in the CELL file. Number of "//&
+               "missing frames ("//cp_to_string((simpar%nsteps-1)-reftraj_env%isnap)//")."//& 
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
        END IF
-    ELSE
-       pos=0.0_dp
-       h  =0.0_dp
-    ENDIF
-    CALL update_particle_set ( particle_set, para_env % group, pos = pos )
-
-    CALL mp_bcast(trj_epot,para_env%source,para_env%group)
-    CALL mp_bcast(trj_itimes,para_env%source,para_env%group)
-    CALL mp_bcast(trj_time,para_env%source,para_env%group)
-
-    IF (reftraj_env%info%variable_volume)THEN
-       CALL mp_bcast(cell_itimes,para_env%source,para_env%group)
-       CALL mp_bcast(cell_time,para_env%source,para_env%group)
-    ENDIF
+    END IF
 
     IF (init) THEN
        reftraj_env%time0   = trj_time
@@ -1177,13 +1180,14 @@ CONTAINS
        reftraj_env%itimes0 = trj_itimes 
     END IF
 
-    IF (trj_itimes/=0.0_dp.AND.trj_time/=0.0_dp) simpar%dt = (trj_time/femtoseconds)/REAL(trj_itimes,KIND=dp)
+    IF (trj_itimes/=0.0_dp.AND.trj_time/=0.0_dp) &
+         simpar%dt = (trj_time/femtoseconds)/REAL(trj_itimes,KIND=dp)
+
     reftraj_env%epot   = trj_epot
     reftraj_env%itimes = trj_itimes
     reftraj_env%time   = trj_time/femtoseconds
 
     IF(reftraj_env%info%variable_volume)THEN
-       CALL mp_bcast(h,para_env%source,para_env%group)
        cell%hmat(1:3,1) = h(1:3,1)
        cell%hmat(1:3,2) = h(1:3,2)
        cell%hmat(1:3,3) = h(1:3,3)
@@ -1191,11 +1195,6 @@ CONTAINS
        CALL force_env_set_cell(force_env, cell, error)
     END IF
     
-    DEALLOCATE(pos ,stat=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-    reftraj_env%isnap = reftraj_env%isnap + 1
-
     ! Task to perform on the reference trajectory
     ! Compute energy and forces
     CALL force_env_calc_energy_force(force_env,eval_energy_forces=reftraj_env%info%eval_EF,error=error)
@@ -1206,22 +1205,6 @@ CONTAINS
       CALL compute_msd_reftraj(reftraj_env,md_env, particle_set,error=error)
     END IF
     
-    RETURN
-
-996 CONTINUE ! end of file
-    CALL stop_program(routineN,moduleN,__LINE__,&
-         "End of reference cell file reached")
-997 CONTINUE ! error
-    CALL stop_program(routineN,moduleN,__LINE__,&
-         "Error reading reference cell file")
-
-998 CONTINUE ! end of file
-    CALL stop_program(routineN,moduleN,__LINE__,&
-         "End of reference trajectory file reached")
-999 CONTINUE ! error
-    CALL stop_program(routineN,moduleN,__LINE__,&
-         "Error reading reference trajectory file")
-
   END SUBROUTINE reftraj
 
 ! *****************************************************************************

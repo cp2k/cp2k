@@ -228,7 +228,7 @@ CONTAINS
     !If requested set up the REFTRAJ run
     IF(simpar%ensemble == reftraj_ensemble) THEN
         reftraj_section => section_vals_get_subs_vals(motion_section,"MD%REFTRAJ",error=error)
-        CALL create_reftraj(reftraj, reftraj_section, error=error)
+        CALL create_reftraj(reftraj, reftraj_section, para_env, error=error)
         CALL set_md_env(md_env, reftraj=reftraj, error=error)
         CALL release_reftraj(reftraj,error=error)
     END IF
