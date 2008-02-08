@@ -277,8 +277,9 @@ CPSourceFileRef,&
               simpar % ensemble == npt_i_ensemble .OR. &
               simpar % ensemble == npt_f_ensemble )  THEN
               CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-              "Annealing of the ions is required while the thermostat is active (nvt or npt_i or npt_f) "//&
-              "These are two methods to control the temperature act one against the other. "//&
+              "Annealing of the ions has been required "//&
+              "even if the thermostat is active (nvt or npt_i or npt_f) "//&
+              "These two methods to control the temperature act one against the other. "//&
 CPSourceFileRef,&
                only_ionode=.TRUE.)
          END IF
