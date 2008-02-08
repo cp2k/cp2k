@@ -31,8 +31,9 @@ MODULE md
   USE input_constants,                 ONLY: &
        ensemble_name_types, isokin_ensemble, langevin_ensemble, nph_ensemble, &
        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
-       npt_i_ensemble, nve_ensemble, use_perd_none, use_perd_x, use_perd_xy, &
-       use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
+       npt_i_ensemble, nve_ensemble, nvt_ensemble, use_perd_none, use_perd_x, &
+       use_perd_xy, use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, &
+       use_perd_z
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_list_get,&
@@ -269,6 +270,18 @@ CONTAINS
                "Due to the velocity rescaling algorithm jumps may appear in the conserved quantity. "//&
 CPSourceFileRef,&
                only_ionode=.TRUE.)
+       END IF
+       ! Print warning for annealing
+       IF(simpar % annealing ) THEN
+         IF ( simpar % ensemble == nvt_ensemble .OR. &
+              simpar % ensemble == npt_i_ensemble .OR. &
+              simpar % ensemble == npt_f_ensemble )  THEN
+              CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+              "Annealing of the ions is required while the thermostat is active (nvt or npt_i or npt_f) "//&
+              "These are two methods to control the temperature act one against the other. "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
+         END IF
        END IF
     END IF
 

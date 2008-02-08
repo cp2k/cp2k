@@ -752,6 +752,11 @@ CONTAINS
     END IF
 
     IF (simpar%annealing) THEN
+       ! MI
+       ! This is wrong: while the annealing rescales the temperature, the thermostat tries  to
+       !                keep the initial temperature, the two act one against the other. 
+       !                The annealing is meaningfull only in MD runs that do not make use of the thermostat
+       ! MI
         tmp%vel(:,:)= tmp%vel(:,:)*simpar%f_annealing
        IF (shell_adiabatic) THEN
           CALL shell_scale_comv(atomic_kind_set,local_particles,particle_set,&
@@ -1038,6 +1043,11 @@ CONTAINS
     CALL apply_thermostat_baro( thermostat_baro, npt, para_env%group, error)
 
     IF (simpar%annealing) THEN
+       ! MI
+       ! This is wrong: while the annealing rescales the temperature, the thermostat tries  to
+       !                keep the initial temperature, the two act one against the other. 
+       !                The annealing is meaningfull only in MD runs that do not make use of the thermostat
+       ! MI
        tmp%vel(:,:)=tmp%vel(:,:)*simpar%f_annealing
        IF (shell_adiabatic) THEN
           CALL shell_scale_comv(atomic_kind_set,local_particles,particle_set,&
@@ -1969,6 +1979,11 @@ CONTAINS
     CALL apply_thermostat_baro( thermostat_baro, npt, para_env%group, error)
 
     IF (simpar%annealing) THEN
+       ! MI
+       ! This is wrong: while the annealing rescales the temperature, the thermostat tries  to
+       !                keep the initial temperature, the two act one against the other. 
+       !                The annealing is meaningfull only in MD runs that do not make use of the thermostat
+       ! MI
        tmp%vel(:,:)=tmp%vel(:,:)*simpar%f_annealing
        IF (shell_adiabatic) THEN
           CALL shell_scale_comv(atomic_kind_set,local_particles,particle_set,&
