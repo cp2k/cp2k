@@ -61,10 +61,10 @@ MODULE md_environment_types
      REAL(KIND=dp) :: vcom(3), total_mass
      REAL(KIND=dp), DIMENSION(:), POINTER :: ekin_kind
      REAL(KIND=dp), DIMENSION(:), POINTER :: temp_kind
-     INTEGER, DIMENSION(:), POINTER :: nfree_kind
+     INTEGER, DIMENSION(:), POINTER       :: nfree_kind
      REAL(KIND=dp), DIMENSION(:), POINTER :: ekin_shell_kind
      REAL(KIND=dp), DIMENSION(:), POINTER :: temp_shell_kind
-     INTEGER, DIMENSION(:), POINTER :: nfree_shell_kind
+     INTEGER, DIMENSION(:), POINTER       :: nfree_shell_kind
   END TYPE md_ener_type
 
 ! *****************************************************************************
@@ -73,34 +73,27 @@ MODULE md_environment_types
      ! that are dealt with by the integrator e.g in the PIMD this could 
      ! be parent of every bead.
      PRIVATE
-     INTEGER :: id_nr, ref_count
-     LOGICAL :: init, first_time
-     INTEGER, POINTER :: itimes, md_approach_nr, accepted_md
-     REAL (KIND=dp), POINTER            :: used_time, t
-     REAL (KIND=dp), POINTER            :: constant
-     TYPE (cp_para_env_type), POINTER   :: para_env
-     TYPE (cell_type), POINTER          :: cell
-     TYPE (force_env_type), POINTER     :: force_env
-     TYPE (md_ener_type), POINTER       :: md_ener
-     TYPE (thermostats_type), POINTER   :: thermostats
-     TYPE (barostat_type), POINTER      :: barostat
-     TYPE (reftraj_type), POINTER       :: reftraj
-     TYPE (free_energy_type) , POINTER  :: fe_env
+     INTEGER                                    :: id_nr, ref_count
+     LOGICAL                                    :: init, first_time
+     INTEGER, POINTER                           :: itimes, md_approach_nr, accepted_md
+     REAL (KIND=dp), POINTER                    :: used_time, t
+     REAL (KIND=dp), POINTER                    :: constant
+     TYPE (cp_para_env_type), POINTER           :: para_env
+     TYPE (cell_type), POINTER                  :: cell
+     TYPE (force_env_type), POINTER             :: force_env
+     TYPE (md_ener_type), POINTER               :: md_ener
+     TYPE (thermostats_type), POINTER           :: thermostats
+     TYPE (barostat_type), POINTER              :: barostat
+     TYPE (reftraj_type), POINTER               :: reftraj
+     TYPE (free_energy_type) , POINTER          :: fe_env
      TYPE (simulation_parameters_type), POINTER :: simpar
   END TYPE md_environment_type
 
+
 ! *** Public subroutines and data types ***
-  PUBLIC :: create_md_ener,&
-            md_ener_type,&
-            md_environment_type,&
-            set_md_env,&
-            get_md_env,&
-            md_env_create,&
-            md_env_release,&
-            md_env_retain,&
-            release_md_ener,&
-            retain_md_ener,&
-            zero_md_ener
+  PUBLIC :: create_md_ener,  release_md_ener,retain_md_ener, md_ener_type, zero_md_ener,&
+       md_environment_type, set_md_env, get_md_env, md_env_create, md_env_release, &
+       md_env_retain
 
 ! *** Global parameters ***
 
@@ -126,49 +119,51 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'md_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
-    ALLOCATE ( md_env, stat=istat )
-    CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+    failure = .FALSE.
+    ALLOCATE ( md_env, stat=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     last_md_env_id=last_md_env_id+1
     md_env%id_nr=last_md_env_id
     md_env%ref_count=1
 
-    NULLIFY ( md_env % itimes )
-    NULLIFY ( md_env % constant )
-    NULLIFY ( md_env % t )
-    NULLIFY ( md_env % md_approach_nr )
-    NULLIFY ( md_env % accepted_md )
-    NULLIFY ( md_env % cell )
-    NULLIFY ( md_env % simpar )
-    NULLIFY ( md_env % thermostats )
-    NULLIFY ( md_env % barostat )
-    NULLIFY ( md_env % force_env )
-    NULLIFY ( md_env % fe_env )
-    NULLIFY ( md_env % md_ener )
-    NULLIFY ( md_env % reftraj )
-    md_env % para_env => para_env
-    CALL cp_para_env_retain ( md_env % para_env ,error=error)
-    ALLOCATE( md_env % itimes , stat=istat )
-    CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-    ALLOCATE( md_env % md_approach_nr , stat=istat )
-    CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-    ALLOCATE( md_env % accepted_md , stat=istat )
-    CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-    ALLOCATE( md_env % constant , stat=istat )
-    CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-    ALLOCATE( md_env % used_time , stat=istat )
-    CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-    ALLOCATE( md_env % t , stat=istat )
-    CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-    md_env % itimes    = -1
-    md_env % md_approach_nr = -1
-    md_env % accepted_md = 0
-    md_env % constant  = 0.0_dp
-    md_env % used_time = 0.0_dp
-    md_env % t         = 0.0_dp
-    md_env%init = .TRUE.
-    md_env%first_time = .TRUE.
+    NULLIFY( md_env%itimes )
+    NULLIFY( md_env%constant )
+    NULLIFY( md_env%t )
+    NULLIFY( md_env%md_approach_nr )
+    NULLIFY( md_env%accepted_md )
+    NULLIFY( md_env%cell )
+    NULLIFY( md_env%simpar )
+    NULLIFY( md_env%thermostats )
+    NULLIFY( md_env%barostat )
+    NULLIFY( md_env%force_env )
+    NULLIFY( md_env%fe_env )
+    NULLIFY( md_env%md_ener )
+    NULLIFY( md_env%reftraj )
+    md_env%para_env => para_env
+    CALL cp_para_env_retain ( md_env%para_env, error=error)
+    ALLOCATE( md_env%itimes, stat=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE( md_env%md_approach_nr, stat=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE( md_env%accepted_md, stat=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE( md_env%constant, stat=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE( md_env%used_time, stat=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE( md_env%t, stat=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    md_env%itimes         = -1
+    md_env%md_approach_nr = -1
+    md_env%accepted_md    = 0
+    md_env%constant       = 0.0_dp
+    md_env%used_time      = 0.0_dp
+    md_env%t              = 0.0_dp
+    md_env%init           = .TRUE.
+    md_env%first_time     = .TRUE.
 
   END SUBROUTINE md_env_create
 
@@ -183,7 +178,7 @@ CONTAINS
 !>      04.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE md_env_retain(md_env, error)
+  SUBROUTINE md_env_retain(md_env, error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -192,14 +187,14 @@ SUBROUTINE md_env_retain(md_env, error)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(md_env),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPreconditionNoFail(md_env%ref_count>0,cp_failure_level,routineP,error)
-     md_env%ref_count=md_env%ref_count+1
-  END IF
-END SUBROUTINE md_env_retain
+    CPPrecondition(ASSOCIATED(md_env),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CPPrecondition(md_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       md_env%ref_count=md_env%ref_count+1
+    END IF
+  END SUBROUTINE md_env_retain
 
 ! *****************************************************************************
 !> \brief releases the given md env
@@ -212,51 +207,52 @@ END SUBROUTINE md_env_retain
 !>      04.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE md_env_release(md_env, error)
+  SUBROUTINE md_env_release(md_env, error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'md_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat, stat
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
 
-  IF (ASSOCIATED(md_env)) THEN
-     CPPreconditionNoFail(md_env%ref_count>0,cp_failure_level,routineP,error)
-     md_env%ref_count=md_env%ref_count-1
-     IF (md_env%ref_count==0) THEN
-        md_env%ref_count=1
-        CALL fe_env_release( md_env%fe_env, error=error)
-        CALL cp_para_env_release ( md_env % para_env, error = error )
-        DEALLOCATE( md_env % itimes , stat=istat )
-        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-        DEALLOCATE( md_env % md_approach_nr , stat=istat )
-        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-        DEALLOCATE( md_env % accepted_md , stat=istat )
-        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-        DEALLOCATE( md_env % constant , stat=istat )
-        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-        DEALLOCATE( md_env % used_time , stat=istat )
-        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-        DEALLOCATE( md_env % t , stat=istat )
-        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-        NULLIFY ( md_env % cell )
-        NULLIFY ( md_env % simpar )
-        CALL release_barostat_type(md_env%barostat, error)
-        CALL release_thermostats(md_env%thermostats, error)
-        CALL release_reftraj(md_env%reftraj, error)
-        CALL release_md_ener(md_env%md_ener, error)
-        CALL force_env_release(md_env%force_env, error=error)
-        md_env%ref_count=0
-        DEALLOCATE(md_env,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-     END IF
-  END IF
-  NULLIFY(md_env)
-END SUBROUTINE md_env_release
+    IF (ASSOCIATED(md_env)) THEN
+       CPPrecondition(md_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       md_env%ref_count=md_env%ref_count-1
+       IF (md_env%ref_count==0) THEN
+          md_env%ref_count=1
+          CALL fe_env_release( md_env%fe_env, error=error)
+          CALL cp_para_env_release ( md_env%para_env, error = error )
+          DEALLOCATE( md_env%itimes , stat=stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE( md_env%md_approach_nr , stat=stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE( md_env%accepted_md , stat=stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE( md_env%constant , stat=stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE( md_env%used_time , stat=stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE( md_env%t , stat=stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+          NULLIFY ( md_env%cell )
+          NULLIFY ( md_env%simpar )
+          CALL release_barostat_type(md_env%barostat, error)
+          CALL release_thermostats(md_env%thermostats, error)
+          CALL release_reftraj(md_env%reftraj, error)
+          CALL release_md_ener(md_env%md_ener, error)
+          CALL force_env_release(md_env%force_env, error=error)
+          md_env%ref_count=0
+          DEALLOCATE(md_env,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+    END IF
+    NULLIFY(md_env)
+  END SUBROUTINE md_env_release
 
 ! *****************************************************************************
 !> \brief get components of MD environment type
@@ -305,17 +301,17 @@ END SUBROUTINE md_env_release
     failure = .FALSE.
     check = ASSOCIATED(md_env)
     CPPrecondition(check,cp_failure_level,routineP,error,failure)
-    IF (PRESENT ( itimes ) ) itimes => md_env % itimes
-    IF (PRESENT ( fe_env ) ) fe_env => md_env % fe_env
-    IF (PRESENT ( md_approach_nr ) ) md_approach_nr => md_env % md_approach_nr
-    IF (PRESENT ( accepted_md ) ) accepted_md => md_env % accepted_md
-    IF (PRESENT ( constant ) ) constant => md_env % constant
-    IF (PRESENT ( used_time ) ) used_time => md_env % used_time
-    IF (PRESENT ( t ) ) t => md_env % t
-    IF (PRESENT ( cell ) ) cell => md_env % cell
-    IF (PRESENT ( simpar ) ) simpar => md_env % simpar
-    IF (PRESENT ( thermostats ) ) thermostats => md_env % thermostats
-    IF (PRESENT ( barostat ) ) barostat => md_env % barostat
+    IF (PRESENT ( itimes ) ) itimes => md_env%itimes
+    IF (PRESENT ( fe_env ) ) fe_env => md_env%fe_env
+    IF (PRESENT ( md_approach_nr ) ) md_approach_nr => md_env%md_approach_nr
+    IF (PRESENT ( accepted_md ) ) accepted_md => md_env%accepted_md
+    IF (PRESENT ( constant ) ) constant => md_env%constant
+    IF (PRESENT ( used_time ) ) used_time => md_env%used_time
+    IF (PRESENT ( t ) ) t => md_env%t
+    IF (PRESENT ( cell ) ) cell => md_env%cell
+    IF (PRESENT ( simpar ) ) simpar => md_env%simpar
+    IF (PRESENT ( thermostats ) ) thermostats => md_env%thermostats
+    IF (PRESENT ( barostat ) ) barostat => md_env%barostat
     IF  (PRESENT(thermostat_part).OR.PRESENT(thermostat_coeff).OR.&
          PRESENT(thermostat_baro).OR.PRESENT(thermostat_shell)) THEN
        IF (ASSOCIATED(md_env%thermostats)) THEN
@@ -338,10 +334,10 @@ END SUBROUTINE md_env_release
           npt => md_env%barostat%npt
        END IF
     END IF
-    IF (PRESENT ( force_env) ) force_env => md_env % force_env
-    IF (PRESENT ( para_env ) ) para_env => md_env % para_env
-    IF (PRESENT ( reftraj ) ) reftraj => md_env % reftraj
-    IF (PRESENT ( md_ener ) ) md_ener => md_env % md_ener
+    IF (PRESENT ( force_env) ) force_env => md_env%force_env
+    IF (PRESENT ( para_env ) ) para_env => md_env%para_env
+    IF (PRESENT ( reftraj ) ) reftraj => md_env%reftraj
+    IF (PRESENT ( md_ener ) ) md_ener => md_env%md_ener
     IF (PRESENT (init)) init=md_env%init 
     IF (PRESENT (first_time)) first_time=md_env%first_time 
 
@@ -387,23 +383,23 @@ END SUBROUTINE md_env_release
     CPPrecondition(check,cp_failure_level,routineP,error,failure)
     IF ( PRESENT (init)) md_env%init = init
     IF ( PRESENT (first_time)) md_env%first_time = first_time
-    IF ( PRESENT ( cell ) ) md_env % cell => cell
+    IF ( PRESENT ( cell ) ) md_env%cell => cell
     IF ( PRESENT ( barostat ) ) THEN 
-       CALL release_barostat_type(md_env % barostat, error=error)
+       CALL release_barostat_type(md_env%barostat, error=error)
        CALL retain_barostat_type(barostat, error=error)
-       md_env % barostat => barostat
+       md_env%barostat => barostat
     END IF
     IF ( PRESENT ( thermostats ) ) THEN
        CALL release_thermostats(md_env%thermostats, error=error)
        CALL retain_thermostats(thermostats, error=error)
        md_env%thermostats => thermostats
     END IF
-    IF ( PRESENT ( simpar ) ) md_env % simpar => simpar
-    IF ( PRESENT ( itimes ) ) md_env % itimes => itimes
-    IF ( PRESENT ( fe_env ) ) md_env % fe_env => fe_env
-    IF ( PRESENT ( accepted_md ) ) md_env % accepted_md => accepted_md
-    IF ( PRESENT ( md_approach_nr ) ) md_env % md_approach_nr => md_approach_nr
-    IF ( PRESENT ( constant ) ) md_env % constant => constant
+    IF ( PRESENT ( simpar ) ) md_env%simpar => simpar
+    IF ( PRESENT ( itimes ) ) md_env%itimes => itimes
+    IF ( PRESENT ( fe_env ) ) md_env%fe_env => fe_env
+    IF ( PRESENT ( accepted_md ) ) md_env%accepted_md => accepted_md
+    IF ( PRESENT ( md_approach_nr ) ) md_env%md_approach_nr => md_approach_nr
+    IF ( PRESENT ( constant ) ) md_env%constant => constant
     IF ( PRESENT ( force_env ) ) THEN
        IF (ASSOCIATED(force_env)) THEN
           CALL force_env_retain (force_env, error=error)
@@ -435,33 +431,33 @@ END SUBROUTINE md_env_release
 !>      10.2007 created [MI]
 !> \author MI
 ! *****************************************************************************
-SUBROUTINE create_md_ener(md_ener, error)
+  SUBROUTINE create_md_ener(md_ener, error)
     TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_md_ener', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  CPPrecondition(.NOT.ASSOCIATED(md_ener),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     ALLOCATE(md_ener,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    md_ener%ref_count = 1
+    CPPrecondition(.NOT.ASSOCIATED(md_ener),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       ALLOCATE(md_ener,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       md_ener%ref_count = 1
 
-    NULLIFY(md_ener%ekin_kind)
-    NULLIFY(md_ener%temp_kind)
-    NULLIFY(md_ener%nfree_kind)
-    NULLIFY(md_ener%ekin_shell_kind)
-    NULLIFY(md_ener%temp_shell_kind)
-    NULLIFY(md_ener%nfree_shell_kind)
+       NULLIFY(md_ener%ekin_kind)
+       NULLIFY(md_ener%temp_kind)
+       NULLIFY(md_ener%nfree_kind)
+       NULLIFY(md_ener%ekin_shell_kind)
+       NULLIFY(md_ener%temp_shell_kind)
+       NULLIFY(md_ener%nfree_shell_kind)
 
-  END IF
-END SUBROUTINE create_md_ener
+    END IF
+  END SUBROUTINE create_md_ener
   
 ! *****************************************************************************
 !> \brief retains the given md_ener structure
@@ -472,7 +468,7 @@ END SUBROUTINE create_md_ener
 !>      10.2007 created [MI]
 !> \author MI
 ! *****************************************************************************
-SUBROUTINE retain_md_ener(md_ener, error)
+  SUBROUTINE retain_md_ener(md_ener, error)
     TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -481,14 +477,14 @@ SUBROUTINE retain_md_ener(md_ener, error)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(md_ener),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPreconditionNoFail(md_ener%ref_count>0,cp_failure_level,routineP,error)
-     md_ener%ref_count=md_ener%ref_count+1
-  END IF
-END SUBROUTINE retain_md_ener
+    CPPrecondition(ASSOCIATED(md_ener),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CPPrecondition(md_ener%ref_count>0,cp_failure_level,routineP,error,failure)
+       md_ener%ref_count=md_ener%ref_count+1
+    END IF
+  END SUBROUTINE retain_md_ener
 
 ! *****************************************************************************
 !> \brief releases the given md_ener structure
@@ -499,52 +495,52 @@ END SUBROUTINE retain_md_ener
 !>      10.2007 created [MI]
 !> \author MI
 ! *****************************************************************************
-SUBROUTINE release_md_ener(md_ener, error)
+  SUBROUTINE release_md_ener(md_ener, error)
     TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_md_ener', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  IF (ASSOCIATED(md_ener)) THEN
-     CPPreconditionNoFail(md_ener%ref_count>0,cp_failure_level,routineP,error)
-     md_ener%ref_count=md_ener%ref_count-1
-     IF (md_ener%ref_count==0) THEN
-        IF(ASSOCIATED(md_ener%temp_kind))THEN
-          DEALLOCATE(md_ener%temp_kind,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        END IF
-        IF(ASSOCIATED(md_ener%ekin_kind))THEN
-          DEALLOCATE(md_ener%ekin_kind,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        END IF
-        IF(ASSOCIATED(md_ener%nfree_kind))THEN
-          DEALLOCATE(md_ener%nfree_kind,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        END IF
-        IF(ASSOCIATED(md_ener%temp_shell_kind))THEN
-          DEALLOCATE(md_ener%temp_shell_kind,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        END IF
-        IF(ASSOCIATED(md_ener%ekin_shell_kind))THEN
-          DEALLOCATE(md_ener%ekin_shell_kind,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        END IF
-        IF(ASSOCIATED(md_ener%nfree_shell_kind))THEN
-          DEALLOCATE(md_ener%nfree_shell_kind,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-        END IF
-  
-        DEALLOCATE(md_ener,stat=istat)
-        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-     END IF
-  END IF
-END SUBROUTINE release_md_ener
+    IF (ASSOCIATED(md_ener)) THEN
+       CPPrecondition(md_ener%ref_count>0,cp_failure_level,routineP,error,failure)
+       md_ener%ref_count=md_ener%ref_count-1
+       IF (md_ener%ref_count==0) THEN
+          IF(ASSOCIATED(md_ener%temp_kind))THEN
+             DEALLOCATE(md_ener%temp_kind,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF(ASSOCIATED(md_ener%ekin_kind))THEN
+             DEALLOCATE(md_ener%ekin_kind,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF(ASSOCIATED(md_ener%nfree_kind))THEN
+             DEALLOCATE(md_ener%nfree_kind,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF(ASSOCIATED(md_ener%temp_shell_kind))THEN
+             DEALLOCATE(md_ener%temp_shell_kind,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF(ASSOCIATED(md_ener%ekin_shell_kind))THEN
+             DEALLOCATE(md_ener%ekin_shell_kind,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF(ASSOCIATED(md_ener%nfree_shell_kind))THEN
+             DEALLOCATE(md_ener%nfree_shell_kind,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+
+          DEALLOCATE(md_ener,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+    END IF
+  END SUBROUTINE release_md_ener
 
 ! *****************************************************************************
 !> \brief initialize to zero energies and temperatures  
@@ -555,7 +551,7 @@ END SUBROUTINE release_md_ener
 !>      10.2007 created [MI]
 !> \author MI
 ! *****************************************************************************
-SUBROUTINE zero_md_ener(md_ener, tkind, tshell, error)
+  SUBROUTINE zero_md_ener(md_ener, tkind, tshell, error)
     TYPE(md_ener_type), POINTER              :: md_ener
     LOGICAL, INTENT(IN)                      :: tkind, tshell
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -590,10 +586,10 @@ SUBROUTINE zero_md_ener(md_ener, tkind, tshell, error)
           md_ener%temp_shell_kind  = 0.0_dp
           md_ener%ekin_shell_kind  = 0.0_dp 
        END IF
-    END IF        
+    END IF
     md_ener%vcom(:) = 0.0_dp
     md_ener%total_mass = 0.0_dp
-    
-END SUBROUTINE zero_md_ener
+
+  END SUBROUTINE zero_md_ener
 
 END MODULE md_environment_types

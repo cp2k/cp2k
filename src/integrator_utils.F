@@ -1,0 +1,1359 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2008  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+! *****************************************************************************
+!> \brief Provides integrator routines (velocity verlet) for all the
+!>      ensemble types
+!> \par History
+!>      JGH (15-Mar-2001) : Pass logical for box change to force routine
+!>      Harald Forbert (Apr-2001): added path integral routine nvt_pimd
+!>      CJM (15-Apr-2001) : added coef integrators and energy routines
+!>      Joost VandeVondele (Juli-2003): simple version of isokinetic ensemble
+!>      Teodoro Laino [tlaino] 10.2007 - University of Zurich: Generalization to
+!>                                       different kind of thermostats
+!>      Teodoro Laino [tlaino] 11.2007 - Metadynamics: now part of the MD modules
+!> \author CJM
+! *****************************************************************************
+MODULE integrator_utils
+
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE cell_types,                      ONLY: cell_type
+  USE constraint,                      ONLY: rattle_roll_control
+  USE constraint_util,                 ONLY: pv_constraint
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE extended_system_types,           ONLY: debug_isotropic_limit,&
+                                             debug_uniaxial_limit,&
+                                             npt_info_type
+  USE f77_blas
+  USE input_constants,                 ONLY: nph_ensemble,&
+                                             nph_uniaxial_damped_ensemble,&
+                                             nph_uniaxial_ensemble,&
+                                             npt_f_ensemble,&
+                                             npt_i_ensemble
+  USE kinds,                           ONLY: dp
+  USE mathlib,                         ONLY: matvec_3x3,&
+                                             transpose_3d
+  USE md,                              ONLY: simulation_parameters_type
+  USE message_passing,                 ONLY: mp_sum
+  USE molecule_kind_types,             ONLY: molecule_kind_type
+  USE molecule_types_new,              ONLY: get_molecule,&
+                                             global_constraint_type,&
+                                             molecule_type
+  USE particle_types,                  ONLY: particle_type,&
+                                             update_particle_set
+  USE shell_potential_types,           ONLY: shell_kind_type
+  USE virial_types,                    ONLY: virial_type
+#include "cp_common_uses.h"
+
+  IMPLICIT NONE
+
+  PRIVATE
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'integrator_utils'
+
+! *****************************************************************************
+  TYPE old_variables_type
+    REAL(KIND=dp), POINTER, DIMENSION(:,:) :: v
+    REAL(KIND=dp), POINTER, DIMENSION(:,:) :: r
+    REAL(KIND=dp), POINTER, DIMENSION(:,:) :: eps
+    REAL(KIND=dp), POINTER, DIMENSION(:,:) :: veps
+    REAL(KIND=dp), POINTER, DIMENSION(:,:) :: h
+  END TYPE old_variables_type
+
+! *****************************************************************************
+  TYPE tmp_variables_type
+    REAL(KIND=dp), POINTER, DIMENSION(:,:) :: pos
+    REAL(KIND=dp), POINTER, DIMENSION(:,:) :: vel
+    REAL(KIND=dp), POINTER, DIMENSION(:,:) :: shell_pos
+    REAL(KIND=dp), POINTER, DIMENSION(:,:) :: shell_vel
+    REAL(KIND=dp), POINTER, DIMENSION(:,:) :: core_pos
+    REAL(KIND=dp), POINTER, DIMENSION(:,:) :: core_vel
+  END TYPE tmp_variables_type
+
+  INTERFACE set
+     MODULE PROCEDURE set_particle_set, set_vel
+  END INTERFACE
+
+  INTERFACE update_pv
+     MODULE PROCEDURE update_pv_particle_set, update_pv_velocity
+  END INTERFACE
+
+  INTERFACE damp_v
+     MODULE PROCEDURE damp_v_particle_set, damp_v_velocity
+  END INTERFACE
+
+  PUBLIC :: old_variables_type, tmp_variables_type, allocate_old, deallocate_old,&
+       allocate_tmp, update_dealloc_tmp, damp_v, set, update_pv, get_s_ds,&
+       rattle_roll_setup, damp_veps, update_veps, vv_first, vv_second
+
+CONTAINS
+
+
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
+  SUBROUTINE allocate_old ( old, particle_set, npt, error )
+    TYPE(old_variables_type), POINTER        :: old
+    TYPE(particle_type), POINTER             :: particle_set(:)
+    TYPE(npt_info_type), POINTER             :: npt(:,:)
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_old', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: idim, jdim, natoms, stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    natoms = SIZE ( particle_set)
+    idim = SIZE ( npt, 1)
+    jdim = SIZE ( npt, 2)
+    CPPostcondition(.NOT.ASSOCIATED(old),cp_failure_level,routineP,error,failure)
+    ALLOCATE ( old, STAT = stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE ( old%v ( natoms, 3 ), STAT = stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    old%v = 0.0_dp
+    ALLOCATE ( old%r ( natoms, 3 ), STAT = stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    old%r = 0.0_dp
+    ALLOCATE ( old%eps ( idim, jdim ),STAT = stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    old%eps = 0.0_dp
+    ALLOCATE ( old%veps ( idim, jdim ),STAT = stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    old%veps = 0.0_dp
+    ALLOCATE ( old%h(3, 3),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    old%h = 0.0_dp
+
+  END SUBROUTINE allocate_old
+
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
+  SUBROUTINE deallocate_old (old, error)
+    TYPE(old_variables_type), POINTER        :: old
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_old', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (ASSOCIATED(old)) THEN
+       IF (ASSOCIATED(old%v)) THEN
+          DEALLOCATE ( old%v, STAT = stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(old%r)) THEN
+          DEALLOCATE ( old%r, STAT = stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(old%eps)) THEN
+          DEALLOCATE ( old%eps, STAT = stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(old%veps)) THEN
+          DEALLOCATE ( old%veps, STAT = stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(old%h)) THEN
+          DEALLOCATE ( old%h, STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       DEALLOCATE ( old, STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+  END SUBROUTINE deallocate_old
+
+! *****************************************************************************
+!> \brief allocate temporary variables to tore positions and velocities
+!>        used by the velocity-verlet integrator
+!> \par History
+!>      none
+!> \author MI (February 2008)
+! *****************************************************************************
+  SUBROUTINE allocate_tmp ( tmp, nparticle, nshell, shell_adiabatic, error )
+    TYPE(tmp_variables_type), POINTER        :: tmp
+    INTEGER, INTENT(IN)                      :: nparticle, nshell
+    LOGICAL, INTENT(IN)                      :: shell_adiabatic
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_tmp', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    CPPostcondition(.NOT.ASSOCIATED(tmp),cp_failure_level,routineP,error,failure)
+    ALLOCATE (tmp, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ! Nullify Components
+    NULLIFY(tmp%pos)
+    NULLIFY(tmp%vel)
+    NULLIFY(tmp%shell_pos)
+    NULLIFY(tmp%shell_vel)
+    NULLIFY(tmp%core_pos)
+    NULLIFY(tmp%core_vel)
+
+    !     *** Allocate work storage for positions and velocities ***
+    ALLOCATE (tmp%pos(3,nparticle),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE (tmp%vel(3,nparticle),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    tmp%pos(:,:) = 0.0_dp
+    tmp%vel(:,:) = 0.0_dp
+
+    IF(shell_adiabatic) THEN
+       !     *** Allocate work storage for positions and velocities ***
+       ALLOCATE (tmp%shell_pos(3,nshell),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       ALLOCATE (tmp%core_pos(3,nshell),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       ALLOCATE (tmp%shell_vel(3,nshell),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       ALLOCATE (tmp%core_vel(3,nshell),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       tmp%shell_pos(:,:) = 0.0_dp
+       tmp%shell_vel(:,:) = 0.0_dp
+       tmp%core_pos(:,:) = 0.0_dp
+       tmp%core_vel(:,:) = 0.0_dp
+   END IF
+
+  END SUBROUTINE allocate_tmp
+
+! *****************************************************************************
+!> \brief update positions and deallocate temporary variable
+!> \par History
+!>      none
+!> \author MI (February 2008)
+! *****************************************************************************
+  SUBROUTINE update_dealloc_tmp ( tmp, particle_set, shell_particle_set, &
+       core_particle_set, para_env, shell_adiabatic, pos, vel, error )
+
+    TYPE(tmp_variables_type), POINTER        :: tmp
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set, &
+                                                shell_particle_set, &
+                                                core_particle_set
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    LOGICAL, INTENT(IN)                      :: shell_adiabatic
+    LOGICAL, INTENT(IN), OPTIONAL            :: pos, vel
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'update_dealloc_tmp', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure, my_pos, my_vel
+
+    failure = .FALSE.
+
+    CPPostcondition(ASSOCIATED(tmp),cp_failure_level,routineP,error,failure)
+    my_pos =.FALSE.
+    my_vel =.FALSE.
+    IF(PRESENT(pos)) my_pos=pos
+    IF(PRESENT(vel)) my_vel=vel
+
+    !      *** Broadcast the new particle positions ***
+    IF(my_pos) THEN
+       CALL update_particle_set ( particle_set, para_env % group, pos = tmp%pos )
+       DEALLOCATE (tmp%pos,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       IF(shell_adiabatic)THEN
+          CALL update_particle_set ( shell_particle_set, para_env%group, pos=tmp%shell_pos )
+          CALL update_particle_set ( core_particle_set, para_env%group, pos=tmp%core_pos )
+          DEALLOCATE (tmp%shell_pos,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE (tmp%core_pos,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+    END IF
+
+    !     *** Broadcast the new particle velocities ***
+    IF(my_vel) THEN
+       CALL update_particle_set ( particle_set, para_env % group, vel = tmp%vel )
+       IF (shell_adiabatic) THEN
+          CALL update_particle_set ( shell_particle_set, para_env%group, vel=tmp%shell_vel )
+          CALL update_particle_set ( core_particle_set, para_env%group, vel=tmp%core_vel )
+       END IF
+
+       DEALLOCATE (tmp%vel,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF (shell_adiabatic) THEN
+          DEALLOCATE (tmp%shell_vel,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE (tmp%core_vel,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       CPPostcondition(.NOT.ASSOCIATED(tmp%pos),cp_failure_level,routineP,error,failure)
+       CPPostcondition(.NOT.ASSOCIATED(tmp%shell_pos),cp_failure_level,routineP,error,failure)
+       CPPostcondition(.NOT.ASSOCIATED(tmp%core_pos),cp_failure_level,routineP,error,failure)
+       DEALLOCATE (tmp,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+  END SUBROUTINE  update_dealloc_tmp
+
+! *****************************************************************************
+!> \par History
+!>      - Created [2004-07]
+!> \author Joost VandeVondele
+! *****************************************************************************
+  SUBROUTINE get_s_ds(tmp, s, ds, nparticle_kind, atomic_kind_set,  local_particles, particle_set,&
+       dt, para_env, tmpv)
+    TYPE(tmp_variables_type), POINTER        :: tmp
+    REAL(KIND=dp)                            :: s, ds
+    INTEGER                                  :: nparticle_kind
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    REAL(KIND=dp)                            :: dt
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    LOGICAL, INTENT(IN), OPTIONAL            :: tmpv
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_s_ds', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iparticle, iparticle_kind, &
+                                                iparticle_local, &
+                                                nparticle_local
+    LOGICAL                                  :: my_tmpv
+    REAL(KIND=dp)                            :: a, b, K, mass, rb
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+
+    my_tmpv=.FALSE.
+    IF(PRESENT(tmpv)) my_tmpv = tmpv
+
+    K=0.0_dp
+    a=0.0_dp
+    b=0.0_dp
+    DO iparticle_kind=1,nparticle_kind
+       atomic_kind => atomic_kind_set(iparticle_kind)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+       nparticle_local = local_particles%n_el(iparticle_kind)
+       IF(my_tmpv) THEN
+         DO iparticle_local=1,nparticle_local
+            iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+            K=K+ 0.5_dp*mass *DOT_PRODUCT(tmp%vel(:,iparticle),tmp%vel(:,iparticle))
+            a=a+              DOT_PRODUCT(tmp%vel(:,iparticle),particle_set(iparticle)%f(:))
+            b=b+(1.0_dp/mass)*DOT_PRODUCT(particle_set(iparticle)%f(:),particle_set(iparticle)%f(:))
+         END DO
+       ELSE
+         DO iparticle_local=1,nparticle_local
+            iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+            K=K+ 0.5_dp*mass *DOT_PRODUCT(particle_set(iparticle)%v(:),particle_set(iparticle)%v(:))
+            a=a+              DOT_PRODUCT(particle_set(iparticle)%v(:),particle_set(iparticle)%f(:))
+            b=b+(1.0_dp/mass)*DOT_PRODUCT(particle_set(iparticle)%f(:),particle_set(iparticle)%f(:))
+         END DO
+       END IF
+    END DO
+    CALL mp_sum(K,para_env % group)
+    CALL mp_sum(a,para_env % group)
+    CALL mp_sum(b,para_env % group)
+    a=a/(2.0_dp*K)
+    b=b/(2.0_dp*K)
+    rb=SQRT(b)
+    s =(a/b)*(COSH(dt*rb/2.0_dp)-1) +SINH(dt*rb/2.0_dp)/rb
+    ds=(a/b)*(SINH(dt*rb/2.0_dp)*rb)+COSH(dt*rb/2.0_dp)
+
+  END SUBROUTINE get_s_ds
+
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
+  SUBROUTINE set_particle_set ( old, atomic_kind_set, particle_set, local_particles, cell , npt, char )
+    TYPE(old_variables_type), POINTER        :: old
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(npt_info_type), DIMENSION(:, :), &
+      POINTER                                :: npt
+    CHARACTER(LEN=*), INTENT(IN)             :: char
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_particle_set', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: idim, iparticle, &
+                                                iparticle_kind, &
+                                                iparticle_local, &
+                                                nparticle_kind, &
+                                                nparticle_local
+
+    nparticle_kind = SIZE ( atomic_kind_set )
+    SELECT CASE (char)
+    CASE ( 'F') ! forward assigning the old
+       DO iparticle_kind = 1, nparticle_kind
+          nparticle_local = local_particles%n_el ( iparticle_kind )
+          DO iparticle_local = 1, nparticle_local
+             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+             DO idim = 1, 3
+                old % v ( iparticle, idim ) =  particle_set ( iparticle ) % v ( idim )
+                old % r ( iparticle, idim ) =  particle_set ( iparticle ) % r ( idim )
+             END DO
+          END DO
+       END DO
+       old % eps ( :, : ) = npt ( :, : ) % eps
+       old % veps ( :, : ) = npt ( :, : ) % v
+       old % h ( :, : ) = cell%hmat ( :, : )
+    CASE ( 'B') ! back assigning the original variables
+       DO iparticle_kind = 1, nparticle_kind
+          nparticle_local = local_particles%n_el ( iparticle_kind )
+          DO iparticle_local = 1, nparticle_local
+             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+             DO idim = 1, 3
+                particle_set ( iparticle ) % v ( idim ) = old % v ( iparticle, idim )
+                particle_set ( iparticle ) % r ( idim ) = old % r ( iparticle, idim )
+             END DO
+          END DO
+       END DO
+       npt ( :, : ) % eps = old % eps ( :, : )
+       npt ( :, : ) % v = old % veps ( :, : )
+       cell % hmat ( :, : )=old % h ( :, : )
+    END SELECT
+
+  END SUBROUTINE set_particle_set
+
+! *****************************************************************************
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
+  SUBROUTINE set_vel ( old, atomic_kind_set, particle_set, vel, local_particles, cell , npt, char )
+    TYPE(old_variables_type), POINTER        :: old
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(npt_info_type), DIMENSION(:, :), &
+      POINTER                                :: npt
+    CHARACTER(LEN=*), INTENT(IN)             :: char
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_vel', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: idim, iparticle, &
+                                                iparticle_kind, &
+                                                iparticle_local, &
+                                                nparticle_kind, &
+                                                nparticle_local
+
+    nparticle_kind = SIZE ( atomic_kind_set )
+    SELECT CASE (char)
+    CASE ( 'F') ! forward assigning the old
+       DO iparticle_kind = 1, nparticle_kind
+          nparticle_local = local_particles%n_el ( iparticle_kind )
+          DO iparticle_local = 1, nparticle_local
+             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+             DO idim = 1, 3
+                old % v ( iparticle, idim ) =  vel ( idim, iparticle )
+                old % r ( iparticle, idim ) =  particle_set ( iparticle ) % r ( idim )
+             END DO
+          END DO
+       END DO
+       old % eps ( :, : ) = npt ( :, : ) % eps
+       old % veps ( :, : ) = npt ( :, : ) % v
+       old % h ( :, : ) = cell%hmat ( :, : )
+    CASE ( 'B') ! back assigning the original variables
+       DO iparticle_kind = 1, nparticle_kind
+          nparticle_local = local_particles%n_el ( iparticle_kind )
+          DO iparticle_local = 1, nparticle_local
+             iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+             DO idim = 1, 3
+                vel ( idim, iparticle ) = old % v ( iparticle, idim )
+                particle_set ( iparticle ) % r ( idim ) = old % r ( iparticle, idim )
+             END DO
+          END DO
+       END DO
+       npt ( :, : ) % eps = old % eps ( :, : )
+       npt ( :, : ) % v = old % veps ( :, : )
+       cell % hmat ( :, : )=old % h ( :, : )
+    END SELECT
+
+  END SUBROUTINE set_vel
+
+
+! *****************************************************************************
+!> \brief overloaded routine provides damping for particles via nph_uniaxial_damped dynamics
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
+  SUBROUTINE damp_v_particle_set (molecule_kind_set, molecule_set,&
+       particle_set, local_molecules, gamma1, npt, dt, group )
+
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    REAL(KIND=dp), INTENT(IN)                :: gamma1
+    TYPE(npt_info_type), INTENT(IN)          :: npt
+    REAL(KIND=dp), INTENT(IN)                :: dt
+    INTEGER, INTENT(IN)                      :: group
+
+    INTEGER                                  :: first_atom, ikind, imol, &
+                                                imol_local, ipart, last_atom, &
+                                                nmol_local
+    REAL(KIND=dp)                            :: alpha, ikin, kin, mass, scale
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(molecule_type), POINTER             :: molecule
+
+    kin = 0.0_dp
+    DO ikind = 1, SIZE ( molecule_kind_set )
+       ! Compute the total kinetic energy
+       nmol_local = local_molecules % n_el ( ikind )
+       DO imol_local = 1, nmol_local
+          imol = local_molecules % list ( ikind ) % array ( imol_local )
+          molecule => molecule_set ( imol )
+          CALL get_molecule ( molecule, first_atom = first_atom, &
+               last_atom = last_atom )
+          DO ipart = first_atom, last_atom
+             atomic_kind => particle_set ( ipart ) % atomic_kind
+             CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+             kin = kin + mass * particle_set ( ipart ) % v ( 1 ) *            &
+                  particle_set ( ipart ) % v ( 1 )
+             kin = kin + mass * particle_set ( ipart ) % v ( 2 ) *            &
+                  particle_set ( ipart ) % v ( 2 )
+             kin = kin + mass * particle_set ( ipart ) % v ( 3 ) *            &
+                  particle_set ( ipart ) % v ( 3 )
+          END DO
+       END DO
+    END DO
+    !
+    CALL mp_sum ( kin, group )
+    !
+    ikin = 1.0_dp/ kin
+    scale = 1.0_dp
+    alpha = 2.0_dp * npt % mass * npt % v * npt % v * gamma1 * ikin
+    scale = scale * SQRT ( 1.0_dp + alpha* 0.5_dp * dt )
+    ! Scale
+    DO ikind = 1, SIZE ( molecule_kind_set )
+       nmol_local = local_molecules % n_el ( ikind )
+       DO imol_local = 1, nmol_local
+          imol = local_molecules % list ( ikind ) % array ( imol_local )
+          molecule => molecule_set ( imol )
+          CALL get_molecule ( molecule, first_atom = first_atom, &
+               last_atom = last_atom )
+          DO ipart = first_atom, last_atom
+             particle_set ( ipart ) % v ( 1 ) =  particle_set ( ipart ) % v ( 1 ) * scale
+             particle_set ( ipart ) % v ( 2 ) =  particle_set ( ipart ) % v ( 2 ) * scale
+             particle_set ( ipart ) % v ( 3 ) =  particle_set ( ipart ) % v ( 3 ) * scale
+          END DO
+       END DO
+    END DO
+
+  END SUBROUTINE damp_v_particle_set
+
+! *****************************************************************************
+!> \brief overloaded provides damping for particles via nph_uniaxial_damped dynamics
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
+  SUBROUTINE damp_v_velocity (molecule_kind_set, molecule_set, &
+       particle_set, local_molecules, vel, gamma1, npt, dt, group )
+
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
+    REAL(KIND=dp), INTENT(IN)                :: gamma1
+    TYPE(npt_info_type), INTENT(IN)          :: npt
+    REAL(KIND=dp), INTENT(IN)                :: dt
+    INTEGER, INTENT(IN)                      :: group
+
+    INTEGER                                  :: first_atom, ikind, imol, &
+                                                imol_local, ipart, last_atom, &
+                                                nmol_local
+    REAL(KIND=dp)                            :: alpha, ikin, kin, mass, scale
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(molecule_type), POINTER             :: molecule
+
+    kin = 0.0_dp
+    ! Compute the total kinetic energy
+    DO ikind = 1, SIZE ( molecule_kind_set )
+       nmol_local = local_molecules % n_el ( ikind )
+       DO imol_local = 1, nmol_local
+          imol = local_molecules % list ( ikind ) % array ( imol_local )
+          molecule => molecule_set ( imol )
+          CALL get_molecule ( molecule, first_atom = first_atom, &
+               last_atom = last_atom )
+          DO ipart = first_atom, last_atom
+             atomic_kind => particle_set ( ipart ) % atomic_kind
+             CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+             kin = kin + mass * vel ( 1, ipart ) * vel ( 1, ipart )
+             kin = kin + mass * vel ( 2, ipart ) * vel ( 2, ipart )
+             kin = kin + mass * vel ( 3, ipart ) * vel ( 3, ipart )
+          END DO
+       END DO
+    END DO
+    !
+    CALL mp_sum ( kin, group )
+    !
+    ikin = 1.0_dp/ kin
+    scale = 1.0_dp
+    alpha = 2.0_dp * npt % mass * npt % v * npt % v * gamma1  * ikin
+    scale = scale * SQRT ( 1.0_dp + alpha* 0.5_dp * dt )
+    ! Scale
+    DO ikind = 1, SIZE ( molecule_kind_set )
+       nmol_local = local_molecules % n_el ( ikind )
+       DO imol_local = 1, nmol_local
+          imol = local_molecules % list ( ikind ) % array ( imol_local )
+          molecule => molecule_set ( imol )
+          CALL get_molecule ( molecule, first_atom = first_atom, &
+               last_atom = last_atom )
+          DO ipart = first_atom, last_atom
+             vel ( 1, ipart ) = vel ( 1, ipart ) * scale
+             vel ( 2, ipart ) = vel ( 2, ipart ) * scale
+             vel ( 3, ipart ) = vel ( 3, ipart ) * scale
+          END DO
+       END DO
+    END DO
+
+  END SUBROUTINE damp_v_velocity
+
+! *****************************************************************************
+!> \brief provides damping for barostat via nph_uniaxial_damped dynamics
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
+  SUBROUTINE damp_veps ( npt, gamma1, dt )
+
+    TYPE(npt_info_type), INTENT(INOUT)       :: npt
+    REAL(KIND=dp), INTENT(IN)                :: gamma1, dt
+
+    REAL(KIND=dp)                            :: scale
+
+    scale = 1.0_dp
+    scale = scale * EXP ( -gamma1 * 0.25_dp * dt )
+    ! Scale
+    npt % v = npt % v * scale
+
+  END SUBROUTINE damp_veps
+
+! *****************************************************************************
+!> \brief update veps using multiplier obtained from SHAKE
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
+  SUBROUTINE rattle_roll_setup ( old, gci, atomic_kind_set, particle_set, local_particles, &
+       molecule_kind_set, molecule_set, local_molecules, vel, cell, npt, simpar, virial,&
+       vector_v, roll_tol, iroll, infree, first, para_env, u, error )
+
+    TYPE(old_variables_type), POINTER        :: old
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(npt_info_type), DIMENSION(:, :), &
+      POINTER                                :: npt
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(virial_type), POINTER               :: virial
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: vector_v
+    REAL(KIND=dp), INTENT(OUT)               :: roll_tol
+    INTEGER, INTENT(INOUT)                   :: iroll
+    REAL(KIND=dp), INTENT(IN)                :: infree
+    LOGICAL, INTENT(INOUT)                   :: first
+    TYPE(cp_para_env_type), INTENT(IN)       :: para_env
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: u( : , : )
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    REAL(KIND=dp)                            :: kin
+    REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin
+    TYPE(npt_info_type), DIMENSION(3, 3)     :: npt_loc
+
+    IF ( first ) THEN
+       CALL update_pv ( gci, simpar, atomic_kind_set, vel, particle_set, &
+            local_molecules, molecule_set, molecule_kind_set, &
+            local_particles, kin, pv_kin, virial, para_env % group )
+       CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree )
+
+    ENDIF
+    first = .FALSE.
+
+    ! assigning local variable
+    SELECT CASE ( simpar % ensemble )
+    CASE ( npt_i_ensemble )
+       npt_loc ( :, : ) % v = 0.0_dp
+       npt_loc ( :, : ) % mass = 0.0_dp
+       npt_loc ( 1, 1 ) % v = npt ( 1, 1 ) % v
+       npt_loc ( 2, 2 ) % v = npt ( 1, 1 ) % v
+       npt_loc ( 3, 3 ) % v = npt ( 1, 1 ) % v
+       npt_loc ( 1, 1 ) % mass = npt ( 1, 1 ) % mass
+       npt_loc ( 2, 2 ) % mass = npt ( 1, 1 ) % mass
+       npt_loc ( 3, 3 ) % mass = npt ( 1, 1 ) % mass
+    CASE ( npt_f_ensemble )
+       npt_loc = npt
+    END SELECT
+
+    ! resetting
+    CALL set ( old, atomic_kind_set, particle_set, vel, local_particles, cell , npt, 'B' )
+    CALL rattle_roll_control( gci, local_molecules, molecule_set, molecule_kind_set, &
+         particle_set, vel, simpar, virial, vector_v,   &
+         npt_loc % v, npt_loc %  mass, roll_tol, iroll,    &
+         para_env, u, cell, local_particles, error=error )
+
+  END SUBROUTINE rattle_roll_setup
+
+! *****************************************************************************
+!> \brief Overloaded routine to compute veps given the particles
+!>      structure or a local copy of the velocity array
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
+  SUBROUTINE update_pv_particle_set ( gci, simpar, atomic_kind_set, particle_set,  &
+       local_molecules, molecule_set, molecule_kind_set, &
+       local_particles, kin, pv_kin, virial, int_group )
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    REAL(KIND=dp), INTENT(OUT)               :: kin
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(OUT)                            :: pv_kin
+    TYPE(virial_type), INTENT(INOUT)         :: virial
+    INTEGER, INTENT(IN)                      :: int_group
+
+    INTEGER                                  :: i, iparticle, iparticle_kind, &
+                                                iparticle_local, j, &
+                                                nparticle_local
+    REAL(KIND=dp)                            :: mass
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+
+    pv_kin = 0.0_dp
+    kin = 0.0_dp
+    DO iparticle_kind = 1, SIZE ( atomic_kind_set )
+       atomic_kind => atomic_kind_set ( iparticle_kind )
+       CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+       nparticle_local = local_particles % n_el ( iparticle_kind )
+       DO iparticle_local = 1, nparticle_local
+          iparticle = local_particles % list ( iparticle_kind ) % array ( iparticle_local )
+          DO i = 1, 3
+             DO j = 1, 3
+                pv_kin ( i, j ) = pv_kin ( i, j ) + &
+                     mass* particle_set ( iparticle ) % v ( i )* &
+                     particle_set ( iparticle ) % v ( j )
+             END DO
+             kin = kin + mass * particle_set ( iparticle ) % v ( i ) * &
+                  particle_set ( iparticle ) % v ( i )
+          END DO
+       END DO
+    END DO
+
+    CALL mp_sum( pv_kin, int_group )
+    CALL mp_sum( kin, int_group )
+
+    ! updating the constraint virial
+    IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
+         molecule_set,    &
+         molecule_kind_set, &
+         particle_set, virial, &
+         int_group )
+
+  END SUBROUTINE update_pv_particle_set
+
+! *****************************************************************************
+!> \brief Overloaded routine to compute kinetic virials given the particles
+!>      structure or a local copy of the velocity array
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
+  SUBROUTINE update_pv_velocity ( gci, simpar, atomic_kind_set, vel, particle_set,  &
+       local_molecules, molecule_set, molecule_kind_set, &
+       local_particles, kin, pv_kin, virial, int_group )
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    REAL(KIND=dp), INTENT(OUT)               :: kin
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: pv_kin
+    TYPE(virial_type), INTENT(INOUT)         :: virial
+    INTEGER, INTENT(IN)                      :: int_group
+
+    INTEGER                                  :: i, iparticle, iparticle_kind, &
+                                                iparticle_local, j, &
+                                                nparticle_local
+    REAL(KIND=dp)                            :: mass
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+
+    pv_kin = 0.0_dp
+    kin = 0._dp
+    DO iparticle_kind = 1, SIZE ( atomic_kind_set )
+       atomic_kind => atomic_kind_set ( iparticle_kind )
+       CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+       nparticle_local = local_particles % n_el ( iparticle_kind )
+       DO iparticle_local = 1, nparticle_local
+          iparticle = local_particles % list ( iparticle_kind ) % array ( iparticle_local )
+          DO i = 1, 3
+             DO j = 1, 3
+                pv_kin ( i, j ) = pv_kin ( i, j ) + &
+                     mass* vel ( i, iparticle ) * vel ( j, iparticle )
+             END DO
+             kin = kin + mass * vel ( i, iparticle ) * vel ( i, iparticle )
+          END DO
+       END DO
+    END DO
+
+    CALL mp_sum( pv_kin, int_group )
+    CALL mp_sum( kin, int_group )
+
+    ! updating the constraint virial
+    IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
+         molecule_set,    &
+         molecule_kind_set, &
+         particle_set, virial, &
+         int_group )
+
+  END SUBROUTINE update_pv_velocity
+
+! *****************************************************************************
+!> \brief Routine to compute veps
+!> \par History
+!>      none
+!> \author CJM
+! *****************************************************************************
+  SUBROUTINE update_veps ( box, npt, simpar, pv_kin, kin, virial, infree )
+
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(npt_info_type), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: npt
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: pv_kin
+    REAL(KIND=dp), INTENT(IN)                :: kin
+    TYPE(virial_type), INTENT(INOUT)         :: virial
+    REAL(KIND=dp), INTENT(IN)                :: infree
+
+    INTEGER                                  :: ii
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: fdotr, trace, v, v0, v0i, vi
+    REAL(KIND=dp), DIMENSION(3, 3)           :: unit
+
+    failure = .FALSE.
+    ! initialize unit
+    unit = 0.0_dp
+    unit(1,1) = 1.0_dp
+    unit(2,2) = 1.0_dp
+    unit(3,3) = 1.0_dp
+
+    IF ( simpar % ensemble == npt_i_ensemble ) THEN
+       ! get force on barostat
+       fdotr = 0.0_dp
+       DO ii = 1, 3
+          fdotr = fdotr + virial % pv_virial ( ii, ii ) +  &
+               virial % pv_constraint ( ii, ii )
+       END DO
+
+       npt ( :, : ) % f = ( 1.0_dp + ( 3.0_dp * infree ) ) * kin + fdotr - &
+            3.0_dp * simpar % p_ext * box % deth
+    ELSEIF ( simpar % ensemble == npt_f_ensemble ) THEN
+       npt ( :, : ) % f = virial % pv_virial ( :, : ) +                   &
+            pv_kin ( :, : ) +  virial % pv_constraint ( :, : ) -  &
+            unit ( :, : ) * simpar % p_ext * box % deth +       &
+            infree * kin * unit ( :, : )
+       IF (debug_isotropic_limit) THEN
+          trace = npt ( 1, 1 ) % f + npt ( 2, 2 ) % f + npt ( 3, 3 ) % f
+          trace = trace / 3.0_dp
+          npt ( :, : ) % f = trace * unit ( :, : )
+       END IF
+    ELSEIF ( simpar % ensemble == nph_ensemble .OR.&
+             simpar % ensemble == nph_uniaxial_ensemble .OR. &
+             simpar % ensemble == nph_uniaxial_damped_ensemble ) THEN
+       v = box % deth
+       vi = 1._dp/v
+       v0 = simpar % v0
+       v0i = 1._dp/v0
+       ! orthorhombic box ONLY
+       ! Chooses only the compressive solution
+       IF ( v < v0 ) THEN
+          npt ( 1, 1 ) % f = virial % pv_virial ( 1, 1 ) +            &
+               pv_kin ( 1, 1 ) +  virial % pv_constraint ( 1, 1 ) -      &
+               simpar % p0 * v - simpar % v_shock * simpar % v_shock *   &
+               v * v0i * ( 1._dp -v * v0i ) + infree * kin
+       ELSE
+          npt ( 1, 1 ) % f = virial % pv_virial ( 1, 1 ) +            &
+               pv_kin ( 1, 1 ) +  virial % pv_constraint ( 1, 1 ) -      &
+               simpar % p0 * v + infree * kin
+       ENDIF
+       IF (debug_uniaxial_limit) THEN
+          ! orthorhombic box ONLY
+          npt ( 1, 1 ) % f = virial % pv_virial ( 1, 1 ) +                   &
+               pv_kin ( 1, 1 ) +  virial % pv_constraint ( 1, 1 ) -  &
+               simpar % p0 * box % deth + infree * kin
+       END IF
+    ENDIF
+
+    ! update barostat velocities
+    npt ( :, : ) % v = npt ( :, : ) % v + &
+         0.5_dp * simpar % dt * npt ( :, : ) % f / npt ( :, : ) % mass
+
+  END SUBROUTINE update_veps
+
+! *****************************************************************************
+!> \brief First half of the velocity-verlet algorithm : update velocity by half
+!>        step and positions by full step
+!> \par History
+!>      none
+!> \author MI (February 2008)
+! *****************************************************************************
+  SUBROUTINE vv_first ( tmp, atomic_kind_set, local_particles, particle_set, &
+       core_particle_set, shell_particle_set, nparticle_kind,&
+       shell_adiabatic, dt, poly_r, poly_v, scale_r, scale_v, u )
+
+    TYPE(tmp_variables_type), POINTER        :: tmp
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set, &
+                                                core_particle_set, &
+                                                shell_particle_set
+    INTEGER, INTENT(IN)                      :: nparticle_kind
+    LOGICAL, INTENT(IN)                      :: shell_adiabatic
+    REAL(KIND=dp)                            :: dt
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: poly_r(3), poly_v(3), &
+                                                scale_r(3), scale_v(3)
+    REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: u
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'vv_first', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iparticle, iparticle_kind, &
+                                                iparticle_local, &
+                                                nparticle_local, shell_index
+    LOGICAL                                  :: is_shell
+    REAL(KIND=dp) :: dm, dmc, dms, fac_massc, fac_masss, mass, my_poly_r(3), &
+      my_poly_v(3), my_scale_r(3), my_scale_v(3)
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(shell_kind_type), POINTER           :: shell
+
+    NULLIFY(atomic_kind,shell)
+    my_poly_r = 1.0_dp
+    my_poly_v = 1.0_dp
+    my_scale_r = 1.0_dp
+    my_scale_v = 1.0_dp
+    IF(PRESENT(poly_r)) my_poly_r = poly_r
+    IF(PRESENT(poly_v)) my_poly_v = poly_v
+    IF(PRESENT(scale_r)) my_scale_r = scale_r
+    IF(PRESENT(scale_v)) my_scale_v = scale_v
+
+    !     *** Velocity Verlet (first part) ***
+    IF(shell_adiabatic) THEN
+       DO iparticle_kind=1,nparticle_kind
+          atomic_kind => atomic_kind_set(iparticle_kind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass,&
+               shell_active=is_shell,shell=shell)
+          dm = 0.5_dp*dt/mass
+          IF(is_shell) THEN
+             dms = 0.5_dp*dt/shell%mass_shell
+             dmc = 0.5_dp*dt/shell%mass_core
+             fac_masss = shell%mass_shell/mass 
+             fac_massc = shell%mass_core/mass 
+             nparticle_local = local_particles%n_el(iparticle_kind)
+             IF(PRESENT(u)) THEN
+                DO iparticle_local=1,nparticle_local
+                   iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                   shell_index = particle_set(iparticle)%shell_index
+                   ! Transform positions and velocities and forces of the shell
+                   CALL transform_first(shell_particle_set,tmp%shell_pos,tmp%shell_vel,&
+                        shell_index,u,dms,dt,poly_v,poly_r,scale_v,scale_r)
+
+                   ! Transform positions and velocities and forces of the core
+                   CALL transform_first(core_particle_set,tmp%core_pos,tmp%core_vel,&
+                        shell_index,u,dmc,dt,poly_v,poly_r,scale_v,scale_r)
+
+                   ! Derive velocities and positions of the COM
+                   tmp%vel (:,iparticle) = fac_masss*tmp%shell_vel (:,shell_index)+&
+                        fac_massc*tmp%core_vel (:,shell_index)
+                   tmp%pos (:,iparticle) = fac_masss*tmp%shell_pos (:,shell_index)+&
+                        fac_massc*tmp%core_pos (:,shell_index)
+
+                END DO  ! iparticle_local
+             ELSE
+                DO iparticle_local=1,nparticle_local
+                   iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                   shell_index = particle_set(iparticle)%shell_index
+                   tmp%shell_vel (:,shell_index) = &
+                        shell_particle_set(shell_index)%v(:) * my_scale_v(:) * my_scale_v(:) +&
+                        my_scale_v(:) * my_poly_v(:) * dms * shell_particle_set(shell_index)%f(:)
+                   tmp%shell_pos (:,shell_index) = &
+                        shell_particle_set(shell_index)%r(:) * my_scale_r(:) * my_scale_r(:)  +&
+                        my_scale_r(:) * my_poly_r(:) *dt * tmp%shell_vel ( :, shell_index )
+                   tmp%core_vel (:,shell_index) = &
+                        core_particle_set(shell_index)%v(:) * my_scale_v(:) * my_scale_v(:) +&
+                        my_scale_v(:) * my_poly_v(:) *dmc * core_particle_set(shell_index)%f(:)
+                   tmp%core_pos (:,shell_index) = &
+                        core_particle_set(shell_index)%r(:) * my_scale_r(:) * my_scale_r(:) +&
+                        my_scale_r(:) * my_poly_r(:) *dt * tmp%core_vel ( :, shell_index )
+
+                   tmp%vel (:,iparticle) = fac_masss*tmp%shell_vel (:,shell_index)+&
+                        fac_massc*tmp%core_vel (:,shell_index)
+                   tmp%pos (:,iparticle) = fac_masss*tmp%shell_pos (:,shell_index)+&
+                        fac_massc*tmp%core_pos (:,shell_index)
+                END DO  ! iparticle_local
+             END IF
+          ELSE
+             nparticle_local = local_particles%n_el(iparticle_kind)
+             IF(PRESENT(u)) THEN
+                DO iparticle_local=1,nparticle_local
+                   iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                   ! Transform positions and velocities and forces
+                   CALL transform_first(particle_set,tmp%pos,tmp%vel,&
+                        iparticle,u,dm,dt,poly_v,poly_r,scale_v,scale_r)
+                END DO  ! iparticle_local
+             ELSE
+                DO iparticle_local=1,nparticle_local
+                   iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                   tmp%vel (1,iparticle) = &
+                        particle_set(iparticle)%v(1) * my_scale_v(1) * my_scale_v(1)+&
+                        my_scale_v(1) * my_poly_v(1) * dm * particle_set(iparticle)%f(1)
+                   tmp%vel (2,iparticle) = &
+                        particle_set(iparticle)%v(2) * my_scale_v(2) * my_scale_v(2)+&
+                        my_scale_v(2) * my_poly_v(2) * dm * particle_set(iparticle)%f(2)
+                   tmp%vel (3,iparticle) = &
+                        particle_set(iparticle)%v(3) * my_scale_v(3) * my_scale_v(3)+&
+                        my_scale_v(3) * my_poly_v(3) * dm * particle_set(iparticle)%f(3)
+                   tmp%pos (1,iparticle) = &
+                        particle_set(iparticle)%r(1) * my_scale_r(1) * my_scale_r(1)+&
+                        my_scale_r(1) * my_poly_r(1) * dt * tmp%vel ( 1, iparticle )
+                   tmp%pos (2,iparticle) = &
+                        particle_set(iparticle)%r(2) * my_scale_r(2) * my_scale_r(2)+&
+                        my_scale_r(2) * my_poly_r(2) * dt * tmp%vel ( 2, iparticle )
+                   tmp%pos (3,iparticle) = &
+                        particle_set(iparticle)%r(3) * my_scale_r(3) * my_scale_r(3)+&
+                        my_scale_r(3) * my_poly_r(3) * dt * tmp%vel ( 3, iparticle )
+                END DO  ! iparticle_local
+             END IF
+          END IF
+       END DO ! iparticle_kind
+    ELSE
+       DO iparticle_kind=1,nparticle_kind
+          atomic_kind => atomic_kind_set(iparticle_kind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+          dm = 0.5_dp*dt/mass
+          nparticle_local = local_particles%n_el(iparticle_kind)
+          IF(PRESENT(u)) THEN
+             DO iparticle_local=1,nparticle_local
+                iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                ! Transform positions and velocities and forces
+                CALL transform_first(particle_set,tmp%pos,tmp%vel,&
+                     iparticle,u,dm,dt,poly_v,poly_r,scale_v,scale_r)
+             END DO  ! iparticle_local
+          ELSE
+             DO iparticle_local=1,nparticle_local
+                iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                tmp%vel (1,iparticle) = &
+                     particle_set(iparticle)%v(1) * my_scale_v(1) * my_scale_v(1)+&
+                     my_scale_v(1) * my_poly_v(1) * dm * particle_set(iparticle)%f(1)
+                tmp%vel (2,iparticle) = &
+                     particle_set(iparticle)%v(2) * my_scale_v(2) * my_scale_v(2)+&
+                     my_scale_v(2) * my_poly_v(2) * dm * particle_set(iparticle)%f(2)
+                tmp%vel (3,iparticle) = &
+                     particle_set(iparticle)%v(3) * my_scale_v(3) * my_scale_v(3)+&
+                     my_scale_v(3) * my_poly_v(3) * dm * particle_set(iparticle)%f(3)
+                tmp%pos (1,iparticle) = &
+                     particle_set(iparticle)%r(1) * my_scale_r(1) * my_scale_r(1)+&
+                     my_scale_r(1) * my_poly_r(1) * dt * tmp%vel ( 1, iparticle )
+                tmp%pos (2,iparticle) = &
+                     particle_set(iparticle)%r(2) * my_scale_r(2) * my_scale_r(2)+&
+                     my_scale_r(2) * my_poly_r(2) * dt * tmp%vel ( 2, iparticle )
+                tmp%pos (3,iparticle) = &
+                     particle_set(iparticle)%r(3) * my_scale_r(3) * my_scale_r(3)+&
+                     my_scale_r(3) * my_poly_r(3) * dt * tmp%vel ( 3, iparticle )
+             END DO
+          END IF
+       END DO
+    END IF
+
+  END SUBROUTINE vv_first
+
+! *****************************************************************************
+!> \brief Second half of the velocity-verlet algorithm : update velocity by half
+!>        step  using the new forces
+!> \par History
+!>      none
+!> \author MI (February 2008)
+! *****************************************************************************
+  SUBROUTINE vv_second ( tmp, atomic_kind_set, local_particles, particle_set,&
+       core_particle_set, shell_particle_set, nparticle_kind,&
+       shell_adiabatic, dt, poly_v, scale_v, u )
+
+    TYPE(tmp_variables_type), POINTER        :: tmp
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set, &
+                                                core_particle_set, &
+                                                shell_particle_set
+    INTEGER, INTENT(IN)                      :: nparticle_kind
+    LOGICAL, INTENT(IN)                      :: shell_adiabatic
+    REAL(KIND=dp)                            :: dt
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: poly_v(3), scale_v(3)
+    REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: u
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'vv_second', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iparticle, iparticle_kind, &
+                                                iparticle_local, &
+                                                nparticle_local, shell_index
+    LOGICAL                                  :: is_shell
+    REAL(KIND=dp)                            :: dm, dmc, dms, fac_massc, &
+                                                fac_masss, mass, &
+                                                my_poly_v(3), my_scale_v(3)
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(shell_kind_type), POINTER           :: shell
+
+    NULLIFY(atomic_kind,shell)
+    my_poly_v = 1.0_dp
+    my_scale_v = 1.0_dp
+    IF(PRESENT(poly_v)) my_poly_v = poly_v
+    IF(PRESENT(scale_v)) my_scale_v = scale_v
+
+    !     *** Velocity Verlet (second part) ***
+    IF(shell_adiabatic) THEN
+       DO iparticle_kind=1,nparticle_kind
+          atomic_kind => atomic_kind_set(iparticle_kind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass,&
+               shell_active=is_shell,shell=shell)
+          dm = 0.5_dp*dt/mass
+          IF(is_shell) THEN
+             dms = 0.5_dp*dt/shell%mass_shell
+             dmc = 0.5_dp*dt/shell%mass_core
+             fac_masss = shell%mass_shell/mass 
+             fac_massc = shell%mass_core/mass 
+             nparticle_local = local_particles%n_el(iparticle_kind)
+             IF(PRESENT(u)) THEN
+                DO iparticle_local=1,nparticle_local
+                   iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                   shell_index = particle_set(iparticle)%shell_index
+                   ! Transform velocities and forces shell
+                   CALL transform_second(shell_particle_set,tmp%shell_vel,shell_index,&
+                        u,dms,poly_v,scale_v)
+
+                   ! Transform velocities and forces core
+                   CALL transform_second(core_particle_set,tmp%core_vel,shell_index,&
+                        u,dmc,poly_v,scale_v)
+
+                   ! Derive velocties of the COM
+                   tmp%vel(1,iparticle) = fac_masss*tmp%shell_vel(1,shell_index) + &
+                        fac_massc*tmp%core_vel(1,shell_index)
+                   tmp%vel(2,iparticle) = fac_masss*tmp%shell_vel(2,shell_index)+ &
+                        fac_massc*tmp%core_vel(2,shell_index)
+                   tmp%vel(3,iparticle) = fac_masss*tmp%shell_vel(3,shell_index) + &
+                        fac_massc*tmp%core_vel(3,shell_index)
+                END DO  ! iparticle_local
+             ELSE
+                DO iparticle_local=1,nparticle_local
+                   iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                   shell_index = particle_set(iparticle)%shell_index
+                   tmp%shell_vel (1,shell_index) = &
+                        tmp%shell_vel (1,shell_index) * my_scale_v(1) * my_scale_v(1) + &
+                        my_scale_v(1) * my_poly_v(1) * dms*shell_particle_set(shell_index)%f(1)
+                   tmp%shell_vel (2,shell_index) =&
+                        tmp%shell_vel (2,shell_index) * my_scale_v(2) * my_scale_v(2) + &
+                        my_scale_v(2) * my_poly_v(2) * dms*shell_particle_set(shell_index)%f(2)
+                   tmp%shell_vel (3,shell_index) =&
+                        tmp%shell_vel (3,shell_index) * my_scale_v(3) * my_scale_v(3) + &
+                        my_scale_v(3) * my_poly_v(3) * dms*shell_particle_set(shell_index)%f(3)
+                   tmp%core_vel (1,shell_index) =&
+                        tmp%core_vel (1,shell_index) * my_scale_v(1) * my_scale_v(1) + &
+                        my_scale_v(1) * my_poly_v(1) * dmc*core_particle_set(shell_index)%f(1)
+                   tmp%core_vel (2,shell_index) =&
+                        tmp%core_vel (2,shell_index) * my_scale_v(2) * my_scale_v(2)+ &
+                        my_scale_v(2) * my_poly_v(2) * dmc*core_particle_set(shell_index)%f(2)
+                   tmp%core_vel (3,shell_index) =&
+                        tmp%core_vel (3,shell_index) * my_scale_v(3) * my_scale_v(3)+ &
+                        my_scale_v(3) * my_poly_v(3) * dmc*core_particle_set(shell_index)%f(3)
+
+                   tmp%vel ( 1, iparticle) = fac_masss*tmp%shell_vel (1,shell_index)+ &
+                        fac_massc*tmp%core_vel (1,shell_index)
+                   tmp%vel ( 2, iparticle) = fac_masss*tmp%shell_vel (2,shell_index)+ &
+                        fac_massc*tmp%core_vel (2,shell_index)
+                   tmp%vel ( 3, iparticle) = fac_masss*tmp%shell_vel (3,shell_index)+ &
+                        fac_massc*tmp%core_vel (3,shell_index)
+
+                END DO  ! iparticle_local
+             END IF
+          ELSE
+             nparticle_local = local_particles%n_el(iparticle_kind)
+             IF(PRESENT(u)) THEN
+                DO iparticle_local=1,nparticle_local
+                   iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                   CALL transform_second(particle_set,tmp%vel,iparticle,&
+                        u,dm,poly_v,scale_v)
+                END DO  ! iparticle_local
+             ELSE
+                DO iparticle_local=1,nparticle_local
+                   iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                   tmp%vel ( 1, iparticle) = &
+                        tmp%vel ( 1, iparticle) * my_scale_v(1) * my_scale_v(1)  + &
+                        my_scale_v(1) * my_poly_v(1) * dm*particle_set(iparticle)%f(1)
+                   tmp%vel ( 2, iparticle) = &
+                        tmp%vel ( 2, iparticle) * my_scale_v(2) * my_scale_v(1)  + &
+                        my_scale_v(2) * my_poly_v(2) * dm*particle_set(iparticle)%f(2)
+                   tmp%vel ( 3, iparticle) = &
+                        tmp%vel ( 3, iparticle) * my_scale_v(3) * my_scale_v(3)  + &
+                        my_scale_v(3) * my_poly_v(3) * dm*particle_set(iparticle)%f(3)
+                END DO  ! iparticle_local
+             END IF
+          END IF
+       END DO  ! iparticle_kind
+    ELSE
+       DO iparticle_kind=1,nparticle_kind
+          atomic_kind => atomic_kind_set(iparticle_kind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+          dm = 0.5_dp*dt/mass
+          nparticle_local = local_particles%n_el(iparticle_kind)
+          IF(PRESENT(u)) THEN
+             DO iparticle_local=1,nparticle_local
+                iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                CALL transform_second(particle_set,tmp%vel,iparticle,&
+                     u,dm,poly_v,scale_v)
+             END DO  ! iparticle_local
+          ELSE
+             DO iparticle_local=1,nparticle_local
+                iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                tmp%vel ( 1, iparticle) = &
+                     tmp%vel ( 1, iparticle) * my_scale_v(1) * my_scale_v(1)  + &
+                     my_scale_v(1) * my_poly_v(1) * dm*particle_set(iparticle)%f(1)
+                tmp%vel ( 2, iparticle) = &
+                     tmp%vel ( 2, iparticle) * my_scale_v(2) * my_scale_v(2)  + &
+                     my_scale_v(2) * my_poly_v(2) * dm*particle_set(iparticle)%f(2)
+                tmp%vel ( 3, iparticle) = &
+                     tmp%vel ( 3, iparticle) * my_scale_v(3) * my_scale_v(3)  + &
+                     my_scale_v(3) * my_poly_v(3) * dm*particle_set(iparticle)%f(3)
+             END DO  ! iparticle_local
+          END IF
+       END DO  ! iparticle_kind
+    END IF
+
+  END SUBROUTINE vv_second
+
+! *****************************************************************************
+!> \brief Transform position and velocities for the first half of the
+!>        Velocity-Verlet integration in the npt_f ensemble
+!> \par History
+!>      none
+!> \author MI (February 2008)
+! *****************************************************************************
+  SUBROUTINE transform_first ( particle_set,pos,vel,index,u,dm,dt,poly_v, &
+       poly_r, scale_v, scale_r )
+
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pos, vel
+    INTEGER, INTENT(IN)                      :: index
+    REAL(KIND=dp), INTENT(IN)                :: u(3,3), dm, dt, poly_v(3), &
+                                                poly_r(3), scale_v(3), &
+                                                scale_r(3)
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'transform_first', &
+      routineP = moduleN//':'//routineN
+
+    REAL(KIND=dp), DIMENSION(3)              :: uf, ur, uv
+
+    CALL matvec_3x3 (ur, TRANSPOSE_3D ( u ), particle_set ( index ) % r ( : ) )
+    CALL matvec_3x3 (uv, TRANSPOSE_3D ( u ), particle_set ( index ) % v ( : ) )
+    CALL matvec_3x3 (uf, TRANSPOSE_3D ( u ), particle_set ( index ) % f ( : ) )
+    !
+    uv(1) = uv(1)*scale_v(1)*scale_v(1) + uf(1)*scale_v(1)*poly_v(1)*dm
+    uv(2) = uv(2)*scale_v(2)*scale_v(2) + uf(2)*scale_v(2)*poly_v(2)*dm
+    uv(3) = uv(3)*scale_v(3)*scale_v(3) + uf(3)*scale_v(3)*poly_v(3)*dm
+
+    ur(1) = ur(1)*scale_r(1)*scale_r(1) + uv(1)*scale_r(1)*poly_r(1)*dt
+    ur(2) = ur(2)*scale_r(2)*scale_r(2) + uv(2)*scale_r(2)*poly_r(2)*dt
+    ur(3) = ur(3)*scale_r(3)*scale_r(3) + uv(3)*scale_r(3)*poly_r(3)*dt
+    !    
+    CALL MATVEC_3x3 (pos ( :, index ), u, ur )
+    CALL MATVEC_3x3 (vel ( :, index ), u, uv )
+
+  END SUBROUTINE transform_first
+
+! *****************************************************************************
+!> \brief Transform position and velocities for the second half of the
+!>        Velocity-Verlet integration in the npt_f ensemble
+!> \par History
+!>      none
+!> \author MI (February 2008)
+! *****************************************************************************
+  SUBROUTINE transform_second ( particle_set,vel,index,u,dm,poly_v,scale_v)
+
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vel
+    INTEGER, INTENT(IN)                      :: index
+    REAL(KIND=dp), INTENT(IN)                :: u(3,3), dm, poly_v(3), &
+                                                scale_v(3)
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'transform_second', &
+      routineP = moduleN//':'//routineN
+
+    REAL(KIND=dp), DIMENSION(3)              :: uf, uv
+
+    CALL matvec_3x3 (uv, TRANSPOSE_3D ( u ), vel(:, index ) )
+    CALL matvec_3x3 (uf, TRANSPOSE_3D ( u ), particle_set ( index ) % f ( : ) )
+    !
+    uv(1) = uv(1)*scale_v(1)*scale_v(1) + uf(1)*scale_v(1)*poly_v(1)*dm
+    uv(2) = uv(2)*scale_v(2)*scale_v(2) + uf(2)*scale_v(2)*poly_v(2)*dm
+    uv(3) = uv(3)*scale_v(3)*scale_v(3) + uf(3)*scale_v(3)*poly_v(3)*dm
+
+    CALL MATVEC_3x3 (vel ( :, index ), u, uv )
+
+  END SUBROUTINE transform_second
+
+END MODULE integrator_utils
+

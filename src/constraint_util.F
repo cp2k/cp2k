@@ -4,6 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
+!> \brief Contains routines useful for the application of constraints during MD
 !> \par History
 !>      none
 ! *****************************************************************************
@@ -149,9 +150,8 @@ CONTAINS
 
     INTEGER                                  :: iconst, index
 
-! Collective constraints
-
     IF (ASSOCIATED(colv_list)) THEN
+       ! Collective constraints
        DO iconst = 1, SIZE(colv_list)
           CALL colvar_eval_mol_f(lcolv ( iconst ) % colvar_old, cell,&
                particles=particle_set, fixd_list=fixd_list, error=error)
@@ -282,9 +282,8 @@ CONTAINS
                                                 lambda_3x3( 3 ), &
                                                 lambda_4x6( 6 )
 
-! Colvar Constraints
-
     IF (ASSOCIATED(colv_list)) THEN
+       ! Colvar Constraints
        DO iconst = 1, SIZE(colv_list)
           CALL pv_colv_eval(pv, lcolv ( iconst ), particle_set)
        END DO
