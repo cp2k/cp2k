@@ -14,7 +14,7 @@
 int main (int argc, const char * argv[]) {
 	SubT st;
 	int env_id,i,natoms,ninfo;
-	double *pos,*f,e1,e2;
+	double *pos,*f,e1,e2,max_err;
 	const char *cp2k_shellEXE="/Volumes/Users/fawzi/cp2k/exe/Darwin-IntelMacintosh-g95/cp2k_shell.sopt",
 		*cp2k_test_dir="/Volumes/Users/fawzi/cp2k/tests/QS/regtest-gpw-1",
 		*cp2k_input_file="Ar-2.inp";
@@ -38,8 +38,8 @@ int main (int argc, const char * argv[]) {
 	printf("calcE %g\n",e1);
 	pos[1]=0.2;
 	pos[2]=0.4321;
-	myErrCheck(fm_setpos(&st,env_id,3*natoms,pos),"error setting pos");
-	printf("setPos\n");
+	myErrCheck(fm_setpos(&st,env_id,3*natoms,pos,&max_err),"error setting pos");
+	printf("setPos %g\n",max_err);
 	myErrCheck(fm_calc_ef(&st,env_id,&e2,3*natoms,f),"error calculating ef");
 	printf("calcEF %g\n",e2);
 	printf("Translation non invariance: %g, mean energy: %g,%g,%g\n",fabs(e1-e2),0.5*(e1+e2),e1,e2);
@@ -51,16 +51,16 @@ int main (int argc, const char * argv[]) {
 // async test
 	pos[1]=0.0;
 	pos[2]=0.0;
-	myErrCheck(fm_setpos(&st,env_id,3*natoms,pos),"error setting pos");
-	printf("setPos\n");
+	myErrCheck(fm_setpos(&st,env_id,3*natoms,pos,&max_err),"error setting pos");
+	printf("setPos %g\n",max_err);
 	myErrCheck(fm_eval_e(&st,env_id),"error evaluating e");
 	printf("evalE\n");
 	myErrCheck(fm_get_e(&st,env_id,&e1),"error getting e");
 	printf("getE %g\n",e1);
 	pos[1]=0.2;
 	pos[2]=0.4321;
-	myErrCheck(fm_setpos(&st,env_id,3*natoms,pos),"error setting pos");
-	printf("setPos\n");
+	myErrCheck(fm_setpos(&st,env_id,3*natoms,pos,&max_err),"error setting pos");
+	printf("setPos %g\n",max_err);
 	myErrCheck(fm_eval_ef(&st,env_id),"error evaluating ef");
 	printf("evalEF\n");
 	myErrCheck(fm_get_e(&st,env_id,&e2),"error getting e");

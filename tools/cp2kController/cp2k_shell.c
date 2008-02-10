@@ -14,7 +14,8 @@
 #include "cp2k_shell.h"
 #include <unistd.h>
 #include <stdlib.h>
-
+#include <string.h>
+extern char **environ;
 /**
  * \brief executes (execvp) task with arguments taskArgs in the directory taskDir as subtask.
  *
@@ -24,6 +25,7 @@ void fm_spawnSubtask(const char *task,const char *taskDir, SubT *st)
 {
         int     fdIn[2],fdOut[2];
         pid_t   childpid;
+		static int lastId=0;
 
         pipe(fdIn);
         pipe(fdOut);
@@ -42,7 +44,7 @@ void fm_spawnSubtask(const char *task,const char *taskDir, SubT *st)
 				chdir(taskDir);
                 dup2(fdIn[0],STDIN_FILENO);
                 dup2(fdOut[1],STDOUT_FILENO);
-                execlp("sh","sh","-c",task,NULL);
+                execle("/bin/sh","sh","-c",task,NULL,environ);
         }
         else
         {
@@ -52,6 +54,7 @@ void fm_spawnSubtask(const char *task,const char *taskDir, SubT *st)
 				st->inF=fdopen(fdIn[1],"w");
 				st->outF=fdopen(fdOut[0],"r");
 				st->isReady=0;
+				st->id_nr=++lastId;
         }
 }
 
@@ -151,7 +154,7 @@ int fm_natom(SubT *st,int env_id,int *natom){
 /**
  * \brief changes the position of the atoms of the given env_id
  */
-int fm_setpos(SubT *st,int env_id,int npos,const double pos[]){
+int fm_setpos(SubT *st,int env_id,int npos,const double pos[],double *max_change){
 	int err,i;
 	err=fm_getready_if_needed(st);
 	if (!err) {
@@ -167,6 +170,7 @@ int fm_setpos(SubT *st,int env_id,int npos,const double pos[]){
 	}
 	if (!err) err=fprintf(st->inF,"\n* END\n")<1;
 	if (!err) err=fflush(st->inF);
+	if (!err) err=fscanf(st->outF,"%lg",max_change)!=1;
 	if (!err) err=fm_getready(st);
 	return err;
 }
@@ -217,6 +221,45 @@ int fm_eval_ef(SubT *st,int env_id){
 	}
 	if (!err) err=fflush(st->inF);
 	st->isReady=0;
+	return err;
+}
+
+/**
+ * \brief executes a simple command
+ * 
+ * can be synchronous or not, but waits until the task is ready
+ * to issue it
+ */
+int fm_exec_cmd(SubT *st,const char *cmd,int async){
+	int err;
+	err=fm_getready_if_needed(st);
+	if (!err) {
+	  char *endl=strchr(cmd,'\n');
+	  err=fprintf(st->inF,cmd)<1;
+	  if (!err && !endl) err=fprintf(st->inF,"\n")<1;
+	}
+	if (!err) err=fflush(st->inF);
+	if (async) {
+	  if (!err) st->isReady=0;
+	} else {
+	  if (!err) err=fm_getready(st);
+	}
+	return err;
+}
+
+/**
+ * \brief goes to the given directory
+ * 
+ * Synchronous, does wait for completion
+ */
+int fm_chdir(SubT *st,const char *dir){
+	int err;
+	err=fm_getready_if_needed(st);
+	if (!err) err=fprintf(st->inF,"cd ")<1;
+	if (!err) err=fprintf(st->inF,dir)<1;
+	if (!err) err=fprintf(st->inF,"\n")<1;
+	if (!err) err=fflush(st->inF);
+	if (!err) err=fm_getready(st);
 	return err;
 }
 

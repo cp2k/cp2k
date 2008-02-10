@@ -18,6 +18,7 @@ struct Subtask{
 	FILE *inF;
 	FILE *outF;
 	int isReady;
+	int id_nr;
 };
 typedef struct Subtask SubT;
 
@@ -28,7 +29,7 @@ int fm_load(SubT *st,const char *inputF,int *env_id);
 int fm_bg_load(SubT *st,const char *inputF);
 int fm_last_env_id(SubT *st,int *env_id);
 int fm_natom(SubT *st,int env_id,int *natom);
-int fm_setpos(SubT *st,int env_id,int npos,const double pos[]);
+int fm_setpos(SubT *st,int env_id,int npos,const double pos[],double *max_change);
 int fm_getpos(SubT *st,int env_id,int npos,double pos[]);
 int fm_eval_ef(SubT *st,int env_id);
 int fm_eval_e(SubT *st,int env_id);
@@ -37,4 +38,6 @@ int fm_calc_e(SubT *st,int env_id,double *energy);
 int fm_get_f(SubT *st,int env_id,int nforce,double force[]);
 int fm_get_e(SubT *st,int env_id,double *energy);
 int fm_get_info(SubT *st,int sizeBuf,char *buf,int *fullSize);
+int fm_chdir(SubT *st,const char *dir);
+int fm_exec_cmd(SubT *st,const char *cmd,int async);
 #endif
