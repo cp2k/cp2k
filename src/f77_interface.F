@@ -309,10 +309,11 @@ END SUBROUTINE f_env_dealloc
 !> \param force_env the force_environment to be stored
 !> \param timer_env the timer env to be stored
 !> \param mp_perf_env the mp performance environement to be stored
+!> \param work_dir directory in whic to run (defaults to the actual directory)
 !> \author fawzi
 ! *****************************************************************************
 SUBROUTINE f_env_create(f_env,template_error,force_env, timer_env,mp_perf_env,&
-     id_nr,error)
+     id_nr,error,old_dir)
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: template_error
@@ -321,6 +322,7 @@ SUBROUTINE f_env_create(f_env,template_error,force_env, timer_env,mp_perf_env,&
     TYPE(mp_perf_env_type), POINTER          :: mp_perf_env
     INTEGER, INTENT(in)                      :: id_nr
     TYPE(cp_error_type), INTENT(inout)       :: error
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: old_dir
 
     CHARACTER(len=*), PARAMETER :: routineN = 'f_env_create', &
       routineP = moduleN//':'//routineN
@@ -343,6 +345,7 @@ SUBROUTINE f_env_create(f_env,template_error,force_env, timer_env,mp_perf_env,&
      f_env%id_nr=id_nr
      CALL m_getcwd(f_env%my_path)
      f_env%old_path=f_env%my_path
+     IF (PRESENT(old_dir)) f_env%old_path=old_dir
   END IF
 END SUBROUTINE f_env_create
 
@@ -510,7 +513,7 @@ END SUBROUTINE f_env_rm_defaults
 !> \author fawzi
 ! *****************************************************************************
   RECURSIVE SUBROUTINE create_force_env(new_env_id,input_path,&
-       output_path,mpi_comm,output_unit,owns_out_unit,input,ierr)
+       output_path,mpi_comm,output_unit,owns_out_unit,input,ierr,work_dir)
     INTEGER, INTENT(out)                     :: new_env_id
     CHARACTER(len=*), INTENT(in)             :: input_path
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: output_path
@@ -519,12 +522,15 @@ END SUBROUTINE f_env_rm_defaults
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input
     INTEGER, INTENT(out), OPTIONAL           :: ierr
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: work_dir
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_force_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iforce_eval, isubforce_eval, k, method_name_id, &
-      my_group, nforce_eval, ngroups, nsubforce_size, stat, unit_nr
+    CHARACTER(len=PATH_LENGTH)               :: old_dir
+    INTEGER :: handle, i, ierr2, iforce_eval, isubforce_eval, k, &
+      method_name_id, my_group, nforce_eval, ngroups, nsubforce_size, stat, &
+      unit_nr
     INTEGER, DIMENSION(:), POINTER           :: group_distribution, &
                                                 i_force_eval, &
                                                 lgroup_distribution
@@ -549,6 +555,7 @@ END SUBROUTINE f_env_rm_defaults
 
     NULLIFY(para_env, force_env,timer_env,mp_perf_env, globenv,meta_env,&
          fp_env)
+    new_env_id=-1
     IF (PRESENT(mpi_comm)) THEN
        CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.,error=error)
     ELSE
@@ -557,7 +564,18 @@ END SUBROUTINE f_env_rm_defaults
     END IF
 
     CALL timeset(routineN,"I","",handle)
-
+    
+    CALL m_getcwd(old_dir)
+    IF (PRESENT(work_dir)) THEN
+        IF (work_dir/=" ") THEN
+            CALL m_chdir(work_dir,ierr2)
+            IF (ierr2/=0) THEN
+                IF (PRESENT(ierr)) ierr=ierr2
+                RETURN
+            END IF
+        END IF
+    END IF
+    
     IF (PRESENT(output_unit)) THEN
        unit_nr=output_unit
     ELSE
@@ -779,7 +797,7 @@ CPSourceFileRef,&
     n_f_envs=n_f_envs+1
     CALL f_env_create(f_envs(n_f_envs)%f_env,template_error=error,&
          timer_env=timer_env,mp_perf_env=mp_perf_env,force_env=force_env,&
-         id_nr=last_f_env_id,error=error)
+         id_nr=last_f_env_id,error=error,old_dir=old_dir)
     CALL force_env_release(force_env,error=error)
     CALL globenv_release(globenv,para_env,error=error)
     CALL section_vals_release(root_section,error)

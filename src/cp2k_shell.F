@@ -38,14 +38,14 @@ PROGRAM cp2k_shell
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_interface
   USE input_constants,                 ONLY: id_development_version
-  USE kinds,                           ONLY: dp, default_path_length
-  USE machine,                         ONLY: m_flush,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
+  USE machine,                         ONLY: m_chdir,&
+                                             m_flush,&
                                              m_getcwd,&
                                              m_getlog,&
                                              m_getpid,&
-                                             m_hostnm,&
-                                             m_chdir,&
-                                             m_getcwd
+                                             m_hostnm
   USE message_passing,                 ONLY: mp_abort,&
                                              mp_bcast
   USE physcon,                         ONLY: angstrom,&
@@ -70,7 +70,7 @@ PROGRAM cp2k_shell
   REAL(KIND=dp)                            :: e_pot,err
   REAL(KIND=dp)                            :: e_fact,pos_fact
   
-  CHARACTER(len=80), DIMENSION(33) :: helpMsg
+  CHARACTER(len=80), DIMENSION(35) :: helpMsg
   
   helpMsg=(/ &
   ll('Commands'),&
@@ -83,6 +83,8 @@ PROGRAM cp2k_shell
   ll(' LOAD filename: loads the filename, returns the env_id, or -1 in case of error'),&
   ll(' BG_LOAD filename: loads the filename, without returning the env_id'),&
   ll(' LAST_ENV_ID: returns the env_id of the last environment loaded'),&
+  ll(' DESTROY [env_id]: destroys the given environment (last and default env'),&
+  ll('   might become invalid)'),&
   ll(' NATOM [env_id]: returns the number of atoms in the environement env_id'),&
   ll(' SET_POS [env_id]: sets the positions of the atoms, should be followed'),&
   ll('   by natom*3 (on a line) and then all the positions. Returns the max'),&
@@ -216,6 +218,13 @@ PROGRAM cp2k_shell
            CALL m_flush(sout)
         END IF
         IF (last_env_id<=0) failure=.TRUE.
+     CASE ('DESTROY')
+        env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
+        CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
+        IF (failure) GOTO 10
+        CALL destroy_force_env(env_id,ierr)
+        CALL my_assert(ierr==0,cmd//' failed destroy_force_env',failure)
+        IF (last_env_id==env_id) last_env_id=-1
      CASE('NATOM','N_ATOM')
         env_id=parse_env_id(str=cmdStr,startI=shift2+1,default_val=last_env_id)
         CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
@@ -415,8 +424,8 @@ PROGRAM cp2k_shell
         CALL my_assert(ierr==0,'error changing directory',failure)
      CASE('PWD','CWD')
         IF (para_env%source==para_env%mepos) THEN
-           call m_getcwd(cmdStr)
-           WRITE (sout,'(a)')trim(cmdStr)
+           CALL m_getcwd(cmdStr)
+           WRITE (sout,'(a)')TRIM(cmdStr)
         END IF
      CASE default
         CALL my_assert(.FALSE.,'unknown command '//cmd,failure)
