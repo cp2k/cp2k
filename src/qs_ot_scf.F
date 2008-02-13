@@ -317,7 +317,7 @@ CONTAINS
     REAL(KIND=dp)                            :: energy
     TYPE(aux_coeff_set_type), OPTIONAL, &
       POINTER                                :: aux_coeff_set
-    LOGICAL                                  :: energy_only
+    LOGICAL, INTENT(INOUT)                   :: energy_only
     REAL(KIND=dp)                            :: delta
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_error_type), INTENT(inout)       :: error

@@ -645,7 +645,9 @@ CONTAINS
                 IF (outer_loop_eps<scf_control%outer_scf%eps_scf) outer_loop_converged=.TRUE.
              END IF
              ! ** Let's tag the last SCF cycle so we can print informations only of the last step
-             IF (outer_loop_converged.OR.scf_env%outer_scf%iter_count>scf_control%outer_scf%max_scf) THEN
+             IF (outer_loop_converged.OR.&
+             scf_env%outer_scf%iter_count>scf_control%outer_scf%max_scf .or.&
+             should_stop) THEN
                 CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=iter_count,error=error)
              END IF
           END IF
@@ -891,7 +893,7 @@ SUBROUTINE qs_scf_loop_do_ot(scf_env,mos,rho,mo_derivs,total_energy,&
       POINTER                                :: matrix_s
     TYPE(aux_coeff_set_type), OPTIONAL, &
       POINTER                                :: aux_coeff_set
-    LOGICAL, INTENT(OUT)                     :: energy_only
+    LOGICAL, INTENT(INOUT)                   :: energy_only
     LOGICAL, INTENT(IN)                      :: has_unit_metric
     TYPE(cp_error_type), INTENT(inout)       :: error
 
