@@ -385,11 +385,15 @@ CPSourceFileRef,&
                    CALL qs_loc_driver(qs_env,qs_loc_env,loc_print_key,myspin=ispin,&
                         ext_mo_coeff=mo_localized,error=error)
 
-                   ! Compute the molecular states
-                   IF ( p_molstates ) THEN
+                   ! Compute the molecular dipoles if required
+                   IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%LOCALIZATION/MOLECULAR_DIPOLES",&
+                       error=error),cp_p_file)) THEN
                       loc_print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOCALIZATION",error=error) 
                       CALL wfc_to_molecule(qs_loc_env, loc_print_key, scenter, molecule_set, error)
-                      
+                   END IF
+
+                   ! Compute the molecular states
+                   IF ( p_molstates ) THEN
                       CALL construct_molecular_states(molecule_set, mo_localized, mo_coeff, &
                            mo_eigenvalues, ks_rmpv(ispin)%matrix, matrix_s(1)%matrix, qs_env, &
                            wf_r, wf_g, force_env_section=qs_env%input, error=error)
@@ -402,6 +406,14 @@ CPSourceFileRef,&
                 CALL qs_scf_post_loc_dip(input, dft_control, qs_loc_env, logger, qs_env, error)
              END IF
           ENDIF
+       ELSE
+          ! Print a warning on screen if molecular states have been required but the LOCALIZATION
+          ! section is not present
+          CALL cp_assert(.NOT.p_molstates,cp_warning_level,cp_assertion_failed,routineP,&
+               "Molecular States have been required but the LOCALIZATION keyword is not present! "//&
+               "Skipping the calculation of the Molecular States. "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
        ENDIF
 
        ! Gets the lumos, and eigenvalues for the lumos

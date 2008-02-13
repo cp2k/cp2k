@@ -14,8 +14,6 @@ MODULE qs_loc_molecules
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE external_potential_types,        ONLY: get_potential,&
-                                             gth_potential_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
@@ -77,7 +75,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: local_molecules
-    TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_type), POINTER             :: particle_set( : )
 
@@ -231,8 +228,7 @@ CONTAINS
           DO iatom=1,natom
              i=first_atom+iatom-1
              atomic_kind=>particle_set(i)%atomic_kind
-             CALL get_atomic_kind(atomic_kind,gth_potential=gth_potential)
-             CALL get_potential(gth_potential,zeff=zeff)
+             CALL get_atomic_kind(atomic_kind=atomic_kind,core_charge=zeff)
              r_pbc = particle_set(i) % r - particle_set(first_atom) % r
              r_pbc = pbc ( r_pbc , qs_loc_env%cell )
              dipole=dipole + zeff*r_pbc
