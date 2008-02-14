@@ -1554,6 +1554,11 @@ CONTAINS
 
       CALL return_cube_nonortho(cube_info,radius,index_min,index_max,rp)
 
+      DO dir=1,3
+         offset(dir)=MODULO(cubecenter(dir),ng(dir))+rsgrid%lb(dir)
+         offset(dir)=offset(dir)-rsgrid%lb_local(dir)+1
+      ENDDO
+
       ALLOCATE(grid_map(index_min(1):index_max(1)))
       DO i=index_min(1),index_max(1)
          grid_map(i)=MODULO(i,ng(1))+1
@@ -1564,10 +1569,6 @@ CONTAINS
          ENDIF
       ENDDO
 
-      DO dir=1,3
-         offset(dir)=MODULO(cubecenter(dir),ng(dir))+rsgrid%lb(dir)
-         offset(dir)=offset(dir)-rsgrid%lb_local(dir)+1
-      ENDDO
 
       coef_ijk=0.0_dp
 
