@@ -71,7 +71,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mixed_create_force_env', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_path_length)       :: input_file_path, &
+    CHARACTER(len=default_path_length)       :: c_val, input_file_path, &
                                                 output_file_path
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: parameters, variables
@@ -157,12 +157,16 @@ CONTAINS
     SELECT CASE(mixing_type)
     CASE(mix_generic)
        CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%VARIABLES",c_vals=variables,error=error)
-       CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%PARAMETERS",c_vals=parameters,error=error)
-       CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%VALUES",r_vals=par_values,error=error)
+       ! Parameters could possibly not be there..
        mydim = SIZE(variables)
-       IF (ASSOCIATED(parameters)) THEN
-          CPPrecondition(SIZE(parameters)==SIZE(par_values),cp_failure_level,routineP,error,failure)
-          mydim=mydim+SIZE(parameters)
+       CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%PARAMETERS",n_rep_val=n_rep_val,error=error)
+       IF (n_rep_val/=0) THEN
+          CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%PARAMETERS",c_vals=parameters,error=error)
+          CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%VALUES",r_vals=par_values,error=error)
+          IF (ASSOCIATED(parameters)) THEN
+             CPPrecondition(SIZE(parameters)==SIZE(par_values),cp_failure_level,routineP,error,failure)
+             mydim=mydim+SIZE(parameters)
+          END IF
        END IF
        ALLOCATE(mixed_env%par(mydim),stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -196,6 +200,22 @@ CONTAINS
           CALL cp_logger_create(loc_logger,para_env=mixed_env%sub_para_env(i)%para_env,&
                default_global_unit_nr=unit_nr, &
                close_global_unit_on_dealloc=.FALSE.)
+          ! Try to use better names for the local log if it is not too late
+          CALL section_vals_val_get(root_section,"GLOBAL%OUTPUT_FILE_NAME",&
+               c_val=c_val,error=error)
+          IF (c_val/="") THEN
+             CALL cp_logger_set(loc_logger,&
+                  local_filename=TRIM(c_val)//"_localLog")
+          END IF
+          CALL section_vals_val_get(root_section,"GLOBAL%PROJECT",c_val=c_val,error=error)
+          IF (c_val/="") THEN
+             CALL cp_logger_set(loc_logger,local_filename=TRIM(c_val)//"_localLog")
+          END IF
+          loc_logger%iter_info%project_name=c_val
+          CALL section_vals_val_get(root_section,"GLOBAL%PRINT_LEVEL",&
+             i_val=loc_logger%iter_info%print_level,error=error)
+
+          ! Initialize error
           CALL cp_error_init(mixed_env%sub_error(i),&
                stop_level=cp_fatal_level,&
                logger=loc_logger)

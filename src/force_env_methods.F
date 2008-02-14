@@ -877,7 +877,7 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
       DIMENSION(:), POINTER                  :: data_function, my_par, &
                                                 parameters, variables
     INTEGER :: iforce_eval, iparticle, j, jparticle, mixing_type, my_group, &
-      mydim, natom, nforce_eval, output_unit, stat
+      mydim, n_rep_val, natom, nforce_eval, output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: glob_natoms, map_index
     LOGICAL                                  :: failure, ionode, &
                                                 virial_consistent
@@ -1100,13 +1100,17 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
        CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%VARIABLES",&
             c_vals=variables,error=error)
        CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%PARAMETERS",&
-            c_vals=parameters,error=error)
-       CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%VALUES",&
-            r_vals=par_values,error=error)
+            n_rep_val=n_rep_val,error=error)
        mydim = SIZE(variables)
-       IF (ASSOCIATED(parameters)) THEN
-          CPPrecondition(SIZE(parameters)==SIZE(par_values),cp_failure_level,routineP,error,failure)
-          mydim=mydim+SIZE(parameters)
+       IF (n_rep_val /= 0) THEN
+          CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%PARAMETERS",&
+               c_vals=parameters,error=error)
+          CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%VALUES",&
+               r_vals=par_values,error=error)
+          IF (ASSOCIATED(parameters)) THEN
+             CPPrecondition(SIZE(parameters)==SIZE(par_values),cp_failure_level,routineP,error,failure)
+             mydim=mydim+SIZE(parameters)
+          END IF
        END IF
        ALLOCATE(my_par(mydim),stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
