@@ -646,7 +646,7 @@ CONTAINS
              END IF
              ! ** Let's tag the last SCF cycle so we can print informations only of the last step
              IF (outer_loop_converged.OR.&
-             scf_env%outer_scf%iter_count>scf_control%outer_scf%max_scf .or.&
+             scf_env%outer_scf%iter_count>scf_control%outer_scf%max_scf .OR.&
              should_stop) THEN
                 CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=iter_count,error=error)
              END IF
