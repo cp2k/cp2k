@@ -104,8 +104,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: iatomlist, kind_of, list, &
                                                 list2, molecule_list, &
                                                 natom_of_kind, wlist
-    LOGICAL                                  :: do_center, failure, found, &
-                                                my_qmmm
+    LOGICAL                                  :: check, do_center, failure, &
+                                                found, my_qmmm
     REAL(KIND=dp)                            :: alpha_core_charge, &
                                                 bounds(2,3), cdims(3), &
                                                 dims(3), qeff
@@ -319,26 +319,37 @@ CONTAINS
     CALL section_vals_val_get(subsys_section,"TOPOLOGY%CENTER_COORDINATES",l_val=do_center,&
          error=error)
     CALL timeset(routineN//'_7a',handle2)
-    dims = 0.0_dp
-    IF (do_center) THEN
-       bounds(1,1) = MINVAL(atom_info%r(1,:))
-       bounds(2,1) = MAXVAL(atom_info%r(1,:))
+    bounds(1,1) = MINVAL(atom_info%r(1,:))
+    bounds(2,1) = MAXVAL(atom_info%r(1,:))
 
-       bounds(1,2) = MINVAL(atom_info%r(2,:))
-       bounds(2,2) = MAXVAL(atom_info%r(2,:))
+    bounds(1,2) = MINVAL(atom_info%r(2,:))
+    bounds(2,2) = MAXVAL(atom_info%r(2,:))
 
-       bounds(1,3) = MINVAL(atom_info%r(3,:))
-       bounds(2,3) = MAXVAL(atom_info%r(3,:))
-       
-       dims     = bounds(2,:)-bounds(1,:)
-       cdims(1) = topology%cell%hmat(1,1)
-       cdims(2) = topology%cell%hmat(2,2)
-       cdims(3) = topology%cell%hmat(3,3)
-       IF (iw>0) THEN
-          WRITE(iw,'(A,3F12.6)')"System sizes: ",dims,"Cell sizes (diagonal): ",cdims
+    bounds(1,3) = MINVAL(atom_info%r(3,:))
+    bounds(2,3) = MAXVAL(atom_info%r(3,:))
+    
+    dims     = bounds(2,:)-bounds(1,:)
+    cdims(1) = topology%cell%hmat(1,1)
+    cdims(2) = topology%cell%hmat(2,2)
+    cdims(3) = topology%cell%hmat(3,3)
+    IF (iw>0) THEN
+       WRITE(iw,'(A,3F12.6)')"System sizes: ",dims,"Cell sizes (diagonal): ",cdims
+    END IF
+    check = .TRUE.
+    DO i = 1, 3
+       IF (topology%cell%perd(i)==0) THEN
+         check = check.AND.(dims(i)<cdims(i))
        END IF
-       CPPostcondition(ALL(dims<cdims),cp_failure_level,routineP,error,failure)
+    END DO
+    CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
+         "A non-periodic calculation has been requested but the system size "//&
+         "exceeds the cell size in at least one of the non-periodic directions! "//&
+CPSourceFileRef,&
+         only_ionode=.TRUE.)
+    IF (do_center) THEN
        dims = (bounds(2,:)+bounds(1,:))/2.0_dp - cdims/2.0_dp
+    ELSE
+       dims = 0.0_dp
     END IF
     CALL timestop(0.0_dp,handle2)
     CALL timeset(routineN//'_7b',handle2)
