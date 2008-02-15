@@ -29,3 +29,8 @@ uo2_shell_nvt_tkind_1.inp       2
 uo2_shell_nvt_shCSVR.inp        2
 uo2_shell_nvt_shCSVR_NOSE.inp   2
 uo2_shell_nvt_shCSVR_R.inp      2
+#npe ensemble
+uo2_shell_npe_1.inp             2
+uo2_shell_npe_2.inp             2
+uo2_shell_npe_3.inp             2
+uo2_shell_npe_4.inp             2

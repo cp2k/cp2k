@@ -1,0 +1,152 @@
+
+&FORCE_EVAL
+  METHOD Fist
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM U
+        CHARGE 4.0
+      &END
+      &CHARGE
+        ATOM O
+        CHARGE -2.0
+      &END
+      &SHELL U
+        CORE_CHARGE   -2.840000
+        SHELL_CHARGE 6.840000
+        MASS_FRACTION  0.1
+        SPRING  [eV*angstrom^-2] 171.556
+        MAX_DISTANCE [angstrom] 1.0
+      &END SHELL
+      &SHELL O
+        CORE_CHARGE 1.186267
+        SHELL_CHARGE -3.186267
+        MASS_FRACTION 0.2
+        SPRING [eV*angstrom^-2] 70.824
+        MAX_DISTANCE [angstrom] 1.0 
+      &END SHELL
+      &NONBONDED
+        &WILLIAMS
+          atoms U  O
+          A [eV] 844.41
+          B [angstrom^-1] 2.35159661652
+          C [eV*angstrom^6] 0.0
+          RCUT 10.4
+        &END WILLIAMS
+        &BUCK4RANGES
+          atoms O O
+          A [eV] 20908.03
+          B [angstrom^-1] 7.71604938272
+          C [eV*angstrom^6] 229.04
+          R1 1.17
+          R2 1.62
+          R3 2.84
+          POLY1 [eV] 4204.472427467161  -7959.112702279119   6021.074988330987  -2270.766871550818 426.319753380798 -31.850801875744
+          POLY2 [eV] 6.734634669569  -6.692698089020 1.656245757939  -0.122636741736
+          RCUT 10.4
+        &END BUCK4RANGES
+        &WILLIAMS
+          atoms U U
+          A [eV] 0.0
+          B [angstrom^-1] 0.0
+          C [eV*angstrom^6] 0.0
+          RCUT 10.4
+        &END WILLIAMS
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX  64
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC  10.936 10.936 10.936
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CONN_FILE ../sample_psf/uo2_2x2x2.psf
+      CONNECTIVITY UPSF
+      COORD_FILE ../sample_xyz/uo2_displ.xyz
+      COORDINATE XYZ
+    &END TOPOLOGY
+    &KIND U
+      MASS 238.03000
+    &END
+    &KIND O
+      MASS 16.000
+    &END
+  &END SUBSYS
+  STRESS_TENSOR ANALYTICAL
+&END FORCE_EVAL
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT uo2_shell_npe
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NPE_F
+    STEPS  20
+    TIMESTEP 0.5
+    TEMPERATURE 300.0
+    &BAROSTAT
+      PRESSURE 0.
+      TIMECON 1000
+    &END BAROSTAT
+    TEMP_KIND
+    &SHELL
+      TEMPERATURE  5
+      TEMP_TOL  25 
+      &THERMOSTAT
+        TYPE NOSE
+#        TYPE CSVR
+        REGION MASSIVE
+#        &NOSE
+#          LENGTH 6
+#          YOSHIDA 3
+#          TIMECON 700
+#          MTS 2
+#        &END
+      &END
+    &END
+
+    &PRINT
+      &ENERGY
+      &END
+      &SHELL_ENERGY LOW
+      &END
+      &TEMP_KIND
+      &END
+    &END PRINT
+  &END MD
+  &PRINT
+    &TRAJECTORY
+      &EACH
+        MD 1
+      &END
+    &END
+    &VELOCITIES OFF
+    &END
+    &CELL
+      &EACH
+        MD 1
+      &END
+    &END
+    &STRESS
+      &EACH
+        MD 1
+      &END
+    &END
+    &RESTART
+      &EACH
+        MD 5
+      &END
+    &END
+    &RESTART_HISTORY OFF
+    &END
+  &END
+&END MOTION
