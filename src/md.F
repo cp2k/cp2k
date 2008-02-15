@@ -29,11 +29,11 @@ MODULE md
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       ensemble_name_types, isokin_ensemble, langevin_ensemble, nph_ensemble, &
-       nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
-       npt_i_ensemble, nve_ensemble, nvt_ensemble, use_perd_none, use_perd_x, &
-       use_perd_xy, use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, &
-       use_perd_z
+       ensemble_name_types, isokin_ensemble, langevin_ensemble, &
+       npe_f_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
+       npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_ensemble, &
+       use_perd_none, use_perd_x, use_perd_xy, use_perd_xyz, use_perd_xz, &
+       use_perd_y, use_perd_yz, use_perd_z
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_list_get,&
@@ -74,20 +74,24 @@ MODULE md
      INTEGER        :: nsteps
      REAL (KIND=dp) :: dt
      REAL (KIND=dp) :: temp_ext
+     REAL (KIND=dp) :: temp_baro_ext
      REAL (KIND=dp) :: temp_baro
      REAL (KIND=dp) :: temp_tol
      REAL (KIND=dp) :: comvel_tol
      REAL (KIND=dp) :: p_ext
      REAL (KIND=dp) :: cmass
+     REAL (KIND=dp) :: cmass_nph
      REAL (KIND=dp) :: v0
      REAL (KIND=dp) :: e0
      REAL (KIND=dp) :: v_shock
      REAL (KIND=dp) :: p0
      REAL (KIND=dp) :: f_annealing
+     REAL (KIND=dp) :: f_annealing_cell
      REAL (KIND=dp) :: gamma_nph
      INTEGER        :: ensemble
      LOGICAL :: constraint
      LOGICAL :: annealing
+     LOGICAL :: annealing_cell
      LOGICAL :: dump_lm 
      LOGICAL :: angvel_zero 
      INTEGER :: nfree, nfree_rot_transl
@@ -182,7 +186,12 @@ CONTAINS
        IF ( simpar % annealing ) &
             WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Annealing ion factor      ', &
             simpar % f_annealing
-       IF (  simpar % ensemble == npt_i_ensemble .OR. simpar % ensemble == npt_f_ensemble ) THEN
+       IF ( simpar % ensemble == npe_f_ensemble .AND. simpar % annealing_cell ) &
+            WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Annealing cell factor      ', &
+            simpar % f_annealing_cell
+       IF (  simpar % ensemble == npt_i_ensemble .OR. &
+             simpar % ensemble == npt_f_ensemble .OR. &
+             simpar % ensemble == npe_f_ensemble ) THEN
           WRITE ( iw, '( A,A3,A, T71, F10.2 )' ) &
                ' MD| Pressure [','Bar','] ', simpar % p_ext*unit%bar
           WRITE ( iw, '( A,A4,A, T71, F10.2 )' ) &
@@ -212,11 +221,12 @@ CONTAINS
        WRITE ( iw, '( A,T20,i10,T31,A50 )' ) ' MD| Coordinates',iprint, &
             ADJUSTR ( TRIM(filename) )
 
-       IF ( simpar % ensemble == nph_ensemble .OR.&
+       IF (&
             simpar % ensemble == nph_uniaxial_ensemble .OR.&
             simpar % ensemble == nph_uniaxial_damped_ensemble.OR.&
             simpar % ensemble == npt_i_ensemble.OR.&
-            simpar % ensemble == npt_f_ensemble ) THEN
+            simpar % ensemble == npt_f_ensemble .OR. &
+            simpar % ensemble == npe_f_ensemble) THEN
 
           print_key => section_vals_get_subs_vals(motion_section,"PRINT%CELL",error=error)
           CALL section_vals_val_get(print_key,"EACH%MD",i_val=iprint,error=error)
@@ -312,6 +322,8 @@ CPSourceFileRef,&
        NULLIFY(tmp_section)
        CALL section_vals_val_get(md_section,"ANNEALING",r_val=simpar%f_annealing,error=error)
        IF (simpar%f_annealing /= 1.0_dp) simpar % annealing = .TRUE.
+       CALL section_vals_val_get(md_section,"ANNEALING_CELL",r_val=simpar%f_annealing_cell,error=error)
+       IF (simpar%f_annealing_cell /= 1.0_dp) simpar % annealing_cell = .TRUE.
        CALL section_vals_val_get(md_section,"ENSEMBLE",i_val=simpar%ensemble,error=error)
        CALL section_vals_val_get(md_section,"STEPS",i_val=simpar%nsteps,error=error)
        CALL section_vals_val_get(md_section,"TIMESTEP",r_val=simpar%dt,error=error)
@@ -351,7 +363,8 @@ CPSourceFileRef,&
        END IF
        
        SELECT CASE (simpar%ensemble)
-       CASE(nph_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble)
+       CASE( nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
+               npt_f_ensemble, npt_i_ensemble, npe_f_ensemble)
           tmp_section => section_vals_get_subs_vals(md_section,"BAROSTAT",error=error)
           CALL section_vals_val_get(tmp_section,"PRESSURE",r_val=simpar%p_ext,error=error)
           CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_cell,error=error)
@@ -388,6 +401,7 @@ CPSourceFileRef,&
     simpar % nsteps = 0
     simpar % dt = 0.0_dp
     simpar % temp_ext = 0.0_dp
+    simpar % temp_baro_ext = 0.0_dp
     simpar % temp_baro = 0.0_dp
     simpar % temp_tol = 0.0_dp
     simpar % comvel_tol = 0.0_dp
@@ -848,7 +862,7 @@ CPSourceFileRef,&
     END DO
     
     ! Compute the total mass when needed
-    IF ( simpar % ensemble == nph_ensemble .OR.&
+    IF ( &
          simpar % ensemble == nph_uniaxial_ensemble .OR.&
          simpar % ensemble == nph_uniaxial_damped_ensemble ) THEN
        mass_tot = 0.0_dp

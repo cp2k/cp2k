@@ -1371,6 +1371,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="annealing_cell",&
+            description="Specifies the rescaling factor for velocities of the CELL after the integration"//&
+            "scheme used. Automatically enables the annealing procedure.", &
+            usage="annealing 0.0", default_r_val=1.0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="gamma",&
             description="Gamma parameter for the Langevin dynamics",&
             usage="gamma 0.001",&
@@ -1461,7 +1468,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"TEMP_SHELL_KIND",&
             description="Controls the output of the temperature of the"//&
             " shell-core motion computed separately for each kind",&
-            print_level=medium_print_level, common_iter_levels=1,&
+            print_level=high_print_level, common_iter_levels=1,&
             filename="",error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)

@@ -32,7 +32,7 @@ MODULE md_energies
                                              force_env_type,&
                                              use_mixed_force
   USE input_constants,                 ONLY: ensemble_name_types,&
-                                             nph_ensemble,&
+                                             npe_f_ensemble,&
                                              nph_uniaxial_damped_ensemble,&
                                              nph_uniaxial_ensemble,&
                                              npt_f_ensemble,&
@@ -222,7 +222,7 @@ CONTAINS
     ! Initialize V0 properly for nph calculations
     !---------------------------------------------
     IF (init) THEN
-       IF ( simpar%ensemble == nph_ensemble .OR.&
+       IF ( &
             simpar%ensemble == nph_uniaxial_ensemble .OR.&
             simpar%ensemble == nph_uniaxial_damped_ensemble ) THEN
           IF ( simpar%v0 == 0.0_dp ) simpar%v0 = cell_ref%deth
@@ -384,7 +384,7 @@ CONTAINS
        iw = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%PROGRAM_RUN_INFO",&
             extension=".mdLog",file_position=my_pos,file_action=my_act,error=error)
        ! Computing the Hugoniot for NPH calculations
-       IF ( simpar%ensemble == nph_ensemble .OR.&
+       IF ( &
             simpar%ensemble == nph_uniaxial_ensemble .OR.&
             simpar%ensemble == nph_uniaxial_damped_ensemble ) THEN
           IF (simpar%e0 == 0._dp ) simpar%e0 = md_ener%epot + md_ener%ekin
@@ -430,22 +430,23 @@ CONTAINS
                      ADJUSTL( unit%temp_label ), '= ', md_ener%temp_qm
              END IF
           END IF
-          IF ( simpar%ensemble == nph_ensemble .OR.&
+          IF ( &
                simpar%ensemble == nph_uniaxial_ensemble .OR.&
                simpar%ensemble == nph_uniaxial_damped_ensemble.OR.&
                simpar%ensemble == npt_i_ensemble.OR.&
-               simpar%ensemble == npt_f_ensemble ) &
+               simpar%ensemble == npt_f_ensemble.OR.&
+               simpar%ensemble == npe_f_ensemble)  &
                WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL BAROSTAT TEMP', &
                ADJUSTL( unit%temp_label), '= ', md_ener%temp_baro
           IF ( virial%pv_availability ) &
                WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL PRESSURE', &
                ADJUSTL( unit%pres_label), '= ', pv_scalar
-          IF ( simpar%ensemble == nph_ensemble .OR.&
+          IF ( &
                simpar%ensemble == nph_uniaxial_ensemble .OR.&
                simpar%ensemble == nph_uniaxial_damped_ensemble)&
                WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL HUGONIOT CONSTRAINT', &
                ADJUSTL( unit%temp_label), '= ', hugoniot
-          IF ( simpar%ensemble == nph_ensemble .OR.&
+          IF ( &
                simpar%ensemble == nph_uniaxial_ensemble .OR.&
                simpar%ensemble == nph_uniaxial_damped_ensemble)&
                WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL E0', &
@@ -463,7 +464,7 @@ CONTAINS
             "MD%PRINT%PROGRAM_RUN_INFO", error=error)
     ELSE
        ! Performing protocol for anything beyond the first step of MD
-       IF ( simpar%ensemble == nph_ensemble .OR.&
+       IF ( &
             simpar%ensemble == nph_uniaxial_ensemble .OR.&
             simpar%ensemble == nph_uniaxial_damped_ensemble)&
             hugoniot = md_ener%epot + md_ener%ekin - simpar%e0 -  &
@@ -580,7 +581,7 @@ CONTAINS
           IF ( virial%pv_availability ) &
                WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' PRESSURE', &
                ADJUSTL(unit%pres_label), '= ', pv_scalar, averages%avepress
-          IF ( simpar%ensemble == nph_ensemble .OR.&
+          IF ( &
                simpar%ensemble == nph_uniaxial_ensemble .OR.&
                simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' P_XX', &
@@ -589,11 +590,12 @@ CONTAINS
                   ADJUSTL(unit%temp_label), '= ', hugoniot/3._dp/nat*kelvin,&
                   averages%avehugoniot/3._dp/nat*kelvin
           END IF
-          IF ( simpar%ensemble == nph_ensemble .OR.&
+          IF ( &
                simpar%ensemble == nph_uniaxial_ensemble .OR.&
                simpar%ensemble == nph_uniaxial_damped_ensemble.OR.&
                simpar%ensemble == npt_i_ensemble.OR.&
-               simpar%ensemble == npt_f_ensemble ) THEN
+               simpar%ensemble == npt_f_ensemble.OR.&
+               simpar%ensemble == npe_f_ensemble) THEN
              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' BAROSTAT TEMP', &
                   ADJUSTL(unit%temp_label), '= ', md_ener%temp_baro, averages%avetemp_baro
              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' VOLUME', &
@@ -604,7 +606,8 @@ CONTAINS
                   ADJUSTL(unit%l_label), '= ', averages%aveca, averages%avecb, &
                   averages%avecc
           END IF
-          IF (simpar%ensemble==npt_f_ensemble) THEN
+          IF (simpar%ensemble==npt_f_ensemble .OR. &
+              simpar%ensemble == npe_f_ensemble) THEN
              WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' CELL ANGLS', &
                   ADJUSTL(unit%angl_label), '= ', cell_angle(3), cell_angle(2), cell_angle(1)
              WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' AVE. CELL ANGLS', &
@@ -678,11 +681,12 @@ CONTAINS
             "FORCES", my_pos, my_act, middle_name="frc", error=error)
 
        ! Print Simulation Cell (only if constant pressure)
-       IF  (simpar%ensemble == nph_ensemble .OR.&
+       IF  (&
             simpar%ensemble == nph_uniaxial_ensemble .OR.&
             simpar%ensemble == nph_uniaxial_damped_ensemble.OR.&
             simpar%ensemble == npt_i_ensemble.OR.&
-            simpar%ensemble == npt_f_ensemble) THEN
+            simpar%ensemble == npt_f_ensemble.OR.&
+            simpar%ensemble == npe_f_ensemble) THEN
           box = cp_print_key_unit_nr(logger,motion_section,"PRINT%CELL",&
                extension=".cell", file_position=my_pos, file_action=my_act,&
                file_form="FORMATTED", error=error)

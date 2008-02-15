@@ -16,9 +16,15 @@ MODULE barostat_types
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: npe_f_ensemble,&
+                                             nph_uniaxial_damped_ensemble,&
+                                             nph_uniaxial_ensemble,&
+                                             npt_f_ensemble,&
+                                             npt_i_ensemble
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
   USE timings,                         ONLY: timeset,&
@@ -36,6 +42,7 @@ MODULE barostat_types
 ! *****************************************************************************
   TYPE barostat_type
      INTEGER :: id_nr, ref_count, type_of_barostat
+     REAL(KIND=dp) :: temp_ext
      TYPE ( npt_info_type ), POINTER :: npt (:,:)
   END TYPE barostat_type
 
@@ -77,7 +84,11 @@ CONTAINS
     CPPrecondition(check,cp_failure_level,routineP,error,failure)
     barostat_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT",error=error)
     CALL section_vals_get(barostat_section, explicit=explicit, error=error)
-    IF (explicit) THEN
+    IF (simpar%ensemble == npt_i_ensemble .OR. &
+        simpar%ensemble == npt_f_ensemble .OR. &
+        simpar%ensemble == npe_f_ensemble .OR. &
+        simpar%ensemble == nph_uniaxial_ensemble .OR. &
+        simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
        ALLOCATE(barostat, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        last_barostat_id_nr = last_barostat_id_nr + 1
@@ -86,6 +97,9 @@ CONTAINS
        NULLIFY(barostat%npt)
        CALL force_env_get( force_env, cell=cell, error=error )
 
+       CALL section_vals_val_get(barostat_section,"TEMPERATURE",r_val=barostat%temp_ext,error=error)
+       IF(barostat%temp_ext < 0.0_dp) barostat%temp_ext = simpar%temp_ext
+       simpar%temp_baro_ext =  barostat%temp_ext 
        ! Initialize or possibly restart Barostat
        CALL initialize_npt (simpar, para_env, globenv, barostat%npt,&
             cell, work_section=barostat_section, error=error)

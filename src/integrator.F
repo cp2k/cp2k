@@ -52,6 +52,7 @@ MODULE integrator
                                              force_env_set_cell
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
+  USE input_constants,                 ONLY: npe_f_ensemble
   USE integrator_utils,                ONLY: &
        allocate_old, allocate_tmp, damp_v, damp_veps, deallocate_old, &
        get_s_ds, old_variables_type, rattle_roll_setup, set, &
@@ -648,8 +649,13 @@ CONTAINS
     NULLIFY(gci, force_env, dyn_coeff_set, thermostat_coeff, tmp, &
          thermostat_part, thermostat_shell, cell, shell_particles, &
          shell_particle_set, core_particles, core_particle_set)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env, thermostat_part=thermostat_part,&
-         thermostat_coeff=thermostat_coeff,thermostat_shell=thermostat_shell,para_env=para_env,&
+    NULLIFY(para_env, subsys, local_molecules, local_particles, molecule_kinds,&
+         molecules, molecule_kind_set, molecule_set)
+    NULLIFY(simpar, thermostat_coeff, thermostat_part, thermostat_shell)
+
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
+         thermostat_part=thermostat_part, thermostat_coeff=thermostat_coeff,&
+         thermostat_shell=thermostat_shell,para_env=para_env,&
          error=error)
     dt = simpar%dt
 
@@ -712,7 +718,6 @@ CONTAINS
     CALL vv_first(tmp, atomic_kind_set, local_particles, particle_set, &
          core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
 
-
     IF (simpar%constraint) CALL shake_control( gci, local_molecules, molecule_set,   &
          molecule_kind_set, particle_set,tmp%pos, tmp%vel, simpar%dt,simpar%shake_tol,&
          simpar%info_constraint,simpar%lagrange_multipliers,simpar%dump_lm,&
@@ -745,8 +750,8 @@ CONTAINS
             vel= tmp%vel, shell_vel= tmp%shell_vel, core_vel= tmp%core_vel, error=error)
 
        CALL apply_thermostat_shells(thermostat_shell,atomic_kind_set, particle_set,&
-            local_particles, para_env%group, vel= tmp%vel, shell_vel= tmp%shell_vel, core_vel= tmp%core_vel,&
-            error=error)
+            local_particles, para_env%group, vel= tmp%vel, shell_vel= tmp%shell_vel, &
+            core_vel= tmp%core_vel, error=error)
     ELSE
        CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
             particle_set, local_molecules, para_env%group, vel= tmp%vel, error=error)
@@ -1154,8 +1159,8 @@ CPSourceFileRef,&
        reftraj_env%itimes0 = trj_itimes 
     END IF
 
-    IF (trj_itimes/=0.0_dp.AND.trj_time/=0.0_dp) &
-         simpar%dt = (trj_time/femtoseconds)/REAL(trj_itimes,KIND=dp)
+    IF (trj_itimes/=0.0_dp.AND.trj_time/=0.0_dp) simpar%dt = &
+       (trj_time/femtoseconds)/REAL(trj_itimes,KIND=dp)
 
     reftraj_env%epot   = trj_epot
     reftraj_env%itimes = trj_itimes
@@ -1809,19 +1814,21 @@ CPSourceFileRef,&
     CALL apply_thermostat_baro( thermostat_baro, npt, para_env%group, error)
 
     ! Apply Thermostat over the full set of particles
+    IF(simpar% ensemble /= npe_f_ensemble) THEN
     IF(shell_adiabatic) THEN
        CALL apply_thermostat_particles(thermostat_part, molecule_kind_set, molecule_set,&
             particle_set, local_molecules, para_env%group,shell_adiabatic=shell_adiabatic,&
             shell_particle_set=shell_particle_set,core_particle_set=core_particle_set,&
             error=error)
-
-       CALL apply_thermostat_shells(thermostat_shell, atomic_kind_set, particle_set,&
-            local_particles, para_env%group, shell_particle_set=shell_particle_set,&
-            core_particle_set=core_particle_set, error=error)
     ELSE
        CALL apply_thermostat_particles(thermostat_part, molecule_kind_set, molecule_set,&
             particle_set, local_molecules, para_env%group ,error=error)
     END IF
+    END IF
+
+    CALL apply_thermostat_shells(thermostat_shell, atomic_kind_set, particle_set,&
+         local_particles, para_env%group, shell_particle_set=shell_particle_set,&
+         core_particle_set=core_particle_set, error=error)
 
     ! setting up for ROLL: saving old variables
     roll_tol = -1.0E+10_dp
@@ -1846,6 +1853,7 @@ CPSourceFileRef,&
        !
        ! find eigenvalues and eigenvectors of npt ( :, : ) % v
        !
+
        CALL diagonalise ( matrix = npt(:,:)%v, mysize = 3, &
             storageform = "UPPER", eigenvalues = e_val, eigenvectors = u )
 
@@ -1919,21 +1927,39 @@ CPSourceFileRef,&
     END DO RR
 
     ! Apply Thermostat over the full set of particles
+    IF(simpar% ensemble /= npe_f_ensemble) THEN
     IF (shell_adiabatic) THEN
        CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
             particle_set, local_molecules, para_env%group,shell_adiabatic=shell_adiabatic,&
             vel=tmp%vel, shell_vel=tmp%shell_vel, core_vel=tmp%core_vel, error=error)
 
-       CALL apply_thermostat_shells(thermostat_shell,atomic_kind_set, particle_set,&
-            local_particles, para_env%group, vel=tmp%vel, shell_vel=tmp%shell_vel, core_vel=tmp%core_vel,&
-            error=error)
     ELSE
        CALL apply_thermostat_particles(thermostat_part,molecule_kind_set, molecule_set, &
             particle_set, local_molecules, para_env%group, vel=tmp%vel, error=error)
     END IF
+    END IF
 
+    IF(ASSOCIATED(thermostat_shell)) THEN
+       CALL apply_thermostat_shells(thermostat_shell,atomic_kind_set, particle_set,&
+            local_particles, para_env%group, vel=tmp%vel, shell_vel=tmp%shell_vel, &
+            core_vel=tmp%core_vel, error=error)
+    END IF
+         
     ! Apply Thermostat to Barostat
     CALL apply_thermostat_baro( thermostat_baro, npt, para_env%group, error)
+
+    ! Annealing of particle velocities is only possible when no thermostat is active
+    IF (simpar% ensemble == npe_f_ensemble .AND. simpar%annealing) THEN
+       tmp%vel(:,:)=tmp%vel(:,:)*simpar%f_annealing
+       IF (shell_adiabatic) THEN
+          CALL shell_scale_comv(atomic_kind_set,local_particles,particle_set,&
+               tmp%vel,tmp%shell_vel,tmp%core_vel)
+       END IF
+    END IF
+    ! Annealing of CELL velocities is only possible when no thermostat is active
+    IF (simpar% ensemble == npe_f_ensemble .AND. simpar%annealing_cell) THEN
+       npt(:,:)%v = npt(:,:)%v * simpar%f_annealing_cell
+    END IF
 
     ! Broadcast the new particle velocities and deallocate temporary
     CALL update_dealloc_tmp (tmp,particle_set, shell_particle_set, &

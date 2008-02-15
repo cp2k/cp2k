@@ -27,7 +27,7 @@ MODULE thermostat_utils
        do_region_global, do_region_massive, do_region_molecule, &
        do_thermo_communication, do_thermo_csvr, do_thermo_no_communication, &
        do_thermo_nose, dyn_coeff_mass_global, isokin_ensemble, &
-       langevin_ensemble, nph_uniaxial_damped_ensemble, &
+       langevin_ensemble, npe_f_ensemble, nph_uniaxial_damped_ensemble, &
        nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
        nvt_ensemble, reftraj_ensemble
   USE input_section_types,             ONLY: section_vals_get,&
@@ -196,7 +196,7 @@ CONTAINS
     CASE(isokin_ensemble, nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble,&
          reftraj_ensemble, langevin_ensemble)
        ! Do Nothing
-    CASE(nve_ensemble, nvt_ensemble, npt_i_ensemble, npt_f_ensemble)
+    CASE(nve_ensemble, nvt_ensemble, npt_i_ensemble, npt_f_ensemble, npe_f_ensemble)
        IF (ensemble==nve_ensemble) check = do_shell
        IF (check) THEN
           SELECT CASE(region)

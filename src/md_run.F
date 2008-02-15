@@ -37,6 +37,7 @@ MODULE md_run
                                              free_energy_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: langevin_ensemble,&
+                                             npe_f_ensemble,&
                                              nph_uniaxial_damped_ensemble,&
                                              nph_uniaxial_ensemble,&
                                              npt_f_ensemble,&
@@ -208,7 +209,7 @@ CONTAINS
     CALL release_md_ener(md_ener, error=error)
 
     ! If requested setup Thermostats
-    CALL create_thermostats(thermostats, motion_section, force_env,&
+    CALL create_thermostats(thermostats,  motion_section, force_env,&
          simpar, para_env, globenv, global_section, error )
 
     ! If requested setup Barostat
@@ -264,6 +265,7 @@ CONTAINS
     ! multiple force_evals
     IF ( (simpar%ensemble==npt_i_ensemble).OR.&
          (simpar%ensemble==npt_f_ensemble).OR.&
+         (simpar%ensemble==npe_f_ensemble).OR.&
          (simpar%ensemble==nph_uniaxial_ensemble).OR.&
          (simpar%ensemble==nph_uniaxial_damped_ensemble)) THEN
        check = force_env%virial%pv_availability
@@ -300,6 +302,7 @@ CONTAINS
        END IF
        
        CALL force_env_calc_energy_force (force_env, calc_force=.TRUE.,error=error)
+
        CALL metadyn_forces(force_env, error=error)
 
        IF (simpar%do_respa)THEN
@@ -331,7 +334,7 @@ CONTAINS
          root_section,"MOTION%CONSTRAINT%LAGRANGE_MULTIPLIERS",error=error)
 
     ! Real MD Loop
-    DO istep=1,simpar%nsteps
+    DO istep=1, simpar%nsteps
       itimes = itimes + 1
 
       CALL cp_iterate(logger%iter_info,last=(istep==simpar%nsteps),&

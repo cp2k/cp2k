@@ -72,13 +72,22 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)      
 
-       CALL keyword_create(keyword, name="TIMECON",&
+        CALL keyword_create(keyword, name="TIMECON",&
             description="Barostat time constant",&
             usage="TIMECON real",&
             default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs",error=error),&
             unit_str='fs',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)        
+
+      CALL keyword_create(keyword, name="TEMPERATURE",&
+            description="Barostat initial temperature",&
+            usage="TEMPERATURE real",&
+            default_r_val=cp_unit_to_cp2k(-1.0_dp,"K",error=error),&
+            unit_str='K',error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)        
+
 
        CALL create_velocity_section(subsection,"BAROSTAT",error=error)
        CALL section_add_subsection(section,subsection,error=error)

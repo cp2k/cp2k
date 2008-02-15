@@ -26,7 +26,7 @@ MODULE md_conserved_quantities
                                              force_env_type
   USE input_constants,                 ONLY: &
        dyn_coeff_mass_global, isokin_ensemble, langevin_ensemble, &
-       nph_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
+       npe_f_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
        npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_ensemble, &
        reftraj_ensemble
   USE kinds,                           ONLY: dp
@@ -169,6 +169,9 @@ CONTAINS
        md_ener%temp_baro = md_ener%temp_baro*kelvin
     CASE ( langevin_ensemble )
        md_ener%constant = md_ener%ekin + md_ener%epot
+    CASE ( npe_f_ensemble )
+       CALL get_econs_npe (md_env, md_ener,  para_env, error=error)
+       md_ener%temp_baro = md_ener%temp_baro*kelvin
     END SELECT
 
     IF (init) THEN 
@@ -270,6 +273,52 @@ CONTAINS
   END SUBROUTINE get_econs_nvt
 
 ! *****************************************************************************
+!> \brief calculates conserved quantity for npe ensemble
+!> \par History
+!>      none
+!> \author  marcella (02-2008)
+! *****************************************************************************
+  SUBROUTINE get_econs_npe ( md_env, md_ener, para_env, error)
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(md_ener_type), INTENT(inout)        :: md_ener
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_econs_npe', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: nfree
+    TYPE(cell_type), POINTER                 :: box
+    TYPE(npt_info_type), POINTER             :: npt( :, : )
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
+    TYPE(thermostat_type), POINTER           :: thermostat_baro, &
+                                                thermostat_shell
+
+    NULLIFY(thermostat_baro, thermostat_shell, npt)
+    CALL get_md_env ( md_env,  thermostat_baro=thermostat_baro, &
+         simpar = simpar, npt = npt, cell = box,  &
+         thermostat_shell=thermostat_shell, error=error)
+    CALL get_thermostat_energies(thermostat_baro, md_ener%thermostat_baro_pot,&
+         md_ener%thermostat_baro_kin, para_env, error)
+    CALL get_baro_energies ( box, simpar, npt, md_ener%baro_kin, &
+         md_ener%baro_pot, error=error )
+    nfree = SIZE ( npt, 1 ) * SIZE ( npt, 2 )
+    md_ener%temp_baro = 2.0_dp * md_ener%baro_kin / nfree
+
+    md_ener%constant = md_ener%ekin + md_ener%epot + md_ener%ekin_shell &
+         + md_ener%thermostat_baro_kin + md_ener%thermostat_baro_pot  &
+         + md_ener%baro_kin + md_ener%baro_pot
+
+    CALL get_thermostat_energies ( thermostat_shell, md_ener%thermostat_shell_pot, &
+         md_ener%thermostat_shell_kin, para_env, error )
+    md_ener%constant = md_ener%constant + md_ener%thermostat_shell_kin + &
+           md_ener%thermostat_shell_pot
+
+  END SUBROUTINE get_econs_npe
+
+
+! *****************************************************************************
 !> \brief calculates conserved quantity for npt ensemble
 !> \par History
 !>      none
@@ -367,7 +416,8 @@ CONTAINS
        baro_pot = simpar % p_ext * box % deth
        baro_kin = 0.5_dp * npt ( 1, 1 ) % v * npt ( 1, 1 ) % v * &
             npt ( 1, 1 ) % mass
-    ELSE IF ( simpar%ensemble== npt_f_ensemble ) THEN
+    ELSE IF ( simpar%ensemble== npt_f_ensemble .OR. &
+              simpar%ensemble== npe_f_ensemble) THEN
        baro_pot =  simpar % p_ext * box % deth
        baro_kin = 0.0_dp
        DO i = 1, 3
@@ -376,7 +426,7 @@ CONTAINS
                   npt ( i, j ) % v * npt ( i, j ) % mass
           END DO
        END DO
-    ELSEIF ( simpar%ensemble == nph_ensemble .OR.&
+    ELSEIF ( &
          simpar%ensemble == nph_uniaxial_ensemble .OR.&
          simpar%ensemble == nph_uniaxial_damped_ensemble ) THEN
        v0 = simpar % v0

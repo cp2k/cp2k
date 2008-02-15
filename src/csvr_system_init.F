@@ -63,7 +63,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CALL csvr_to_barostat_mapping ( simpar, csvr, para_env, error)
+    CALL csvr_to_barostat_mapping ( simpar,  csvr, para_env, error)
     CALL restart_csvr( csvr, csvr_section, error)
 
   END SUBROUTINE initialize_csvr_baro

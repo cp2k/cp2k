@@ -27,6 +27,7 @@ MODULE extended_system_init
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_thermo_only_master,&
+                                             npe_f_ensemble,&
                                              nph_uniaxial_damped_ensemble,&
                                              nph_uniaxial_ensemble,&
                                              npt_f_ensemble,&
@@ -92,22 +93,22 @@ CONTAINS
        ALLOCATE ( npt_info ( 1, 1 ), STAT = stat )
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
        npt_info  ( :, : ) % eps = LOG ( cell % deth ) / 3.0_dp
-       temp = simpar % temp_ext
+       temp = simpar % temp_baro_ext
 
-    CASE ( npt_f_ensemble )
+    CASE ( npt_f_ensemble, npe_f_ensemble )
        ALLOCATE ( npt_info ( 3, 3 ), STAT = stat )
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-       temp = simpar % temp_ext
+       temp = simpar % temp_baro_ext
 
     CASE ( nph_uniaxial_ensemble )
        ALLOCATE ( npt_info ( 1, 1 ), STAT = stat )
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-       temp = simpar % temp_ext
+       temp = simpar% temp_baro_ext
 
     CASE (  nph_uniaxial_damped_ensemble )
        ALLOCATE ( npt_info ( 1, 1 ), STAT = stat )
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-       temp = simpar % temp_ext
+       temp = simpar % temp_baro_ext
 
     CASE  DEFAULT
        ! Do nothing..
@@ -192,7 +193,7 @@ CONTAINS
        ! Chain variables
        SELECT CASE (simpar % ensemble )
        CASE DEFAULT
-          temp = simpar % temp_ext
+          temp =  simpar%temp_baro_ext
        END SELECT
        
        IF ( nhc % nhc_len /= 0 ) &
@@ -685,9 +686,14 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: akin, temp, v
 
+!    REAL(KIND=dp), INTENT(IN)                :: cmass_nph
+
     failure = .FALSE.
     ! first initializing the mass of the nhc variables
-    
+
+    npt(:,:)%eps = 0.0_dp 
+    npt(:,:)%v = 0.0_dp 
+    npt(:,:)%f = 0.0_dp 
     SELECT CASE ( ensemble )
     CASE ( npt_i_ensemble )
        npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) * temp_ext * tau_cell ** 2
@@ -695,8 +701,9 @@ CONTAINS
        npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) * temp_ext * tau_cell ** 2 / 3.0_dp
     CASE ( nph_uniaxial_ensemble,nph_uniaxial_damped_ensemble )
        npt ( :, : ) % mass = cmass
+    CASE ( npe_f_ensemble)
+       npt ( :, : ) % mass =  REAL ( nfree + 3,KIND=dp) * temp_ext * tau_cell ** 2 / 3.0_dp
     END SELECT
-
     ! initializing velocities
     DO i = 1, SIZE ( npt,1)
        DO j = i, SIZE ( npt,2)
@@ -736,8 +743,12 @@ CONTAINS
     
     ! Zero barostat velocities for nph_uniaxial
     SELECT CASE ( ensemble )
+    ! Zero barostat velocities for nph_uniaxial
     CASE ( nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble )
        npt(:,:) % v = 0.0_dp
+    ! Zero barostat velocities for nph
+!    CASE ( npe_f_ensemble )
+!       npt(:,:) % v = 0.0_dp
     END SELECT
     
   END SUBROUTINE init_barostat_variables

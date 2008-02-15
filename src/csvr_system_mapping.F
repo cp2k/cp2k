@@ -20,7 +20,7 @@ MODULE csvr_system_mapping
   USE input_constants,                 ONLY: &
        do_region_global, do_region_massive, do_thermo_communication, &
        do_thermo_no_communication, do_thermo_only_master, isokin_ensemble, &
-       langevin_ensemble, nph_uniaxial_damped_ensemble, &
+       langevin_ensemble, npe_f_ensemble, nph_uniaxial_damped_ensemble, &
        nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
        nvt_ensemble, reftraj_ensemble
   USE input_section_types,             ONLY: section_vals_type,&
@@ -73,14 +73,15 @@ CONTAINS
     SELECT CASE (simpar%ensemble)
     CASE  DEFAULT
        CALL stop_program(routineN, 'Never reach this point!' )
-    CASE ( npt_i_ensemble, npt_f_ensemble )
+    CASE ( npt_i_ensemble, npt_f_ensemble, npe_f_ensemble )
        map_info => csvr%map_info
        map_info%dis_type = do_thermo_only_master
 
        ! Counting the total number of thermostats ( 1 for both NPT_I and NPT_F )
        csvr%loc_num_csvr  = 1
        csvr%glob_num_csvr = 1
-       IF ( simpar % ensemble == npt_f_ensemble ) THEN
+       IF ( simpar % ensemble == npt_f_ensemble .OR. &
+            simpar % ensemble == npe_f_ensemble ) THEN
           ndeg = 9
        ELSE
           ndeg = 1
@@ -92,10 +93,10 @@ CONTAINS
        ! Now that we know how many there are stick this into csvr%nkt
        ! (number of degrees of freedom times k_B T )
        DO i = 1, csvr%loc_num_csvr
-          csvr%nvt(i)%nkt = simpar % temp_ext * ndeg
+          csvr%nvt(i)%nkt =  simpar%temp_baro_ext * ndeg
           csvr%nvt(i)%degrees_of_freedom = ndeg
           IF (debug_isotropic_limit) THEN
-             csvr%nvt(i)%nkt = simpar % temp_ext
+             csvr%nvt(i)%nkt =  simpar%temp_baro_ext
              csvr%nvt(i)%degrees_of_freedom = 1
           END IF
        END DO
@@ -137,10 +138,10 @@ CONTAINS
     SELECT CASE ( simpar % ensemble )
     CASE DEFAULT
        CALL stop_program ( routineN, 'Unknown ensemble!' )
-    CASE ( nve_ensemble, isokin_ensemble, nph_uniaxial_ensemble,&
+    CASE ( nve_ensemble, isokin_ensemble, npe_f_ensemble, nph_uniaxial_ensemble,&
            nph_uniaxial_damped_ensemble, reftraj_ensemble, langevin_ensemble )
        CALL stop_program ( routineN, 'Never reach this point!' )
-    CASE ( nvt_ensemble, npt_i_ensemble, npt_f_ensemble )
+    CASE ( nvt_ensemble, npt_i_ensemble, npt_f_ensemble)
 
        CALL setup_csvr_thermostat(csvr, thermostat_info, deg_of_freedom,&
             massive_atom_list, molecule_kind_set, local_molecules, molecule_set,&
@@ -371,7 +372,7 @@ CONTAINS
     CASE ( nve_ensemble, isokin_ensemble, nph_uniaxial_ensemble,&
            nph_uniaxial_damped_ensemble, reftraj_ensemble, langevin_ensemble )
        CALL stop_program ( routineN, 'Never reach this point!' )
-    CASE ( nvt_ensemble, npt_i_ensemble, npt_f_ensemble )
+    CASE ( nvt_ensemble, npt_i_ensemble, npt_f_ensemble, npe_f_ensemble )
 
        CALL setup_csvr_thermostat(csvr, thermostat_info, deg_of_freedom, massive_shell_list,&
             molecule_kind_set, local_molecules, molecule_set, para_env, nshell_local, &

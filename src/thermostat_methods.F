@@ -42,14 +42,10 @@ MODULE thermostat_methods
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_region_global,&
-                                             do_thermo_csvr,&
-                                             do_thermo_nose,&
-                                             do_thermo_same_as_part,&
-                                             npt_f_ensemble,&
-                                             npt_i_ensemble,&
-                                             nve_ensemble,&
-                                             nvt_ensemble
+  USE input_constants,                 ONLY: &
+       do_region_global, do_thermo_csvr, do_thermo_nose, &
+       do_thermo_same_as_part, npe_f_ensemble, npt_f_ensemble, &
+       npt_i_ensemble, nve_ensemble, nvt_ensemble
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -156,11 +152,14 @@ CONTAINS
                         (simpar%ensemble == nvt_ensemble)
 
     apply_general_thermo = apply_thermo_baro .OR. (simpar%ensemble == nvt_ensemble)
+    IF (simpar%ensemble == npe_f_ensemble) apply_general_thermo = .FALSE.
+
 
     apply_thermo_shell = (simpar%ensemble == nve_ensemble).OR.&
                          (simpar%ensemble == nvt_ensemble) .OR.&
                          (simpar%ensemble == npt_f_ensemble).OR.&
-                         (simpar%ensemble == npt_i_ensemble)
+                         (simpar%ensemble == npt_i_ensemble).OR.&
+                         (simpar%ensemble == npe_f_ensemble)
 
     ! Compute Degrees of Freedom
     region = do_region_global
@@ -173,8 +172,8 @@ CONTAINS
          region, qmmm_env, error)
 
     ! Particles
-    IF (explicit_part) THEN
-       IF (apply_general_thermo) THEN
+!   For constant temperature ensembles the thermostat is activated by default
+     IF (apply_general_thermo) THEN
           CALL create_thermostat_type(thermostats%thermostat_part, simpar, thermo_part_section, error=error)
           ! Initialize thermostat
           IF      (thermostats%thermostat_part%type_of_thermostat==do_thermo_nose) THEN
@@ -194,17 +193,20 @@ CONTAINS
           END IF
           CALL thermostat_info(thermostats%thermostat_part, "PARTICLES", thermo_part_section, &
                                simpar, para_env, error)
-       ELSE
+     ELSE
+        IF(explicit_part) THEN
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                "Thermostat for Particles has been defined but the ensemble provided "//&
                "does not support thermostat for Particles! Ignoring thermostat input."//&
 CPSourceFileRef,&
                only_ionode=.TRUE.)          
-       END IF
-    END IF
+        END IF
+     END IF
 
     ! Core-Shell Model
     IF (explicit_shell) THEN
+    ! The thermostat is activated only if explicitely required
+    ! It can be used to thermalize the shell-core motion when the temperature is not constant (nve, npe) 
        IF (apply_thermo_shell) THEN
           CALL create_thermostat_type(thermostats%thermostat_shell, simpar, thermo_shell_section, error=error)
           CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, error=error)
@@ -304,6 +306,9 @@ CPSourceFileRef,&
        CALL section_vals_val_get(thermo_baro_section,"TYPE",i_val=thermostat_type,error=error)
        work_section => thermo_baro_section
        IF (thermostat_type==do_thermo_same_as_part) work_section => thermo_part_section
+       CALL section_vals_val_get(motion_section,"MD%BAROSTAT%TEMPERATURE",r_val=simpar%temp_baro_ext,error=error)
+       IF(simpar%temp_baro_ext<0.0_dp) simpar%temp_baro_ext = simpar%temp_ext
+
        CALL create_thermostat_type(thermostats%thermostat_baro, simpar, work_section, skip_region=.TRUE.,&
             error=error)
        ! Initialize thermostat
