@@ -107,12 +107,12 @@
         TYPE NOSE
 #        TYPE CSVR
         REGION MASSIVE
-#        &NOSE
-#          LENGTH 6
-#          YOSHIDA 3
-#          TIMECON 700
-#          MTS 2
-#        &END
+        &NOSE
+          LENGTH 6
+          YOSHIDA 3
+          TIMECON 700
+          MTS 2
+        &END
       &END
     &END
 

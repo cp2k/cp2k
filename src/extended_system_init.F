@@ -686,8 +686,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: akin, temp, v
 
-!    REAL(KIND=dp), INTENT(IN)                :: cmass_nph
-
     failure = .FALSE.
     ! first initializing the mass of the nhc variables
 
@@ -746,9 +744,6 @@ CONTAINS
     ! Zero barostat velocities for nph_uniaxial
     CASE ( nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble )
        npt(:,:) % v = 0.0_dp
-    ! Zero barostat velocities for nph
-!    CASE ( npe_f_ensemble )
-!       npt(:,:) % v = 0.0_dp
     END SELECT
     
   END SUBROUTINE init_barostat_variables

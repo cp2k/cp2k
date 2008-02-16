@@ -862,8 +862,7 @@ CPSourceFileRef,&
     END DO
     
     ! Compute the total mass when needed
-    IF ( &
-         simpar % ensemble == nph_uniaxial_ensemble .OR.&
+    IF ( simpar % ensemble == nph_uniaxial_ensemble .OR.&
          simpar % ensemble == nph_uniaxial_damped_ensemble ) THEN
        mass_tot = 0.0_dp
        DO i = 1, natoms

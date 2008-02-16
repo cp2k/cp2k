@@ -302,7 +302,6 @@ CONTAINS
        END IF
        
        CALL force_env_calc_energy_force (force_env, calc_force=.TRUE.,error=error)
-
        CALL metadyn_forces(force_env, error=error)
 
        IF (simpar%do_respa)THEN

@@ -110,11 +110,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_thermostats', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: region, thermostat_type
+    INTEGER                                  :: n_rep, region, thermostat_type
     LOGICAL :: apply_general_thermo, apply_thermo_baro, apply_thermo_coeff, &
-      apply_thermo_shell, do_thermo_shell, explicit_baro, explicit_coef, &
-      explicit_part, explicit_shell, failure, save_mem, shell_adiabatic, &
-      shell_present
+      apply_thermo_shell, do_thermo_shell, explicit_baro, &
+      explicit_barostat_section, explicit_coef, explicit_part, &
+      explicit_shell, failure, save_mem, shell_adiabatic, shell_present
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -125,9 +125,10 @@ CONTAINS
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(section_vals_type), POINTER :: kg_coeff_section, print_section, &
-      region_sections, thermo_baro_section, thermo_coef_section, &
-      thermo_part_section, thermo_shell_section, work_section
+    TYPE(section_vals_type), POINTER :: barostat_section, kg_coeff_section, &
+      print_section, region_sections, thermo_baro_section, &
+      thermo_coef_section, thermo_part_section, thermo_shell_section, &
+      work_section
 
     NULLIFY(qmmm_env)
     failure =.FALSE.
@@ -136,9 +137,11 @@ CONTAINS
     thermo_coef_section  => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%THERMOSTAT",error=error)
     thermo_shell_section => section_vals_get_subs_vals(motion_section,"MD%SHELL%THERMOSTAT",error=error)
     thermo_baro_section  => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%THERMOSTAT",error=error)
+    barostat_section     => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT",error=error)
     print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
 
     CALL force_env_get(force_env, qmmm_env=qmmm_env, subsys=subsys, cell=cell, error=error )
+    CALL section_vals_get(barostat_section,  explicit=explicit_barostat_section,  error=error)
     CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem,  error=error)
     CALL section_vals_get(thermo_part_section,  explicit=explicit_part,  error=error)
     CALL section_vals_get(thermo_coef_section,  explicit=explicit_coef,    error=error)
@@ -172,8 +175,9 @@ CONTAINS
          region, qmmm_env, error)
 
     ! Particles
-!   For constant temperature ensembles the thermostat is activated by default
-     IF (apply_general_thermo) THEN
+    ! For constant temperature ensembles the thermostat is activated by default
+    IF(explicit_part) THEN
+       IF (apply_general_thermo) THEN
           CALL create_thermostat_type(thermostats%thermostat_part, simpar, thermo_part_section, error=error)
           ! Initialize thermostat
           IF      (thermostats%thermostat_part%type_of_thermostat==do_thermo_nose) THEN
@@ -193,15 +197,14 @@ CONTAINS
           END IF
           CALL thermostat_info(thermostats%thermostat_part, "PARTICLES", thermo_part_section, &
                                simpar, para_env, error)
-     ELSE
-        IF(explicit_part) THEN
+       ELSE
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                "Thermostat for Particles has been defined but the ensemble provided "//&
                "does not support thermostat for Particles! Ignoring thermostat input."//&
 CPSourceFileRef,&
                only_ionode=.TRUE.)          
-        END IF
-     END IF
+       END IF
+    END IF
 
     ! Core-Shell Model
     IF (explicit_shell) THEN
@@ -300,43 +303,51 @@ CPSourceFileRef,&
        END IF
     END IF
 
-    ! Barostat
-    IF (apply_thermo_baro) THEN
-       ! Check if we use the same thermostat as particles
-       CALL section_vals_val_get(thermo_baro_section,"TYPE",i_val=thermostat_type,error=error)
-       work_section => thermo_baro_section
-       IF (thermostat_type==do_thermo_same_as_part) work_section => thermo_part_section
-       CALL section_vals_val_get(motion_section,"MD%BAROSTAT%TEMPERATURE",r_val=simpar%temp_baro_ext,error=error)
-       IF(simpar%temp_baro_ext<0.0_dp) simpar%temp_baro_ext = simpar%temp_ext
+    ! Barostat Temperature (not necessarily to be controlled by a thermostat)
+    IF (explicit_barostat_section) THEN
+       simpar%temp_baro_ext = simpar%temp_ext 
+       CALL section_vals_val_get(motion_section,"MD%BAROSTAT%TEMPERATURE",n_rep_val=n_rep,error=error)
+       IF (n_rep/=0) THEN
+          CALL section_vals_val_get(motion_section,"MD%BAROSTAT%TEMPERATURE",r_val=simpar%temp_baro_ext,error=error)
+          CPPostcondition(simpar%temp_baro_ext>=0.0_dp,cp_failure_level,routineP,error,failure)
+       END IF
 
-       CALL create_thermostat_type(thermostats%thermostat_baro, simpar, work_section, skip_region=.TRUE.,&
-            error=error)
-       ! Initialize thermostat
-       IF      (thermostats%thermostat_baro%type_of_thermostat==do_thermo_nose) THEN
-          ! Initialize or possibly restart Nose on Barostat
-          work_section => section_vals_get_subs_vals(thermo_baro_section,"NOSE",error=error)
-          CALL initialize_nhc_baro(simpar, para_env, globenv, thermostats%thermostat_baro%nhc,&
-               nose_section=work_section, save_mem=save_mem, error=error)
-       ELSE IF (thermostats%thermostat_baro%type_of_thermostat==do_thermo_csvr) THEN
-          ! Initialize or possibly restart CSVR thermostat on Barostat
-          work_section => section_vals_get_subs_vals(thermo_baro_section,"CSVR",error=error)
-          CALL initialize_csvr_baro(simpar, para_env, globenv, thermostats%thermostat_baro%csvr,&
-               csvr_section=work_section, error=error)
-       END IF
-       CALL thermostat_info(thermostats%thermostat_baro, "BAROSTAT", thermo_baro_section,&
-                            simpar, para_env, error)
-       ! If thermostat for barostat uses a diffent kind than the one of the particles
-       ! let's update infos in the input structure..
-       IF (thermostat_type==do_thermo_same_as_part) THEN
-          CALL update_thermo_baro_section(thermostats%thermostat_baro, thermo_baro_section, error)
-       END IF
-    ELSE
-       IF (explicit_baro) THEN
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-               "Thermostat for Barostat has been defined but the ensemble provided "//&
-               "does not support thermostat for Barostat! Ignoring thermostat input."//&
+       ! Setup Barostat Thermostat 
+       IF (apply_thermo_baro) THEN
+          ! Check if we use the same thermostat as particles
+          CALL section_vals_val_get(thermo_baro_section,"TYPE",i_val=thermostat_type,error=error)
+          work_section => thermo_baro_section
+          IF (thermostat_type==do_thermo_same_as_part) work_section => thermo_part_section
+         
+          CALL create_thermostat_type(thermostats%thermostat_baro, simpar, work_section, skip_region=.TRUE.,&
+               error=error)
+          ! Initialize thermostat
+          IF      (thermostats%thermostat_baro%type_of_thermostat==do_thermo_nose) THEN
+             ! Initialize or possibly restart Nose on Barostat
+             work_section => section_vals_get_subs_vals(thermo_baro_section,"NOSE",error=error)
+             CALL initialize_nhc_baro(simpar, para_env, globenv, thermostats%thermostat_baro%nhc,&
+                  nose_section=work_section, save_mem=save_mem, error=error)
+          ELSE IF (thermostats%thermostat_baro%type_of_thermostat==do_thermo_csvr) THEN
+             ! Initialize or possibly restart CSVR thermostat on Barostat
+             work_section => section_vals_get_subs_vals(thermo_baro_section,"CSVR",error=error)
+             CALL initialize_csvr_baro(simpar, para_env, globenv, thermostats%thermostat_baro%csvr,&
+                  csvr_section=work_section, error=error)
+          END IF
+          CALL thermostat_info(thermostats%thermostat_baro, "BAROSTAT", thermo_baro_section,&
+                               simpar, para_env, error)
+          ! If thermostat for barostat uses a diffent kind than the one of the particles
+          ! let's update infos in the input structure..
+          IF (thermostat_type==do_thermo_same_as_part) THEN
+             CALL update_thermo_baro_section(thermostats%thermostat_baro, thermo_baro_section, error)
+          END IF
+       ELSE
+          IF (explicit_baro) THEN
+             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                  "Thermostat for Barostat has been defined but the ensemble provided "//&
+                  "does not support thermostat for Barostat! Ignoring thermostat input."//&
 CPSourceFileRef,&
-               only_ionode=.TRUE.)          
+                  only_ionode=.TRUE.)          
+          END IF
        END IF
     END IF
 

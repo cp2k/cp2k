@@ -426,9 +426,8 @@ CONTAINS
                   npt ( i, j ) % v * npt ( i, j ) % mass
           END DO
        END DO
-    ELSEIF ( &
-         simpar%ensemble == nph_uniaxial_ensemble .OR.&
-         simpar%ensemble == nph_uniaxial_damped_ensemble ) THEN
+    ELSEIF ( simpar%ensemble == nph_uniaxial_ensemble .OR.&
+             simpar%ensemble == nph_uniaxial_damped_ensemble ) THEN
        v0 = simpar % v0
        iv0 = 1._dp / v0
        v_shock = simpar % v_shock

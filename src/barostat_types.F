@@ -23,8 +23,7 @@ MODULE barostat_types
                                              npt_i_ensemble
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
   USE timings,                         ONLY: timeset,&
@@ -97,9 +96,7 @@ CONTAINS
        NULLIFY(barostat%npt)
        CALL force_env_get( force_env, cell=cell, error=error )
 
-       CALL section_vals_val_get(barostat_section,"TEMPERATURE",r_val=barostat%temp_ext,error=error)
-       IF(barostat%temp_ext < 0.0_dp) barostat%temp_ext = simpar%temp_ext
-       simpar%temp_baro_ext =  barostat%temp_ext 
+       barostat%temp_ext = simpar%temp_baro_ext
        ! Initialize or possibly restart Barostat
        CALL initialize_npt (simpar, para_env, globenv, barostat%npt,&
             cell, work_section=barostat_section, error=error)

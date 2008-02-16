@@ -74,3 +74,8 @@ uo2_shell_nvt_shnosemass_r.inp
 uo2_shell_nvt_shnose_r.inp
 uo2_shell_nvt_tkind_1.inp
 uo2_shell_nvt_tkind.inp
+#
+uo2_shell_npe_2.inp
+uo2_shell_npe_3.inp
+uo2_shell_npe_4.inp
+#

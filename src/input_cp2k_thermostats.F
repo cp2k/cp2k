@@ -246,7 +246,7 @@ CONTAINS
     IF (.NOT. failure) THEN  
        CALL section_create(section,name="nose",&
             description="paramameters of the Nose Hoover thermostat chain",&
-            citations=(/Nose1984a,Nose1984b/),required=.FALSE.,error=error)
+            citations=(/Nose1984a,Nose1984b/),required=.NOT.coupled_thermostat,error=error)
 
        NULLIFY(keyword,subsection)
        CALL keyword_create(keyword, name="length",&
@@ -325,7 +325,7 @@ CONTAINS
     IF (.NOT. failure) THEN  
        CALL section_create(section,name="csvr",&
             description="Paramameters of the canonical sampling through velocity rescaling thermostat.",&
-            citations=(/Bussi2007/),required=.FALSE.,error=error)
+            citations=(/Bussi2007/),required=.NOT.coupled_thermostat,error=error)
 
        NULLIFY(keyword, subsection)
 

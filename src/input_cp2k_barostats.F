@@ -23,6 +23,7 @@ MODULE input_cp2k_barostats
                                              section_create,&
                                              section_release,&
                                              section_type
+  USE input_val_types,                 ONLY: real_t
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -81,9 +82,8 @@ CONTAINS
        CALL keyword_release(keyword,error=error)        
 
       CALL keyword_create(keyword, name="TEMPERATURE",&
-            description="Barostat initial temperature",&
-            usage="TEMPERATURE real",&
-            default_r_val=cp_unit_to_cp2k(-1.0_dp,"K",error=error),&
+            description="Barostat initial temperature. If not set, the ensemble temperature is used instead.",&
+            usage="TEMPERATURE real",type_of_var=real_t,&
             unit_str='K',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)        
