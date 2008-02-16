@@ -400,7 +400,7 @@ CONTAINS
   END SUBROUTINE colvar_read
 
 ! *****************************************************************************
-!> \brief evaluates the force (dsdr) given and due to the given colvar
+!> \brief evaluates the derivatives (dsdr) given and due to the given colvar
 !>      variables in a molecular environment
 !> \param colvar the collective variable to evaluate
 !> \param error variable to control error logging, stopping,... 
@@ -435,6 +435,8 @@ CONTAINS
              particles(j)%r=pos(:,j)
           END DO
        END IF
+       ! Initialize the content of the derivative
+       colvar%dsdr=0.0_dp
        SELECT CASE(colvar%type_id)
        CASE (dist_colvar_id)
           CALL dist_colvar(colvar,cell,particles=particles,error=error)
@@ -464,7 +466,7 @@ CONTAINS
   END SUBROUTINE colvar_eval_mol_f
 
 ! *****************************************************************************
-!> \brief evaluates the force (dsdr) given and due to the given colvar
+!> \brief evaluates the derivatives (dsdr) given and due to the given colvar
 !> \param colvar the collective variable to evaluate
 !> \param error variable to control error logging, stopping,... 
 !>        see module cp_error_handling 
@@ -494,6 +496,8 @@ CONTAINS
 
     IF (.NOT. failure) THEN
        colvar => subsys%colvar_p(icolvar)%colvar
+       ! Initialize the content of the derivative
+       colvar%dsdr=0.0_dp
        SELECT CASE(colvar%type_id)
        CASE (dist_colvar_id)
           CALL dist_colvar(colvar,cell,subsys=subsys,error=error)
@@ -598,7 +602,6 @@ CONTAINS
        CALL cp_subsys_get(subsys,particles=particles_i,error=error)
        my_particles => particles_i%els
     END IF
-    colvar%dsdr=0.0_dp
     i=colvar%plane_distance_param%plane(1)
     j=colvar%plane_distance_param%plane(2)
     k=colvar%plane_distance_param%plane(3)
@@ -711,8 +714,6 @@ CONTAINS
        CALL cp_subsys_get(subsys,particles=particles_i,error=error)
        my_particles => particles_i%els
     END IF
-
-    colvar%dsdr=0.0_dp
     i = colvar%rotation_param%i_at1_bond1
     CALL get_coordinates(colvar, i, xp1b1, my_particles)
     i = colvar%rotation_param%i_at2_bond1
@@ -798,7 +799,6 @@ CONTAINS
        CALL cp_subsys_get(subsys,particles=particles_i,error=error)
        my_particles => particles_i%els
     END IF
-    colvar%dsdr=0.0_dp
     i=colvar%ddiff_param%i_at_ddiff(1)
     j=colvar%ddiff_param%i_at_ddiff(2)
     ! First bond
@@ -866,7 +866,6 @@ CONTAINS
        CALL cp_subsys_get(subsys,particles=particles_i,error=error)
        my_particles => particles_i%els
     END IF
-    colvar%dsdr=0.0_dp
     i=colvar%angle_param%i_at_angle(1)
     j=colvar%angle_param%i_at_angle(2)
     k=colvar%angle_param%i_at_angle(3)
@@ -940,7 +939,6 @@ CONTAINS
        CALL cp_subsys_get(subsys,particles=particles_i,error=error)
        my_particles => particles_i%els
     END IF
-    colvar%dsdr=0.0_dp
     i=colvar%dist_param%i_at
     j=colvar%dist_param%j_at
     CALL get_coordinates(colvar, i, xpi, my_particles)
@@ -1024,7 +1022,6 @@ CONTAINS
     r_0=colvar%coord_param%r_0
 
     ncoord=0.0_dp
-    colvar%dsdr=0.0_dp
     inv_n_atoms_from=1.0_dp/REAL(n_atoms_from)
     DO ii=1,n_atoms_from
        i=colvar%coord_param%i_at_from(ii)
@@ -1096,7 +1093,6 @@ CONTAINS
     END IF
     no_riemann_sheet = .FALSE.
     IF (PRESENT(no_riemann_sheet_op)) no_riemann_sheet = no_riemann_sheet_op
-    colvar%dsdr=0.0_dp
     DO ii=1,4
        i=colvar%torsion_param%i_at_tors(ii)
        CALL get_coordinates(colvar, i, rtmp, my_particles)
@@ -1261,7 +1257,6 @@ CONTAINS
    END IF
 
    qparm=0.0_dp
-   colvar%dsdr=0.0_dp
    inv_n_atoms_from=1.0_dp/REAL(n_atoms_from)
    DO ii=1,n_atoms_from
       i=colvar%qparm_param%i_at_from(ii)
@@ -1358,6 +1353,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief evaluates the force due (and on) the hydronium collective variable
 !> \author Marcel Baer
+!> \note This function needs to be extended to the POINT structure!! 
+!>       non-standard conform.. it's a breach in the colvar module.
 ! *****************************************************************************
   SUBROUTINE hydronium_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
@@ -1380,9 +1377,6 @@ CONTAINS
                                                 rdist, ss(3), xij(3)
     REAL(dp), DIMENSION(3)                   :: xpi, xpj
     REAL(dp), DIMENSION(:)                   :: M, nhcoord, no, qloc
-
-! DEBUG
-! DEBUG
 
     ALLOCATABLE                              :: nhcoord,M,&
                                                 qloc,no
@@ -1433,8 +1427,7 @@ CONTAINS
     ALLOCATE ( qloc (  n_oxygens), stat=stat )
     CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
 
-! Zero Arrays:
-    colvar%dsdr=0.0_dp
+    ! Zero Arrays:
     dfunc_nh = 0._dp 
     dfunc_no = 0._dp 
     M = 0._dp 
@@ -1445,7 +1438,7 @@ CONTAINS
     DO ii=1,n_oxygens
        i=colvar%hydronium_param%i_oxygens(ii)
        xpi(:)=my_particles(i)%r(1:3)
-! Computing M( n ( ii ) ) 
+       ! Computing M( n ( ii ) ) 
        DO jj=1,n_hydrogens
           i=colvar%hydronium_param%i_hydrogens(jj)
           xpj(:)=my_particles(i)%r(1:3)
@@ -1469,7 +1462,7 @@ CONTAINS
        M(ii)  = 1.0_dp-(1.0_dp - (nhcoord(ii)/nh)**p)/&
                        (1.0_dp - (nhcoord(ii)/nh)**q) 
 
-! Computing no ( ii )
+       ! Computing no ( ii )
        DO jj=1,n_oxygens
           i=colvar%hydronium_param%i_oxygens(jj)
           xpj(:)=my_particles(i)%r(1:3)
@@ -1492,17 +1485,16 @@ CONTAINS
           no(ii)=no(ii)+ num*invden 
        END DO 
     END DO 
-! no(ii) done
 
-! computing qloc and Q
+    ! computing qloc and Q
     qtot = 0._dp
     DO ii = 1, n_oxygens
      qloc ( ii ) = EXP ( lambda * M (ii) * no ( ii ) )
      qtot = qtot + qloc ( ii ) 
     END DO 
-! compute forces
+    ! compute forces
     DO ii = 1, n_oxygens
-! Computing f_OH
+    ! Computing f_OH
        DO jj=1,n_hydrogens
           dM(1,ii,jj)=(p*((nhcoord(ii)/nh)**(p-1))*dfunc_nh(1,ii,jj))/nh/ &
                       (1.0_dp - (nhcoord(ii)/nh)**q) - &
@@ -1530,7 +1522,7 @@ CONTAINS
           colvar%dsdr(3,n_oxygens+jj)=colvar%dsdr(3,n_oxygens+jj) &
                                               -qloc(ii)*dM(3,ii,jj)*no(ii)/qtot
        END DO 
-! Computing f_OO
+       ! Computing f_OO
        DO jj=1,n_oxygens
           colvar%dsdr(1,ii)=colvar%dsdr(1,ii)+qloc(ii)*M(ii)*dfunc_no(1,ii,jj)/qtot
           colvar%dsdr(1,jj)=colvar%dsdr(1,jj) &

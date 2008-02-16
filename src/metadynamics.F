@@ -371,8 +371,10 @@ CONTAINS
     INTEGER                                  :: handle, i, i_c, icolvar, ii, &
                                                 iw, iwall
     LOGICAL                                  :: explicit, failure
-    REAL(kind=dp)                            :: dt, ekin_w, fac_t, fft, norm, &
-                                                rval, scal, ss0_test, tol_ekin
+    REAL(kind=dp)                            :: check_val, dsdr(3), dt, &
+                                                ekin_w, fac_t, fft, norm, &
+                                                rval, scal, scalf, ss0_test, &
+                                                tol_ekin
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: colvar_p
     TYPE(cp_logger_type), POINTER            :: logger
@@ -515,9 +517,9 @@ CONTAINS
                    ss0_test=cv%ss0+dt*cv%vvp
                    SELECT CASE(cv%walls(iwall)%id_direction)
                    CASE(do_wall_p)
-                      IF (ss0_test > cv%walls(iwall)%pos) cv%vvp = -cv%vvp
+                      IF ((ss0_test > cv%walls(iwall)%pos).AND.(cv%vvp>0)) cv%vvp = -cv%vvp
                    CASE(do_wall_m)
-                      IF (ss0_test < cv%walls(iwall)%pos) cv%vvp = -cv%vvp
+                      IF ((ss0_test < cv%walls(iwall)%pos).AND.(cv%vvp<0)) cv%vvp = -cv%vvp
                    END SELECT
                 END SELECT
              END DO
@@ -542,13 +544,16 @@ CONTAINS
                 SELECT CASE(cv%walls(iwall)%id_direction)
                 CASE(do_wall_p)
                    IF (cv%ss < cv%walls(iwall)%pos) CYCLE
+                   check_val = -1.0_dp
                 CASE(do_wall_m)
                    IF (cv%ss > cv%walls(iwall)%pos) CYCLE
+                   check_val =  1.0_dp
                 END SELECT
                 NULLIFY(particles)
                 icolvar=cv%icolvar
                 CALL cp_subsys_get(subsys, colvar_p=colvar_p, particles=particles,error=error)
                 scal=0.0_dp
+                scalf=0.0_dp
                 norm=0.0_dp
                 DO ii=1,colvar_p(icolvar)%colvar%n_atom_s
                    i=colvar_p(icolvar)%colvar%i_atom(ii)
@@ -561,15 +566,17 @@ CONTAINS
                       scal=scal+particles%els(i)%v(2)*colvar_p(icolvar)%colvar%dsdr(2,ii)
                       scal=scal+particles%els(i)%v(3)*colvar_p(icolvar)%colvar%dsdr(3,ii)
                    END IF
+                   scalf=scalf+particles%els(i)%f(1)*colvar_p(icolvar)%colvar%dsdr(1,ii)
+                   scalf=scalf+particles%els(i)%f(2)*colvar_p(icolvar)%colvar%dsdr(2,ii)
+                   scalf=scalf+particles%els(i)%f(3)*colvar_p(icolvar)%colvar%dsdr(3,ii)
                    norm=norm+colvar_p(icolvar)%colvar%dsdr(1,ii)**2
                    norm=norm+colvar_p(icolvar)%colvar%dsdr(2,ii)**2
                    norm=norm+colvar_p(icolvar)%colvar%dsdr(3,ii)**2
                 ENDDO
-                IF (norm /= 0.0_dp) THEN
-                  scal = scal/norm
-                ELSE 
-                  scal = 0.0_dp
-                END IF
+                IF (norm /= 0.0_dp) scal = scal/norm
+                IF (norm /= 0.0_dp) scalf= scalf/norm
+
+                IF (scal*check_val>0.0_dp) CYCLE
                 DO ii=1,colvar_p(icolvar)%colvar%n_atom_s
                    i=colvar_p(icolvar)%colvar%i_atom(ii)
                    IF (PRESENT(vel)) THEN
@@ -577,6 +584,8 @@ CONTAINS
                    ELSE
                       particles%els(i)%v(:)=particles%els(i)%v(:)-2.0_dp*colvar_p(icolvar)%colvar%dsdr(:,ii)*scal
                    END IF
+                   ! Nullify forces along the colvar (this avoids the weird behaviors of the reflective wall)
+                    particles%els(i)%f(:)=particles%els(i)%f(:)-colvar_p(icolvar)%colvar%dsdr(:,ii)*scalf
                 ENDDO
              END SELECT
           END DO
@@ -799,6 +808,7 @@ CONTAINS
           ddp(i)=(diff_ss)/delta_s_history(i,ih)
           dp2=dp2+ddp(i)**2
        ENDDO
+       ! ff_hills contains the "force" due to the hills
        dfunc=-ww_history(ih)*EXP(-0.5_dp*dp2)
        DO i=1,n_colvar
           colvars(i)%ff_hills=colvars(i)%ff_hills-ddp(i)/delta_s_history(i,ih)*dfunc
