@@ -84,7 +84,7 @@ CONTAINS
                                                 not_SE, was_present
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rvec
     TYPE(section_vals_type), POINTER         :: scf_section, tmp_section, &
-                                                xc_fun_section, xc_section
+                                                xc_fun_section, xc_section, scp_section
     TYPE(xc_rho_cflags_type)                 :: needs
 
     failure=.FALSE.
@@ -119,12 +119,21 @@ CONTAINS
     ELSE
        dft_control%nspins = 1
     END IF
+
     dft_control%lsd = (dft_control%nspins > 1)
     needs = xc_functionals_get_needs(xc_fun_section,&
                                     lsd=dft_control%lsd,&
                                     add_basic_components=.TRUE.,&
                                     error=error)
     dft_control%use_kinetic_energy_density = (needs%tau_spin.OR.needs%tau)
+! SCP code
+    CALL section_vals_val_get(dft_section,"SCP%_SECTION_PARAMETERS_",l_val=l_param,&
+                              error=error)
+    dft_control % scp = l_param
+    scp_section => section_vals_get_subs_vals(dft_section,"SCP", error=error)
+    CALL section_vals_val_get(scp_section,"DISPERSION",&
+         l_val=l_param,error=error)
+    dft_control % scp_control % dispersion = l_param
 
     ! Set restricted to true, if both OT and ROKS are requested
     !MK in principle dft_control%restricted could be dropped completely like the
@@ -396,7 +405,6 @@ CONTAINS
     CALL section_vals_val_get(qs_section,"MAX_RAD_LOCAL",r_val=qs_control%gapw_control%max_rad_local,error=error)
 
     ! Logicals
-    CALL section_vals_val_get(qs_section,"SCP",l_val=qs_control%scp,error=error)
     CALL section_vals_val_get(qs_section,"MAP_PAA",l_val=qs_control%map_paa,error=error)
     CALL section_vals_val_get(qs_section,"MAP_CONSISTENT",l_val=qs_control%map_consistent,error=error)
 

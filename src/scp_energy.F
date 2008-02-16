@@ -16,8 +16,7 @@ MODULE scp_energy
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_flush,&
-                                             m_walltime
+  USE machine,                         ONLY: m_walltime
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_type
@@ -64,8 +63,8 @@ CONTAINS
 
     INTEGER                                  :: handle, i, icoef_atom, ikind, &
                                                 n_els, ncoef_atom, nkind, &
-                                                output_unit, stat
-    LOGICAL                                  :: energy_only, failure, ionode, &
+                                                stat
+    LOGICAL                                  :: energy_only, failure, &
                                                 my_calculate_forces
     REAL(dp)                                 :: alpha_pol, ecoeff
     REAL(dp), DIMENSION(:, :), POINTER       :: coeff, force
@@ -95,11 +94,6 @@ CONTAINS
     NULLIFY(para_env,logger,force, coeff, local_coeffs, local_particles, scp_force)
     para_env=>qs_env%para_env
     logger => cp_error_get_logger(error)
-    ionode=para_env%ionode
-    output_unit = -1
-    IF (ionode) THEN
-       output_unit=cp_logger_get_default_unit_nr(logger)
-    END IF
     stat = 0
     t1 = m_walltime()
     my_calculate_forces = .FALSE.
@@ -127,6 +121,7 @@ CONTAINS
        ! Zeroing forces if needed
        DO ikind = 1, SIZE ( atomic_kind_set )
           scp_force ( ikind ) % f_scp ( :, : ) = 0.0
+          scp_force ( ikind ) % f_scp_disp ( :, : ) = 0.0
           scp_force ( ikind ) % f_total ( :, : ) = 0.0
        END DO
     END IF
@@ -150,7 +145,7 @@ CONTAINS
     nkind = SIZE ( atomic_kind_set )
     DO ikind = 1, nkind 
        atomic_kind => atomic_kind_set ( ikind )
-       CALL get_atomic_kind ( atomic_kind = atomic_kind, alpha_pol = alpha_pol )
+       CALL get_atomic_kind ( atomic_kind = atomic_kind, alpha_scp = alpha_pol )
        local_coeffs => aux_coeff_set % coeffs_of_kind ( ikind ) % coeffs
        IF ( ASSOCIATED ( local_coeffs ) ) THEN
           CALL get_aux_coeff ( coeffs = local_coeffs, fc = force, c = coeff, &
@@ -164,11 +159,6 @@ CONTAINS
                 END IF
              END DO
           END DO
-          ! DBG
-          !  force ( 1, 1 ) = 0._dp
-          !  force ( 1, 2 ) = 0._dp
-          !  force ( 1, 3 ) = 0._dp
-          ! DBG
        ENDIF
     END DO
     CALL mp_sum ( ecoeff, para_env % group )
@@ -179,27 +169,6 @@ CONTAINS
          + scp_energy%e_scp_hartree + scp_energy%e_scp_kernel   &
          + scp_energy % e_scp_ks + scp_energy % e_scp_ks_self   &
          + scp_energy % e_scp_qmmm
-    ! DBG
-    !  WRITE ( 55, * ) coeff ( 1, 1 ), scp_energy % e_scp_total
-    ! DBG
-    ! print
-    IF (output_unit>0) THEN
-       IF ( qs_env % qmmm )  WRITE (UNIT=output_unit,FMT="((T3,A,T55,F25.14))")&
-            "SCP Hartree (SCP density, QMMM potential)       ",scp_energy % e_scp_qmmm
-       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
-            "SCP Hartree (SCP,SCP)                          ",scp_energy % e_scp_hartree,&
-            "SCP Hartree Self (SCP,SCP)                     ",scp_energy%e_scp_self,&
-            "SCP Hartree (KS,SCP)                           ",scp_energy % e_scp_ks,&
-            "SCP Hartree Self (KS,SCP)                      ",scp_energy%e_scp_ks_self,&
-            "SCP Hartree Self Core (KS core,SCP)            ",scp_energy%e_scp_core,&
-            "Polarization Kernel                            ",scp_energy % e_scp_kernel, &
-            "KS TOTAL                                       ",qs_energy % total,&
-            "SCP TOTAL                                      ",scp_energy % e_scp_total
-
-       CALL m_flush(output_unit)
-    END IF
-    ! Add the scp energies to qs_energy%total for consistent reporting in the SCF
-    !  qs_energy%total = qs_energy%total + scp_energy%e_scp_total
 
     CALL timestop(0.0_dp,handle)
 

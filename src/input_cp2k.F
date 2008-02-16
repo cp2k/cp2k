@@ -757,6 +757,13 @@ CONTAINS
             type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+!SCP
+       CALL keyword_create(keyword, name="RESTART_SCP_COEFF",&
+            description="Restarts the coefficents of SCP from the external file",&
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+!SCP
        CALL keyword_create(keyword, name="RESTART_KG_COEFF_POS",&
             description="Restarts the positions of coefficents of kg from the external file",&
             type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)

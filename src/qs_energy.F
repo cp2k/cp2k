@@ -117,7 +117,7 @@ CONTAINS
     IF (PRESENT(consistent_energies)) THEN
       IF (consistent_energies) THEN
 ! **** SCP
-        IF ( dft_control%qs_control%scp ) THEN
+        IF ( dft_control%scp ) THEN
           CALL qs_ks_scp_update ( qs_env, just_energy=.TRUE., error=error )
         END IF
         CALL qs_ks_update_qs_env(ks_env=qs_env%ks_env, &
@@ -127,7 +127,7 @@ CONTAINS
 ! **** SCP
 ! Contributions to the SCP energy due to modified hartree potential (V_H+HSCP)
 ! and 1-center contributions
-!        IF ( dft_control%qs_control%scp ) CALL scp_qs_energies ( qs_env, just_energy = .TRUE., error=error )
+!        IF ( dft_control%scp ) CALL scp_qs_energies ( qs_env, just_energy = .TRUE., error=error )
 ! **** SCP
       END IF
     END IF

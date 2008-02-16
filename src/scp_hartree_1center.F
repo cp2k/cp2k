@@ -682,9 +682,6 @@ CONTAINS
           offseta = 0
           DO iseta = 1, nset
              ncoa = npgf ( iseta ) * ncoset ( l_max ( iseta ) )
-             WRITE ( *, * ) 'NCOAM', npgf ( iseta ), ncoset ( 0 ), 0
-             WRITE ( *, * ) 'NCOA', npgf ( iseta ), ncoset ( l_max ( iseta ) ), l_max ( iseta )
-             WRITE ( *, * ) 'NCOAP',npgf ( iseta ), ncoset ( l_max ( iseta ) + 1 ), l_max ( iseta ) + 1
              sgfa = first_sgf ( 1, iseta )
              nza = npgf ( iseta )
              rpgfa => rpgf ( 1:nza, iseta )
@@ -724,8 +721,8 @@ CONTAINS
                      l_max ( isetb ), npgf ( isetb ), zetb, rpgfb, l_min ( isetb ), &
                      (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, vab, vv, ff ( 0: ) )
                 work = 0.0_dp
-                DO icoa = 1,  ncoa ! There might be a stride... Need to check
-                   DO icob = 1, ncob ! There might be a stride... Need to check
+                DO icoa = 1,  ncoa 
+                   DO icob = 1, ncob 
                       work ( icoa, 1 )  = work ( icoa, 1 ) + gccb ( icob, 1 ) * vab ( icoa, icob )
                    END DO
                    e_scp = e_scp - gcca ( icoa , 1) * work ( icoa, 1 )
@@ -915,7 +912,7 @@ CONTAINS
                   (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,vab,vv,ff (0:))
 
              work = 0._dp
-             DO icoa = 1,  ncoa ! There might be a stride... Need to check
+             DO icoa = 1,  ncoa 
                 e_scp = e_scp - gcca (icoa, 1 ) * (-1._dp ) * gccore * vab ( icoa, 1 )
                 work ( icoa, 1 )  =  work ( icoa, 1 ) + ( -1._dp ) * gccore * vab ( icoa, 1 )
              END DO

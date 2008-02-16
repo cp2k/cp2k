@@ -175,7 +175,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
        CALL set_qs_env(qs_env,distribution_2d=distribution_2d,error=error)
        CALL distribution_2d_release(distribution_2d, error=error)
 ! **** SCP
-       IF ( qs_env % dft_control % qs_control % scp ) THEN
+       IF ( qs_env % dft_control % scp ) THEN
        ! create the SCP env
           CALL scp_env_create ( scp_env, error )
        ! initialize the SCP env to the qs env

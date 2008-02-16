@@ -1091,10 +1091,18 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="ALPHA_POL",&
+       CALL keyword_create(keyword, name="ALPHA_SCP",&
             description="The polarizability for scalar-isotropic polarization "//&
             "using SCP with FIST as the driver",&
-            usage="ALPHA_POL 0.2", default_r_val=1.0_dp,&
+            usage="ALPHA_SCP 0.2", default_r_val=1.0_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="I_SCP",&
+            description="The dispersion parameter for scalar-isotropic polarization "//&
+            "using SCP with FIST as the driver",&
+            usage="I_SCP 0.2", default_r_val=1.0_dp,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

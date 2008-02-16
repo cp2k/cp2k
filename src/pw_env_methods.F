@@ -518,7 +518,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      END DO
 ! ***SCP
 ! Compare the maxradius with that of the AUX_BASIS used with SCP
-          IF ( qs_env % dft_control % qs_control % scp ) THEN
+          IF ( qs_env % dft_control % scp ) THEN
              CALL get_qs_env ( qs_env=qs_env, scp_env=scp_env, error = error )
              CALL maxradius_scp_init ( scp_env, atomic_kind_set,  &
                                       pw_env%gridlevel_info, radius, &

@@ -121,7 +121,7 @@ MODULE atomic_kind_types
      CHARACTER(LEN=default_string_length)   :: name
      CHARACTER(LEN=2)                       :: element_symbol
      REAL(KIND = dp)                        :: mass
-     REAL ( KIND = dp )                     :: alpha_pol
+     REAL ( KIND = dp )                     :: alpha_scp, I_scp
      INTEGER                                :: kind_number,&
           natom,&
           number_of_grid_points
@@ -213,7 +213,8 @@ CONTAINS
        atomic_kind_set(ikind)%name = ""
        atomic_kind_set(ikind)%element_symbol = ""
        atomic_kind_set(ikind)%mass = 0.0_dp
-       atomic_kind_set(ikind)%alpha_pol = 0.0_dp
+       atomic_kind_set(ikind)%alpha_scp = 0.0_dp
+       atomic_kind_set(ikind)%I_scp = 0.0_dp
        atomic_kind_set(ikind)%kind_number = 0
        atomic_kind_set(ikind)%natom = 0
        atomic_kind_set(ikind)%number_of_grid_points = 0
@@ -326,7 +327,7 @@ CONTAINS
   SUBROUTINE get_atomic_kind(atomic_kind,all_potential,elp_potential,&
        gth_potential,se_parameter,dftb_parameter,aux_basis_set,orb_basis_set,&
        element_symbol,name,mass,kind_number,natom,atom_list,alpha_core_charge,&
-       ccore_charge,core_charge,alpha_pol,core_charge_radius,ncgf,nsgf,z,zeff,qeff,&
+       ccore_charge,core_charge,alpha_scp,I_scp,core_charge_radius,ncgf,nsgf,z,zeff,qeff,&
        soft_basis_set, elec_conf,hard_basis_set,paw_proj_set,softb,paw_atom,qm_atom,&
        hard_radius,hard0_radius,max_rad_local, gpw_type_forced,harmonics, max_iso_not0,&
        max_s_harm, grid_atom, ngrid_ang, ngrid_rad, lmax_rho0, ghost,shell, shell_active,&
@@ -353,7 +354,7 @@ CONTAINS
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: atom_list
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha_core_charge, &
                                                 ccore_charge, core_charge, &
-                                                alpha_pol, core_charge_radius
+                                                alpha_scp, I_scp, core_charge_radius
     INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, nsgf, z
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff, qeff
     TYPE(gto_basis_set_type), OPTIONAL, &
@@ -407,7 +408,8 @@ CONTAINS
        IF (PRESENT(element_symbol)) element_symbol = atomic_kind%element_symbol
        IF (PRESENT(name)) name = atomic_kind%name
        IF (PRESENT(mass)) mass = atomic_kind%mass
-       IF (PRESENT(alpha_pol)) alpha_pol = atomic_kind%alpha_pol
+       IF (PRESENT(alpha_scp)) alpha_scp = atomic_kind%alpha_scp
+       IF (PRESENT(I_scp)) I_scp = atomic_kind%I_scp
        IF (PRESENT(kind_number)) kind_number = atomic_kind%kind_number
        IF (PRESENT(natom)) natom = atomic_kind%natom
        IF (PRESENT(atom_list)) atom_list => atomic_kind%atom_list
@@ -1331,10 +1333,16 @@ CONTAINS
                keyword_name="MASS",r_val=atomic_kind%mass,error=error)
        END IF
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="ALPHA_POL",n_rep_val=i,error=error)
+            keyword_name="I_SCP",n_rep_val=i,error=error)
        IF (i>0) THEN
           CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-               keyword_name="ALPHA_POL",r_val=atomic_kind%alpha_pol,error=error)
+               keyword_name="I_SCP",r_val=atomic_kind%I_scp,error=error)
+       END IF
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="ALPHA_SCP",n_rep_val=i,error=error)
+       IF (i>0) THEN
+          CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+               keyword_name="ALPHA_SCP",r_val=atomic_kind%alpha_scp,error=error)
        END IF
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="POTENTIAL",c_val=potential_name,error=error)

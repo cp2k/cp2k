@@ -21,7 +21,7 @@ MODULE scp_force_types
 
 ! *****************************************************************************
   TYPE scp_force_type
-    REAL(KIND=dp), DIMENSION(:,:), POINTER :: f_scp, f_total
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: f_scp, f_scp_disp, f_total
   END TYPE scp_force_type
 
 ! *** Public data types ***
@@ -71,6 +71,11 @@ CONTAINS
         CALL stop_memory(routineP,"scp_forces(ikind)%f_scp",3*n)
       END IF
 
+      ALLOCATE (scp_forces(ikind)%f_scp_disp (3,n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routineP,"scp_forces(ikind)%f_scp_disp",3*n)
+      END IF
+
       ALLOCATE (scp_forces(ikind)%f_total(3,n),STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routineP,"scp_forces(ikind)%f_total",3*n)
@@ -112,6 +117,14 @@ CONTAINS
         END IF
       END IF
 
+      IF (ASSOCIATED(scp_forces(ikind)%f_scp_disp)) THEN
+        DEALLOCATE (scp_forces(ikind)%f_scp_disp,STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routineP,"scp_forces%f_scp_disp")
+        END IF
+      END IF
+
+
       IF (ASSOCIATED(scp_forces(ikind)%f_total)) THEN
         DEALLOCATE (scp_forces(ikind)%f_total,STAT=istat)
         IF (istat /= 0) THEN
@@ -150,6 +163,7 @@ CONTAINS
     DO ikind=1,SIZE(scp_forces)
       scp_forces(ikind)%f_scp(:,:) = 0.0_dp
       scp_forces(ikind)%f_total(:,:) = 0.0_dp
+      scp_forces(ikind)%f_scp_disp(:,:) = 0.0_dp
     END DO
 
   END SUBROUTINE init_scp_force

@@ -151,7 +151,8 @@ CONTAINS
       gth_potential_present, mic, molecule_only, nmr, paw_atom, &
       paw_atom_present, print_subcell_grid, rho0_present
     LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, oce_present, &
-      orb_present, ppl_present, ppnl_present, Qlm_present, semi_present
+      orb_present, ppl_present, ppnl_present, Qlm_present, semi_present, &
+      aux_present
     REAL(dp)                                 :: alpha, r_skin, rcprj
     REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, c_radius, oce_radius, &
       orb_rad_3c, orb_radius, ppl_radius, ppnl_radius, short_orb_radius, &
@@ -168,7 +169,7 @@ CONTAINS
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(gth_potential_type), POINTER        :: gth_potential
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set, aux_basis_set
     TYPE(local_atoms_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom
     TYPE(molecule_type), DIMENSION(:), &
@@ -177,7 +178,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_2c, sab_all, sab_orb, &
                                                 sac_3c, sac_oce, sac_ppl, &
                                                 sac_ppnl, sbc_3c, sbc_oce, &
-                                                sbc_ppnl
+                                                sbc_ppnl, sab_scp
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
@@ -215,6 +216,9 @@ CONTAINS
     NULLIFY (sac_3c)
     NULLIFY (sbc_3c)
     NULLIFY (sab_all)
+! *** SCP
+    NULLIFY (sab_scp)
+! *** SCP
 
     print_subcell_grid = .FALSE.
     output_unit = cp_print_key_unit_nr(logger=logger,&
@@ -267,7 +271,9 @@ CONTAINS
                     sab_2c=sab_2c,&
                     sac_3c=sac_3c,&
                     sbc_3c=sbc_3c,&
-                    sab_all=sab_all,error=error)
+                    sab_all=sab_all, &
+                    sab_scp=sab_scp, & ! *** SCP
+                    error=error)
 
     rho0_present=ASSOCIATED(rho0_mpole)
 
@@ -288,6 +294,11 @@ CONTAINS
     ALLOCATE (orb_present(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "orb_present",nkind*int_size)
+! ***SCP
+    ALLOCATE (aux_present(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "aux_present",nkind*int_size)
+! ***SCP
 
     ALLOCATE (orb_radius(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -387,6 +398,7 @@ CONTAINS
                            all_potential=all_potential,&
                            gth_potential=gth_potential,&
                            orb_basis_set=orb_basis_set,&
+                           aux_basis_set=aux_basis_set,&
                            paw_proj_set=paw_proj,&
                            paw_atom=paw_atom)
 
@@ -405,6 +417,13 @@ CONTAINS
       END IF
 
       maxatom_local = MAX(maxatom_local,natom_local_a,natom_local_b)
+! SCP
+      IF (ASSOCIATED(aux_basis_set)) THEN
+        aux_present(ikind) = .TRUE.
+      ELSE
+        aux_present(ikind) = .FALSE.
+      ENDIF
+! SCP
 
       IF (ASSOCIATED(orb_basis_set)) THEN
 
@@ -868,7 +887,27 @@ CONTAINS
       DEALLOCATE (c_radius,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "c_radius")
+! *** SCP
+    ELSEIF (qs_env%dft_control%scp) THEN
+      IF ( qs_env%dft_control%scp_control%dispersion ) THEN
+        ALLOCATE (c_radius(nkind),STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                         "c_radius",nkind*dp_size)
+        DO ikind = 1, nkind
+         c_radius(ikind) = 2.5_dp ! hard wired for now
+        END DO
 
+        CALL build_neighbor_lists(sab_scp,atom,cell,r_skin,maxatom_local,&
+                                  .FALSE.,output_unit,aux_present,aux_present,&
+                                  c_radius,c_radius,name="SCP_DISPERSION")
+
+        ! Put the generated neighbor lists into the QS environment
+        CALL set_qs_env(qs_env=qs_env,sab_scp=sab_scp,error=error)
+        DEALLOCATE (c_radius,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"c_radius")
+      END IF
+
+! *** SCP
     ELSEIF (qs_env%dft_control%qs_control%dftb) THEN
 
       ! Build the neighbor lists for the DFTB repulsive pair-potential

@@ -652,7 +652,7 @@ RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
         CALL qs_ks_create ( new_ks_env,  force_env % qs_env ,error = error )
         CALL set_qs_env( force_env % qs_env, ks_env=new_ks_env ,error=error)
         CALL qs_ks_release ( new_ks_env ,error=error)
-       IF ( force_env % qs_env % dft_control % qs_control % scp ) THEN
+       IF ( force_env % qs_env % dft_control % scp ) THEN
        ! initialize the SCP env to the qs env
           CALL scp_qs_rspw_rebuild ( force_env%qs_env%scp_env%rspw,  &
                                      qs_env = force_env % qs_env, &

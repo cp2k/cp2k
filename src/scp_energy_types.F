@@ -18,7 +18,7 @@ MODULE scp_energy_types
   TYPE scp_energy_type
     REAL(KIND = dp) :: e_scp_core, e_scp_self, e_scp_total, &
                        e_scp_hartree, e_scp_ks, e_scp_kernel, e_scp_qmmm, &
-                       e_scp_ks_self
+                       e_scp_ks_self, e_scp_disp
   END TYPE scp_energy_type
 
 ! *** Public data types ***
@@ -95,6 +95,7 @@ CONTAINS
       scp_energy % e_scp_qmmm = 0._dp
       scp_energy % e_scp_kernel = 0._dp
       scp_energy % e_scp_total = 0._dp
+      scp_energy % e_scp_disp = 0._dp
     ELSE
       CALL stop_program(routineP,"The scp_energy pointer is not associated "//&
                                 "and cannot be initialised")

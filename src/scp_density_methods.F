@@ -412,7 +412,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rs_v
     TYPE(scp_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(section_vals_type), POINTER         :: input, interp_section
+    TYPE(section_vals_type), POINTER         :: dft_section, interp_section
 
 !--------------------------------------------------------------------------
 
@@ -433,7 +433,7 @@ CONTAINS
     CALL get_scp_env(scp_env=scp_env,&
                      aux_coeff_set=aux_coeff_set,&
                      para_env=para_env,  &
-                     input = input, &
+                     input = dft_section, &
                      error=error)
 
     IF ( my_calculate_forces ) CALL get_scp_env ( scp_env, force = force, error = error )
@@ -453,7 +453,7 @@ CONTAINS
 
     CALL mp_sync ( para_env%group )
     ! *** set up of the potential on the multigrids using the pw_env
-    interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
+    interp_section => section_vals_get_subs_vals(dft_section,"MGRID%INTERPOLATOR",&
          error=error)
     CALL rs_pools_create_rs_vect(rs_pools, rs_v,error=error)
     CALL potential_pw2rs(rs_v,v_rspace,pw_env,interp_section,error)

@@ -13,7 +13,8 @@ MODULE scp_environment
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
 ! USE fist_environment_types,          ONLY: fist_environment_type
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_type, &
+                                             section_vals_get_subs_vals
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE machine,                         ONLY: m_flush
@@ -75,7 +76,7 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(scp_energy_type), POINTER           :: energy
     TYPE(scp_force_type), POINTER            :: force( : )
-    TYPE(section_vals_type), POINTER         :: coeff_section, input
+    TYPE(section_vals_type), POINTER         :: dft_section, input
 
 !    TYPE(fist_environment_type), OPTIONAL, &
 !                                 POINTER     :: fist_env
@@ -105,21 +106,17 @@ CONTAINS
     logger => cp_error_get_logger(error)
     IF(ionode) output_unit = cp_logger_get_default_unit_nr(logger)
 
-!    scp_section =>  section_vals_get_subs_vals( input, "SCP", error = error )
+    dft_section =>  section_vals_get_subs_vals( input, "DFT", error = error )
 ! Set the input section of the SCP
-    CALL set_scp_env(scp_env,input=input,&
+    CALL set_scp_env(scp_env,input=dft_section,&
          error=error)
-
-!    ! Read/write the input section with the dft and qs control parameters
-!    CALL read_scp_section ( scp_control, error )
 
     ! Allocate and initialize coefs pointer
     CALL aux_coeff_set_create(aux_coeff_set=aux_coeff_set,&
                                atomic_kind_set=atomic_kind_set,&
                                distribution=local_particles,&
                                error=error)
-!    coeff_section => section_vals_get_subs_vals(input,"SCP%AUX_COEFF",error=error)
-    CALL aux_coeff_set_initialize (aux_coeff_set,coeff_section,para_env, &
+    CALL aux_coeff_set_initialize (aux_coeff_set,dft_section,para_env, &
                                    error=error)
     CALL set_scp_env ( scp_env=scp_env,&
                        aux_coeff_set = aux_coeff_set, &

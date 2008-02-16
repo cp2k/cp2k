@@ -681,13 +681,12 @@ CONTAINS
              coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
              atomic_kind=> atomic_kind_set(ikind)
              IF(.NOT.ASSOCIATED(coeffs))THEN
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                     natom=natom)
-                offset = offset + natom
+                CYCLE
              ELSE
                 DO iel= 1,coeffs%n_els
                    iatom=dyn_coeff_set%distribution%list(ikind)%array(iel)
-                   ioff=iatom - offset
+                   offset = offset + 1
+                   ioff= offset
                    cindex(ioff)=iatom
                    DO icoef=1,coeffs%ncoef_atom
                       pbuffer(ioff,icoef)=coeffs%pos(iel,icoef)

@@ -512,7 +512,7 @@ CONTAINS
                              v_hartree_gspace%pw,error=error)
        END IF
 !***SCP
-       IF ( dft_control % qs_control % scp ) THEN
+       IF ( dft_control % scp ) THEN
          ! Compute the contribution rho_scp * v_hartree_gspace.  v_hartree_gpace is
          ! potential due to the ions + electrons.  
 ! Get the SCP environment
@@ -667,7 +667,7 @@ CONTAINS
            END IF
        END IF
 ! ****SCP        *** Add the polarization potential ***
-       IF (dft_control % qs_control % scp) THEN
+       IF (dft_control % scp) THEN
 ! Get the KS_SCP environment
           CALL get_scp_env ( scp_env = scp_env, ks_scp_env = ks_scp_env, error = error )
           IF (output_unit>0) &
@@ -1070,7 +1070,7 @@ CONTAINS
 ! **** SCP
 !    Single atom contributions to KS matrix due to self-correction of the SCP with 
 !    the orbitals. 
-       IF (dft_control % qs_control % scp) THEN
+       IF (dft_control % scp) THEN
           CALL integrate_a_vhscp_b ( qs_env, ks_matrix, rho%rho_ao, &
                                      just_energy, error=error )
           CALL scp_qs_energies ( qs_env, calculate_forces, just_energy, error=error )
@@ -1180,7 +1180,7 @@ CONTAINS
             energy%kg_gpw_ekin_mol + energy%ddapc_restraint + energy%s2_restraint +&
             energy%becke + energy%dft_plus_u
 ! **** SCP
-       IF (dft_control % qs_control % scp) THEN
+       IF (dft_control % scp) THEN
          CALL get_scp_env ( scp_env, energy = scp_energy, error = error )
          energy % total = energy % total + scp_energy % e_scp_total
        ENDIF 

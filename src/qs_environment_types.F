@@ -202,6 +202,8 @@ MODULE qs_environment_types
 !>        hartree term Vh(rho0_hard-rho0_soft)*rho_soft
 !> \param sab_all neighbor lists for the calculation of the  matrix element of
 !>        non-symmetric operators
+!> \param sab_scp: neighbor lists for the calculation of the dispersion interactions
+!>        when self-consistent polarization (SCP) is included
 !> \param energy place where the energies calculated are stored
 !> \param matrix_h core hamiltonian (matrix_h(1)), if needed by the calculation also
 !>        its derivatives wrt. x,y, and z (matrix_h(2:4))
@@ -287,7 +289,7 @@ MODULE qs_environment_types
                                                              sac_ppl,sac_ppnl,&
                                                              sbc_ppnl,sac_oce,&
                                                              sbc_oce,sab_2c,&
-                                                             sac_3c,sbc_3c,sab_all
+                                                             sac_3c,sbc_3c,sab_all,sab_scp
     TYPE(qs_energy_type), POINTER                         :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
     TYPE(harris_env_type), POINTER                        :: harris_env
@@ -361,7 +363,7 @@ CONTAINS
 ! *****************************************************************************
  SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,super_cell,cell_ref,use_ref_cell,&
                         dft_control,mos,sab_orb,sab_all,qmmm,qmmm_periodic,&
-                        sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
+                        sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,sab_scp,&
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
                         particle_set,energy,force,harris_env,&
                         matrix_h,matrix_ks,matrix_s,matrix_w,matrix_dv,gamma_matrix,&
@@ -389,7 +391,7 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mos
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sab_all
+      DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sab_all, sab_scp
     LOGICAL, OPTIONAL                        :: qmmm, qmmm_periodic
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sac_erfc, sac_ppl, sac_ppnl, &
@@ -515,6 +517,7 @@ CONTAINS
     IF (PRESENT(neighbor_list_id)) neighbor_list_id=qs_env%neighbor_list_id
     IF (PRESENT(sab_orb)) sab_orb => qs_env%sab_orb
     IF (PRESENT(sab_all)) sab_all => qs_env%sab_all
+    IF (PRESENT(sab_scp)) sab_scp => qs_env%sab_scp
     IF (PRESENT(sac_erfc)) sac_erfc => qs_env%sac_erfc
     IF (PRESENT(sac_ppl)) sac_ppl => qs_env%sac_ppl
     IF (PRESENT(sac_ppnl)) sac_ppnl => qs_env%sac_ppnl
@@ -638,6 +641,7 @@ CONTAINS
     NULLIFY (qs_env%dft_control)
     NULLIFY (qs_env%mos)
     NULLIFY (qs_env%sab_orb)
+    NULLIFY (qs_env%sab_scp)
     NULLIFY (qs_env%sab_all)
     NULLIFY (qs_env%sac_erfc)
     NULLIFY (qs_env%sac_ppl)
@@ -728,7 +732,7 @@ CONTAINS
   SUBROUTINE set_qs_env(qs_env,cell,super_cell,cell_ref,use_ref_cell, &
                         dft_control,mos,qmmm,qmmm_periodic,&
                         sab_orb,sab_all,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
-                        sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
+                        sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,sab_scp,&
                         energy,force,harris_env,&
                         matrix_h,matrix_ks,matrix_s,matrix_w,matrix_dv,gamma_matrix,&
                         pw_env,ewald_env,ewald_pw,mpools,rho,rho_buffer,rho_xc,kinetic,&
@@ -753,7 +757,7 @@ CONTAINS
     LOGICAL, OPTIONAL                        :: qmmm, qmmm_periodic
     TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
       sab_orb, sab_all, sac_erfc, sac_ppl, sac_ppnl, sbc_ppnl, sac_oce, &
-      sbc_oce, sab_2c, sac_3c, sbc_3c
+      sbc_oce, sab_2c, sac_3c, sbc_3c,sab_scp
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
@@ -863,6 +867,7 @@ CONTAINS
     IF (PRESENT(mos)) qs_env%mos => mos
     IF (PRESENT(neighbor_list_id)) qs_env%neighbor_list_id=neighbor_list_id
     IF (PRESENT(sab_orb)) qs_env%sab_orb => sab_orb
+    IF (PRESENT(sab_scp)) qs_env%sab_scp => sab_scp
     IF (PRESENT(sab_all)) qs_env%sab_all => sab_all
     IF (PRESENT(sac_erfc)) qs_env%sac_erfc => sac_erfc
     IF (PRESENT(sac_ppl)) qs_env%sac_ppl => sac_ppl
@@ -1152,6 +1157,14 @@ SUBROUTINE qs_env_release(qs_env,error)
            DEALLOCATE(qs_env%mo_derivs, stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         ENDIF
+        IF (ASSOCIATED(qs_env%sab_scp)) THEN
+           DO i=1,SIZE(qs_env%sab_scp)
+              CALL deallocate_neighbor_list_set(&
+                   qs_env%sab_scp(i)%neighbor_list_set)
+           END DO
+           DEALLOCATE(qs_env%sab_scp,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
         IF (ASSOCIATED(qs_env%sab_orb)) THEN
            DO i=1,SIZE(qs_env%sab_orb)
               CALL deallocate_neighbor_list_set(&

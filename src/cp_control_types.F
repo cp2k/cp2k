@@ -32,6 +32,13 @@ MODULE cp_control_types
      LOGICAL :: fullspace
   END TYPE pw_grid_option
 !------------------------------------------------------------------------------!
+! Control parameters for SCP calculations
+! *****************************************************************************
+  TYPE scp_control_type
+     LOGICAL                              :: dispersion
+     INTEGER                              :: coeff_guess
+  END TYPE scp_control_type
+!------------------------------------------------------------------------------!
 ! Control parameters for DFTB calculations
 ! *****************************************************************************
   TYPE dftb_control_type
@@ -236,6 +243,7 @@ MODULE cp_control_types
      TYPE(qs_control_type)           :: qs_control
      TYPE(tddfpt_control_type)       :: tddfpt_control
      TYPE(xas_control_type), POINTER :: xas_control
+     TYPE(scp_control_type),POINTER  :: scp_control
      TYPE(finite_field_type)         :: finite_field_control
      INTEGER                         :: nspins,&
                                         charge,&
@@ -251,7 +259,7 @@ MODULE cp_control_types
                                         do_tddfpt_calculation, &
                                         do_xas_calculation, &
                                         use_kinetic_energy_density, &
-                                        restricted,roks,uks,lsd,dft_plus_u
+                                        restricted,roks,uks,lsd,dft_plus_u,scp
   END TYPE dft_control_type
 !------------------------------------------------------------------------------!
 
@@ -270,6 +278,7 @@ MODULE cp_control_types
             mulliken_restraint_type,&
             ddapc_restraint_type,&
             dftb_control_type,&
+            scp_control_type,&
             becke_constraint_type,&
             semi_empirical_control_type,&
             s2_restraint_type
@@ -628,6 +637,8 @@ CONTAINS
        last_dft_control_id=last_dft_control_id+1
        dft_control%id_nr=last_dft_control_id
        NULLIFY(dft_control%xas_control)
+       NULLIFY(dft_control%scp_control)
+       CALL scp_control_create(dft_control%scp_control, error=error)
        CALL qs_control_init(dft_control%qs_control, error=error)
        CALL tddfpt_control_init(dft_control%tddfpt_control, error=error)
        CALL xas_control_create(dft_control%xas_control,error=error)
@@ -679,6 +690,7 @@ CONTAINS
           CALL qs_control_release(dft_control%qs_control, error=error)
           CALL tddfpt_control_release(dft_control%tddfpt_control, error=error)
           CALL xas_control_release(dft_control%xas_control, error=error)
+          CALL scp_control_release(dft_control%scp_control, error=error)
           DEALLOCATE(dft_control, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
@@ -704,7 +716,6 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE gapw_control_create
-
 ! *****************************************************************************
   SUBROUTINE qs_control_init(qs_control, error)
     TYPE(qs_control_type), INTENT(out)       :: qs_control
@@ -793,6 +804,44 @@ CONTAINS
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
   END SUBROUTINE tddfpt_control_release
+
+! *****************************************************************************
+  SUBROUTINE scp_control_create(scp_control,error)
+    TYPE(scp_control_type), POINTER         :: scp_control
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'scp_control_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(scp_control),cp_failure_level,routineP,error,failure)
+    ALLOCATE(scp_control,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE scp_control_create
+
+! *****************************************************************************
+  SUBROUTINE scp_control_release(scp_control,error)
+    TYPE(scp_control_type), POINTER         :: scp_control
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'scp_control_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    IF (ASSOCIATED(scp_control)) THEN
+       DEALLOCATE(scp_control,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    END IF
+  END SUBROUTINE scp_control_release
 
 ! *****************************************************************************
   SUBROUTINE dftb_control_create(dftb_control,error)

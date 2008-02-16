@@ -19,11 +19,15 @@ MODULE scp_coeff_types
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_retain,&
                                              distribution_1d_type
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
   USE termination,                     ONLY: stop_program
+  USE util,                            ONLY: locate
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -122,27 +126,10 @@ SUBROUTINE aux_coeff_set_create(aux_coeff_set,atomic_kind_set,&
             CALL get_atomic_kind(atomic_kind,aux_basis_set=aux_basis_set)
             n_els = distribution%n_el(ikind)
             IF ((.NOT.ASSOCIATED(aux_basis_set)).OR.(n_els ==0)) CYCLE
-!dbg            write(6,*) 'aux coeff set create: n_els, ikind', n_els, ikind
             CALL aux_coeff_create(aux_coeff_set%coeffs_of_kind(ikind)%coeffs,&
                              error=error)
             CALL setup_aux_coeff(aux_coeff_set%coeffs_of_kind(ikind)%coeffs,&
                aux_basis_set=aux_basis_set, n_els=n_els, error=error)
-! DBG
-!            IF ( ikind == 1 ) THEN
-!              aux_coeff_set % coeffs_of_kind (ikind )% coeffs % c ( 1, 1 ) =-0.303753944686646_dp 
-!              aux_coeff_set % coeffs_of_kind (ikind )% coeffs % c ( 1, 1 ) =-0.503753944686646_dp 
-!              aux_coeff_set % coeffs_of_kind (ikind )% coeffs % c ( 1, 1 ) = -0.849999982863665
-!              aux_coeff_set % coeffs_of_kind (ikind )% coeffs % c ( 1, 2 ) = 0.0_dp
-!              aux_coeff_set % coeffs_of_kind (ikind )% coeffs % c ( 1, 3 ) = 0.0_dp
-!            ELSEIF ( ikind == 2 ) THEN
-!              aux_coeff_set % coeffs_of_kind (ikind )% coeffs % c ( 1, 1 ) = -.053829_dp
-!              aux_coeff_set % coeffs_of_kind (ikind )% coeffs % c ( 1, 2 ) = 0.0_dp
-!              aux_coeff_set % coeffs_of_kind (ikind )% coeffs % c ( 1, 3 ) = -0.114683_dp
-!              aux_coeff_set % coeffs_of_kind (ikind )% coeffs % c ( 2, 1 ) = -.053829_dp
-!              aux_coeff_set % coeffs_of_kind (ikind )% coeffs % c ( 2, 2 ) = 0.0_dp
-!              aux_coeff_set % coeffs_of_kind (ikind )% coeffs % c ( 2, 3 ) = 0.114683_dp
-!            ENDIF
-! DBG
          END DO
  
          CALL distribution_1d_retain(distribution,error=error)
@@ -407,10 +394,10 @@ SUBROUTINE get_aux_coeff(coeffs, c, fc, n_els,&
 
 END SUBROUTINE get_aux_coeff
 ! *****************************************************************************
-SUBROUTINE aux_coeff_set_initialize(aux_coeff_set,coeff_section,para_env,error)
+SUBROUTINE aux_coeff_set_initialize(aux_coeff_set,dft_section,para_env,error)
 
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
-    TYPE(section_vals_type), POINTER         :: coeff_section
+    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -418,13 +405,15 @@ SUBROUTINE aux_coeff_set_initialize(aux_coeff_set,coeff_section,para_env,error)
       routineP = moduleN//':'//routineN
 
     INTEGER :: group, ikind, n_els, ncoef_atom, ncoef_atom_max, &
-      ncoef_of_kind, ncoef_tot, nel_tot, nkind, source
-    LOGICAL                                  :: restart
+      ncoef_of_kind, ncoef_tot, nel_tot, nkind, icoef, iel, i, iatom
+    INTEGER, DIMENSION (:), POINTER          :: ibuffer
+    REAL(kind=dp), DIMENSION(:), POINTER     :: buffer
+    LOGICAL                                  :: explicit
     TYPE(aux_coeff_type), POINTER            :: coeffs
 
+    TYPE(section_vals_type), POINTER         :: scp_section, work_section
   group=para_env%group
-  source=para_env%source
-  restart = .FALSE.
+  explicit = .FALSE.
   ! initialize to default values
 
   nel_tot=0
@@ -432,9 +421,10 @@ SUBROUTINE aux_coeff_set_initialize(aux_coeff_set,coeff_section,para_env,error)
   ncoef_atom_max=0
 
 ! get the SCP coefficients' parameters from input structure
-!  work_section => section_vals_get_subs_vals(coeff_section,"COORD",error=error)
-!  CALL section_vals_get ( work_section, explicit=explicit, error = error )
-  ! get total numbers
+  scp_section => section_vals_get_subs_vals(dft_section,"SCP",error=error )
+  work_section => section_vals_get_subs_vals(scp_section,"SCP_COEFF%COORD",error=error)
+  CALL section_vals_get ( work_section, explicit=explicit, error = error )
+! get total numbers
   nkind=SIZE(aux_coeff_set%coeffs_of_kind)
   DO ikind=1,nkind
      coeffs=> aux_coeff_set%coeffs_of_kind(ikind)%coeffs
@@ -452,24 +442,25 @@ SUBROUTINE aux_coeff_set_initialize(aux_coeff_set,coeff_section,para_env,error)
   aux_coeff_set%nel_tot=nel_tot
   aux_coeff_set%ncoef_tot=ncoef_tot
   aux_coeff_set%ncoef_atom_max=ncoef_atom_max
+
 ! Get values from the input if there is a restart
-!  IF (explicit) THEN
-!    CALL section_vals_val_get ( coeff_section,'RESTART_INDEX%_DEFAULT_KEYWORD',i_vals=ibuffer, error=error)
-!    DO ikind = 1, nkind
-!      coeffs => aux_coeff_set%coeffs_of_kind(ikind)%coeffs
-!      IF ( ASSOCIATED(coeffs)) THEN
-!        DO iel = 1, coeffs%n_els
-!          iatom=aux_coeff_set%distribution%list(ikind)%array(iel)
-!          i=locate(ibuffer,iatom)
-!          CALL section_vals_val_get ( coeff_section,'COORD%_DEFAULT_KEYWORD',r_vals=buffer, &
-!                                      i_rep_val=i, error=error)
-!          DO icoef=1,coeffs%ncoef_atom
-!           coeffs%c(iel,icoef)=buffer(icoef)
-!          END DO
-!        END DO 
-!      END IF
-!    END DO 
-!  END IF
+  IF (explicit) THEN
+    CALL section_vals_val_get ( scp_section,'SCP_COEFF%RESTART_INDEX%_DEFAULT_KEYWORD_',i_vals=ibuffer, error=error)
+    DO ikind = 1, nkind
+      coeffs => aux_coeff_set%coeffs_of_kind(ikind)%coeffs
+      IF ( ASSOCIATED(coeffs)) THEN
+        DO iel = 1, coeffs%n_els
+          iatom=aux_coeff_set%distribution%list(ikind)%array(iel)
+          i=locate(ibuffer,iatom)
+          CALL section_vals_val_get ( scp_section,'SCP_COEFF%COORD%_DEFAULT_KEYWORD_',r_vals=buffer, &
+                                      i_rep_val=i, error=error)
+          DO icoef=1,coeffs%ncoef_atom
+           coeffs%c(iel,icoef)=buffer(icoef)
+          END DO
+        END DO 
+      END IF
+    END DO 
+  END IF
 
 END SUBROUTINE aux_coeff_set_initialize
 
