@@ -187,8 +187,7 @@ CONTAINS
             WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Annealing ion factor      ', &
             simpar % f_annealing
        IF ( simpar % ensemble == npe_f_ensemble .AND. simpar % annealing_cell ) &
-            WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Annealing cell factor      ', &
-            simpar % f_annealing_cell
+            WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Annealing cell factor      ', simpar % f_annealing_cell
        IF (  simpar % ensemble == npt_i_ensemble .OR. &
              simpar % ensemble == npt_f_ensemble .OR. &
              simpar % ensemble == npe_f_ensemble ) THEN
@@ -314,16 +313,13 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'read_md_low', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: n_rep
     LOGICAL                                  :: explicit, failure
     TYPE(section_vals_type), POINTER         :: tmp_section
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
        NULLIFY(tmp_section)
-       CALL section_vals_val_get(md_section,"ANNEALING",r_val=simpar%f_annealing,error=error)
-       IF (simpar%f_annealing /= 1.0_dp) simpar % annealing = .TRUE.
-       CALL section_vals_val_get(md_section,"ANNEALING_CELL",r_val=simpar%f_annealing_cell,error=error)
-       IF (simpar%f_annealing_cell /= 1.0_dp) simpar % annealing_cell = .TRUE.
        CALL section_vals_val_get(md_section,"ENSEMBLE",i_val=simpar%ensemble,error=error)
        CALL section_vals_val_get(md_section,"STEPS",i_val=simpar%nsteps,error=error)
        CALL section_vals_val_get(md_section,"TIMESTEP",r_val=simpar%dt,error=error)
@@ -333,6 +329,20 @@ CPSourceFileRef,&
        CALL section_vals_val_get(md_section,"ANGVEL_ZERO",l_val=simpar%angvel_zero,error=error)
        CALL section_vals_val_get(md_section,"TEMP_KIND",l_val=simpar%temperature_per_kind,error=error)
        CALL section_vals_val_get(md_section,"SCALE_TEMP_KIND",l_val=simpar%scale_temperature_per_kind,error=error)
+       CALL section_vals_val_get(md_section,"ANNEALING",n_rep_val=n_rep,error=error)
+       IF (n_rep==1) THEN
+          CALL section_vals_val_get(md_section,"ANNEALING",r_val=simpar%f_annealing,error=error)
+          simpar % annealing = .TRUE.
+       ELSE
+          simpar % annealing = .FALSE.
+       END IF
+       CALL section_vals_val_get(md_section,"ANNEALING_CELL",n_rep_val=n_rep,error=error)
+       IF (n_rep==1) THEN
+          CALL section_vals_val_get(md_section,"ANNEALING_CELL",r_val=simpar%f_annealing_cell,error=error)
+          simpar % annealing_cell = .TRUE.
+       ELSE
+          simpar % annealing_cell = .FALSE.
+       END IF
 
        IF (simpar%ensemble == langevin_ensemble) THEN
           CALL section_vals_val_get(md_section, "GAMMA", r_val=simpar%gamma, error=error)

@@ -1364,17 +1364,19 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="annealing",&
-            description="Specifies the rescaling factor for velocities after the integration"//&
-            "scheme used. Automatically enables the annealing procedure.", &
-            usage="annealing 0.0", default_r_val=1.0_dp, error=error)
+       CALL keyword_create(keyword, name="ANNEALING",&
+            description="Specifies the rescaling factor for annealing velocities. "//&
+            "Automatically enables the annealing procedure. This scheme works only for ensembles "//&
+            "that do not have thermostats on particles.", &
+            usage="annealing <REAL>", type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="annealing_cell",&
-            description="Specifies the rescaling factor for velocities of the CELL after the integration"//&
-            "scheme used. Automatically enables the annealing procedure.", &
-            usage="annealing 0.0", default_r_val=1.0_dp, error=error)
+       CALL keyword_create(keyword, name="ANNEALING_CELL",&
+            description="Specifies the rescaling factor for annealing velocities of the CELL "//&
+            "Automatically enables the annealing procedure for the CELL. This scheme works only "//&
+            "for ensambles that do not have thermostat on CELLS velocities.", &
+            usage="ANNEALING_CELL <REAL>", type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
