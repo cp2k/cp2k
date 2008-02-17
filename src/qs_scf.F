@@ -936,10 +936,12 @@ END SUBROUTINE qs_scf_loop_do_ot
 ! *****************************************************************************
 SUBROUTINE qs_scf_scp_print_summary(output_unit,scp_env,qmmm,error)
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE ( scp_environment_type ), POINTER           :: scp_env
-    TYPE ( scp_energy_type ), POINTER        :: energy
-    LOGICAL, INTENT ( IN )                   :: qmmm
+    TYPE(scp_environment_type), POINTER      :: scp_env
+    LOGICAL, INTENT(IN)                      :: qmmm
     TYPE(cp_error_type), INTENT(inout)       :: error
+
+    TYPE(scp_energy_type), POINTER           :: energy
+
     CALL get_scp_env ( scp_env=scp_env,&
          energy=energy, error=error)
     IF (output_unit>0) THEN

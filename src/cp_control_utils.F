@@ -83,8 +83,9 @@ CONTAINS
     LOGICAL                                  :: failure, is_present, l_param, &
                                                 not_SE, was_present
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rvec
-    TYPE(section_vals_type), POINTER         :: scf_section, tmp_section, &
-                                                xc_fun_section, xc_section, scp_section
+    TYPE(section_vals_type), POINTER         :: scf_section, scp_section, &
+                                                tmp_section, xc_fun_section, &
+                                                xc_section
     TYPE(xc_rho_cflags_type)                 :: needs
 
     failure=.FALSE.

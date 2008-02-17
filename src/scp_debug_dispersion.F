@@ -9,7 +9,6 @@
 
 MODULE scp_debug_dispersion
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_walltime
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -43,12 +42,11 @@ SUBROUTINE scp_qs_disp_debug ( qs_env,  error )
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE scp_qs_debug (MODULE scp_debug)", &
-      routineN = 'scp_qs_debug', routineP = moduleN//':'//routineN
+      routineN = 'scp_qs_disp_debug', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iatom, idim, natoms
+    INTEGER                                  :: iatom, idim, natoms
     REAL(dp)                                 :: em, ep
-    REAL(dp), ALLOCATABLE                    :: f ( :, : )
-    REAL(KIND=dp)                            :: t1
+    REAL(dp), ALLOCATABLE                    :: f( :, : )
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(scp_energy_type), POINTER           :: energy
     TYPE(scp_environment_type), POINTER      :: scp_env

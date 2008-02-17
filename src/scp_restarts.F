@@ -4,24 +4,25 @@ MODULE scp_restarts
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: energy_run, &
-                                             energy_force_run
+  USE input_constants,                 ONLY: energy_force_run,&
+                                             energy_run
   USE input_cp2k_restarts,             ONLY: write_restart_header
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_set,&
+                                             section_vals_write
   USE kinds,                           ONLY: dp
-  USE scp_environment_types,           ONLY: scp_environment_type, &
-                                             get_scp_env
+  USE message_passing,                 ONLY: mp_sum
   USE scp_coeff_types,                 ONLY: aux_coeff_set_type,&
                                              aux_coeff_type
-  USE message_passing,                 ONLY: mp_sum
-  USE input_section_types,             ONLY: &
-       section_type, section_vals_get, section_vals_get_subs_vals, &
-       section_vals_type, section_vals_val_set, section_vals_write
+  USE scp_environment_types,           ONLY: get_scp_env,&
+                                             scp_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -38,21 +39,21 @@ MODULE scp_restarts
 
 ! *****************************************************************************
   SUBROUTINE write_scp_restart (scp_env, root_section, globenv, atomic_kind_set, error)
-       TYPE(scp_environment_type), POINTER      :: scp_env
-       TYPE(section_vals_type),POINTER          :: root_section
-       TYPE(global_environment_type),POINTER    :: globenv
-       TYPE(atomic_kind_type), DIMENSION(:),&
-                             POINTER            :: atomic_kind_set
-       TYPE(cp_error_type), INTENT(inout)       :: error
-!locals
-       TYPE(section_vals_type),POINTER          :: dft_section
-       INTEGER :: ires, ikey
-       CHARACTER(LEN=30), DIMENSION(2) :: &
-       keys = (/"SCF%PRINT%RESTART_HISTORY","SCF%PRINT%RESTART        "/)
+    TYPE(scp_environment_type), POINTER      :: scp_env
+    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-       CHARACTER(len=*), PARAMETER :: routineN = 'write_scp_restart', &
-         routineP = moduleN//':'//routineN
-       TYPE(cp_logger_type), POINTER            :: logger
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_scp_restart', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=30), DIMENSION(2) :: &
+      keys = (/"SCF%PRINT%RESTART_HISTORY","SCF%PRINT%RESTART        "/)
+    INTEGER                                  :: ikey, ires
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: dft_section
 
        logger => cp_error_get_logger(error)
        CALL get_scp_env(scp_env=scp_env,&
@@ -89,31 +90,32 @@ MODULE scp_restarts
 ! *****************************************************************************
   SUBROUTINE update_scp_section (scp_env, atomic_kind_set, error)
 
-       TYPE(scp_environment_type), POINTER      :: scp_env
-       TYPE(atomic_kind_type), DIMENSION(:),&
-                             POINTER            :: atomic_kind_set
-       TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(scp_environment_type), POINTER      :: scp_env
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-       TYPE(cp_logger_type), POINTER            :: logger
-       TYPE(cp_para_env_type), POINTER          :: para_env
-       TYPE(section_vals_type),POINTER          :: scp_section, dft_section, &
-                                                   work_section
-       TYPE(atomic_kind_type), POINTER          :: atomic_kind
-       TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
-       TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
-       TYPE(aux_coeff_type), POINTER            :: coeffs
-       INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex
-       INTEGER, POINTER                         :: INDEX ( : )
-       REAL(KIND=dp), ALLOCATABLE, &
-       DIMENSION(:, :)                          :: pbuffer
-       REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
-       LOGICAL                                  :: failure
+    CHARACTER(len=*), PARAMETER :: routineN = 'update_scp_section', &
+      routineP = moduleN//':'//routineN
 
-       CHARACTER(len=*), PARAMETER :: routineN = 'update_scp_section', &
-         routineP = moduleN//':'//routineN
-
-       INTEGER :: iel, nkind, ikind, nsgf_max, n_el, handle
-       INTEGER :: nsgf, stat, irep, icoef, ioff, iatom, natom
+    INTEGER                                  :: handle, iatom, icoef, iel, &
+                                                ikind, ioff, irep, n_el, &
+                                                natom, nkind, nsgf, nsgf_max, &
+                                                stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex
+    INTEGER, POINTER                         :: INDEX( : )
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: pbuffer
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
+    TYPE(aux_coeff_type), POINTER            :: coeffs
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
+    TYPE(section_vals_type), POINTER         :: dft_section, scp_section, &
+                                                work_section
 
        CALL timeset(routineN,"I","",handle)
 

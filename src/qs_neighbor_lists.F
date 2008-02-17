@@ -150,9 +150,9 @@ CONTAINS
     LOGICAL :: all_pairs_list, all_potential_present, cls, epr, &
       gth_potential_present, mic, molecule_only, nmr, paw_atom, &
       paw_atom_present, print_subcell_grid, rho0_present
-    LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, oce_present, &
-      orb_present, ppl_present, ppnl_present, Qlm_present, semi_present, &
-      aux_present
+    LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_present, &
+      oce_present, orb_present, ppl_present, ppnl_present, Qlm_present, &
+      semi_present
     REAL(dp)                                 :: alpha, r_skin, rcprj
     REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, c_radius, oce_radius, &
       orb_rad_3c, orb_radius, ppl_radius, ppnl_radius, short_orb_radius, &
@@ -169,16 +169,14 @@ CONTAINS
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(gth_potential_type), POINTER        :: gth_potential
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set, aux_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, orb_basis_set
     TYPE(local_atoms_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_2c, sab_all, sab_orb, &
-                                                sac_3c, sac_oce, sac_ppl, &
-                                                sac_ppnl, sbc_3c, sbc_oce, &
-                                                sbc_ppnl, sab_scp
+    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_2c, sab_all, &
+      sab_orb, sab_scp, sac_3c, sac_oce, sac_ppl, sac_ppnl, sbc_3c, sbc_oce, &
+      sbc_ppnl
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj

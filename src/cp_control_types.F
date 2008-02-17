@@ -807,7 +807,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE scp_control_create(scp_control,error)
-    TYPE(scp_control_type), POINTER         :: scp_control
+    TYPE(scp_control_type), POINTER          :: scp_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scp_control_create', &
@@ -826,7 +826,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE scp_control_release(scp_control,error)
-    TYPE(scp_control_type), POINTER         :: scp_control
+    TYPE(scp_control_type), POINTER          :: scp_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scp_control_release', &

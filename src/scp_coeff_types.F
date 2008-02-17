@@ -404,14 +404,14 @@ SUBROUTINE aux_coeff_set_initialize(aux_coeff_set,dft_section,para_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'aux_coeff_set_initialize', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: group, ikind, n_els, ncoef_atom, ncoef_atom_max, &
-      ncoef_of_kind, ncoef_tot, nel_tot, nkind, icoef, iel, i, iatom
-    INTEGER, DIMENSION (:), POINTER          :: ibuffer
-    REAL(kind=dp), DIMENSION(:), POINTER     :: buffer
+    INTEGER :: group, i, iatom, icoef, iel, ikind, n_els, ncoef_atom, &
+      ncoef_atom_max, ncoef_of_kind, ncoef_tot, nel_tot, nkind
+    INTEGER, DIMENSION(:), POINTER           :: ibuffer
     LOGICAL                                  :: explicit
+    REAL(kind=dp), DIMENSION(:), POINTER     :: buffer
     TYPE(aux_coeff_type), POINTER            :: coeffs
-
     TYPE(section_vals_type), POINTER         :: scp_section, work_section
+
   group=para_env%group
   explicit = .FALSE.
   ! initialize to default values

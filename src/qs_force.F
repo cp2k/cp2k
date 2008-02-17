@@ -56,11 +56,10 @@ MODULE qs_force
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_semi_empirical_hamiltonian,   ONLY: build_se_core_matrix
   USE scf_control_types,               ONLY: scf_control_type
-  USE scp_debug_dispersion,            ONLY: scp_qs_disp_debug
   USE scp_dispersion,                  ONLY: scp_qs_dispersion
+  USE scp_energy_types,                ONLY: scp_energy_type
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type
-  USE scp_energy_types,                ONLY: scp_energy_type
   USE scp_force_types,                 ONLY: scp_force_type
   USE sparse_matrix_output,            ONLY: write_sparse_matrix
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
@@ -134,8 +133,8 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, matrix_w
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(scp_energy_type), POINTER           :: scp_energy
     TYPE(scp_environment_type), POINTER      :: scp_env
-    TYPE(scp_energy_type), POINTER            :: scp_energy
     TYPE(scp_force_type), POINTER            :: scp_force( : )
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(virial_type), POINTER               :: virial

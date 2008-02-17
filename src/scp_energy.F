@@ -62,8 +62,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, icoef_atom, ikind, &
-                                                n_els, ncoef_atom, nkind, &
-                                                stat
+                                                n_els, ncoef_atom, nkind, stat
     LOGICAL                                  :: energy_only, failure, &
                                                 my_calculate_forces
     REAL(dp)                                 :: alpha_pol, ecoeff

@@ -426,7 +426,7 @@ MODULE ai_coulomb
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
     REAL(KIND=dp), DIMENSION(:, :), OPTIONAL :: vac_plus
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'coulomb2', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'coulomb2_new', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ax, ay, az, coc, cocx, cocy, &

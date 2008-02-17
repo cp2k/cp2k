@@ -391,12 +391,13 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mos
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sab_all, sab_scp
+      DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sab_all
     LOGICAL, OPTIONAL                        :: qmmm, qmmm_periodic
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sac_erfc, sac_ppl, sac_ppnl, &
-                                                sbc_ppnl, sac_oce, sbc_oce, &
-                                                sab_2c, sac_3c, sbc_3c
+                                                sbc_ppnl, sab_scp, sac_oce, &
+                                                sbc_oce, sab_2c, sac_3c, &
+                                                sbc_3c
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
@@ -757,7 +758,7 @@ CONTAINS
     LOGICAL, OPTIONAL                        :: qmmm, qmmm_periodic
     TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
       sab_orb, sab_all, sac_erfc, sac_ppl, sac_ppnl, sbc_ppnl, sac_oce, &
-      sbc_oce, sab_2c, sac_3c, sbc_3c,sab_scp
+      sbc_oce, sab_2c, sac_3c, sbc_3c, sab_scp
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force

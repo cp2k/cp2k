@@ -354,7 +354,8 @@ CONTAINS
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: atom_list
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha_core_charge, &
                                                 ccore_charge, core_charge, &
-                                                alpha_scp, I_scp, core_charge_radius
+                                                alpha_scp, I_scp, &
+                                                core_charge_radius
     INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, nsgf, z
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff, qeff
     TYPE(gto_basis_set_type), OPTIONAL, &

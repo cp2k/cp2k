@@ -9,7 +9,8 @@
 !******************************************************************************
 
 MODULE  scp_dispersion
-  USE ai_coulomb,                      ONLY: coulomb2_new, coulomb2
+  USE ai_coulomb,                      ONLY: coulomb2,&
+                                             coulomb2_new
   USE ai_derivatives,                  ONLY: dabdr
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -20,7 +21,8 @@ MODULE  scp_dispersion
                                              pbc
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp,&
-                                             dp_size,int_size
+                                             dp_size,&
+                                             int_size
   USE machine,                         ONLY: m_flush
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum
@@ -32,18 +34,10 @@ MODULE  scp_dispersion
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
        neighbor_list_type, neighbor_node_type, next
-  USE scp_coeff_types,                 ONLY: aux_coeff_set_type,&
-                                             aux_coeff_type,&
-                                             aux_coeff_zero_fc
   USE scp_energy_types,                ONLY: scp_energy_type
-  USE scp_force_types,                 ONLY: scp_force_type
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type
-  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             create_dbm_from_sm,&
-                                             deallocate_dbm_from_sm,&
-                                             get_block_node,&
-                                             real_matrix_p_type
+  USE scp_force_types,                 ONLY: scp_force_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -71,23 +65,43 @@ CONTAINS
 
   SUBROUTINE scp_qs_dispersion ( qs_env, calculate_forces, error, debug )
 
-    TYPE(qs_environment_type), POINTER                 :: qs_env
-    LOGICAL, INTENT ( IN ), OPTIONAL                   :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout)                 :: error
-    LOGICAL, INTENT ( IN ), OPTIONAL                   :: debug
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "scp_qs_dispersion"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'scp_qs_dispersion'
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER       :: atomic_kind_set
-    
+    INTEGER :: ab, handle, i, i_atom, ia, iatom, ib, idir, ikind, ilist, &
+      inode, iseta, isetb, istat, j_atom, jatom, jkind, ldvab1, ldvab2, &
+      maxco_global, maxcoa, maxcob, maxder, maxlgto, maxlgto1, natom, ncoa, &
+      ncoap, ncob, ncobp, nkind, nlist, nnode, nseta, nsetb, nz1, nz2, &
+      output_unit, sgfa, sgfb
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
+                                                lb_min, npgfa, npgfb, &
+                                                nsgf_seta, nsgf_setb
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+    LOGICAL                                  :: forces, ionode, my_debug
+    REAL(dp)                                 :: alpha_a, alpha_b, dab, &
+                                                disp_factor, I_a, I_b, ra(3), &
+                                                rab(3), rab2, rb(3)
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ff
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: vv
+    REAL(dp), DIMENSION(3)                   :: force_a
+    REAL(dp), DIMENSION(:), POINTER          :: r1, r2, z1, z2
+    REAL(dp), DIMENSION(:, :), POINTER :: dabdx, dabdy, dabdz, I_ab, I_dabdx, &
+      I_dabdy, I_dabdz, I_tmp, rpgfa, rpgfb, sphia, sphib, vab, vab_plus, &
+      zeta, zetb
+    REAL(kind=dp)                            :: e_scp
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(atomic_kind_type),       POINTER    :: atomic_kind
-    TYPE(gto_basis_set_type),     POINTER    :: aux_basis
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(scp_energy_type), POINTER           :: energy
-    TYPE(scp_environment_type), POINTER      :: scp_env
-    TYPE(scp_force_type), POINTER            :: force(:)
+    TYPE(gto_basis_set_type), POINTER        :: aux_basis
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_scp
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
@@ -95,38 +109,12 @@ CONTAINS
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    REAL(kind=dp)                            :: e_scp
-
-    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE  :: vv
-    REAL(dp), DIMENSION ( :, : ), POINTER    :: vab, vab_plus
-
-    REAL(dp), DIMENSION ( :, : ), POINTER    :: sphia, sphib, dabdx, dabdy, dabdz
-    REAL(dp), DIMENSION ( :, : ), POINTER    :: I_ab, I_dabdx, I_dabdy, I_dabdz, I_tmp
-    REAL(dp), DIMENSION ( :, : ), POINTER    :: zeta, zetb, rpgfa, rpgfb
-    REAL(dp), DIMENSION(:), POINTER          :: r1, r2, z1, z2
-    REAL(dp), DIMENSION(:),   ALLOCATABLE    :: ff
-    REAL(dp), DIMENSION(3)                   :: force_a 
-    REAL(dp)                                 :: ra(3), rab(3), rab2, rb(3), dab, I_a, I_b, alpha_a, alpha_b
-    REAL(dp)                                 :: disp_factor
-
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
-    INTEGER :: ab, ilist, nlist, inode, nnode, maxder, natom
-    INTEGER :: maxcoa, maxcob, nseta, nsetb
-    INTEGER :: handle, iatom, jatom, i, istat, idir, i_atom, j_atom
-    INTEGER :: ia, ib, ncoa, ncob, ncoap, ncobp
-    INTEGER :: iparticle_local, nparticle_local, ikind, nkind, jkind
-    INTEGER :: iseta, isetb, sgfa, sgfb
-    INTEGER :: nz1, nz2, ldvab1, ldvab2
-    INTEGER :: maxco_global, maxlgto, maxlgto1, output_unit
-    INTEGER, DIMENSION ( : ), POINTER :: la_max, la_min, npgfa, nsgf_seta
-    INTEGER, DIMENSION ( : ), POINTER :: lb_max, lb_min, npgfb, nsgf_setb
-    INTEGER, DIMENSION ( :, : ), POINTER :: first_sgfa, first_sgfb
-
-    LOGICAL :: ionode, my_debug, forces
-    
-
+    TYPE(scp_energy_type), POINTER           :: energy
+    TYPE(scp_environment_type), POINTER      :: scp_env
+    TYPE(scp_force_type), POINTER            :: force(:)
 
 !   ---------------------------------------------------------------------------
+
     CALL timeset(routineN,"I"," ",handle)
     output_unit = -1
     logger => cp_error_get_logger(error)
