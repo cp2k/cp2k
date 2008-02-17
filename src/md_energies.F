@@ -31,13 +31,10 @@ MODULE md_energies
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              use_mixed_force
-  USE input_constants,                 ONLY: ensemble_name_types,&
-                                             npe_f_ensemble,&
-                                             nph_uniaxial_damped_ensemble,&
-                                             nph_uniaxial_ensemble,&
-                                             npt_f_ensemble,&
-                                             npt_i_ensemble,&
-                                             reftraj_ensemble
+  USE input_constants,                 ONLY: &
+       ensemble_name_types, npe_f_ensemble, npe_i_ensemble, &
+       nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
+       npt_i_ensemble, nvt_ensemble, reftraj_ensemble
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_string_length,&
@@ -283,9 +280,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: fmd, my_act, my_pos
-    INTEGER                                  :: box, delta_t, ene, ener_mix, &
-                                                handle, i, iw, nat, nkind, &
-                                                shene, tempkind, trsl
+    INTEGER                                  :: baro, box, delta_t, ene, &
+                                                ener_mix, handle, i, iw, nat, &
+                                                nkind, shene, tempkind, &
+                                                therm, trsl
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, init, is_mixed, &
                                                 new_file, qmmm, &
@@ -430,11 +428,11 @@ CONTAINS
                      ADJUSTL( unit%temp_label ), '= ', md_ener%temp_qm
              END IF
           END IF
-          IF ( &
-               simpar%ensemble == nph_uniaxial_ensemble .OR.&
+          IF ( simpar%ensemble == nph_uniaxial_ensemble .OR.&
                simpar%ensemble == nph_uniaxial_damped_ensemble.OR.&
                simpar%ensemble == npt_i_ensemble.OR.&
                simpar%ensemble == npt_f_ensemble.OR.&
+               simpar%ensemble == npe_i_ensemble.OR.&
                simpar%ensemble == npe_f_ensemble)  &
                WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL BAROSTAT TEMP', &
                ADJUSTL( unit%temp_label), '= ', md_ener%temp_baro
@@ -590,11 +588,11 @@ CONTAINS
                   ADJUSTL(unit%temp_label), '= ', hugoniot/3._dp/nat*kelvin,&
                   averages%avehugoniot/3._dp/nat*kelvin
           END IF
-          IF ( &
-               simpar%ensemble == nph_uniaxial_ensemble .OR.&
+          IF ( simpar%ensemble == nph_uniaxial_ensemble .OR.&
                simpar%ensemble == nph_uniaxial_damped_ensemble.OR.&
                simpar%ensemble == npt_i_ensemble.OR.&
                simpar%ensemble == npt_f_ensemble.OR.&
+               simpar%ensemble == npe_i_ensemble.OR.&
                simpar%ensemble == npe_f_ensemble) THEN
              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' BAROSTAT TEMP', &
                   ADJUSTL(unit%temp_label), '= ', md_ener%temp_baro, averages%avetemp_baro
@@ -680,12 +678,12 @@ CONTAINS
        CALL write_trajectory(force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
             "FORCES", my_pos, my_act, middle_name="frc", error=error)
 
-       ! Print Simulation Cell (only if constant pressure)
-       IF  (&
-            simpar%ensemble == nph_uniaxial_ensemble .OR.&
+       ! Print Simulation Cell (only if constant pressure) and Barostat energies
+       IF  (simpar%ensemble == nph_uniaxial_ensemble .OR.&
             simpar%ensemble == nph_uniaxial_damped_ensemble.OR.&
             simpar%ensemble == npt_i_ensemble.OR.&
             simpar%ensemble == npt_f_ensemble.OR.&
+            simpar%ensemble == npe_i_ensemble.OR.&
             simpar%ensemble == npe_f_ensemble) THEN
           box = cp_print_key_unit_nr(logger,motion_section,"PRINT%CELL",&
                extension=".cell", file_position=my_pos, file_action=my_act,&
@@ -699,6 +697,31 @@ CONTAINS
              CALL m_flush(box)
           END IF
           CALL cp_print_key_finished_output(box,logger,motion_section,"PRINT%CELL", error=error)
+
+          baro = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%BAROSTAT_ENERGY",&
+               extension=".bener",file_position=my_pos, file_action=my_act,error=error)
+          IF(baro > 0) THEN
+             WRITE(UNIT=baro,FMT="(I8, F12.3,4F20.10)") itimes,time*femtoseconds,&
+                 md_ener%baro_kin, md_ener%temp_baro, md_ener%baro_pot, cell%deth*angstrom*angstrom*angstrom
+             CALL m_flush(baro)
+          END IF        
+
+          CALL cp_print_key_finished_output(baro,logger,motion_section,"MD%PRINT%BAROSTAT_ENERGY", error=error)
+       END IF
+
+       ! Print Particle-Thermostat energies (only if constant temperature)
+       IF (simpar%ensemble == npt_f_ensemble .OR. &
+           simpar%ensemble == npt_i_ensemble.OR.&
+           simpar%ensemble == nvt_ensemble) THEN
+           therm = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%THERMOSTAT_ENERGY",&
+                   extension=".tener",file_position=my_pos, file_action=my_act,error=error)
+           IF(therm > 0) THEN
+             WRITE(UNIT=therm,FMT="(I8, F12.3,4F20.10)") itimes,time*femtoseconds,&
+             md_ener%thermostat_part_kin,  md_ener%thermostat_part_pot, &
+             md_ener%thermostat_baro_kin, md_ener%thermostat_baro_pot
+             CALL m_flush(therm)
+           END IF
+           CALL cp_print_key_finished_output(therm,logger,motion_section,"MD%PRINT%THERMOSTAT_ENERGY", error=error)
        END IF
 
        ! Print Stress Tensor

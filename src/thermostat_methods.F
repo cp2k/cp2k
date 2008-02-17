@@ -44,8 +44,8 @@ MODULE thermostat_methods
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        do_region_global, do_thermo_csvr, do_thermo_nose, &
-       do_thermo_same_as_part, npe_f_ensemble, npt_f_ensemble, &
-       npt_i_ensemble, nve_ensemble, nvt_ensemble
+       do_thermo_same_as_part, npe_f_ensemble, npe_i_ensemble, &
+       npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_ensemble
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -155,13 +155,12 @@ CONTAINS
                         (simpar%ensemble == nvt_ensemble)
 
     apply_general_thermo = apply_thermo_baro .OR. (simpar%ensemble == nvt_ensemble)
-    IF (simpar%ensemble == npe_f_ensemble) apply_general_thermo = .FALSE.
-
 
     apply_thermo_shell = (simpar%ensemble == nve_ensemble).OR.&
                          (simpar%ensemble == nvt_ensemble) .OR.&
                          (simpar%ensemble == npt_f_ensemble).OR.&
                          (simpar%ensemble == npt_i_ensemble).OR.&
+                         (simpar%ensemble == npe_i_ensemble).OR.&
                          (simpar%ensemble == npe_f_ensemble)
 
     ! Compute Degrees of Freedom
@@ -204,6 +203,13 @@ CONTAINS
 CPSourceFileRef,&
                only_ionode=.TRUE.)          
        END IF
+    ELSE IF(apply_general_thermo) THEN
+       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+            "One constant temperature ensemble has been required, but no thermostat for the "//&
+            "particles has been defined. You may want to change your input and add a "//&
+            "THERMOSTAT section in the MD section."//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.) 
     END IF
 
     ! Core-Shell Model

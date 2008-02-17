@@ -26,9 +26,9 @@ MODULE md_conserved_quantities
                                              force_env_type
   USE input_constants,                 ONLY: &
        dyn_coeff_mass_global, isokin_ensemble, langevin_ensemble, &
-       npe_f_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
-       npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_ensemble, &
-       reftraj_ensemble
+       npe_f_ensemble, npe_i_ensemble, nph_uniaxial_damped_ensemble, &
+       nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
+       nvt_ensemble, reftraj_ensemble
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: zero
   USE md,                              ONLY: simulation_parameters_type
@@ -169,7 +169,7 @@ CONTAINS
        md_ener%temp_baro = md_ener%temp_baro*kelvin
     CASE ( langevin_ensemble )
        md_ener%constant = md_ener%ekin + md_ener%epot
-    CASE ( npe_f_ensemble )
+    CASE ( npe_f_ensemble, npe_i_ensemble )
        CALL get_econs_npe (md_env, md_ener,  para_env, error=error)
        md_ener%temp_baro = md_ener%temp_baro*kelvin
     END SELECT
@@ -299,15 +299,14 @@ CONTAINS
     CALL get_md_env ( md_env,  thermostat_baro=thermostat_baro, &
          simpar = simpar, npt = npt, cell = box,  &
          thermostat_shell=thermostat_shell, error=error)
-    CALL get_thermostat_energies(thermostat_baro, md_ener%thermostat_baro_pot,&
-         md_ener%thermostat_baro_kin, para_env, error)
+!    CALL get_thermostat_energies(thermostat_baro, md_ener%thermostat_baro_pot,&
+!         md_ener%thermostat_baro_kin, para_env, error)
     CALL get_baro_energies ( box, simpar, npt, md_ener%baro_kin, &
          md_ener%baro_pot, error=error )
     nfree = SIZE ( npt, 1 ) * SIZE ( npt, 2 )
     md_ener%temp_baro = 2.0_dp * md_ener%baro_kin / nfree
 
     md_ener%constant = md_ener%ekin + md_ener%epot + md_ener%ekin_shell &
-         + md_ener%thermostat_baro_kin + md_ener%thermostat_baro_pot  &
          + md_ener%baro_kin + md_ener%baro_pot
 
     CALL get_thermostat_energies ( thermostat_shell, md_ener%thermostat_shell_pot, &
@@ -412,7 +411,8 @@ CONTAINS
     INTEGER                                  :: i, j
     REAL(dp)                                 :: iv0, v0, v_shock
 
-    IF ( simpar%ensemble == npt_i_ensemble ) THEN
+    IF ( simpar%ensemble == npt_i_ensemble .OR.&
+          simpar%ensemble== npe_i_ensemble) THEN
        baro_pot = simpar % p_ext * box % deth
        baro_kin = 0.5_dp * npt ( 1, 1 ) % v * npt ( 1, 1 ) % v * &
             npt ( 1, 1 ) % mass

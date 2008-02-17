@@ -30,10 +30,10 @@ MODULE md
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        ensemble_name_types, isokin_ensemble, langevin_ensemble, &
-       npe_f_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
-       npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_ensemble, &
-       use_perd_none, use_perd_x, use_perd_xy, use_perd_xyz, use_perd_xz, &
-       use_perd_y, use_perd_yz, use_perd_z
+       npe_f_ensemble, npe_i_ensemble, nph_uniaxial_damped_ensemble, &
+       nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
+       nvt_ensemble, use_perd_none, use_perd_x, use_perd_xy, use_perd_xyz, &
+       use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_list_get,&
@@ -186,10 +186,13 @@ CONTAINS
        IF ( simpar % annealing ) &
             WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Annealing ion factor      ', &
             simpar % f_annealing
-       IF ( simpar % ensemble == npe_f_ensemble .AND. simpar % annealing_cell ) &
-            WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Annealing cell factor      ', simpar % f_annealing_cell
+       IF ( (simpar % ensemble == npe_f_ensemble .OR. simpar % ensemble == npe_i_ensemble)&
+             .AND. simpar % annealing_cell ) &
+            WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Annealing cell factor      ', &
+            simpar % f_annealing_cell
        IF (  simpar % ensemble == npt_i_ensemble .OR. &
              simpar % ensemble == npt_f_ensemble .OR. &
+             simpar % ensemble == npe_i_ensemble .OR. &
              simpar % ensemble == npe_f_ensemble ) THEN
           WRITE ( iw, '( A,A3,A, T71, F10.2 )' ) &
                ' MD| Pressure [','Bar','] ', simpar % p_ext*unit%bar
@@ -220,11 +223,11 @@ CONTAINS
        WRITE ( iw, '( A,T20,i10,T31,A50 )' ) ' MD| Coordinates',iprint, &
             ADJUSTR ( TRIM(filename) )
 
-       IF (&
-            simpar % ensemble == nph_uniaxial_ensemble .OR.&
+       IF ( simpar % ensemble == nph_uniaxial_ensemble .OR.&
             simpar % ensemble == nph_uniaxial_damped_ensemble.OR.&
             simpar % ensemble == npt_i_ensemble.OR.&
             simpar % ensemble == npt_f_ensemble .OR. &
+            simpar % ensemble == npe_i_ensemble .OR. &
             simpar % ensemble == npe_f_ensemble) THEN
 
           print_key => section_vals_get_subs_vals(motion_section,"PRINT%CELL",error=error)
@@ -374,7 +377,7 @@ CPSourceFileRef,&
        
        SELECT CASE (simpar%ensemble)
        CASE( nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
-               npt_f_ensemble, npt_i_ensemble, npe_f_ensemble)
+               npt_f_ensemble, npt_i_ensemble, npe_f_ensemble, npe_i_ensemble)
           tmp_section => section_vals_get_subs_vals(md_section,"BAROSTAT",error=error)
           CALL section_vals_val_get(tmp_section,"PRESSURE",r_val=simpar%p_ext,error=error)
           CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_cell,error=error)

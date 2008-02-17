@@ -15,7 +15,7 @@ MODULE velocity_verlet_control
                                              force_env_type,&
                                              use_fist_force
   USE input_constants,                 ONLY: &
-       isokin_ensemble, langevin_ensemble, npe_f_ensemble, &
+       isokin_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
        npt_i_ensemble, nve_ensemble, nvt_ensemble, reftraj_ensemble
   USE integrator,                      ONLY: &
@@ -83,7 +83,7 @@ SUBROUTINE velocity_verlet ( md_env, error )
         CALL nvt ( md_env, error  )
      CASE ( isokin_ensemble )
         CALL isokin ( md_env, error  )
-     CASE ( npt_i_ensemble )
+     CASE ( npt_i_ensemble, npe_i_ensemble )
         CALL npt_i ( md_env, error  )
      CASE ( npt_f_ensemble)
         CALL npt_f ( md_env, error  )
@@ -118,9 +118,9 @@ SUBROUTINE velocity_verlet ( md_env, error )
        CALL nph_uniaxial ( md_env,error )
     CASE ( nph_uniaxial_damped_ensemble )
        CALL nph_uniaxial_damped ( md_env,error )
-    CASE ( npt_i_ensemble )
+    CASE ( npt_i_ensemble, npe_i_ensemble )
        CALL npt_i ( md_env, error  )
-    CASE ( npt_f_ensemble )
+    CASE ( npt_f_ensemble, npe_f_ensemble )
        CALL npt_f ( md_env, error  )
     CASE DEFAULT
       CALL stop_program("velocity_verlet",&

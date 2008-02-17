@@ -28,6 +28,7 @@ MODULE extended_system_init
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_thermo_only_master,&
                                              npe_f_ensemble,&
+                                             npe_i_ensemble,&
                                              nph_uniaxial_damped_ensemble,&
                                              nph_uniaxial_ensemble,&
                                              npt_f_ensemble,&
@@ -89,7 +90,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(npt_info),cp_fatal_level,routineP,error,failure)
     ! first allocating the npt_info_type if requested
     SELECT CASE ( simpar % ensemble )
-    CASE ( npt_i_ensemble )
+    CASE ( npt_i_ensemble, npe_i_ensemble )
        ALLOCATE ( npt_info ( 1, 1 ), STAT = stat )
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
        npt_info  ( :, : ) % eps = LOG ( cell % deth ) / 3.0_dp
@@ -701,6 +702,8 @@ CONTAINS
        npt ( :, : ) % mass = cmass
     CASE ( npe_f_ensemble)
        npt ( :, : ) % mass =  REAL ( nfree + 3,KIND=dp) * temp_ext * tau_cell ** 2 / 3.0_dp
+    CASE ( npe_i_ensemble )
+       npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) * temp_ext * tau_cell ** 2
     END SELECT
     ! initializing velocities
     DO i = 1, SIZE ( npt,1)

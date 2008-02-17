@@ -22,6 +22,7 @@ MODULE integrator_utils
                                              npt_info_type
   USE f77_blas
   USE input_constants,                 ONLY: npe_f_ensemble,&
+                                             npe_i_ensemble,&
                                              nph_uniaxial_damped_ensemble,&
                                              nph_uniaxial_ensemble,&
                                              npt_f_ensemble,&
@@ -880,7 +881,8 @@ CONTAINS
     unit(2,2) = 1.0_dp
     unit(3,3) = 1.0_dp
 
-    IF ( simpar % ensemble == npt_i_ensemble ) THEN
+    IF ( simpar % ensemble == npt_i_ensemble .OR.&
+         simpar % ensemble == npe_i_ensemble ) THEN
        ! get force on barostat
        fdotr = 0.0_dp
        DO ii = 1, 3

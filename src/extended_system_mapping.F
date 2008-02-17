@@ -23,9 +23,9 @@ MODULE extended_system_mapping
   USE input_constants,                 ONLY: &
        do_region_global, do_region_massive, do_thermo_communication, &
        do_thermo_no_communication, do_thermo_only_master, isokin_ensemble, &
-       langevin_ensemble, npe_f_ensemble, nph_uniaxial_damped_ensemble, &
-       nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
-       nvt_ensemble, reftraj_ensemble
+       langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
+       nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
+       npt_i_ensemble, nve_ensemble, nvt_ensemble, reftraj_ensemble
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -153,7 +153,7 @@ CONTAINS
     SELECT CASE ( simpar % ensemble )
     CASE DEFAULT
        CALL stop_program ( routineN, 'Unknown ensemble!' )
-    CASE ( nve_ensemble, isokin_ensemble, nph_uniaxial_ensemble,&
+    CASE ( nve_ensemble, isokin_ensemble,npe_f_ensemble, npe_i_ensemble, nph_uniaxial_ensemble,&
            nph_uniaxial_damped_ensemble, reftraj_ensemble, langevin_ensemble )
        CALL stop_program ( routineN, 'Never reach this point!' )
     CASE ( nvt_ensemble, npt_i_ensemble, npt_f_ensemble )
@@ -398,7 +398,7 @@ CONTAINS
     CASE ( isokin_ensemble, nph_uniaxial_ensemble,&
            nph_uniaxial_damped_ensemble, reftraj_ensemble, langevin_ensemble )
        CALL stop_program ( routineN, 'Never reach this point!' )
-    CASE ( nve_ensemble, nvt_ensemble, npt_i_ensemble, npt_f_ensemble, npe_f_ensemble )
+    CASE ( nve_ensemble, nvt_ensemble, npe_f_ensemble, npe_i_ensemble,npt_i_ensemble, npt_f_ensemble )
 
        CALL setup_nhc_thermostat(nhc, thermostat_info, deg_of_freedom, massive_shell_list,&
             molecule_kind_set, local_molecules, molecule_set, para_env, nshell_local, &

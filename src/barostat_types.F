@@ -17,6 +17,7 @@ MODULE barostat_types
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: npe_f_ensemble,&
+                                             npe_i_ensemble,&
                                              nph_uniaxial_damped_ensemble,&
                                              nph_uniaxial_ensemble,&
                                              npt_f_ensemble,&
@@ -86,6 +87,7 @@ CONTAINS
     IF (simpar%ensemble == npt_i_ensemble .OR. &
         simpar%ensemble == npt_f_ensemble .OR. &
         simpar%ensemble == npe_f_ensemble .OR. &
+        simpar%ensemble == npe_i_ensemble .OR. &
         simpar%ensemble == nph_uniaxial_ensemble .OR. &
         simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
        ALLOCATE(barostat, stat=stat)

@@ -112,7 +112,7 @@ MODULE input_constants
   !
   ! MD Ensemble
   !
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(11), PUBLIC :: ensemble_name_types=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(12), PUBLIC :: ensemble_name_types=&
        (/"nve                ",&
          "nvt                ",&
          "npt_i              ",&
@@ -123,7 +123,8 @@ MODULE input_constants
          "isokin             ",&
          "reftraj            ",&
          "langevin           ",&
-         "npe_f              " /)
+         "npe_f              ",&
+         "npe_i              " /)
   INTEGER, PARAMETER, PUBLIC :: nve_ensemble=1,&
                                 nvt_ensemble=2,&
                                 npt_i_ensemble=3,&
@@ -134,14 +135,15 @@ MODULE input_constants
                                 isokin_ensemble=8,&
                                 reftraj_ensemble=9,&
                                 langevin_ensemble=10,&
-                                npe_f_ensemble=11
-  INTEGER, PARAMETER, PUBLIC, DIMENSION(11) :: ensemble_name_index=&
+                                npe_f_ensemble=11,&
+                                npe_i_ensemble=12
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(12) :: ensemble_name_index=&
        (/nve_ensemble,nvt_ensemble,npt_i_ensemble,&
          npt_f_ensemble,nph_uniaxial_ensemble,&
          nph_uniaxial_damped_ensemble,nph_ensemble,isokin_ensemble,&
          reftraj_ensemble,&
-         langevin_ensemble, npe_f_ensemble/)
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(11), PUBLIC :: ensemble_name_desc=&
+         langevin_ensemble, npe_f_ensemble, npe_i_ensemble/)
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(12), PUBLIC :: ensemble_name_desc=&
    (/"constant energy (microcanonical)                                             ",&
      "constant temperature and volume (canonical)                                  ",&
      "constant temperature and pressure using an isotropic cell                    ",&
@@ -152,7 +154,8 @@ MODULE input_constants
      "constant kinetic energy                                                      ",&
      "reading frames from a file called reftraj.xyz (e.g. for property calculation)",&
      "langevin dynamics (constant temperature)                                     ",&
-     "constant pressure ensemble (no thermostat)                                   "/)
+     "constant pressure ensemble (no thermostat)                                   ",&
+     "constant pressure ensemble using an isotropic cell (no thermostat)           "/)
 
   INTEGER, PARAMETER, PUBLIC :: do_thermo_same_as_part=100,&
                                 do_thermo_nose=101,&
