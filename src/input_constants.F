@@ -624,7 +624,8 @@ MODULE input_constants
                                 do_fft_essl=4,&
                                 do_fft_acml=5,&
                                 do_fft_mkl=6,&
-                                do_fft_sci=7
+                                do_fft_sci=7,&
+                                do_fft_cu=8
   ! fftw will automatically be either FFTW2 or FFTW3 
 #if defined ( __FFTW2 )
   INTEGER, PARAMETER, PUBLIC :: do_fft_fftw=do_fft_fftw2

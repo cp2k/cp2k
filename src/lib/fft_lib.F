@@ -31,6 +31,8 @@ FUNCTION fft_library ( fftlib ) RESULT ( flib )
       flib = 6
     CASE ( "FFTSCI" )
       flib = 7
+    CASE ( "FFTCU" )
+      flib = 8
   END SELECT
 
 END FUNCTION fft_library 
@@ -59,6 +61,8 @@ SUBROUTINE fft_get_lengths ( fft_type, DATA, max_length )
       CALL fftmkl_get_lengths ( DATA, max_length )
     CASE ( 7 )
       CALL fftsci_get_lengths ( DATA, max_length )
+    CASE ( 8 )
+      CALL fftcu_get_lengths ( DATA, max_length )
   END SELECT
 
 END SUBROUTINE fft_get_lengths
@@ -100,6 +104,8 @@ SUBROUTINE fft_3d ( fft_type, fft_in_place, fsign, scale, n, zin, zout )
         CALL fftmkl3d ( fft_in_place, fsign, scale, n, zin, zout )
       CASE ( 7 )
         CALL fftsci3d ( fft_in_place, fsign, scale, n, zin, zout )
+      CASE ( 8 )
+        CALL fftcu3d ( fft_in_place, fsign, scale, n, zin, zout )
     END SELECT
   END IF
 
@@ -142,6 +148,8 @@ SUBROUTINE fft_1dm ( fft_type, fsign, trans, n, m, zin, zout, scale )
         CALL fftmkl1dm ( fsign, trans, n, m, zin, zout, scale )
       CASE ( 7 )
         CALL fftsci1dm ( fsign, trans, n, m, zin, zout, scale )
+      CASE ( 8 )
+        CALL fftmkl1dm ( fsign, trans, n, m, zin, zout, scale )
     END SELECT
   END IF
 

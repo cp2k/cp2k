@@ -534,6 +534,9 @@ CONTAINS
        CASE ( 7 )
           CALL init_fft ( "FFTSCI", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
           method = "FFTSCI"
+       CASE ( 8 )
+          CALL init_fft ( "FFTCU", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
+          method = "FFTCU"
        END SELECT
        n = 4
        zz =0.0_dp

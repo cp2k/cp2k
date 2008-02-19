@@ -35,10 +35,11 @@ MODULE environment
   USE gamma,                           ONLY: deallocate_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       do_cp2k, do_eip, do_farming, do_fft_acml, do_fft_essl, do_fft_fftw, &
-       do_fft_fftw2, do_fft_fftw3, do_fft_mkl, do_fft_sci, do_fft_sg, &
-       do_fist, do_kg, do_qs, do_test, energy_run, id_development_version, &
-       mol_dyn_run, none_run, program_names, run_type_names
+       do_cp2k, do_eip, do_farming, do_fft_acml, do_fft_cu, do_fft_essl, &
+       do_fft_fftw, do_fft_fftw2, do_fft_fftw3, do_fft_mkl, do_fft_sci, &
+       do_fft_sg, do_fist, do_kg, do_qs, do_test, energy_run, &
+       id_development_version, mol_dyn_run, none_run, program_names, &
+       run_type_names
   USE input_section_types,             ONLY: section_get_lval,&
                                              section_get_rval,&
                                              section_vals_get,&
@@ -479,6 +480,8 @@ CONTAINS
        globenv%default_fft_library="FFTMKL"
     CASE(do_fft_sci)
        globenv%default_fft_library="FFTSCI"
+    CASE(do_fft_cu)
+       globenv%default_fft_library="FFTCU"
     CASE DEFAULT
        CALL stop_program(routineN,moduleN,__LINE__,&
             " unknown FFT type",para_env)

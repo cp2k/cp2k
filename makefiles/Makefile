@@ -1,4 +1,5 @@
-.SUFFIXES: .F .dep .o .f90 
+.SUFFIXES: .F .dep .o .f90 .cu .c
+
 SHELL = /bin/sh
 #
 # the home dir is taken from the current directory: you must cd to the makefiles
@@ -27,7 +28,7 @@ PRETTYOBJDIR = $(CP2KHOME)/obj/prettified
 TOOLDIR      = $(OBJDIR)/tools
 TOOLSRC      = $(CP2KHOME)/tools
 SRCDIR       = $(CP2KHOME)/src
-SRCDIRS      = $(SRCDIR):$(SRCDIR)/lib:$(TOOLSRC)/Fist/topology_converter::$(TOOLSRC)/metadyn
+SRCDIRS      = $(SRCDIR):$(SRCDIR)/lib:$(TOOLSRC)/Fist/topology_converter::$(TOOLSRC)/metadyn:$(CP2KHOME)/cuda_tools
 MAKEFILE     = $(CP2KHOME)/makefiles/Makefile
 MACHINEDEFS  = $(ARCHDIR)/$(ARCH).$(VERSION)
 PROG         = $(EXEDIR)/cp2k.$(VERSION)
@@ -39,6 +40,7 @@ LIBDIR       = $(MAINLIBDIR)/$(ARCH)
 OBJDIR       = $(MAINOBJDIR)/$(ARCH)
 OBJECTDEFS   = $(SRCDIR)/OBJECTDEFS
 LIBOBJECTDEFS= $(SRCDIR)/lib/OBJECTDEFS
+LIBNVOBJECTDEFS= $(CP2KHOME)/cuda_tools/NVOBJECTDEFS
 LIB1_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
 LIB2_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB2).a
 LIB_CP2K_ARCHIVE  = $(LIBDIR)/$(VERSION)/lib$(LIBCP2K).a
@@ -46,7 +48,7 @@ SRCENTRY     = $(wildcard $(SRCDIR)/CVS/Entr*)
 LEAPOBJECTDEFS = $(TOOLSRC)/Fist/topology_converter/OBJECTDEFS
 FESOBJECTDEFS  = $(TOOLSRC)/metadyn/OBJECTDEFS
 DOXYGENDIR   = $(DOCDIR)/doxygen
-#
+
 ### Definition of the multiple targets ###
 #
 VERSION_TARGETS = sopt sdbg popt pdbg ssmp psmp
@@ -119,10 +121,19 @@ include $(LIBOBJECTDEFS)
 include $(LEAPOBJECTDEFS)
 include $(FESOBJECTDEFS)
 include $(MACHINEDEFS)
+include $(LIBNVOBJECTDEFS)
 
 OBJECTS = $(OBJECTS_GENERIC) $(OBJECTS_ARCHITECTURE)
 LEAPOBJS = $(LEAPOBJ) $(OBJECTS_ARCHITECTURE)
 FESOBJS = $(FESOBJ) $(OBJECTS_ARCHITECTURE)
+
+# Cuda specific instructions
+ifneq ($(NVCC),)
+  LIBNV_ARCHIVE= $(LIBDIR)/$(VERSION)/libcp2k_cuda.a
+endif
+
+# Define the whole bunch of libraries needed
+ALL_LIB =  $(LIB_CP2K_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIBNV_ARCHIVE)
 
 #
 # some practical variables for the build.
@@ -149,6 +160,7 @@ vpath %.h $(SRCDIRS)
 vpath %.f90 $(SRCDIRS)
 vpath %.dep $(OBJDIR)/$(VERSION)
 vpath %.pretty $(PRETTYOBJDIR)
+vpath %.cu $(SRCDIRS)
 
 #
 # generation of the dependencies
@@ -177,9 +189,9 @@ leap2fist.dep: $(LEAPOBJS:.o=.F)
 #
 # and the rules doing the actual work
 #
-_all: $(LIB1_ARCHIVE) $(LIB2_ARCHIVE) $(LIB_CP2K_ARCHIVE) $(PROG) leap2fist fes $(CP2KSHELL)
+_all: $(ALL_LIB) $(PROG) leap2fist fes $(CP2KSHELL)
 _progr: $(PROG)
-_lib: $(LIB1_ARCHIVE) $(LIB2_ARCHIVE) $(LIB_CP2K_ARCHIVE)
+_lib: $(ALL_LIB)
 _cpshell: $(CP2KSHELL)
 
 _pretty:$(OBJECTS:.o=.pretty)
@@ -202,11 +214,16 @@ ifneq ($(RANLIB),)
 	$(RANLIB) $(LIB_CP2K_ARCHIVE)
 endif
 
-$(PROG): $(LIB1_ARCHIVE) $(LIB2_ARCHIVE) $(LIB_CP2K_ARCHIVE) cp2k.o
-	$(LD) $(LDFLAGS) -o $(PROG) cp2k.o $(LIB_CP2K_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIBS)
+ifneq ($(NVCC),)
+  $(LIBNV_ARCHIVE): $(LIBNV_OBJECTS)
+	$(AR) $(LIBNV_ARCHIVE) $?
+endif
 
-$(CP2KSHELL): $(LIB1_ARCHIVE) $(LIB2_ARCHIVE) $(LIB_CP2K_ARCHIVE) cp2k_shell.o
-	$(LD) $(LDFLAGS) -o $(CP2KSHELL) cp2k_shell.o $(LIB_CP2K_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIBS)
+$(PROG): $(ALL_LIB) cp2k.o
+	$(LD) $(LDFLAGS) -o $(PROG) cp2k.o $(ALL_LIB) $(LIBS)
+
+$(CP2KSHELL): $(ALL_LIB) cp2k_shell.o
+	$(LD) $(LDFLAGS) -o $(CP2KSHELL) cp2k_shell.o $(ALL_LIB) $(LIBS)
 
 #
 # these are tools, but their integration in the build is ugly at least (e.g. see dependencies).
@@ -238,6 +255,9 @@ endif
 %.pretty: %.F 
 	$(TOOLSRC)/prettify.py $<
 	@touch $(PRETTYOBJDIR)/$*.pretty
+
+%.o: %.cu
+	$(NVCC) -c $(NVFLAGS) $<
 
 #
 # here we cheat... this tells make that .mod can be generated from .o (this holds in CP2K)
