@@ -46,6 +46,7 @@ static int pp_ignore;    /* In 'false'-branch of a pre-processor 'if' */
 static bool skip_to_end[20];
 static int skip_i;
 static bool in_interface = false;
+static int cvs_conflict_tags = 0;
 
 int yyerror(const char *s);
 
@@ -67,13 +68,13 @@ void lex_set_format(SourceFmt fmt);
     int number;
 }
 
-%token EOSTMT ASSIGNMENT_OP GARBAGE
+%token EOSTMT ASSIGNMENT_OP GARBAGE 
 %token CPP_INCLUDE F90PPR_INCLUDE COCO_INCLUDE 
 %token F90PPR_DEFINE CPP_DEFINE F90PPR_UNDEF CPP_UNDEF 
 %token CPP_IFDEF CPP_IFNDEF CPP_IF CPP_ELSE CPP_ELIF CPP_ENDIF
 %token F90PPR_IFDEF F90PPR_IFNDEF F90PPR_IF F90PPR_ELSE F90PPR_ELIF F90PPR_ENDIF
 %token <string> CPP_TOENDL
-%token <number> UNTERMINATED_STRING
+%token <number> UNTERMINATED_STRING CVS_CONFLICT
 %token <string> STRING WORD 
 
 %%
@@ -230,6 +231,13 @@ keyword_stmt: WORD EOSTMT {
     | WORD GARBAGE other EOSTMT             /* Ignore */
     | GARBAGE other EOSTMT
     | EOSTMT
+    | CVS_CONFLICT { 
+        ++cvs_conflict_tags;
+        warning("Unresolved CVS conflict: %s:%d", curr_file, $1);
+        if (cvs_conflict_tags >= 3) {
+            YYABORT;
+        } 
+    }
     | error { yyerrok; }
     ;
 
@@ -338,7 +346,10 @@ bool find_dep(char *file, Dependency *d, List **mods, const List *predef_macro)
             macrolist = list_prepend(macrolist, mac);
     }
 
-    yyparse();
+    if (yyparse() != 0) {
+       warning("Unrecoverable syntax error in file '%s'", file);
+       exit(1);
+    }
     *mods = modules;
 
     /* Delete macrolist */

@@ -173,18 +173,18 @@ all.dep: $(OBJECTS:.o=.F) cp_common_uses.h cp2k.F cp2k_shell.F
 ifeq ($(HACKDEP),yes)
 	echo $^ | awk '{for (i=1;i<=NF;i++) {obj=$$(i) ; sub(".F",".o",obj); if ($$(i)!=obj) print obj,":",$$(i) }}' > $(OBJDIR)/$(VERSION)/all.dep
 else
-	$(TOOLDIR)/makedepf90 -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/all.dep
+	$(TOOLDIR)/makedepf90 -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/all.dep || ( rm -f $(OBJDIR)/$(VERSION)/all.dep  ; exit 1 )
 endif
 
 lib.dep: $(LIB1_OBJECTS:.o=.F) $(LIB2_OBJECTS:.o=.F)
-	$(TOOLDIR)/makedepf90 -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/lib.dep
+	$(TOOLDIR)/makedepf90 -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/lib.dep || ( rm -f $(OBJDIR)/$(VERSION)/lib.dep ; exit 1 )
 
 # this is kind of a hack, fes and leap2fist depend on files in other directories, hence the -I and the -b.
 fes.dep: $(FESOBJS:.o=.F) 
-	$(TOOLDIR)/makedepf90 -I$(SRCDIR) -b. -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/fes.dep
+	$(TOOLDIR)/makedepf90 -I$(SRCDIR) -b. -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/fes.dep || ( rm -f $(OBJDIR)/$(VERSION)/fes.dep  ; exit 1 )
 
 leap2fist.dep: $(LEAPOBJS:.o=.F) 
-	$(TOOLDIR)/makedepf90 -I$(SRCDIR) -b. -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/leap2fist.dep
+	$(TOOLDIR)/makedepf90 -I$(SRCDIR) -b. -m "%m.mod" -free $^ > $(OBJDIR)/$(VERSION)/leap2fist.dep || ( rm -f  $(OBJDIR)/$(VERSION)/leap2fist.dep ; exit 1 )
 
 #
 # and the rules doing the actual work
@@ -230,7 +230,7 @@ $(CP2KSHELL): $(ALL_LIB) cp2k_shell.o
 #
 makedepf90:
 	-test -d $(TOOLDIR)/makedepf90-build || cp -r $(TOOLSRC)/makedepf90 makedepf90-build
-	{ cd makedepf90-build ; ./configure --prefix=$(TOOLDIR) --bindir=$(TOOLDIR) ; $(MAKE) VERSION="2.8.8" ; $(MAKE) install ; }
+	{ cd makedepf90-build ; ./configure --prefix=$(TOOLDIR) --bindir=$(TOOLDIR) ; $(MAKE) VERSION="2.8.8cp2k" ; $(MAKE) install ; }
 
 $(LEAP2FIST): $(LEAPOBJS)
 	$(LD) $(LDFLAGS) -o $(LEAP2FIST) $(LEAPOBJS)

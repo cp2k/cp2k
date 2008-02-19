@@ -97,6 +97,8 @@ static int last_returned;
 !.*             { RETURN(EOSTMT); } /* Treat comments like */
 <fixed_fmt>^[cC*dD].*\n { RETURN(EOSTMT); } /* empty lines */
 
+(\<\<\<\<\<\<\<|=======|\>\>\>\>\>\>\>) { yylval.number = yylineno; RETURN(CVS_CONFLICT); }
+
 #[ \t]*include  { RETURN(CPP_INCLUDE); }
 \$[ \t]*include { RETURN(F90PPR_INCLUDE); }
 \?\?[ \t]*include { RETURN(COCO_INCLUDE); }
