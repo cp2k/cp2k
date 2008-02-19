@@ -1855,7 +1855,7 @@ CONTAINS
           CALL write_potential(atomic_kind%gth_potential,output_unit,error)
           IF (ASSOCIATED(atomic_kind%dft_plus_u)) THEN
              WRITE (UNIT=output_unit,&
-                  FMT="(/,T6,A,/,T8,A,T76,I5,/,T8,A,T73,F8.3),/)")&
+                  FMT="(/,T6,A,/,T8,A,T76,I5,/,T8,A,T73,F8.3)")&
                   "A DFT+U correction is applied to atoms of this atomic kind:",&
                   "Angular quantum momentum number L:",atomic_kind%dft_plus_u%l,&
                   "U - J value in [eV]:",atomic_kind%dft_plus_u%u_minus_j*evolt

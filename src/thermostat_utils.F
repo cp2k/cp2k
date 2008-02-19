@@ -1422,7 +1422,7 @@ CONTAINS
           IF(unit > 0) THEN
             IF (new_file) THEN
                WRITE(unit,'(A)')"# Thermostat Potential and Kinetic Energies - Total and per Region"
-               WRITE(unit,'("#",3X,A,2X,A,13X,A,10X,A))')"Step Nr.","Time[fs]","Kin.[a.u.]","Pot.[a.u.]"
+               WRITE(unit,'("#",3X,A,2X,A,13X,A,10X,A)')"Step Nr.","Time[fs]","Kin.[a.u.]","Pot.[a.u.]"
             END IF
             WRITE(UNIT=unit,FMT="(I8, F12.3,6X,2F20.10)") itimes,time*femtoseconds, thermo_kin, thermo_pot
             WRITE(unit, '(A,4F20.10)')"# KINETIC ENERGY REGIONS: ",array_kin(1:MIN(4,SIZE(array_kin)))
@@ -1451,7 +1451,7 @@ CONTAINS
           IF(unit > 0) THEN
             IF (new_file) THEN
                WRITE(unit,'(A)')"# Temperature Total and per Region"
-               WRITE(unit,'("#",3X,A,2X,A,10X,A))')"Step Nr.","Time[fs]","Temp.[K]"
+               WRITE(unit,'("#",3X,A,2X,A,10X,A)')"Step Nr.","Time[fs]","Temp.[K]"
             END IF
             WRITE(UNIT=unit,FMT="(I8, F12.3,3X,F20.10)") itimes,time*femtoseconds, tot_temperature
             WRITE(unit, '(A,I10)')"# TEMPERATURE REGIONS: ",SIZE(array_temp)
