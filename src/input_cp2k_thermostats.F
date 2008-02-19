@@ -56,17 +56,16 @@ CONTAINS
 !>        see module cp_error_handling 
 !> \author teo [tlaino] - University of Zurich - 09.2007
 ! *****************************************************************************
-  SUBROUTINE create_thermostat_section(section, coupled_thermostat, required,error)
+  SUBROUTINE create_thermostat_section(section, coupled_thermostat, error)
     TYPE(section_type), POINTER              :: section
-    LOGICAL, INTENT(IN), OPTIONAL            :: coupled_thermostat, required
+    LOGICAL, INTENT(IN), OPTIONAL            :: coupled_thermostat
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_thermostat_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure, &
-                                                my_coupled_thermostat, &
-                                                my_required
+                                                my_coupled_thermostat
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: csvr_section, nose_section, &
                                                 region_section, subsection
@@ -77,13 +76,11 @@ CONTAINS
     IF (.NOT. failure) THEN
        my_coupled_thermostat = .FALSE.
        IF (PRESENT(coupled_thermostat)) my_coupled_thermostat = coupled_thermostat
-       my_required = .FALSE.
-       IF (PRESENT(required)) my_required = required
        NULLIFY(csvr_section, nose_section, subsection, region_section)
        
        CALL section_create(section,name="THERMOSTAT",&
             description="Specify thermostat type and parameters controlling the thermostat.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE., & !%my_required,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE., &
             error=error)
        NULLIFY(keyword)       
 
@@ -156,7 +153,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_print_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, my_coupled_thermostat
+    LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
@@ -166,7 +163,7 @@ CONTAINS
        NULLIFY(print_key)
        CALL section_create(section,name="PRINT",&
             description="Collects all print_keys for thermostat",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.NOT.my_coupled_thermostat,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.true.,&
             error=error)
 
        CALL cp_print_key_section_create(print_key,"THERMOSTAT_INFO",&
