@@ -323,15 +323,10 @@ CPSourceFileRef,&
 
        ! Setup Barostat Thermostat 
        IF (apply_thermo_baro) THEN
-          IF(explicit_baro) THEN
-            ! Check if we use the same thermostat as particles
-            CALL section_vals_val_get(thermo_baro_section,"TYPE",i_val=thermostat_type,error=error)
-            work_section => thermo_baro_section
-            IF (thermostat_type==do_thermo_same_as_part) work_section => thermo_part_section
-          ELSE
-             thermostat_type = do_thermo_same_as_part
-             work_section => thermo_part_section
-          END IF
+          ! Check if we use the same thermostat as particles
+          CALL section_vals_val_get(thermo_baro_section,"TYPE",i_val=thermostat_type,error=error)
+          work_section => thermo_baro_section
+          IF (thermostat_type==do_thermo_same_as_part) work_section => thermo_part_section
          
           CALL create_thermostat_type(thermostats%thermostat_baro, simpar, work_section, skip_region=.TRUE.,&
                label="BAROSTAT", error=error)

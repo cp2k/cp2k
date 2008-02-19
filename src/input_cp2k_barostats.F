@@ -47,9 +47,8 @@ CONTAINS
 !>        see module cp_error_handling 
 !> \author teo
 ! *****************************************************************************
-  SUBROUTINE create_barostat_section(section, coupled_thermostat, error)
+  SUBROUTINE create_barostat_section(section, error)
     TYPE(section_type), POINTER              :: section
-    LOGICAL, INTENT(IN)                      :: coupled_thermostat
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_barostat_section', &
@@ -105,7 +104,7 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_thermostat_section(thermo_section, coupled_thermostat=coupled_thermostat, error=error)
+       CALL create_thermostat_section(thermo_section, coupled_thermostat=.TRUE., error=error)
        CALL section_add_subsection(section, thermo_section, error=error)
        CALL section_release(thermo_section,error=error)
 

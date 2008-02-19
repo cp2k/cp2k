@@ -64,8 +64,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_thermostat_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, &
-                                                my_coupled_thermostat
+    LOGICAL                                  :: failure, my_coupled_thermostat
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: csvr_section, nose_section, &
                                                 region_section, subsection
@@ -80,7 +79,7 @@ CONTAINS
        
        CALL section_create(section,name="THERMOSTAT",&
             description="Specify thermostat type and parameters controlling the thermostat.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE., &
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.NOT.my_coupled_thermostat,&
             error=error)
        NULLIFY(keyword)       
 
@@ -163,7 +162,7 @@ CONTAINS
        NULLIFY(print_key)
        CALL section_create(section,name="PRINT",&
             description="Collects all print_keys for thermostat",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.true.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        CALL cp_print_key_section_create(print_key,"THERMOSTAT_INFO",&
