@@ -77,7 +77,7 @@ CPSourceFileRef,&
      CALL section_vals_val_get(topology_section,"GENERATE%CREATE_MOLECULES",l_val=topology%create_molecules,error=error)
      CALL section_vals_val_get(topology_section,"MOL_CHECK",l_val=topology%molecules_check,error=error)
      CALL section_vals_val_get(topology_section,"USE_G96_VELOCITY",l_val=topology%use_g96_velocity,error=error)
-     CALL section_vals_val_get(topology_section,"COORDINATE",i_val=topology%coord_type ,error=error)
+     CALL section_vals_val_get(topology_section,"COORD_FILE_FORMAT",i_val=topology%coord_type ,error=error)
      SELECT CASE(topology%coord_type)
      CASE(do_coord_off)
         ! Do Nothing
@@ -85,7 +85,7 @@ CPSourceFileRef,&
         topology%coordinate = .TRUE.
         CALL section_vals_val_get(topology_section,"COORD_FILE_NAME",c_val=topology%coord_file_name, error=error)
      END SELECT
-     CALL section_vals_val_get(topology_section,"CONNECTIVITY",i_val=topology%conn_type,error=error)
+     CALL section_vals_val_get(topology_section,"CONN_FILE_FORMAT",i_val=topology%conn_type,error=error)
      SELECT CASE(topology%conn_type)
      CASE(do_conn_off,do_conn_generate,do_conn_mol_set)
         ! Do Nothing

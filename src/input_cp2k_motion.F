@@ -173,14 +173,14 @@ CONTAINS
             description="Controls the output of the simulation cell."//&
             "For later analysis of the trajectory it is recommendable that the"//&
             "frequency of printing is the same as the one used for the trajectory file",&
-            print_level=low_print_level, common_iter_levels=1,&
+            print_level=high_print_level, common_iter_levels=1,&
             filename="",error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"velocities",&
             description="controls the output of the velocities",&
-            print_level=low_print_level, common_iter_levels=1,&
+            print_level=high_print_level, common_iter_levels=1,&
             filename="",error=error)
        CALL keyword_create(keyword, name="format",&
             description="Specifies the format of the output file for the velocities.",&

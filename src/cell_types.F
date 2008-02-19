@@ -11,16 +11,26 @@
 MODULE cell_types
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_parser,                       ONLY: cp_parser_type,&
+                                             parser_create,&
+                                             parser_get_next_line,&
+                                             parser_release
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE input_constants,                 ONLY: &
-       use_perd_none, use_perd_x, use_perd_xy, use_perd_xyz, use_perd_xz, &
-       use_perd_y, use_perd_yz, use_perd_z, use_unit_angstrom, use_unit_bohr, &
-       use_unit_scaled_angstrom, use_unit_scaled_bohr
+       do_cell_cp2k, do_cell_xsc, use_perd_none, use_perd_x, use_perd_xy, &
+       use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z, &
+       use_unit_angstrom, use_unit_bohr, use_unit_scaled_angstrom, &
+       use_unit_scaled_bohr
   USE input_cp2k,                      ONLY: parsed_cp2k_input
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
-  USE kinds,                           ONLY: dp
+                                             section_vals_val_get,&
+                                             section_vals_val_set,&
+                                             section_vals_val_unset
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
   USE mathconstants,                   ONLY: degree
   USE mathlib,                         ONLY: angle,&
                                              det_3x3,&
@@ -65,29 +75,17 @@ MODULE cell_types
 
 ! *** Public subroutines ***
 
-  PUBLIC :: get_cell,&
-            get_cell_param,&
-            get_hinv,&
-            init_cell,&
-            read_cell,&
-            write_cell,&
-            cell_create,&
-            cell_retain,&
-            cell_release,&
-            cell_clone,&
-            compare_cells
+  PUBLIC :: get_cell, get_cell_param, get_hinv, init_cell, read_cell,&
+            write_cell, cell_create, cell_retain, cell_release,&
+            cell_clone, compare_cells, parse_cell_line 
 
 ! *** Public functions ***
 
-  PUBLIC :: plane_distance,&
-            pbc,&
-            real_to_scaled,&
-            scaled_to_real
+  PUBLIC :: plane_distance, pbc, real_to_scaled, scaled_to_real
 
 ! *** Public data types ***
 
-  PUBLIC :: cell_type,&
-            cell_p_type
+  PUBLIC :: cell_type, cell_p_type
 
   INTERFACE pbc
     MODULE PROCEDURE pbc1,pbc2,pbc3
@@ -154,6 +152,37 @@ CONTAINS
   END SUBROUTINE cell_clone
 
 ! *****************************************************************************
+!> \brief   Read cell info from a line (parsed from a file)
+!> \author  Teodoro Laino [tlaino] - University of Zurich
+!> \date    19.02.2008
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE parse_cell_line(input_line, cell_itimes, cell_time, h, vol, error)
+    CHARACTER(LEN=*), INTENT(IN)             :: input_line
+    INTEGER, INTENT(OUT)                     :: cell_itimes
+    REAL(KIND=dp), INTENT(OUT)               :: cell_time
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(OUT)                            :: h
+    REAL(KIND=dp), INTENT(OUT)               :: vol
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'parse_cell_line', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    READ(input_line,*)cell_itimes, cell_time,&
+         h(1,1),h(2,1),h(3,1), h(1,2),h(2,2),h(3,2), h(1,3),h(2,3),h(3,3),vol
+    DO i = 1, 3
+       DO j = 1, 3
+          h(j,i) = cp_unit_to_cp2k(h(j,i), "angstrom", error=error)
+       END DO
+    END DO
+  END SUBROUTINE parse_cell_line
+
+! *****************************************************************************
 !> \brief   Get informations about a simulation cell.
 !> \author  MK
 !> \date    16.01.2002
@@ -175,8 +204,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(OUT), OPTIONAL                  :: h, h_inv
     INTEGER, INTENT(out), OPTIONAL           :: id_nr
-
-!   ---------------------------------------------------------------------------
 
     IF (PRESENT(unit_of_length_name))&
       unit_of_length_name = cell%unit_of_length_name
@@ -508,14 +535,15 @@ CONTAINS
 !>      03.2005 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE read_cell( cell, cell_ref, use_ref_cell, error, cell_section,&
-       check_for_ref)
+  RECURSIVE SUBROUTINE read_cell( cell, cell_ref, use_ref_cell, cell_section,&
+    check_for_ref, para_env, error)
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(OUT), OPTIONAL           :: use_ref_cell
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: cell_section
     LOGICAL, INTENT(IN), OPTIONAL            :: check_for_ref
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_cell', &
       routineP = moduleN//':'//routineN
@@ -529,15 +557,8 @@ CONTAINS
     my_check = .TRUE.
     NULLIFY(cell_ref_section, cell_par)
     IF (.NOT.failure) THEN
-
-       IF (.NOT.ASSOCIATED(cell)) THEN
-          CALL cell_create(cell,error=error)
-       END IF
-
-       IF (.NOT.ASSOCIATED(cell_ref)) THEN
-          CALL cell_create(cell_ref,error=error)
-       END IF
-
+       IF (.NOT.ASSOCIATED(cell)) CALL cell_create(cell,error=error)
+       IF (.NOT.ASSOCIATED(cell_ref)) CALL cell_create(cell_ref,error=error)
        IF (PRESENT(check_for_ref)) my_check     =  check_for_ref
 
        cell%unit_of_length_name = "BOHR"
@@ -545,10 +566,12 @@ CONTAINS
        cell%unit_of_length = 1.0_dp
        cell%orthorhombic = .TRUE.
        cell%scaled_coordinates = .FALSE.
-       cell%perd(:) = 1
-       cell%hmat(:,:) = 0.0_dp
+       cell%perd(:)    = 1
+       cell%hmat(:,:)  = 0.0_dp
        cell%h_inv(:,:) = 0.0_dp
 
+       CALL section_vals_val_get(cell_section,"CELL_FILE_NAME",n_rep_val=n_rep,error=error)
+       IF (n_rep==1) CALL read_cell_from_external_file(cell_section, cell, para_env, error)
        CALL section_vals_val_get(cell_section,"A",n_rep_val=n_rep,error=error)
        IF (n_rep /= 0) THEN
           CALL section_vals_val_get(cell_section,"A",r_vals=cell_par,error=error)
@@ -571,8 +594,8 @@ CONTAINS
           cell%hmat(2,2) = cell_par(2)
           cell%hmat(3,3) = cell_par(3)
        END IF
-       CALL section_vals_val_get(cell_section,"SUBCELLS",r_val=cell%subcells,error=error)
 
+       CALL section_vals_val_get(cell_section,"SUBCELLS",r_val=cell%subcells,error=error)
        CALL section_vals_val_get(cell_section,"PERIODIC",i_val=my_per,error=error)
        SELECT CASE(my_per)
        CASE(use_perd_x)
@@ -624,14 +647,88 @@ CONTAINS
             "CELL_REF",error=error)
        IF (parsed_cp2k_input(cell_ref_section,check_this_section=.TRUE.,error=error)) THEN
           IF(PRESENT(use_ref_cell) ) use_ref_cell = .TRUE.
-          CALL read_cell(cell_ref, cell_ref, use_ref_cell, error=error,&
-               cell_section=cell_ref_section, check_for_ref=.FALSE.)
+          CALL read_cell(cell_ref, cell_ref, use_ref_cell, cell_section=cell_ref_section,&
+               check_for_ref=.FALSE., para_env=para_env, error=error)
        ELSE
           CALL cell_clone (cell, cell_ref, error)
           IF ( PRESENT ( use_ref_cell ) ) use_ref_cell = .FALSE.
        END IF
     END IF
   END SUBROUTINE read_cell
+
+! *****************************************************************************
+!> \brief   Read cell information from an external file
+!> \author  Teodoro Laino [tlaino] - University of Zurich
+!> \date    02.2008
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE read_cell_from_external_file(cell_section, cell, para_env, error)
+    TYPE(section_vals_type), POINTER         :: cell_section
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_cell_from_external_file', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: cell_file_name
+    INTEGER                                  :: idum, my_format, n_rep, stat
+    LOGICAL                                  :: explicit, failure, my_end
+    REAL(KIND=dp)                            :: xdum
+    REAL(KIND=dp), DIMENSION(3, 3)           :: hmat
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: cell_par
+    TYPE(cp_parser_type), POINTER            :: parser
+
+    failure = .FALSE. 
+    NULLIFY(parser)
+    CALL section_vals_val_get(cell_section,"CELL_FILE_NAME",c_val=cell_file_name,error=error)
+    CALL section_vals_val_get(cell_section,"CELL_FILE_FORMAT",i_val=my_format, error=error)
+    CALL parser_create(parser,cell_file_name, para_env=para_env,error=error)
+    CALL parser_get_next_line(parser,1,error=error)
+    SELECT CASE(my_format)
+    CASE (do_cell_cp2k)
+       my_end = .FALSE.
+       DO WHILE (.NOT.my_end)
+          CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+       END DO
+       READ(parser%input_line,*)idum,xdum,hmat(:,1),hmat(:,2),hmat(:,3)
+    CASE (do_cell_xsc)
+       READ(parser%input_line,*)idum,hmat(:,1),hmat(:,2),hmat(:,3)
+    END SELECT
+    CALL parser_release(parser,error=error)
+    CALL section_vals_val_unset(cell_section,"CELL_FILE_NAME",error=error)
+    CALL section_vals_val_unset(cell_section,"CELL_FILE_FORMAT",error=error)
+    ! Check if the cell was already defined
+    explicit = .FALSE.
+    CALL section_vals_val_get(cell_section,"A",n_rep_val=n_rep,error=error)
+    explicit = explicit .OR. (n_rep==1)
+    CALL section_vals_val_get(cell_section,"B",n_rep_val=n_rep,error=error)
+    explicit = explicit .OR. (n_rep==1)
+    CALL section_vals_val_get(cell_section,"C",n_rep_val=n_rep,error=error)
+    explicit = explicit .OR. (n_rep==1)
+    CALL section_vals_val_get(cell_section,"ABC",n_rep_val=n_rep,error=error)
+    explicit = explicit .OR. (n_rep==1)
+    ! Possibly print a warning
+    CALL cp_assert(.NOT.explicit,cp_warning_level,cp_assertion_failed,routineP,&
+         "Cell specification (A,B,C or ABC) provided together with the external "//&
+         "cell setup! Ignoring (A,B,C or ABC) and proceeding with info read from the "//&
+         "external file! "//&
+CPSourceFileRef,&
+         only_ionode=.TRUE.)
+    ALLOCATE(cell_par(3), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    cell_par = hmat(:,1)
+    CALL section_vals_val_set(cell_section,"A",r_vals_ptr=cell_par,error=error)
+    ALLOCATE(cell_par(3), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    cell_par = hmat(:,2)
+    CALL section_vals_val_set(cell_section,"B",r_vals_ptr=cell_par,error=error)
+    ALLOCATE(cell_par(3), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    cell_par = hmat(:,3)
+    CALL section_vals_val_set(cell_section,"C",r_vals_ptr=cell_par,error=error)
+
+  END SUBROUTINE read_cell_from_external_file
 
 ! *****************************************************************************
 !> \brief   Transform real to scaled cell coordinates.
@@ -644,8 +741,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: s
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: r
     TYPE(cell_type), POINTER                 :: cell
-
-!   ---------------------------------------------------------------------------
 
     IF (cell%orthorhombic) THEN
       s(1) = cell%h_inv(1,1)*r(1)

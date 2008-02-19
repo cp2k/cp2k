@@ -248,7 +248,7 @@ CONTAINS
     ELSE
        !   *** Read the input section with the cell parameters ***
        CALL read_cell(my_cell, my_cell_ref, use_ref_cell=use_ref_cell, &
-                      cell_section=cell_section, error=error)
+                      cell_section=cell_section, para_env=para_env, error=error)
     END IF
     CALL get_cell ( my_cell, abc=abc)
 

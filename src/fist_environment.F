@@ -175,8 +175,8 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
   colvar_section => section_vals_get_subs_vals(subsys_section,"COLVAR",error=error)
   CALL cp_subsys_read_colvar( subsys, colvar_section, error=error)
 
-  CALL read_cell( cell, cell_ref, use_ref_cell = use_ref_cell, error=error,&
-       cell_section=cell_section)
+  CALL read_cell( cell, cell_ref, use_ref_cell = use_ref_cell, cell_section=cell_section,&
+                  para_env=para_env, error=error)
   CALL get_cell (cell, abc=abc)
 
   ! Print the cell parameters

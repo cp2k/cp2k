@@ -236,7 +236,7 @@ CONTAINS
 
 !   *** Read the input section with the cell parameters
     CALL read_cell ( cell, cell_ref, use_ref_cell=use_ref_cell,&
-         cell_section=cell_section, error=error)
+         cell_section=cell_section, para_env=para_env, error=error)
     CALL get_cell( cell, abc=abc)
 
 !   *** Print the cell parameters ***

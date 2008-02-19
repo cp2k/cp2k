@@ -366,7 +366,7 @@ CONTAINS
           IF (cp_ddapc_ewald%do_qmmm_periodic) THEN
              NULLIFY(mm_cell, dummy_cell)
              cell_section => section_vals_get_subs_vals(subsys_section,"CELL",error=error)
-             CALL read_cell(mm_cell, dummy_cell, cell_section=cell_section, error=error)
+             CALL read_cell(mm_cell, dummy_cell, cell_section=cell_section, para_env=para_env, error=error)
              hmat = mm_cell%hmat
              CALL eval_lg(multipole_section, hmat, mm_cell%deth, LG, gx, gy, gz, error)
              grid_print_section=> section_vals_get_subs_vals(force_env_section,"PRINT%GRID_INFORMATION",error=error)

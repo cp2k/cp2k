@@ -689,30 +689,23 @@ CONTAINS
        CALL write_trajectory(force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
             "FORCES", my_pos, my_act, middle_name="frc", error=error)
 
-       ! Print Simulation Cell (only if constant pressure) and Barostat energies
-       IF  (simpar%ensemble == nph_uniaxial_ensemble .OR.&
-            simpar%ensemble == nph_uniaxial_damped_ensemble.OR.&
-            simpar%ensemble == npt_i_ensemble.OR.&
-            simpar%ensemble == npt_f_ensemble.OR.&
-            simpar%ensemble == npe_i_ensemble.OR.&
-            simpar%ensemble == npe_f_ensemble) THEN
-          box = cp_print_key_unit_nr(logger,motion_section,"PRINT%CELL",&
-               extension=".cell", file_position=my_pos, file_action=my_act,&
-               file_form="FORMATTED", is_new_file=new_file, error=error)
-          IF ( box > 0 ) THEN
-             IF (new_file) THEN
-                WRITE (box,'("#",3X,A,2X,A,2X,9(6X,A,6X),4X,A)')"Step Nr.","Time[fs]","XX[Ang.]","YX[Ang.]",&
-                      "ZX[Ang.]","YX[Ang.]","YY[Ang.]","YZ{Ang.]","ZX[Ang.]","ZY[Ang.]","ZZ[Ang.]","Vol[Ang.^3]"
-             END IF
-             WRITE(UNIT=box,FMT="(I8, F12.3,10F20.10)") itimes,time*femtoseconds,&
-                  cell%hmat(1,1)*angstrom,cell%hmat(2,1)*angstrom,cell%hmat(3,1)*angstrom,&
-                  cell%hmat(1,2)*angstrom,cell%hmat(2,2)*angstrom,cell%hmat(3,2)*angstrom,&
-                  cell%hmat(1,3)*angstrom,cell%hmat(2,3)*angstrom,cell%hmat(3,3)*angstrom,&
-                  cell%deth*angstrom*angstrom*angstrom
-             CALL m_flush(box)
+       ! Print Simulation Cell 
+       box = cp_print_key_unit_nr(logger,motion_section,"PRINT%CELL",&
+            extension=".cell", file_position=my_pos, file_action=my_act,&
+            file_form="FORMATTED", is_new_file=new_file, error=error)
+       IF ( box > 0 ) THEN
+          IF (new_file) THEN
+             WRITE (box,'("#",3X,A,2X,A,2X,9(6X,A,6X),4X,A)')"Step Nr.","Time[fs]","XX[Ang.]","YX[Ang.]",&
+                   "ZX[Ang.]","YX[Ang.]","YY[Ang.]","YZ{Ang.]","ZX[Ang.]","ZY[Ang.]","ZZ[Ang.]","Vol[Ang.^3]"
           END IF
-          CALL cp_print_key_finished_output(box,logger,motion_section,"PRINT%CELL", error=error)
+          WRITE(UNIT=box,FMT="(I8, F12.3,10F20.10)") itimes,time*femtoseconds,&
+               cell%hmat(1,1)*angstrom,cell%hmat(2,1)*angstrom,cell%hmat(3,1)*angstrom,&
+               cell%hmat(1,2)*angstrom,cell%hmat(2,2)*angstrom,cell%hmat(3,2)*angstrom,&
+               cell%hmat(1,3)*angstrom,cell%hmat(2,3)*angstrom,cell%hmat(3,3)*angstrom,&
+               cell%deth*angstrom*angstrom*angstrom
+          CALL m_flush(box)
        END IF
+       CALL cp_print_key_finished_output(box,logger,motion_section,"PRINT%CELL", error=error)
 
        ! Print thermostats status
        CALL print_thermostats_status(thermostats, para_env, my_pos, my_act, cell, itimes, time, error)

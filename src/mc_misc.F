@@ -968,7 +968,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       ENDIF
 ! write the topology section, using MOL_SET
       WRITE(unit,10000) "    &TOPOLOGY"
-      WRITE(unit,10000) "      CONNECTIVITY MOL_SET"
+      WRITE(unit,10000) "      CONN_FILE_FORMAT MOL_SET"
       DO imolecule=1,1
         WRITE(unit,10000) "      &MOL_SET"
         SELECT CASE ( force_env%in_use )

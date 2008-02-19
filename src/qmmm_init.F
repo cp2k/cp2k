@@ -468,7 +468,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE setup_qmmm_vars_qm( qmmm_section, qmmm_env, subsys_mm, qm_atom_type,&
        qm_atom_index, mm_atom_index, qm_cell_small, qmmm_coupl_type, eps_mm_rspace,&
-       qmmm_link, error)
+       qmmm_link, para_env, error)
     TYPE(section_vals_type), POINTER         :: qmmm_section
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(cp_subsys_type), POINTER            :: subsys_mm
@@ -479,6 +479,7 @@ CONTAINS
     INTEGER, INTENT(OUT)                     :: qmmm_coupl_type
     REAL(KIND=dp), INTENT(OUT)               :: eps_mm_rspace
     LOGICAL, INTENT(OUT)                     :: qmmm_link
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_vars_qm', &
@@ -506,8 +507,8 @@ CONTAINS
        ! QM_CELL
        !
        cell_section => section_vals_get_subs_vals(qmmm_section,"CELL",error=error)
-       CALL read_cell( qm_cell_small, qm_cell_small, error=error, cell_section=cell_section,&
-            check_for_ref=.FALSE.)
+       CALL read_cell( qm_cell_small, qm_cell_small, cell_section=cell_section,&
+            check_for_ref=.FALSE., para_env=para_env, error=error)
        CALL section_vals_val_get(qmmm_section,"E_COUPL",i_val=qmmm_coupl_type,error=error)
        CALL section_vals_val_get(qmmm_section,"EPS_MM_RSPACE",r_val=eps_mm_rspace,error=error)
        !

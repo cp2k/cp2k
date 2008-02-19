@@ -27,19 +27,20 @@ MODULE integrator
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type,&
-                                             get_hinv
+                                             get_hinv,&
+                                             parse_cell_line
   USE constraint,                      ONLY: rattle_control,&
                                              shake_control,&
                                              shake_roll_control
   USE constraint_fxd,                  ONLY: fix_atom_control
   USE constraint_util,                 ONLY: getold,&
                                              pv_constraint
-  USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser,                       ONLY: parser_get_next_line,&
                                              parser_get_object
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_methods,         ONLY: dynamical_coeff_verlet1,&
                                              dynamical_coeff_verlet2
@@ -1142,9 +1143,9 @@ CONTAINS
     DO I=1,Nread
        CALL parser_get_next_line(reftraj_env%info%traj_parser,1,error=error)
        READ(reftraj_env%info%traj_parser%input_line,*) AA,particle_set(i)%r
-       CALL convert_to_cp2k_units("ANGSTROM",length=particle_set(i)%r(1))
-       CALL convert_to_cp2k_units("ANGSTROM",length=particle_set(i)%r(2))
-       CALL convert_to_cp2k_units("ANGSTROM",length=particle_set(i)%r(3))
+       particle_set(i)%r(1) = cp_unit_to_cp2k(particle_set(i)%r(1),"angstrom",error=error)
+       particle_set(i)%r(2) = cp_unit_to_cp2k(particle_set(i)%r(2),"angstrom",error=error)
+       particle_set(i)%r(3) = cp_unit_to_cp2k(particle_set(i)%r(3),"angstrom",error=error)
     ENDDO
     CALL parser_get_next_line(reftraj_env%info%traj_parser,1,at_end=my_end,error=error)
     IF (my_end) THEN
@@ -1156,18 +1157,8 @@ CPSourceFileRef,&
     END IF
 
     IF(reftraj_env%info%variable_volume)THEN
-       READ(reftraj_env%info%cell_parser%input_line,*)cell_itimes, cell_time,&
-            h(1,1),h(2,1),h(3,1), h(1,2),h(2,2),h(3,2), h(1,3),h(2,3),h(3,3),vol
+       CALL parse_cell_line(reftraj_env%info%cell_parser%input_line, cell_itimes, cell_time, h, vol, error)
        CPPostcondition(trj_time==cell_time,cp_failure_level,routineP,error,failure)
-       CALL convert_to_cp2k_units("ANGSTROM",length=h(1,1))
-       CALL convert_to_cp2k_units("ANGSTROM",length=h(2,1))
-       CALL convert_to_cp2k_units("ANGSTROM",length=h(3,1))
-       CALL convert_to_cp2k_units("ANGSTROM",length=h(1,2))
-       CALL convert_to_cp2k_units("ANGSTROM",length=h(2,2))
-       CALL convert_to_cp2k_units("ANGSTROM",length=h(3,2))
-       CALL convert_to_cp2k_units("ANGSTROM",length=h(1,3))
-       CALL convert_to_cp2k_units("ANGSTROM",length=h(2,3))
-       CALL convert_to_cp2k_units("ANGSTROM",length=h(3,3))
        CALL parser_get_next_line(reftraj_env%info%cell_parser,1,at_end=my_end,error=error)
        IF (my_end) THEN
           CALL cp_assert(reftraj_env%isnap==(simpar%nsteps-1),cp_fatal_level,cp_assertion_failed,routineP,&

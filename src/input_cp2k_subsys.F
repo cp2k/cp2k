@@ -32,7 +32,8 @@ MODULE input_cp2k_subsys
                                              integer_t,&
                                              lchar_t,&
                                              real_t
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE physcon,                         ONLY: bohr
   USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
@@ -58,14 +59,16 @@ CONTAINS
 !>        see module cp_error_handling 
 !> \author teo
 ! *****************************************************************************
-  SUBROUTINE create_cell_section(section,periodic,error)
+  RECURSIVE SUBROUTINE create_cell_section(section,periodic,label,error)
     TYPE(section_type), POINTER              :: section
     INTEGER, INTENT(IN), OPTIONAL            :: periodic
+    CHARACTER(LEN=*), OPTIONAL               :: label
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_cell_section', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_string_length)     :: my_label
     INTEGER                                  :: my_periodic
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
@@ -74,11 +77,13 @@ CONTAINS
     failure=.FALSE.
 
     my_periodic = use_perd_xyz
+    my_label    = "CELL"
     IF (PRESENT(periodic)) my_periodic = periodic
+    IF (PRESENT(label))    my_label = label
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,"CELL",&
-            description="parameters needed to set up the cell",&
+       CALL section_create(section,TRIM(my_label),&
+            description="parameters needed to set up the "//TRIM(my_label)//".",&
             n_keywords=6, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
@@ -108,6 +113,24 @@ CONTAINS
             description="Read the hmat(1,1); hmat(2,2); hmat(3,3)",&
             usage="ABC real real real",&
             n_var=-1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CELL_FILE_NAME",&
+            description="Possibility to read the cell from an external file ",&
+            repeats=.FALSE., usage="CELL_FILE_NAME <CHARACTER>",required=.TRUE.,&
+            type_of_var=lchar_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CELL_FILE_FORMAT",&
+            description="Specify the format of the cell file (if used)",&
+            usage="CELL_FILE_FORMAT (CP2K|XSC)", &
+            enum_c_vals=s2a("CP2K","XSC"),&
+            enum_i_vals=(/do_cell_cp2k,do_cell_xsc/),&
+            enum_desc=s2a("Cell info in the CP2K native format.",&
+                          "Cell info in the XSC format (NAMD)" ),&
+            default_i_val=do_cell_cp2k,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -143,10 +166,11 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)     
 
-       CALL create_cell_ref_section(subsection,error=error)
-       CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-
+       IF (TRIM(my_label)=="CELL") THEN
+          CALL create_cell_section(subsection,periodic,"CELL_REF",error=error)
+          CALL section_add_subsection(section,subsection,error=error)
+          CALL section_release(subsection,error=error)
+       END IF
     END IF
   END SUBROUTINE create_cell_section
 
@@ -185,91 +209,6 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_rng_section
-
-! *****************************************************************************
-!> \brief creates the cell section
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
-!> \author teo
-! *****************************************************************************
-  SUBROUTINE create_cell_ref_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_cell_ref_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
-
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,"cell_ref",&
-            description="parameters needed to set up the reference cell",&
-            n_keywords=6, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-
-       NULLIFY(keyword)
-       CALL keyword_create(keyword, name="A",&
-            description="Read the hmat(1,1); hmat(2,1); hmat(3,1)",&
-            usage="A real real real",&
-            n_var=-1,type_of_var=real_t,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="B",&
-            description="Read the hmat(1,2); hmat(2,2); hmat(3,2)",&
-            usage="B real real real",&
-            n_var=-1,type_of_var=real_t,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="C",&
-            description="Read the hmat(1,3); hmat(2,3); hmat(3,3)",&
-            usage="C real real real",&
-            n_var=-1,type_of_var=real_t,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="ABC",&
-            description="Read the hmat(1,1); hmat(2,2); hmat(3,3)",&
-            usage="ABC real real real",&
-            n_var=-1,type_of_var=real_t,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="SUBCELLS",&
-            description="Read the subcells numbers.",&
-            usage="SUBCELLS <real>",&
-            n_var=1,default_r_val=2.0_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="UNITS",&
-            variants=(/"UNIT"/),& 
-            description="Specify the global units used in the input.",&
-            usage="UNITS ANGSTROM",&
-            enum_c_vals=s2a( "ANGSTROM","BOHR","SCALED_ANGSTROM","SCALED_BOHR"),&
-            enum_i_vals=(/ use_unit_angstrom, use_unit_bohr,&
-            use_unit_scaled_angstrom, use_unit_scaled_bohr/),&
-            default_i_val=use_unit_bohr, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)     
-
-       CALL keyword_create(keyword, name="PERIODIC",&
-            description="Specify the directions on wich apply PBC ",&
-            usage="PERIODIC (x|y|z|xy|xz|yz|xyz|none)",&
-            enum_c_vals=s2a( "x","y","z","xy","xz","yz","xyz","none"),&
-            enum_i_vals=(/ use_perd_x,  use_perd_y,   use_perd_z,&
-                           use_perd_xy, use_perd_xz, use_perd_yz,&
-                           use_perd_xyz, use_perd_none /),&
-            default_i_val=use_perd_xyz, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)     
-    END IF
-  END SUBROUTINE create_cell_ref_section
 
 ! *****************************************************************************
 !> \brief creates the structure of a subsys, i.e. a full set of 
@@ -1245,9 +1184,10 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="COORDINATE",&
+       CALL keyword_create(keyword, name="COORD_FILE_FORMAT",&
+            variants=s2a("COORDINATE"),&
             description="Set up the way in which coordinates will be read.",&
-            usage="COORDINATE (PDB||XYZ||G96||OFF)", &
+            usage="COORD_FILE_FORMAT (PDB||XYZ||G96||OFF)", &
             enum_c_vals=s2a( "PDB","XYZ","G96","OFF"),&
             enum_i_vals=(/do_coord_pdb, do_coord_xyz, do_coord_g96, do_coord_off/),&
             enum_desc=s2a("Coordinates provided through a PDB file format",&
@@ -1588,10 +1528,11 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        
-       CALL keyword_create(keyword, name="CONNECTIVITY",&
+       CALL keyword_create(keyword, name="CONN_FILE_FORMAT",&
+            variants=(/"CONNECTIVITY"/),&
             description="Ways to determine and generate a molecules. "// &
             "Default is to use GENERATE",&
-            usage="CONNECTIVITY (PSF||UPSF||MOL_SET||GENERATE||OFF||G87||G96)", &
+            usage="CONN_FILE_FORMAT (PSF||UPSF||MOL_SET||GENERATE||OFF||G87||G96)", &
             enum_c_vals=s2a("PSF","UPSF","MOL_SET","GENERATE","OFF","G87","G96"),&
             enum_i_vals=(/do_conn_psf,&
                           do_conn_psf_u,&

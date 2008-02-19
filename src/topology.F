@@ -151,8 +151,8 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 2. Get the cell info
     !-----------------------------------------------------------------------------
-    CALL read_cell ( topology%cell, topology%cell_ref, error=error,&
-         cell_section=cell_section)
+    CALL read_cell ( topology%cell, topology%cell_ref, cell_section=cell_section,&
+                     para_env=para_env, error=error)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -324,7 +324,7 @@ CONTAINS
                i_rep_section=i_rep,error=error)
           CALL section_vals_val_get(section,"CONN_FILE_NAME",c_val=filename,&
                i_rep_section=i_rep,error=error)
-          CALL section_vals_val_get(section,"CONNECTIVITY",i_val=conn_type,&
+          CALL section_vals_val_get(section,"CONN_FILE_FORMAT",i_val=conn_type,&
                i_rep_section=i_rep,error=error)
           CALL cp_assert(((conn_type==do_conn_psf).OR.(conn_type==do_conn_psf_u)),&
                cp_failure_level,cp_assertion_failed,routineP,&

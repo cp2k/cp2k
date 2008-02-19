@@ -222,6 +222,7 @@ CPSourceFileRef,&
                                 qmmm_coupl_type,&
                                 eps_mm_rspace,&
                                 qmmm_link,&
+                                para_env,&
                                 error)
 
        qmmm_env_qm%qm_atom_index   => qm_atom_index

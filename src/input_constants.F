@@ -109,9 +109,11 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: do_constr_none=1,&
                                 do_constr_atomic=2,&
                                 do_constr_molec=3
-  !
+
+  INTEGER, PARAMETER, PUBLIC :: do_cell_cp2k=1,&
+                                do_cell_xsc=2
+  
   ! MD Ensemble
-  !
   CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(12), PUBLIC :: ensemble_name_types=&
        (/"nve                ",&
          "nvt                ",&
@@ -160,7 +162,7 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: do_thermo_same_as_part=100,&
                                 do_thermo_nose=101,&
                                 do_thermo_csvr=102
-  !
+
   ! Run Types
   INTEGER, PARAMETER, PUBLIC :: none_run=1,&
                                 energy_run=2,&
