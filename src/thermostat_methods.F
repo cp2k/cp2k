@@ -48,6 +48,7 @@ MODULE thermostat_methods
        npt_f_ensemble, npt_i_ensemble, nve_ensemble, nvt_ensemble
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
+                                             section_vals_remove_values,&
                                              section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_val_set
@@ -355,8 +356,11 @@ CPSourceFileRef,&
                   "Thermostat for Barostat has been defined but the ensemble provided "//&
                   "does not support thermostat for Barostat! Ignoring thermostat input."//&
 CPSourceFileRef,&
-                  only_ionode=.TRUE.)          
+                  only_ionode=.TRUE.)
           END IF
+          ! Let's remove the section and set it as required.
+          CALL section_vals_remove_values(thermo_baro_section, error)
+          thermo_baro_section%section%required = .TRUE.
        END IF
     END IF
 
