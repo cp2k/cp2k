@@ -1405,7 +1405,7 @@ CONTAINS
        CALL section_add_subsection(section, uni_section, error=error)
        CALL section_release(uni_section,error=error)       
 
-       CALL create_barostat_section(baro_section, error=error)
+       CALL create_barostat_section(baro_section, coupled_thermostat=.TRUE., error=error)
        CALL section_add_subsection(section, baro_section, error=error)
        CALL section_release(baro_section,error=error)
 

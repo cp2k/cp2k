@@ -746,12 +746,16 @@ CPSourceFileRef,&
           CALL force_env_get(force_env, harmonic_shell=harm_shell, error=error)
           CALL cp_subsys_get(subsys, shell_particles=shell_particles, core_particles=core_particles, error=error)
           shene=cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%SHELL_ENERGY",&
-               extension=".shener",file_position=my_pos, file_action=my_act,error=error)
+                extension=".shener",file_position=my_pos, file_action=my_act, &
+                file_form="FORMATTED", is_new_file=new_file,error=error)
 
           ! Print Shell Energy
           IF (shene>0) THEN
-             ! "Step Nr.    Time[fs]  Shell Kin.[a.u.]    Shell Temp[K]  Shell Pot.[a.u.] 
-             !
+            IF(new_file) THEN
+              WRITE (shene,'("#",3X,A,3X,A,3X,3(5X,A,5X))')"Step Nr.","Time[fs]","Kin.[a.u.]",&
+                      "Temp.[K]","Pot.[a.u.]" 
+            END IF
+
              WRITE (shene,"(I8,F12.3,F20.9,F20.9,F20.9,F20.9 )")&
                   itimes,time*femtoseconds,md_ener%ekin_shell,md_ener%temp_shell,harm_shell
              CALL m_flush(shene)

@@ -18,6 +18,7 @@ MODULE md_util
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
+  USE extended_system_types,           ONLY: npt_info_type
   USE f77_blas
   USE force_env_methods,               ONLY: force_env_calc_energy_force,&
                                              force_env_rattle,&
@@ -25,7 +26,11 @@ MODULE md_util
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: reftraj_ensemble
+  USE input_constants,                 ONLY: npe_f_ensemble,&
+                                             npe_i_ensemble,&
+                                             npt_f_ensemble,&
+                                             npt_i_ensemble,&
+                                             reftraj_ensemble
   USE input_cp2k_restarts,             ONLY: update_subsys,&
                                              write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -35,7 +40,8 @@ MODULE md_util
   USE md,                              ONLY: initialize_velocities,&
                                              simulation_parameters_type
   USE md_energies,                     ONLY: md_write_output
-  USE md_environment_types,            ONLY: md_ener_type,&
+  USE md_environment_types,            ONLY: get_md_env,&
+                                             md_ener_type,&
                                              md_environment_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE particle_list_types,             ONLY: particle_list_type
@@ -386,17 +392,74 @@ CONTAINS
 
   END SUBROUTINE scale_velocity_internal
 
+
 ! *****************************************************************************
+!> \brief Scale barostat velocities to get the desired temperature
+!> \par History
+!>     MI 02.200s87
+! *****************************************************************************
+  SUBROUTINE scale_velocity_baro(md_env, md_ener, temp_expected, temp_tol, iw, error)
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(md_ener_type), POINTER              :: md_ener
+    REAL(KIND=dp), INTENT(IN)                :: temp_expected, temp_tol
+    INTEGER, INTENT(IN)                      :: iw
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_velocity_baro', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, nfree
+    REAL(KIND=dp)                            :: ekin_old, scale, temp_old
+    TYPE(npt_info_type), POINTER             :: npt( :, : )
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
+
+    NULLIFY( npt, simpar)
+    CALL get_md_env ( md_env, simpar = simpar, npt = npt,  error=error)
+    IF (ABS(temp_expected - md_ener%temp_baro/kelvin) > temp_tol) THEN
+       scale = 0.0_dp
+       IF (md_ener%temp_baro>0.0_dp) scale = SQRT((temp_expected/md_ener%temp_baro)*kelvin)
+       ekin_old = md_ener%baro_kin
+       temp_old = md_ener%temp_baro
+       md_ener%baro_kin       = 0.0_dp
+       md_ener%temp_baro  = 0.0_dp
+      IF ( simpar%ensemble==npt_i_ensemble .OR. simpar%ensemble==npe_i_ensemble) THEN
+         npt ( 1, 1 )%v = npt ( 1, 1 )%v*scale
+         md_ener%baro_kin = 0.5_dp * npt ( 1, 1 )%v**2 * npt ( 1, 1 )%mass
+       ELSE IF (simpar%ensemble==npt_f_ensemble .OR. simpar%ensemble==npe_f_ensemble) THEN
+         md_ener%baro_kin = 0.0_dp
+         DO i = 1, 3
+            DO j = 1, 3
+             npt(i,j)%v = npt(i,j)%v*scale
+             md_ener%baro_kin = md_ener%baro_kin + 0.5_dp * npt(i,j)%v**2  * npt ( i, j )%mass 
+            END DO
+         END DO
+      END IF
+
+      nfree = SIZE ( npt, 1 ) * SIZE ( npt, 2 )
+      md_ener%temp_baro = 2.0_dp * md_ener%baro_kin / REAL(nfree,dp)*kelvin
+      IF (iw>0) THEN
+          WRITE (UNIT=iw,FMT="(/,T2,A,F10.2,A,F10.2,A)")&
+               "Temperature  of barostat motion scaled to requested temperature:",&
+               temp_old," K  ->",md_ener%temp_baro," K"
+      END IF
+
+   END IF
+
+  END SUBROUTINE scale_velocity_baro
+
+  ! *****************************************************************************
 !> \brief Perform all temperature manipulations during a QS MD run. 
 !> \par History
 !>     Creation (15.09.2003,MK)
 !>     adapted to force_env (05.10.2003,fawzi)
 !>     Cleaned (09.2007) Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE temperature_control(simpar,md_ener,force_env,logger, error)
+  SUBROUTINE temperature_control(simpar, md_env, md_ener,force_env,logger, error)
 
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
+    TYPE(md_environment_type), POINTER       :: md_env
     TYPE(md_ener_type), POINTER              :: md_ener
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_logger_type), POINTER            :: logger
@@ -427,6 +490,11 @@ CONTAINS
     IF(simpar%temp_sh_tol > 0.0_dp) THEN
        CALL scale_velocity_internal(subsys, md_ener, simpar%temp_sh_ext, simpar%temp_sh_tol, iw, error)
     END IF
+    ! Control cell motion
+    IF(simpar%temp_baro_tol > 0.0_dp) THEN
+       CALL scale_velocity_baro(md_env, md_ener, simpar%temp_baro_ext, simpar%temp_baro_tol, iw, error)
+    END IF
+
 
     CALL cp_print_key_finished_output(iw,logger,force_env%root_section,&
          "MOTION%MD%PRINT%PROGRAM_RUN_INFO", error=error)

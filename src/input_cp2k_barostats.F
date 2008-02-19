@@ -47,8 +47,9 @@ CONTAINS
 !>        see module cp_error_handling 
 !> \author teo
 ! *****************************************************************************
-  SUBROUTINE create_barostat_section(section, error)
+  SUBROUTINE create_barostat_section(section, coupled_thermostat, error)
     TYPE(section_type), POINTER              :: section
+    LOGICAL, INTENT(IN)                      :: coupled_thermostat
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_barostat_section', &
@@ -89,6 +90,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)        
 
+      CALL keyword_create(keyword, name="TEMP_TOL",&
+            description="Maximum oscillation of the Barostat temperature imposed by recaling.",&
+            usage="TEMP_TOL real",default_r_val=0._dp, &
+            unit_str='K',error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)        
+
        CALL create_velocity_section(subsection,"BAROSTAT",error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -97,7 +105,7 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_thermostat_section(thermo_section, coupled_thermostat=.TRUE., error=error)
+       CALL create_thermostat_section(thermo_section, coupled_thermostat=coupled_thermostat, error=error)
        CALL section_add_subsection(section, thermo_section, error=error)
        CALL section_release(thermo_section,error=error)
 
@@ -119,7 +127,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_print_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, my_coupled_thermostat
+    LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
@@ -129,7 +137,7 @@ CONTAINS
        NULLIFY(print_key)
        CALL section_create(section,name="PRINT",&
             description="Collects all print_keys for barostat",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.NOT.my_coupled_thermostat,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        CALL cp_print_key_section_create(print_key,"ENERGY",&

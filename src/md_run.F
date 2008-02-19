@@ -381,7 +381,7 @@ CONTAINS
 
       IF(simpar%ensemble /= reftraj_ensemble) THEN
         CALL md_energy(md_env, md_ener, error) 
-        CALL temperature_control(simpar, md_ener, force_env, logger, error)
+        CALL temperature_control(simpar, md_env, md_ener, force_env, logger, error)
         CALL comvel_control(simpar, md_ener, force_env, logger, error)
       ELSE
         CALL md_ener_reftraj(md_env, md_ener, error)

@@ -24,7 +24,8 @@ MODULE barostat_types
                                              npt_i_ensemble
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
   USE timings,                         ONLY: timeset,&
@@ -101,6 +102,7 @@ CONTAINS
        CALL force_env_get( force_env, cell=cell, error=error )
 
        barostat%temp_ext = simpar%temp_baro_ext
+       CALL section_vals_val_get(barostat_section,"TEMP_TOL",r_val=simpar%temp_baro_tol,error=error)
        ! Initialize or possibly restart Barostat
        CALL initialize_npt (simpar, para_env, globenv, barostat%npt,&
             cell, work_section=barostat_section, error=error)

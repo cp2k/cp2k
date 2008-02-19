@@ -25,7 +25,8 @@ MODULE barostat_utils
   USE machine,                         ONLY: m_flush
   USE md,                              ONLY: simulation_parameters_type
   USE physcon,                         ONLY: angstrom,&
-                                             femtoseconds
+                                             femtoseconds,&
+                                             kelvin
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -103,9 +104,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_barostat_status', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: baro
+    INTEGER                                  :: baro, nfree
     LOGICAL                                  :: failure, new_file
-    REAL(KIND=dp)                            :: baro_kin, baro_pot
+    REAL(KIND=dp)                            :: baro_kin, baro_pot, temp
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
@@ -117,13 +118,15 @@ CONTAINS
             extension=".bener",file_position=my_pos, file_action=my_act, is_new_file=new_file,&
             error=error)
        CALL  get_baro_energies ( cell, simpar, barostat%npt, baro_kin, baro_pot, error )
+       nfree = SIZE(barostat%npt,1) * SIZE(barostat%npt, 2)
+       temp = 2.0_dp * baro_kin / REAL(nfree,dp)*kelvin
        IF(baro > 0) THEN
           IF (new_file) THEN
-             WRITE (baro,'("#",3X,A,2X,A,2X,2(5X,A,5X),3X,A)')"Step Nr.","Time[fs]","Kin.[a.u.]",&
-                    "Pot.[a.u.]","Vol[Ang.^3]"
+             WRITE (baro,'("#",3X,A,10X,A,8X,3(5X,A,5X),3X,A)')"Step Nr.","Time[fs]","Kin.[a.u.]",&
+                    "Temp.[K]","Pot.[a.u.]","Vol[Ang.^3]"
           END IF
-          WRITE(UNIT=baro,FMT="(I8, F12.3,4F20.10)") itimes,time*femtoseconds,&
-               baro_kin, baro_pot, cell%deth*angstrom*angstrom*angstrom
+          WRITE(UNIT=baro,FMT="(I10, F20.3,4F20.10)") itimes,time*femtoseconds,&
+               baro_kin, temp, baro_pot, cell%deth*angstrom*angstrom*angstrom
           CALL m_flush(baro)
        END IF        
        CALL cp_print_key_finished_output(baro,logger,barostat%section,"PRINT%ENERGY", error=error)

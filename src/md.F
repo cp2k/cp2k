@@ -77,6 +77,7 @@ MODULE md
      REAL (KIND=dp) :: temp_baro_ext
      REAL (KIND=dp) :: temp_baro
      REAL (KIND=dp) :: temp_tol
+     REAL (KIND=dp) :: temp_baro_tol
      REAL (KIND=dp) :: comvel_tol
      REAL (KIND=dp) :: p_ext
      REAL (KIND=dp) :: cmass
@@ -417,6 +418,7 @@ CPSourceFileRef,&
     simpar % temp_baro_ext = 0.0_dp
     simpar % temp_baro = 0.0_dp
     simpar % temp_tol = 0.0_dp
+    simpar % temp_baro_tol = 0.0_dp
     simpar % comvel_tol = 0.0_dp
     simpar % p_ext = 0.0_dp
     simpar % f_annealing = 1.0_dp

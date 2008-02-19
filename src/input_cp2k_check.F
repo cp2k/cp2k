@@ -21,10 +21,10 @@ MODULE input_cp2k_check
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_region_global, do_thermo_csvr, do_thermo_nose, &
-       do_thermo_same_as_part, do_vwn5, id_release_version, xc_funct_b3lyp, &
-       xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, &
-       xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_pbe0, &
-       xc_funct_tpss, xc_funct_xwpbe, xc_none
+       do_thermo_same_as_part, do_vwn5, id_release_version, npt_f_ensemble, &
+       npt_i_ensemble, xc_funct_b3lyp, xc_funct_blyp, xc_funct_bp, &
+       xc_funct_hcth120, xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, &
+       xc_funct_pbe, xc_funct_pbe0, xc_funct_tpss, xc_funct_xwpbe, xc_none
   USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_keyword_types,             ONLY: keyword_type
   USE input_parsing,                   ONLY: section_vals_parse
@@ -271,7 +271,7 @@ CONTAINS
 
     CHARACTER(default_path_length)           :: r_file_path
     CHARACTER(default_string_length)         :: path
-    INTEGER                                  :: handle, i_rep_val, &
+    INTEGER                                  :: ensemble, handle, i_rep_val, &
                                                 iforce_eval, myi, n_rep_val, &
                                                 nforce_eval1, nforce_eval2
     LOGICAL                                  :: bsse_check, check, explicit1, &
@@ -459,9 +459,16 @@ CONTAINS
                   section,error=error)
           END IF
 
-          CALL section_vals_val_get(r_section,"RESTART_BAROSTAT_THERMOSTAT",l_val=flag,error=error)
-          check = check_restart(input_file, restart_file, "MOTION%MD%BAROSTAT", error)
-          CALL restart_thermostat(flag, input_file, restart_file, "MOTION%MD%BAROSTAT%THERMOSTAT", check, error)
+          flag = check_restart(input_file, restart_file, "MOTION%MD", error)
+          IF(flag) THEN
+            CALL section_vals_val_get(input_file,"MOTION%MD%ENSEMBLE",i_val=ensemble,error=error)
+            IF(ensemble == npt_i_ensemble .OR. ensemble==npt_f_ensemble) THEN
+              CALL section_vals_val_get(r_section,"RESTART_BAROSTAT_THERMOSTAT",l_val=flag,error=error)
+              check = check_restart(input_file, restart_file, "MOTION%MD%BAROSTAT", error)
+              CALL restart_thermostat(flag, input_file, restart_file, "MOTION%MD%BAROSTAT%THERMOSTAT", &
+                   coupled=.TRUE., check=check, error=error)
+            END IF
+          END IF
 ! SCP
           CALL section_vals_val_get(r_section,"RESTART_SCP_COEFF",l_val=flag,error=error)
           IF (flag.AND.check_restart(input_file, restart_file, "FORCE_EVAL%DFT%SCP",error)) THEN
@@ -573,11 +580,11 @@ CONTAINS
 !>        see module cp_error_handling 
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
 ! *****************************************************************************
-  SUBROUTINE restart_thermostat(flag, input_file, restart_file, path, check, error)
+  SUBROUTINE restart_thermostat(flag, input_file, restart_file, path, coupled, check, error)
     LOGICAL, INTENT(IN)                      :: flag
     TYPE(section_vals_type), POINTER         :: input_file, restart_file
     CHARACTER(LEN=*), INTENT(IN)             :: path
-    LOGICAL, INTENT(IN), OPTIONAL            :: check
+    LOGICAL, INTENT(IN), OPTIONAL            :: coupled, check
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'restart_thermostat', &
@@ -585,23 +592,36 @@ CONTAINS
 
     INTEGER                                  :: input_region, input_type, &
                                                 restart_region, restart_type
-    LOGICAL                                  :: check_loc, failure, &
+    LOGICAL                                  :: check_loc, &
+                                                explicit_coupled_section, &
+                                                failure, my_coupled, &
                                                 skip_other_checks
-    TYPE(section_vals_type), POINTER         :: section
+    TYPE(section_vals_type), POINTER         :: coupled_section, section
 
     failure   = .FALSE.
+    my_coupled = .FALSE. 
+    IF(PRESENT(coupled)) my_coupled=coupled
     check_loc = check_restart(input_file, restart_file, TRIM(path), error)
     skip_other_checks = PRESENT(check)
     IF (skip_other_checks) check_loc = check
     IF (flag.AND.check_loc) THEN
        ! Let's check if the thermostat type is different otherwise it does not make any
        ! sense to do any kind of restart
-       CALL section_vals_val_get(input_file,TRIM(path)//"%TYPE",i_val=input_type,error=error)
-       CALL section_vals_val_get(restart_file,TRIM(path)//"%TYPE",i_val=restart_type,error=error)
-       
-       IF (input_type==do_thermo_same_as_part) THEN
-          CALL section_vals_val_get(input_file,"MOTION%MD%THERMOSTAT%TYPE",i_val=input_type,error=error)
+       IF(my_coupled) THEN
+         coupled_section => section_vals_get_subs_vals(input_file,"MOTION%MD%BAROSTAT%THERMOSTAT",error=error)
+         CALL section_vals_get(coupled_section,  explicit=explicit_coupled_section,  error=error)
+         IF(explicit_coupled_section) THEN
+           CALL section_vals_val_get(input_file,TRIM(path)//"%TYPE",i_val=input_type,error=error)
+           IF (input_type==do_thermo_same_as_part) THEN
+              CALL section_vals_val_get(input_file,"MOTION%MD%THERMOSTAT%TYPE",i_val=input_type,error=error)
+           END IF
+         ELSE
+           CALL section_vals_val_get(input_file,"MOTION%MD%THERMOSTAT%TYPE",i_val=input_type,error=error)
+         END IF
+       ELSE
+         CALL section_vals_val_get(input_file,TRIM(path)//"%TYPE",i_val=input_type,error=error)
        END IF
+       CALL section_vals_val_get(restart_file,TRIM(path)//"%TYPE",i_val=restart_type,error=error)
 
        IF (skip_other_checks) THEN
           input_region   = do_region_global

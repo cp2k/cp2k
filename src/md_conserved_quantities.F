@@ -339,7 +339,7 @@ CONTAINS
                                                 thermostat_part, &
                                                 thermostat_shell
 
-    NULLIFY(thermostat_baro, thermostat_part, thermostat_shell, npt)
+    NULLIFY(thermostat_baro, thermostat_part, thermostat_shell, npt, simpar, box)
     CALL get_md_env ( md_env, thermostat_part=thermostat_part, thermostat_baro=thermostat_baro, &
          simpar = simpar, npt = npt, cell = box,  thermostat_shell=thermostat_shell, error=error)
     CALL get_thermostat_energies(thermostat_part, md_ener%thermostat_part_pot, &
