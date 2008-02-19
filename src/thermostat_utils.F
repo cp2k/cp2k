@@ -11,9 +11,12 @@ MODULE thermostat_utils
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE csvr_system_types,               ONLY: csvr_system_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
@@ -31,10 +34,12 @@ MODULE thermostat_utils
        nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
        npt_i_ensemble, nve_ensemble, nvt_ensemble, reftraj_ensemble
   USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE machine,                         ONLY: m_flush
   USE md,                              ONLY: simulation_parameters_type
   USE message_passing,                 ONLY: mp_sum
   USE mol_new_list_types,              ONLY: mol_new_list_type
@@ -46,6 +51,7 @@ MODULE thermostat_utils
                                              molecule_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
+  USE physcon,                         ONLY: femtoseconds
   USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE shell_potential_types,           ONLY: shell_kind_type
   USE termination,                     ONLY: stop_program
@@ -72,7 +78,8 @@ MODULE thermostat_utils
             get_thermostat_energies,&
             get_nhc_energies,&
             get_csvr_energies,&
-            communication_thermo_low2
+            communication_thermo_low2,&
+            print_thermostats_status
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'thermostat_utils'
 
@@ -995,18 +1002,17 @@ CONTAINS
   END SUBROUTINE vel_rescale_shells
 
 ! *****************************************************************************
-!> \brief Calculates kinetic energy and potential energy
-!>      of the nhc variables
+!> \brief Calculates kinetic energy and potential energy of the nhc variables
 !> \par History
 !>      none
-!> \par
-!> ***8*************************************************************************
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE get_nhc_energies ( nhc, nhc_pot, nhc_kin, para_env, error )
+  SUBROUTINE get_nhc_energies ( nhc, nhc_pot, nhc_kin, para_env, array_kin, array_pot, error )
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     REAL(KIND=dp), INTENT(OUT)               :: nhc_pot, nhc_kin
     TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: array_kin, array_pot
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_nhc_energies', &
@@ -1017,8 +1023,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: akin, vpot
 
     failure = .FALSE.
-    nhc_kin = 0.0_dp
-    nhc_pot = 0.0_dp
     number = nhc%glob_num_nhc
     ALLOCATE(akin(number),stat=stat)
     CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
@@ -1032,19 +1036,37 @@ CONTAINS
           akin(imap) = akin(imap) + 0.5_dp * nhc%nvt(l,n)%mass * nhc%nvt(l,n)%v**2
           vpot(imap) = vpot(imap) + nhc%nvt(l,n)%nkt * nhc%nvt(l,n)%eta
        END DO
-       nhc_kin = nhc_kin + akin(imap)
-       nhc_pot = nhc_pot + vpot(imap)
     END DO
 
     ! Handle the thermostat distribution
     IF      (nhc%map_info%dis_type==do_thermo_no_communication) THEN
-       CALL mp_sum(nhc_kin,para_env%group)
-       CALL mp_sum(nhc_pot,para_env%group)
+       CALL mp_sum(akin,para_env%group)
+       CALL mp_sum(vpot,para_env%group)
     ELSE IF (nhc%map_info%dis_type==do_thermo_communication) THEN
        CALL communication_thermo_low1(akin, number, para_env, error)
        CALL communication_thermo_low1(vpot, number, para_env, error)
-       nhc_kin = SUM(akin)
-       nhc_pot = SUM(vpot)
+    END IF
+    nhc_kin = SUM(akin)
+    nhc_pot = SUM(vpot)
+    
+    ! Possibly give back kinetic or potential energy arrays
+    IF (PRESENT(array_pot)) THEN
+       IF (ASSOCIATED(array_pot)) THEN
+          CPPrecondition(SIZE(array_pot)==number,cp_fatal_level,routineP,error,failure)
+       ELSE
+          ALLOCATE(array_pot(number),stat=stat)
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       ENDIF
+       array_pot=vpot
+    END IF
+    IF (PRESENT(array_kin)) THEN
+       IF (ASSOCIATED(array_kin)) THEN
+          CPPrecondition(SIZE(array_kin)==number,cp_fatal_level,routineP,error,failure)
+       ELSE
+          ALLOCATE(array_kin(number),stat=stat)
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       ENDIF
+       array_kin=akin
     END IF
     DEALLOCATE(akin,stat=stat)
     CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
@@ -1053,16 +1075,86 @@ CONTAINS
   END SUBROUTINE get_nhc_energies
 
 ! *****************************************************************************
+!> \brief Calculates the temperatures of the regions when the Nose-Hoover
+!>         thermostat is applied
+!> \author Teodoro Laino [tlaino] - University of Zurich 02.2008
+! *****************************************************************************
+  SUBROUTINE get_nhc_temperatures ( nhc, para_env, temp_tot, array_temp, error )
+    TYPE(lnhc_parameters_type), POINTER      :: nhc
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(KIND=dp), INTENT(OUT)               :: temp_tot
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: array_temp
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_nhc_temperatures', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, imap, imap2, n, number, &
+                                                stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: fdeg_of_free
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: akin, deg_of_free
+
+    failure = .FALSE.
+    number = nhc%glob_num_nhc
+    ALLOCATE(akin(number),stat=stat)
+    CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+    ALLOCATE(deg_of_free(number),stat=stat)
+    CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+    akin         = 0.0_dp
+    deg_of_free  = 0.0_dp
+    DO n = 1, nhc%loc_num_nhc
+       imap  = nhc%map_info%index(n)
+       imap2 = nhc%map_info%map_index(n)
+       IF (nhc%nvt(1,n)%nkt==0.0_dp) CYCLE
+       deg_of_free(imap) = REAL(nhc%nvt(1,n)%degrees_of_freedom,KIND=dp)
+       akin(imap)        = nhc%map_info%s_kin(imap2)
+    END DO
+
+    ! Handle the thermostat distribution
+    IF      (nhc%map_info%dis_type==do_thermo_no_communication) THEN
+       CALL mp_sum(akin, para_env%group)
+       CALL mp_sum(deg_of_free, para_env%group)
+    ELSE IF (nhc%map_info%dis_type==do_thermo_communication) THEN
+       CALL communication_thermo_low1(akin, number, para_env, error)
+       CALL communication_thermo_low1(deg_of_free, number, para_env, error)
+    END IF
+    temp_tot     = SUM(akin)
+    fdeg_of_free = SUM(deg_of_free)
+
+    temp_tot = temp_tot/fdeg_of_free
+    temp_tot = cp_unit_from_cp2k(temp_tot, "K_temp", error=error)
+    ! Possibly give back temperatures of the full set of regions
+    IF (PRESENT(array_temp)) THEN
+       IF (ASSOCIATED(array_temp)) THEN
+          CPPrecondition(SIZE(array_temp)==number,cp_fatal_level,routineP,error,failure)
+       ELSE
+          ALLOCATE(array_temp(number),stat=stat)
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       ENDIF
+       DO i = 1, number
+          array_temp(i) = akin(i)/deg_of_free(i)
+          array_temp(i) = cp_unit_from_cp2k(array_temp(i), "K_temp", error=error)
+       END DO
+    END IF
+    DEALLOCATE(akin,stat=stat)
+    CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+    DEALLOCATE(deg_of_free,stat=stat)
+    CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+  END SUBROUTINE get_nhc_temperatures
+
+! *****************************************************************************
 !> \brief Calculates kinetic energy and potential energy
 !>      of the csvr thermostat
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2007
 ! *****************************************************************************
-  SUBROUTINE get_csvr_energies ( csvr, csvr_kin, para_env, array, error )
+  SUBROUTINE get_csvr_energies ( csvr, csvr_kin, para_env, array_pot, array_kin, error )
     TYPE(csvr_system_type), POINTER          :: csvr
     REAL(KIND=dp), INTENT(OUT)               :: csvr_kin
     TYPE(cp_para_env_type), POINTER          :: para_env
-    REAL(KIND=dp), DIMENSION(:), &
-      INTENT(OUT), OPTIONAL                  :: array
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: array_pot, array_kin
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_csvr_energies', &
@@ -1076,35 +1168,124 @@ CONTAINS
     number = csvr%glob_num_csvr
     ALLOCATE(akin(number),stat=stat)
     CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
-    csvr_kin = 0.0_dp
     akin     = 0.0_dp
     DO n = 1, csvr%loc_num_csvr
        imap = csvr%map_info%index(n)
        akin(imap) = csvr%nvt(n)%thermostat_energy
-       csvr_kin = csvr_kin + csvr%nvt(n)%thermostat_energy
     END DO
+
+    ! Handle the thermostat distribution
     IF      (csvr%map_info%dis_type==do_thermo_no_communication) THEN
-       CALL mp_sum(csvr_kin,para_env%group)
+       CALL mp_sum(akin,para_env%group)
     ELSE IF (csvr%map_info%dis_type==do_thermo_communication) THEN
        CALL communication_thermo_low1(akin, number, para_env, error)
-       csvr_kin = SUM(akin)
     END IF
-    IF (PRESENT(array)) THEN
-       CPPrecondition(SIZE(array)==number,cp_fatal_level,routineP,error,failure)
-       array=akin
+    csvr_kin = SUM(akin)
+
+    ! Possibly give back kinetic or potential energy arrays
+    IF (PRESENT(array_pot)) THEN
+       IF (ASSOCIATED(array_pot)) THEN
+          CPPrecondition(SIZE(array_pot)==number,cp_fatal_level,routineP,error,failure)
+       ELSE
+          ALLOCATE(array_pot(number),stat=stat)
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       ENDIF
+       array_pot=0.0_dp
+    END IF
+    IF (PRESENT(array_kin)) THEN
+       IF (ASSOCIATED(array_kin)) THEN
+          CPPrecondition(SIZE(array_kin)==number,cp_fatal_level,routineP,error,failure)
+       ELSE
+          ALLOCATE(array_kin(number),stat=stat)
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       ENDIF
+       array_kin=akin
     END IF
     DEALLOCATE(akin,stat=stat)
     CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
   END SUBROUTINE get_csvr_energies
 
 ! *****************************************************************************
+!> \brief Calculates the temperatures of the regions when the CSVR thermostat is
+!>        applied
+!> \author Teodoro Laino [tlaino] - University of Zurich 02.2008
+! *****************************************************************************
+  SUBROUTINE get_csvr_temperatures ( csvr, para_env, temp_tot, array_temp, error )
+    TYPE(csvr_system_type), POINTER          :: csvr
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(KIND=dp), INTENT(OUT)               :: temp_tot
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: array_temp
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_csvr_temperatures', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, imap, imap2, n, number, &
+                                                stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: fdeg_of_free
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: akin, deg_of_free
+
+    failure = .FALSE.
+    number = csvr%glob_num_csvr
+    ALLOCATE(akin(number),stat=stat)
+    CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+    ALLOCATE(deg_of_free(number),stat=stat)
+    CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+    akin         = 0.0_dp
+    deg_of_free  = 0.0_dp
+    DO n = 1, csvr%loc_num_csvr
+       imap  = csvr%map_info%index(n)
+       imap2 = csvr%map_info%map_index(n)
+       IF (csvr%nvt(n)%nkt==0.0_dp) CYCLE
+       deg_of_free(imap) = REAL(csvr%nvt(n)%degrees_of_freedom,KIND=dp)
+       akin(imap)        = csvr%map_info%s_kin(imap2)
+    END DO
+
+    ! Handle the thermostat distribution
+    IF      (csvr%map_info%dis_type==do_thermo_no_communication) THEN
+       CALL mp_sum(akin,para_env%group)
+       CALL mp_sum(deg_of_free,para_env%group)
+    ELSE IF (csvr%map_info%dis_type==do_thermo_communication) THEN
+       CALL communication_thermo_low1(akin, number, para_env, error)
+       CALL communication_thermo_low1(deg_of_free, number, para_env, error)
+    END IF
+    temp_tot     = SUM(akin)
+    fdeg_of_free = SUM(deg_of_free)
+
+    temp_tot = temp_tot/fdeg_of_free
+    temp_tot = cp_unit_from_cp2k(temp_tot, "K_temp", error=error)
+    ! Possibly give back temperatures of the full set of regions
+    IF (PRESENT(array_temp)) THEN
+       IF (ASSOCIATED(array_temp)) THEN
+          CPPrecondition(SIZE(array_temp)==number,cp_fatal_level,routineP,error,failure)
+       ELSE
+          ALLOCATE(array_temp(number),stat=stat)
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+       ENDIF
+       DO i = 1, number
+          array_temp(i) = akin(i)/deg_of_free(i)
+          array_temp(i) = cp_unit_from_cp2k(array_temp(i), "K_temp", error=error)
+       END DO
+    END IF
+    DEALLOCATE(akin,stat=stat)
+    CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+    DEALLOCATE(deg_of_free,stat=stat)
+    CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+  END SUBROUTINE get_csvr_temperatures
+
+! *****************************************************************************
 !> \brief Calculates energy associated with a thermostat
 !> \author Teodoro Laino [tlaino] - 10.2007 - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE get_thermostat_energies ( thermostat, thermostat_pot, thermostat_kin, para_env, error )
+  SUBROUTINE get_thermostat_energies ( thermostat, thermostat_pot, thermostat_kin, para_env,&
+        array_pot, array_kin, error )
     TYPE(thermostat_type), POINTER           :: thermostat
     REAL(KIND=dp), INTENT(OUT)               :: thermostat_pot, thermostat_kin
     TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: array_pot, array_kin
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_thermostat_energies', &
@@ -1120,14 +1301,171 @@ CONTAINS
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
           ! Energy associated with the Nose-Hoover thermostat
           CPPostcondition(ASSOCIATED(thermostat%nhc),cp_failure_level,routineP,error,failure)
-          CALL get_nhc_energies (thermostat%nhc, thermostat_pot, thermostat_kin, para_env, error )
+          CALL get_nhc_energies (thermostat%nhc, thermostat_pot, thermostat_kin, para_env,&
+                                 array_pot, array_kin, error )
        ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
           ! Energy associated with the CSVR thermostat
-          CALL get_csvr_energies(thermostat%csvr, thermostat_kin, para_env, error=error)
+          CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,error,failure)
+          CALL get_csvr_energies(thermostat%csvr, thermostat_kin, para_env, array_pot, &
+                                 array_kin, error=error)
        END IF
     END IF
 
   END SUBROUTINE get_thermostat_energies
+
+! *****************************************************************************
+!> \brief Calculates the temperatures for each region associated to a thermostat
+!> \author Teodoro Laino [tlaino] - 02.2008 - University of Zurich
+! *****************************************************************************
+  SUBROUTINE get_region_temperatures ( thermostat, tot_temperature, para_env, array_temp, error )
+    TYPE(thermostat_type), POINTER           :: thermostat
+    REAL(KIND=dp), INTENT(OUT)               :: tot_temperature
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: array_temp
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_region_temperatures', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    IF (ASSOCIATED(thermostat)) THEN
+       IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
+          ! Energy associated with the Nose-Hoover thermostat
+          CPPostcondition(ASSOCIATED(thermostat%nhc),cp_failure_level,routineP,error,failure)
+          CALL get_nhc_temperatures(thermostat%nhc, para_env, tot_temperature, array_temp, error)
+       ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
+          ! Energy associated with the CSVR thermostat
+          CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,error,failure)
+          CALL get_csvr_temperatures(thermostat%csvr, para_env, tot_temperature, array_temp, error)
+       END IF
+    END IF
+
+  END SUBROUTINE get_region_temperatures
+
+! *****************************************************************************
+!> \brief Prints status of all thermostats during an MD run
+!> \author Teodoro Laino [tlaino] - 02.2008 - University of Zurich
+! *****************************************************************************
+  SUBROUTINE print_thermostats_status(thermostats, para_env, my_pos, my_act, cell, itimes, time, error)
+    TYPE(thermostats_type), POINTER          :: thermostats
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    CHARACTER(LEN=default_string_length)     :: my_pos, my_act
+    TYPE(cell_type), POINTER                 :: cell
+    INTEGER, INTENT(IN)                      :: itimes
+    REAL(KIND=dp), INTENT(IN)                :: time
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'print_thermostats_status', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+
+    IF (ASSOCIATED(thermostats)) THEN
+       IF (ASSOCIATED(thermostats%thermostat_part)) THEN
+          CALL print_thermostat_status(thermostats%thermostat_part, para_env, my_pos, my_act, cell, itimes, time, error)
+       END IF
+       IF (ASSOCIATED(thermostats%thermostat_shell)) THEN
+          CALL print_thermostat_status(thermostats%thermostat_shell, para_env, my_pos, my_act, cell, itimes, time, error)
+       END IF
+       IF (ASSOCIATED(thermostats%thermostat_coef)) THEN
+          CALL print_thermostat_status(thermostats%thermostat_coef, para_env, my_pos, my_act, cell, itimes, time, error)
+       END IF
+       IF (ASSOCIATED(thermostats%thermostat_baro)) THEN
+          CALL print_thermostat_status(thermostats%thermostat_baro, para_env, my_pos, my_act, cell, itimes, time, error)
+       END IF
+    END IF
+  END SUBROUTINE print_thermostats_status
+
+! *****************************************************************************
+!> \brief Prints status of a specific thermostat
+!> \author Teodoro Laino [tlaino] - 02.2008 - University of Zurich
+! *****************************************************************************
+  SUBROUTINE print_thermostat_status ( thermostat, para_env, my_pos, my_act, cell, itimes, time, error )
+    TYPE(thermostat_type), POINTER           :: thermostat
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    CHARACTER(LEN=default_string_length)     :: my_pos, my_act
+    TYPE(cell_type), POINTER                 :: cell
+    INTEGER, INTENT(IN)                      :: itimes
+    REAL(KIND=dp), INTENT(IN)                :: time
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'print_thermostat_status', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat, unit
+    LOGICAL                                  :: failure, new_file
+    REAL(KIND=dp)                            :: thermo_kin, thermo_pot, &
+                                                tot_temperature
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: array_kin, array_pot, &
+                                                array_temp
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: print_key
+
+    failure = .FALSE.
+    NULLIFY(logger, print_key, array_pot, array_kin, array_temp)
+    logger => cp_error_get_logger(error)
+
+    IF (ASSOCIATED(thermostat)) THEN
+       ! Print Energies
+       print_key => section_vals_get_subs_vals(thermostat%section,"PRINT%ENERGY",error=error)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+          CALL get_thermostat_energies(thermostat, thermo_pot, thermo_kin, para_env, array_pot, array_kin, error)
+          unit = cp_print_key_unit_nr(logger,thermostat%section,"PRINT%ENERGY",&
+                 extension="."//TRIM(thermostat%label)//".tener",file_position=my_pos, &
+                 file_action=my_act, is_new_file=new_file, error=error)
+          IF(unit > 0) THEN
+            IF (new_file) THEN
+               WRITE(unit,'(A)')"# Thermostat Potential and Kinetic Energies - Total and per Region"
+               WRITE(unit,'("#",3X,A,2X,A,13X,A,10X,A))')"Step Nr.","Time[fs]","Kin.[a.u.]","Pot.[a.u.]"
+            END IF
+            WRITE(UNIT=unit,FMT="(I8, F12.3,6X,2F20.10)") itimes,time*femtoseconds, thermo_kin, thermo_pot
+            WRITE(unit, '(A,4F20.10)')"# KINETIC ENERGY REGIONS: ",array_kin(1:MIN(4,SIZE(array_kin)))
+            DO i = 5, SIZE(array_kin), 4
+              WRITE(UNIT=unit,FMT='("#",25X,4F20.10)')array_kin(i:MIN(i+3,SIZE(array_kin)))
+            END DO
+            WRITE(unit, '(A,4F20.10)')"# POTENT. ENERGY REGIONS: ",array_pot(1:MIN(4,SIZE(array_pot)))
+            DO i = 5, SIZE(array_pot), 4
+              WRITE(UNIT=unit,FMT='("#",25X,4F20.10)')array_pot(i:MIN(i+3,SIZE(array_pot)))
+            END DO
+            CALL m_flush(unit)
+          END IF
+          DEALLOCATE(array_kin, stat=stat)
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+          DEALLOCATE(array_pot, stat=stat)
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+          CALL cp_print_key_finished_output(unit,logger,thermostat%section,"PRINT%ENERGY", error=error)
+       END IF
+       ! Print Temperatures of the regions
+       print_key => section_vals_get_subs_vals(thermostat%section,"PRINT%TEMPERATURE",error=error)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+          CALL get_region_temperatures(thermostat, tot_temperature, para_env, array_temp, error)
+          unit = cp_print_key_unit_nr(logger,thermostat%section,"PRINT%TEMPERATURE",&
+                 extension="."//TRIM(thermostat%label)//".temp",file_position=my_pos,&
+                 file_action=my_act, is_new_file=new_file, error=error)
+          IF(unit > 0) THEN
+            IF (new_file) THEN
+               WRITE(unit,'(A)')"# Temperature Total and per Region"
+               WRITE(unit,'("#",3X,A,2X,A,10X,A))')"Step Nr.","Time[fs]","Temp.[K]"
+            END IF
+            WRITE(UNIT=unit,FMT="(I8, F12.3,3X,F20.10)") itimes,time*femtoseconds, tot_temperature
+            WRITE(unit, '(A,I10)')"# TEMPERATURE REGIONS: ",SIZE(array_temp)
+            DO i = 1, SIZE(array_temp), 4
+              WRITE(UNIT=unit,FMT='("#",22X,4F20.10)')array_temp(i:MIN(i+3,SIZE(array_temp)))
+            END DO
+            CALL m_flush(unit)
+          END IF
+          DEALLOCATE(array_temp, stat=stat)
+          CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
+          CALL cp_print_key_finished_output(unit,logger,thermostat%section,"PRINT%TEMPERATURE", error=error)
+       END IF
+    END IF
+  END SUBROUTINE print_thermostat_status
 
 ! *****************************************************************************
 !> \brief Handles the communication for thermostats (1D array)

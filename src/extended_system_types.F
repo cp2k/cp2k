@@ -58,6 +58,7 @@ MODULE extended_system_types
 
 ! *****************************************************************************
   TYPE nhc_info_type
+     INTEGER        :: degrees_of_freedom
      REAL (KIND=dp) :: eta
      REAL (KIND=dp) :: v
      REAL (KIND=dp) :: f

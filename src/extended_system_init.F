@@ -639,7 +639,7 @@ CONTAINS
        CPPrecondition(stat==0,cp_fatal_level,routineP,error,failure)
 
        number = nhc%glob_num_nhc
-       CALL get_nhc_energies(nhc, dum, akin, para_env, error)
+       CALL get_nhc_energies(nhc, dum, akin, para_env, error=error)
 
        ! scale velocities to get the correct initial temperature
        temp = 2.0_dp*akin/REAL(number)

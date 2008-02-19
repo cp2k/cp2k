@@ -186,7 +186,7 @@ CONTAINS
   END SUBROUTINE csvr_to_particle_mapping
 
 ! *****************************************************************************
-!> \brief Main general setup for Nose-Hoover thermostats
+!> \brief Main general setup for CSVR thermostats
 !> \author Teodoro Laino [tlaino] - University of Zurich - 10.2007
 ! *****************************************************************************
   SUBROUTINE setup_csvr_thermostat ( csvr, thermostat_info, deg_of_freedom,&

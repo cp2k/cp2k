@@ -100,6 +100,7 @@ CONTAINS
        ! (number of degrees of freedom times k_B T )
        DO i = 1, nhc%loc_num_nhc
           nhc % nvt ( 1, i ) % nkt = simpar % temp_ext * number
+          nhc % nvt ( 1, i ) % degrees_of_freedom = number
           IF (debug_isotropic_limit) THEN
              nhc % nvt ( 1, i ) % nkt = simpar % temp_ext
           END IF
@@ -109,6 +110,10 @@ CONTAINS
        DO i = 2, nhc % nhc_len
           nhc % nvt ( i, : ) %nkt = simpar % temp_ext
        END DO
+
+       ! Let's clean the arrays
+       map_info%s_kin   = 0.0_dp 
+       map_info%v_scale = 0.0_dp 
     END SELECT
 
   END SUBROUTINE nhc_to_barostat_mapping
@@ -183,11 +188,13 @@ CONTAINS
              CALL stop_program ( routineN,'Zero degrees of freedom. Nothing to thermalize!' )
           END IF
           nhc%nvt(1,1)%nkt = simpar%temp_ext*fac
+          nhc%nvt(1,1)%degrees_of_freedom = FLOOR(fac)
        ELSE
           DO i = 1, nhc%loc_num_nhc
              imap = map_info%map_index(i)
              fac = (map_info%s_kin(imap) - deg_of_freedom(i) )
              nhc%nvt(1,i)%nkt = simpar%temp_ext * fac 
+             nhc % nvt ( 1, i ) % degrees_of_freedom = FLOOR(fac)
           END DO
        END IF
        
@@ -195,11 +202,16 @@ CONTAINS
        ! of the chain
        DO i = 2, nhc % nhc_len
           nhc % nvt ( i, : ) % nkt = simpar % temp_ext
+          nhc % nvt ( i, : ) % degrees_of_freedom = 1
        END DO
        DEALLOCATE (deg_of_freedom,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE ( massive_atom_list, STAT = stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       ! Let's clean the arrays
+       map_info%s_kin   = 0.0_dp 
+       map_info%v_scale = 0.0_dp 
     END SELECT
 
   END SUBROUTINE nhc_to_particle_mapping
@@ -354,12 +366,18 @@ CONTAINS
        DO i = 1, nhc%loc_num_nhc
           imap = map_info%map_index(i)
           nhc % nvt ( 1, i ) % nkt = kg_coeff_temp * map_info%s_kin (imap)
+          nhc % nvt ( 1, i ) % degrees_of_freedom = map_info%s_kin (imap)
        END DO
 
        ! getting the number of degrees of freedom times k_B T for the rest of the chain
        DO i = 2, nhc % nhc_len
           nhc % nvt ( i, : ) % nkt = kg_coeff_temp
+          nhc % nvt ( i, : ) % degrees_of_freedom = 1
        END DO
+
+       ! Let's clean the arrays
+       map_info%s_kin   = 0.0_dp 
+       map_info%v_scale = 0.0_dp 
     END SELECT
 
   END SUBROUTINE nhc_to_coef_mapping
@@ -423,16 +441,22 @@ CONTAINS
        DO i = 1, nhc%loc_num_nhc
           imap = map_info%map_index(i)
           nhc % nvt ( 1, i ) % nkt = simpar%temp_sh_ext * map_info%s_kin(imap)
+          nhc % nvt ( 1, i ) % degrees_of_freedom = map_info%s_kin(imap)
        END DO
 
        ! Getting the number of degrees of freedom times k_B T for the rest of the chain
        DO i = 2, nhc % nhc_len
           nhc % nvt ( i, : ) % nkt = simpar%temp_sh_ext
+          nhc % nvt ( i, : ) % degrees_of_freedom = 1
        END DO
        DEALLOCATE (deg_of_freedom,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE ( massive_shell_list, STAT = stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       ! Let's clean the arrays
+       map_info%s_kin   = 0.0_dp 
+       map_info%v_scale = 0.0_dp 
     END SELECT
 
   END SUBROUTINE nhc_to_shell_mapping

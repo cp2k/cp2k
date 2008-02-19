@@ -112,9 +112,9 @@ CONTAINS
 
     INTEGER                                  :: n_rep, region, thermostat_type
     LOGICAL :: apply_general_thermo, apply_thermo_baro, apply_thermo_coeff, &
-      apply_thermo_shell, do_thermo_shell, explicit_baro, &
-      explicit_barostat_section, explicit_coef, explicit_part, &
-      explicit_shell, failure, save_mem, shell_adiabatic, shell_present
+      apply_thermo_shell, explicit_baro, explicit_barostat_section, &
+      explicit_coef, explicit_part, explicit_shell, failure, save_mem, &
+      shell_adiabatic, shell_present
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -156,8 +156,8 @@ CONTAINS
 
     apply_general_thermo = apply_thermo_baro .OR. (simpar%ensemble == nvt_ensemble)
 
-    apply_thermo_shell = (simpar%ensemble == nve_ensemble).OR.&
-                         (simpar%ensemble == nvt_ensemble) .OR.&
+    apply_thermo_shell = (simpar%ensemble == nve_ensemble)  .OR.&
+                         (simpar%ensemble == nvt_ensemble)  .OR.&
                          (simpar%ensemble == npt_f_ensemble).OR.&
                          (simpar%ensemble == npt_i_ensemble).OR.&
                          (simpar%ensemble == npe_i_ensemble).OR.&
@@ -177,7 +177,8 @@ CONTAINS
     ! For constant temperature ensembles the thermostat is activated by default
     IF(explicit_part) THEN
        IF (apply_general_thermo) THEN
-          CALL create_thermostat_type(thermostats%thermostat_part, simpar, thermo_part_section, error=error)
+          CALL create_thermostat_type(thermostats%thermostat_part, simpar, thermo_part_section,&
+               label="PARTICLES", error=error)
           ! Initialize thermostat
           IF      (thermostats%thermostat_part%type_of_thermostat==do_thermo_nose) THEN
              ! Initialize or possibly restart Nose on Particles
@@ -203,80 +204,82 @@ CONTAINS
 CPSourceFileRef,&
                only_ionode=.TRUE.)          
        END IF
-    ELSE IF(apply_general_thermo) THEN
+    ELSE IF (apply_general_thermo) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
             "One constant temperature ensemble has been required, but no thermostat for the "//&
             "particles has been defined. You may want to change your input and add a "//&
             "THERMOSTAT section in the MD section."//&
 CPSourceFileRef,&
-               only_ionode=.TRUE.) 
+            only_ionode=.TRUE.) 
     END IF
 
     ! Core-Shell Model
-    IF (explicit_shell) THEN
-    ! The thermostat is activated only if explicitely required
-    ! It can be used to thermalize the shell-core motion when the temperature is not constant (nve, npe) 
-       IF (apply_thermo_shell) THEN
-          CALL create_thermostat_type(thermostats%thermostat_shell, simpar, thermo_shell_section, error=error)
-          CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, error=error)
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,shell_present=shell_present,&
-               shell_adiabatic=shell_adiabatic)
-          do_thermo_shell = (shell_present .AND. shell_adiabatic)
-          region_sections => section_vals_get_subs_vals(thermo_shell_section,"DEFINE_REGION",error=error)
-          CALL section_vals_val_get(thermo_shell_section,"REGION",i_val=region,error=error)
-          CALL setup_thermostat_info(thermostats%thermostat_info_shell, molecule_kinds_new%els,&
-               local_molecules, molecules_new, particles, region, simpar%ensemble, shell=do_thermo_shell,&
-               region_sections=region_sections, qmmm_env=qmmm_env, error=error)
-          IF(do_thermo_shell) THEN
-             ! Initialize thermostat
-             IF      (thermostats%thermostat_shell%type_of_thermostat==do_thermo_nose) THEN
-                ! Initialize or possibly restart Nose on Shells
-                work_section => section_vals_get_subs_vals(thermo_shell_section,"NOSE",error=error)
-                CALL initialize_nhc_shell(thermostats%thermostat_info_shell, simpar, local_molecules,&
-                     molecules_new%els, molecule_kinds_new%els, para_env, globenv,&
-                     thermostats%thermostat_shell%nhc, nose_section=work_section,gci=gci,&
-                     save_mem=save_mem, error=error) 
-             ELSE IF (thermostats%thermostat_shell%type_of_thermostat==do_thermo_csvr) THEN
-                ! Initialize or possibly restart CSVR thermostat on Shells
-                work_section => section_vals_get_subs_vals(thermo_shell_section,"CSVR",error=error)
-                CALL initialize_csvr_shell(thermostats%thermostat_info_shell, simpar, local_molecules,&
-                     molecules_new%els, molecule_kinds_new%els, para_env, globenv,&
-                     thermostats%thermostat_shell%csvr, csvr_section=work_section, gci=gci,&
-                     error=error)               
-             END IF
-             CALL thermostat_info(thermostats%thermostat_shell, "CORE-SHELL", thermo_shell_section, &
-                                  simpar, para_env, error)
-          ELSE
-             IF (.NOT.shell_adiabatic) THEN
+    CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, error=error)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,shell_present=shell_present)
+    IF (shell_present) THEN
+       IF (explicit_shell) THEN
+          ! The thermostat is activated only if explicitely required
+          ! It can be used to thermalize the shell-core motion when the temperature is not constant (nve, npe) 
+          IF (apply_thermo_shell) THEN
+             CALL create_thermostat_type(thermostats%thermostat_shell, simpar, thermo_shell_section,&
+                  label="SHELL", error=error)
+             CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els, shell_adiabatic=shell_adiabatic)
+
+             region_sections => section_vals_get_subs_vals(thermo_shell_section,"DEFINE_REGION",error=error)
+             CALL section_vals_val_get(thermo_shell_section,"REGION",i_val=region,error=error)
+             CALL setup_thermostat_info(thermostats%thermostat_info_shell, molecule_kinds_new%els,&
+                  local_molecules, molecules_new, particles, region, simpar%ensemble, shell=shell_adiabatic,&
+                  region_sections=region_sections, qmmm_env=qmmm_env, error=error)
+             IF(shell_adiabatic) THEN
+                ! Initialize thermostat
+                IF      (thermostats%thermostat_shell%type_of_thermostat==do_thermo_nose) THEN
+                   ! Initialize or possibly restart Nose on Shells
+                   work_section => section_vals_get_subs_vals(thermo_shell_section,"NOSE",error=error)
+                   CALL initialize_nhc_shell(thermostats%thermostat_info_shell, simpar, local_molecules,&
+                        molecules_new%els, molecule_kinds_new%els, para_env, globenv,&
+                        thermostats%thermostat_shell%nhc, nose_section=work_section,gci=gci,&
+                        save_mem=save_mem, error=error) 
+                ELSE IF (thermostats%thermostat_shell%type_of_thermostat==do_thermo_csvr) THEN
+                   ! Initialize or possibly restart CSVR thermostat on Shells
+                   work_section => section_vals_get_subs_vals(thermo_shell_section,"CSVR",error=error)
+                   CALL initialize_csvr_shell(thermostats%thermostat_info_shell, simpar, local_molecules,&
+                        molecules_new%els, molecule_kinds_new%els, para_env, globenv,&
+                        thermostats%thermostat_shell%csvr, csvr_section=work_section, gci=gci,&
+                        error=error)               
+                END IF
+                CALL thermostat_info(thermostats%thermostat_shell, "CORE-SHELL", thermo_shell_section, &
+                                     simpar, para_env, error)
+             ELSE
                 CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                      "Thermostat for Core-Shell motion only with adiabatic shell-model. "//&
                      "Continuing calculation ignoring the thermostat info! No Thermostat "//&
                      "applied to Shells!"//&
 CPSourceFileRef,&
                      only_ionode=.TRUE.) 
-             ELSE
-                CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                     "Thermostat for Shells has been defined but the system provided "//&
-                     "does not contain any Shells! Ignoring thermostat input."//&
-CPSourceFileRef,&
-                     only_ionode=.TRUE.) 
+                CALL release_thermostat_type(thermostats%thermostat_shell, error)
+                CALL release_thermostat_info(thermostats%thermostat_info_shell, error)
              END IF
-             CALL release_thermostat_type(thermostats%thermostat_shell, error)
-             CALL release_thermostat_info(thermostats%thermostat_info_shell, error)
-          END IF
-       ELSE
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-          "Thermostat for Shells has been defined but for the selected ensemble the adiabatic  "//&
-               " shell model has not been implemented! Ignoring thermostat input."//&
+          ELSE
+             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+             "Thermostat for Shells has been defined but for the selected ensemble the adiabatic  "//&
+             " shell model has not been implemented! Ignoring thermostat input."//&
 CPSourceFileRef,&
-               only_ionode=.TRUE.)          
+             only_ionode=.TRUE.)          
+          END IF
        END IF
-    END IF
+    ELSE IF (explicit_shell) THEN
+       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+            "Thermostat for Shells has been defined but the system provided "//&
+            "does not contain any Shells! Ignoring thermostat input."//&
+CPSourceFileRef,&
+            only_ionode=.TRUE.) 
+    END IF 
 
     ! Coefficients
     IF (explicit_coef) THEN
        IF (apply_thermo_coeff) THEN
-          CALL create_thermostat_type(thermostats%thermostat_coef, simpar, thermo_coef_section, error=error)
+          CALL create_thermostat_type(thermostats%thermostat_coef, simpar, thermo_coef_section,&
+               label="COEF", error=error)
           CALL force_env_get(force_env, dyn_coeff_set=dyn_coeff_set, error=error )
           IF (ASSOCIATED(dyn_coeff_set)) THEN
              kg_coeff_section  => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF",error=error)
@@ -326,7 +329,7 @@ CPSourceFileRef,&
           IF (thermostat_type==do_thermo_same_as_part) work_section => thermo_part_section
          
           CALL create_thermostat_type(thermostats%thermostat_baro, simpar, work_section, skip_region=.TRUE.,&
-               error=error)
+               label="BAROSTAT", error=error)
           ! Initialize thermostat
           IF      (thermostats%thermostat_baro%type_of_thermostat==do_thermo_nose) THEN
              ! Initialize or possibly restart Nose on Barostat
@@ -432,9 +435,9 @@ CPSourceFileRef,&
     NULLIFY(logger, unit)
     CALL get_cp2k_units ( unit )
     logger => cp_error_get_logger(error)
-    iw=cp_print_key_unit_nr(logger,section,"THERMOSTAT_INFO",extension=".log",error=error)
+    iw=cp_print_key_unit_nr(logger,section,"PRINT%THERMOSTAT_INFO",extension=".log",error=error)
     ! Total Tehrmostat Energy
-    CALL get_thermostat_energies(thermostat, pot_energy, kin_energy, para_env, error)
+    CALL get_thermostat_energies(thermostat, pot_energy, kin_energy, para_env, error=error)
     IF (iw>0) THEN
        WRITE ( iw, '( /,A )' ) ' THERMOSTAT| Thermostat Info for '//TRIM(label)
        SELECT CASE(thermostat%type_of_thermostat)
@@ -462,7 +465,7 @@ CPSourceFileRef,&
        END SELECT
        WRITE ( iw, '( A,/ )' ) ' THERMOSTAT| End of Thermostat Info for '//TRIM(label)
     END IF
-    CALL cp_print_key_finished_output(iw,logger,section,"THERMOSTAT_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,section,"PRINT%THERMOSTAT_INFO",error=error)
 
   END SUBROUTINE thermostat_info
 

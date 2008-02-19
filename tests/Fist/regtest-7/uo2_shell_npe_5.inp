@@ -96,6 +96,10 @@
     &BAROSTAT
       PRESSURE 0.
       TIMECON 1000
+      &PRINT
+        &ENERGY
+        &END
+      &END
     &END BAROSTAT
     TEMP_KIND
     &SHELL
@@ -119,8 +123,6 @@
       &SHELL_ENERGY LOW
       &END
       &TEMP_KIND
-      &END
-      &BAROSTAT_ENERGY
       &END
     &END PRINT
   &END MD

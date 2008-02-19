@@ -189,6 +189,12 @@
         LIST 35 36 40 41 42 46 47 48 52 53 54 58 59 60 64
         LIST 65 66 70 71 72 76 77 78 82 83 84 88 89 90 94 95 96
       &END
+      &PRINT
+        &ENERGY
+        &END
+        &TEMPERATURE
+        &END
+      &END
     &END
   &END MD
   &PRINT 

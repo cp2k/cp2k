@@ -1489,25 +1489,6 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"THERMOSTAT_ENERGY",&
-            description="Controls the output of kinetic energy, and potential energy "//&
-            " of the particle-thermostat and of the barostat-thermostat."//&
-            " It works only with the ensembles npt and nvt",&
-            print_level=high_print_level, common_iter_levels=1,&
-            filename="",error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-
-
-       CALL cp_print_key_section_create(print_key,"BAROSTAT_ENERGY",&
-            description="Controls the output of kinetic energy, temperature, and potential energy "//&
-            " of the barostat. It works only with the ensembles npt, nph, and npe",&
-            print_level=high_print_level, common_iter_levels=1,&
-            filename="",error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing of basic and summary information during the"//&
             " Molecular Dynamics", &

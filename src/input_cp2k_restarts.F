@@ -834,7 +834,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dump_csvr_energy_info(thermostat_energy, nsize, work_section, error)
 
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: thermostat_energy
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: thermostat_energy
     INTEGER, INTENT(IN)                      :: nsize
     TYPE(section_vals_type), POINTER         :: work_section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -927,14 +927,14 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: ascii
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dum
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     TYPE(section_vals_type), POINTER         :: work_section
 
     failure = .FALSE.    
     ! Thermostat Energies
     ALLOCATE(work(csvr%glob_num_csvr),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL get_csvr_energies ( csvr, dum, para_env, work, error )
+    CALL get_csvr_energies ( csvr, dum, para_env, array_kin=work, error=error )
 
     ! If check passes then let's dump the info on the restart file
     work_section => section_vals_get_subs_vals(csvr_section,"THERMOSTAT_ENERGY",error=error)

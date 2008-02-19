@@ -21,7 +21,8 @@ MODULE thermostat_types
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE md,                              ONLY: simulation_parameters_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -62,8 +63,10 @@ MODULE thermostat_types
 ! *****************************************************************************
   TYPE thermostat_type
      INTEGER :: id_nr, ref_count, type_of_thermostat
+     CHARACTER(LEN=default_string_length) :: label
      TYPE (lnhc_parameters_type), POINTER :: nhc
      TYPE (csvr_system_type), POINTER     :: csvr
+     TYPE (section_vals_type), POINTER    :: section
   END TYPE thermostat_type
 
   ! Global info type
@@ -200,12 +203,13 @@ CONTAINS
 !>      09.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE create_thermostat_type(thermostat, simpar, section, skip_region, error)  
+  SUBROUTINE create_thermostat_type(thermostat, simpar, section, skip_region, label, error)  
     TYPE(thermostat_type), POINTER           :: thermostat
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(section_vals_type), POINTER         :: section
     LOGICAL, INTENT(IN), OPTIONAL            :: skip_region
+    CHARACTER(LEN=*), INTENT(IN)             :: label
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_thermostat_type', &
@@ -223,6 +227,8 @@ CONTAINS
     last_thermostat_id_nr = last_thermostat_id_nr + 1
     thermostat%id_nr = last_thermostat_id_nr
     thermostat%ref_count =  1
+    thermostat%section => section
+    thermostat%label = label
     region = do_region_global
 
     NULLIFY(thermostat%nhc)
@@ -297,6 +303,7 @@ CONTAINS
        CPPrecondition(check,cp_failure_level,routineP,error,failure)
        thermostat%ref_count=thermostat%ref_count-1
        IF (thermostat%ref_count<1) THEN
+          NULLIFY(thermostat%section)
           IF (ASSOCIATED(thermostat%nhc)) THEN
              CALL lnhc_dealloc(thermostat%nhc,error=error)
           END IF

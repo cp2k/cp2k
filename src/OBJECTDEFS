@@ -12,6 +12,7 @@ OBJECTS_GENERIC =\
  atomic_kind_types.o\
  atoms_input.o\
  barostat_types.o\
+ barostat_utils.o\
  basis_set_types.o\
  bessel_lib.o\
  beta_gamma_psi.o\

@@ -12,10 +12,11 @@
 !>      - New MD data are appended to the old data (15.09.2003,MK)
 ! *****************************************************************************
 MODULE md_energies
-
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE barostat_types,                  ONLY: barostat_type
+  USE barostat_utils,                  ONLY: print_barostat_status
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell
   USE cp2k_units,                      ONLY: get_cp2k_units,&
@@ -24,6 +25,7 @@ MODULE md_energies
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
@@ -31,10 +33,14 @@ MODULE md_energies
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              use_mixed_force
-  USE input_constants,                 ONLY: &
-       ensemble_name_types, npe_f_ensemble, npe_i_ensemble, &
-       nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
-       npt_i_ensemble, nvt_ensemble, reftraj_ensemble
+  USE input_constants,                 ONLY: ensemble_name_types,&
+                                             npe_f_ensemble,&
+                                             npe_i_ensemble,&
+                                             nph_uniaxial_damped_ensemble,&
+                                             nph_uniaxial_ensemble,&
+                                             npt_f_ensemble,&
+                                             npt_i_ensemble,&
+                                             reftraj_ensemble
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_string_length,&
@@ -56,6 +62,8 @@ MODULE md_energies
                                              kelvin
   USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE reftraj_types,                   ONLY: reftraj_type
+  USE thermostat_types,                ONLY: thermostats_type
+  USE thermostat_utils,                ONLY: print_thermostats_status
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -280,10 +288,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: fmd, my_act, my_pos
-    INTEGER                                  :: baro, box, delta_t, ene, &
-                                                ener_mix, handle, i, iw, nat, &
-                                                nkind, shene, tempkind, &
-                                                therm, trsl
+    INTEGER                                  :: box, delta_t, ene, ener_mix, &
+                                                handle, i, iw, nat, nkind, &
+                                                shene, tempkind, trsl
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, init, is_mixed, &
                                                 new_file, qmmm, &
@@ -297,8 +304,10 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(average_quantities_type), SAVE      :: averages
+    TYPE(barostat_type), POINTER             :: barostat
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(md_ener_type), POINTER              :: md_ener
@@ -310,6 +319,7 @@ CONTAINS
                                                 root_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
+    TYPE(thermostats_type), POINTER          :: thermostats
     TYPE(unit_convert_type), POINTER         :: unit
     TYPE(virial_type), POINTER               :: virial
 
@@ -327,11 +337,12 @@ CONTAINS
     NULLIFY(motion_section, atomic_kinds, atomic_kind_set)
     NULLIFY(cell, subsys, force_env, md_ener, qmmm_env, reftraj)
     NULLIFY(core_particles, particles,shell_particles, print_key)
-    NULLIFY(root_section,simpar,virial)
+    NULLIFY(root_section,simpar,virial,thermostats)
 
     CALL get_md_env(md_env=md_env, itimes=itimes, constant=constant,&
          t=time, used_time = used_time, simpar=simpar, force_env=force_env, &
-         init=init, md_ener=md_ener, reftraj=reftraj, error=error)
+         init=init, md_ener=md_ener, reftraj=reftraj, thermostats=thermostats,&
+         barostat=barostat, para_env=para_env, error=error)
 
     root_section   => force_env%root_section
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
@@ -687,8 +698,12 @@ CONTAINS
             simpar%ensemble == npe_f_ensemble) THEN
           box = cp_print_key_unit_nr(logger,motion_section,"PRINT%CELL",&
                extension=".cell", file_position=my_pos, file_action=my_act,&
-               file_form="FORMATTED", error=error)
+               file_form="FORMATTED", is_new_file=new_file, error=error)
           IF ( box > 0 ) THEN
+             IF (new_file) THEN
+                WRITE (box,'("#",3X,A,2X,A,2X,9(6X,A,6X),4X,A)')"Step Nr.","Time[fs]","XX[Ang.]","YX[Ang.]",&
+                      "ZX[Ang.]","YX[Ang.]","YY[Ang.]","YZ{Ang.]","ZX[Ang.]","ZY[Ang.]","ZZ[Ang.]","Vol[Ang.^3]"
+             END IF
              WRITE(UNIT=box,FMT="(I8, F12.3,10F20.10)") itimes,time*femtoseconds,&
                   cell%hmat(1,1)*angstrom,cell%hmat(2,1)*angstrom,cell%hmat(3,1)*angstrom,&
                   cell%hmat(1,2)*angstrom,cell%hmat(2,2)*angstrom,cell%hmat(3,2)*angstrom,&
@@ -697,32 +712,13 @@ CONTAINS
              CALL m_flush(box)
           END IF
           CALL cp_print_key_finished_output(box,logger,motion_section,"PRINT%CELL", error=error)
-
-          baro = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%BAROSTAT_ENERGY",&
-               extension=".bener",file_position=my_pos, file_action=my_act,error=error)
-          IF(baro > 0) THEN
-             WRITE(UNIT=baro,FMT="(I8, F12.3,4F20.10)") itimes,time*femtoseconds,&
-                 md_ener%baro_kin, md_ener%temp_baro, md_ener%baro_pot, cell%deth*angstrom*angstrom*angstrom
-             CALL m_flush(baro)
-          END IF        
-
-          CALL cp_print_key_finished_output(baro,logger,motion_section,"MD%PRINT%BAROSTAT_ENERGY", error=error)
        END IF
 
-       ! Print Particle-Thermostat energies (only if constant temperature)
-       IF (simpar%ensemble == npt_f_ensemble .OR. &
-           simpar%ensemble == npt_i_ensemble.OR.&
-           simpar%ensemble == nvt_ensemble) THEN
-           therm = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%THERMOSTAT_ENERGY",&
-                   extension=".tener",file_position=my_pos, file_action=my_act,error=error)
-           IF(therm > 0) THEN
-             WRITE(UNIT=therm,FMT="(I8, F12.3,4F20.10)") itimes,time*femtoseconds,&
-             md_ener%thermostat_part_kin,  md_ener%thermostat_part_pot, &
-             md_ener%thermostat_baro_kin, md_ener%thermostat_baro_pot
-             CALL m_flush(therm)
-           END IF
-           CALL cp_print_key_finished_output(therm,logger,motion_section,"MD%PRINT%THERMOSTAT_ENERGY", error=error)
-       END IF
+       ! Print thermostats status
+       CALL print_thermostats_status(thermostats, para_env, my_pos, my_act, cell, itimes, time, error)
+
+       ! Print barostat status
+       CALL print_barostat_status(barostat, simpar, my_pos, my_act, cell, itimes, time, error)
 
        ! Print Stress Tensor
        CALL write_stress_tensor(virial, cell, motion_section, unit, itimes, time*femtoseconds,&

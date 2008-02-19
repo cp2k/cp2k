@@ -42,8 +42,9 @@ MODULE barostat_types
 ! *****************************************************************************
   TYPE barostat_type
      INTEGER :: id_nr, ref_count, type_of_barostat
-     REAL(KIND=dp) :: temp_ext
-     TYPE ( npt_info_type ), POINTER :: npt (:,:)
+     REAL(KIND=dp)                    :: temp_ext
+     TYPE ( npt_info_type ), POINTER  :: npt (:,:)
+     TYPE(section_vals_type), POINTER :: section
   END TYPE barostat_type
 
 ! *** Global parameters ***
@@ -95,6 +96,7 @@ CONTAINS
        last_barostat_id_nr = last_barostat_id_nr + 1
        barostat%id_nr      = last_barostat_id_nr
        barostat%ref_count  =  1
+       barostat%section => barostat_section
        NULLIFY(barostat%npt)
        CALL force_env_get( force_env, cell=cell, error=error )
 
@@ -164,6 +166,7 @@ CONTAINS
              DEALLOCATE (barostat%npt , stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
+          NULLIFY(barostat%section)
           DEALLOCATE(barostat, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF

@@ -67,7 +67,7 @@ CONTAINS
     LOGICAL                                  :: failure, my_coupled_thermostat
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: csvr_section, nose_section, &
-                                                print_key, region_section
+                                                region_section, subsection
 
     failure=.FALSE.
     
@@ -75,7 +75,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        my_coupled_thermostat = .FALSE.
        IF (PRESENT(coupled_thermostat)) my_coupled_thermostat = coupled_thermostat
-       NULLIFY(csvr_section, nose_section, print_key, region_section)
+       NULLIFY(csvr_section, nose_section, subsection, region_section)
        
        CALL section_create(section,name="THERMOSTAT",&
             description="Specify thermostat type and parameters controlling the thermostat.",&
@@ -133,15 +133,61 @@ CONTAINS
        CALL section_add_subsection(section, csvr_section, error=error)
        CALL section_release(csvr_section,error=error)
 
-       CALL cp_print_key_section_create(print_key,"thermostat_info",&
+       ! Print Section
+       CALL create_print_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+                                             
+    END IF
+  END SUBROUTINE create_thermostat_section
+
+! *****************************************************************************
+!> \brief Creates print section for thermostat section
+!> \author teo [tlaino] - University of Zurich - 02.2008
+! *****************************************************************************
+  SUBROUTINE create_print_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_print_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, my_coupled_thermostat
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       NULLIFY(print_key)
+       CALL section_create(section,name="PRINT",&
+            description="Collects all print_keys for thermostat",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.NOT.my_coupled_thermostat,&
+            error=error)
+
+       CALL cp_print_key_section_create(print_key,"THERMOSTAT_INFO",&
             description="Controls output information of the corresponding thermostat.", &
             print_level=low_print_level, common_iter_levels=1,&
             filename="__STD_OUT__",error=error)
        CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)               
+       CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"TEMPERATURE",&
+            description="Controls the output of the temperatures of the regions corresponding to "//&
+                        "the present thermostat", &
+            print_level=high_print_level, common_iter_levels=1,&
+            filename="",error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"ENERGY",&
+            description="Controls the output of kinetic energy, and potential energy "//&
+            " of the defined thermostat.", print_level=high_print_level, common_iter_levels=1,&
+            filename="",error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
     END IF
-  END SUBROUTINE create_thermostat_section
+  END SUBROUTINE create_print_section
 
 ! *****************************************************************************
 !> \brief Creates a section to arbitrary define a region to thermostat

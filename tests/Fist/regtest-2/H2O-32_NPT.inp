@@ -187,6 +187,12 @@
         TIMECON 1000
         MTS 2
       &END NOSE
+      &PRINT
+        &ENERGY
+        &END
+        &TEMPERATURE
+        &END
+      &END
     &END
   &END MD
 &END MOTION

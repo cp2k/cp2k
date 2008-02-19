@@ -9,6 +9,7 @@
 !> \author teo & fawzi
 ! *****************************************************************************
 MODULE input_cp2k_barostats
+  USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE f77_blas
   USE input_constants
@@ -88,7 +89,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)        
 
-
        CALL create_velocity_section(subsection,"BAROSTAT",error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -101,7 +101,44 @@ CONTAINS
        CALL section_add_subsection(section, thermo_section, error=error)
        CALL section_release(thermo_section,error=error)
 
+       CALL create_print_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
   END SUBROUTINE create_barostat_section
+
+! *****************************************************************************
+!> \brief Creates print section for barostat section
+!> \author teo [tlaino] - University of Zurich - 02.2008
+! *****************************************************************************
+  SUBROUTINE create_print_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_print_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, my_coupled_thermostat
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       NULLIFY(print_key)
+       CALL section_create(section,name="PRINT",&
+            description="Collects all print_keys for barostat",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.NOT.my_coupled_thermostat,&
+            error=error)
+
+       CALL cp_print_key_section_create(print_key,"ENERGY",&
+            description="Controls the output of kinetic energy, and potential energy "//&
+            " of the defined barostat.", print_level=high_print_level, common_iter_levels=1,&
+            filename="",error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+    END IF
+  END SUBROUTINE create_print_section
 
 END MODULE input_cp2k_barostats
