@@ -133,7 +133,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, matrix_w
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(scp_energy_type), POINTER           :: scp_energy
+    TYPE(scp_energy_type), POINTER           :: scp_energy_loc
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(scp_force_type), POINTER            :: scp_force( : )
     TYPE(section_vals_type), POINTER         :: print_section
@@ -333,9 +333,9 @@ CONTAINS
 !         CALL scp_qs_disp_debug ( qs_env, error )
          CALL scp_qs_dispersion ( qs_env, .TRUE., error )
          CALL get_qs_env ( qs_env = qs_env, energy = energy, scp_env = scp_env, error = error )
-         CALL get_scp_env ( scp_env = scp_env, energy = scp_energy, force = scp_force, error = error )
+         CALL get_scp_env ( scp_env = scp_env, energy = scp_energy_loc, force = scp_force, error = error )
       ! Adding the post-processed dispersion energy to the total energy
-         energy % total = energy %total + scp_energy % e_scp_disp
+         energy % total = energy %total + scp_energy_loc % e_scp_disp
       END IF
 !**** SCP
 
