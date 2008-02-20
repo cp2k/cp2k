@@ -354,7 +354,7 @@ SUBROUTINE setup_aux_coeff(coeffs,aux_basis_set, n_els, error)
   IF(.NOT.ASSOCIATED(coeffs%c)) THEN
     ALLOCATE(coeffs%c(n_els,ncgf),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    coeffs%c(:,:)=1.0_dp
+    coeffs%c(:,:)=0.0_dp
   END IF
   IF(.NOT.ASSOCIATED(coeffs%fc)) THEN
     ALLOCATE(coeffs%fc(n_els,ncgf),STAT=stat)
