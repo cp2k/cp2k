@@ -29,14 +29,10 @@ MODULE cp_control_utils
                                              enumeration_type
   USE input_keyword_types,             ONLY: keyword_get,&
                                              keyword_type
-  USE input_section_types,             ONLY: section_get_keyword,&
-                                             section_release,&
-                                             section_type,&
-                                             section_vals_get,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_get_subs_vals2,&
-                                             section_vals_type,&
-                                             section_vals_val_get
+  USE input_section_types,             ONLY: &
+       section_get_keyword, section_release, section_type, section_vals_get, &
+       section_vals_get_subs_vals, section_vals_get_subs_vals2, &
+       section_vals_type, section_vals_val_get, section_vals_val_set
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp,&
@@ -82,6 +78,8 @@ CONTAINS
     INTEGER                                  :: excitations, method_id, run_id
     LOGICAL                                  :: failure, is_present, l_param, &
                                                 not_SE, was_present
+    REAL(KIND=dp)                            :: density_cut, gradient_cut, &
+                                                tau_cut
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rvec
     TYPE(section_vals_type), POINTER         :: scf_section, scp_section, &
                                                 tmp_section, xc_fun_section, &
@@ -106,8 +104,34 @@ CONTAINS
     IF (.NOT.is_present.AND.not_SE) THEN
        CALL stop_program(routineN,"XC section missing.")
     END IF
-    xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
-                                                 error=error)
+    IF (is_present) THEN
+       CALL section_vals_val_get(xc_section,"density_cutoff", r_val=density_cut,error=error)
+       CALL section_vals_val_get(xc_section,"gradient_cutoff", r_val=gradient_cut,error=error)
+       CALL section_vals_val_get(xc_section,"tau_cutoff", r_val=tau_cut,error=error)
+       ! Perform numerical stability checks and possibly correct the issues
+       CALL cp_assert(density_cut>EPSILON(0.0_dp)*100.0_dp,cp_warning_level,cp_assertion_failed,routineP,&
+            "DENSITY_CUTOFF lower than 100*EPSILON, where EPSILON is the machine precision. "//&
+            "This may lead to numerical problems. Setting up shake_tol to 100*EPSILON! "//&
+CPSourceFileRef,&
+            only_ionode=.TRUE.)
+       density_cut = MAX(EPSILON(0.0_dp)*100.0_dp,density_cut)
+       CALL cp_assert(gradient_cut>EPSILON(0.0_dp)*100.0_dp,cp_warning_level,cp_assertion_failed,routineP,&
+            "GRADIENT_CUTOFF lower than 100*EPSILON, where EPSILON is the machine precision. "//&
+            "This may lead to numerical problems. Setting up shake_tol to 100*EPSILON! "//&
+CPSourceFileRef,&
+            only_ionode=.TRUE.)
+       gradient_cut = MAX(EPSILON(0.0_dp)*100.0_dp,gradient_cut)
+       CALL cp_assert(tau_cut>EPSILON(0.0_dp)*100.0_dp,cp_warning_level,cp_assertion_failed,routineP,&
+            "TAU_CUTOFF lower than 100*EPSILON, where EPSILON is the machine precision. "//&
+            "This may lead to numerical problems. Setting up shake_tol to 100*EPSILON! "//&
+CPSourceFileRef,&
+            only_ionode=.TRUE.)
+       tau_cut = MAX(EPSILON(0.0_dp)*100.0_dp,tau_cut)
+       CALL section_vals_val_set(xc_section,"density_cutoff", r_val=density_cut,error=error)
+       CALL section_vals_val_set(xc_section,"gradient_cutoff", r_val=gradient_cut,error=error)
+       CALL section_vals_val_set(xc_section,"tau_cutoff", r_val=tau_cut,error=error)
+    END IF
+    xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",error=error)
     CALL section_vals_get(xc_fun_section,explicit=is_present,error=error)
     IF (.NOT.is_present.AND.not_SE) THEN
        CALL stop_program(routineN,"XC_FUNCTIONAL section missing.")
@@ -727,14 +751,11 @@ CONTAINS
          ENDIF
        END IF
 
-       CALL section_vals_val_get(xc_section,"density_cutoff",&
-            r_val=density_cut,error=error)
-       CALL section_vals_val_get(xc_section,"gradient_cutoff",&
-            r_val=gradient_cut,error=error)
-       CALL section_vals_val_get(xc_section,"tau_cutoff",&
-            r_val=tau_cut,error=error)
-       CALL section_vals_val_get(xc_section,"density_smooth_cutoff_range",&
-            r_val=density_smooth_cut_range,error=error)
+       CALL section_vals_val_get(xc_section,"density_cutoff", r_val=density_cut,error=error)
+       CALL section_vals_val_get(xc_section,"gradient_cutoff", r_val=gradient_cut,error=error)
+       CALL section_vals_val_get(xc_section,"tau_cutoff", r_val=tau_cut,error=error)
+       CALL section_vals_val_get(xc_section,"density_smooth_cutoff_range",r_val=density_smooth_cut_range,error=error)
+       
        WRITE (UNIT=output_unit,FMT="(T2,A,T66,ES15.6)")&
             "DFT| Cutoffs: density ",density_cut,&
             "DFT|          gradient",gradient_cut,&

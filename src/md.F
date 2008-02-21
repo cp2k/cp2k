@@ -363,6 +363,12 @@ CPSourceFileRef,&
        IF (explicit) THEN
           simpar%constraint = .TRUE.
           CALL section_vals_val_get(tmp_section,"SHAKE",r_val=simpar%shake_tol,error=error)
+          CALL cp_assert(simpar%shake_tol>EPSILON(0.0_dp)*1000.0_dp,cp_warning_level,cp_assertion_failed,routineP,&
+               "Shake tolerance lower than 1000*EPSILON, where EPSILON is the machine precision. "//&
+               "This may lead to numerical problems. Setting up shake_tol to 100*EPSILON! "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
+          simpar%shake_tol = MAX(EPSILON(0.0_dp)*1000.0_dp,simpar%shake_tol)
        END IF
        
        IF (simpar%ensemble == nph_uniaxial_ensemble.OR.simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
