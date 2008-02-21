@@ -213,13 +213,9 @@ CONTAINS
     
     ! *** set up the pw multi-grids *** !
 
-    ALLOCATE(mgrid_rspace(SIZE(pw_pools)) ,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL pw_pools_create_pws(pw_pools,mgrid_rspace,&
                               use_data = REALDATA3D,&
                               in_space = REALSPACE, error=error)
-    ALLOCATE(mgrid_gspace(SIZE(pw_pools)) ,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL pw_pools_create_pws(pw_pools,mgrid_gspace,&
                               use_data = COMPLEXDATA1D,&
                               in_space = RECIPROCALSPACE, error=error)

@@ -95,8 +95,6 @@ END SUBROUTINE scp_rspw_retain
      IF (scp_rspw%ref_count<1) THEN
       IF (ASSOCIATED(scp_rspw%qs_pw_env)) THEN
         CALL pw_env_release (scp_rspw%qs_pw_env, error=error )
-        DEALLOCATE (scp_rspw%qs_pw_env ,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
       DEALLOCATE(scp_rspw, stat=stat)
       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

@@ -179,7 +179,6 @@ SUBROUTINE maxradius_scp_init ( scp_env, atomic_kind_set, gridlevel_info, &
        CALL pw_env_retain ( pw_env, error ) 
        CALL pw_env_release ( rspw % qs_pw_env, error=error ) 
        rspw % qs_pw_env => pw_env
-       CALL pw_env_release ( pw_env, error=error )
     END IF
 
     CALL timestop(0.0_dp,handle)

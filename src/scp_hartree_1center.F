@@ -266,15 +266,6 @@ CONTAINS
                block_row=iatom,&
                block_col=iatom,&
                BLOCK=p_block)
-          !         CALL get_block_node(matrix=h_mat(1)%matrix,&
-          !                            block_row=iatom,&
-          !                            block_col=iatom,&
-          !                            BLOCK=h_block)
-          !
-          !         CALL get_block_node(matrix=p_mat(1)%matrix,&
-          !                            block_row=iatom,&
-          !                            block_col=iatom,&
-          !                            BLOCK=p_block)
 
           IF(nspins == 2) THEN
              CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
@@ -286,15 +277,6 @@ CONTAINS
                   block_row=iatom,&
                   block_col=iatom,&
                   BLOCK=p_block2)
-             !           CALL get_block_node(matrix=h_mat(2)%matrix,&
-             !                            block_row=iatom,&
-             !                            block_col=iatom,&
-             !                            BLOCK=h_block2)
-             !
-             !           CALL get_block_node(matrix=p_mat(2)%matrix,&
-             !                            block_row=iatom,&
-             !                            block_col=iatom,&
-             !                            BLOCK=p_block2)
 
           END IF
           ! Initializing arrays for the calculation of the coefficient matrix CPC
@@ -328,6 +310,7 @@ CONTAINS
                 ns2  = nsgf_set(isetb)
                 ic2_min_m1 = ncoset(l_min(isetb)-1)
                 ic2_max    = ncoset(l_max(isetb))
+
 
                 CALL dgemm("N","N",nco1,ns2,ns1,&
                      1.0_dp,sphi(1,ifs1),maxco,&
@@ -461,6 +444,7 @@ CONTAINS
                          END IF
                       END IF ! just_energy
                       ! Compute energy
+                   !   WRITE ( *, * ) 'TRACING', ldcpc1, m1, m2, ldintab1, nco1, nco2
                       DO ispin = 1,nspins
                          trace = trace_r_AxB_new(CPC_ab(:,:,ispin),ldcpc1,m1,m2,&
                               Int_ab_sum,ldintab1,0,0,nco1,nco2)
@@ -474,7 +458,7 @@ CONTAINS
                       ! Int_abc(1+m1:nco1+m1,1+m2:nco2+m2,ico) = int_tmp(1:nco1,1:nco2,ico)
                       DO icoscp = 1, nco_scp
                          DO ico1 = 1,nco2
-                            !  CALL DCOPY(nco1,int_tmp(1,ico1,icoscp),1,Int_abc(m1+1,m2+ico1,icoscp),1)
+                          !  CALL DCOPY(nco1,int_tmp(1,ico1,icoscp),1,Int_abc(m1+1,m2+ico1,icoscp),1)
                             CALL DAXPY(nco1,1.0_dp,int_tmp(1,ico1,icoscp),1,Int_abc(m1+1,m2+ico1,icoscp),1)
                          END DO
                       END DO
@@ -524,12 +508,20 @@ CONTAINS
     CALL mp_sum(e_hartree_1c,para_env%group)
     energy % e_scp_ks_self = e_hartree_1c
 
+    IF(ASSOCIATED(Int_ab_sum)) THEN
+       DEALLOCATE(Int_ab_sum,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+            "Int_ab_sum")
+
+    END IF
+
     IF(ASSOCIATED(Int_abc)) THEN
        DEALLOCATE(Int_abc,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "Int_abc")
 
     END IF
+
     IF(ASSOCIATED(hab)) THEN
        DEALLOCATE(hab, STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
