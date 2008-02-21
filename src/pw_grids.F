@@ -36,7 +36,6 @@ MODULE pw_grids
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
-  USE mathlib,                         ONLY: matvec_3x3
   USE message_passing,                 ONLY: &
        MPI_COMM_SELF, mp_cart_coords, mp_cart_create, mp_cart_rank, &
        mp_comm_compare, mp_comm_dup, mp_comm_free, mp_dims_create, &
@@ -1112,8 +1111,8 @@ CONTAINS
     INTEGER                                  :: gpt, l, m, mm, n, &
                                                 n_upperlimit, nlim( 2 ), nn
     INTEGER, DIMENSION(:, :), POINTER        :: bounds
-    REAL(KIND=dp)                            :: ggi( 3), gi( 3 ), &
-                                                gmat( 3, 3 ), length
+    REAL(KIND=dp)                            :: length, length_x, length_y, &
+                                                length_z
 
 !------------------------------------------------------------------------------
 
@@ -1128,7 +1127,6 @@ CONTAINS
     END IF
 
     ! finds valid g-points within grid
-    gmat = MATMUL ( h_inv, TRANSPOSE ( h_inv ) )
     gpt = 0
     IF ( pw_grid % para % mode == PW_MODE_LOCAL ) THEN
        nlim ( 1 ) = bounds ( 1, 3 )
@@ -1143,19 +1141,30 @@ CONTAINS
 
     yz_mask = 0
     DO n = nlim ( 1 ), nlim ( 2 )
-       gi ( 3 ) = REAL(n,dp)
        nn = n - bounds ( 1, 3) + 1
        DO m = bounds ( 1, 2 ), bounds ( 2, 2 )
-          gi ( 2 ) = REAL(m,dp)
           mm = m - bounds ( 1, 2) + 1
           DO l = bounds ( 1, 1 ), bounds ( 2, 1 )
              IF ( pw_grid % grid_span == HALFSPACE .AND. n == 0 ) THEN
                 IF ( ( m == 0 .AND. l > 0 ) .OR. ( m > 0 ) ) CYCLE
              END IF
 
-             gi ( 1 ) = REAL(l,dp)
-             CALL matvec_3x3(ggi, gmat, gi )
-             length = twopi * twopi * DOT_PRODUCT ( ggi , gi )
+             length_x &
+                  = REAL(l,dp) * h_inv(1,1) &
+                  + REAL(m,dp) * h_inv(2,1) &
+                  + REAL(n,dp) * h_inv(3,1)
+             length_y &
+                  = REAL(l,dp) * h_inv(1,2) &
+                  + REAL(m,dp) * h_inv(2,2) &
+                  + REAL(n,dp) * h_inv(3,2)
+             length_z &
+                  = REAL(l,dp) * h_inv(1,3) &
+                  + REAL(m,dp) * h_inv(2,3) &
+                  + REAL(n,dp) * h_inv(3,3)
+                                                                                                                                                  
+             length = length_x ** 2 + length_y ** 2 + length_z ** 2
+             length = twopi * twopi * length
+
              IF ( 0.5_dp * length <= cutoff ) THEN
                 gpt = gpt + 1
                 yz_mask ( mm, nn ) = yz_mask ( mm, nn ) + 1
