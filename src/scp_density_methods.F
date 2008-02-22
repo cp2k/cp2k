@@ -87,7 +87,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_rhoscp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, output_unit, stat
+    INTEGER                                  :: handle, i,  stat
     LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: t1
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -115,7 +115,6 @@ CONTAINS
     NULLIFY(particle_set, cell, dft_control)
 
     logger => cp_error_get_logger(error)
-    output_unit=cp_logger_get_default_unit_nr(logger)
     stat = 0
     t1 = m_walltime()
 
