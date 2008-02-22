@@ -175,7 +175,6 @@ CONTAINS
       nseta, offset, sgfa, stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab, my_eps_rho_rspace, rab2, &
                                                 scale, total_rho, zetp
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
