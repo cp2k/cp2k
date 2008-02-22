@@ -263,7 +263,7 @@ SUBROUTINE qs_ks_scp_update ( qs_env, just_energy, error )
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_scp_update', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, output_unit, stat
+    INTEGER                                  :: handle, i, stat
     LOGICAL                                  :: energy_only, failure, ionode
     REAL(KIND=dp)                            :: t1
     TYPE(cp_logger_type), POINTER            :: logger
@@ -290,7 +290,6 @@ SUBROUTINE qs_ks_scp_update ( qs_env, just_energy, error )
   para_env=>qs_env%para_env
   logger => cp_error_get_logger(error)
   ionode=para_env%ionode
-  output_unit=cp_logger_get_default_unit_nr(logger)
   stat = 0
   t1 = m_walltime()
 

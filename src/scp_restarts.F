@@ -19,6 +19,7 @@ MODULE scp_restarts
                                              section_vals_write
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
+  USE particle_types,                  ONLY: particle_type
   USE scp_coeff_types,                 ONLY: aux_coeff_set_type,&
                                              aux_coeff_type
   USE scp_environment_types,           ONLY: get_scp_env,&
@@ -38,12 +39,13 @@ MODULE scp_restarts
   CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE write_scp_restart (scp_env, root_section, globenv, atomic_kind_set, error)
+  SUBROUTINE write_scp_restart (scp_env, root_section, globenv, atomic_kind_set, particle_set, error)
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:),POINTER :: particle_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_scp_restart', &
@@ -66,7 +68,7 @@ MODULE scp_restarts
          BTEST(cp_print_key_should_output(logger%iter_info,&
          dft_section,keys(2),error=error),cp_p_file) ) THEN
             
-         CALL update_scp_section ( scp_env, atomic_kind_set, error ) 
+         CALL update_scp_section ( scp_env, atomic_kind_set, particle_set, error ) 
          IF (globenv%run_type_id == energy_run .OR. globenv%run_type_id==energy_force_run) THEN
             DO ikey=1,SIZE(keys)
               IF (BTEST(cp_print_key_should_output(logger%iter_info,&
@@ -88,12 +90,13 @@ MODULE scp_restarts
   END SUBROUTINE write_scp_restart 
       
 ! *****************************************************************************
-  SUBROUTINE update_scp_section (scp_env, atomic_kind_set, error)
+  SUBROUTINE update_scp_section (scp_env, atomic_kind_set, particle_set,  error)
 
-    TYPE(scp_environment_type), POINTER      :: scp_env
+    TYPE(scp_environment_type), POINTER       :: scp_env
+    TYPE(particle_type), DIMENSION(:),POINTER :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
+      POINTER                                 :: atomic_kind_set
+    TYPE(cp_error_type), INTENT(inout)        :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'update_scp_section', &
       routineP = moduleN//':'//routineN
@@ -101,12 +104,12 @@ MODULE scp_restarts
     INTEGER                                  :: handle, iatom, icoef, iel, &
                                                 ikind, ioff, irep, n_el, &
                                                 natom, nkind, nsgf, nsgf_max, &
-                                                stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex
+                                                stat, natom_tot
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex, cbuffer
     INTEGER, POINTER                         :: INDEX( : )
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: pbuffer
+      DIMENSION(:, :)                        :: pbuffer, pindex
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
@@ -131,6 +134,7 @@ MODULE scp_restarts
 
        
        IF (ASSOCIATED(aux_coeff_set)) THEN          
+          natom_tot=SIZE ( particle_set )
           nsgf_max=0
           n_el=0
           DO ikind=1,SIZE(atomic_kind_set)
@@ -147,35 +151,45 @@ MODULE scp_restarts
         
           ALLOCATE (pbuffer(n_el,nsgf_max),STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
-          ALLOCATE (cindex(n_el),STAT=stat)
+          ALLOCATE (cindex(natom_tot),STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
-        
-          pbuffer(:,:)=0.0_dp
-        
+          ALLOCATE (INDEX(n_el),STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
+          ALLOCATE (pindex(natom_tot,nsgf_max),STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
+
+          pindex(:,:)=0.0_dp
           cindex(:)=0
+
           nkind=SIZE(aux_coeff_set%coeffs_of_kind)
-          ioff = 0
           DO ikind=1, nkind
              coeffs=>aux_coeff_set%coeffs_of_kind(ikind)%coeffs
              atomic_kind=> atomic_kind_set(ikind)
              IF(.NOT.ASSOCIATED(coeffs)) CYCLE
              DO iel= 1,coeffs%n_els
-                ioff = ioff + 1
                 iatom=aux_coeff_set%distribution%list(ikind)%array(iel)
-                cindex(ioff)=iatom
+                cindex(iatom)=iatom
                 DO icoef=1,coeffs%ncoef_atom
-                   pbuffer(ioff,icoef)=coeffs%c(iel,icoef)
+                    pindex(iatom,icoef)=coeffs%c(iel,icoef)
                 END DO
              END DO
           END DO
-          CALL mp_sum(pbuffer,para_env%group)
+          CALL mp_sum(pindex,para_env%group)
           CALL mp_sum(cindex, para_env%group)
         
-          ALLOCATE(INDEX(SIZE(cindex)),stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          index = cindex
+          iel = 0
+          DO iatom = 1, natom_tot
+            IF ( cindex ( iatom ) == 0 ) THEN
+              CYCLE 
+            ELSE
+              iel = iel + 1
+              index ( iel ) = cindex ( iatom )
+              pbuffer ( iel, : ) = pindex ( iatom, : )
+            END IF
+          END DO
+
           scp_section => section_vals_get_subs_vals(dft_section,"SCP",error=error)
-        work_section => section_vals_get_subs_vals(scp_section,"SCP_COEFF%RESTART_INDEX",error=error)
+          work_section => section_vals_get_subs_vals(scp_section,"SCP_COEFF%RESTART_INDEX",error=error)
           CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",i_vals_ptr=index,error=error)
           work_section => section_vals_get_subs_vals(scp_section,"SCP_COEFF%COORD",error=error)
           DO irep = 1, SIZE(index)
@@ -185,10 +199,12 @@ MODULE scp_restarts
              CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_vals_ptr=buffer,&
                   i_rep_val=irep,error=error)    
           END DO
-          DEALLOCATE (pbuffer,STAT=stat)
+          DEALLOCATE (pindex,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
           DEALLOCATE (cindex,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE (pbuffer,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
        END IF
   
        CALL timestop(0.0_dp,handle)
