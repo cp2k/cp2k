@@ -475,13 +475,9 @@ CONTAINS
                                    diis_step=diis_step,&
                                    error=error)
 ! ***SCP
-!   One center contributions to SCP energy and full update of coefficient forces.
-!          IF ( scp ) CALL scp_qs_energies ( qs_env, just_energy = energy_only, error=error )
 !          IF ( scp ) CALL scp_qs_debug ( qs_env, error )
-!          CALL scp_qs_scf ( qs_env, error )
-          
-          ! print 'heavy weight' or relatively expensive quantities
 ! ***SCP
+          ! print 'heavy weight' or relatively expensive quantities
           
           scf_env%p_mix = scf_control%p_mix
           scf_env%iter_param = 0.0_dp
@@ -657,7 +653,7 @@ CONTAINS
           !   *** Write WaveFunction restart file ***
           CALL write_mo_set(mos,particle_set,para_env,dft_section=dft_section,error=error)
 ! SCP restart
-          IF ( scp ) CALL write_scp_restart ( scp_env, input, globenv, atomic_kind_set, error )
+          IF ( scp ) CALL write_scp_restart ( scp_env, input, globenv, atomic_kind_set, particle_set, error )
 ! SCP restart
 
           !   *** Exit if we have finished with the SCF inner loop ***
