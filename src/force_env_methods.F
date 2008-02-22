@@ -120,7 +120,8 @@ MODULE force_env_methods
                                              qmmm_env_qm_type,&
                                              qmmm_links_type,&
                                              qs_subsys
-  USE qmmm_util,                       ONLY: apply_qmmm_translate
+  USE qmmm_util,                       ONLY: apply_qmmm_translate,&
+                                             apply_qmmm_walls
   USE qs_energy,                       ONLY: qs_energies
   USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -819,6 +820,11 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
        force_env%qmmm_env,particles_mm,&
        mm_cell=mm_cell,&
        calc_force=need_f,error=error)
+  !
+  ! Forces of quadratic wall on QM atoms
+  !
+  CALL apply_qmmm_walls(force_env,error)
+
   !
   ! Print Out information on QS energy calculation...
   !

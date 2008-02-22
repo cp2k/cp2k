@@ -284,17 +284,36 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="WALLS",&
-            description="Enables reflective Walls for the QM box. This can be used to avoid that QM "//&
+            description="Enables Walls for the QM box. This can be used to avoid that QM "//&
             " atoms move out of the QM box.",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)    
 
        CALL keyword_create(keyword, name="WALL_SKIN",&
-            description="Specify the value of the skin of the Wall. Velocity are inverted whenever "//&
-            " atoms fall within the skin of the Wall.",&
+            description="Specify the value of the skin of the Wall. The wall's effect is felt"//&
+            " when atoms fall within the skin of the Wall.",&
             usage="WALL_SKIN <real>",n_var=1,&
             default_r_val=cp_unit_to_cp2k(0.5_dp,"angstrom",error=error),&
             unit_str="angstrom",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="TYPE",& 
+            description="Specifies the type of wall",&
+            usage="TYPE REFLECTIVE",&
+            enum_c_vals=s2a( "NONE","REFLECTIVE","QUADRATIC"),&
+            enum_i_vals=(/ do_qmmm_wall_none, do_qmmm_wall_reflective, do_qmmm_wall_quadratic/),&
+            enum_desc=s2a("No Wall around QM box", &
+                          "Reflective Wall around QM box",&
+                          "Quadratic Wall around QM box"),&
+            default_i_val=do_qmmm_wall_reflective, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="K",&
+            description="Specify the value of the the force constant for the quadratic wall",&
+            usage="K <real>",unit_str='internal_cp2k',&
+            type_of_var=real_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

@@ -331,7 +331,10 @@ MODULE input_constants
                                 do_qmmm_link_gho=2,&
                                 do_qmmm_link_pseudo=3,&
                                 do_center_none=0,&
-                                do_center_grid=1
+                                do_center_grid=1,&
+                                do_qmmm_wall_none=0,&
+                                do_qmmm_wall_reflective=1,&
+                                do_qmmm_wall_quadratic=2
 
   INTEGER, PARAMETER, PUBLIC :: do_region_global=0, &
                                 do_region_molecule=1,&
