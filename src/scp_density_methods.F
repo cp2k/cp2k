@@ -87,7 +87,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_rhoscp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i,  stat
+    INTEGER                                  :: handle, i, stat
     LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: t1
     TYPE(atomic_kind_type), DIMENSION(:), &

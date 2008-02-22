@@ -45,7 +45,8 @@ MODULE scp_restarts
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:),POINTER :: particle_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_scp_restart', &
@@ -92,20 +93,21 @@ MODULE scp_restarts
 ! *****************************************************************************
   SUBROUTINE update_scp_section (scp_env, atomic_kind_set, particle_set,  error)
 
-    TYPE(scp_environment_type), POINTER       :: scp_env
-    TYPE(particle_type), DIMENSION(:),POINTER :: particle_set
+    TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                 :: atomic_kind_set
-    TYPE(cp_error_type), INTENT(inout)        :: error
+      POINTER                                :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'update_scp_section', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iatom, icoef, iel, &
-                                                ikind, ioff, irep, n_el, &
-                                                natom, nkind, nsgf, nsgf_max, &
-                                                stat, natom_tot
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex, cbuffer
+                                                ikind, irep, n_el, natom, &
+                                                natom_tot, nkind, nsgf, &
+                                                nsgf_max, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex
     INTEGER, POINTER                         :: INDEX( : )
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
@@ -183,8 +185,8 @@ MODULE scp_restarts
               CYCLE 
             ELSE
               iel = iel + 1
-              index ( iel ) = cindex ( iatom )
-              pbuffer ( iel, : ) = pindex ( iatom, : )
+              INDEX(iel) = cindex ( iatom )
+              pbuffer(iel,:) = pindex ( iatom, : )
             END IF
           END DO
 
