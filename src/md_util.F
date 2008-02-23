@@ -609,7 +609,7 @@ CONTAINS
     print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
     apply_cns0 = .FALSE.
     IF (simpar%constraint) THEN
-       CALL section_vals_val_get(motion_section,"CONSTRAINT%CONSTRAIN_INIT",l_val=apply_cns0,error=error)
+       CALL section_vals_val_get(motion_section,"CONSTRAINT%CONSTRAINT_INIT",l_val=apply_cns0,error=error)
     END IF
     ! Always initialize velocities and possibly restart them
     CALL force_env_get(force_env, subsys=subsys, cell=cell, cell_ref=cell_ref, para_env=para_env,&

@@ -70,17 +70,26 @@ CONTAINS
             error=error)
 
        NULLIFY(subsection, keyword, print_key)
-       CALL keyword_create(keyword, name="SHAKE",&
-            description="Set the tolerance for the shake constraint algorithm.",&
-            usage="SHAKE <REAL>",&
-            default_r_val=1.0E-6_dp,error=error)
+       CALL keyword_create(keyword, name="SHAKE_TOLERANCE",&
+            variants=s2a("SHAKE_TOL","SHAKE"),&
+            description="Set the tolerance for the shake/rattle constraint algorithm.",&
+            usage="SHAKE_TOLERANCE <REAL>",&
+            default_r_val=1.0E-6_dp, unit_str="internal_cp2k",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="CONSTRAIN_INIT",&
+       CALL keyword_create(keyword, name="ROLL_TOLERANCE",&
+            variants=s2a("ROLL_TOL","ROLL"),&
+            description="Set the tolerance for the roll constraint algorithm.",&
+            usage="ROLL_TOLERANCE <REAL>",&
+            default_r_val=1.0E-10_dp,unit_str="internal_cp2k",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CONSTRAINT_INIT",&
             description="Apply constraints to the initial position and velocities."//&
-            " Default is to apply constraints only after the first MD steps.",&
-            usage="CONSTRAIN_INIT <LOGICAL>",&
+            " Default is to apply constraints only after the first MD step.",&
+            usage="CONSTRAINT_INIT <LOGICAL>",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

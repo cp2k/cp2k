@@ -90,16 +90,17 @@ MODULE md
      REAL (KIND=dp) :: f_annealing_cell
      REAL (KIND=dp) :: gamma_nph
      INTEGER        :: ensemble
-     LOGICAL :: constraint
-     LOGICAL :: annealing
-     LOGICAL :: annealing_cell
-     LOGICAL :: dump_lm 
-     LOGICAL :: angvel_zero 
-     INTEGER :: nfree, nfree_rot_transl
-     INTEGER :: info_constraint
-     INTEGER :: lagrange_multipliers
+     LOGICAL        :: constraint
+     LOGICAL        :: annealing
+     LOGICAL        :: annealing_cell
+     LOGICAL        :: dump_lm 
+     LOGICAL        :: angvel_zero 
+     INTEGER        :: nfree, nfree_rot_transl
+     INTEGER        :: info_constraint
+     INTEGER        :: lagrange_multipliers
      REAL (KIND=dp) :: tau_cell
-     REAL (KIND=dp) :: shake_tol
+     ! Constraints Parameters
+     REAL (KIND=dp) :: shake_tol, roll_tol
      ! Langevin Parameters
      REAL (KIND=dp) :: gamma
      REAL (KIND=dp) :: noisy_gamma
@@ -108,7 +109,7 @@ MODULE md
      ! RESPA Parameters
      LOGICAL        :: multi_time_switch, do_respa
      INTEGER        :: n_time_steps
-     !SHELL parameters
+     ! SHELL parameters
      REAL (KIND=dp) :: temp_sh_ext
      REAL (KIND=dp) :: temp_sh_tol
      LOGICAL        :: temperature_per_kind
@@ -350,25 +351,29 @@ CPSourceFileRef,&
 
        IF (simpar%ensemble == langevin_ensemble) THEN
           CALL section_vals_val_get(md_section, "GAMMA", r_val=simpar%gamma, error=error)
-          CALL section_vals_val_get(md_section, "NOISY_GAMMA", r_val=simpar%noisy_gamma, &
-                                    error=error)
-          CALL section_vals_val_get(md_section, "SHADOW_GAMMA", r_val=simpar%shadow_gamma, &
-                                    error=error)
+          CALL section_vals_val_get(md_section, "NOISY_GAMMA", r_val=simpar%noisy_gamma,error=error)
+          CALL section_vals_val_get(md_section, "SHADOW_GAMMA", r_val=simpar%shadow_gamma,error=error)
        END IF
 
-       tmp_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
-       tmp_section => section_vals_get_subs_vals(root_section,&
-            "MOTION%CONSTRAINT",error=error)
+       tmp_section => section_vals_get_subs_vals(root_section,"MOTION%CONSTRAINT",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,error=error)
        IF (explicit) THEN
           simpar%constraint = .TRUE.
-          CALL section_vals_val_get(tmp_section,"SHAKE",r_val=simpar%shake_tol,error=error)
+          CALL section_vals_val_get(tmp_section,"SHAKE_TOLERANCE",r_val=simpar%shake_tol,error=error)
           CALL cp_assert(simpar%shake_tol>EPSILON(0.0_dp)*1000.0_dp,cp_warning_level,cp_assertion_failed,routineP,&
                "Shake tolerance lower than 1000*EPSILON, where EPSILON is the machine precision. "//&
-               "This may lead to numerical problems. Setting up shake_tol to 100*EPSILON! "//&
+               "This may lead to numerical problems. Setting up shake_tol to 1000*EPSILON! "//&
 CPSourceFileRef,&
                only_ionode=.TRUE.)
           simpar%shake_tol = MAX(EPSILON(0.0_dp)*1000.0_dp,simpar%shake_tol)
+
+          CALL section_vals_val_get(tmp_section,"ROLL_TOLERANCE",r_val=simpar%roll_tol,error=error)
+          CALL cp_assert(simpar%roll_tol>EPSILON(0.0_dp)*1000.0_dp,cp_warning_level,cp_assertion_failed,routineP,&
+               "Roll tolerance lower than 1000*EPSILON, where EPSILON is the machine precision. "//&
+               "This may lead to numerical problems. Setting up roll_tol to 1000*EPSILON! "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
+          simpar%roll_tol = MAX(EPSILON(0.0_dp)*1000.0_dp,simpar%roll_tol)
        END IF
        
        IF (simpar%ensemble == nph_uniaxial_ensemble.OR.simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
@@ -431,7 +436,8 @@ CPSourceFileRef,&
     simpar % constraint = .FALSE.
     simpar % annealing = .FALSE.
     simpar % angvel_zero = .FALSE.
-    simpar % shake_tol = 1.0E-6_dp
+    simpar % shake_tol = EPSILON(0.0_dp)
+    simpar % roll_tol  = EPSILON(0.0_dp)
     simpar % tau_cell = 1000.0_dp
     simpar % p0 = 0._dp
     simpar % v0 = 0._dp
