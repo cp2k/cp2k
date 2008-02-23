@@ -329,6 +329,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="TARGET_GROWTH",&
+            description="Specifies the growth speed of the target value of the constrained collective"//&
+            " variable (units depend on the colvar).",&
+            usage="TARGET_GROWTH {real}",&
+            default_r_val=0.0_dp, unit_str="internal_cp2k",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="EXCLUDE_QM",&
             description="Does not apply the constraint to the QM region within a QM/MM calculation",&
             usage="EXCLUDE_QM <LOGICAL>",&

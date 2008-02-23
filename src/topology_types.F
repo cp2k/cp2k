@@ -81,6 +81,7 @@ MODULE topology_types
      INTEGER, POINTER                              :: const_colv_mol(:)
      CHARACTER(LEN=default_string_length), POINTER :: const_colv_molname(:)
      REAL(KIND=dp), POINTER                        :: const_colv_target(:)
+     REAL(KIND=dp), POINTER                        :: const_colv_target_growth(:)
      TYPE(colvar_p_type), POINTER, DIMENSION(:)    :: colvar_set
      LOGICAL, POINTER                              :: colv_intermolecular(:)
      LOGICAL, POINTER                              :: colv_restraint(:)                       ! Restraints control
@@ -322,6 +323,7 @@ CONTAINS
     NULLIFY(constraint_info%const_colv_mol)
     NULLIFY(constraint_info%const_colv_molname)
     NULLIFY(constraint_info%const_colv_target)
+    NULLIFY(constraint_info%const_colv_target_growth)
     NULLIFY(constraint_info%colv_intermolecular)
     NULLIFY(constraint_info%colv_restraint)
     NULLIFY(constraint_info%colv_k0)
@@ -648,6 +650,10 @@ CONTAINS
        END IF
        IF(ASSOCIATED(constraint_info%const_colv_target)) THEN
           DEALLOCATE(constraint_info%const_colv_target,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF(ASSOCIATED(constraint_info%const_colv_target_growth)) THEN
+          DEALLOCATE(constraint_info%const_colv_target_growth,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        IF(ASSOCIATED(constraint_info%colv_intermolecular)) THEN

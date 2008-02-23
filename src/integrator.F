@@ -31,7 +31,8 @@ MODULE integrator
                                              parse_cell_line
   USE constraint,                      ONLY: rattle_control,&
                                              shake_control,&
-                                             shake_roll_control
+                                             shake_roll_control,&
+                                             shake_update_targets
   USE constraint_fxd,                  ONLY: fix_atom_control
   USE constraint_util,                 ONLY: getold,&
                                              pv_constraint
@@ -238,6 +239,10 @@ CONTAINS
     END DO
 
     IF (simpar%constraint) THEN
+       ! Possibly update the target values
+       CALL shake_update_targets(gci, local_molecules, molecule_set, &
+            molecule_kind_set, dt, force_env%root_section, error)
+
        CALL shake_control(gci,local_molecules,molecule_set,molecule_kind_set,&
             particle_set,pos,vel,simpar%dt,simpar%shake_tol,&
             simpar%info_constraint,simpar%lagrange_multipliers,&
@@ -409,10 +414,16 @@ CONTAINS
     CALL vv_first(tmp,atomic_kind_set, local_particles, particle_set, &
          core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
 
-    IF (simpar%constraint) CALL shake_control(gci,local_molecules, molecule_set,&
-         molecule_kind_set, particle_set, tmp%pos, tmp%vel, simpar%dt,simpar%shake_tol, &
-         simpar%info_constraint,simpar%lagrange_multipliers,simpar%dump_lm,&
-         cell,para_env%group,local_particles, error )
+    IF (simpar%constraint) THEN 
+       ! Possibly update the target values
+       CALL shake_update_targets(gci, local_molecules, molecule_set, &
+           molecule_kind_set, dt, force_env%root_section, error)
+
+       CALL shake_control(gci,local_molecules, molecule_set,&
+           molecule_kind_set, particle_set, tmp%pos, tmp%vel, simpar%dt,simpar%shake_tol, &
+           simpar%info_constraint,simpar%lagrange_multipliers,simpar%dump_lm,&
+           cell,para_env%group,local_particles, error )
+    END IF
 
     ! Broadcast the new particle positions and deallocate pos part of temporary
     CALL update_dealloc_tmp ( tmp, particle_set, shell_particle_set, &
@@ -720,10 +731,16 @@ CONTAINS
     CALL vv_first(tmp, atomic_kind_set, local_particles, particle_set, &
          core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt)
 
-    IF (simpar%constraint) CALL shake_control( gci, local_molecules, molecule_set,   &
-         molecule_kind_set, particle_set,tmp%pos, tmp%vel, simpar%dt,simpar%shake_tol,&
-         simpar%info_constraint,simpar%lagrange_multipliers,simpar%dump_lm,&
-         cell, para_env%group,local_particles,error )
+    IF (simpar%constraint) THEN 
+       ! Possibly update the target values
+       CALL shake_update_targets(gci, local_molecules, molecule_set, &
+           molecule_kind_set, dt, force_env%root_section, error)
+
+       CALL shake_control( gci, local_molecules, molecule_set,   &
+           molecule_kind_set, particle_set,tmp%pos, tmp%vel, simpar%dt,simpar%shake_tol,&
+           simpar%info_constraint,simpar%lagrange_multipliers,simpar%dump_lm,&
+           cell, para_env%group,local_particles,error )
+    END IF
 
     ! Broadcast the new particle positions and deallocate pos components of temporary
     CALL update_dealloc_tmp ( tmp, particle_set, shell_particle_set, &
@@ -927,6 +944,12 @@ CONTAINS
     CALL apply_thermostat_shells(thermostat_shell, atomic_kind_set, particle_set,&
          local_particles, para_env%group, shell_particle_set=shell_particle_set,&
          core_particle_set=core_particle_set, error=error)
+
+    IF (simpar%constraint) THEN
+       ! Possibly update the target values
+       CALL shake_update_targets(gci, local_molecules, molecule_set, &
+            molecule_kind_set, dt, force_env%root_section, error)
+    END IF
 
     ! setting up for ROLL: saving old variables
     roll_tol = -simpar%roll_tol
@@ -1322,6 +1345,12 @@ CPSourceFileRef,&
 
     CALL allocate_tmp(tmp,nparticle, nshell, shell_adiabatic, error=error)
 
+    IF (simpar%constraint) THEN
+       ! Possibly update the target values
+       CALL shake_update_targets(gci, local_molecules, molecule_set, &
+            molecule_kind_set, dt, force_env%root_section, error)
+    END IF
+
     ! setting up for ROLL: saving old variables
     roll_tol = -simpar%roll_tol
     IF (simpar%constraint) THEN
@@ -1565,6 +1594,12 @@ CPSourceFileRef,&
     ! perform damping on velocities
     CALL damp_v ( molecule_kind_set, molecule_set, particle_set, local_molecules,&
          gamma1, npt(1,1), dt, para_env % group )
+
+    IF (simpar%constraint) THEN
+       ! Possibly update the target values
+       CALL shake_update_targets(gci, local_molecules, molecule_set, &
+            molecule_kind_set, dt, force_env%root_section, error)
+    END IF
 
     ! setting up for ROLL: saving old variables
     roll_tol = -simpar%roll_tol
@@ -1847,6 +1882,12 @@ CPSourceFileRef,&
          local_particles, para_env%group, shell_particle_set=shell_particle_set,&
          core_particle_set=core_particle_set, error=error)
 
+    IF (simpar%constraint) THEN
+       ! Possibly update the target values
+       CALL shake_update_targets(gci, local_molecules, molecule_set, &
+            molecule_kind_set, dt, force_env%root_section, error)
+    END IF
+
     ! setting up for ROLL: saving old variables
     roll_tol = -simpar%roll_tol
     IF (simpar%constraint) THEN
@@ -2117,10 +2158,16 @@ CPSourceFileRef,&
           END DO
        END DO
 
-       IF (simpar%constraint) CALL shake_control( gci, local_molecules, molecule_set,&
-            molecule_kind_set, particle_set,pos, vel, simpar%dt, simpar%shake_tol,&
-            simpar%info_constraint, simpar%lagrange_multipliers,simpar%dump_lm, cell,&
-            para_env%group, local_particles, error )
+       IF (simpar%constraint) THEN 
+          ! Possibly update the target values
+          CALL shake_update_targets(gci, local_molecules, molecule_set, &
+              molecule_kind_set, dt, force_env%root_section, error)
+
+          CALL shake_control( gci, local_molecules, molecule_set,&
+              molecule_kind_set, particle_set,pos, vel, simpar%dt, simpar%shake_tol,&
+              simpar%info_constraint, simpar%lagrange_multipliers,simpar%dump_lm, cell,&
+              para_env%group, local_particles, error )
+       END IF
 
        ! Broadcast the new particle positions
        CALL update_particle_set ( particle_set, para_env % group, pos = pos )
@@ -2149,17 +2196,13 @@ CPSourceFileRef,&
        IF (simpar%constraint) CALL rattle_control( gci,local_molecules, molecule_set, &
             molecule_kind_set, particle_set, vel, simpar%dt,simpar%shake_tol,&
             simpar%info_constraint, simpar%lagrange_multipliers,&
-            simpar%dump_lm,&
-            cell, para_env%group,local_particles, error )
+            simpar%dump_lm, cell, para_env%group,local_particles, error )
 
        IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
 
        !     *** Update virial ***
        IF ( simpar % constraint ) CALL pv_constraint ( gci, local_molecules, &
-            molecule_set,    &
-            molecule_kind_set, &
-            particle_set, virial, &
-            para_env % group )
+            molecule_set, molecule_kind_set, particle_set, virial, para_env%group )
 
        CALL virial_evaluate ( atomic_kind_set, particle_set,  &
             local_particles, virial, para_env % group , error=error )

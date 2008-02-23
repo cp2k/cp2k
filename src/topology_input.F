@@ -498,6 +498,8 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(cons_info%const_colv_target(ncons), stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_colv_target_growth(ncons), stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(cons_info%colvar_set(ncons), stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(cons_info%colv_intermolecular(ncons),stat=stat)
@@ -573,6 +575,8 @@ CPSourceFileRef,&
            ELSE
               cons_info%const_colv_target(ig) = -HUGE(0.0_dp)
            END IF
+           CALL section_vals_val_get(collective_section,"TARGET_GROWTH",&
+                r_val=cons_info%const_colv_target_growth(ig),i_rep_section=ig, error=error)
         END DO
      END IF
   END IF

@@ -57,3 +57,5 @@ nh3_wat-restraint-fixd-4.inp 7
 #BFGS - Restart Hessian
 nh3_bfgs.inp              7
 nh3_bfgs_r.inp            7
+#Growth constraints
+ethene_colv1_growth.inp   2

@@ -28,14 +28,11 @@ MODULE constraint
                                              shake_4x6_int,&
                                              shake_roll_4x6_ext,&
                                              shake_roll_4x6_int
-  USE constraint_clv,                  ONLY: rattle_colv_ext,&
-                                             rattle_colv_int,&
-                                             rattle_roll_colv_ext,&
-                                             rattle_roll_colv_int,&
-                                             shake_colv_ext,&
-                                             shake_colv_int,&
-                                             shake_roll_colv_ext,&
-                                             shake_roll_colv_int
+  USE constraint_clv,                  ONLY: &
+       rattle_colv_ext, rattle_colv_int, rattle_roll_colv_ext, &
+       rattle_roll_colv_int, shake_colv_ext, shake_colv_int, &
+       shake_roll_colv_ext, shake_roll_colv_int, shake_update_colv_ext, &
+       shake_update_colv_int
   USE constraint_util,                 ONLY: check_tol,&
                                              get_roll_matrix,&
                                              restore_temporary_set,&
@@ -45,6 +42,8 @@ MODULE constraint
   USE f77_blas
   USE input_constants,                 ONLY: npt_f_ensemble,&
                                              npt_i_ensemble
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE md,                              ONLY: simulation_parameters_type
@@ -67,7 +66,8 @@ MODULE constraint
   PUBLIC :: shake_control,&
             rattle_control,&
             shake_roll_control,&
-            rattle_roll_control
+            rattle_roll_control,&
+            shake_update_targets
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'constraint'
   INTEGER, PARAMETER, PRIVATE :: Max_Shake_Iter = 1000
@@ -792,5 +792,58 @@ CONTAINS
        WRITE(my_log_unit,FMT='(T2,79("*"))')
     END IF
   END SUBROUTINE rattle_ext_info
+
+! *****************************************************************************
+!> \brief Updates the TARGET of the COLLECTIVE constraints if the growth speed
+!>        is different from zero.
+!> \author  Teodoro Laino [tlaino] - University of Zurich
+!> \date    02.2008
+! *****************************************************************************
+  SUBROUTINE shake_update_targets( gci, local_molecules, molecule_set, &
+       molecule_kind_set, dt, root_section, error )
+
+    TYPE(global_constraint_type), POINTER    :: gci
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    REAL(kind=dp), INTENT(in)                :: dt
+    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_update_targets', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, ikind, imol, &
+                                                nkind, nmol_per_kind
+    LOGICAL                                  :: do_ext_constraint
+    TYPE(colvar_counters)                    :: ncolv
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(molecule_type), POINTER             :: molecule
+    TYPE(section_vals_type), POINTER         :: motion_section
+
+    CALL timeset ( routineN, 'I', ' ', handle )
+    motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
+    nkind = SIZE ( molecule_kind_set )
+    do_ext_constraint = (gci%ntot/=0)
+    ! Intramolecular Constraints
+    MOL:  DO ikind = 1, nkind
+       nmol_per_kind = local_molecules % n_el ( ikind )
+       DO imol = 1, nmol_per_kind
+          i = local_molecules % list ( ikind ) % array ( imol )
+          molecule => molecule_set ( i ) 
+          molecule_kind => molecule % molecule_kind
+          CALL get_molecule_kind ( molecule_kind, ncolv=ncolv )
+
+          ! Updating TARGETS for Collective Variables only
+          IF ( ncolv%ntot /= 0 ) CALL shake_update_colv_int(molecule, dt, motion_section, error)
+       END DO
+    END DO MOL
+    ! Intermolecular constraints
+    IF (do_ext_constraint) THEN
+       ! Collective Variables
+       IF (gci%ncolv%ntot/= 0) CALL shake_update_colv_ext(gci, dt, motion_section, error)
+    END IF
+    CALL timestop ( 0.0_dp, handle )
+  END SUBROUTINE shake_update_targets
 
 END MODULE constraint

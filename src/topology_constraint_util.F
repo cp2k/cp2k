@@ -290,6 +290,7 @@ CONTAINS
        CALL reallocate(cons_info%const_colv_mol,1,cons_info%nconst_colv)
        CALL reallocate(cons_info%const_colv_molname,1,cons_info%nconst_colv)
        CALL reallocate(cons_info%const_colv_target,1,cons_info%nconst_colv)
+       CALL reallocate(cons_info%const_colv_target_growth,1,cons_info%nconst_colv)
        CALL colvar_p_reallocate(cons_info%colvar_set,1,cons_info%nconst_colv,error=error)
        ! Fill in Restraints info
        CALL reallocate(cons_info%colv_intermolecular,1,cons_info%nconst_colv)
@@ -360,6 +361,7 @@ CONTAINS
                 cons_info%const_colv_mol(nhdist+n_start_colv)     = i
                 cons_info%const_colv_molname(nhdist+n_start_colv) = "UNDEF"
                 cons_info%const_colv_target(nhdist+n_start_colv)  = rmod
+                cons_info%const_colv_target_growth(nhdist+n_start_colv)  = 0.0_dp
                 CALL colvar_create(cons_info%colvar_set(nhdist+n_start_colv)%colvar,&
                      dist_colvar_id, error)
                 cons_info%colvar_set(nhdist+n_start_colv)%colvar%dist_param%i_at = bond_list(k)%a
@@ -911,6 +913,7 @@ CONTAINS
        ELSE
           colv_list(ncolv_mol)%expected_value = cons_info%const_colv_target(j)
        END IF
+       colv_list(ncolv_mol)%expected_value_growth_speed = cons_info%const_colv_target_growth(j)
        ! In case of Restraint let's check for possible restart values
        IF (colv_list(ncolv_mol)%restraint%active) THEN
           IF (restart_restraint_clv) THEN

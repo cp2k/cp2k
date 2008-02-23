@@ -118,6 +118,7 @@ MODULE molecule_kind_types
      INTEGER                        :: inp_seq_num
      LOGICAL                        :: use_points
      REAL(KIND = dp)                :: expected_value
+     REAL(KIND = dp)                :: expected_value_growth_speed
      INTEGER, POINTER, DIMENSION(:) :: i_atoms
      TYPE(restraint_type)           :: restraint
   END TYPE colvar_constraint_type

@@ -13,6 +13,11 @@ MODULE constraint_clv
   USE colvar_methods,                  ONLY: colvar_eval_mol_f
   USE colvar_types,                    ONLY: colvar_type
   USE f77_blas
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get,&
+                                             section_vals_val_set
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: matvec_3x3
   USE molecule_kind_types,             ONLY: colvar_constraint_type,&
@@ -38,7 +43,9 @@ MODULE constraint_clv
             shake_roll_colv_ext,&
             rattle_roll_colv_ext,&
             shake_colv_ext,&
-            rattle_colv_ext 
+            rattle_colv_ext,&
+            shake_update_colv_int,&
+            shake_update_colv_ext
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'constraint_clv'
 
@@ -87,6 +94,33 @@ CONTAINS
        error )
 
   END SUBROUTINE shake_colv_int
+
+! *****************************************************************************
+!> \brief Intramolecular subroutine for updating the TARGET value of collective
+!>        constraints
+!> \author Teodoro Laino [tlaino] - University of Zurich
+! *****************************************************************************
+  SUBROUTINE shake_update_colv_int( molecule, dt, motion_section, error)
+
+    TYPE(molecule_type), POINTER             :: molecule
+    REAL(kind=dp), INTENT(in)                :: dt
+    TYPE(section_vals_type), POINTER         :: motion_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'shake_update_colv_int', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+
+    failure = .FALSE.
+    molecule_kind => molecule % molecule_kind
+    CALL get_molecule_kind ( molecule_kind, colv_list=colv_list)
+    ! Real update of the Shake target
+    CALL shake_update_colv_low( colv_list, dt, motion_section, error)
+
+  END SUBROUTINE shake_update_colv_int
 
 ! *****************************************************************************
 !> \brief Intramolecular subroutine
@@ -246,6 +280,29 @@ CONTAINS
        error )
 
   END SUBROUTINE shake_colv_ext
+
+! *****************************************************************************
+!> \brief Intermolecular subroutine for updating the TARGET value for collective
+!>        constraints
+!> \author Teodoro Laino [tlaino]
+! *****************************************************************************
+  SUBROUTINE shake_update_colv_ext( gci, dt, motion_section, error)
+
+    TYPE(global_constraint_type), POINTER    :: gci
+    REAL(kind=dp), INTENT(in)                :: dt
+    TYPE(section_vals_type), POINTER         :: motion_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'shake_update_colv_ext', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
+
+    colv_list => gci%colv_list
+    ! Real update of the Shake target
+    CALL shake_update_colv_low( colv_list, dt, motion_section, error)
+
+  END SUBROUTINE shake_update_colv_ext
 
 ! *****************************************************************************
 !> \brief Intermolecular subroutine
@@ -441,6 +498,53 @@ CONTAINS
        max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
     END DO
   END SUBROUTINE shake_colv_low
+
+! *****************************************************************************
+!> \brief Real Shake subroutine - Low Level - for updating the TARGET value
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date 02.2008
+! *****************************************************************************
+  SUBROUTINE shake_update_colv_low(colv_list, dt, motion_section, error )
+    TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
+    REAL(kind=dp), INTENT(in)                :: dt
+    TYPE(section_vals_type), POINTER         :: motion_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'shake_update_colv_low', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iconst, irep, n_rep
+    REAL(KIND=dp)                            :: clv_target, value
+    TYPE(section_vals_type), POINTER         :: collective_sections
+
+! Update globally for restart
+
+    collective_sections => section_vals_get_subs_vals(motion_section,"CONSTRAINT%COLLECTIVE",error=error)
+    CALL section_vals_get(collective_sections, n_repetition=n_rep, error=error)
+    IF (n_rep/=0) THEN
+       DO irep = 1, n_rep
+          CALL section_vals_val_get(collective_sections, "TARGET_GROWTH", r_val=value,&
+             i_rep_section=irep, error=error)
+          IF ( value /= 0.0_dp ) THEN
+             CALL section_vals_val_get(collective_sections, "TARGET", r_val=clv_target,&
+                i_rep_section=irep, error=error)
+             clv_target = clv_target + value * dt
+             CALL section_vals_val_set(collective_sections, "TARGET", r_val=clv_target,&
+                i_rep_section=irep, error=error)
+          END IF
+       END DO
+    END IF
+
+    ! Update locally the value to each processor
+    DO iconst = 1, SIZE(colv_list)
+       ! Update local to each processor
+       IF (colv_list(iconst)%expected_value_growth_speed == 0.0_dp) CYCLE
+       CALL section_vals_val_get(collective_sections, "TARGET", &
+             r_val=colv_list(iconst)%expected_value,&
+             i_rep_section=colv_list(iconst)%inp_seq_num, error=error)
+    END DO
+     
+  END SUBROUTINE shake_update_colv_low
 
 ! *****************************************************************************
 !> \brief Real Rattle - Low Level
