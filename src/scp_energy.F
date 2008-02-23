@@ -168,7 +168,6 @@ CONTAINS
          + scp_energy%e_scp_hartree + scp_energy%e_scp_kernel   &
          + scp_energy % e_scp_ks + scp_energy % e_scp_ks_self   &
          + scp_energy % e_scp_qmmm
-
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE scp_qs_energies

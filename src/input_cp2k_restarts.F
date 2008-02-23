@@ -76,6 +76,7 @@ MODULE input_cp2k_restarts
   USE parallel_rng_types,              ONLY: dump_rng_stream,&
                                              rng_record_length
   USE particle_list_types,             ONLY: particle_list_type
+  USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: bohr
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE string_utilities,                ONLY: ascii_to_string,&
@@ -500,16 +501,17 @@ CONTAINS
 
     INTEGER :: counter, handle, handle2, i, iatom, icoef, iel, ikind, ioff, &
       irep, isec, j, my_itimes, n_el, natom, nhc_len, nkind, nsgf, nsgf_max, &
-      offset, stat, tot_nhcneed
+      offset, stat, tot_nhcneed,natom_tot
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex
     INTEGER, POINTER                         :: accepted_md, INDEX(:), &
                                                 itimes, md_approach_nr
     LOGICAL                                  :: failure, my_save_mem
     REAL(KIND=dp)                            :: my_t
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: pbuffer, vbuffer
+      DIMENSION(:, :)                        :: pbuffer, vbuffer, pindex, vindex
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer, eta, fnhc, mnhc, veta
     REAL(KIND=dp), POINTER                   :: t
+    TYPE(particle_type), DIMENSION(:),POINTER :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -646,10 +648,12 @@ CONTAINS
     IF (ASSOCIATED(kg_env)) THEN
        CALL get_kg_env(kg_env=kg_env,&
             atomic_kind_set=atomic_kind_set,&
+            particle_set=particle_set, &
             dyn_coeff_set=dyn_coeff_set,&
             error=error)
        
        IF (ASSOCIATED(dyn_coeff_set)) THEN          
+          natom_tot = SIZE ( particle_set )
           nsgf_max=0
           n_el=0
           DO ikind=1,SIZE(atomic_kind_set)
@@ -668,40 +672,49 @@ CONTAINS
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
           ALLOCATE (vbuffer(n_el,nsgf_max),STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
-          ALLOCATE (cindex(n_el),STAT=stat)
+          ALLOCATE (INDEX(n_el),STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
+          ALLOCATE (cindex(natom_tot),STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
+          ALLOCATE (pindex(natom_tot,nsgf_max),STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
+          ALLOCATE (vindex(natom_tot,nsgf_max),STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
           
-          pbuffer(:,:)=0.0_dp
-          vbuffer(:,:)=0.0_dp
-          
+          pindex(:,:)=0.0_dp
+          vindex(:,:)=0.0_dp
           cindex(:)=0
+
           nkind=SIZE(dyn_coeff_set%coeffs_of_kind)
-          offset = 0
           DO ikind=1, nkind
              coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
              atomic_kind=> atomic_kind_set(ikind)
-             IF(.NOT.ASSOCIATED(coeffs))THEN
-                CYCLE
-             ELSE
-                DO iel= 1,coeffs%n_els
-                   iatom=dyn_coeff_set%distribution%list(ikind)%array(iel)
-                   offset = offset + 1
-                   ioff= offset
-                   cindex(ioff)=iatom
-                   DO icoef=1,coeffs%ncoef_atom
-                      pbuffer(ioff,icoef)=coeffs%pos(iel,icoef)
-                      vbuffer(ioff,icoef)=coeffs%vel(iel,icoef)
-                   END DO
+             IF(.NOT.ASSOCIATED(coeffs)) CYCLE
+             DO iel= 1,coeffs%n_els
+                iatom=dyn_coeff_set%distribution%list(ikind)%array(iel)
+                cindex(iatom)=iatom
+                DO icoef=1,coeffs%ncoef_atom
+                   pindex(iatom,icoef)=coeffs%pos(iel,icoef)
+                   vindex(iatom,icoef)=coeffs%vel(iel,icoef)
                 END DO
-             END IF
+             END DO
           END DO
-          CALL mp_sum(pbuffer,para_env%group)
-          CALL mp_sum(vbuffer,para_env%group)
+          CALL mp_sum(pindex,para_env%group)
+          CALL mp_sum(vindex,para_env%group)
           CALL mp_sum(cindex, para_env%group)
+
+          iel = 0
+          DO iatom = 1, natom_tot
+            IF ( cindex ( iatom ) == 0 ) THEN
+              CYCLE 
+            ELSE
+              iel = iel + 1
+              index ( iel ) = cindex ( iatom )
+              pbuffer ( iel, : ) = pindex ( iatom, : )
+              vbuffer ( iel, : ) = vindex ( iatom, : )
+            END IF
+          END DO
           
-          ALLOCATE(INDEX(SIZE(cindex)),stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          index = cindex
           work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%RESTART_INDEX",error=error)
           CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",i_vals_ptr=index,error=error)
           work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%COORD",error=error)
@@ -725,6 +738,10 @@ CONTAINS
           DEALLOCATE (vbuffer,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
           DEALLOCATE (cindex,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE (pindex,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE (vindex,STAT=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        IF (ASSOCIATED(thermostat_coeff)) THEN

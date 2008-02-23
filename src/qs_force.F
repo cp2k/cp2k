@@ -328,12 +328,16 @@ CONTAINS
                                calculate_forces=.TRUE.,error=error)
 
 !**** SCP
-      ! *** compute post-processed dispersion forces from SCP
+      ! *** compute forces from SCP.  First get the scp_env
+      IF ( dft_control%scp ) THEN
+         CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
+      END IF 
+
       IF ( dft_control%scp_control%dispersion ) THEN
 !         CALL scp_qs_disp_debug ( qs_env, error )
          CALL scp_qs_dispersion ( qs_env, .TRUE., error )
-         CALL get_qs_env ( qs_env = qs_env, energy = energy, scp_env = scp_env, error = error )
-         CALL get_scp_env ( scp_env = scp_env, energy = scp_energy_loc, force = scp_force, error = error )
+         CALL get_qs_env ( qs_env = qs_env, energy = energy, error = error )
+         CALL get_scp_env ( scp_env = scp_env, energy = scp_energy_loc, error = error )
       ! Adding the post-processed dispersion energy to the total energy
          energy % total = energy %total + scp_energy_loc % e_scp_disp
       END IF
@@ -374,6 +378,7 @@ CONTAINS
                                   force(ikind)%dispersion(:,:) 
 ! **** SCP
         IF ( dft_control%scp ) THEN
+          CALL get_scp_env ( scp_env = scp_env, force = scp_force, error = error )
 ! The minus is because in SCP the forces are really -dE/dR ( search for "XXXX" below )
           CALL mp_sum ( scp_force ( ikind )%f_scp, para_env % group )
           force(ikind)%total(:,:) = force(ikind)%total(:,:) - scp_force ( ikind ) % f_scp ( :, : )

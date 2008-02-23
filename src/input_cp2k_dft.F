@@ -3519,13 +3519,14 @@ CONTAINS
             usage="TYPE DDAPC_CONSTRAINT ",&
             default_i_val=outer_scf_none,&
             enum_c_vals=s2a( "DDAPC_CONSTRAINT", "S2_CONSTRAINT", "BECKE_CONSTRAINT",&
-             "NONE" ),&
+             "SCP", "NONE" ),&
             enum_desc=s2a("Enforce a constraint on the DDAPC, requires the corresponding section", &
             "Enforce a constraint on the S2, requires the corresponding section", &
             "Enforce a constraint on the Becke weight population,requires the corresponding section", &
+            "Enforce outer loop optimization for SCP, requires the corresponding section in &DFT", &
             "Do nothing in the outer loop, useful for resetting the inner loop,"),&
             enum_i_vals=(/outer_scf_ddapc_constraint,outer_scf_s2_constraint,&
-            outer_scf_becke, outer_scf_none/),&
+            outer_scf_becke,outer_scf_scp,outer_scf_none/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

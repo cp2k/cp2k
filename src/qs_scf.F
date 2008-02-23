@@ -86,7 +86,8 @@ MODULE qs_scf
        history_guess, ot_precond_full_all, ot_precond_full_kinetic, &
        ot_precond_full_single, ot_precond_full_single_inverse, &
        ot_precond_none, ot_precond_s_inverse, ot_precond_sparse_diag, &
-       ot_precond_sparse_firstorder, qs_debug_run, restart_guess
+       ot_precond_sparse_firstorder, qs_debug_run, restart_guess, &
+       outer_scf_none, outer_scf_scp
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -441,13 +442,40 @@ CONTAINS
     total_steps = 0
     scf_outer_loop: DO
 
-       CALL init_scf_loop(scf_env=scf_env, qs_env=qs_env, &
-                          scf_section=scf_section, error=error)
+     CALL init_scf_loop(scf_env=scf_env, qs_env=qs_env, &
+                        scf_section=scf_section, error=error)
+
+!   ****** Setting Some SCP flags*******
+! check if we are doing SCP:
+!      **** qs_ot_env%settings%scp,qs_ot_env%settings%ks ARE BOTH .TRUE. here *****
+       IF ( scp  ) THEN
+! check if we are doing outer SCF optimization of SCP coeffs:
+         IF ( scf_control%outer_scf%type==outer_scf_none ) THEN
+             scf_env%qs_ot_env(1)%settings%ks = .TRUE. 
+            !*** qs_ot_env%settings%scp*** may be set .FALSE. on input
+            !    and we will preserve this if there is no outer_scf
+         ELSEIF ( scf_control%outer_scf%type==outer_scf_scp ) THEN
+! IF outer scf count is even, then only optimize SCP, else optimize KS
+           IF ( scf_env%outer_scf%iter_count == 0 ) THEN
+             scf_env%qs_ot_env(1)%settings%ks = .TRUE.
+             scf_env%qs_ot_env(1)%settings%scp = .FALSE.
+           ELSEIF ( MOD ( scf_env%outer_scf%iter_count, 2 ) /= 0 ) THEN
+             scf_env%qs_ot_env(1)%settings%ks = .FALSE.
+             scf_env%qs_ot_env(1)%settings%scp = .TRUE.
+           ELSE
+             scf_env%qs_ot_env(1)%settings%ks = .TRUE.
+             scf_env%qs_ot_env(1)%settings%scp = .FALSE.
+           END IF
+         ENDIF
+       END IF
+
 
        ! Some flags needed to be set at the beginning of the loop
+
        diis_step = .FALSE.
        use_jacobi = .FALSE.
        energy_only = .FALSE.
+
 
        ! SCF loop, optimisation of the wfn coefficients
        ! qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date here
@@ -595,6 +623,11 @@ CONTAINS
           ! ** In case we decide to exit we perform few more check to see if this one
           ! ** is really the last SCF step
           IF (exit_inner_loop) THEN
+! *********  Need to reset qs_ot_env%settings%scp = .TRUE. to ensure *********
+!            consistent deallocation in cleanup_scf_loop
+             IF ( scp  .AND. scf_control%outer_scf%type==outer_scf_scp ) &
+             scf_env%qs_ot_env(1)%settings%scp=.TRUE.
+
              CALL cleanup_scf_loop(scf_env,error)
 
              ! now, print out energies and charges corresponding to the obtained wfn
@@ -882,7 +915,8 @@ END SUBROUTINE qs_scf_loop_do_special_diag
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
 SUBROUTINE qs_scf_loop_do_ot(scf_env,mos,rho,mo_derivs,total_energy,&
-                             matrix_s,aux_coeff_set,energy_only,has_unit_metric,error)
+                             matrix_s,aux_coeff_set,energy_only, &
+                             has_unit_metric,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -909,7 +943,9 @@ SUBROUTINE qs_scf_loop_do_ot(scf_env,mos,rho,mo_derivs,total_energy,&
    ELSE
       orthogonality_metric=>matrix_s(1)%matrix
    ENDIF
-  
+   
+   
+   
    CALL ot_scf_mini(mos,mo_derivs,orthogonality_metric, &
                     total_energy, aux_coeff_set,    &
                     energy_only,scf_env%iter_delta, & 
@@ -922,6 +958,7 @@ SUBROUTINE qs_scf_loop_do_ot(scf_env,mos,rho,mo_derivs,total_energy,&
 
    scf_env%iter_method=scf_env%qs_ot_env(1)%OT_METHOD_FULL
    scf_env%iter_param=scf_env%qs_ot_env(1)%ds_min
+
 
 END SUBROUTINE qs_scf_loop_do_ot
 ! *****************************************************************************

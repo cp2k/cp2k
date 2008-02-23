@@ -95,7 +95,7 @@ MODULE qs_ot
   TYPE qs_ot_settings_type
      LOGICAL           :: do_rotation
      ! **** SCP
-     LOGICAL           :: scp
+     LOGICAL           :: scp, ks
      ! **** SCP
      CHARACTER(LEN=4)  :: ot_method
      CHARACTER(LEN=3)  :: ot_algorithm
@@ -247,6 +247,7 @@ CONTAINS
     settings%on_the_fly_loc=.FALSE.
     settings%ortho_irac="CHOL"
     settings%scp=.FALSE.
+    settings%ks=.TRUE.
   END SUBROUTINE qs_ot_settings_init
 
   ! gets ready to use the preconditioner/ or renew the preconditioner
