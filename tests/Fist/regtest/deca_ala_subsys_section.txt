@@ -1,0 +1,11 @@
+  &SUBSYS
+    &CELL
+      ABC 50.0 50.0 50.0
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CHARGE_BETA
+      COORD_FILE_NAME ../sample_pdb/deca_ala.pdb
+      COORDINATE PDB
+    &END TOPOLOGY
+  &END SUBSYS

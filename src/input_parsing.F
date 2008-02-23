@@ -28,12 +28,12 @@ MODULE input_parsing
                                              cp_to_array
   USE cp_linked_list_val,              ONLY: cp_sll_val_create,&
                                              cp_sll_val_type
-  USE cp_parser,                       ONLY: cp_parser_type,&
-                                             max_line_length,&
-                                             parser_get_object,&
+  USE cp_parser_methods,               ONLY: parser_get_object,&
                                              parser_location,&
                                              parser_skip_space,&
                                              parser_test_next_token
+  USE cp_parser_types,                 ONLY: cp_parser_type,&
+                                             max_line_length
   USE cp_units,                        ONLY: cp_unit_compatible,&
                                              cp_unit_create,&
                                              cp_unit_desc,&

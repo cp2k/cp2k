@@ -20,10 +20,10 @@ MODULE neb_utils
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser,                       ONLY: cp_parser_type,&
+  USE cp_parser_methods,               ONLY: parser_get_next_line,&
+                                             parser_get_object
+  USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
-                                             parser_get_next_line,&
-                                             parser_get_object,&
                                              parser_release
   USE f77_blas
   USE f77_interface,                   ONLY: f_env_add_defaults,&

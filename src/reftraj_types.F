@@ -13,7 +13,7 @@
 MODULE reftraj_types
 
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser,                       ONLY: cp_parser_type,&
+  USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
   USE f77_blas

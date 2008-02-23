@@ -13,7 +13,7 @@ MODULE input_cp2k
   USE bibliography,                    ONLY: Frigo2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser,                       ONLY: cp_parser_type,&
+  USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
   USE cp_units,                        ONLY: cp_unit_set_create,&

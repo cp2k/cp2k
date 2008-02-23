@@ -62,3 +62,5 @@ H+.inp                   11
 ef.inp                   11
 #
 h2o-32-g3x3-mult.inp      2
+# @INCLUDE regtest
+deca_ala_include.inp      2

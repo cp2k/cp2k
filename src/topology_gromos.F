@@ -9,12 +9,12 @@ MODULE topology_gromos
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser,                       ONLY: cp_parser_type,&
-                                             parser_create,&
-                                             parser_get_next_line,&
+  USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                              parser_get_object,&
-                                             parser_release,&
                                              parser_search_string
+  USE cp_parser_types,                 ONLY: cp_parser_type,&
+                                             parser_create,&
+                                             parser_release
   USE f77_blas
   USE input_constants,                 ONLY: do_skip_14
   USE input_cp2k_restarts,             ONLY: section_velocity_val_set

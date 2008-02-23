@@ -40,9 +40,9 @@ MODULE topology_pdb
                                              cp_print_key_generate_filename,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser,                       ONLY: cp_parser_type,&
+  USE cp_parser_methods,               ONLY: parser_get_next_line
+  USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
-                                             parser_get_next_line,&
                                              parser_release
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&

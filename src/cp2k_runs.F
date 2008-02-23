@@ -18,10 +18,10 @@ MODULE cp2k_runs
                                              cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser,                       ONLY: cp_parser_type,&
+  USE cp_parser_methods,               ONLY: parser_search_string
+  USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
-                                             parser_release,&
-                                             parser_search_string
+                                             parser_release
   USE cp_units,                        ONLY: cp_unit_set_create,&
                                              cp_unit_set_release,&
                                              cp_unit_set_type

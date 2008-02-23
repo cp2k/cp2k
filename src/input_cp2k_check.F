@@ -12,7 +12,7 @@
 MODULE input_cp2k_check
   USE cp2k_info,                       ONLY: id_cp2k_version
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser,                       ONLY: cp_parser_type,&
+  USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
   USE cp_units,                        ONLY: cp_unit_set_create,&

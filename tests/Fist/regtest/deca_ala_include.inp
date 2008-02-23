@@ -1,0 +1,14 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  @INCLUDE "deca_ala_mm_section.txt"
+  @INCLUDE deca_ala_subsys_section.txt
+&END FORCE_EVAL
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT deca_ala
+  RUN_TYPE md
+&END GLOBAL
+&MOTION
+   @INCLUDE 'deca_ala_md_section.txt'
+&END MOTION

@@ -17,12 +17,12 @@ MODULE external_potential_types
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
                                              cp_sll_val_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser,                       ONLY: cp_parser_type,&
-                                             parser_create,&
-                                             parser_get_object,&
-                                             parser_release,&
+  USE cp_parser_methods,               ONLY: parser_get_object,&
                                              parser_search_string,&
                                              parser_test_next_token
+  USE cp_parser_types,                 ONLY: cp_parser_type,&
+                                             parser_create,&
+                                             parser_release
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_list_get,&

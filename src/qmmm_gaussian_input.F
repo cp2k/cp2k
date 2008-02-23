@@ -12,11 +12,11 @@
 MODULE qmmm_gaussian_input
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser,                       ONLY: cp_parser_type,&
-                                             parser_create,&
-                                             parser_get_object,&
-                                             parser_release,&
+  USE cp_parser_methods,               ONLY: parser_get_object,&
                                              parser_search_string
+  USE cp_parser_types,                 ONLY: cp_parser_type,&
+                                             parser_create,&
+                                             parser_release
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get

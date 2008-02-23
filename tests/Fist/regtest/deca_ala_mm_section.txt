@@ -1,0 +1,19 @@
+  &MM
+    &FORCEFIELD
+      parm_file_name ../sample_pot/deca_ala.pot
+      parmtype CHM
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE ewald
+        ALPHA .36
+        GMAX 29
+      &END EWALD
+    &END POISSON
+    &PRINT
+      &FF_INFO
+        SPLINE_INFO
+        SPLINE_DATA
+      &END
+    &END
+  &END MM

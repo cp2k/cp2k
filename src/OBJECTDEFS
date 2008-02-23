@@ -81,7 +81,8 @@ OBJECTS_GENERIC =\
  cp_output_handling.o\
  cp_para_env.o\
  cp_para_types.o\
- cp_parser.o\
+ cp_parser_types.o\
+ cp_parser_methods.o\
  cp_result_types.o\
  cp_rs_pool_types.o\
  cp_sm_fm_interactions.o\
@@ -190,6 +191,8 @@ OBJECTS_GENERIC =\
  hartree_local_methods.o\
  hartree_local_types.o\
  header.o\
+ inpp_types.o\
+ inpp_methods.o\
  input_constants.o\
  input_cp2k.o\
  input_cp2k_barostats.o\

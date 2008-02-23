@@ -13,7 +13,8 @@
 MODULE memory_utilities
 
   USE f77_blas
-  USE kinds,                           ONLY: default_string_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp,&
                                              int_8
   USE termination
@@ -381,6 +382,34 @@ CONTAINS
   END SUBROUTINE reallocate_l1
 
 ! *****************************************************************************
+!> \brief (Re)Allocate a vector of string variables
+!> \note
+!>      (Maybe outdated) This routine doesnt work on SUN/Solaris!!! 
+!>                       It should probably not be used. (Thomas Chassaing)
+!> \par History
+!>      none
+!> \author Matthias Krack (18.07.2002,MK)
+! *****************************************************************************
+  SUBROUTINE reallocate_s1(p_short, lb_new, ub_new, p_long)
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), OPTIONAL, POINTER        :: p_short
+    INTEGER, INTENT(IN)                      :: lb_new, ub_new
+    CHARACTER(LEN=default_path_length), &
+      DIMENSION(:), OPTIONAL, POINTER        :: p_long
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'reallocate_s1', &
+      routineP = moduleN//':'//routineN
+
+    IF      (PRESENT(p_short)) THEN
+       CALL reallocate_ss1(p_short,lb_new,ub_new)
+    ELSE IF (PRESENT(p_long))  THEN
+       CALL reallocate_ls1(p_long,lb_new,ub_new)
+    ELSE
+       CALL stop_memory(routineP,"At least one of the two optional argument is required!")
+    END IF
+   
+  END SUBROUTINE reallocate_s1
+! *****************************************************************************
 !> \brief (Re)Allocate a vector of string variables of default string length.
 !> \note
 !>      (Maybe outdated) This routine doesnt work on SUN/Solaris!!! 
@@ -389,12 +418,12 @@ CONTAINS
 !>      none
 !> \author Matthias Krack (18.07.2002,MK)
 ! *****************************************************************************
-  SUBROUTINE reallocate_s1(p,lb1_new,ub1_new)
+  SUBROUTINE reallocate_ss1(p,lb1_new,ub1_new)
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: p
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'reallocate_s1', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'reallocate_ss1', &
          routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length),&
@@ -403,6 +432,31 @@ CONTAINS
       ALLOCATABLE, DIMENSION(:)              :: work
 #include "reallocate_1.f90"
 
-  END SUBROUTINE reallocate_s1
+  END SUBROUTINE reallocate_ss1
+
+! *****************************************************************************
+!> \brief (Re)Allocate a vector of string variables of default path length.
+!> \note
+!>      (Maybe outdated) This routine doesnt work on SUN/Solaris!!! 
+!>                       It should probably not be used. (Thomas Chassaing)
+!> \par History
+!>      none
+!> \author Matthias Krack (18.07.2002,MK)
+! *****************************************************************************
+  SUBROUTINE reallocate_ls1(p,lb1_new,ub1_new)
+    CHARACTER(LEN=default_path_length), &
+      DIMENSION(:), POINTER                  :: p
+    INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'reallocate_ls1', &
+         routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length),&
+         PARAMETER                           :: zero=""
+    CHARACTER(LEN=default_path_length), &
+      ALLOCATABLE, DIMENSION(:)              :: work
+#include "reallocate_1.f90"
+
+  END SUBROUTINE reallocate_ls1
 
 END MODULE memory_utilities

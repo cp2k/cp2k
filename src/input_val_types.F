@@ -10,7 +10,7 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE input_val_types
-  USE cp_parser,                       ONLY: default_continuation_character
+  USE cp_parser_types,                 ONLY: default_continuation_character
   USE cp_units,                        ONLY: cp_unit_create,&
                                              cp_unit_desc,&
                                              cp_unit_from_cp2k,&

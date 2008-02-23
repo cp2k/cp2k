@@ -36,7 +36,7 @@ MODULE integrator
   USE constraint_util,                 ONLY: getold,&
                                              pv_constraint
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser,                       ONLY: parser_get_next_line,&
+  USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                              parser_get_object
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type

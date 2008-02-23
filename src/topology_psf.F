@@ -14,13 +14,13 @@ MODULE topology_psf
                                              cp_print_key_generate_filename,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser,                       ONLY: cp_parser_type,&
-                                             parser_create,&
-                                             parser_get_next_line,&
+  USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                              parser_get_object,&
-                                             parser_release,&
                                              parser_search_string,&
                                              parser_test_next_token
+  USE cp_parser_types,                 ONLY: cp_parser_type,&
+                                             parser_create,&
+                                             parser_release
   USE f77_blas
   USE force_fields_input,              ONLY: read_chrg_section
   USE input_constants,                 ONLY: do_conn_psf,&
