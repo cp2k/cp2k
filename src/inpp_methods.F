@@ -14,8 +14,9 @@ MODULE inpp_methods
                                              open_file
   USE cp_parser_types,                 ONLY: cp_parser_type
   USE inpp_types,                      ONLY: inpp_type
-  USE kinds,                           ONLY: default_path_length
+  USE kinds,                           ONLY: default_path_length, default_string_length
   USE memory_utilities,                ONLY: reallocate
+  USE string_utilities,                ONLY: uppercase
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -42,6 +43,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename
+    CHARACTER(LEN=default_string_length)     :: mytag
     INTEGER                                  :: i, indf, indi, pos1, pos2, &
                                                 unit
     LOGICAL                                  :: check, failure
@@ -57,7 +59,10 @@ CONTAINS
        indf = indf + 1
        CPPostcondition(indf<=LEN_TRIM(parser%input_line),cp_failure_level,routineP,error,failure)
     END DO
-    SELECT CASE(parser%input_line(indi:indf-1))
+    CPPostcondition((indf-indi)<=default_string_length,cp_failure_level,routineP,error,failure)
+    mytag =parser%input_line(indi:indf-1)
+    CALL uppercase(mytag)
+    SELECT CASE(mytag)
     CASE ("@INCLUDE")
        inpp%io_stack_level=inpp%io_stack_level+1
        CALL reallocate(inpp%io_stack_channel,1,inpp%io_stack_level)
