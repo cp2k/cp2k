@@ -14,7 +14,8 @@ MODULE inpp_methods
                                              open_file
   USE cp_parser_types,                 ONLY: cp_parser_type
   USE inpp_types,                      ONLY: inpp_type
-  USE kinds,                           ONLY: default_path_length, default_string_length
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length
   USE memory_utilities,                ONLY: reallocate
   USE string_utilities,                ONLY: uppercase
 #include "cp_common_uses.h"
