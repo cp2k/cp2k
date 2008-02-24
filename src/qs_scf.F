@@ -86,8 +86,8 @@ MODULE qs_scf
        history_guess, ot_precond_full_all, ot_precond_full_kinetic, &
        ot_precond_full_single, ot_precond_full_single_inverse, &
        ot_precond_none, ot_precond_s_inverse, ot_precond_sparse_diag, &
-       ot_precond_sparse_firstorder, qs_debug_run, restart_guess, &
-       outer_scf_none, outer_scf_scp
+       ot_precond_sparse_firstorder, outer_scf_none, outer_scf_scp, &
+       qs_debug_run, restart_guess
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get

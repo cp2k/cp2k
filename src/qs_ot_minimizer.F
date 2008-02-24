@@ -63,8 +63,8 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nspin
-    REAL(KIND=dp)                            :: tmp
     LOGICAL                                  :: do_ks, do_scp
+    REAL(KIND=dp)                            :: tmp
 
    CALL timeset(routineN,"I","",handle)
 
@@ -246,7 +246,7 @@ SUBROUTINE take_step(ds,qs_ot_env,error)
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ii, ispin, nspin
-    LOGICAL    :: do_scp, do_ks
+    LOGICAL                                  :: do_ks, do_scp
 
     nspin=SIZE(qs_ot_env)
 
@@ -520,9 +520,9 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env,error)
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ispin, itmp, k, n, nscp, nspin
+    LOGICAL                                  :: do_ks, do_scp
     REAL(KIND=dp)                            :: tmp
     TYPE(cp_logger_type), POINTER            :: logger
-    LOGICAL :: do_ks, do_scp
 
 !***SCP
 
@@ -627,11 +627,10 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: ispin, itmp, k, n, nscp, nspin
+    LOGICAL                                  :: do_ks, do_scp
     REAL(KIND=dp)                            :: beta_pr, gnorm_cross, &
                                                 test_down, tmp
     TYPE(cp_logger_type), POINTER            :: logger
-    LOGICAL :: do_ks, do_scp
-
 
    nspin=SIZE(qs_ot_env)
    logger=>cp_error_get_logger(error)
@@ -800,10 +799,10 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
     INTEGER                                  :: diis_bound, diis_m, i, info, &
                                                 ispin, itmp, j, k, n, nscp, &
                                                 nspin
+    LOGICAL                                  :: do_ks, do_scp
     REAL(KIND=dp)                            :: overlap, tmp, tr_xnew_gx, &
                                                 tr_xold_gx
     TYPE(cp_logger_type), POINTER            :: logger
-    LOGICAL :: do_ks, do_scp
 
    do_ks = qs_ot_env ( 1 ) % settings % ks
    do_scp = qs_ot_env ( 1 ) % settings % scp

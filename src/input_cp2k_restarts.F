@@ -499,19 +499,19 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: counter, handle, handle2, i, iatom, icoef, iel, ikind, ioff, &
-      irep, isec, j, my_itimes, n_el, natom, nhc_len, nkind, nsgf, nsgf_max, &
-      offset, stat, tot_nhcneed,natom_tot
+    INTEGER :: counter, handle, handle2, i, iatom, icoef, iel, ikind, irep, &
+      isec, j, my_itimes, n_el, natom, natom_tot, nhc_len, nkind, nsgf, &
+      nsgf_max, stat, tot_nhcneed
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex
     INTEGER, POINTER                         :: accepted_md, INDEX(:), &
                                                 itimes, md_approach_nr
     LOGICAL                                  :: failure, my_save_mem
     REAL(KIND=dp)                            :: my_t
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: pbuffer, vbuffer, pindex, vindex
+      DIMENSION(:, :)                        :: pbuffer, pindex, vbuffer, &
+                                                vindex
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer, eta, fnhc, mnhc, veta
     REAL(KIND=dp), POINTER                   :: t
-    TYPE(particle_type), DIMENSION(:),POINTER :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -521,6 +521,8 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
     TYPE(lnhc_parameters_type), POINTER      :: nhc
     TYPE(npt_info_type), POINTER             :: npt( :, : )
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: replica_section, work_section
     TYPE(thermostat_type), POINTER           :: thermostat_baro, &
                                                 thermostat_coeff, &
@@ -709,7 +711,7 @@ CONTAINS
               CYCLE 
             ELSE
               iel = iel + 1
-              index ( iel ) = cindex ( iatom )
+              INDEX ( iel ) = cindex ( iatom )
               pbuffer ( iel, : ) = pindex ( iatom, : )
               vbuffer ( iel, : ) = vindex ( iatom, : )
             END IF
