@@ -117,7 +117,6 @@ MODULE qs_collocate_density
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  use machine, only: m_cputime
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
