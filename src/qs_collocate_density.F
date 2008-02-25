@@ -1,4 +1,4 @@
- !-----------------------------------------------------------------------------!
+!-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
@@ -53,7 +53,9 @@ MODULE qs_collocate_density
   USE cube_utils,                      ONLY: cube_info_type,&
                                              return_cube,&
                                              return_cube_nonortho
+  USE d3_poly,                         ONLY: poly_cp2k2d3b
   USE distribution_2d_types,           ONLY: distribution_2d_release
+  USE gauss_colloc,                    ONLY: collocGauss
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_constants,                 ONLY: pw_interp,&
@@ -115,6 +117,7 @@ MODULE qs_collocate_density
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  use machine, only: m_cputime
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -131,7 +134,6 @@ MODULE qs_collocate_density
             collocate_pgf_product_rspace,&
             collocate_atomic_charge_density,&
             density_rs2pw
-
 ! *** Public type ***
 
 ! *****************************************************************************
@@ -849,7 +851,6 @@ CONTAINS
     CALL density_rs2pw(pw_env,rs_rho,rho,rho_gspace,interp_section=interp_section,error=error)
 
     total_rho = pw_integrate_function(rho%pw,isign=-1)
-
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_rho_elec
@@ -929,7 +930,8 @@ CONTAINS
     ! *** set up the pw multi-grids
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     CALL pw_env_get(pw_env, rs_pools=rs_pools, pw_pools=pw_pools, &
-                            cube_info=cube_info, gridlevel_info=gridlevel_info, error=error)
+        cube_info=cube_info, gridlevel_info=gridlevel_info, error=error)
+    
     CALL pw_pools_create_pws(pw_pools,mgrid_gspace,&
                 use_data = COMPLEXDATA1D,&
                 in_space = RECIPROCALSPACE, error=error)
@@ -1096,58 +1098,59 @@ CONTAINS
                                           collocate_rho0,&
                                           rpgf0_s,idir,ir,error)
 
-    INTEGER, INTENT(IN)                      :: la_max
-    REAL(KIND=dp), INTENT(IN)                :: zeta
-    INTEGER, INTENT(IN)                      :: la_min, lb_max
-    REAL(KIND=dp), INTENT(IN)                :: zetb
-    INTEGER, INTENT(IN)                      :: lb_min
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra, rab
-    REAL(KIND=dp), INTENT(IN)                :: rab2, scale
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
-    INTEGER, INTENT(IN)                      :: o1, o2
-    TYPE(realspace_grid_type), POINTER       :: rsgrid
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cube_info_type), INTENT(IN)         :: cube_info
-    REAL(KIND=dp), INTENT(IN)                :: eps_rho_rspace
-    INTEGER, INTENT(IN)                      :: ga_gb_function
-    TYPE(lgrid_type), OPTIONAL               :: lgrid
-    INTEGER, INTENT(IN), OPTIONAL            :: ithread
-    LOGICAL, INTENT(IN), OPTIONAL            :: map_consistent, collocate_rho0
-    REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
-    INTEGER, INTENT(IN), OPTIONAL            :: idir, ir
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+      INTEGER, INTENT(IN)                      :: la_max
+      REAL(KIND=dp), INTENT(IN)                :: zeta
+      INTEGER, INTENT(IN)                      :: la_min, lb_max
+      REAL(KIND=dp), INTENT(IN)                :: zetb
+      INTEGER, INTENT(IN)                      :: lb_min
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra, rab
+      REAL(KIND=dp), INTENT(IN)                :: rab2, scale
+      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
+      INTEGER, INTENT(IN)                      :: o1, o2
+      TYPE(realspace_grid_type), POINTER       :: rsgrid
+      TYPE(cell_type), POINTER                 :: cell
+      TYPE(cube_info_type), INTENT(IN)         :: cube_info
+      REAL(KIND=dp), INTENT(IN)                :: eps_rho_rspace
+      INTEGER, INTENT(IN)                      :: ga_gb_function
+      TYPE(lgrid_type), OPTIONAL               :: lgrid
+      INTEGER, INTENT(IN), OPTIONAL            :: ithread
+      LOGICAL, INTENT(IN), OPTIONAL            :: map_consistent, collocate_rho0
+      REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
+      INTEGER, INTENT(IN), OPTIONAL            :: idir, ir
+      TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product_rspace', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product_rspace', &
+        routineP = moduleN//':'//routineN
 
-    INTEGER :: cmax, gridbounds(2,3), i, ico, icoef, ig, ithread_l, &
-      jco, k, l, la_max_local, la_min_local, lb_max_local, lb_min_local, &
-      length, lx, lx_max, lxa, lxb, lxy, lxy_max, lxyz, lxyz_max, lya, lyb, &
-      lza, lzb, o1_local, o2_local, offset, start
-    INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ng, &
-                                                ub_cube
-    INTEGER, DIMENSION(:), POINTER           :: ly_max, lz_max, sphere_bounds
-    LOGICAL                                  :: failure, my_collocate_rho0, &
-                                                my_map_consistent
-    REAL(KIND=dp) :: a, b, binomial_k_lxa, binomial_l_lxb, cutoff, f, pg, &
-      prefactor, radius, rpg, ya, yap, yb, ybp, za, zap, zb, zbp, zetp
-    REAL(KIND=dp), DIMENSION(3)              :: dr, rap, rb, rbp, roffset, rp
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab_local
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: grid
+      INTEGER :: cmax, gridbounds(2,3), i, ico, icoef, ig, ithread_l, &
+        jco, k, l, la_max_local, la_min_local, lb_max_local, lb_min_local, &
+        length, lx, lx_max, lxa, lxb, lxy, lxy_max, lxyz, lxyz_max, lya, lyb, &
+        lza, lzb, o1_local, o2_local, offset, start
+      INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ng, &
+                                                  ub_cube
+      INTEGER, DIMENSION(:), POINTER           :: ly_max, lz_max, sphere_bounds
+      LOGICAL                                  :: failure, my_collocate_rho0, &
+                                                  my_map_consistent
+      REAL(KIND=dp) :: a, b, binomial_k_lxa, binomial_l_lxb, cutoff, f, pg, &
+        prefactor, radius, rpg, ya, yap, yb, ybp, za, zap, zb, zbp, zetp
+      REAL(KIND=dp), DIMENSION(3)              :: dr, rap, rb, rbp, roffset, rp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab_local
+      REAL(KIND=dp), DIMENSION(:, :, :), &
+        POINTER                                :: grid
 
-    INTEGER :: lxp,lyp,lzp,lp,lxpm,lypm,iaxis
-    INTEGER, ALLOCATABLE, DIMENSION(:,:) :: map
-    REAL(kind=dp) :: p_ele,ax,ay,az
-    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:,:) :: alpha
-    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xyz
-    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xyt
-    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xtt
+      INTEGER :: lxp,lyp,lzp,lp,lxpm,lypm,iaxis
+      INTEGER, ALLOCATABLE, DIMENSION(:,:) :: map
+      REAL(kind=dp) :: p_ele,ax,ay,az
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:,:) :: alpha
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xyz
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xyt
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xtt
 
-    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:) :: pol_z
-    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:) :: pol_y
-    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: pol_x
-    REAL(KIND=dp) :: t_exp_1,t_exp_2,t_exp_min_1,t_exp_min_2,t_exp_plus_1,t_exp_plus_2
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:) :: pol_z
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:) :: pol_y
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: pol_x
+      REAL(KIND=dp) :: t_exp_1,t_exp_2,t_exp_min_1,t_exp_min_2,t_exp_plus_1,t_exp_plus_2
+      LOGICAL, PARAMETER :: use_f=.FALSE.
 
     failure = .FALSE.
 
@@ -1429,10 +1432,14 @@ CONTAINS
     ENDDO
     ENDDO
 
+    IF (use_f) THEN
+        CALL collocate_general_f()
+    ELSE
     IF (rsgrid%orthorhombic ) THEN
        CALL collocate_ortho()
     ELSE
        CALL collocate_general_opt()
+    END IF
     END IF
 
     IF (ga_gb_function /= FUNC_AB) THEN
@@ -1733,6 +1740,21 @@ CONTAINS
 
     END SUBROUTINE collocate_general_opt
 
+    SUBROUTINE collocate_general_f
+    INTEGER, DIMENSION(2, 3)                 :: local_b
+    REAL(dp), &
+      DIMENSION((lp+1)*(lp+2)*(lp+3)/6)      :: poly_d3
+
+        CALL poly_cp2k2d3b(coef_xyz,lp,poly_d3)
+        local_b(1,:)=rsgrid%lb_local-rsgrid%lb
+        local_b(2,:)=rsgrid%ub_local-rsgrid%lb
+        CALL collocGauss(h=cell%hmat,h_inv=cell%h_inv,&
+            grid=grid,poly=poly_d3,alphai=zetp,posi=rp,max_r2=radius*radius,&
+            periodic=cell%perd,gdim=ng,local_bounds=local_b,&
+            error=error)
+        ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
+        
+    END SUBROUTINE
 !
 !   this is a general 'reference' routine to do the collocation
 !
@@ -1779,8 +1801,7 @@ CONTAINS
     REAL(KIND=dp)                            :: dra(3), drap(3), drb(3), &
                                                 drbp(3), myexp
 
-       res=0.0_dp
-
+        res=0.0_dp
         myexp=EXP(-zetp*SUM((point-rp)**2))*prefactor
         dra=point-ra
         drb=point-rb
@@ -1817,7 +1838,7 @@ CONTAINS
         ENDDO
         drap(1)=drap(1)*dra(1)
         ENDDO
-
+                
     END FUNCTION primitive_value
 
   END SUBROUTINE collocate_pgf_product_rspace
