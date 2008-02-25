@@ -1,1 +1,1 @@
-LIBNV_OBJECTS = cufft.o
+LIBNV_OBJECTS = cufft.o cuda_memory_cu.o

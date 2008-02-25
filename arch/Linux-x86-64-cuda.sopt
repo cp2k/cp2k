@@ -33,6 +33,7 @@ LIBS     = -L$(MKLPATH)\
            $(MKLPATH)/libguide.a\
            $(CUDAPATH)/libcudart.so\
            $(CUDAPATH)/libcufft.so\
+           $(CUDAPATH)/libcublas.so\
            /usr/lib64/libfftw3f.so.3\
            -lpthread
 

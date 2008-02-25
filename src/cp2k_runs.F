@@ -25,6 +25,8 @@ MODULE cp2k_runs
   USE cp_units,                        ONLY: cp_unit_set_create,&
                                              cp_unit_set_release,&
                                              cp_unit_set_type
+  USE cuda_memory,                     ONLY: cuda_device_mem_init,&
+                                             cuda_device_mem_release
   USE environment,                     ONLY: compile_date,&
                                              compile_lastcvs,&
                                              cp2k_finalize,&
@@ -254,6 +256,11 @@ CONTAINS
              CALL cp2k_setup(root_section,para_env, globenv,suberror)
           END IF
 
+#if defined( __FFTCU ) || defined ( __CUDA )
+! if CUDA is enabled we need to allocate memory on the graphics card
+          CALL cuda_device_mem_init(root_section)
+#endif
+
           SELECT CASE (prog_name_id)
           CASE (do_farming)
              CALL farming_run ( root_section, para_env, suberror )
@@ -380,6 +387,11 @@ CPSourceFileRef,&
        END IF
 
     END IF
+
+#if defined( __FFTCU ) || defined ( __CUDA )
+! if CUDA is enabled we need to free memory on the graphics card
+          CALL cuda_device_mem_release()
+#endif
 
     CALL cp_error_dealloc_ref(error)
     CALL cp_para_env_release(para_env,error=error)

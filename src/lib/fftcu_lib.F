@@ -11,9 +11,10 @@
 !>  corresponding include directory
 !>  add this to the path to the -I flags of the CPP
 !> \author JGH
-#if defined ( __FFTCU ) || defined ( __CUDA )
-#include "mkl_dfti.f90"
-#endif
+!#if defined ( __FFTCU ) || defined ( __CUDA )
+!#include "mkl_dfti.f90"
+
+!#endif
 
 ! *****************************************************************************
 SUBROUTINE fftcu_get_lengths ( DATA, max_length )
@@ -102,9 +103,6 @@ END SUBROUTINE fftcu_get_lengths
 ! *****************************************************************************
 SUBROUTINE fftcu3d ( fft_in_place, fsign, scale, n, zin, zout )
 
-#if defined ( __FFTCU ) || defined ( __CUDA )
-  USE MKL_DFTI
-#endif
   IMPLICIT NONE
 #if defined(__SGL) || defined(__FFTSGL)
   INTEGER, PARAMETER :: dp = KIND(0.0)
@@ -120,15 +118,8 @@ SUBROUTINE fftcu3d ( fft_in_place, fsign, scale, n, zin, zout )
 
   INTEGER                                              :: ifft_in_place
 
-#if defined ( __FFTCU ) || defined ( __CUDA )
-  TYPE(DFTI_DESCRIPTOR), POINTER                       :: desc
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dft_prec = DFTi_SINGLE
-#else
-  INTEGER, PARAMETER :: dft_prec = DFTi_DOUBLE
-#endif
-#endif
-  INTEGER                                              :: status
+  REAL(KIND=dp), POINTER                               :: ptr
+  INTEGER                                              :: status, lmem
 !------------------------------------------------------------------------------
 
 #if defined ( __FFTCU )  || defined ( __CUDA )
@@ -137,7 +128,7 @@ SUBROUTINE fftcu3d ( fft_in_place, fsign, scale, n, zin, zout )
   ifft_in_place=0
   if (fft_in_place) ifft_in_place=1
 
-  call fftcu3dc(ifft_in_place, fsign, scale, n, zin, zout)
+  CALL fftcu3d_cu(ifft_in_place, fsign, scale, n, zin, zout)
 
 #else
 
@@ -153,9 +144,6 @@ END SUBROUTINE fftcu3d
 ! *****************************************************************************
 SUBROUTINE fftcu1dm ( fsign, trans, n, m, zin, zout, scale )
 
-#if defined ( __FFTCU ) || defined ( __CUDA )
-  USE MKL_DFTI
-#endif
   IMPLICIT NONE
 #if defined(__SGL) || defined(__FFTSGL)
   INTEGER, PARAMETER :: dp = KIND(0.0)
@@ -170,55 +158,32 @@ SUBROUTINE fftcu1dm ( fsign, trans, n, m, zin, zout, scale )
   COMPLEX (KIND=dp), DIMENSION(*), INTENT ( INOUT )  :: zin
   COMPLEX (KIND=dp), DIMENSION(*), INTENT ( OUT )    :: zout
   REAL (KIND=dp), INTENT ( IN )                      :: scale
-#if defined ( __FFTCU ) || defined ( __CUDA )
-  TYPE(DFTI_DESCRIPTOR), POINTER                       :: desc
-#if defined(__SGL) || defined(__FFTSGL)
-  INTEGER, PARAMETER :: dft_prec = DFTi_SINGLE
-#else
-  INTEGER, PARAMETER :: dft_prec = DFTi_DOUBLE
-#endif
-#endif
-  INTEGER                                              :: status
+  INTEGER                                              :: status, itrans
   INTEGER                                            :: ii(3),di,io(3),DO
 
 !------------------------------------------------------------------------------
 
 #if defined ( __FFTCU ) || defined ( __CUDA )
+#if defined(__SGL) || defined(__FFTSGL)
 
-  ii(1) = 0
-  ii(2) = 1
-  ii(3) = 0
-  di = n
-  io(1) = 0
-  io(2) = 1
-  io(3) = 0
-  DO = n
-  IF ( fsign == +1 .AND. trans ) THEN
-    ii(2) = m
-    di = 1
-  ELSEIF ( fsign == -1 .AND. trans ) THEN
-    io(2) = m
-    DO = 1
-  END IF
+  itrans=0
+!  if (trans) itrans=1
+  if (trans) then
+    write(*,*) 'FFTCU 1D tranpose FFT has not been implimented'
+    call flush(6)
+    stop
+  endif
 
-  status = DftiCreateDescriptor( desc, dft_prec, DFTI_COMPLEX, 1, n )
-  status = DftiSetValue( desc, DFTI_INPUT_STRIDES, ii )
-  status = DftiSetValue( desc, DFTI_OUTPUT_STRIDES, io )
-  status = DftiSetValue( desc, DFTI_NUMBER_OF_TRANSFORMS, m )
-  status = DftiSetValue( desc, DFTI_INPUT_DISTANCE, di )
-  status = DftiSetValue( desc, DFTI_OUTPUT_DISTANCE, DO )
-  status = DftiSetValue( desc, DFTI_PLACEMENT, DFTI_NOT_INPLACE )
-  IF (fsign == +1) THEN
-    IF ( scale /= 1.0_dp ) status = DftiSetValue( desc, DFTI_FORWARD_SCALE, scale )
-    status = DftiCommitDescriptor( desc )
-    status = DftiComputeForward( desc, zin, zout )
-  ELSE
-    IF ( scale /= 1.0_dp ) status = DftiSetValue( desc, DFTI_BACKWARD_SCALE, scale )
-    status = DftiCommitDescriptor( desc )
-    status = DftiComputeBackward( desc, zin, zout )
-  END IF
-  status = DftiFreeDescriptor( desc )
+  write(*,*) 'WARNING: FFTCU 1D FFT has not been tested!'
+  CALL fftcu1dm_cu(fsign, itrans, n, m, zin, zout, scale)
 
+#else
+
+  write(*,*) 'FFTCU only works in single precision'
+  call flush(6)
+  stop
+
+#endif
 #else
 
   fsign = 0
