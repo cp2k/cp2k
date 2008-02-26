@@ -1,0 +1,13 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#
+# SCP test monomer
+monomer.inp 1
+monomer-r2.inp 1
+monomer-r3.inp 1
+# SCP test dimer
+w2.inp 1
+w2-r2.inp 1

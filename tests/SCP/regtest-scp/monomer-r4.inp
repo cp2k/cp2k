@@ -1,0 +1,77 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    WFN_RESTART_FILE_NAME ./MONOMER-r2-RESTART.wfn
+    &MGRID
+      CUTOFF 280
+    &END MGRID
+    &SCP T
+      DISPERSION T
+    &END SCP 
+    &QS
+      WF_INTERPOLATION PS 
+      EXTRAPOLATION_ORDER 3
+    &END QS
+    &SCF
+      &OUTER_SCF
+        TYPE SCP
+        EPS_SCF 1.E-10
+        MAX_SCF 50
+      &END OUTER_SCF
+      SCF_GUESS RESTART
+      MAX_SCF 50
+      EPS_SCF 1.000E-6
+      &OT T
+        SCP T
+        MINIMIZER DIIS
+      &END OT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL BLYP
+      &END XC_FUNCTIONAL
+    &END XC
+    POTENTIAL_FILE_NAME ../GTH_POTENTIALS
+    BASIS_SET_FILE_NAME ../test_basis_water
+    &POISSON
+      &MT
+        REL_CUTOFF 1.5
+      &END MT
+      POISSON_SOLVER MT
+      PERIODIC NONE
+    &END POISSON
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+    &COORD
+  O         0.00       0.00       0.00
+  H        -0.78      -0.62       0.00 
+  H         0.78      -0.62       0.00
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH
+      AUX_BASIS_SET aux-scp
+      POTENTIAL GTH-BLYP-q1
+      ALPHA_SCP 1.0
+      I_SCP .5
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH
+      AUX_BASIS_SET aux-scp
+      POTENTIAL GTH-BLYP-q6
+      ALPHA_SCP 1.0
+      I_SCP .3
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT MONOMER-r3
+  RUN_TYPE ENERGY_FORCE
+  PRINT_LEVEL LOW
+&END GLOBAL
+&EXT_RESTART
+  RESTART_FILE_NAME ./MONOMER-r2-RESTART.restart
+&END EXT_RESTART

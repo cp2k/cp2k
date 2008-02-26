@@ -1,0 +1,76 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &MGRID
+      CUTOFF 280
+    &END MGRID
+    &SCP T
+      DISPERSION F
+    &END SCP
+    &QS
+      WF_INTERPOLATION PS 
+      EXTRAPOLATION_ORDER 3
+    &END QS
+    &SCF
+      &OUTER_SCF
+        EPS_SCF 1.E-6
+        MAX_SCF 2
+        TYPE SCP
+      &END OUTER_SCF
+      SCF_GUESS ATOMIC
+      MAX_SCF 50
+      EPS_SCF 1.000E-6
+      &OT T
+        SCP T
+        MINIMIZER DIIS
+      &END OT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL HCTH120
+      &END XC_FUNCTIONAL
+    &END XC
+    POTENTIAL_FILE_NAME ../GTH_POTENTIALS
+    BASIS_SET_FILE_NAME ../test_basis_water
+    &POISSON
+      &MT
+        REL_CUTOFF 1.5
+      &END MT
+      POISSON_SOLVER MT
+      PERIODIC NONE
+    &END POISSON
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 8.0 8.0 8.0
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+    &COORD
+ O        -0.0005010000         1.5173980000         0.0000000000
+ H         0.0944820000         0.5534860000         0.0000000000
+ H         0.9013420000         1.8476590000         0.0000000000
+ O        -0.0005010000        -1.3897300000         0.0000000000
+ H        -0.4939080000        -1.7112430000        -0.7610180000
+ H        -0.4939080000        -1.7112430000         0.7612180000
+    &END COORD
+    &KIND H
+      BASIS_SET aug-QZV3P-GTH
+      POTENTIAL GTH-HCTH120-q1
+      AUX_BASIS_SET aux-scp
+      ALPHA_SCP 1.0
+      I_SCP .5
+    &END KIND
+    &KIND O
+      BASIS_SET aug-QZV3P-GTH
+      POTENTIAL GTH-HCTH120-q6
+      AUX_BASIS_SET aux-scp
+      ALPHA_SCP 2.0
+      I_SCP .3
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT w2
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL
