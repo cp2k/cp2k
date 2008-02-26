@@ -1,0 +1,83 @@
+
+&FORCE_EVAL
+   METHOD FIST
+  &MM
+    &FORCEFIELD
+      parm_file_name ../sample_pot/water_fake.pot
+      parmtype CHM
+      &CHARGE
+        ATOM OT
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM HT
+        CHARGE 0.4238
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 24
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME ../sample_pdb/water_1.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+    &COLVAR
+      &DISTANCE
+        ATOMS 1 2
+      &END 
+    &END 
+    &COLVAR
+      &DISTANCE
+        ATOMS 1 3
+      &END
+    &END 
+    &COLVAR
+      &ANGLE
+        ATOMS 2 1 3
+      &END ANGLE
+    &END 
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT water_1
+  RUN_TYPE md
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TIMESTEP 2.5
+    TEMPERATURE 298
+  &END MD
+  &CONSTRAINT
+    &COLLECTIVE
+      TARGET [angstrom]              0.957
+      MOLECULE 1
+      COLVAR 1
+    &END COLLECTIVE
+    &COLLECTIVE
+      TARGET [angstrom]              0.9572
+      MOLECULE 1
+      COLVAR 2
+    &END COLLECTIVE
+    &COLLECTIVE
+      TARGET [deg]            104.52
+      MOLECULE 1
+      COLVAR 3
+      &RESTRAINT
+          K   [kcalmol*rad^-2]  55.0
+      &END
+    &END COLLECTIVE
+  &END CONSTRAINT
+&END MOTION

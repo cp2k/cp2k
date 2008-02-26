@@ -891,7 +891,6 @@ CONTAINS
     DO kk = 1, SIZE(ilist)
        j = ilist(kk)
        ncolv_mol = ncolv_mol + 1
-       gind = gind + 1
        kdim = SIZE(cons_info%colvar_set(j)%colvar%i_atom)
        ALLOCATE(colv_list(ncolv_mol)%i_atoms(kdim),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -916,6 +915,7 @@ CONTAINS
        colv_list(ncolv_mol)%expected_value_growth_speed = cons_info%const_colv_target_growth(j)
        ! In case of Restraint let's check for possible restart values
        IF (colv_list(ncolv_mol)%restraint%active) THEN
+          gind = gind + 1
           IF (restart_restraint_clv) THEN
              CALL section_vals_val_get(colvar_rest,"_DEFAULT_KEYWORD_",&
                   i_rep_val=gind, r_val=rmod, error=error)
