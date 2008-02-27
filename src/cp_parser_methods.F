@@ -22,9 +22,9 @@ MODULE cp_parser_methods
                                              horizontal_tab,&
                                              max_line_length
   USE f77_blas
-  USE inpp_methods,                    ONLY: inpp_process_directive,&
-                                             inpp_end_include,&
-                                             inpp_expand_variables
+  USE inpp_methods,                    ONLY: inpp_end_include,&
+                                             inpp_expand_variables,&
+                                             inpp_process_directive
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp

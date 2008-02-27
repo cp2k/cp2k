@@ -743,11 +743,11 @@ END FUNCTION str_search
 !>      02.2008 created, AK
 ! *****************************************************************************
 FUNCTION is_whitespace(testchar) RESULT(resval)
-  CHARACTER(LEN=1), INTENT(IN)             :: testchar
-  LOGICAL                                  :: resval
+    CHARACTER(LEN=1), INTENT(IN)             :: testchar
+    LOGICAL                                  :: resval
 
   resval=.FALSE.
-  IF((testchar == ' ') .OR. (testchar == char(9))) THEN
+  IF((testchar == ' ') .OR. (testchar == CHAR(9))) THEN
      resval=.TRUE.
   END IF
   RETURN

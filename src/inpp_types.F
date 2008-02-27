@@ -14,8 +14,7 @@
 ! *****************************************************************************
 MODULE inpp_types
 
-  USE kinds,                           ONLY: default_path_length, &
-                                             default_string_length
+  USE kinds,                           ONLY: default_path_length
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

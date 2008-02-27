@@ -17,22 +17,22 @@
 MODULE inpp_methods
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE machine,                         ONLY: default_output_unit
   USE cp_parser_types,                 ONLY: cp_parser_type
   USE inpp_types,                      ONLY: inpp_type
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length
+  USE machine,                         ONLY: default_output_unit
   USE memory_utilities,                ONLY: reallocate
-  USE string_utilities,                ONLY: uppercase,&
-                                             is_whitespace
+  USE string_utilities,                ONLY: is_whitespace,&
+                                             uppercase
   USE termination,                     ONLY: stop_program
-  
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'inpp_methods'
+  LOGICAL, PARAMETER, PRIVATE          :: debug_this_module=.FALSE.
   INTEGER, PARAMETER, PRIVATE          :: max_message_length = 400
 
   PUBLIC  :: inpp_process_directive, inpp_end_include, inpp_expand_variables
@@ -57,14 +57,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'inpp_process_directive', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: filename,&
-                                                varname,&
-                                                value
-    CHARACTER(LEN=default_path_length)       :: mytag
-    CHARACTER(LEN=default_path_length)       :: cond1, cond2
+    CHARACTER(LEN=default_path_length)       :: cond1, cond2, filename, &
+                                                mytag, value, varname
     CHARACTER(LEN=max_message_length)        :: message
-    INTEGER                                  :: i, indf, indi, pos1, pos2, &
-                                                unit, istat
+    INTEGER                                  :: i, indf, indi, istat, pos1, &
+                                                pos2, unit
     LOGICAL                                  :: check, failure
 
     failure = .TRUE.
@@ -141,12 +138,13 @@ CONTAINS
                       file_action="READ",&
                       unit_number=unit)
 
-#if defined(INPP_DEBUG)
-       WRITE(UNIT=message,FMT="(3A,I6,2A)") "INPP_@INCLUDE: in file: ",&
-            TRIM(parser%input_file_name),"  Line:",parser%input_line_number,&
-            " Opened include file: ",TRIM(filename)
-       WRITE(default_output_unit,*) TRIM(message)
-#endif
+       IF (debug_this_module) THEN
+          WRITE(UNIT=message,FMT="(3A,I6,2A)") "INPP_@INCLUDE: in file: ",&
+               TRIM(parser%input_file_name),"  Line:",parser%input_line_number,&
+               " Opened include file: ",TRIM(filename)
+          WRITE(default_output_unit,*) TRIM(message)
+       END IF
+
        ! make room, save status and position the parser at the beginning of new file.
        inpp%io_stack_level = inpp%io_stack_level+1
        CALL reallocate(inpp%io_stack_channel,1,inpp%io_stack_level)
@@ -203,27 +201,25 @@ CONTAINS
           CALL reallocate(p_long=inpp%variable_value,lb_new=1,ub_new=inpp%num_variables)
           inpp%variable_name(inpp%num_variables)=varname
           inpp%variable_value(inpp%num_variables)=value
-#if defined(INPP_DEBUG)
-          WRITE(UNIT=message,FMT="(3A,I6,4A)") "INPP_@SET: in file: ",&
-               TRIM(parser%input_file_name),"  Line:",parser%input_line_number,&
-               " Set new variable ", TRIM(varname), " to value: ",TRIM(value)
-          WRITE(default_output_unit,*) TRIM(message)
-#endif
+          IF (debug_this_module) THEN
+             WRITE(UNIT=message,FMT="(3A,I6,4A)") "INPP_@SET: in file: ",&
+                  TRIM(parser%input_file_name),"  Line:",parser%input_line_number,&
+                  " Set new variable ", TRIM(varname), " to value: ",TRIM(value)
+             WRITE(default_output_unit,*) TRIM(message)
+          END IF
        ELSE
           ! reassign variable
-#if defined(INPP_DEBUG)
-          WRITE(UNIT=message,FMT="(3A,I6,6A)") "INPP_@SET: in file: ",&
-               TRIM(parser%input_file_name),"  Line:",parser%input_line_number,&
-               " Change variable ", TRIM(varname), " from value: ",&
-               TRIM(inpp%variable_value(indi)), " to value: ",TRIM(value)
-          WRITE(default_output_unit,*) TRIM(message)
-#endif
+          IF (debug_this_module) THEN
+             WRITE(UNIT=message,FMT="(3A,I6,6A)") "INPP_@SET: in file: ",&
+                  TRIM(parser%input_file_name),"  Line:",parser%input_line_number,&
+                  " Change variable ", TRIM(varname), " from value: ",&
+                  TRIM(inpp%variable_value(indi)), " to value: ",TRIM(value)
+             WRITE(default_output_unit,*) TRIM(message)
+          END IF
           inpp%variable_value(indi)=value
        ENDIF
 
-#if defined(INPP_DEBUG)
-       CALL inpp_list_variables(inpp,6)
-#endif
+       IF (debug_this_module) CALL inpp_list_variables(inpp,6)
 
     CASE ("@IF")
        ! detect IF expression.
@@ -291,30 +287,30 @@ CONTAINS
        cond2=cond2(indi:)
 
        IF ((TRIM(cond1)==TRIM(cond2)) .EQV. check) THEN
-#if defined(INPP_DEBUG)
-          WRITE(UNIT=message,FMT="(3A,I6,A)") "INPP_@IF: in file: ",&
-               TRIM(parser%input_file_name),"  Line:",parser%input_line_number,&
-               " Conditional resolves to true. Continuing parsing."
-          WRITE(default_output_unit,*) TRIM(message)
-#endif
+          IF (debug_this_module) THEN
+             WRITE(UNIT=message,FMT="(3A,I6,A)") "INPP_@IF: in file: ",&
+                  TRIM(parser%input_file_name),"  Line:",parser%input_line_number,&
+                  " Conditional resolves to true. Continuing parsing."
+             WRITE(default_output_unit,*) TRIM(message)
+          END IF
           ! resolves to true. keep on reading normally...
           RETURN
        ELSE
-#if defined(INPP_DEBUG)
-          WRITE(UNIT=message,FMT="(3A,I6,A)") "INPP_@IF: in file: ",&
-               TRIM(parser%input_file_name),"  Line:",parser%input_line_number,&
-               " Conditional resolves to false. Skipping Lines."
-          WRITE(default_output_unit,*) TRIM(message)
-#endif
+          IF (debug_this_module) THEN
+             WRITE(UNIT=message,FMT="(3A,I6,A)") "INPP_@IF: in file: ",&
+                  TRIM(parser%input_file_name),"  Line:",parser%input_line_number,&
+                  " Conditional resolves to false. Skipping Lines."
+             WRITE(default_output_unit,*) TRIM(message)
+          END IF
           istat=0
           DO WHILE(istat==0)
              parser%input_line_number = parser%input_line_number + 1
              READ (UNIT=parser%input_unit,FMT="(A)",IOSTAT=istat) parser%input_line
-#if defined(INPP_DEBUG)
-             WRITE(UNIT=message,FMT="(1A,I6,2A)") "INPP_@IF: skipping line ",&
-               parser%input_line_number, ": ",TRIM(parser%input_line)
-             WRITE(default_output_unit,*) TRIM(message)
-#endif
+             IF (debug_this_module) THEN
+                WRITE(UNIT=message,FMT="(1A,I6,2A)") "INPP_@IF: skipping line ",&
+                  parser%input_line_number, ": ",TRIM(parser%input_line)
+                WRITE(default_output_unit,*) TRIM(message)
+             END IF
 
              indi = INDEX(parser%input_line,"@")
              pos1 = INDEX(parser%input_line,"!")
@@ -335,9 +331,7 @@ CONTAINS
              CALL uppercase(mytag)
              IF(INDEX(mytag,"@ENDIF")>0) THEN
                 ! ok found it. go back to normal
-#if defined(INPP_DEBUG)
-                WRITE(default_output_unit,*) "INPP_@IF: found @ENDIF. End of skipping."
-#endif
+                IF (debug_this_module) WRITE(default_output_unit,*) "INPP_@IF: found @ENDIF. End of skipping."
                 RETURN
              ENDIF
           END DO
@@ -350,9 +344,7 @@ CONTAINS
        ENDIF
 
     CASE ("@ENDIF")
-#if defined(INPP_DEBUG)
-       WRITE(default_output_unit,*) "INPP_@IF: found @ENDIF in normal parsing. Ignoring it."
-#endif
+       IF (debug_this_module) WRITE(default_output_unit,*) "INPP_@IF: found @ENDIF in normal parsing. Ignoring it."
        ! nothing to do. just return to skip the line.
        RETURN
 
@@ -417,11 +409,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'inpp_expand_variables', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: newline
-    CHARACTER(LEN=default_path_length)       :: varname
+    CHARACTER(LEN=default_path_length)       :: newline, varname
     CHARACTER(LEN=max_message_length)        :: message
     INTEGER                                  :: idx, pos1, pos2
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: failure
 
     failure = .TRUE.
     CPPostcondition(ASSOCIATED(inpp),cp_failure_level,routineP,error,failure)
@@ -473,9 +464,9 @@ CONTAINS
 ! *****************************************************************************
   FUNCTION inpp_find_variable(inpp, varname) RESULT(idx)
     TYPE(inpp_type), POINTER                 :: inpp
-    CHARACTER(len=default_path_length)          :: varname
+    CHARACTER(len=default_path_length)       :: varname
     INTEGER                                  :: idx
-    ! local variables
+
     INTEGER                                  :: i
 
     idx=0
@@ -498,7 +489,7 @@ CONTAINS
   SUBROUTINE inpp_list_variables(inpp,iochan)
     TYPE(inpp_type), POINTER                 :: inpp
     INTEGER, INTENT(IN)                      :: iochan
-    ! local variables
+
     INTEGER                                  :: i
 
     WRITE(iochan,'(A)') '   #   NAME                   VALUE'
