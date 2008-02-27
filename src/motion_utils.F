@@ -32,6 +32,7 @@ MODULE motion_utils
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_coordinates
+  USE physcon,                         ONLY: angstrom
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -43,7 +44,8 @@ MODULE motion_utils
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'motion_utils'
 
-  PUBLIC :: write_trajectory, write_stress_tensor, get_output_format
+  PUBLIC :: write_trajectory, write_stress_tensor, write_simulation_cell,&
+            get_output_format
 
 CONTAINS
 
@@ -240,5 +242,54 @@ CONTAINS
            "PRINT%STRESS", error=error)
     END IF
   END SUBROUTINE write_stress_tensor
+
+! *****************************************************************************
+!> \brief   Prints the Simulation Cell
+!> \author  Teodoro Laino [tlaino] - University of Zurich
+!> \date    02.2008
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE write_simulation_cell(cell, motion_section, itimes, time, pos, act, error)
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(section_vals_type), POINTER         :: motion_section
+    INTEGER, INTENT(IN)                      :: itimes
+    REAL(KIND=dp), INTENT(IN)                :: time
+    CHARACTER(LEN=default_string_length), &
+      INTENT(IN), OPTIONAL                   :: pos, act
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_simulation_cell', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: my_act, my_pos
+    INTEGER                                  :: box
+    LOGICAL                                  :: new_file
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    
+    my_pos = "APPEND"
+    my_act = "WRITE"
+    IF (PRESENT(pos)) my_pos = pos
+    IF (PRESENT(act)) my_act = act
+    box = cp_print_key_unit_nr(logger,motion_section,"PRINT%CELL",&
+         extension=".cell", file_position=my_pos, file_action=my_act,&
+         file_form="FORMATTED", is_new_file=new_file, error=error)
+    IF ( box > 0 ) THEN
+       IF (new_file) THEN
+          WRITE (box,'("#",3X,A,2X,A,2X,9(6X,A,6X),4X,A)')"Step Nr.","Time[fs]","XX[Ang.]","YX[Ang.]",&
+               "ZX[Ang.]","YX[Ang.]","YY[Ang.]","YZ{Ang.]","ZX[Ang.]","ZY[Ang.]","ZZ[Ang.]","Vol[Ang.^3]"
+       END IF
+       WRITE(UNIT=box,FMT="(I8, F12.3,10F20.10)") itimes,time,&
+            cell%hmat(1,1)*angstrom,cell%hmat(2,1)*angstrom,cell%hmat(3,1)*angstrom,&
+            cell%hmat(1,2)*angstrom,cell%hmat(2,2)*angstrom,cell%hmat(3,2)*angstrom,&
+            cell%hmat(1,3)*angstrom,cell%hmat(2,3)*angstrom,cell%hmat(3,3)*angstrom,&
+            cell%deth*angstrom*angstrom*angstrom
+       CALL m_flush(box)
+    END IF
+    CALL cp_print_key_finished_output(box,logger,motion_section,"PRINT%CELL", error=error)
+
+  END SUBROUTINE write_simulation_cell
 
 END MODULE motion_utils

@@ -53,12 +53,12 @@ MODULE md_energies
                                              md_environment_type,&
                                              set_md_env,&
                                              zero_md_ener
-  USE motion_utils,                    ONLY: write_stress_tensor,&
+  USE motion_utils,                    ONLY: write_simulation_cell,&
+                                             write_stress_tensor,&
                                              write_trajectory
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_structure_data
-  USE physcon,                         ONLY: angstrom,&
-                                             femtoseconds,&
+  USE physcon,                         ONLY: femtoseconds,&
                                              kelvin
   USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE reftraj_types,                   ONLY: reftraj_type
@@ -288,7 +288,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: fmd, my_act, my_pos
-    INTEGER                                  :: box, delta_t, ene, ener_mix, &
+    INTEGER                                  :: delta_t, ene, ener_mix, &
                                                 handle, i, iw, nat, nkind, &
                                                 shene, tempkind, trsl
     INTEGER, POINTER                         :: itimes
@@ -690,27 +690,12 @@ CONTAINS
             "FORCES", my_pos, my_act, middle_name="frc", error=error)
 
        ! Print Simulation Cell 
-       box = cp_print_key_unit_nr(logger,motion_section,"PRINT%CELL",&
-            extension=".cell", file_position=my_pos, file_action=my_act,&
-            file_form="FORMATTED", is_new_file=new_file, error=error)
-       IF ( box > 0 ) THEN
-          IF (new_file) THEN
-             WRITE (box,'("#",3X,A,2X,A,2X,9(6X,A,6X),4X,A)')"Step Nr.","Time[fs]","XX[Ang.]","YX[Ang.]",&
-                   "ZX[Ang.]","YX[Ang.]","YY[Ang.]","YZ{Ang.]","ZX[Ang.]","ZY[Ang.]","ZZ[Ang.]","Vol[Ang.^3]"
-          END IF
-          WRITE(UNIT=box,FMT="(I8, F12.3,10F20.10)") itimes,time*femtoseconds,&
-               cell%hmat(1,1)*angstrom,cell%hmat(2,1)*angstrom,cell%hmat(3,1)*angstrom,&
-               cell%hmat(1,2)*angstrom,cell%hmat(2,2)*angstrom,cell%hmat(3,2)*angstrom,&
-               cell%hmat(1,3)*angstrom,cell%hmat(2,3)*angstrom,cell%hmat(3,3)*angstrom,&
-               cell%deth*angstrom*angstrom*angstrom
-          CALL m_flush(box)
-       END IF
-       CALL cp_print_key_finished_output(box,logger,motion_section,"PRINT%CELL", error=error)
+       CALL write_simulation_cell(cell, motion_section, itimes, time*femtoseconds, my_pos, my_act, error)
 
-       ! Print thermostats status
+       ! Print Thermostats status
        CALL print_thermostats_status(thermostats, para_env, my_pos, my_act, cell, itimes, time, error)
 
-       ! Print barostat status
+       ! Print Barostat status
        CALL print_barostat_status(barostat, simpar, my_pos, my_act, cell, itimes, time, error)
 
        ! Print Stress Tensor

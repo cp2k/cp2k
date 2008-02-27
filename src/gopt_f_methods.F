@@ -30,7 +30,8 @@ MODULE gopt_f_methods
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_flush
-  USE motion_utils,                    ONLY: write_stress_tensor,&
+  USE motion_utils,                    ONLY: write_simulation_cell,&
+                                             write_stress_tensor,&
                                              write_trajectory
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
@@ -50,8 +51,8 @@ MODULE gopt_f_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_f_methods'
 
   PUBLIC :: gopt_f_create_x0, write_cycle_infos, check_converg, write_final_info,&
-       write_geo_traj, print_geo_opt_header, check_rot_conv, write_rot_cycle_infos,&
-       print_geo_opt_nc, geo_opt_io
+       print_geo_opt_header, check_rot_conv, write_rot_cycle_infos, print_geo_opt_nc,&
+       geo_opt_io
 
 CONTAINS
 
@@ -550,6 +551,10 @@ CONTAINS
     CALL virial_evaluate(atomic_kind_set, particle_set,  local_particles, &
          virial, para_env%group, error=error)
     CALL write_stress_tensor(virial, cell, motion_section, unit, its, 0.0_dp, error=error)
+    
+    ! Write the cell
+    CALL write_simulation_cell(cell, motion_section, its, 0.0_dp, error=error)
+
   END SUBROUTINE geo_opt_io
 
 END MODULE gopt_f_methods
