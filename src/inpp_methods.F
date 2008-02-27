@@ -236,6 +236,7 @@ CONTAINS
        ! shave off leading whitespace
        DO WHILE (is_whitespace(parser%input_line(indi:indi)))
           indi = indi + 1
+          IF (indi > LEN_TRIM(parser%input_line)) EXIT
        END DO
        check=.FALSE.
        IF(pos1>0) THEN
@@ -324,6 +325,7 @@ CONTAINS
              ENDIF
 
              ! Get the start of the instruction and find "@KEYWORD"
+             indi = MAX(1,indi)
              indf = indi
              DO WHILE (parser%input_line(indf:indf)/=" ")
                 indf = indf + 1
