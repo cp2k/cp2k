@@ -1,3 +1,9 @@
 #
 # just add file names for which the reference needs to be reset below, with some comment
 #
+monomer.inp
+monomer-r2.inp  
+monomer-r3.inp  
+monomer-r4.inp  
+w2.inp  
+w2-r2.inp

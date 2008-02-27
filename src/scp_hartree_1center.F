@@ -118,7 +118,7 @@ CONTAINS
     IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
 
     NULLIFY(atomic_kind_set, local_particles, aux_basis, aux_coeff_set)
-    NULLIFY( para_env, scp_env, local_coeffs, energy )
+    NULLIFY( para_env, scp_env, local_coeffs, energy, diagmat_ks, diagmat_p )
 
     my_debug = .FALSE.
     IF ( PRESENT ( debug ) ) my_debug = debug

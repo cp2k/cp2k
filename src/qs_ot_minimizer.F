@@ -80,8 +80,7 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, error)
    IF (.NOT. qs_ot_env(1)%energy_only) THEN
       qs_ot_env(1)%gradient=0.0_dp
 ! **** SCP
-      IF  ( do_scp ) CALL qs_ot_get_scp_derivative ( qs_ot_env ( 1 ), &
-                                                   aux_coeff_set, error )
+      IF  ( do_scp ) CALL qs_ot_get_scp_derivative ( qs_ot_env ( 1 ), aux_coeff_set, error )
 ! **** SCP
       DO ispin=1,nspin
         IF ( do_ks ) THEN

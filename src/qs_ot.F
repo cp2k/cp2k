@@ -285,6 +285,7 @@ CONTAINS
           ncoef = SIZE ( qs_ot_env % gx )
           ALLOCATE ( qs_ot_env%dx ( ncoef ), STAT = istat )
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          qs_ot_env%dx = 0.0_dp
        ENDIF
        ! ***SCP
     ENDIF
@@ -470,13 +471,16 @@ CONTAINS
        ALLOCATE ( qs_ot_env%gx ( ncoef  ), STAT = istat )
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-       IF (qs_ot_env%use_gx_old) &
-            ALLOCATE ( qs_ot_env%gx_old ( ncoef  ), STAT = istat )
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       IF (qs_ot_env%use_gx_old) THEN
+          ALLOCATE ( qs_ot_env%gx_old ( ncoef  ), STAT = istat )
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ENDIF
 
-       IF (qs_ot_env%use_dx) &
-            ALLOCATE ( qs_ot_env%dx ( ncoef ), STAT = istat )
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       IF (qs_ot_env%use_dx) THEN
+          ALLOCATE ( qs_ot_env%dx ( ncoef ), STAT = istat )
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          qs_ot_env%dx = 0.0_dp
+       ENDIF
     ENDIF
     ! **** SCP
 

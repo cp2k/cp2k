@@ -2,7 +2,7 @@
   METHOD Quickstep
   &DFT
     &MGRID
-      CUTOFF 280
+      CUTOFF 100
     &END MGRID
     &SCP T
     &END SCP 
@@ -13,12 +13,12 @@
     &SCF
       &OUTER_SCF
         TYPE SCP
-        EPS_SCF 1.E-10
+        EPS_SCF 1.E-5
         MAX_SCF 50
       &END OUTER_SCF
       SCF_GUESS ATOMIC
       MAX_SCF 50
-      EPS_SCF 1.000E-6
+      EPS_SCF 1.000E-3
       &OT T
         SCP T
         MINIMIZER DIIS

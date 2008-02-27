@@ -2,7 +2,7 @@
   METHOD Quickstep
   &DFT
     &MGRID
-      CUTOFF 280
+      CUTOFF 100
     &END MGRID
     &SCP T
       DISPERSION F
@@ -13,13 +13,13 @@
     &END QS
     &SCF
       &OUTER_SCF
-        EPS_SCF 1.E-6
+        EPS_SCF 1.E-3
         MAX_SCF 2
         TYPE SCP
       &END OUTER_SCF
       SCF_GUESS ATOMIC
       MAX_SCF 50
-      EPS_SCF 1.000E-6
+      EPS_SCF 1.000E-3
       &OT T
         SCP T
         MINIMIZER DIIS
@@ -41,7 +41,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 8.0 8.0 8.0
+      ABC 6.0 6.0 6.0
       UNIT ANGSTROM
       PERIODIC NONE
     &END CELL
