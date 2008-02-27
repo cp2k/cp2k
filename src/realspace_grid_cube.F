@@ -11,7 +11,8 @@ MODULE realspace_grid_cube
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_recv,&
-                                             mp_send
+                                             mp_send,&
+                                             mp_sync
   USE particle_list_types,             ONLY: particle_list_type
   USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
   USE pw_types,                        ONLY: pw_type
@@ -148,6 +149,14 @@ CONTAINS
        IF (ionode) THEN
          WRITE(iunit,'(6E13.5)') (buf(I3),I3=L3,U3,my_stride(3))
        ENDIF
+
+       ! this double loop generates so many messages that it can overload 
+       ! the message passing system, e.g. on XT3
+       ! we therefore put a barrier here that limits the amount of message
+       ! that flies around at any given time.
+       ! if ever this routine becomes a bottleneck, we should go for a
+       ! more complicated rewrite
+       CALL mp_sync(gid)
 
       ENDDO
     ENDDO
