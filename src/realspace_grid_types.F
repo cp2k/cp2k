@@ -737,7 +737,7 @@ END SUBROUTINE init_input_type
     IF ( dir == rs2pw ) THEN
 
        ! safety check, to be removed once we're absolute sure the routine is correct
-       rs_sum=accurate_sum(rs%r)*det_3x3(rs%dh)
+       rs_sum=accurate_sum(rs%r)*abs(det_3x3(rs%dh))
        CALL mp_sum(rs_sum,rs%group)
 
        DO idir = 1,3
