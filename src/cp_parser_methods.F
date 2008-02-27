@@ -22,8 +22,9 @@ MODULE cp_parser_methods
                                              horizontal_tab,&
                                              max_line_length
   USE f77_blas
-  USE inpp_methods,                    ONLY: inpp_end_include,&
-                                             inpp_start_include
+  USE inpp_methods,                    ONLY: inpp_process_directive,&
+                                             inpp_end_include,&
+                                             inpp_expand_variables
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -639,7 +640,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=1)                         :: thischar
-    INTEGER                                  :: icol, iline, ind_at, istat
+    INTEGER                                  :: icol, iline, imark, istat
     LOGICAL                                  :: failure, non_white_found
 
     failure=.FALSE.
@@ -663,30 +664,32 @@ CONTAINS
           istat = 0
 
           DO WHILE (iline /= nline)
-             ! Increment the input line counter
+             ! Try to read the next line from file
              parser%input_line_number = parser%input_line_number + 1
-
-             ! Read next line from file
              READ (UNIT=parser%input_unit,FMT="(A)",IOSTAT=istat) parser%input_line
 
-             ! Pre-processing the line
-             ind_at = INDEX(parser%input_line,"@")
-             IF     (istat==0) THEN
-                IF (ind_at/=0) THEN
-                   CALL inpp_start_include(parser%inpp, parser, error)
+             ! Pre-processing steps:
+             ! 1. Expand variables 2. Process directives and read next line.
+             ! On read failure try to go back from included file to previous i/o-stream.
+             IF (istat==0) THEN
+                imark = INDEX(parser%input_line,"${")
+                IF (imark/=0) THEN
+                   CALL inpp_expand_variables(parser%inpp, parser, error)
+                END IF
+                imark = INDEX(parser%input_line,"@")
+                IF (imark/=0) THEN
+                   CALL inpp_process_directive(parser%inpp, parser, error)
                    CYCLE
                 END IF
-             ELSE IF (istat<0) THEN
+             ELSE IF (istat<0) THEN   ! handle EOF
                 IF (parser%inpp%io_stack_level > 0) THEN
-                   ! There's another file level to be explored..
+                   ! We were reading from an included file. Go back one level.
                    CALL inpp_end_include(parser%inpp, parser, error)
                    CYCLE
                 END IF
              END IF
 
-             iline = iline + 1
-
-             ! Handle read errors
+             ! Handle (persisting) read errors
              IF (istat /= 0) THEN
                 IF (istat<0) THEN ! EOF/EOR is negative other errors positive
                    CALL cp_assert(PRESENT(at_end),cp_failure_level,cp_assertion_failed,&
@@ -704,6 +707,8 @@ CONTAINS
                 RETURN
              END IF
 
+             ! Pre-processing and error checking done. Ready for parsing.
+             iline = iline + 1
              non_white_found=.FALSE.
              DO icol=1,LEN(parser%input_line)
                 thischar=parser%input_line(icol:icol)

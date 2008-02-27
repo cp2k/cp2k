@@ -24,11 +24,39 @@
   <body>
    <h1 align="center">CP2K input description</h1>
    <h2>Version information</h2>
+   <p>
     This HTML manual was generated automatically from a CP2K executable
     compiled on <xsl:value-of select="COMPILE_DATE"/> using the
     --xml command line option. Thus the manual describes exactly this
     version of the code. The latest CVS log file entry found was
-    <xsl:value-of select="COMPILE_LASTCVS"/>.
+   <xsl:value-of select="COMPILE_LASTCVS"/>.</p>
+
+   <h2>Internal Input Preprocessor</h2>
+   <p>Before the input is parsed, the input is run through a simple internal preprocessor.
+   The preprocessor recognizes the following directives independent of capitalization:</p>
+   <dl>
+     <dt><b>@INCLUDE 'filename.inc'</b></dt>
+     <DD>The file referenced by <i>filename.inc</i> is included into the input file and parsed.
+     Recursive inclusions are not allowed and the files have to exist in the current working 
+     directory. There can be only one @INCLUDE statement per line. Single or double quotes 
+     have to be used if the filename contains blanks.</DD> 
+     <DT><b>@SET VAR value</b></DT>
+     <DD>Assigns the text <i>value</i> to the preprocessing variable <i>VAR</i>. <i>value</i>
+     is the text following <i>VAR</i> with the outer whitespace removed. The variable can be
+     recalled with a <i>${VAR}</i> statement. There can be only one @SET statement per line.</DD>
+     <DT><b>${VAR}</b></DT>
+     <DD>Expand the variable <i>VAR</i>. The text <i>${VAR}</i> is replaced with the value assigned 
+     to <i>VAR</i> in the last @SET directive. There can be multiple variable statements
+     per line. The expansion process is repeated until no more variables are found.</DD>
+     <DT><B>@IF / @ENDIF</B></DT>
+     <DD>Conditional block. The text from the @IF line up to the next line with a valid "
+     @ENDIF is skipped, if the expression following @IF resolves to <I>false</I>. 
+     Available expressions are lexical comparisons for equality '==' or inequality '/='.
+     If none of the two operators are found, a '0' or whitespace resolves to <I>false</I>
+     while any text resolves to <I>true</I> @IF/@ENDIF blocks cannot be nested and
+     cannot span across files. There can be only one test (== or /=) per @IF statement.</DD>
+   </dl>
+
    <h2>Input structure</h2>
     All sections and keywords that can be part of a CP2K input file are shown
     with their allowed nestings. Click on <img src="p.gif" alt="expand"/> to

@@ -1,0 +1,64 @@
+! -*- cp2k -*-
+ @SET VAL 4.0
+ @SET inc empty
+ @SET new blank
+ @SET	    X !  y
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    LSD
+    &MGRID
+      CUTOFF 140
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-8
+    &END QS
+    @PRINT VAL == ${VAL} /= ${inc} /= ${new}
+@  ! ignored
+    @INCLUDE "${new}.inc"
+    @INCLUDE '${inc}.inc'
+    @INCLUDE "scf_param.inc"
+@IF ${inc} == empty
+@set DFT PADE
+@endif
+@IF ${inc} /= empty
+@set DFT BLYP
+@ENDIF
+    &XC
+      &XC_FUNCTIONAL ${DFT}
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+@SET 2VAL 8.0 ${VAL}
+@IF ${2VAL}
+@SET VAL 6.0
+@ENDIF
+@IF 1 /= 0
+@SET VAL 6.0
+@ENDIF
+@if 0
+@SET VAL 4.0
+@ENDIF
+   @if 
+   XXXXXXX
+   @ENDIF
+    &CELL
+      ABC ${2VAL} ${VAL} 
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+    H     0.000000  0.000000  0.000000
+    H     1.000000  0.000000  0.000000
+    &END COORD
+    &KIND H
+      BASIS_SET DZV-GTH-${DFT}
+      POTENTIAL GTH-${DFT}-q1
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+
+  PRINT_LEVEL MEDIUM
+&END GLOBAL

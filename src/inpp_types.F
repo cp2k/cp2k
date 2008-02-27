@@ -6,24 +6,38 @@
 ! *****************************************************************************
 !> \brief a module to allow simple internal preprocessing in input files.
 !> \par History
-!>      - standalone proof-of-concept implemenation (20.02.2008,AK)
-!> \author AK
+!>      - standalone proof-of-concept implementation (20.02.2008,AK)
+!>      - integration into cp2k (22.02.2008,tlaino)
+!>      - variables added (25.02.2008,AK)
+!> \author Axel Kohlmeyer [AK] - CMM/UPenn Philadelphia
+!> \date 25.02.2008
 ! *****************************************************************************
 MODULE inpp_types
 
-  USE kinds,                           ONLY: default_path_length
+  USE kinds,                           ONLY: default_path_length, &
+                                             default_string_length
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   TYPE inpp_type
-     ! current stack pointer
+     ! for '@INCLUDE "some_file.inc"'
+     ! currently open include file stack pointer
      INTEGER                              :: io_stack_level
+     ! include file stack data
      INTEGER, POINTER, DIMENSION(:)       :: io_stack_channel,&
                                              io_stack_lineno
      CHARACTER (len=default_path_length),&
         POINTER, DIMENSION(:)             :: io_stack_filename
+     ! for '@SET VAR value' and '${VAR}'
+     ! table size
+     INTEGER                              :: num_variables
+     ! table entries
+     CHARACTER (len=default_path_length), &
+          POINTER, DIMENSION(:)       :: variable_name
+     CHARACTER (len=default_path_length), &
+          POINTER, DIMENSION(:)       :: variable_value
   END TYPE inpp_type
 
   PUBLIC :: inpp_type, create_inpp_type, release_inpp_type
@@ -50,10 +64,15 @@ CONTAINS
     CPPostcondition(.NOT.ASSOCIATED(inpp),cp_failure_level,routineP,error,failure)
     ALLOCATE(inpp, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     inpp%io_stack_level = 0
     NULLIFY(inpp%io_stack_channel,&
             inpp%io_stack_lineno,&
             inpp%io_stack_filename)
+
+    inpp%num_variables =0
+    NULLIFY(inpp%variable_name,&
+            inpp%variable_value)
 
   END SUBROUTINE create_inpp_type
 
@@ -74,6 +93,7 @@ CONTAINS
 
     failure = .FALSE.
     CPPostcondition(ASSOCIATED(inpp),cp_failure_level,routineP,error,failure)
+
     IF (ASSOCIATED(inpp%io_stack_channel)) THEN
        DEALLOCATE(inpp%io_stack_channel,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -86,6 +106,16 @@ CONTAINS
        DEALLOCATE(inpp%io_stack_filename,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+
+    IF (ASSOCIATED(inpp%variable_name)) THEN
+       DEALLOCATE(inpp%variable_name,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (ASSOCIATED(inpp%variable_value)) THEN
+       DEALLOCATE(inpp%variable_value,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
     DEALLOCATE(inpp, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE release_inpp_type

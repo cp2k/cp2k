@@ -37,7 +37,8 @@ MODULE string_utilities
             backslash,&
             star,&
             question,&
-            remove_word
+            remove_word,&
+            is_whitespace
 
   INTERFACE s2a
     MODULE PROCEDURE s2a_1,s2a_2,s2a_3,s2a_4,s2a_5,s2a_6, s2a_7,s2a_8,s2a_9, &
@@ -735,5 +736,21 @@ FUNCTION str_search(str1,n,str2) RESULT (pos)
      END IF
   END DO
 END FUNCTION str_search
+
+! *****************************************************************************
+!> \brief returns .true. if the character passed is a whitespace char.
+!> \par History
+!>      02.2008 created, AK
+! *****************************************************************************
+FUNCTION is_whitespace(testchar) RESULT(resval)
+  CHARACTER(LEN=1), INTENT(IN)             :: testchar
+  LOGICAL                                  :: resval
+
+  resval=.FALSE.
+  IF((testchar == ' ') .OR. (testchar == char(9))) THEN
+     resval=.TRUE.
+  END IF
+  RETURN
+END FUNCTION is_whitespace
 
 END MODULE string_utilities
