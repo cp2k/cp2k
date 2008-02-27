@@ -696,7 +696,7 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="MULTIPLE_SUBSYS",&
-         description="Specify if force_eval have different subsys. In case hey share the same subsys,"//&
+         description="Specify if force_eval have different subsys. In case they share the same subsys,"//&
          " it needs to be specified only in the MIXED force_eval (if using MIXED) or"//&
          " in the force_eval corresponding to first force_eval of the previous order (when not using MIXED).",&
          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., supported_feature=.TRUE., error=error)
