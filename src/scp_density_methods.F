@@ -87,7 +87,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_rhoscp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, stat
+    INTEGER                                  :: handle, i, stat, output_unit
     LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: t1
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -169,7 +169,7 @@ CONTAINS
 
     INTEGER :: handle, i, iatom, igrid_level, ikind, iparticle_local, ipgf, &
       iset, istat, maxco, na1, na2, natom, ncoa, nkind, nparticle_local, &
-      nseta, offset, sgfa, stat
+      nseta, offset, sgfa, stat, ii, jj
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     REAL(KIND=dp)                            :: dab, my_eps_rho_rspace, rab2, &
@@ -232,8 +232,11 @@ CONTAINS
                              
     ALLOCATE (pab(maxco,1),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"pab",maxco*1*dp_size)
+    pab = 0.0_dp
+
     ALLOCATE (work(maxco,1),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"work",maxco*1*dp_size)
+    work = 0.0_dp
 
     DO ikind=1,nkind
 
@@ -464,9 +467,11 @@ CONTAINS
 
     ALLOCATE (pab(maxco,1),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"pab",maxco*dp_size)
+    pab=0.0_dp
 
     ALLOCATE (work(maxco,1),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"work",maxco*dp_size)
+    work=0.0_dp
 
     offset = 0
 
