@@ -8,7 +8,6 @@
 ! *****************************************************************************
 MODULE qs_ks_scp_methods
   USE cell_types,                      ONLY: cell_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -147,6 +146,7 @@ CONTAINS
     energy % e_scp_qmmm = pw_integral_ab ( rhop_r%pw, v_qmmm%pw )
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE scp_calculate_qmmm_energy
+
 ! *****************************************************************************
   SUBROUTINE scp_calculate_gpw_energy(scp_env, v, error)
     TYPE(scp_environment_type), POINTER      :: scp_env
@@ -263,11 +263,9 @@ SUBROUTINE qs_ks_scp_update ( qs_env, just_energy, error )
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_scp_update', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, stat, output_unit
-    LOGICAL                                  :: energy_only, failure, ionode
+    INTEGER                                  :: handle, i, stat
+    LOGICAL                                  :: energy_only, failure
     REAL(KIND=dp)                            :: t1
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), POINTER                 :: rhop_g, vhscp_gspace
     TYPE(pw_poisson_type), POINTER           :: poisson_env
@@ -287,10 +285,6 @@ SUBROUTINE qs_ks_scp_update ( qs_env, just_energy, error )
   NULLIFY(poisson_env,auxbas_pw_pool)
   NULLIFY(pw_env, rspw)
   NULLIFY(ks_scp_env)
-  para_env=>qs_env%para_env
-  logger => cp_error_get_logger(error)
-  ionode=para_env%ionode
-  output_unit=cp_logger_get_default_unit_nr(logger)
   stat = 0
   t1 = m_walltime()
 

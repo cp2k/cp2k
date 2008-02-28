@@ -87,13 +87,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_rhoscp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, stat, output_unit
+    INTEGER                                  :: handle, i, stat
     LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: t1
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_p_type), POINTER         :: rs_pools( : )
     TYPE(cube_info_type), DIMENSION(:), &
@@ -114,8 +113,6 @@ CONTAINS
     NULLIFY(cube_info, rs_pools, pw_env, rspw, local_particles)
     NULLIFY(particle_set, cell, dft_control)
 
-    logger => cp_error_get_logger(error)
-    output_unit=cp_logger_get_default_unit_nr(logger)
     stat = 0
     t1 = m_walltime()
 
@@ -188,8 +185,6 @@ CONTAINS
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
     TYPE(scp_rho_type), POINTER              :: rho_scp
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset('collocate_scp_density','I',' ',handle)
 
@@ -359,8 +354,6 @@ CONTAINS
                                         particle_set, local_particles, cell,  &
                                         eps_gvg_rspace, calculate_forces, just_energy, debug, error )
 
-!   ***  Arguments   ***
-
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(pw_p_type)                          :: v_rspace
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -408,8 +401,6 @@ CONTAINS
     TYPE(scp_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(section_vals_type), POINTER         :: dft_section, interp_section
-
-!--------------------------------------------------------------------------
 
     CALL timeset(routineN,"I"," ",handle)
     NULLIFY(aux_basis_set,aux_coeff_set)
@@ -554,7 +545,7 @@ CONTAINS
                         error=error)
 
            END DO
-! in work are stored the eigenforces (i.e. forces on coefficients)
+           ! in work are stored the eigenforces (i.e. forces on coefficients)
            IF ( .NOT. energy_only ) THEN
              CALL dgemm("T","N",nsgfa(iset),1,ncoa,&
                             1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
@@ -571,7 +562,7 @@ CONTAINS
            offset=offset+nsgfa(iset)
 
         END DO
-!   *** Update forces ***
+        !   *** Update forces ***
 
         IF(my_calculate_forces) THEN
           atom_a=atom_of_kind(iatom)
@@ -584,7 +575,7 @@ CONTAINS
 
     CALL rs_pools_give_back_rs_vect(rs_pools, rs_v,error=error)
 
-!   *** Release work storage ***
+    !   *** Release work storage ***
 
     DEALLOCATE (hab,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"hab")

@@ -82,12 +82,12 @@ CONTAINS
       ldhab2, ldintab1, ldintab2, m1, m2, maxco, maxco_global, maxco_scp, &
       maxlgto, maxsgf_set, n1, n2, nco1, nco2, nco_scp, ncotot, ncotot_scp, &
       nkind, nn1, nn2, nparticle_local, ns1, ns2, nset, nset_scp, nsgf, &
-      nsgf_scp, nspins, nz1, nz2, offset, output_unit, sgf_scp
+      nsgf_scp, nspins, nz1, nz2, offset, sgf_scp
     INTEGER, DIMENSION(:), POINTER           :: l_max, l_min, lscp_max, &
                                                 lscp_min, npgf, npgf_scp, &
                                                 nsgf_scp_set, nsgf_set
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, first_sgf_scp
-    LOGICAL                                  :: ionode, my_debug
+    LOGICAL                                  :: my_debug
     REAL(dp)                                 :: e_hartree_1c, fac, rpgfc, &
                                                 trace, zetc
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ff
@@ -102,7 +102,6 @@ CONTAINS
                                                 atomic_kind_set( : )
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
     TYPE(aux_coeff_type), POINTER            :: local_coeffs
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(gto_basis_set_type), POINTER        :: aux_basis, orb_basis
@@ -110,12 +109,6 @@ CONTAINS
       POINTER                                :: diagmat_ks, diagmat_p
     TYPE(scp_energy_type), POINTER           :: energy
     TYPE(scp_environment_type), POINTER      :: scp_env
-
-!   ---------------------------------------------------------------------------
-
-    logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
 
     NULLIFY(atomic_kind_set, local_particles, aux_basis, aux_coeff_set)
     NULLIFY( para_env, scp_env, local_coeffs, energy, diagmat_ks, diagmat_p )
