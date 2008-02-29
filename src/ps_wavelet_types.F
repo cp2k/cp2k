@@ -264,9 +264,7 @@ CONTAINS
        m2= pw_grid % npts ( 3 )
        lb(:)=pw_grid % bounds_local ( 1, : )
        ub(:)=pw_grid % bounds_local ( 2, : )
-       z_lb=1+iproc*(md2/nproc)
-       z_ub=1+MIN((iproc+1)*md2/nproc,m2)
-        local_z_dim=(md2/nproc)
+       local_z_dim=MAX((md2/nproc),1)
 
        ALLOCATE(sbuf(PRODUCT(pw_grid % npts_local)),stat=ierr)
        ALLOCATE(rbuf(PRODUCT(wavelet%PS_grid)/nproc))
@@ -290,11 +288,11 @@ CONTAINS
           IF(ub(2)==pw_grid%bounds(2,2))max_val_up=MAXVAL(ABS(density % cr3d(:,ub(2),:)))
           CALL cp_assert((max_val_low.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
                "Density hits the lower boundary of the system in XZ-plane"//&
-CPSourceFileRef,&
+               CPSourceFileRef,&
                only_ionode=.TRUE.)
           CALL cp_assert((max_val_up.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
                "Density hits the upper boundary of the system in XZ-plane"//&
-CPSourceFileRef,&
+               CPSourceFileRef,&
                only_ionode=.TRUE.)
           IF(wavelet%geocode=='F')THEN
              max_val_low=0._dp
@@ -303,11 +301,11 @@ CPSourceFileRef,&
              IF(ub(1)==pw_grid%bounds(2,1))max_val_up=MAXVAL(ABS(density % cr3d(ub(1),:,:)))
              CALL cp_assert((max_val_low.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
                   "Density hits the lower boundary of the system in YZ-plane"//&
-CPSourceFileRef,&
+                  CPSourceFileRef,&
                   only_ionode=.TRUE.)
              CALL cp_assert((max_val_up.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
                   "Density hits the upper boundary of the system in YZ-plane"//&
-CPSourceFileRef,&
+                  CPSourceFileRef,&
                   only_ionode=.TRUE.)
              max_val_low=0._dp
              max_val_up=0._dp
@@ -315,11 +313,11 @@ CPSourceFileRef,&
              IF(ub(3)==pw_grid%bounds(2,3))max_val_up=MAXVAL(ABS(density % cr3d(:,:,ub(3))))
              CALL cp_assert((max_val_low.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
                   "Density hits the lower boundary of the system in XY-plane"//&
-CPSourceFileRef,&
+                  CPSourceFileRef,&
                   only_ionode=.TRUE.)
              CALL cp_assert((max_val_up.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
                   "Density hits the upper boundary of the system in XY-plane"//&
-CPSourceFileRef,&
+                  CPSourceFileRef,&
                   only_ionode=.TRUE.)
           END IF
        END IF
@@ -331,21 +329,29 @@ CPSourceFileRef,&
                                  cart_pos, &
                                  dest )
              IF((ub(1).GE.lb(1)).AND.(ub(2).GE.lb(2)))THEN
-                IF((dest+1)*local_z_dim.LE.m2)THEN
-                   scount(dest+1)=ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*local_z_dim)
+                IF(dest*local_z_dim.LE.m2)THEN
+                   IF((dest+1)*local_z_dim.LE.m2)THEN
+                      scount(dest+1)=ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*local_z_dim)
+                   ELSE
+                      scount(dest+1)=ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*MOD(m2,local_z_dim))
+                   END IF
                 ELSE
-                   scount(dest+1)=ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*MOD(m2,local_z_dim))
-               END IF
+                   scount(dest+1)=0  
+                END IF
              ELSE
                 scount(dest+1)=0
              END IF
              lox = get_limit ( pw_grid % npts ( 1 ), pw_grid % para % rs_dims ( 1 ), i )
              loy = get_limit ( pw_grid % npts ( 2 ), pw_grid % para % rs_dims ( 2 ), j )
              IF((lox(2).GE.lox(1)).AND.(loy(2).GE.loy(1)))THEN
-                IF((iproc+1)*local_z_dim.LE.m2)THEN
-                   rcount(dest+1)=ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*local_z_dim)
+                IF(iproc*local_z_dim.LE.m2)THEN
+                   IF((iproc+1)*local_z_dim.LE.m2)THEN
+                      rcount(dest+1)=ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*local_z_dim)
+                   ELSE
+                      rcount(dest+1)=ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*MOD(m2,local_z_dim))
+                   END IF
                 ELSE
-                   rcount(dest+1)=ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*MOD(m2,local_z_dim))
+                   rcount(dest+1)=0
                 END IF
              ELSE           
                 rcount(dest+1)=0
@@ -374,23 +380,22 @@ CPSourceFileRef,&
                                  
              lox = get_limit ( pw_grid % npts ( 1 ), pw_grid % para % rs_dims ( 1 ), i )
              loy = get_limit ( pw_grid % npts ( 2 ), pw_grid % para % rs_dims ( 2 ), j )
-             IF(iproc*local_z_dim.LT.m2)THEN
-             IF((iproc+1)*local_z_dim.LE.m2)THEN
-                loz=local_z_dim
-             ELSE
-                loz=MOD(m2,local_z_dim)
-             END IF
-             ii=1
-             DO k=1,loz
-                DO l = loy(1),loy(2)
-                   DO m = lox(1),lox(2)                      
-                      wavelet%rho_z_sliced(m,l,k)=rbuf(ii+rdispl(dest+1))
-                      ii=ii+1
+             IF(iproc*local_z_dim.LE.m2)THEN
+                IF((iproc+1)*local_z_dim.LE.m2)THEN
+                   loz=local_z_dim
+                ELSE
+                   loz=MOD(m2,local_z_dim)
+                END IF
+                ii=1
+                DO k=1,loz
+                   DO l = loy(1),loy(2)
+                      DO m = lox(1),lox(2)                      
+                         wavelet%rho_z_sliced(m,l,k)=rbuf(ii+rdispl(dest+1))
+                         ii=ii+1
+                      END DO
                    END DO
- 
                 END DO
-              END DO
-              END IF
+             END IF
           END DO
        END DO
 
@@ -435,21 +440,23 @@ CPSourceFileRef,&
        lb(:)=pw_grid % bounds_local ( 1, : )
        ub(:)=pw_grid % bounds_local ( 2, : )
        
-       z_lb=iproc*(md2/nproc)
-       z_ub=MIN((iproc+1)*md2/nproc,m2)
-       local_z_dim=(md2/nproc)
+       local_z_dim=MAX((md2/nproc),1)
 
-          ALLOCATE(rbuf(PRODUCT(pw_grid % npts_local)),stat=ierr)
+       ALLOCATE(rbuf(PRODUCT(pw_grid % npts_local)),stat=ierr)
        ALLOCATE(sbuf(PRODUCT(wavelet%PS_grid)/nproc))
        ALLOCATE(scount(nproc),sdispl(nproc),rcount(nproc),rdispl(nproc),tmp(nproc))
-
+       scount=0
+       rcount=0
        rbuf=0.0_dp
        ii=1
-
-       IF((iproc+1)*local_z_dim.LE.m2)THEN
-          loz=local_z_dim
+       IF(iproc*local_z_dim.LE.m2)THEN
+          IF((iproc+1)*local_z_dim.LE.m2)THEN
+             loz=local_z_dim
+          ELSE
+             loz=MOD(m2,local_z_dim)
+          END IF
        ELSE
-          loz=MOD(m2,local_z_dim)
+          loz=0
        END IF
 
        DO i=1, pw_grid % npts ( 1 )
@@ -468,10 +475,14 @@ CPSourceFileRef,&
                                  cart_pos, &
                                  dest )
              IF((ub(1).GE.lb(1)).AND.(ub(2).GE.lb(2)))THEN
-                IF((dest+1)*local_z_dim.LE.m2)THEN
-                   rcount(dest+1)=ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*local_z_dim)
+                IF(dest*local_z_dim.LE.m2)THEN                
+                   IF((dest+1)*local_z_dim.LE.m2)THEN
+                      rcount(dest+1)=ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*local_z_dim)
+                   ELSE
+                      rcount(dest+1)=ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*MOD(m2,local_z_dim))
+                   END IF
                 ELSE
-                   rcount(dest+1)=ABS((ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)*MOD(m2,local_z_dim))
+                   rcount(dest+1)=0
                 END IF
              ELSE
                 rcount(dest+1)=0
@@ -479,11 +490,7 @@ CPSourceFileRef,&
              lox = get_limit ( pw_grid % npts ( 1 ), pw_grid % para % rs_dims ( 1 ), i )
              loy = get_limit ( pw_grid % npts ( 2 ) , pw_grid % para % rs_dims ( 2 ), j )
              IF((lox(2).GE.lox(1)).AND.(loy(2).GE.loy(1)))THEN             
-                IF((iproc+1)*local_z_dim.LE.m2)THEN
-                   scount(dest+1)=ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*local_z_dim)
-                ELSE
-                   scount(dest+1)=ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*MOD(m2,local_z_dim))
-                END IF
+                scount(dest+1)=ABS((lox(2)-lox(1)+1)*(loy(2)-loy(1)+1)*loz)
              ELSE           
                 scount(dest+1)=0
              END IF 
@@ -496,7 +503,6 @@ CPSourceFileRef,&
           sdispl(i)=sdispl(i-1)+scount(i-1)
           rdispl(i)=rdispl(i-1)+rcount(i-1)
        END DO
-
        CALL mp_alltoall(sbuf,scount,sdispl,rbuf,rcount,rdispl,pw_grid % para % rs_group)
 
        !!!! and now, how to put the right cubes to the right position!!!!!!
@@ -507,21 +513,23 @@ CPSourceFileRef,&
              CALL mp_cart_rank ( pw_grid % para % rs_group, &
                                  cart_pos, &
                                  dest )
-             IF((dest+1)*local_z_dim.LE.m2)THEN
-                loz=local_z_dim
-             ELSE
-                loz=MOD(m2,local_z_dim)
-             END IF
-             ii=1
-             IF(lb(3)+(dest*local_z_dim).LT.ub(3))THEN
-                DO m = lb(1),ub(1)
-                   DO l = lb(2),ub(2)
-                      DO k= lb(3)+(dest*local_z_dim),lb(3)+(dest*local_z_dim)+loz-1
-                         density%cr3d(m,l,k)=rbuf(ii+rdispl(dest+1))
-                         ii=ii+1
+             IF(dest*local_z_dim.LE.m2)THEN
+                IF((dest+1)*local_z_dim.LE.m2)THEN
+                   loz=local_z_dim
+                ELSE
+                   loz=MOD(m2,local_z_dim)
+                END IF
+                ii=1
+                IF(lb(3)+(dest*local_z_dim).LE.ub(3))THEN
+                   DO m = lb(1),ub(1)
+                      DO l = lb(2),ub(2)
+                         DO k= lb(3)+(dest*local_z_dim),lb(3)+(dest*local_z_dim)+loz-1
+                            density%cr3d(m,l,k)=rbuf(ii+rdispl(dest+1))
+                            ii=ii+1
+                         END DO
                       END DO
                    END DO
-                END DO
+                END IF
              END IF
           END DO
        END DO

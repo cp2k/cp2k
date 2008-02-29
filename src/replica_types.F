@@ -240,8 +240,8 @@ CONTAINS
        input_file_path(lp+1:LEN(input_file_path))="-r-"//&
             ADJUSTL(cp_to_string(cart%mepos(2)))
        lp=LEN_TRIM(input_file_path)
-       !     CALL section_vals_val_set(input,"GLOBAL%PROJECT_NAME",&
-       !          c_val=input_file_path,error=error) !needed, or using a differen iteration is enough?
+            CALL section_vals_val_set(input,"GLOBAL%PROJECT_NAME",&
+                 c_val=input_file_path,error=error) !needed, or using a differen iteration is enough?
        output_file_path=input_file_path(1:lp)//".out"
        input_file_path(lp+1:LEN(input_file_path))=".inp"
        CALL section_vals_val_set(input,"GLOBAL%OUTPUT_FILE_NAME",&
