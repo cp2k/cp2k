@@ -15,7 +15,6 @@
 !>          EXTRAPOLATION USE_GUESS in QS section (Teo 08.2006)
 !> \author Florian Schiffmann 08.2006
 ! *****************************************************************************
-
 MODULE mode_selective
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cp_files,                        ONLY: close_file,&
@@ -49,12 +48,7 @@ MODULE mode_selective
 
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mode_selective'
-  REAL(KIND=dp), PARAMETER, PRIVATE    :: thrs = 100.0_dp*EPSILON(0.0_dp)
   LOGICAL, PARAMETER                   :: debug_this_module=.FALSE.
-
-
-
-
 
   TYPE ms_vib_type
      INTEGER                                  :: mat_size
@@ -114,10 +108,6 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
-
-
-
-
     converged=.FALSE.
     natoms=SIZE(particles)
     ncoord=3*natoms
@@ -222,10 +212,7 @@ CONTAINS
           DEALLOCATE(tmp_deriv,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-
     END DO
-
-
     DEALLOCATE(ms_vib%ms_force, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(pos0, stat=stat)
@@ -445,11 +432,9 @@ CONTAINS
   END SUBROUTINE MS_initial_moves
 
 
-  ! *****************************************************************************
-  !> \author Florian Schiffmann 11.2007
-  ! *****************************************************************************  
-
-
+! *****************************************************************************
+!> \author Florian Schiffmann 11.2007
+! *****************************************************************************  
   SUBROUTINE bfgs_guess(ms_vib_section,ms_vib,ionode,particles,mass,para_env,nrep,error)
 
     TYPE(section_vals_type), POINTER         :: ms_vib_section
@@ -564,10 +549,9 @@ CONTAINS
   END SUBROUTINE bfgs_guess
 
 
-  ! *****************************************************************************
-  !> \author Florian Schiffmann 11.2007
-  ! ***************************************************************************** 
-
+! *****************************************************************************
+!> \author Florian Schiffmann 11.2007
+! ***************************************************************************** 
   SUBROUTINE rest_guess(ms_vib_section,para_env,ms_vib,mass,ionode,particles,nrep,calc_intens,error)
 
     TYPE(section_vals_type), POINTER         :: ms_vib_section
@@ -685,12 +669,10 @@ CONTAINS
 
   END SUBROUTINE rest_guess
 
-  ! *****************************************************************************
-  !> \author Florian Schiffmann 11.2007
-  ! ***************************************************************************** 
-  
+! *****************************************************************************
+!> \author Florian Schiffmann 11.2007
+! ***************************************************************************** 
   SUBROUTINE molden_guess(ms_vib_section,input,para_env,ms_vib,mass,ionode,ncoord,nrep,error)
-
     TYPE(section_vals_type), POINTER         :: ms_vib_section, input
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(ms_vib_type)                        :: ms_vib
@@ -786,6 +768,7 @@ CONTAINS
        !!!!!!!    select modes     !!!!!!
        ALLOCATE(tmp(nvibs),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       tmp = 0.0_dp
        ALLOCATE(tmplist(nvibs),stat=stat)       
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        IF(ms_vib%select_id==1) my_val=ms_vib%sel_freq
@@ -831,11 +814,11 @@ CONTAINS
     IF(ms_filename=="")CALL cp_print_key_finished_output(output_molden,logger,input,"VIBRATIONAL_ANALYSIS%MOLDEN_VIB",error=error)
   END SUBROUTINE molden_guess
 
-  ! *****************************************************************************
-  !> \brief Davidson algorithm for to generate a approximate Hessian for mode
-  !>      selective vibrational analysis
-  !> \author Florian Schiffmann 11.2007
-  ! *****************************************************************************
+! *****************************************************************************
+!> \brief Davidson algorithm for to generate a approximate Hessian for mode
+!>      selective vibrational analysis
+!> \author Florian Schiffmann 11.2007
+! *****************************************************************************
   SUBROUTINE  evaluate_H_update_b(rep_env,ms_vib,input,nrep,&
                                   particles,&
                                   mass, &
@@ -1040,7 +1023,6 @@ CONTAINS
 !> \brief writes the output for a mode tracking calculation
 !> \author Florian Schiffmann 11.2007
 ! *****************************************************************************
-
   SUBROUTINE select_vector(ms_vib,nrep,mass,ncoord,approx_H,eigenval,ind,residuum,criteria,error)
     
     TYPE(ms_vib_type)                        :: ms_vib
@@ -1159,15 +1141,11 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE select_vector
 
-
-
-
 ! *****************************************************************************
 !> \brief writes the output for a mode tracking calculation
 !> \author Florian Schiffmann 11.2007
 ! *****************************************************************************
-  SUBROUTINE ms_out(iw,converged,freq,criter ,ms_vib,&
-                    nrep,approx_H,eigenval,calc_intens,intensities,error)
+  SUBROUTINE ms_out(iw,converged,freq,criter ,ms_vib, nrep,approx_H,eigenval,calc_intens,intensities,error)
     INTEGER                                  :: iw
     LOGICAL                                  :: converged
     REAL(KIND=dp), DIMENSION(:)              :: freq
