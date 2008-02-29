@@ -16,9 +16,11 @@ He2_none_full_all.inp 1
 He2_none_full_single.inp 1
 He2_none_full_inverse.inp 1
 He2_lumos.inp 0
-# check that ot / geo / mo can be used together
+# check that ot / geo / mo / pdos can be used together
 H2O-geo-ot-evals.inp 1
 H2O-geo-ot-mols.inp 1
+H2O-geo-ot-pdos.inp  1
+H2O-geo-pdos.inp  1
 # sic ddapc decoupled
 C2H4-init.inp      1
 sic_ddapc_rt.inp   1
