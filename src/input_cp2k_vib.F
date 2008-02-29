@@ -162,7 +162,15 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ATOMS",&
-            description="Specifies the list of atoms which should be mainly involved in the selected frequency",&
+            description="Specifies the list of atoms which should be displaced for the Initial guess",&
+            usage="ATOMS {integer} {integer} .. {integer}", required=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="INVOLVED_ATOMS",&
+            description="Specifies the list of atoms on which the tracked eigenvector should have the highest value "//&
+            "similar to looking for the vibration of a set of atoms",&
             usage="ATOMS {integer} {integer} .. {integer}", required=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -188,26 +196,25 @@ CONTAINS
             description="The type of initial guess for the normal modes",&
             usage="INITIAL_GUESS BFGS_HESS",&
             default_i_val=ms_guess_atomic,&
-            enum_c_vals=s2a("BFGS_HESS", "ATOMIC", "RESTART"),&
+            enum_c_vals=s2a("BFGS_HESS", "ATOMIC", "RESTART","RESTART_VEC","MOLDEN_RESTART"),&
             enum_desc=s2a("get the first displacement vector out of the BFGS approximate Hessian", &
                           "use random displacements for a set of atoms specified",&
-                          "use data from MS_RESTART as initial guess"),&
-            enum_i_vals=(/ms_guess_bfgs,ms_guess_atomic,ms_guess_restart/),&
+                          "use data from MS_RESTART as initial guess",&
+                          "use a vector from MS_RESTART, useful if you want to increase accurcy by changing functionals or basis",&
+                          "use the .mol file of a former run, to restart a vector"//&
+                          "(similar to Restart_vec, but a different file FORMAT is used)"),&
+            enum_i_vals=(/ms_guess_bfgs,ms_guess_atomic,ms_guess_restart,ms_guess_restart_vec,ms_guess_molden/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="PRECONDITIONER",&
-            description="The preconditioner for the davidson algorithm (do not use yet they have to improve first )",&
-            usage="PRECONDITIONER NONE",&
-            default_i_val=no_ms_precond,&
-            enum_c_vals=s2a("NONE","BFGS"),&
-            enum_desc=s2a("no preconditioner to be applied", &
-                          "BFGS approximate Hessian used for preconditioning"),&
-            enum_i_vals=(/no_ms_precond,bfgs_ms_precond/),&
-            error=error)
+       CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
+            description="Specifies the name of the file used to create the restarted vectors",&
+            usage="RESTART_FILE_NAME {filename}",&
+            default_lc_val="",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
 
     END IF
   END SUBROUTINE create_mode_selective_section

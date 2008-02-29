@@ -617,8 +617,8 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: ms_guess_bfgs=1, &
                                 ms_guess_atomic=2, &
                                 ms_guess_restart=3,&
-                                no_ms_precond=4, &
-                                bfgs_ms_precond=5     
+                                ms_guess_restart_vec=4,&
+                                ms_guess_molden=5
 
   ! FFT library
   ! these might need sync with fft_lib.F
