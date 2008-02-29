@@ -160,6 +160,7 @@ CONTAINS
 
     CALL cp_fm_release(matrix_work,error=error)
     CALL cp_fm_release(matrix_shalf,error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
     ! Array to store the PDOS per kind and angular momentum
     ALLOCATE(pdos_array(0:maxlgto,nkind,mo_set%nmo),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
