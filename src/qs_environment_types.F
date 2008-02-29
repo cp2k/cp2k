@@ -1367,8 +1367,6 @@ END SUBROUTINE qs_env_release
 !> \brief reorthogonalizes the mos
 !> \param qs_env the qs_env in which to orthogonalize
 !> \param v the vectors to orthogonalize
-!> \param ispin the spin of the vector to orthogonalize (unused at the
-!>        moment)
 !> \param n_col number of column of v to orthogonalize
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -1376,11 +1374,10 @@ END SUBROUTINE qs_env_release
 !>      04.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
+SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, n_col,&
      error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_type), POINTER                :: v_matrix
-    INTEGER, INTENT(in)                      :: ispin
     INTEGER, INTENT(in), OPTIONAL            :: n_col
     TYPE(cp_error_type), INTENT(inout)       :: error
 

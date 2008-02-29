@@ -26,8 +26,6 @@ MODULE kg_gpw_wf_history
   USE kinds,                           ONLY: dp
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
                                              real_matrix_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

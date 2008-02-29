@@ -394,7 +394,7 @@ CONTAINS
                 IP_energy = eigenvalues(dft_control% xas_estate)
 
                 CALL set_mo_set(mos(1)%mo_set,&
-                     uniform_occupation=uniform_occupation)
+                     uniform_occupation=uniform_occupation,error=error)
                 CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,dft_control%xas_estate,&
                      nao,1,transpose=.TRUE.,error=error)
                 CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer,1,1,&
@@ -609,7 +609,7 @@ CONTAINS
     END IF
 
     CALL set_mo_set(mo_set,homo=homo,lfomo=lfomo,&
-         uniform_occupation=.FALSE.)
+         uniform_occupation=.FALSE.,error=error)
 
   END SUBROUTINE xas_smearing
 
@@ -898,7 +898,7 @@ CONTAINS
        CALL get_mo_set(mos(1)%mo_set,nelectron=nelectron)
        homo = nelectron - 1
 
-       CALL set_mo_set(mos(1)%mo_set,homo=homo)
+       CALL set_mo_set(mos(1)%mo_set,homo=homo,error=error)
 
        NULLIFY(scf_env)
        CALL get_qs_env(qs_env,scf_env=scf_env,error=error)

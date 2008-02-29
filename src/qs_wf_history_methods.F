@@ -886,7 +886,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
              CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,&
                   nmo=nmo)
              CALL qs_env_reorthogonalize_vectors(qs_env,&
-                  v_matrix=mo_coeff,ispin=ispin,&
+                  v_matrix=mo_coeff,&
                   n_col=nmo, error=error)
              CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
                   density_matrix=rho%rho_ao(ispin)%matrix,error=error)
@@ -970,7 +970,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
                      beta=(t1-t2)/(t1-t0), matrix_b=t0_state%wf(ispin)%matrix,&
                      error=error)
                 CALL qs_env_reorthogonalize_vectors(qs_env,&
-                     v_matrix=mo_coeff,ispin=ispin,&
+                     v_matrix=mo_coeff,&
                      n_col=nmo, error=error)
                 CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
                      density_matrix=rho%rho_ao(ispin)%matrix,error=error)
@@ -1076,7 +1076,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
                 CALL cp_fm_release(csc,error=error)
                 CALL cp_fm_scale_and_add(-1.0_dp,mo_coeff,2.0_dp,t1_state%wf(ispin)%matrix,error=error)
                 CALL qs_env_reorthogonalize_vectors(qs_env,&
-                     v_matrix=mo_coeff,ispin=ispin,&
+                     v_matrix=mo_coeff,&
                      n_col=k, error=error)
                 CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
                      density_matrix=rho%rho_ao(ispin)%matrix,error=error)
@@ -1165,7 +1165,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
               CALL cp_fm_release(csc,error=error)
               CALL cp_fm_release(fm_tmp,error=error)
               CALL qs_env_reorthogonalize_vectors(qs_env,&
-                   v_matrix=mo_coeff,ispin=ispin,&
+                   v_matrix=mo_coeff,&
                    n_col=k, error=error)
               CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
                    density_matrix=rho%rho_ao(ispin)%matrix,error=error)
@@ -1245,7 +1245,6 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
         CALL cp_fm_release(fm_tmp,error=error)
         CALL qs_env_reorthogonalize_vectors(qs_env,&
                                             v_matrix=mo_coeff,&
-                                            ispin=ispin,&
                                             n_col=k,&
                                             error=error)
         CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&

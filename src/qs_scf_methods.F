@@ -266,7 +266,7 @@ CONTAINS
                              smear=smear)
       CALL set_mo_set(mo_set=mo_set,&
                       homo=homo,lfomo=lfomo,&
-                      uniform_occupation=mo_uocc)
+                      uniform_occupation=mo_uocc,error=error)
     END IF
 
     CALL timestop(0.0_dp,handle)
@@ -345,7 +345,7 @@ CONTAINS
                              mo_uocc, smear=smear)
       CALL set_mo_set(mo_set=mo_set,&
                       homo=homo,lfomo=lfomo,&
-                      uniform_occupation=mo_uocc)
+                      uniform_occupation=mo_uocc,error=error)
     END IF
 
     CALL timestop(0.0_dp,handle)

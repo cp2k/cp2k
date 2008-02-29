@@ -87,7 +87,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_rhoscp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, stat, output_unit
+    INTEGER                                  :: handle, i, stat
     LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: t1
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -169,7 +169,7 @@ CONTAINS
 
     INTEGER :: handle, i, iatom, igrid_level, ikind, iparticle_local, ipgf, &
       iset, istat, maxco, na1, na2, natom, ncoa, nkind, nparticle_local, &
-      nseta, offset, sgfa, stat, ii, jj
+      nseta, offset, sgfa, stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     REAL(KIND=dp)                            :: dab, my_eps_rho_rspace, rab2, &

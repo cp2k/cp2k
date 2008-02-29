@@ -240,8 +240,7 @@ CONTAINS
 
     INTEGER                                  :: dest, handle, i, ierr, ii, &
                                                 iproc, j, k, l, local_z_dim, &
-                                                loz, m, m2, md2, nproc, z_lb, &
-                                                z_ub
+                                                loz, m, m2, md2, nproc
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
                                                 sdispl, tmp
     INTEGER, DIMENSION(2)                    :: cart_pos, lox, loy
@@ -420,7 +419,7 @@ CONTAINS
 
     INTEGER                                  :: dest, i, ierr, ii, iproc, j, &
                                                 k, l, local_z_dim, loz, m, &
-                                                m2, md2, nproc, z_lb, z_ub
+                                                m2, md2, nproc
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
                                                 sdispl, tmp
     INTEGER, DIMENSION(2)                    :: cart_pos, lox, loy

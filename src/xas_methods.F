@@ -275,7 +275,7 @@ CONTAINS
       IF(scf_control%smear /= 0.0_dp) THEN
         homo = NINT(nelectron/maxocc)
         uocc = .TRUE.
-        CALL set_mo_set(mos(ispin)%mo_set, homo=homo,uniform_occupation=uocc)
+        CALL set_mo_set(mos(ispin)%mo_set, homo=homo,uniform_occupation=uocc,error=error)
       END IF
     END DO
 
@@ -417,7 +417,7 @@ CONTAINS
          .OR.  xas_control%xas_method==xas_tp_xfh) THEN
           homo = nelectron + 1
           CPPrecondition(.NOT.(nmo<homo),cp_failure_level,routineP,error,failure)
-          CALL set_mo_set(mos(1)%mo_set, homo = homo)
+          CALL set_mo_set(mos(1)%mo_set, homo = homo, error=error)
        END IF
        occupation_numbers(1:homo)  = 1.0_dp
       ! If the restart file for this atom exists, the mos and the
@@ -546,7 +546,7 @@ CONTAINS
 
     DO ispin = 1,dft_control%nspins
        CALL set_mo_set(mos(ispin)%mo_set, homo=my_homo(ispin),&
-            uniform_occupation=my_uocc(ispin))
+            uniform_occupation=my_uocc(ispin), error=error)
     END DO
 
     dft_control % xas_estate    = -1

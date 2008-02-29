@@ -431,6 +431,7 @@ CPSourceFileRef,&
             IF(reftraj%msd%disp_atom) THEN
               IF( dr2 > reftraj%msd%disp_atom_tol ) THEN
                 reftraj%msd%num_disp_atom  = reftraj%msd%num_disp_atom  +1
+                reftraj%msd%disp_atom_index(reftraj%msd%num_disp_atom) = atom
                 reftraj%msd%disp_atom_dr(1, reftraj%msd%num_disp_atom) = dx
                 reftraj%msd%disp_atom_dr(2, reftraj%msd%num_disp_atom) = dy
                 reftraj%msd%disp_atom_dr(3, reftraj%msd%num_disp_atom) = dz
@@ -514,6 +515,7 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=default_string_length)     :: my_act, my_mittle, my_pos
     INTEGER                                  :: iat, ikind, nkind, out_msd
+    LOGICAL, SAVE                            :: first_entry = .FALSE. 
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(reftraj_type), POINTER              :: reftraj
@@ -538,9 +540,10 @@ CPSourceFileRef,&
 
     my_pos = "APPEND"
     my_act = "WRITE"
+
     IF(reftraj%init.AND.(reftraj%isnap==reftraj%info%first_snapshot)) THEN
-      my_pos = "REWIND"
-      my_act = "WRITE"
+      my_pos  = "REWIND"
+      first_entry = .TRUE.
     END IF
 
     IF(reftraj%info%msd) THEN
@@ -582,13 +585,17 @@ CPSourceFileRef,&
       END IF        
       IF(reftraj%msd%disp_atom) THEN
 
+         IF(first_entry)  my_pos = "REWIND"
          my_mittle ="disp_at"
          out_msd = cp_print_key_unit_nr(logger,reftraj_section,"PRINT%DISPLACED_ATOM",&
                extension=".msd", file_position=my_pos, file_action=my_act,&
                file_form="FORMATTED", middle_name=TRIM(my_mittle), &
                error=error)
          IF(out_msd>0 .AND. reftraj%msd%num_disp_atom>0) THEN
-           WRITE(UNIT=out_msd,FMT="(I8, F12.3, I10)") reftraj%itimes, &
+            IF(first_entry) THEN
+               first_entry = .FALSE.
+            END IF
+            WRITE(UNIT=out_msd,FMT="(I8, F12.3, I10)") reftraj%itimes, &
                    reftraj%time*femtoseconds, reftraj%msd%num_disp_atom
             DO iat = 1,reftraj%msd%num_disp_atom
                WRITE(UNIT=out_msd,FMT="(I8, 3F20.10)") reftraj%msd%disp_atom_index(iat),&

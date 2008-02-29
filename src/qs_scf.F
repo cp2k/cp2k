@@ -684,7 +684,7 @@ CONTAINS
           END IF
 
           !   *** Write WaveFunction restart file ***
-          CALL write_mo_set(mos,particle_set,para_env,dft_section=dft_section,error=error)
+          CALL write_mo_set(mos,particle_set,dft_section=dft_section,error=error)
 ! SCP restart
           IF ( scp ) CALL write_scp_restart ( scp_env, input, globenv, atomic_kind_set, particle_set, error )
 ! SCP restart
@@ -1804,7 +1804,7 @@ END SUBROUTINE qs_scf_print_summary
             uniform_occupation = .FALSE.
 
             CALL set_mo_set(mos(ispin)%mo_set,&
-                 uniform_occupation=uniform_occupation)
+                 uniform_occupation=uniform_occupation,error=error)
           END IF
        END DO
     END IF
@@ -1982,7 +1982,7 @@ END SUBROUTINE qs_scf_print_summary
                 CALL get_mo_set(qs_env%mos(ispin)%mo_set, &
                      mo_coeff=mo_coeff, nmo=nmo)
                 CALL qs_env_reorthogonalize_vectors(qs_env, &
-                     v_matrix=mo_coeff, ispin=ispin, n_col=nmo,&
+                     v_matrix=mo_coeff, n_col=nmo,&
                      error=error)
              END DO
           END IF

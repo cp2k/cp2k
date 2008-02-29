@@ -107,9 +107,7 @@ CONTAINS
 !> \par History
 !>     Teodoro Laino - University of Zurich - 09.2007 [tlaino]
 ! *****************************************************************************
-  SUBROUTINE reset_vcom(simpar, subsys, md_ener, vsubtract, error)
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+  SUBROUTINE reset_vcom(subsys, md_ener, vsubtract, error)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(md_ener_type), POINTER              :: md_ener
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: vsubtract
@@ -553,7 +551,7 @@ CONTAINS
           temp_old = md_ener%temp_part/kelvin
           vcom_old = md_ener%vcom
 
-          CALL reset_vcom(simpar, subsys, md_ener, vsubtract=vcom_old, error=error)
+          CALL reset_vcom( subsys, md_ener, vsubtract=vcom_old, error=error)
 
           CALL scale_velocity(subsys, md_ener, temp_old, 0.0_dp, iw, error)
 

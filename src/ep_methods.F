@@ -1443,7 +1443,7 @@ CONTAINS
              uniform_occupation = .FALSE.
 
              CALL set_mo_set(mos(ispin)%mo_set,&
-                  uniform_occupation=uniform_occupation)
+                  uniform_occupation=uniform_occupation,error=error)
           END IF
        END DO
     END IF

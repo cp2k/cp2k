@@ -99,9 +99,11 @@ MODULE qs_scf_post
   USE qs_moments,                      ONLY: qs_moment_berry_phase,&
                                              qs_moment_locop
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
+  USE qs_pdos,                         ONLY: calculate_projected_dos
   USE qs_resp,                         ONLY: resp_fit
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE qs_scf_types,                    ONLY: qs_scf_env_type
+  USE qs_scf_types,                    ONLY: ot_method_nr,&
+                                             qs_scf_env_type
   USE realspace_grid_cube,             ONLY: pw_to_cube
   USE s_square_methods,                ONLY: compute_s_square
   USE scf_control_types,               ONLY: scf_control_type
@@ -201,7 +203,7 @@ CONTAINS
 
     ! Writes the data that is already available in qs_env
     para_env=>qs_env%para_env
-    CALL write_available_results(qs_env,error)
+    CALL write_available_results(qs_env,scf_env,error)
 
     failure=.FALSE.
     my_localized_wfn = .FALSE.
@@ -1153,8 +1155,9 @@ CPSourceFileRef,&
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE write_available_results(qs_env,error)
+  SUBROUTINE write_available_results(qs_env,scf_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_available_results', &
@@ -1168,10 +1171,12 @@ CPSourceFileRef,&
     REAL(KIND=dp)                            :: maxocc, s_square, &
                                                 s_square_ideal, &
                                                 total_abs_spin_dens, udvol
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, &
+                                                occupation_numbers
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_deriv
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -1197,7 +1202,7 @@ CPSourceFileRef,&
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,&
-            mos,atomic_kind_set,particle_set,rho,&
+            mo_coeff, mo_coeff_deriv,mo_eigenvalues,mos,atomic_kind_set,particle_set,rho,&
             ks_rmpv,matrix_s,scf_control,dft_section,&
             molecule_set,input,particles,subsys)
     para_env=>qs_env%para_env
@@ -1224,6 +1229,33 @@ CPSourceFileRef,&
          CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,6,&
                            dft_section,last=.TRUE.,error=error)
        END IF
+
+       ! *** at the end of scf print out the projected dos per kind
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%PDOS",&
+           error=error),cp_p_file) ) THEN
+         DO ispin = 1,dft_control%nspins
+            IF (scf_env%method == ot_method_nr) THEN
+              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
+                              eigenvalues=mo_eigenvalues)
+              IF (ASSOCIATED(qs_env%mo_derivs)) THEN
+                     mo_coeff_deriv=>qs_env%mo_derivs(ispin)%matrix
+              ELSE
+                     mo_coeff_deriv=>NULL()
+              ENDIF
+  
+              CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix,mo_eigenvalues, &
+                   para_env=qs_env%para_env, do_rotation=.TRUE.,&
+                   co_rotate=mo_coeff_deriv,error=error)
+            END IF
+            IF(dft_control%nspins==2) THEN
+              CALL calculate_projected_dos(mos(ispin)%mo_set,atomic_kind_set,&
+                   particle_set,qs_env, dft_section,ispin=ispin,error=error)
+            ELSE
+              CALL calculate_projected_dos(mos(ispin)%mo_set,atomic_kind_set,&
+                   particle_set,qs_env,dft_section,error=error)
+            END IF
+         END DO
+       ENDIF
 
        !   *** Integrated absolute spin density and spin contamination ***
        IF (dft_control%nspins.eq.2) THEN

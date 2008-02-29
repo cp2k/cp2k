@@ -45,9 +45,7 @@ MODULE qs_mo_types
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
-                                             dp,&
-                                             dp_size,&
-                                             int_size
+                                             dp
   USE message_passing,                 ONLY: mp_bcast
   USE orbital_pointers,                ONLY: indco,&
                                              nco,&
@@ -59,8 +57,6 @@ MODULE qs_mo_types
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
   USE string_utilities,                ONLY: compress
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -160,7 +156,7 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE (mo_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"mo_set",0)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
 
     mo_set%maxocc = maxocc
     mo_set%nelectron = nelectron
@@ -205,15 +201,11 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(mo_set%mo_coeff),cp_failure_level,routineP,error,failure)
 
     ALLOCATE (mo_set%eigenvalues(mo_set%nmo),STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routineP,"mo_set%eigenvalues",mo_set%nmo*dp_size)
-    END IF
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
     mo_set%eigenvalues(:) = 0.0_dp
 
     ALLOCATE (mo_set%occupation_numbers(mo_set%nmo),STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routineP,"mo_set%occupation_numbers",mo_set%nmo*dp_size)
-    END IF
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
     CALL set_mo_occupation(mo_set%occupation_numbers,&
                            mo_set%eigenvalues,mo_set%homo,mo_set%lfomo,&
                            mo_set%maxocc,mo_set%nelectron, uocc=mo_set%uniform_occupation)
@@ -299,24 +291,26 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
+    LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
 
+    failure =.FALSE.
     IF (ASSOCIATED(mo_set)) THEN
        IF (ASSOCIATED(mo_set%eigenvalues)) THEN
           DEALLOCATE (mo_set%eigenvalues,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineP,"mo_set%eigenvalues")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
        END IF
 
        IF (ASSOCIATED(mo_set%occupation_numbers)) THEN
           DEALLOCATE (mo_set%occupation_numbers,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineP,"mo_set%occupation_numbers")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
        END IF
 
        CALL cp_fm_release(mo_set%mo_coeff,error=error)
 
        DEALLOCATE (mo_set,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"mo_set")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
     END IF
 
   END SUBROUTINE deallocate_mo_set
@@ -460,7 +454,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE set_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,nmo,&
                         eigenvalues,occupation_numbers,mo_coeff,&
-                        uniform_occupation)
+                        uniform_occupation,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: maxocc
@@ -471,11 +465,13 @@ CONTAINS
                                                 occupation_numbers
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: mo_coeff
     LOGICAL, INTENT(IN), OPTIONAL            :: uniform_occupation
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_mo_set', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
+    LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
 
@@ -487,13 +483,13 @@ CONTAINS
     IF (PRESENT(nmo)) mo_set%nmo = nmo
     IF (PRESENT(eigenvalues)) THEN
       IF(ASSOCIATED(mo_set%eigenvalues)) DEALLOCATE(mo_set%eigenvalues,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"mo_set%eigenvalues")
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
       mo_set%eigenvalues => eigenvalues
     END IF
     IF (PRESENT(occupation_numbers)) THEN
       IF(ASSOCIATED(mo_set%occupation_numbers)) &
                     DEALLOCATE(mo_set%occupation_numbers,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"mo_set%occupation_numbers")
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
       mo_set%occupation_numbers => occupation_numbers
     END IF
     IF(PRESENT(uniform_occupation)) mo_set%uniform_occupation=uniform_occupation
@@ -501,13 +497,12 @@ CONTAINS
   END SUBROUTINE set_mo_set
 
 ! *****************************************************************************
-  SUBROUTINE write_mo_set_to_restart(mo_array, particle_set, para_env, dft_section, error)
+  SUBROUTINE write_mo_set_to_restart(mo_array, particle_set, dft_section, error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -516,7 +511,7 @@ CONTAINS
 
     CHARACTER(LEN=30), DIMENSION(2) :: &
       keys = (/"SCF%PRINT%RESTART_HISTORY","SCF%PRINT%RESTART        "/)
-    INTEGER                                  :: handle, i, ikey, ires
+    INTEGER                                  :: handle, ikey, ires
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -538,7 +533,7 @@ CONTAINS
                   extension=".wfn", file_status="REPLACE", file_action="WRITE",&
                   do_backup=.TRUE., file_form="UNFORMATTED", error=error)
 
-             CALL write_mo_set_low(mo_array, particle_set, para_env, ires, error)
+             CALL write_mo_set_low(mo_array, particle_set, ires, error)
              
              CALL cp_print_key_finished_output(ires,logger,dft_section,&
                   TRIM(keys(ikey)), error=error)
@@ -551,13 +546,12 @@ CONTAINS
   END SUBROUTINE write_mo_set_to_restart
 
 ! *****************************************************************************
-  SUBROUTINE write_mo_set_low(mo_array, particle_set, para_env, ires, error)
+  SUBROUTINE write_mo_set_low(mo_array, particle_set, ires, error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: ires
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -606,22 +600,23 @@ CONTAINS
              nset_max = MAX(nset_max,1)
              nshell_max = MAX(nshell_max,lmax+1)
           ELSE
-             CALL stop_program(routineP,"unknown basis type")
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+          "Unknown basis type. "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
           END IF
        END DO
        
        ALLOCATE (nso_info(nshell_max,nset_max,natom),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"nso_info",&
-            nshell_max*nset_max*natom*int_size)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
        nso_info(:,:,:) = 0
        
        ALLOCATE (nshell_info(nset_max,natom),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"nshell_info",&
-            nset_max*natom*int_size)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
        nshell_info(:,:) = 0
        
        ALLOCATE (nset_info(natom),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"nset_info",natom*int_size)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
        nset_info(:) = 0
        
        DO iatom=1,natom
@@ -650,7 +645,10 @@ CONTAINS
                 nso_info(ishell,1,iatom) = nso(lshell)
              END DO
           ELSE
-             CALL stop_program(routineP,"unknown basis type")
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+               "Unknown basis set type. "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
           END IF
        END DO
        
@@ -660,20 +658,20 @@ CONTAINS
        WRITE (ires) nso_info
        
        DEALLOCATE (nset_info,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"nset_info")
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
        
        DEALLOCATE (nshell_info,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"nshell_info")
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
        
        DEALLOCATE (nso_info,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,"nso_info")
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
        
     END IF
     
     ! use the scalapack block size as a default for buffering columns
     CALL cp_fm_get_info(mo_array(1)%mo_set%mo_coeff,ncol_block=max_block,error=error)
     ALLOCATE(vecbuffer(nao,max_block),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"vecbuffer",nao*max_block*dp_size)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
     
     DO ispin=1,nspin
        nmo=mo_array(ispin)%mo_set%nmo
@@ -699,7 +697,7 @@ CONTAINS
     END DO
     
     DEALLOCATE (vecbuffer,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"vecbuffer")
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
     
     CALL timestop(0.0_dp,handle)
 
@@ -856,7 +854,10 @@ CONTAINS
       READ (rst_unit) natom_read,nspin_read,nao_read,nset_max,nshell_max
       IF(my_xas) THEN
         IF (nspin_read /= nspin) THEN
-          CALL stop_program(routineP,"changed nspin, not possible")
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+          "To change nsin is not possible. "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
         END IF
       ELSE        
        ! we should allow for restarting with different spin settings
@@ -867,7 +868,10 @@ CONTAINS
       END IF
   
       IF (natom_read /= natom) THEN
-          CALL stop_program(routineP,"incorrect natom")
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+          "Incorrect number of atoms in restart file. "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
       END IF
   
       ! Let's make it possible to change the basis set
@@ -946,9 +950,10 @@ CPSourceFileRef,&
         IF (mos(ispin)%mo_set%homo > nmo) THEN
           ! can not make this a warning i.e. homo must be smaller than nmo
           ! otherwise e.g. set_mo_occupation will go out of bounds
-          CALL stop_program(routineP,"The number of the occupied MOs on the "//&
-                                     "restart unit is greater than the "//&
-                                     "number of the allocated MOs.")
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+          "Number of occupied MOs on restart unit larger than allocated MOs. "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
         END IF
       END IF
 
@@ -980,7 +985,10 @@ CPSourceFileRef,&
               nset = 1
               minbas=.TRUE.
             ELSE
-              CALL stop_program(routineP,"unknown basis set type")
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+          "Unknown basis set type. "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
             END IF
 
             use_this = .TRUE.
@@ -1057,14 +1065,18 @@ CPSourceFileRef,&
           mos(ispin+1)%mo_set%lfomo = mos(ispin)%mo_set%lfomo
           nelectron = mos(ispin)%mo_set%nelectron
           IF (MODULO(nelectron + my_mult - 1,2) /= 0) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                           "LSD: try to use a different multiplicity.")
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+          "LSD: try to use different multiplicity. "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
           END IF
           mos(ispin)%mo_set%nelectron = (nelectron + my_mult - 1)/2
           mos(ispin+1)%mo_set%nelectron = (nelectron - my_mult + 1)/2
           IF(mos(ispin+1)%mo_set%nelectron < 0)THEN
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                           "LSD: too few electrons for this multiplicity.")
+            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+            "LSD: too few electrons for this multiplisity. "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
           END IF
           mos(ispin+1)%mo_set%eigenvalues = mos(ispin)%mo_set%eigenvalues
           mos(ispin+1)%mo_set%occupation_numbers = mos(ispin)%mo_set%occupation_numbers
@@ -1136,9 +1148,9 @@ CPSourceFileRef,&
       nrow_global, nset, nsgf, right, scf_step, to, width
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
-    LOGICAL                                  :: ionode, my_last, p_cart, &
-                                                p_eval, p_evec, p_occ, &
-                                                should_output
+    LOGICAL                                  :: failure, ionode, my_last, &
+                                                p_cart, p_eval, p_evec, &
+                                                p_occ, should_output
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cmatrix, smatrix
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -1149,6 +1161,7 @@ CPSourceFileRef,&
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
+    failure = .FALSE.
     CALL section_vals_val_get(dft_section,"PRINT%MO%EIGENVALUES",l_val=p_eval,error=error)
     CALL section_vals_val_get(dft_section,"PRINT%MO%EIGENVECTORS",l_val=p_evec,error=error)
     CALL section_vals_val_get(dft_section,"PRINT%MO%OCCUPATION_NUMBERS",l_val=p_occ,error=error)
@@ -1173,16 +1186,11 @@ CPSourceFileRef,&
             nrow_global=nrow_global,&
             ncol_global=ncol_global,error=error)
        ALLOCATE(smatrix(nrow_global,ncol_global),STAT=istat)
-       IF (istat /= 0) THEN
-          CALL stop_memory(routineN,moduleN,__LINE__,&
-               "smatrix",nrow_global*ncol_global*dp_size)
-       END IF
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
        CALL cp_fm_get_submatrix(mo_set%mo_coeff,smatrix,error=error)
        IF (.NOT.ionode) THEN
           DEALLOCATE(smatrix,STAT=istat)
-          IF (istat /= 0) THEN
-             CALL stop_memory(routineN,moduleN,__LINE__,"smatrix")
-          END IF
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
        END IF
     END IF
 
@@ -1233,10 +1241,7 @@ CPSourceFileRef,&
             END IF
 
              ALLOCATE(cmatrix(ncgf,ncgf),STAT=istat)
-             IF (istat /= 0) THEN
-                CALL stop_memory(routineN,moduleN,__LINE__,&
-                     "cmatrix",ncgf*ncgf*dp_size)
-             END IF
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
 
              cmatrix = 0.0_dp
 
@@ -1276,7 +1281,10 @@ CPSourceFileRef,&
                     isgf = isgf + nso(lshell)
                   END DO
                 ELSE
-                  CALL stop_program(routineN,"unknown basis set type")
+                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                     "Unknown basis set type. "//&
+CPSourceFileRef,&
+                     only_ionode=.TRUE.)
                 END IF
              END DO
 
@@ -1393,7 +1401,10 @@ CPSourceFileRef,&
                          END DO
                       END DO
                    ELSE
-                      CALL stop_program(routineN,"unknown basis set type")
+                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                       "Unknown basis set type. "//&
+CPSourceFileRef,&
+                       only_ionode=.TRUE.)
                    END IF
 
                 ELSE
@@ -1434,7 +1445,10 @@ CPSourceFileRef,&
                          END DO
                       END DO
                    ELSE
-                      CALL stop_program(routineN,"unknown basis set type")
+                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                        "Unknown basis type. "//&
+CPSourceFileRef,&
+                        only_ionode=.TRUE.)
                    END IF
 
                 END IF
@@ -1451,14 +1465,10 @@ CPSourceFileRef,&
 
        IF (p_evec) THEN
           DEALLOCATE (smatrix,STAT=istat)
-          IF (istat /= 0) THEN
-             CALL stop_memory(routineN,moduleN,__LINE__,"smatrix")
-          END IF
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
           IF (p_cart) THEN
              DEALLOCATE (cmatrix,STAT=istat)
-             IF (istat /= 0) THEN
-                CALL stop_memory(routineN,moduleN,__LINE__,"cmatrix")
-             END IF
+             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
           END IF
        END IF
 

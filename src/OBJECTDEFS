@@ -451,6 +451,7 @@ OBJECTS_GENERIC =\
  qs_p_env_methods.o\
  qs_p_env_types.o\
  qs_p_sparse_psi.o\
+ qs_pdos.o\
  qs_resp.o\
  qs_rho0_ggrid.o\
  qs_rho0_methods.o\
