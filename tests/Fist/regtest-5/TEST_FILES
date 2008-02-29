@@ -9,7 +9,7 @@ wat_mode_sel.inp         18
 wat_mode_sel_range.inp   18
 ethene-vib-mode-sel-int.inp 21
 # new mode_selective tests for several restart types
-N3dye_geoopt.inp          3
+N3dye_geoopt.inp          7
 N3dye_vib_bfgs.inp        18
 N3dye_vib_bfgs2.inp       18
 N3dye_vib_inv_atoms.inp   18 
