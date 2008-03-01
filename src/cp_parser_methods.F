@@ -17,9 +17,7 @@
 ! *****************************************************************************
 MODULE cp_parser_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser_types,                 ONLY: blank_character,&
-                                             cp_parser_type,&
-                                             horizontal_tab,&
+  USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              max_line_length
   USE f77_blas
   USE inpp_methods,                    ONLY: inpp_end_include,&
@@ -29,12 +27,13 @@ MODULE cp_parser_methods
                                              default_string_length,&
                                              dp
   USE message_passing,                 ONLY: mp_bcast
-  USE string_utilities,                ONLY: uppercase
+  USE string_utilities,                ONLY: is_whitespace,&
+                                             uppercase
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
-  PRIVATE
+  PRIVATE :: is_comment
 
   PUBLIC :: parser_next_token, parser_test_next_token
   PUBLIC :: parser_get_object, parser_get_real, parser_get_integer,&
@@ -204,7 +203,7 @@ CONTAINS
           !       *** Quick return, if the end of line is found ***
   
           IF ((parser%icol > LEN_TRIM(parser%input_line)).OR.&
-               ANY(parser%input_line(parser%icol:parser%icol) == parser%comment_character)) THEN
+               is_comment(parser,parser%input_line(parser%icol:parser%icol))) THEN
              parser%icol1 = 1
              parser%icol2 = -1
              RETURN
@@ -215,17 +214,15 @@ CONTAINS
           !       *** Ignore all white space and accept only one     ***
           !       *** separator token or a string in quotation marks ***
   
-          IF (.NOT.((parser%input_line(parser%icol:parser%icol) == blank_character).OR.&
-               (parser%input_line(parser%icol:parser%icol) == horizontal_tab))) THEN
-  
+          IF (.NOT.is_whitespace(parser%input_line(parser%icol:parser%icol))) THEN
+             
              IF (parser%input_line(parser%icol:parser%icol) == &
                   parser%continuation_character.and.my_continue) THEN
                 DO i=LEN(parser%input_line),1,-1
-                   IF ((parser%input_line(i:i) /= blank_character).AND.&
-                        (parser%input_line(i:i) /= horizontal_tab)) EXIT
+                   IF (.NOT.is_whitespace(parser%input_line(i:i))) EXIT
                 END DO
-                IF (parser%icol == i.OR. ANY(parser%input_line(i:i)==&
-                     parser%comment_character)) THEN
+                IF (parser%icol == i.OR. &
+                     is_comment(parser,parser%input_line(i:i))) THEN
                    CALL parser_get_next_line(parser,1,error=error)
                    ! does not pass at_end, it is an error to continue to EOF, change this behavoiur?
                    CYCLE
@@ -319,7 +316,7 @@ CONTAINS
              !       *** Quick return, if the end of line is found ***
   
              IF ((parser%icol > len_trim_inputline).OR.&
-                  ANY(parser%input_line(parser%icol:parser%icol) == parser%comment_character)) THEN
+                  is_comment(parser,parser%input_line(parser%icol:parser%icol))) THEN
                 parser%icol1 = 1
                 parser%icol2 = -1
                 RETURN
@@ -330,11 +327,10 @@ CONTAINS
              IF (parser%input_line(parser%icol:parser%icol) == &
                   parser%continuation_character) THEN
                 DO i=LEN(parser%input_line),1,-1
-                   IF ((parser%input_line(i:i) /= blank_character).AND.&
-                        (parser%input_line(i:i) /= horizontal_tab)) EXIT
+                   IF (.NOT. is_whitespace(parser%input_line(i:i))) EXIT
                 END DO
-                IF (parser%icol == i.or.ANY(parser%input_line(i:i)==&
-                     parser%comment_character)) THEN
+                IF (parser%icol == i.OR. &
+                     is_comment(parser,parser%input_line(i:i))) THEN
                    CALL parser_get_next_line(parser,1,error=error)
                    ! does not pass at_end, it is an error to continue to EOF, change this behavoiur?
                    CYCLE
@@ -352,8 +348,7 @@ CONTAINS
              !       *** Ignore all white space and accept only one     ***
              !       *** separator token or a string in quotation marks ***
   
-             IF ((parser%input_line(parser%icol:parser%icol) == blank_character).OR.&
-                  (parser%input_line(parser%icol:parser%icol) == horizontal_tab)) THEN
+             IF (is_whitespace(parser%input_line(parser%icol:parser%icol))) THEN
                 CYCLE
              ELSE IF (INDEX(parser%separators,parser%input_line(parser%icol:parser%icol)) > 0) THEN
                 IF (parser%first_separator) THEN
@@ -397,9 +392,8 @@ CONTAINS
                 IF (parser%icol > len_trim_inputline .or.parser%icol==len_inputline) EXIT
                 parser%icol = parser%icol + 1
                 IF ((parser%icol > len_trim_inputline).OR.&
-                     (parser%input_line(parser%icol:parser%icol) == blank_character).OR.&
-                     (parser%input_line(parser%icol:parser%icol) == horizontal_tab).OR.&
-                     ANY(parser%input_line(parser%icol:parser%icol) == parser%comment_character).OR.&
+                     is_whitespace(parser%input_line(parser%icol:parser%icol)).OR.&
+                     is_comment(parser,parser%input_line(parser%icol:parser%icol)) .OR.&
                      (parser%input_line(parser%icol:parser%icol) == parser%continuation_character)) THEN
                    EXIT
                 ELSE IF (INDEX(parser%separators,parser%input_line(parser%icol:parser%icol)) > 0) THEN
@@ -712,9 +706,8 @@ CONTAINS
              non_white_found=.FALSE.
              DO icol=1,LEN(parser%input_line)
                 thischar=parser%input_line(icol:icol)
-                IF ( (thischar.NE.blank_character).AND.&
-                     (thischar.NE.horizontal_tab)) THEN
-                   IF (.NOT. ANY(parser%comment_character.EQ.thischar)) non_white_found=.TRUE.
+                IF (.NOT.is_whitespace(thischar)) THEN
+                   IF (.NOT. is_comment(parser,thischar)) non_white_found=.TRUE.
                    EXIT
                 ENDIF
              ENDDO
@@ -1171,5 +1164,24 @@ CONTAINS
     END IF
     CALL cp_error_dealloc_ref(suberror)
   END FUNCTION parser_test_next_token
+
+! *****************************************************************************
+!> \brief returns .true. if the character passed is a comment character
+!> \par History
+!>      02.2008 created, AK
+! *****************************************************************************
+FUNCTION is_comment(parser,testchar) RESULT(resval)
+    TYPE(cp_parser_type), POINTER            :: parser
+    CHARACTER(LEN=1), INTENT(IN)             :: testchar
+    LOGICAL                                  :: resval
+
+! we're in a private function, and parser has been tested before...
+
+  resval=.FALSE.
+  IF (ANY(parser%comment_character.EQ.testchar)) THEN
+     resval=.TRUE.
+  END IF
+  RETURN
+END FUNCTION is_comment
 
 END MODULE cp_parser_methods
