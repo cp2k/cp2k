@@ -22,7 +22,7 @@
    </script>
   </head>
   <body>
-   <h1 align="center">CP2K input description</h1>
+   <h1 align="center">CP2K input reference</h1>
    <h2>Version information</h2>
    <p>
     This HTML manual was generated automatically from a CP2K executable
@@ -30,6 +30,9 @@
     --xml command line option. Thus the manual describes exactly this
     version of the code. The latest CVS log file entry found was
    <xsl:value-of select="COMPILE_LASTCVS"/>.</p>
+
+   <h2>Journal papers</h2>
+   <p><a href="references.html">List of references</a> cited in the CP2K input manual.</p>
 
    <h2>Internal Input Preprocessor</h2>
    <p>Before the input is parsed, the input is run through a simple internal preprocessor.
@@ -53,7 +56,7 @@
      @ENDIF is skipped, if the expression following @IF resolves to <I>false</I>. 
      Available expressions are lexical comparisons for equality '==' or inequality '/='.
      If none of the two operators are found, a '0' or whitespace resolves to <I>false</I>
-     while any text resolves to <I>true</I> @IF/@ENDIF blocks cannot be nested and
+     while any text resolves to <I>true</I>. @IF/@ENDIF blocks cannot be nested and
      cannot span across files. There can be only one test (== or /=) per @IF statement.</DD>
    </dl>
 
