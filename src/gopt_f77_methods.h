@@ -3,33 +3,19 @@
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-!!****f* gopt_f77_methods/cp_eval_at [1.0] *
-!!
-!!   NAME
-!!     cp_eval_at
-!!
-!!   FUNCTION
-!!     evaluete the potential energy and its gradients using an array
-!!     with same dimension as the particle_set
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     gopt_env: the geometry optimization environment
-!!     x: the position where the function should be evaluated
-!!     f: the function value
-!!     gradient: the value of its gradient
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino [tlaino] - University of Zurich - 01.2008
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
+! *****************************************************************************
+!> \brief evaluete the potential energy and its gradients using an array
+!>      with same dimension as the particle_set
+!> \param gopt_env the geometry optimization environment
+!> \param x the position where the function should be evaluated
+!> \param f the function value
+!> \param gradient the value of its gradient
+!> \param error variable to control error logging, stopping,... 
+!>             see module cp_error_handling 
+!> \par History
+!>      none
+!> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
+! *****************************************************************************
 INTERFACE 
 
   RECURSIVE SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, error)
