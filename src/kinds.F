@@ -49,6 +49,7 @@ MODULE kinds
 
   INTEGER, PARAMETER :: default_string_length=80
   INTEGER, PARAMETER :: default_path_length=250
+  CHARACTER(LEN=1),PARAMETER, PUBLIC :: default_blank_character(2) = (/" ",CHAR(9)/)
 
 CONTAINS
 

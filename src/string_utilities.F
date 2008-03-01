@@ -14,6 +14,7 @@
 MODULE string_utilities
 
   USE glob_matching,                   ONLY: pattern_match=>string_match
+  USE kinds,                           ONLY: default_blank_character
 
   IMPLICIT NONE
 
@@ -747,10 +748,7 @@ FUNCTION is_whitespace(testchar) RESULT(resval)
     LOGICAL                                  :: resval
 
   resval=.FALSE.
-  IF((testchar == ' ') .OR. (testchar == CHAR(9))) THEN
-     resval=.TRUE.
-  END IF
-  RETURN
+  IF (ANY(default_blank_character==testchar)) resval = .TRUE.
 END FUNCTION is_whitespace
 
 END MODULE string_utilities
