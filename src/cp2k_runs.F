@@ -918,7 +918,7 @@ WRITE(unit_nr,*) ' <!-- END CODE --></TD><TD> '
        WRITE(unit_nr,*) "@ENDIF is skipped, if the expression following @IF resolves to <I>false</I>. "
        WRITE(unit_nr,*) "Available expressions are lexical comparisons for equality '==' or inequality '/='."
        WRITE(unit_nr,*) "If none of the two operators are found, a '0' or whitespace resolves to <I>false</I> " 
-       WRITE(unit_nr,*) "while any text resolves to <I>true</I> @IF/@ENDIF blocks cannot be nested and "
+       WRITE(unit_nr,*) "while any text resolves to <I>true</I>. @IF/@ENDIF blocks cannot be nested and "
        WRITE(unit_nr,*) "cannot span across files. There can be only one test (== or /=) per @IF statement.</DD>"
        WRITE(unit_nr,*) "</DL><P>"
 
@@ -994,6 +994,13 @@ WRITE(unit_nr,*) ' <!-- END CODE --></TD><TD> '
       CALL close_file(unit_number=unit_number)
       CALL section_release(root_section,error=error)
 
+      CALL open_file(unit_number=unit_number,file_name="references.html",&
+           file_action="WRITE", file_status="REPLACE")
+      WRITE(unit_number,*) "<HTML><BODY><HEAD><TITLE>The cp2k literature list</TITLE>"
+      WRITE(unit_number,*) "<H1>CP2K references</H1>"
+      CALL print_all_references(sorted=.TRUE.,cited_only=.FALSE., &
+                          FORMAT=print_format_html,unit=unit_number)
+      WRITE(unit_number,*) "</BODY></HTML>"
     END IF
 
   END SUBROUTINE write_xml_file
