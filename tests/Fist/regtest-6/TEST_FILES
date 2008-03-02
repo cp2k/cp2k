@@ -31,3 +31,4 @@ cf_genpot_debug.inp       0
 uo2_buckmorse_nve.inp     2
 # colvar dist xyz component test
 water_3_dist_xyz.inp      2
+argon_ext.inp             2

@@ -48,6 +48,7 @@ MODULE force_env_methods
   USE ewald_environment_types,         ONLY: ewald_environment_type
   USE ewald_pw_methods,                ONLY: ewald_pw_grid_change
   USE ewald_pw_types,                  ONLY: ewald_pw_type
+  USE external_potential_methods,      ONLY: add_external_potential
   USE f77_blas
   USE fist_environment_types,          ONLY: fist_env_retain,&
                                              fist_environment_type,&
@@ -56,9 +57,9 @@ MODULE force_env_methods
   USE fist_force,                      ONLY: fist_force_control
   USE force_env_types,                 ONLY: &
        force_env_get, force_env_get_natom, force_env_p_type, &
-       force_env_pos_get, force_env_type, use_eip_force, use_ep_force, &
-       use_fist_force, use_kg_force, use_mixed_force, use_prog_name, &
-       use_qmmm, use_qs_force
+       force_env_pos_get, force_env_set, force_env_type, use_eip_force, &
+       use_ep_force, use_fist_force, use_kg_force, use_mixed_force, &
+       use_prog_name, use_qmmm, use_qs_force
   USE fp_methods,                      ONLY: fp_eval
   USE fparser,                         ONLY: EvalErrType,&
                                              evalf,&
@@ -228,6 +229,7 @@ CONTAINS
        CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
     END IF
     CALL force_env_get(force_env,virial=virial,error=error)
+    CALL force_env_set(force_env,additional_potential=0.0_dp,error=error)
     IF (virial%pv_availability) THEN
        pvn = virial%pv_numer
        pvd = virial%pv_diagonal
@@ -288,6 +290,8 @@ CONTAINS
           CALL fix_atom_control(force_env, error=error)
           ! All Restraints
           CALL restraint_control(force_env, error=error)
+          ! External Potential
+          CALL add_external_potential(force_env, error=error)
           ! Rescale forces if requested
           CALL rescale_forces(force_env, error=error)
        END IF
@@ -302,26 +306,23 @@ CONTAINS
           CALL cpot_calc(force_env%cpot_env, e_pot,pos,error)
        END IF
 
-       print_forces = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%FORCES",&
-                        extension=".xyz",error=error)
-       IF (print_forces>0 .AND. need_f) THEN
-          CALL force_env_get(force_env, potential_energy=e_pot, error=error)
-          WRITE(output_unit,'(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) energy (a.u.): ",T55,F26.15,/)')&
-               ADJUSTR(TRIM(use_prog_name(force_env%in_use))),e_pot
-          CALL force_env_get(force_env, subsys=subsys, error=error)         
-          CALL cp_subsys_get(subsys, particles=particles, error=error)
-          CALL write_particle_coordinates(particles%els,print_forces,&
-               dump_xmol,"FORCE"," FORCES| (a.u.) " )
-       ENDIF
-       CALL cp_print_key_finished_output(print_forces,logger,force_env%force_env_section,&
-            "PRINT%FORCES",error=error)
-
-       ! Dump force_eval energy..
-       IF (output_unit>0.AND.(.NOT.need_f)) THEN
+       ! Print always Energy in the same format for all methods
+       IF (output_unit>0) THEN
           CALL force_env_get(force_env, potential_energy=e_pot, error=error)
           WRITE(output_unit,'(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) energy (a.u.): ",T55,F26.15,/)')&
                ADJUSTR(TRIM(use_prog_name(force_env%in_use))),e_pot
        END IF
+
+       ! Print Forces, if requested
+       print_forces = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%FORCES",extension=".xyz",error=error)
+       IF (print_forces>0 .AND. need_f) THEN
+          CALL force_env_get(force_env, subsys=subsys, error=error)         
+          CALL cp_subsys_get(subsys, particles=particles, error=error)
+          CALL write_particle_coordinates(particles%els,print_forces,dump_xmol,"FORCE"," FORCES| (a.u.) " )
+       ENDIF
+       CALL cp_print_key_finished_output(print_forces,logger,force_env%force_env_section,"PRINT%FORCES",error=error)
+
+       ! Store results 
        IF(ASSOCIATED(results))THEN
           CALL erase_result(results=force_env%results,error=error)
           CALL transfer_result_type(res_target=force_env%results,res_source=results,error=error)
@@ -386,12 +387,12 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
           force_env%meta_env, force_env%sub_force_env, &
           force_env%qmmm_env, force_env%ep_env, force_env%fp_env, &
           force_env%force_env_section, force_env%eip_env,force_env%mixed_env,&
-          force_env%extended_energies,force_env%root_section,&
-          force_env%cpot_env,force_env%results)
+          force_env%root_section, force_env%cpot_env,force_env%results)
      last_force_env_id=last_force_env_id+1
      force_env%id_nr=last_force_env_id
      force_env%ref_count=1
      force_env%in_use=0
+     force_env%additional_potential=0.0_dp
 
      force_env%globenv => globenv
      CALL globenv_retain(force_env%globenv,error=error)

@@ -14,7 +14,6 @@ MODULE restraint
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE extended_system_types,           ONLY: extended_energy_type
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_set,&
@@ -71,9 +70,8 @@ CONTAINS
       n3x3con_restraint, n4x6con_restraint, n_restraint, nkind, &
       nmol_per_kind, nparticle_local, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: energy_3x3, energy_4x6, &
-                                                energy_colv, energy_fixd, k0, &
-                                                rab(3), rab2, targ(3)
+    REAL(KIND=dp) :: energy_3x3, energy_4x6, energy_colv, energy_fixd, &
+      extended_energies, k0, rab(3), rab2, targ(3)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: force
     TYPE(cell_type), POINTER                 :: cell
@@ -81,7 +79,6 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
-    TYPE(extended_energy_type), POINTER      :: extended_energies
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(global_constraint_type), POINTER    :: gci
@@ -94,9 +91,9 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : )
 
     failure = .FALSE.
-    NULLIFY(cell, subsys, local_molecules, local_particles, extended_energies,&
-         fixd_list, molecule_kinds, molecules, molecule_kind, molecule_kind_set,&
-         molecule, molecule_set, particles, particle_set, gci)
+    NULLIFY(cell, subsys, local_molecules, local_particles, fixd_list, molecule_kinds,&
+         molecules, molecule_kind, molecule_kind_set, molecule, molecule_set, particles,&
+         particle_set, gci)
     CALL timeset ( routineN, 'I', ' ', handle )
     IF (.NOT. failure) THEN
        CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell,error=error)
@@ -232,14 +229,12 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        ! Store restraint energies
-       NULLIFY(extended_energies)
-       ALLOCATE(extended_energies,stat=stat)
-       CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
-       extended_energies%energy_g3x3_restraint=energy_3x3
-       extended_energies%energy_fixd_restraint=energy_fixd
-       extended_energies%energy_g4x6_restraint=energy_4x6
-       extended_energies%energy_colv_restraint=energy_colv
-       CALL force_env_set(force_env=force_env, extended_energies=extended_energies, error=error)
+       CALL force_env_get(force_env=force_env, additional_potential=extended_energies, error=error)
+       extended_energies=extended_energies+ energy_3x3  +&
+                                            energy_fixd +&
+                                            energy_4x6  +&
+                                            energy_colv
+       CALL force_env_set(force_env=force_env, additional_potential=extended_energies, error=error)
     END IF
     CALL timestop ( 0.0_dp, handle )
 

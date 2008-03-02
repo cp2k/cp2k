@@ -137,6 +137,7 @@ OBJECTS_GENERIC =\
  extended_system_mapping.o\
  extended_system_types.o\
  external_potential_types.o\
+ external_potential_methods.o\
  f77_blas.o\
  f77_blas_extra.o\
  f77_blas_generic.o\

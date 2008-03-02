@@ -31,7 +31,6 @@ MODULE force_env_types
                                              eip_environment_type
   USE ep_types,                        ONLY: ep_env_release,&
                                              ep_env_type
-  USE extended_system_types,           ONLY: extended_energy_type
   USE f77_blas
   USE fist_energy_types,               ONLY: fist_energy_type
   USE fist_environment_types,          ONLY: fist_env_release,&
@@ -135,8 +134,8 @@ MODULE force_env_types
 !> \author fawzi
 ! *****************************************************************************
   TYPE force_env_type
-!     PRIVATE
      INTEGER :: id_nr,ref_count,in_use,method_name_id
+     REAL ( KIND=dp )                                    :: additional_potential
      TYPE ( fist_environment_type ), POINTER             :: fist_env
      TYPE ( kg_environment_type ), POINTER               :: kg_env
      TYPE ( meta_env_type ), POINTER                     :: meta_env
@@ -154,7 +153,6 @@ MODULE force_env_types
      TYPE ( mixed_environment_type ), POINTER            :: mixed_env     
      TYPE ( section_vals_type), POINTER                  :: force_env_section
      TYPE ( section_vals_type), POINTER                  :: root_section
-     TYPE ( extended_energy_type), POINTER               :: extended_energies
      TYPE ( cpot_type), POINTER                          :: cpot_env
      TYPE ( cp_result_type), POINTER                     :: results 
   END TYPE force_env_type
@@ -254,11 +252,6 @@ END SUBROUTINE force_env_retain
              DEALLOCATE(force_env%sub_force_env,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
-          ! Deallocate Energy type
-          IF (ASSOCIATED(force_env%extended_energies)) THEN
-             DEALLOCATE(force_env%extended_energies,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          END IF
 
           SELECT CASE ( force_env%in_use )
           CASE ( use_fist_force )
@@ -309,12 +302,11 @@ END SUBROUTINE force_env_retain
 !>      04.2003 created [fawzi]
 !> \author fawzi
 ! *****************************************************************************
-RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
-     fist_env, qs_env, kg_env, meta_env, fp_env, dyn_coeff_set, subsys, para_env, &
-     potential_energy, kinetic_energy, harmonic_shell, kinetic_shell,&
-     cell, cell_ref, sub_force_env, qmmm_env, &
-     eip_env, virial, use_ref_cell, globenv, input, ep_env, force_env_section, &
-     method_name_id, root_section, mixed_env,results, error)
+RECURSIVE SUBROUTINE force_env_get(force_env, in_use, fist_env, qs_env, kg_env,&
+     meta_env, fp_env, dyn_coeff_set, subsys, para_env, potential_energy, additional_potential, &
+     kinetic_energy, harmonic_shell, kinetic_shell, cell, cell_ref, sub_force_env,&
+     qmmm_env, eip_env, virial, use_ref_cell, globenv, input, ep_env, force_env_section, &
+     method_name_id, root_section, mixed_env, results, error)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(out), OPTIONAL           :: in_use
     TYPE(fist_environment_type), OPTIONAL, &
@@ -330,9 +322,8 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: potential_energy, &
-                                                kinetic_energy, &
-                                                harmonic_shell, kinetic_shell
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL :: potential_energy, &
+      additional_potential, kinetic_energy, harmonic_shell, kinetic_shell
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
     TYPE(force_env_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: sub_force_env
@@ -542,12 +533,11 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
              potential_energy=potential_energy+force_env%fp_env%energy
         ENDIF
      ENDIF
-     ! extended energies
-     IF (ASSOCIATED(force_env%extended_energies) .AND. PRESENT(potential_energy)) THEN
-        potential_energy=potential_energy+ force_env%extended_energies%energy_g3x3_restraint+&
-                                           force_env%extended_energies%energy_fixd_restraint+&
-                                           force_env%extended_energies%energy_g4x6_restraint+&
-                                           force_env%extended_energies%energy_colv_restraint
+     IF (PRESENT(potential_energy)) THEN
+        potential_energy = potential_energy + force_env%additional_potential
+     END IF
+     IF (PRESENT(additional_potential)) THEN
+        additional_potential = force_env%additional_potential
      END IF
      IF (PRESENT(fp_env)) fp_env => force_env%fp_env
      IF (PRESENT(meta_env)) meta_env => force_env%meta_env
@@ -572,7 +562,7 @@ END SUBROUTINE force_env_get
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 SUBROUTINE force_env_set(force_env, meta_env,fp_env, virial, force_env_section,&
-     method_name_id, extended_energies,results, error)
+     method_name_id, additional_potential, results, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
     TYPE(fp_type), OPTIONAL, POINTER         :: fp_env
@@ -580,15 +570,13 @@ SUBROUTINE force_env_set(force_env, meta_env,fp_env, virial, force_env_section,&
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: force_env_section
     INTEGER, OPTIONAL                        :: method_name_id
-    TYPE(extended_energy_type), OPTIONAL, &
-      POINTER                                :: extended_energies
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: additional_potential
     TYPE(cp_result_type), OPTIONAL, POINTER  :: results
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -597,13 +585,6 @@ SUBROUTINE force_env_set(force_env, meta_env,fp_env, virial, force_env_section,&
      CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
   END IF
   IF (.NOT.failure) THEN
-     IF (PRESENT(extended_energies)) THEN
-        IF (ASSOCIATED(force_env%extended_energies)) THEN
-           DEALLOCATE(force_env%extended_energies,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        force_env%extended_energies => extended_energies
-     END IF
      IF (PRESENT(meta_env)) THEN
         IF (ASSOCIATED(meta_env)) THEN
            CALL meta_env_retain(meta_env,error=error)
@@ -629,6 +610,9 @@ SUBROUTINE force_env_set(force_env, meta_env,fp_env, virial, force_env_section,&
            CALL section_vals_release(force_env%force_env_section,error=error)
            force_env%force_env_section => force_env_section
         END IF
+     END IF
+     IF (PRESENT(additional_potential)) THEN
+        force_env%additional_potential = additional_potential
      END IF
      IF(PRESENT(results))THEN
         IF(ASSOCIATED(results))THEN

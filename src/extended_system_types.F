@@ -34,19 +34,10 @@ MODULE extended_system_types
             release_map_info_type,&
             npt_info_type,&
             nhc_info_type,&
-            point_info_type,&
-            extended_energy_type
+            point_info_type
 
   LOGICAL, PARAMETER, PUBLIC :: debug_isotropic_limit = .FALSE.
   LOGICAL, PARAMETER, PUBLIC :: debug_uniaxial_limit  = .FALSE.
-
-! *****************************************************************************
-  TYPE extended_energy_type
-     REAL(KIND=dp)   ::  energy_g3x3_restraint,&
-                         energy_fixd_restraint,&
-                         energy_g4x6_restraint,&
-                         energy_colv_restraint
-  END TYPE extended_energy_type
 
 ! *****************************************************************************
   TYPE npt_info_type
