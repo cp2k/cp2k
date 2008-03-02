@@ -389,9 +389,10 @@ CONTAINS
        WRITE(179,*) '<META NAME="keywords" contents="scientific,computing,chemistry,physics,'//&
             'documentation,help,manual,Fortran,parallel">'
        color_tag='<font color="#000000">'
-       IF (section%supported_feature) THEN
-          color_tag='<font color="#00CC00">'
-       END IF
+       ! * only enable once a meaningful (?) part of the code is converted, now it is useless
+       ! IF (section%supported_feature) THEN
+       !    color_tag='<font color="#00CC00">'
+       ! END IF
        WRITE(179,*) "<H1> Section "//TRIM(color_tag)//section%name//"</font> </H1>"
        WRITE(179,*) ' <A HREF="index.html">Index of all sections</A>. This section is located at '
        DO idepth=1,depth

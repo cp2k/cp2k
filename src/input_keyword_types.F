@@ -680,9 +680,10 @@ CONTAINS
     CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        color_tag='<font color="#000000">'
-       IF (keyword%supported_feature) THEN
-          color_tag='<font color="#00CC00">'
-       END IF
+       ! * only enable once a meaningful (?) part of the code is converted, now it is useless
+       ! IF (keyword%supported_feature) THEN
+       !    color_tag='<font color="#00CC00">'
+       ! END IF
        WRITE(unit_nr,'(a)') '<TR><TD WITDH="20%">'// &
             '<A NAME="'//TRIM(keyword%names(1))//'"><u>'//TRIM(color_tag)//TRIM(keyword%names(1))//'</font></u></A>'// &
             '<TD WIDTH="80%">'

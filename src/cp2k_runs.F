@@ -836,10 +836,6 @@ CPSourceFileRef,&
                         "This version has been generated using a cp2k version compiled on "//TRIM(compile_date)//". "//&
                         "The latest CVS entry found is "//TRIM(compile_lastcvs)//"."
 
-       WRITE(unit_nr,*) "<H2>Color convention</H2>"
-       WRITE(unit_nr,*) "Sections and Keywords supported in the current released version of cp2k are marked "//&
-                        "with green color. Keywords or Sections specifically designed for the development version or still "//&
-                        "in a development status (not ready for the released version) are marked with black/blue color."
 
        WRITE(unit_nr,*) '<H2>Search the online input reference manual</H2>'
 
@@ -896,6 +892,12 @@ WRITE(unit_nr,*) ' <!-- END CODE --></TD><TD> '
 
        WRITE(unit_nr,*) '<H2>Journal papers</H2>'
        WRITE(unit_nr,*) '<A HREF="references.html">List of references</A> cited in the CP2K input manual.'
+
+       ! * only enable once a meaningful (?) part of the code is converted, now it is useless
+       ! WRITE(unit_nr,*) "<H2>Color convention</H2>"
+       ! WRITE(unit_nr,*) "Sections and Keywords supported in the current released version of cp2k are marked "//&
+       !                  "with green color. Keywords or Sections specifically designed for the development version or still "//&
+       !                  "in a development status (not ready for the released version) are marked with black/blue color."
 
        WRITE(unit_nr,*) "<H2>Internal Input Preprocessor</H2>"
        WRITE(unit_nr,*) "Before the input is parsed, the input is run through a very simple internal preprocessor."
