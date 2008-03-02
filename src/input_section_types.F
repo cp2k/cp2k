@@ -11,6 +11,7 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE input_section_types
+  USE cp2k_info,                       ONLY: enable_color_tags
   USE cp_linked_list_val,              ONLY: &
        cp_sll_val_create, cp_sll_val_dealloc, cp_sll_val_get_el_at, &
        cp_sll_val_get_length, cp_sll_val_get_rest, cp_sll_val_insert_el_at, &
@@ -389,10 +390,11 @@ CONTAINS
        WRITE(179,*) '<META NAME="keywords" contents="scientific,computing,chemistry,physics,'//&
             'documentation,help,manual,Fortran,parallel">'
        color_tag='<font color="#000000">'
-       ! * only enable once a meaningful (?) part of the code is converted, now it is useless
-       ! IF (section%supported_feature) THEN
-       !    color_tag='<font color="#00CC00">'
-       ! END IF
+       IF (enable_color_tags) THEN
+          IF (section%supported_feature) THEN
+             color_tag='<font color="#00CC00">'
+          END IF
+       END IF
        WRITE(179,*) "<H1> Section "//TRIM(color_tag)//section%name//"</font> </H1>"
        WRITE(179,*) ' <A HREF="index.html">Index of all sections</A>. This section is located at '
        DO idepth=1,depth
