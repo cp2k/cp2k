@@ -244,13 +244,13 @@ END SUBROUTINE init_input_type
        rs % group_coor = 0
        rs % my_pos = 0
     ELSE
-       IF ( .NOT. ALL ( pw_grid % bounds ( 1, 2:3 ) == &
-            pw_grid % bounds_local ( 1, 2:3 ) .AND. &
-            pw_grid % bounds ( 2, 2:3 ) == &
-            pw_grid % bounds_local ( 2, 2:3 ) ) ) THEN
-          CALL stop_program ( routineN, &
-               "This pw type not supported" )
-       END IF
+       ! IF ( .NOT. ALL ( pw_grid % bounds ( 1, 2:3 ) == &
+       !      pw_grid % bounds_local ( 1, 2:3 ) .AND. &
+       !      pw_grid % bounds ( 2, 2:3 ) == &
+       !      pw_grid % bounds_local ( 2, 2:3 ) ) ) THEN
+       !    CALL stop_program ( routineN, &
+       !         "This pw type not supported" )
+       ! END IF
  
        ! group size of rs grid
        ! global grid dimensions are still the same

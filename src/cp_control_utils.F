@@ -341,7 +341,8 @@ CPSourceFileRef,&
 
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: clist
-    INTEGER                                  :: istat, j, jj, k, n_rep, n_var
+    INTEGER                                  :: istat, itmp, j, jj, k, n_rep, &
+                                                n_var
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: failure, was_present
     REAL(dp)                                 :: tmpsqrt, value
@@ -441,8 +442,8 @@ CPSourceFileRef,&
     qs_control%gapw_control%quadrature_name=quadrature_name(qs_control%gapw_control%quadrature)
 
     ! Integers grids
-    CALL section_vals_val_get(qs_section,"PW_GRID",i_val=qs_control%pw_grid_opt_id,error=error)
-    SELECT CASE (qs_control%pw_grid_opt_id)
+    CALL section_vals_val_get(qs_section,"PW_GRID",i_val=itmp,error=error)
+    SELECT CASE (itmp)
     CASE(do_pwgrid_spherical)
        qs_control%pw_grid_opt%spherical = .TRUE.
        qs_control%pw_grid_opt%fullspace = .FALSE.
@@ -453,6 +454,9 @@ CPSourceFileRef,&
        qs_control%pw_grid_opt%spherical = .FALSE.
        qs_control%pw_grid_opt%fullspace = .FALSE.
     END SELECT
+
+    CALL section_vals_val_get(qs_section,"PW_GRID_LAYOUT",i_vals=tmplist,error=error)
+    qs_control%pw_grid_opt%distribution_layout=tmplist
 
     !Integers extrapolation
     CALL section_vals_val_get(qs_section,"EXTRAPOLATION",i_val=qs_control%wf_interpolation_method_nr,error=error)

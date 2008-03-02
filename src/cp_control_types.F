@@ -30,6 +30,7 @@ MODULE cp_control_types
   TYPE pw_grid_option
      LOGICAL :: spherical
      LOGICAL :: fullspace
+     INTEGER, DIMENSION(2) :: distribution_layout
   END TYPE pw_grid_option
 !------------------------------------------------------------------------------!
 ! Control parameters for SCP calculations
@@ -196,7 +197,6 @@ MODULE cp_control_types
     REAL(KIND = dp), DIMENSION(:), POINTER  :: e_cutoff
     TYPE (gapw_control_type), POINTER       :: gapw_control
     TYPE ( pw_grid_option )         :: pw_grid_opt
-    INTEGER                         :: pw_grid_opt_id
     INTEGER                         :: wf_interpolation_method_nr
     INTEGER                         :: wf_extrapolation_order
   END TYPE qs_control_type

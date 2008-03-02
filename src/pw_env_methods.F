@@ -327,7 +327,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                    ncommensurate=ncommensurate,icommensurate=igrid_level,&
                    blocked=.FALSE.,&
                    ref_grid=old_pw_grid,&
-                   rs_dims=(/para_env%num_pe,1/),&
+                   rs_dims=dft_control % qs_control % pw_grid_opt % distribution_layout,&
                    iounit=iounit,error=error)
               old_pw_grid => pw_grid
            ELSE
@@ -336,7 +336,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                    spherical=spherical,odd=odd,fft_usage=.TRUE.,&
                    ncommensurate=ncommensurate,icommensurate=igrid_level,&
                    blocked=.FALSE.,&
-                   rs_dims=(/para_env%num_pe,1/),&
+                   rs_dims=dft_control % qs_control % pw_grid_opt % distribution_layout,&
                    iounit=iounit,error=error)
               old_pw_grid => pw_grid
            END IF
@@ -347,7 +347,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                 ncommensurate=ncommensurate,icommensurate=igrid_level,&
                 blocked=.FALSE.,&
                 ref_grid=old_pw_grid,&
-                rs_dims=(/para_env%num_pe,1/),&
+                rs_dims=dft_control % qs_control % pw_grid_opt % distribution_layout,&
                 iounit=iounit,error=error)
         END IF
 

@@ -742,6 +742,26 @@ CONTAINS
 
        np = pw_grid % para % group_size
 
+
+       ! capture an input request, if we see any negative number
+       IF ( ANY(pw_grid % para % rs_dims<0) ) THEN
+            ! we go back to the old settings where we had a plane, not a ray distribution
+            IF (ALL(pw_grid % para % rs_dims<0) ) THEN
+                pw_grid % para % rs_dims = (/np,1/)
+            ELSE
+              ! a zero means, have CP2K optimize
+              IF (.NOT. ANY(pw_grid % para % rs_dims==0)) THEN
+                ! just a single negative means that the other number should be such that the CPU count can match
+                IF (pw_grid % para % rs_dims(1)==-1) THEN
+                   pw_grid % para % rs_dims(1)=np/pw_grid % para % rs_dims(2)
+                ELSE
+                   pw_grid % para % rs_dims(2)=np/pw_grid % para % rs_dims(1)
+                ENDIF
+              ENDIF
+            ENDIF
+       ENDIF
+
+       ! if there is a zero, we try and optimize ourselves
        IF ( PRODUCT ( pw_grid % para % rs_dims ) == 0 ) THEN
 
           ns = INT ( SQRT ( REAL ( np,KIND=dp) ) )

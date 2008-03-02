@@ -263,7 +263,7 @@ END SUBROUTINE kg_rspw_create
                    ncommensurate=ncommensurate,icommensurate=igrid_level,&
                    blocked=.FALSE.,&
                    ref_grid=old_pw_grid,&
-                   rs_dims=(/para_env%num_pe,1/),&
+                   rs_dims=dft_control % qs_control % pw_grid_opt % distribution_layout,&
                    iounit=iounit,error=error)
               old_pw_grid => pw_grid
            ELSE
@@ -272,7 +272,7 @@ END SUBROUTINE kg_rspw_create
                    spherical=spherical,odd=odd,fft_usage=.TRUE.,&
                    ncommensurate=ncommensurate,icommensurate=igrid_level,&
                    blocked=.FALSE.,&
-                   rs_dims=(/para_env%num_pe,1/),&
+                   rs_dims=dft_control % qs_control % pw_grid_opt % distribution_layout,&
                    iounit=iounit,error=error)
               old_pw_grid => pw_grid
            END IF
@@ -283,7 +283,7 @@ END SUBROUTINE kg_rspw_create
                 ncommensurate=ncommensurate,icommensurate=igrid_level,&
                 blocked=.FALSE.,&
                 ref_grid=old_pw_grid,&
-                rs_dims=(/para_env%num_pe,1/),&
+                rs_dims=dft_control % qs_control % pw_grid_opt % distribution_layout,&
                 iounit=iounit,error=error)
         ENDIF
 
