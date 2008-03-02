@@ -66,6 +66,7 @@ MODULE realspace_grid_types
      INTEGER       :: distribution_type
      INTEGER       :: distribution_layout(3)
      REAL(KIND=dp) :: memory_factor
+     LOGICAL       :: lock_distribution
      INTEGER       :: nsmax
   END TYPE realspace_grid_input_type
 
@@ -120,18 +121,21 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief parses an input section to assign the proper values to the input type
+!> \param higher_grid_layout the layout of a higher level grid. layouts with
+!>       negative or zero values are ignored
 !> \note
 !>      if rs_grid_section is not present we setup for an replicated setup
 !> \par History
 !>      01.2008 created [Joost VandeVondele]
 ! *****************************************************************************
-SUBROUTINE init_input_type(input_settings,nsmax,rs_grid_section,ilevel,error)
+SUBROUTINE init_input_type(input_settings,nsmax,rs_grid_section,ilevel,higher_grid_layout,error)
     TYPE(realspace_grid_input_type), &
       INTENT(OUT)                            :: input_settings
     INTEGER, INTENT(IN)                      :: nsmax
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: rs_grid_section
     INTEGER, INTENT(IN)                      :: ilevel
+    INTEGER, DIMENSION(3), INTENT(IN)        :: higher_grid_layout
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: isection, &
@@ -155,6 +159,9 @@ SUBROUTINE init_input_type(input_settings,nsmax,rs_grid_section,ilevel,error)
        CALL section_vals_val_get(rs_grid_section,"MEMORY_FACTOR",&
                 i_rep_section=isection,&
                 r_val=input_settings%memory_factor,error=error)
+       CALL section_vals_val_get(rs_grid_section,"LOCK_DISTRIBUTION",&
+                i_rep_section=isection,&
+                l_val=input_settings%lock_distribution,error=error)
        CALL section_vals_val_get(rs_grid_section,"MAX_DISTRIBUTED_LEVEL",&
                 i_rep_section=isection,&
                 i_val=max_distributed_level,error=error)
@@ -168,6 +175,10 @@ SUBROUTINE init_input_type(input_settings,nsmax,rs_grid_section,ilevel,error)
    ELSE
        input_settings%nsmax=-1
        input_settings%distribution_type=rsgrid_replicated
+       input_settings%lock_distribution=.FALSE.
+   ENDIF
+   IF (input_settings%lock_distribution) THEN
+     IF (ALL(higher_grid_layout>0)) input_settings%distribution_layout=higher_grid_layout
    ENDIF
 END SUBROUTINE init_input_type
 

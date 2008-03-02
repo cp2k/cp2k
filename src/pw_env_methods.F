@@ -26,6 +26,8 @@ MODULE pw_env_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              rs_pool_create,&
+                                             rs_pool_create_rs,&
+                                             rs_pool_give_back_rs,&
                                              rs_pools_create_rs_vect,&
                                              rs_pools_dealloc,&
                                              rs_pools_give_back_rs_vect
@@ -66,6 +68,7 @@ MODULE pw_env_methods
   USE realspace_grid_types,            ONLY: init_input_type,&
                                              realspace_grid_input_type,&
                                              realspace_grid_p_type,&
+                                             realspace_grid_type,&
                                              rs_grid_print
   USE scp_environment_types,           ONLY: scp_environment_type
   USE scp_rspw_methods,                ONLY: maxradius_scp_init
@@ -145,6 +148,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
       iounit, ipgf, iset, ishell, jkind, jpgf, jset, jshell, la, lb, &
       lgrid_level, ncommensurate, ngrid_level, nkind, nseta, nsetb, nsmax, &
       stat
+    INTEGER, DIMENSION(3)                    :: higher_grid_layout
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
     LOGICAL                                  :: failure, odd, should_output, &
@@ -176,6 +180,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(realspace_grid_input_type)          :: input_settings
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs
+    TYPE(realspace_grid_type), POINTER       :: rs_grid
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: input, poisson_section, &
@@ -537,6 +542,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 
      ALLOCATE (pw_env%cube_info(ngrid_level),STAT=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     higher_grid_layout=(/-1,-1,-1/)
 
      DO igrid_level=1,ngrid_level
         pw_grid => pw_pools(igrid_level)%pool%pw_grid
@@ -548,11 +554,18 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         rs_grid_section=>section_vals_get_subs_vals(input,"DFT%MGRID%RS_GRID",error=error)
 
         CALL init_input_type(input_settings,nsmax=2*MAX(1,return_cube_max_iradius(pw_env%cube_info(igrid_level)))+1,&
-                                 rs_grid_section=rs_grid_section,ilevel=igrid_level,error=error)
+                                  rs_grid_section=rs_grid_section,ilevel=igrid_level,&
+                                  higher_grid_layout=higher_grid_layout,error=error)
 
         NULLIFY(rs_pools(igrid_level)%pool)
         CALL rs_pool_create(rs_pools(igrid_level)%pool,&
              el_struct=pw_grid,input_settings=input_settings,error=error)
+
+        ! to get any info about this type, you have to create it... 
+        CALL rs_pool_create_rs(rs_pools(igrid_level)%pool,rs_grid,error)
+        IF (rs_grid%distributed) higher_grid_layout=rs_grid%group_dim 
+        CALL rs_pool_give_back_rs(rs_pools(igrid_level)%pool,rs_grid,error)
+
      END DO
      pw_env%rs_pools => rs_pools
 

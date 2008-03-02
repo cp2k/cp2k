@@ -23,6 +23,8 @@ MODULE kg_rspw_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              rs_pool_create,&
+                                             rs_pool_create_rs,&
+                                             rs_pool_give_back_rs,&
                                              rs_pools_create_rs_vect,&
                                              rs_pools_dealloc,&
                                              rs_pools_give_back_rs_vect
@@ -56,6 +58,7 @@ MODULE kg_rspw_methods
   USE realspace_grid_types,            ONLY: init_input_type,&
                                              realspace_grid_input_type,&
                                              realspace_grid_p_type,&
+                                             realspace_grid_type,&
                                              rs_grid_print
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
@@ -119,6 +122,7 @@ END SUBROUTINE kg_rspw_create
     INTEGER :: grid_span, handle, i, igrid_level, ikind, iounit, ipgf, iset, &
       ishell, la, lgrid_level, ncommensurate, ngrid_level, nkind, nseta, &
       nsmax, stat
+    INTEGER, DIMENSION(3)                    :: higher_grid_layout
     INTEGER, DIMENSION(:), POINTER           :: npgfa, nshella
     INTEGER, DIMENSION(:, :), POINTER        :: lshella
     LOGICAL                                  :: failure, odd, should_output, &
@@ -145,6 +149,7 @@ END SUBROUTINE kg_rspw_create
     TYPE(realspace_grid_input_type)          :: input_settings
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs
+    TYPE(realspace_grid_type), POINTER       :: rs_grid
     TYPE(section_vals_type), POINTER         :: poisson_section, &
                                                 print_section, rs_grid_section
 
@@ -411,6 +416,8 @@ END SUBROUTINE kg_rspw_create
       ALLOCATE(rs_pools(ngrid_level),stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+      higher_grid_layout=(/-1,-1,-1/)
+
       DO igrid_level=1,ngrid_level
         pw_grid => pw_pools(igrid_level)%pool%pw_grid
         NULLIFY(rs_pools(igrid_level)%pool)
@@ -422,10 +429,17 @@ END SUBROUTINE kg_rspw_create
         rs_grid_section=>section_vals_get_subs_vals(kg_env%input,"DFT%MGRID%RS_GRID",error=error)
 
         CALL init_input_type(input_settings,nsmax=2*MAX(1,return_cube_max_iradius(kg_rspw%cube_info(igrid_level)))+1,&
-                                 rs_grid_section=rs_grid_section,ilevel=igrid_level,error=error)
+                                 rs_grid_section=rs_grid_section,ilevel=igrid_level, &
+                                 higher_grid_layout=higher_grid_layout,error=error)
 
         CALL rs_pool_create(rs_pools(igrid_level)%pool,&
             el_struct=pw_grid,input_settings=input_settings,error=error)
+
+       ! to get any info about this type, you have to create it...
+        CALL rs_pool_create_rs(rs_pools(igrid_level)%pool,rs_grid,error)
+        IF (rs_grid%distributed) higher_grid_layout=rs_grid%group_dim
+        CALL rs_pool_give_back_rs(rs_pools(igrid_level)%pool,rs_grid,error)
+
       ENDDO
       kg_rspw%rs_pools => rs_pools
 

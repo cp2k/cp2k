@@ -302,7 +302,8 @@ CONTAINS
           
           NULLIFY ( rs_pool )
           CALL init_input_type(input_settings,nsmax=MAXVAL ( pw_small_grid % npts(1:3) ),&
-                               rs_grid_section=rs_grid_section,ilevel=1,error=error)
+                               rs_grid_section=rs_grid_section,ilevel=1, &
+                               higher_grid_layout=(/-1,-1,-1/),error=error)
           CALL rs_pool_create(rs_pool,el_struct=pw_big_grid,input_settings=input_settings,error=error)
           
           CALL rs_pool_create_rs(rs_pool,rs,error=error)
@@ -339,7 +340,8 @@ CONTAINS
           
           NULLIFY ( rs_pool )
           CALL init_input_type(input_settings,nsmax=o_spline,&
-                               rs_grid_section=rs_grid_section,ilevel=1,error=error)
+                               rs_grid_section=rs_grid_section,ilevel=1, &
+                               higher_grid_layout=(/-1,-1,-1/),error=error)
           CALL rs_pool_create(rs_pool,el_struct=pw_big_grid,input_settings=input_settings,error=error)
           
           CALL rs_pool_create_rs(rs_pool,rs,error=error)

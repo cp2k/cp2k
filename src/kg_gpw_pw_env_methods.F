@@ -596,7 +596,8 @@ CONTAINS
 
      ! init rs_pools
       drmin = MINVAL ( pw_grid_mol%dr )
-      CALL init_input_type(input_settings,nsmax=-1,ilevel=1,error=error)
+      CALL init_input_type(input_settings,nsmax=-1,ilevel=1, &
+                               higher_grid_layout=(/-1,-1,-1/),error=error)
 
       NULLIFY(rs_pools_mol(1)%pool)
       CALL rs_pool_create(rs_pools_mol(1)%pool,&
@@ -776,7 +777,8 @@ CONTAINS
 
         ! init rs_pools, kg_gpw is really only a serial code
            drmin = MINVAL ( pw_grid_mol%dr )
-           CALL init_input_type(input_settings,nsmax=-1,ilevel=1,error=error)
+           CALL init_input_type(input_settings,nsmax=-1,ilevel=1, &
+                               higher_grid_layout=(/-1,-1,-1/),error=error)
 
            NULLIFY(rs_pools_mol(igrid_level)%pool)
            CALL rs_pool_create(rs_pools_mol(igrid_level)%pool,&
