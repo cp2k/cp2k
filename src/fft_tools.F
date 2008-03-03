@@ -20,7 +20,7 @@ MODULE fft_tools
                                              sp
   USE message_passing,                 ONLY: &
        mp_alltoall, mp_cart_coords, mp_cart_rank, mp_cart_sub, &
-       mp_comm_compare, mp_comm_free, mp_environ, mp_rank_compare, mp_sum
+       mp_comm_compare, mp_comm_free, mp_environ, mp_rank_compare, mp_sum, mp_sync
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -1655,7 +1655,7 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
     INTEGER                                  :: cpos( 2 ), handle, ierr, ip, &
                                                 ipr, ir, ix, iz, jj, jx, jy, &
                                                 jz, myx, myz, nmax, np, npx, &
-                                                npz, nx, nz, rs_pos
+                                                npz, nx, ny, nz, rs_pos
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
                                                 sdispl, xcor, zcor
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
@@ -1666,8 +1666,11 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
   CALL timeset("yz_to_xz","I","Mcopy",handle)
 
   np = SIZE ( p2p )
+  ny = MAXVAL ( bo ( 2, 2, : ) - bo ( 1, 2, : ) + 1 )
+  nmax = MAX ( (2*ny)/np, 2) * SIZE ( tb ,2 )
   nx = MAXVAL ( bo ( 2, 1, : ) - bo ( 1, 1, : ) + 1 )
-  nmax = nx * MAXVAL ( nray ( : ) )
+  nmax = MAX ( nmax, nx*MAXVAL(nray(:)) )
+
   rs_pos = p2p ( my_pos )
 
   IF ( alltoall_sgl ) THEN
@@ -1841,7 +1844,9 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
 
   np = SIZE ( p2p )
   ny = MAXVAL ( bo ( 2, 2, : ) - bo ( 1, 2, : ) + 1 )
-  nmax = (2*ny)/np * SIZE ( sb ,2 )
+  nmax = MAX ( (2*ny)/np, 2) * SIZE ( sb ,2 )
+  nx = MAXVAL ( bo ( 2, 1, : ) - bo ( 1, 1, : ) + 1 )
+  nmax = MAX ( nmax, nx*MAXVAL(nray(:)) )
 
   IF ( alltoall_sgl ) THEN
     ALLOCATE ( ts ( nmax, 0:np-1 ) , STAT = ierr )
