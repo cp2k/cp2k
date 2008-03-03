@@ -574,7 +574,8 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
     INTEGER                                  :: i, indf, j
-    REAL(KIND=dp)                            :: tmp(ndf,ndf)
+    REAL(KIND=dp), ALLOCATABLE               :: tmp(:,:)
+
 
      hes_mat(:,:) = eigvec(:,:)
 
@@ -582,6 +583,8 @@ CONTAINS
        eigval(indf) = one/eigval(indf)
        CALL dscal(ndf,eigval(indf),hes_mat(1,indf),1)
      END DO
+
+    ALLOCATE(tmp(ndf,ndf))
 
      CALL dgemm ("N","T",ndf,ndf,ndf,one,hes_mat,ndf,eigvec,ndf,zero,&
                  tmp,ndf)
@@ -592,6 +595,8 @@ CONTAINS
          hes_mat(i,j) = hes_mat(j,i)
        END DO
      END DO
+
+     DEALLOCATE(tmp)
 
 !    ** New step **
 
