@@ -914,13 +914,15 @@ END SUBROUTINE init_input_type
 
        ! This is the real redistribution
 
-       ALLOCATE ( bounds ( 0:pw % pw_grid % para % group_size - 1, 1:2 ), STAT=ierr )
+       ALLOCATE ( bounds ( 0:pw % pw_grid % para % group_size - 1, 1:4 ), STAT=ierr )
        IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","bounds",nn)
 
        ! work out the pw grid points each proc holds
        DO i = 0, pw % pw_grid % para % group_size - 1
-          bounds ( i , : ) = get_limit ( pw % pw_grid % npts ( 1 ), pw % pw_grid % para % rs_dims ( 1 ), i )
-          bounds ( i , : ) = bounds ( i , : ) - pw % pw_grid % npts (1) / 2 - 1
+          bounds ( i , 1:2 ) = pw % pw_grid % para % bo (1:2,1,i,1)
+          bounds ( i , 3:4 ) = pw % pw_grid % para % bo (1:2,2,i,1)
+          bounds ( i , 1:2 ) = bounds ( i , 1:2 ) - pw % pw_grid % npts (1) / 2 - 1
+          bounds ( i , 3:4 ) = bounds ( i , 3:4 ) - pw % pw_grid % npts (2) / 2 - 1
        ENDDO
 
        ALLOCATE ( send_tasks ( 0:pw % pw_grid % para % group_size -1,1:6 ), STAT=ierr )
@@ -939,7 +941,6 @@ END SUBROUTINE init_input_type
        send_tasks(:,5)=1
        send_tasks(:,6)=0
        send_sizes = 0
-
        recv_tasks = 0
        recv_tasks(:,1)=1
        recv_tasks(:,2)=0
@@ -978,11 +979,14 @@ END SUBROUTINE init_input_type
              IF (lb_send(1) .GT.bounds(j,2)) CYCLE
              IF (ub_send(1) .LT.bounds(j,1)) CYCLE 
 
+             IF (lb_send(2) .GT.bounds(j,4)) CYCLE
+             IF (ub_send(2) .LT.bounds(j,3)) CYCLE 
+
              IF(i==my_rs_rank) THEN
                 send_tasks(j,1)= MAX(lb_send(1),bounds(j,1))
                 send_tasks(j,2)= MIN(ub_send(1),bounds(j,2))
-                send_tasks(j,3)= lb_send(2)
-                send_tasks(j,4)= ub_send(2)
+                send_tasks(j,3)= MAX(lb_send(2),bounds(j,3))
+                send_tasks(j,4)= MIN(ub_send(2),bounds(j,4))
                 send_tasks(j,5)= lb_send(3)
                 send_tasks(j,6)= ub_send(3)
                 send_sizes(j)  = (send_tasks( j ,2)-send_tasks( j ,1)+1)* &
@@ -992,8 +996,8 @@ END SUBROUTINE init_input_type
              IF(j==my_rs_rank) THEN
                 recv_tasks(i,1)= MAX(lb_send(1),bounds(j,1))
                 recv_tasks(i,2)= MIN(ub_send(1),bounds(j,2))
-                recv_tasks(i,3)= lb_send(2)
-                recv_tasks(i,4)= ub_send(2)
+                recv_tasks(i,3)= MAX(lb_send(2),bounds(j,3))
+                recv_tasks(i,4)= MIN(ub_send(2),bounds(j,4))
                 recv_tasks(i,5)= lb_send(3)
                 recv_tasks(i,6)= ub_send(3)
                 recv_sizes(i)  = (recv_tasks(i,2)-recv_tasks( i ,1)+1)* &
@@ -1090,13 +1094,14 @@ END SUBROUTINE init_input_type
 
        ! This is the real redistribution
 
-       ALLOCATE ( bounds ( 0:pw % pw_grid % para % group_size - 1, 1:2 ), STAT=ierr )
+       ALLOCATE ( bounds ( 0:pw % pw_grid % para % group_size - 1, 1:4 ), STAT=ierr )
        IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","bounds",nn)
 
-       ! work out the pw grid points each proc holds
        DO i = 0, pw % pw_grid % para % group_size - 1
-          bounds ( i , : ) = get_limit ( pw % pw_grid % npts ( 1 ), pw % pw_grid % para % rs_dims ( 1 ), i )
-          bounds ( i , : ) = bounds ( i , : ) - pw % pw_grid % npts (1) / 2 - 1
+          bounds ( i , 1:2 ) = pw % pw_grid % para % bo (1:2,1,i,1)
+          bounds ( i , 3:4 ) = pw % pw_grid % para % bo (1:2,2,i,1)
+          bounds ( i , 1:2 ) = bounds ( i , 1:2 ) - pw % pw_grid % npts (1) / 2 - 1
+          bounds ( i , 3:4 ) = bounds ( i , 3:4 ) - pw % pw_grid % npts (2) / 2 - 1
        ENDDO
 
        ALLOCATE ( send_tasks ( 0:pw % pw_grid % para % group_size -1,1:6 ), STAT=ierr )
@@ -1149,15 +1154,17 @@ END SUBROUTINE init_input_type
 
           DO j = 0, pw % pw_grid % para % group_size - 1
           
-             IF (lb_send(1) .GT.bounds(j,2)) CYCLE
              IF (ub_send(1) .LT.bounds(j,1)) CYCLE 
+             IF (lb_send(1) .GT.bounds(j,2)) CYCLE
+             IF (ub_send(2) .LT.bounds(j,3)) CYCLE
+             IF (lb_send(2) .GT.bounds(j,4)) CYCLE
 
              ! this is the reverse of rs2pw: what were the sends are now the recvs
              IF(i==my_rs_rank) THEN
                    recv_tasks(j,1)= MAX(lb_send(1),bounds(j,1))
                    recv_tasks(j,2)= MIN(ub_send(1),bounds(j,2))
-                   recv_tasks(j,3)= lb_send(2)
-                   recv_tasks(j,4)= ub_send(2)
+                   recv_tasks(j,3)= MAX(lb_send(2),bounds(j,3))
+                   recv_tasks(j,4)= MIN(ub_send(2),bounds(j,4))
                    recv_tasks(j,5)= lb_send(3)
                    recv_tasks(j,6)= ub_send(3)
                    recv_sizes(j)  = (recv_tasks( j ,2)-recv_tasks( j ,1)+1)* &
@@ -1167,8 +1174,8 @@ END SUBROUTINE init_input_type
              IF(j==my_rs_rank) THEN
                    send_tasks(i,1)= MAX(lb_send(1),bounds(j,1))
                    send_tasks(i,2)= MIN(ub_send(1),bounds(j,2))
-                   send_tasks(i,3)= lb_send(2)
-                   send_tasks(i,4)= ub_send(2)
+                   send_tasks(i,3)= MAX(lb_send(2),bounds(j,3))
+                   send_tasks(i,4)= MIN(ub_send(2),bounds(j,4))
                    send_tasks(i,5)= lb_send(3)
                    send_tasks(i,6)= ub_send(3)
                    send_sizes(i)  = (send_tasks(i,2)-send_tasks( i ,1)+1)* &
