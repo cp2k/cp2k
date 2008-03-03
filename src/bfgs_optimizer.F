@@ -576,7 +576,6 @@ CONTAINS
     INTEGER                                  :: i, indf, j
     REAL(KIND=dp), ALLOCATABLE               :: tmp(:,:)
 
-
      hes_mat(:,:) = eigvec(:,:)
 
      DO indf=1,ndf

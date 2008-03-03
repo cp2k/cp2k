@@ -20,7 +20,7 @@ MODULE fft_tools
                                              sp
   USE message_passing,                 ONLY: &
        mp_alltoall, mp_cart_coords, mp_cart_rank, mp_cart_sub, &
-       mp_comm_compare, mp_comm_free, mp_environ, mp_rank_compare, mp_sum, mp_sync
+       mp_comm_compare, mp_comm_free, mp_environ, mp_rank_compare, mp_sum
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
