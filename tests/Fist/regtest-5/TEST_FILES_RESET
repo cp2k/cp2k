@@ -116,3 +116,7 @@ JAC_gen.inp
 #  
 JAC.inp
 N3dye_vib_restart_vec2.inp
+# chage in the initial guess changed numerics
+wat_mode_sel.inp
+wat_mode_sel_range.inp
+
