@@ -131,6 +131,10 @@ CONTAINS
           END DO
        END DO
        CALL force_env_set(force_env, additional_potential=energy, error=error)
+       DEALLOCATE(my_par,stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(my_val,stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL finalizef()
     END IF
     CALL timestop(handle)
