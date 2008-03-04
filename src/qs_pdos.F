@@ -38,7 +38,8 @@ MODULE qs_pdos
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE orbital_pointers,                ONLY: nso, nsoset
+  USE orbital_pointers,                ONLY: nso,&
+                                             nsoset
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -94,12 +95,13 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: my_act, my_mittle, my_pos, &
                                                 spin(2)
     INTEGER :: handle, iatom, imo, irow, iset, isgf, ishell, iso, istat, &
-      iterstep, iw, kind_number, lcomponent, lshell, maxl, maxlgto, mepos, n_dependent, &
-      nao, natom, ncol_global, nkind, nrow_global, nset, nsgf
+      iterstep, iw, kind_number, lcomponent, lshell, maxl, maxlgto, mepos, &
+      n_dependent, nao, natom, ncol_global, nkind, nrow_global, nset, nsgf
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
-    LOGICAL                                  :: failure, ionode,&
-                                                separate_components, should_output
+    LOGICAL                                  :: append, failure, ionode, &
+                                                last, separate_components, &
+                                                should_output
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: pdos_array
@@ -120,6 +122,7 @@ CONTAINS
     failure = .FALSE.
     should_output = BTEST(cp_print_key_should_output(logger%iter_info,dft_section,&
                           "PRINT%PDOS",error=error),cp_p_file)
+    last = logger%iter_info%last_iter(logger%iter_info%n_rlevel)
     spin(1)="ALPHA"
     spin(2)="BETA"
     IF ((.NOT.should_output)) RETURN
@@ -235,7 +238,13 @@ CONTAINS
     DEALLOCATE(vecbuffer,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    my_pos = "REWIND"
+
+    CALL section_vals_val_get(dft_section,"PRINT%PDOS%APPEND",l_val=append,error=error)
+    IF(append .AND. iterstep > 1 ) THEN
+      my_pos = "APPEND"
+    ELSE
+      my_pos = "REWIND"
+    END IF
     my_act = "WRITE"
     DO kind_number = 1,nkind
     

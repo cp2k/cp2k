@@ -193,7 +193,7 @@ CONTAINS
 
     DO its = 1, maxiter
        gopt_env%its = its
-       CALL cp_iterate(logger%iter_info,iter_nr=its,error=error)
+       CALL cp_iterate(logger%iter_info,iter_nr=its,last=(its==maxiter),error=error)
 
        ! check for an external exit command
        CALL external_control(should_stop,"GEO",globenv,error)
