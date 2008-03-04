@@ -34,10 +34,11 @@ MODULE qs_pdos
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE orbital_pointers,                ONLY: nso
+  USE orbital_pointers,                ONLY: nso, nsoset
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -93,11 +94,12 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: my_act, my_mittle, my_pos, &
                                                 spin(2)
     INTEGER :: handle, iatom, imo, irow, iset, isgf, ishell, iso, istat, &
-      iterstep, iw, kind_number, lshell, maxl, maxlgto, mepos, n_dependent, &
+      iterstep, iw, kind_number, lcomponent, lshell, maxl, maxlgto, mepos, n_dependent, &
       nao, natom, ncol_global, nkind, nrow_global, nset, nsgf
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
-    LOGICAL                                  :: failure, ionode, should_output
+    LOGICAL                                  :: failure, ionode,&
+                                                separate_components, should_output
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: pdos_array
@@ -162,8 +164,16 @@ CONTAINS
     CALL cp_fm_release(matrix_shalf,error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
     ! Array to store the PDOS per kind and angular momentum
-    ALLOCATE(pdos_array(0:maxlgto,nkind,mo_set%nmo),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+
+    CALL section_vals_val_get(dft_section,"PRINT%PDOS%COMPONENTS",l_val=separate_components,error=error)
+    IF (separate_components) THEN
+      ALLOCATE(pdos_array(nsoset(maxlgto),nkind,mo_set%nmo),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+    ELSE
+      ALLOCATE(pdos_array(0:maxlgto,nkind,mo_set%nmo),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+    END IF
+
     pdos_array = 0.0_dp
     nao = mo_set%nao
     ALLOCATE(vecbuffer(1,nao),STAT=istat)
@@ -188,18 +198,34 @@ CONTAINS
                           nshell=nshell,&
                           l=l)
 
-          isgf = 1
-          DO iset=1,nset
-            DO ishell=1,nshell(iset)
-               lshell = l(ishell,iset)
-               DO iso=1,nso(lshell)
-                 pdos_array(lshell,kind_number,imo) = &
-                      pdos_array(lshell,kind_number,imo) +&
-                      vecbuffer(1,irow) * vecbuffer(1,irow) 
-                 irow = irow + 1
-               END DO  ! iso
-            END DO  ! ishell
-          END DO  ! iset
+          IF (separate_components) THEN
+            isgf = 1
+            DO iset=1,nset
+              DO ishell=1,nshell(iset)
+                 lshell = l(ishell,iset)
+                 DO iso=1,nso(lshell)
+                   lcomponent = nsoset(lshell-1)+iso
+                   pdos_array(lcomponent,kind_number,imo) = &
+                        pdos_array(lcomponent,kind_number,imo) +&
+                        vecbuffer(1,irow) * vecbuffer(1,irow) 
+                   irow = irow + 1
+                 END DO  ! iso
+              END DO  ! ishell
+            END DO  ! iset
+          ELSE
+            isgf = 1
+            DO iset=1,nset
+              DO ishell=1,nshell(iset)
+                 lshell = l(ishell,iset)
+                 DO iso=1,nso(lshell)
+                   pdos_array(lshell,kind_number,imo) = &
+                        pdos_array(lshell,kind_number,imo) +&
+                        vecbuffer(1,irow) * vecbuffer(1,irow) 
+                   irow = irow + 1
+                 END DO  ! iso
+              END DO  ! ishell
+            END DO  ! iset
+          END IF
 
       END DO  ! iatom
 
@@ -233,14 +259,25 @@ CONTAINS
       IF(iw>0) THEN
 
         fmtstr = "(I8,2X,F16.6,  (2X,F16.8))"
-        WRITE (UNIT=fmtstr(14:15),FMT="(I2)") maxl+1
+        IF(separate_components) THEN
+          WRITE (UNIT=fmtstr(14:15),FMT="(I2)")  nsoset(maxl)
+        ELSE
+          WRITE (UNIT=fmtstr(14:15),FMT="(I2)") maxl+1
+        END IF
  
         WRITE(UNIT=iw,FMT="(A,I5,A,I10)") "#  Projected DOS for kind number ", &
               kind_number, " at iteration step i = ", iterstep
-        DO imo = 1,mo_set%nmo
-          WRITE(UNIT=iw,FMT=fmtstr) imo, mo_set%eigenvalues(imo),&
-                (pdos_array(lshell,kind_number,imo), lshell=0,maxl)
-        END DO
+        IF(separate_components) THEN
+          DO imo = 1,mo_set%nmo
+            WRITE(UNIT=iw,FMT=fmtstr) imo, mo_set%eigenvalues(imo),&
+                  (pdos_array(lshell,kind_number,imo), lshell=1,nsoset(maxl))
+          END DO
+        ELSE
+          DO imo = 1,mo_set%nmo
+            WRITE(UNIT=iw,FMT=fmtstr) imo, mo_set%eigenvalues(imo),&
+                  (pdos_array(lshell,kind_number,imo), lshell=0,maxl)
+          END DO
+        END IF
       END IF
       CALL cp_print_key_finished_output(iw,logger,dft_section,&
                 "PRINT%PDOS", error=error)

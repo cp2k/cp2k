@@ -1115,8 +1115,14 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"PDOS",&
             description="Print out the DOS projected per kind and per angular momentum  ",&
-            print_level=high_print_level,filename="",&
+            print_level=high_print_level,common_iter_levels=1,filename="",&
             error=error)
+         CALL keyword_create(keyword, name="COMPONENTS",&
+            description="Print out pdos distinguishing all angular momentum components.",&
+             usage="COMPONENTS", default_l_val=.FALSE., &
+             lone_keyword_l_val=.TRUE., error=error)
+         CALL section_add_keyword(print_key,keyword,error=error)
+         CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
