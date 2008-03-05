@@ -146,7 +146,13 @@ CONTAINS
           ENDIF
        ELSE IF(outformat==dump_xmol) THEN
           ! This information can be digested by Molden
-          WRITE (UNIT=title,FMT="(A,T6,I8,A,T20,F20.10,A,T53,F12.3)")" i =",it,", E =",etot,", timestep=",time*REAL(it,KIND=dp)
+          IF (time == 0.0_dp) THEN
+            WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
+              " i = ",it,", E = ",etot
+          ELSE
+            WRITE (UNIT=title,FMT="(A,I8,A,F20.10,A,F12.3)")&
+              " i = ",it,", E = ",etot,", timestep = ",time*REAL(it,KIND=dp)
+          END IF
        ELSE IF(outformat==dump_atomic) THEN
           ! Do Nothing..
        ELSE
