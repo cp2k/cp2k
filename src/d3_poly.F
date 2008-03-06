@@ -1637,17 +1637,16 @@ END SUBROUTINE
 SUBROUTINE poly_cp2k2d3(poly_cp2k,grad,poly_d3,error)
     REAL(dp), DIMENSION(:), INTENT(in)       :: poly_cp2k
     INTEGER, INTENT(in)                      :: grad
-    REAL(dp), DIMENSION(:), INTENT(out)     :: poly_d3
+    REAL(dp), DIMENSION(:), INTENT(out)      :: poly_d3
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'poly_cp2k2d3', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: size_p
     INTEGER                                  :: cp_ii, i, j, k, mgrad, &
                                                 mgrad2, sgrad, sgrad2, &
                                                 sgrad2k, sgrad3, sgrad3k, &
-                                                shifti, shiftj, shiftk
+                                                shifti, shiftj, shiftk, size_p
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -1691,17 +1690,16 @@ END SUBROUTINE
 SUBROUTINE poly_d32cp2k(poly_cp2k,grad,poly_d3,error)
     REAL(dp), DIMENSION(:), INTENT(out)      :: poly_cp2k
     INTEGER, INTENT(in)                      :: grad
-    REAL(dp), DIMENSION(:), INTENT(in)      :: poly_d3
+    REAL(dp), DIMENSION(:), INTENT(in)       :: poly_d3
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'poly_d32cp2k', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: size_p
     INTEGER                                  :: cp_ii, i, j, k, mgrad, &
                                                 mgrad2, sgrad, sgrad2, &
                                                 sgrad2k, sgrad3, sgrad3k, &
-                                                shifti, shiftj, shiftk
+                                                shifti, shiftj, shiftk, size_p
     LOGICAL                                  :: failure
 
     failure=.FALSE.

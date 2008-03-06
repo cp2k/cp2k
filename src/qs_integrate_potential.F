@@ -45,7 +45,9 @@ MODULE qs_integrate_potential
   USE cube_utils,                      ONLY: cube_info_type,&
                                              return_cube,&
                                              return_cube_nonortho
+  USE d3_poly,                         ONLY: poly_d32cp2k
   USE distribution_2d_types,           ONLY: distribution_2d_release
+  USE gauss_colloc,                    ONLY: integrateGaussFull
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_constants,                 ONLY: pw_interp,&
@@ -97,8 +99,6 @@ MODULE qs_integrate_potential
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
-  use d3_poly, only: poly_d32cp2k, poly_cp2k2d3, poly_write3
-  use gauss_colloc, only: integrateGaussFull
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -1131,7 +1131,7 @@ CONTAINS
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: pol_x
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: vab
     REAL(KIND=dp) :: t_exp_1,t_exp_2,t_exp_min_1,t_exp_min_2,t_exp_plus_1,t_exp_plus_2
-    logical, parameter :: use_f=.FALSE.
+    LOGICAL, PARAMETER :: use_f=.FALSE.
 
 !   ---------------------------------------------------------------------------
 
@@ -1234,15 +1234,15 @@ CONTAINS
     ALLOCATE(vab(ncoset(la_max_local),ncoset(lb_max_local)))
     vab=0.0_dp
 
-    if (use_f) then
+    IF (use_f) THEN
         CALL integrate_general_f()
-    else
+    ELSE
         IF (rsgrid%orthorhombic ) THEN
           CALL integrate_ortho()
         ELSE
           CALL integrate_general_opt()
         END IF
-    end if
+    END IF
 
 !   *** vab contains all the information needed to find the elements of hab
 !   *** and optionally of derivatives of these elements
@@ -1733,10 +1733,12 @@ CONTAINS
 ! *****************************************************************************
 
     SUBROUTINE integrate_general_f
+    INTEGER                                  :: stat
     INTEGER, DIMENSION(2, 3)                 :: local_b
-    REAL(dp), &
-      DIMENSION((la_max_local+lb_max_local+1)*(la_max_local+lb_max_local+2)*(la_max_local+lb_max_local+3)/6)      :: poly_d3
-    integer :: stat
+    REAL(dp), DIMENSION((&
+      la_max_local+lb_max_local+1)*(&
+      la_max_local+lb_max_local+2)*(&
+      la_max_local+lb_max_local+3)/6)        :: poly_d3
 
         lp=la_max_local+lb_max_local
         local_b(1,:)=rsgrid%lb_local-rsgrid%lb
@@ -1747,14 +1749,14 @@ CONTAINS
         CALL integrateGaussFull(h=cell%hmat,h_inv=cell%h_inv,&
             grid=grid,poly=poly_d3,alphai=zetp,posi=rp,max_r2=radius*radius,&
             periodic=cell%perd,gdim=ng,local_bounds=local_b,&
-            error=error,scale=rsgrid%ngpts/abs(cell%deth))
+            error=error,scale=rsgrid%ngpts/ABS(cell%deth))
         ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
         !print *,'pippo,la_max_local,lb_max_local,size(coef_xyz),size(poly_d3)'
         ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6),stat=stat)
         CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
         CALL poly_d32cp2k(coef_xyz,lp,poly_d3,error)
         CALL xyz_to_vab()
-        deallocate(coef_xyz,stat=stat)
+        DEALLOCATE(coef_xyz,stat=stat)
         CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
     END SUBROUTINE
 
