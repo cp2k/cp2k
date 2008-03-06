@@ -67,14 +67,14 @@ MODULE qs_linres_epr_utils
                                              mu_perm
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_methods,                      ONLY: pw_zero
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_release,&
-                                             pw_zero
+                                             pw_release
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_linres_epr_atom_current,      ONLY: list_3c_jrho_atom

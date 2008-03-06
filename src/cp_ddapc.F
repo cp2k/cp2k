@@ -28,8 +28,8 @@ MODULE cp_ddapc
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
-  USE pw_types,                        ONLY: pw_integral_ab,&
-                                             pw_p_type
+  USE pw_methods,                      ONLY: pw_integral_ab
+  USE pw_types,                        ONLY: pw_p_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE timings,                         ONLY: timeset,&

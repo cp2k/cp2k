@@ -38,6 +38,10 @@ MODULE qmmm_gpw_forces
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_methods,                      ONLY: pw_axpy,&
+                                             pw_integral_ab,&
+                                             pw_transfer,&
+                                             pw_zero
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_p_type,&
@@ -47,12 +51,8 @@ MODULE qmmm_gpw_forces
   USE pw_spline_utils,                 ONLY: pw_restrict_s3
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
-                                             pw_axpy,&
-                                             pw_integral_ab,&
                                              pw_p_type,&
-                                             pw_transfer,&
-                                             pw_type,&
-                                             pw_zero
+                                             pw_type
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
   USE qmmm_gpw_energy,                 ONLY: qmmm_elec_with_gaussian,&

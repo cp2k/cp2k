@@ -51,6 +51,7 @@ MODULE qs_wf_history_methods
   USE mathlib,                         ONLY: binomial
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_methods,                      ONLY: pw_copy
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_type
@@ -58,7 +59,6 @@ MODULE qs_wf_history_methods
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_copy,&
                                              pw_p_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_reorthogonalize_vectors,&

@@ -36,6 +36,7 @@ MODULE qmmm_gpw_energy
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_methods,                      ONLY: pw_zero
   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                              pw_pools_create_pws,&
                                              pw_pools_give_back_pws
@@ -43,8 +44,7 @@ MODULE qmmm_gpw_energy
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
                                              pw_p_type,&
-                                             pw_type,&
-                                             pw_zero
+                                             pw_type
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
   USE qmmm_se_energy,                  ONLY: build_se_qmmm_matrix

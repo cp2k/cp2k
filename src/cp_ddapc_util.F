@@ -37,15 +37,15 @@ MODULE cp_ddapc_util
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_methods,                      ONLY: pw_axpy,&
+                                             pw_copy,&
+                                             pw_transfer
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              RECIPROCALSPACE,&
-                                             pw_axpy,&
-                                             pw_copy,&
                                              pw_p_type,&
-                                             pw_transfer,&
                                              pw_type
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_environment_types,            ONLY: get_qs_env,&

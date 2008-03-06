@@ -26,6 +26,7 @@ MODULE ewald_spline_util
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_create,&
                                              pw_grid_setup
+  USE pw_methods,                      ONLY: pw_zero
   USE pw_pool_types,                   ONLY: pw_pool_create,&
                                              pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
@@ -37,8 +38,7 @@ MODULE ewald_spline_util
        pw_spline_precond_type, spl3_pbc
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
-                                             pw_type,&
-                                             pw_zero
+                                             pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"

@@ -42,9 +42,15 @@ MODULE pw_pool_types
   USE pw_grids,                        ONLY: pw_grid_compare,&
                                              pw_grid_release,&
                                              pw_grid_retain
-  USE pw_types,                        ONLY: &
-       COMPLEXDATA1D, COMPLEXDATA3D, REALDATA1D, REALDATA3D, pw_create, &
-       pw_p_type, pw_release, pw_type, pw_write
+  USE pw_methods,                      ONLY: pw_write
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             COMPLEXDATA3D,&
+                                             REALDATA1D,&
+                                             REALDATA3D,&
+                                             pw_create,&
+                                             pw_p_type,&
+                                             pw_release,&
+                                             pw_type
   USE timings,                         ONLY: print_stack,&
                                              timeset,&
                                              timestop

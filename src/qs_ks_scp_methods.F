@@ -12,6 +12,9 @@ MODULE qs_ks_scp_methods
   USE machine,                         ONLY: m_walltime
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_methods,                      ONLY: pw_fft_wrap,&
+                                             pw_integral_ab,&
+                                             pw_zero
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -23,10 +26,7 @@ MODULE qs_ks_scp_methods
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_fft_wrap,&
-                                             pw_integral_ab,&
-                                             pw_p_type,&
-                                             pw_zero
+                                             pw_p_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_scp_types,                 ONLY: qs_ks_scp_env_type

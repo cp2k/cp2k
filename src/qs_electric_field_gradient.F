@@ -36,6 +36,11 @@ MODULE qs_electric_field_gradient
                                              joule
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_methods,                      ONLY: pw_dr2,&
+                                             pw_integral_ab,&
+                                             pw_smoothing,&
+                                             pw_structure_factor,&
+                                             pw_transfer
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -46,10 +51,11 @@ MODULE qs_electric_field_gradient
        pw_spline_do_precond, pw_spline_precond_create, &
        pw_spline_precond_release, pw_spline_precond_set_kind, &
        pw_spline_precond_type, spl3_pbc
-  USE pw_types,                        ONLY: &
-       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_dr2, &
-       pw_integral_ab, pw_p_type, pw_smoothing, pw_structure_factor, &
-       pw_transfer
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_p_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_gapw_densities,               ONLY: prepare_gapw_den

@@ -94,7 +94,8 @@ end subroutine write_string
  'type1out':'type(pw_type), pointer',
  'USE':
 """USE kinds, only: dp
-USE pw_types, ONLY: pw_type, pw_p_type, pw_write""",
+USE pw_types, ONLY: pw_type, pw_p_type
+USE pw_methods, ONLY: pw_write""",
  'defines':
 """! less not much meaningful...
 #define CP_SLL_PW_LESS_Q(el1,el2,error) ( el1 %id_nr < el2 %id_nr )

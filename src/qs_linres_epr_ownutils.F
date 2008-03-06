@@ -27,6 +27,7 @@ MODULE qs_linres_epr_ownutils
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_methods,                      ONLY: pw_integral_ab
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_type
@@ -40,7 +41,6 @@ MODULE qs_linres_epr_ownutils
                                              spl3_pbc
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
-                                             pw_integral_ab,&
                                              pw_p_type
   USE qs_core_energies,                ONLY: calculate_ecore
   USE qs_environment_types,            ONLY: get_qs_env,&

@@ -35,8 +35,8 @@ MODULE kg_gpw_collocate_den
   USE orbital_pointers,                ONLY: ncoset
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_types,                        ONLY: pw_integrate_function,&
-                                             pw_p_type
+  USE pw_methods,                      ONLY: pw_integrate_function
+  USE pw_types,                        ONLY: pw_p_type
   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace,&
                                              density_rs2pw,&
                                              lgrid_type

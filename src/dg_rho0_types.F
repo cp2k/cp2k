@@ -16,11 +16,11 @@ MODULE dg_rho0_types
                                              do_ewald_spme
   USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_methods,                      ONLY: pw_zero
   USE pw_types,                        ONLY: REALDATA3D,&
                                              pw_create,&
                                              pw_p_type,&
-                                             pw_release,&
-                                             pw_zero
+                                             pw_release
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 

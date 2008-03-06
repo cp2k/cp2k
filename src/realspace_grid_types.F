@@ -28,9 +28,9 @@ MODULE realspace_grid_types
        mp_sendrecv, mp_sum, mp_sync, mp_waitall
   USE pw_grid_types,                   ONLY: PW_MODE_LOCAL,&
                                              pw_grid_type
+  USE pw_methods,                      ONLY: pw_integrate_function
   USE pw_types,                        ONLY: COMPLEXDATA3D,&
                                              REALDATA3D,&
-                                             pw_integrate_function,&
                                              pw_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program

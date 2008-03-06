@@ -64,6 +64,9 @@ MODULE qs_integrate_potential
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_methods,                      ONLY: pw_copy,&
+                                             pw_transfer,&
+                                             pw_zero
   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                              pw_pools_create_pws,&
                                              pw_pools_give_back_pws
@@ -72,10 +75,7 @@ MODULE qs_integrate_potential
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_copy,&
-                                             pw_p_type,&
-                                             pw_transfer,&
-                                             pw_zero
+                                             pw_p_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type

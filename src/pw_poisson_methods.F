@@ -34,6 +34,10 @@ MODULE pw_poisson_methods
   USE pw_grids,                        ONLY: pw_grid_compare,&
                                              pw_grid_release,&
                                              pw_grid_retain
+  USE pw_methods,                      ONLY: pw_copy,&
+                                             pw_derive,&
+                                             pw_integral_ab,&
+                                             pw_transfer
   USE pw_poisson_types,                ONLY: greens_fn_type,&
                                              pw_green_create,&
                                              pw_green_release,&
@@ -44,9 +48,12 @@ MODULE pw_poisson_methods
                                              pw_pool_type,&
                                              pw_pools_copy,&
                                              pw_pools_dealloc
-  USE pw_types,                        ONLY: &
-       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_copy, &
-       pw_derive, pw_integral_ab, pw_p_type, pw_transfer, pw_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_p_type,&
+                                             pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"

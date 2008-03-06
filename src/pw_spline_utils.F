@@ -37,15 +37,23 @@ MODULE pw_spline_utils
                                              mp_sum
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              PW_MODE_LOCAL
+  USE pw_methods,                      ONLY: pw_axpy,&
+                                             pw_copy,&
+                                             pw_integral_aa,&
+                                             pw_integral_ab,&
+                                             pw_zero
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_release,&
                                              pw_pool_retain,&
                                              pw_pool_type
-  USE pw_types,                        ONLY: &
-       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, SQUARE, &
-       pw_axpy, pw_copy, pw_integral_aa, pw_integral_ab, pw_p_type, pw_type, &
-       pw_zero
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             SQUARE,&
+                                             pw_p_type,&
+                                             pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"

@@ -36,17 +36,17 @@ MODULE xray_diffraction
                                              pw_env_type
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: get_pw_grid_info
+  USE pw_methods,                      ONLY: pw_axpy,&
+                                             pw_integrate_function,&
+                                             pw_scale,&
+                                             pw_transfer,&
+                                             pw_zero
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              RECIPROCALSPACE,&
-                                             pw_axpy,&
-                                             pw_integrate_function,&
-                                             pw_p_type,&
-                                             pw_scale,&
-                                             pw_transfer,&
-                                             pw_zero
+                                             pw_p_type
   USE qs_collocate_density,            ONLY: collocate_pgf_product_gspace
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type

@@ -19,6 +19,10 @@ MODULE xc_rho_set_types
        xc_deriv_spline3_smooth, xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, &
        xc_rho_spline2_smooth, xc_rho_spline3_smooth
   USE kinds,                           ONLY: dp
+  USE pw_methods,                      ONLY: pw_copy,&
+                                             pw_derive,&
+                                             pw_transfer,&
+                                             pw_zero
   USE pw_pool_types,                   ONLY: pw_pool_create_cr3d,&
                                              pw_pool_create_pw,&
                                              pw_pool_give_back_cr3d,&
@@ -31,9 +35,12 @@ MODULE xc_rho_set_types
        pw_spline3_interpolate_values_g, pw_spline_scale_deriv, &
        spline2_coeffs, spline2_deriv_coeffs, spline3_coeffs, &
        spline3_deriv_coeffs
-  USE pw_types,                        ONLY: &
-       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_copy, &
-       pw_derive, pw_p_type, pw_transfer, pw_type, pw_zero
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_p_type,&
+                                             pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_equal,&

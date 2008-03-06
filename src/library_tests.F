@@ -71,9 +71,15 @@ MODULE library_tests
   USE pw_grids,                        ONLY: pw_grid_create,&
                                              pw_grid_release,&
                                              pw_grid_setup
-  USE pw_types,                        ONLY: &
-       COMPLEXDATA1D, COMPLEXDATA3D, REALDATA3D, RECIPROCALSPACE, pw_create, &
-       pw_p_type, pw_release, pw_transfer, pw_zero
+  USE pw_methods,                      ONLY: pw_transfer,&
+                                             pw_zero
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             COMPLEXDATA3D,&
+                                             REALDATA3D,&
+                                             RECIPROCALSPACE,&
+                                             pw_create,&
+                                             pw_p_type,&
+                                             pw_release
   USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
 

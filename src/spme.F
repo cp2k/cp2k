@@ -34,6 +34,8 @@ MODULE spme
                                              set_list
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: get_pw_grid_info
+  USE pw_methods,                      ONLY: pw_integral_a2b,&
+                                             pw_transfer
   USE pw_poisson_methods,              ONLY: pw_poisson_rebuild,&
                                              pw_poisson_solve
   USE pw_poisson_types,                ONLY: greens_fn_type,&
@@ -45,9 +47,7 @@ MODULE spme
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_integral_a2b,&
                                              pw_p_type,&
-                                             pw_transfer,&
                                              pw_type
   USE realspace_grid_types,            ONLY: pw2rs,&
                                              realspace_grid_p_type,&

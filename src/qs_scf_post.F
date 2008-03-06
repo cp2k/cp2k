@@ -66,13 +66,20 @@ MODULE qs_scf_post
   USE preconditioner,                  ONLY: preconditioner_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_methods,                      ONLY: pw_axpy,&
+                                             pw_copy,&
+                                             pw_integrate_function,&
+                                             pw_scale,&
+                                             pw_transfer
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_p_type,&
                                              pw_pool_type
-  USE pw_types,                        ONLY: &
-       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_axpy, &
-       pw_copy, pw_integrate_function, pw_p_type, pw_scale, pw_transfer
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_p_type
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_conductivity,                 ONLY: optical_conductivity
   USE qs_electric_field_gradient,      ONLY: qs_efg_calc

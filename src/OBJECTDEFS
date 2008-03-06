@@ -352,6 +352,7 @@ OBJECTS_GENERIC =\
  pw_pool_types.o\
  pw_spline_utils.o\
  pw_types.o\
+ pw_methods.o\
  qmmm_elpot.o\
  qmmm_ff_fist.o\
  qmmm_gaussian_data.o\

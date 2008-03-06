@@ -34,6 +34,11 @@ MODULE xc
   USE message_passing,                 ONLY: mp_sum
   USE pw_grid_types,                   ONLY: PW_MODE_DISTRIBUTED,&
                                              pw_grid_type
+  USE pw_methods,                      ONLY: pw_axpy,&
+                                             pw_copy,&
+                                             pw_derive,&
+                                             pw_transfer,&
+                                             pw_zero
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_cr3d,&
                                              pw_pool_give_back_pw,&
@@ -45,10 +50,14 @@ MODULE xc
        pw_spline3_interpolate_values_g, pw_spline_scale_deriv, &
        spline2_coeffs, spline2_deriv_coeffs, spline3_coeffs, &
        spline3_deriv_coeffs
-  USE pw_types,                        ONLY: &
-       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_axpy, &
-       pw_copy, pw_create, pw_derive, pw_p_type, pw_release, pw_transfer, &
-       pw_type, pw_zero
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_create,&
+                                             pw_p_type,&
+                                             pw_release,&
+                                             pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type

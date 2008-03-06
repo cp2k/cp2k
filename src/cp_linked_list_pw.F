@@ -47,9 +47,9 @@
 MODULE cp_linked_list_pw
   USE f77_blas
   USE kinds,                           ONLY: dp
+  USE pw_methods,                      ONLY: pw_write
   USE pw_types,                        ONLY: pw_p_type,&
-                                             pw_type,&
-                                             pw_write
+                                             pw_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -997,7 +997,8 @@ SUBROUTINE cp_sll_pw_insert_ordered2(sll,el,compare_function,&
 ! *****************************************************************************
      FUNCTION compare_function(el1,el2)
        USE kinds, ONLY: dp
-USE pw_types, ONLY: pw_type, pw_p_type, pw_write
+USE pw_types, ONLY: pw_type, pw_p_type
+USE pw_methods, ONLY: pw_write
        INTEGER :: compare_function
        TYPE(pw_type), POINTER :: el1,el2
      END FUNCTION compare_function
@@ -1135,7 +1136,8 @@ FUNCTION cp_sll_pw_contains2(sll,el,compare_function,ordered,error)&
 ! *****************************************************************************
      FUNCTION compare_function(el1,el2)
        USE kinds, ONLY: dp
-USE pw_types, ONLY: pw_type, pw_p_type, pw_write
+USE pw_types, ONLY: pw_type, pw_p_type
+USE pw_methods, ONLY: pw_write
        INTEGER :: compare_function
        TYPE(pw_type), POINTER :: el1,el2
      END FUNCTION compare_function
@@ -1183,7 +1185,8 @@ END FUNCTION cp_sll_pw_contains2
 !  = = "=>"
 !  USE = 
 !    "USE kinds, only: dp
-!     USE pw_types, ONLY: pw_type, pw_p_type, pw_write"
+!     USE pw_types, ONLY: pw_type, pw_p_type
+!     USE pw_methods, ONLY: pw_write"
 !  array= = "=>"
 !  arrayEl = "%pw"
 !  defines = 
