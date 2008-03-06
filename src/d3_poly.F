@@ -30,7 +30,9 @@ MODULE d3_poly
         grad_size1,grad_size2,grad_size3,poly_mult1,poly_mult2,poly_mult3,&
         poly_write1,poly_write2,poly_write3,poly_random,poly_affine_t3,&
         poly_p_eval3,poly_p_eval2,poly_eval1,poly_eval2,poly_p_eval2b,&
-        poly_eval3,poly_derive3,poly_p_eval3b,poly_cp2k2d3,poly_cp2k2d3b
+        poly_eval3,poly_derive3,poly_p_eval3b,poly_cp2k2d3,&
+        poly_padd_uneval3,poly_padd_uneval3b,poly_padd_uneval2,poly_padd_uneval2b,&
+        poly_affine_t3t,poly_d32cp2k
     
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'd3_poly'
 ! maximum grad for cached values
@@ -122,7 +124,7 @@ END SUBROUTINE
 ! *****************************************************************************
 !> \brief size of a polynomial in x up to the given degree
 ! *****************************************************************************
-FUNCTION poly_size1(maxgrad) RESULT(res)
+PURE FUNCTION poly_size1(maxgrad) RESULT(res)
     INTEGER, INTENT(in)                      :: maxgrad
     INTEGER                                  :: res
 
@@ -132,7 +134,7 @@ END FUNCTION
 ! *****************************************************************************
 !> \brief size of a polynomial in x,y up to the given degree
 ! *****************************************************************************
-FUNCTION poly_size2(maxgrad) RESULT(res)
+PURE FUNCTION poly_size2(maxgrad) RESULT(res)
     INTEGER, INTENT(in)                      :: maxgrad
     INTEGER                                  :: res
 
@@ -142,7 +144,7 @@ END FUNCTION
 ! *****************************************************************************
 !> \brief size of a polynomial in x,y,z up to the given degree
 ! *****************************************************************************
-FUNCTION poly_size3(maxgrad) RESULT(res)
+PURE FUNCTION poly_size3(maxgrad) RESULT(res)
     INTEGER, INTENT(in)                      :: maxgrad
     INTEGER                                  :: res
 
@@ -152,7 +154,7 @@ END FUNCTION
 ! *****************************************************************************
 !> \brief max grad for a polynom of the given size
 ! *****************************************************************************
-FUNCTION grad_size1(n) RESULT(res)
+PURE FUNCTION grad_size1(n) RESULT(res)
     INTEGER, INTENT(in)                      :: n
     INTEGER                                  :: res
 
@@ -162,7 +164,7 @@ END FUNCTION
 ! *****************************************************************************
 !> \brief max grad for a polynom of the given size
 ! *****************************************************************************
-FUNCTION grad_size2(n) RESULT(res)
+PURE FUNCTION grad_size2(n) RESULT(res)
     INTEGER, INTENT(in)                      :: n
     INTEGER                                  :: res
 
@@ -172,7 +174,7 @@ END FUNCTION
 ! *****************************************************************************
 !> \brief max grad for a polynom of the given size
 ! *****************************************************************************
-FUNCTION grad_size3(n) RESULT(res)
+PURE FUNCTION grad_size3(n) RESULT(res)
     INTEGER, INTENT(in)                      :: n
     INTEGER                                  :: res
 
@@ -191,7 +193,7 @@ END FUNCTION
 ! *****************************************************************************
 !> \brief 0-based index of monomial of the given degree
 ! *****************************************************************************
-FUNCTION mono_index1(i) RESULT(res)
+PURE FUNCTION mono_index1(i) RESULT(res)
     INTEGER, INTENT(in)                      :: i
     INTEGER                                  :: res
 
@@ -201,7 +203,7 @@ END FUNCTION
 ! *****************************************************************************
 !> \brief 0-based index of monomial of the given degree
 ! *****************************************************************************
-FUNCTION mono_index2(i,j) RESULT(res)
+PURE FUNCTION mono_index2(i,j) RESULT(res)
     INTEGER, INTENT(in)                      :: i, j
     INTEGER                                  :: res
 
@@ -214,7 +216,7 @@ END FUNCTION
 ! *****************************************************************************
 !> \brief 0-based index of monomial of the given degree
 ! *****************************************************************************
-FUNCTION mono_index3(i,j,k) RESULT(res)
+PURE FUNCTION mono_index3(i,j,k) RESULT(res)
     INTEGER, INTENT(in)                      :: i, j, k
     INTEGER                                  :: res
 
@@ -228,7 +230,7 @@ END FUNCTION
 ! *****************************************************************************
 !> \brief exponents of the monomial at the given 0-based index
 ! *****************************************************************************
-FUNCTION mono_exp1(ii) RESULT(res)
+PURE FUNCTION mono_exp1(ii) RESULT(res)
     INTEGER, INTENT(in)                      :: ii
     INTEGER                                  :: res
 
@@ -238,7 +240,7 @@ END FUNCTION
 ! *****************************************************************************
 !> \brief exponents of the monomial at the given 0-based index
 ! *****************************************************************************
-FUNCTION mono_exp2(ii) RESULT(res)
+PURE FUNCTION mono_exp2(ii) RESULT(res)
     INTEGER, INTENT(in)                      :: ii
     INTEGER, DIMENSION(2)                    :: res
 
@@ -252,7 +254,7 @@ END FUNCTION
 ! *****************************************************************************
 !> \brief exponents of the monomial at the given 0-based index
 ! *****************************************************************************
-FUNCTION mono_exp3(n) RESULT(res)
+PURE FUNCTION mono_exp3(n) RESULT(res)
     INTEGER, INTENT(in)                      :: n
     INTEGER, DIMENSION(3)                    :: res
 
@@ -272,7 +274,7 @@ END FUNCTION
 ! *****************************************************************************
 !> \brief the index of the result of the multiplication of the two monomials
 ! *****************************************************************************
-FUNCTION mono_mult1(ii,ij) RESULT(res)
+PURE FUNCTION mono_mult1(ii,ij) RESULT(res)
     INTEGER, INTENT(in)                      :: ii, ij
     INTEGER                                  :: res
 
@@ -282,7 +284,7 @@ END FUNCTION
 ! *****************************************************************************
 !> \brief the index of the result of the multiplication of the two monomials
 ! *****************************************************************************
-FUNCTION mono_mult2(ii,ij) RESULT(res)
+PURE FUNCTION mono_mult2(ii,ij) RESULT(res)
     INTEGER, INTENT(in)                      :: ii, ij
     INTEGER                                  :: res
 
@@ -295,7 +297,7 @@ END FUNCTION
 ! *****************************************************************************
 !> \brief the index of the result of the multiplication of the two monomials
 ! *****************************************************************************
-FUNCTION mono_mult3(ii,ij) RESULT(res)
+PURE FUNCTION mono_mult3(ii,ij) RESULT(res)
     INTEGER, INTENT(in)                      :: ii, ij
     INTEGER                                  :: res
 
@@ -664,6 +666,160 @@ FUNCTION poly_random(p,maxSize,minSize,error) RESULT(res)
 END FUNCTION
 
 ! *****************************************************************************
+!> \brief returns in the polynomials pRes the transpose of the 
+!> affine transformation x -> m*x+b of p
+! *****************************************************************************
+SUBROUTINE poly_affine_t3t(p,m,b,pRes,npoly,error)
+    REAL(dp), DIMENSION(:), INTENT(in)       :: p
+    REAL(dp), DIMENSION(3, 3), INTENT(in)    :: m
+    REAL(dp), DIMENSION(3), INTENT(in)       :: b
+    REAL(dp), DIMENSION(:), INTENT(out)      :: pRes
+    INTEGER, INTENT(in), OPTIONAL            :: npoly
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'poly_affine_t3t', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: grad, i, igrad, ii, ii1, ipoly, j, k, minResSize, monoDim1, &
+      monoDim2, monoDimAtt, monoDimAtt2, monoFullDim1, monoFullDim2, &
+      monoSize1, monoSize2, my_npoly, pcoeff, pIdx, pShift, rescoeff, &
+      resShift, rest_size_p, size_p, size_res, start_idx1, stat
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: monoG1, monoG2
+    REAL(dp), DIMENSION(4, 3)                :: basepoly
+
+    IF (.not.module_initialized) CALL init_d3_poly_module
+    my_npoly=1
+    IF (PRESENT(npoly)) my_npoly=npoly
+    basepoly(1,:)=b
+    DO j=1,3
+        DO i=1,3
+            basepoly(j+1,i)=m(i,j)
+        END DO
+    END DO
+    size_p=SIZE(pRes)/my_npoly
+    size_res=SIZE(p)/my_npoly
+    grad=grad_size3(size_res)
+    minResSize=poly_size3(grad)
+    CPPreconditionNoFail(size_res==minResSize,cp_failure_level,routineP,error)
+    CPPreconditionNoFail(size_p>=minResSize,cp_failure_level,routineP,error)
+    pRes=0
+    IF (size_p==0) RETURN
+    ii1=1
+    ii=1
+    DO ipoly=1,my_npoly
+        pRes(ii1)=p(ii)
+        ii=ii+size_res
+        ii1=ii1+size_p
+    END DO
+    IF (size_p==1) RETURN
+    
+    ALLOCATE(monoG1((grad+1)*(grad+2)/2*minResSize),&
+        monoG2((grad+1)*(grad+2)/2*minResSize),stat=stat)
+    CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
+    monoG1=0
+    monoG2=0
+    ii1=1
+    DO j=1,3
+        DO i=1,4
+            monoG1(ii1)=basepoly(i,j)
+            ii1=ii1+1
+        END DO
+    END DO
+    ii1=2
+    igrad=1
+    monoDim1=4
+    monoSize1=3
+    monoFullDim1=monoDim1*monoSize1
+    rest_size_p=size_p-1
+    DO
+        k=MIN(rest_size_p,monoSize1)
+        !call dgemm('T','N',monoDim1,my_npoly,k,&
+        !    1.0_dp,monoG1,monoDim1,p(ii1:),size_p,1.0_dp,pRes,size_res)
+        resShift=0
+        pShift=ii1
+        DO ipoly=1,my_npoly
+            pIdx=pShift
+            ii=1
+            DO pcoeff=1,k
+                DO rescoeff=1,monoDim1
+                    pRes(pIdx)=pRes(pIdx)+p(resShift+rescoeff)*monoG1(ii)
+                    ii=ii+1
+                END DO
+                pIdx=pIdx+1
+            END DO
+            resShift=resShift+size_res
+            pShift=pShift+size_p
+        END DO
+        
+        rest_size_p=rest_size_p-k
+        ii1=ii1+k
+        IF (rest_size_p<=0) EXIT
+        
+        monoSize2=igrad+2+monoSize1
+        monoDim2=monoDim1+monoSize2
+        monoFullDim2=monoSize2*monoDim2
+        monoDimAtt=monoSize1*monoDim2
+        CALL poly_mult3b(monoG1(1:monoFullDim1),monoFullDim1,igrad,basepoly(:,1),4,1,&
+            monoG2(1:monoDimAtt),monoDimAtt,monoSize1,.FALSE.)
+        monoDimAtt2=monoFullDim2-monoDim2
+        start_idx1=(monoSize1-igrad-1)*monoDim1
+        CALL poly_mult3b(monoG1(start_idx1+1:monoFullDim1),monoFullDim1-start_idx1,igrad,basepoly(:,2),&
+            4,1,monoG2(monoDimAtt+1:monoDimAtt2),monoDimAtt2-monoDimAtt,igrad+1,.FALSE.)
+        CALL poly_mult3b(monoG1(monoFullDim1-monoDim1+1:monoFullDim1),monoDim1,igrad,&
+            basepoly(:,3),4,1,monoG2(monoDimAtt2+1:monoFullDim2),monoFullDim2-monoDimAtt2,1,.FALSE.)
+        igrad=igrad+1
+
+        ! even grads
+
+        k=MIN(rest_size_p,monoSize2)
+        !call dgemm('T','N',monoDim2,my_npoly,k,&
+        !    1.0_dp,monoG2,monoDim2,p(ii1:),size_p,1.0_dp,pRes,size_res)
+        resShift=0
+        pShift=ii1
+        DO ipoly=1,my_npoly
+            pIdx=pShift
+            ii=1
+            DO pcoeff=1,k
+                DO rescoeff=1,monoDim2
+                    pRes(pIdx)=pRes(pIdx)+p(resShift+rescoeff)*monoG2(ii)
+                    ii=ii+1
+                END DO
+                pIdx=pIdx+1
+            END DO
+            resShift=resShift+size_res
+            pShift=pShift+size_p
+        END DO
+        
+        rest_size_p=rest_size_p-k
+        ii1=ii1+k
+        IF (rest_size_p<=0) EXIT
+        
+        monoSize1=igrad+2+monoSize2
+        monoDim1=monoDim2+monoSize1
+        monoFullDim1=monoSize1*monoDim1
+        monoDimAtt=monoSize2*monoDim1
+        CALL poly_mult3b(monoG2(1:monoFullDim2),monoFullDim2,igrad,basepoly(:,1),4,1,&
+            monoG1(1:monoDimAtt),monoDimAtt,monoSize2,.FALSE.)
+        monoDimAtt2=monoFullDim1-monoDim1
+        start_idx1=(monoSize2-igrad-1)*monoDim2
+        CALL poly_mult3b(monoG2(start_idx1+1:monoFullDim2),monoFullDim2-start_idx1,igrad,&
+            basepoly(:,2),4,1,monoG1(monoDimAtt+1:monoDimAtt2),monoDimAtt2-monoDimAtt,&
+            igrad+1,.FALSE.)
+        CALL poly_mult3b(monoG2(monoFullDim2-monoDim2+1:monoFullDim2),monoDim2,igrad,&
+            basepoly(:,3),4,1,monoG1(monoDimAtt2+1:monoFullDim1),monoFullDim1-monoDimAtt2,1,.FALSE.)
+        igrad=igrad+1
+
+        ! ! alterantive to unrolling
+        ! monoG1=monoG2
+        ! monoSize1=monoSize2
+        ! monoDim1=monoDim2
+        ! monoFullDim1=monoFullDim2
+    END DO
+    DEALLOCATE(monoG1,monoG2,stat=stat)
+    CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
+END SUBROUTINE
+
+! *****************************************************************************
 !> \brief returns in the polynomials pRes the affine transformation x -> m*x+b of p
 ! *****************************************************************************
 SUBROUTINE poly_affine_t3(p,m,b,pRes,npoly,error)
@@ -848,7 +1004,7 @@ SUBROUTINE poly_p_eval3(p,x,pRes,npoly,error)
 END SUBROUTINE
     
 ! *****************************************************************************
-!> \brief evaluates the polynom at x (the result is a polynomial in two variables)
+!> \brief low level routine of poly_p_eval3 without checks
 ! *****************************************************************************
 SUBROUTINE poly_p_eval3b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
     INTEGER, INTENT(in)                      :: size_p
@@ -871,7 +1027,7 @@ SUBROUTINE poly_p_eval3b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
 
     IF (.not.module_initialized) CALL init_d3_poly_module
     inSize=size_p/npoly
-    newSize=SIZE(pRes)/npoly
+    newSize=size_pRes/npoly
     pRes=0.0
     xi(1)=1.0
     DO i=1,grad
@@ -902,6 +1058,110 @@ grad_do:    DO igrad=max_grad3+1,grad
                     DO j=subG,0,-1
                         IF (msize_p<ii) EXIT grad_do
                         pRes(shiftRes-j)=pRes(shiftRes-j)+p(ii)*xi(i+1)
+                        ii=ii+1
+                    END DO
+                    shiftRes=shiftRes+subG+2
+                    subG=subG+1
+                END DO
+            END DO grad_do
+            ii0=ii0+inSize
+            shiftRes_0=shiftRes_0+newSize
+            msize_p=msize_p+inSize
+        END DO
+    END IF
+END SUBROUTINE
+
+! *****************************************************************************
+!> \brief unevaluates a 2d polymial to a 3d polynomial at x
+!>  p(a,b,c)=p(a,b,c)+sum(pRes(b,c)*(x*a)^i,i), this is *not* the inverse of poly_p_eval3
+!>  adds to p
+! *****************************************************************************
+SUBROUTINE poly_padd_uneval3(p,x,pRes,npoly,error)
+    REAL(dp), DIMENSION(:), INTENT(inout)    :: p
+    REAL(dp), INTENT(in)                     :: x
+    REAL(dp), DIMENSION(:), INTENT(in)       :: pRes
+    INTEGER, INTENT(in), OPTIONAL            :: npoly
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'poly_padd_uneval3', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: grad, my_npoly, newSize, &
+                                                size_p, stat
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: xi
+
+    IF (.not.module_initialized) CALL init_d3_poly_module
+    my_npoly=1
+    IF (PRESENT(npoly)) my_npoly=npoly
+    size_p=SIZE(p)/my_npoly
+    newSize=SIZE(pRes)/my_npoly
+    grad=grad_size2(newSize)
+    CPPreconditionNoFail(size_p>=poly_size3(grad),cp_failure_level,routineP,error)
+    CPPreconditionNoFail(newSize==poly_size2(grad),cp_failure_level,routineP,error)
+    ALLOCATE(xi(grad+1),stat=stat)
+    CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
+    CALL poly_padd_uneval3b(p,SIZE(p),x,pRes,SIZE(pRes),my_npoly,grad,xi)
+    DEALLOCATE(xi,stat=stat)
+    CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
+END SUBROUTINE
+    
+! *****************************************************************************
+!> \brief low level routine of poly_padd_uneval3 without checks
+!> \note loop should be structured differently (more contiguous pRes access)
+! *****************************************************************************
+SUBROUTINE poly_padd_uneval3b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
+    INTEGER, INTENT(in)                      :: size_p
+    REAL(dp), DIMENSION(size_p), &
+      INTENT(inout)                          :: p
+    REAL(dp), INTENT(in)                     :: x
+    INTEGER, INTENT(in)                      :: size_pRes
+    REAL(dp), DIMENSION(size_pRes), &
+      INTENT(in)                             :: pRes
+    INTEGER, INTENT(in)                      :: npoly, grad
+    REAL(dp), DIMENSION(grad+1), &
+      INTENT(inout)                          :: xi
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'poly_padd_uneval3b', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, igrad, ii, ii0, inSize, &
+                                                ipoly, j, msize_p, newSize, &
+                                                pShift, shiftRes, shiftRes_0, &
+                                                subG, upSize
+
+    IF (.not.module_initialized) CALL init_d3_poly_module
+    inSize=size_p/npoly
+    newSize=size_pRes/npoly
+    upSize=(grad+1)*(grad+2)*(grad+3)/6
+    xi(1)=1.0
+    DO i=1,grad
+        xi(i+1)=xi(i)*x
+    END DO
+    shiftRes=0
+    pShift=0
+    DO ipoly=1,npoly
+        DO ii=1,MIN(upSize,cached_dim3)
+            p(pShift+ii)=p(pShift+ii)+pRes(shiftRes+a_reduce_idx3(ii))*xi(a_mono_exp3(1,ii)+1)
+        END DO
+        shiftRes=shiftRes+newSize
+        pShift=pShift+inSize
+    END DO
+    IF (grad>max_grad3) THEN
+        ii0=(max_grad3+1)*(max_grad3+2)*(max_grad3+3)/6+1
+        shiftRes_0=1
+        msize_p=upSize
+        DO ipoly=1,npoly
+            ii=ii0
+grad_do:    DO igrad=max_grad3+1,grad
+                !ii=igrad*(igrad+1)*(igrad+2)/6+1
+                shiftRes=shiftRes_0
+                subG=0
+                DO i=igrad,0,-1
+                    !subG=igrad-i
+                    !shiftRes=subG*(subG+3)/2+1
+                    DO j=subG,0,-1
+                        IF (msize_p<ii) EXIT grad_do
+                        p(ii)=p(ii)+pRes(shiftRes-j)*xi(i+1)
                         ii=ii+1
                     END DO
                     shiftRes=shiftRes+subG+2
@@ -1000,6 +1260,106 @@ grad_do2:   DO igrad=max_grad2+1,grad
                     IF (msize_p<ii) EXIT grad_do2
                     ! ij=igrad-i
                     pRes(ij)=pRes(ij)+p(ii)*xi(i+1)
+                    ii=ii+1
+                    ij=ij+1
+                END DO
+            END DO grad_do2
+            msize_p=msize_p+inSize
+            shiftRes=shiftRes+newSize
+            ii0=ii0+inSize
+        END DO
+    END IF
+END SUBROUTINE
+
+! *****************************************************************************
+!> \brief unevaluates a 1d polynomial to 2d at x
+!>  p(a,b)=sum(pRes(b)*(x*a)^i,i), this is *not* the inverse of poly_p_eval2
+!>  overwrites p
+! *****************************************************************************
+SUBROUTINE poly_padd_uneval2(p,x,pRes,npoly,error)
+    REAL(dp), DIMENSION(:), INTENT(inout)    :: p
+    REAL(dp), INTENT(in)                     :: x
+    REAL(dp), DIMENSION(:), INTENT(in)       :: pRes
+    INTEGER, INTENT(in), OPTIONAL            :: npoly
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'poly_padd_uneval2', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: grad, my_npoly, newSize, &
+                                                size_p, stat
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: xi
+
+    IF (.not.module_initialized) CALL init_d3_poly_module
+    my_npoly=1
+    IF (PRESENT(npoly)) my_npoly=npoly
+    size_p=SIZE(p)/my_npoly
+    newSize=SIZE(pRes)/my_npoly
+    grad=grad_size1(newSize)
+    CPPreconditionNoFail(size_p>=poly_size2(grad),cp_failure_level,routineP,error)
+    CPPreconditionNoFail(newSize==poly_size1(grad),cp_failure_level,routineP,error)
+    ALLOCATE(xi(grad+1),stat=stat)
+    CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+    CALL poly_padd_uneval2b(p,SIZE(p),x,pRes,SIZE(pRes),my_npoly,grad,xi)
+    DEALLOCATE(xi,stat=stat)
+    CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+END SUBROUTINE
+
+! *****************************************************************************
+!> \brief low level routine of poly_p_uneval2 without checks
+! *****************************************************************************
+SUBROUTINE poly_padd_uneval2b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
+    INTEGER, INTENT(in)                      :: size_p
+    REAL(dp), DIMENSION(size_p), &
+      INTENT(inout)                          :: p
+    REAL(dp), INTENT(in)                     :: x
+    INTEGER, INTENT(in)                      :: size_pRes
+    REAL(dp), DIMENSION(size_pRes), &
+      INTENT(in)                             :: pRes
+    INTEGER, INTENT(in)                      :: npoly
+    INTEGER                                  :: grad
+    REAL(dp), DIMENSION(grad+1)              :: xi
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'poly_padd_uneval2b', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, igrad, ii, ii0, ij, &
+                                                inSize, ipoly, msize_p, &
+                                                newSize, pShift, shiftRes, &
+                                                upSize
+
+    IF (.not.module_initialized) CALL init_d3_poly_module
+    inSize=size_p/npoly
+    upSize=(grad+1)*(grad+2)/2
+    !grad=grad_size2(inSize)
+    newSize=size_pRes/npoly
+    !CPPreconditionNoFail(newSize>=poly_size1(grad),cp_failure_level,routineP,error)
+    xi(1)=1.0_dp
+    DO i=1,grad
+        xi(i+1)=xi(i)*x
+    END DO
+    shiftRes=1
+    pShift=0
+    DO ipoly=1,npoly
+        DO ii=1,MIN(upSize,cached_dim2)
+            p(pShift+ii)=p(pShift+ii)+pRes(shiftRes+a_mono_exp2(2,ii))*xi(a_mono_exp2(1,ii)+1)
+        END DO
+        shiftRes=shiftRes+newSize
+        pShift=pShift+inSize
+    END DO
+    IF (grad>max_grad2) THEN
+        ii0=(max_grad2+1)*(max_grad2+2)/2+1
+        shiftRes=1
+        msize_p=upSize
+        DO ipoly=1,npoly
+            ii=ii0
+grad_do2:   DO igrad=max_grad2+1,grad
+                !ii=igrad*(igrad+1)/2+1
+                ij=shiftRes
+                DO i=igrad,0,-1
+                    IF (msize_p<ii) EXIT grad_do2
+                    ! ij=igrad-i
+                    p(ii)=p(ii)+pRes(ij)*xi(i+1)
                     ii=ii+1
                     ij=ij+1
                 END DO
@@ -1277,38 +1637,23 @@ END SUBROUTINE
 SUBROUTINE poly_cp2k2d3(poly_cp2k,grad,poly_d3,error)
     REAL(dp), DIMENSION(:), INTENT(in)       :: poly_cp2k
     INTEGER, INTENT(in)                      :: grad
-    REAL(dp), DIMENSION(0:), INTENT(out)     :: poly_d3
+    REAL(dp), DIMENSION(:), INTENT(out)     :: poly_d3
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'poly_cp2k2d3', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: size_p
+    INTEGER                                  :: cp_ii, i, j, k, mgrad, &
+                                                mgrad2, sgrad, sgrad2, &
+                                                sgrad2k, sgrad3, sgrad3k, &
+                                                shifti, shiftj, shiftk
     LOGICAL                                  :: failure
 
     failure=.FALSE.
     size_p=(grad+1)*(grad+2)*(grad+3)/6
     CPPrecondition(SIZE(poly_cp2k)>=size_p,cp_failure_level,routineP,error,failure)
     CPPrecondition(SIZE(poly_d3)>=size_p,cp_failure_level,routineP,error,failure)
-    CALL poly_cp2k2d3b(poly_cp2k,grad,poly_d3)
-    IF (SIZE(poly_d3)>=size_p) THEN
-        poly_d3(size_p+1:)=0.0_dp
-    END IF
-END SUBROUTINE
-
-! *****************************************************************************
-!> \brief low level routine of poly_cp2k2d3 that performs no checks
-! *****************************************************************************
-SUBROUTINE poly_cp2k2d3b(poly_cp2k,grad,poly_d3)
-    REAL(dp), DIMENSION(*), INTENT(in)       :: poly_cp2k
-    INTEGER, INTENT(in)                      :: grad
-    REAL(dp), DIMENSION(*), INTENT(out)      :: poly_d3
-
-    INTEGER                                  :: cp_ii, i, j, k, mgrad, &
-                                                mgrad2, sgrad, sgrad2, &
-                                                sgrad2k, sgrad3, sgrad3k, &
-                                                shifti, shiftj, shiftk
-
     cp_ii=0
     sgrad2k=0
     sgrad3k=0
@@ -1335,6 +1680,63 @@ SUBROUTINE poly_cp2k2d3b(poly_cp2k,grad,poly_d3)
             sgrad3=sgrad3+sgrad2
         END DO
     END DO
+    IF (SIZE(poly_d3)>=size_p) THEN
+        poly_d3(size_p+1:)=0.0_dp
+    END IF
+END SUBROUTINE
+
+! *****************************************************************************
+!> \brief subroutine that converts from the d3 poly format to the cp2k poly format
+! *****************************************************************************
+SUBROUTINE poly_d32cp2k(poly_cp2k,grad,poly_d3,error)
+    REAL(dp), DIMENSION(:), INTENT(out)      :: poly_cp2k
+    INTEGER, INTENT(in)                      :: grad
+    REAL(dp), DIMENSION(:), INTENT(in)      :: poly_d3
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'poly_d32cp2k', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: size_p
+    INTEGER                                  :: cp_ii, i, j, k, mgrad, &
+                                                mgrad2, sgrad, sgrad2, &
+                                                sgrad2k, sgrad3, sgrad3k, &
+                                                shifti, shiftj, shiftk
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+    size_p=(grad+1)*(grad+2)*(grad+3)/6
+    CPPrecondition(SIZE(poly_cp2k)>=size_p,cp_failure_level,routineP,error,failure)
+    CPPrecondition(SIZE(poly_d3)>=size_p,cp_failure_level,routineP,error,failure)
+    cp_ii=0
+    sgrad2k=0
+    sgrad3k=0
+    DO k=0,grad
+        shiftk=k+1
+        sgrad2k=sgrad2k+k
+        sgrad3k=sgrad3k+sgrad2k
+        sgrad2=sgrad2k
+        sgrad3=sgrad3k
+        DO j=0,grad-k
+            sgrad=j+k
+            mgrad2=sgrad2
+            shiftj=mgrad2+shiftk
+            mgrad=sgrad
+            shifti=shiftj+sgrad3
+            DO i=0,grad-j-k
+                cp_ii=cp_ii+1
+                poly_cp2k(cp_ii)=poly_d3(shifti)
+                mgrad=mgrad+1
+                mgrad2=mgrad2+mgrad
+                shifti=shifti+mgrad2
+            END DO
+            sgrad2=sgrad2+sgrad+1
+            sgrad3=sgrad3+sgrad2
+        END DO
+    END DO
+    IF (SIZE(poly_d3)>=size_p) THEN
+        poly_cp2k(size_p+1:)=0.0_dp
+    END IF
 END SUBROUTINE
 
 END MODULE

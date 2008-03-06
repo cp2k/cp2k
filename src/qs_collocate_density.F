@@ -53,7 +53,7 @@ MODULE qs_collocate_density
   USE cube_utils,                      ONLY: cube_info_type,&
                                              return_cube,&
                                              return_cube_nonortho
-  USE d3_poly,                         ONLY: poly_cp2k2d3b
+  USE d3_poly,                         ONLY: poly_cp2k2d3
   USE distribution_2d_types,           ONLY: distribution_2d_release
   USE gauss_colloc,                    ONLY: collocGauss
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
@@ -1751,7 +1751,7 @@ CONTAINS
     REAL(dp), &
       DIMENSION((lp+1)*(lp+2)*(lp+3)/6)      :: poly_d3
 
-        CALL poly_cp2k2d3b(coef_xyz,lp,poly_d3)
+        CALL poly_cp2k2d3(coef_xyz,lp,poly_d3,error)
         local_b(1,:)=rsgrid%lb_local-rsgrid%lb
         local_b(2,:)=rsgrid%ub_local-rsgrid%lb
         CALL collocGauss(h=cell%hmat,h_inv=cell%h_inv,&

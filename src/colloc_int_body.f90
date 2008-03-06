@@ -19,26 +19,34 @@
       ij_coeff0, ij_coeff0_jump, ij_coeff1, ik_coeff0, ik_coeff0_jump, &
       ik_coeff1, j_coeffn_i, j_coeffn_j, jcoeff0, jj_coeff0, jj_coeff2, &
       jj_coeffn, jk_coeff0, jk_coeff1, k_coeffn_i, k_coeffn_j, k_coeffn_k, &
-      kcoeff0, kk_coeff0, kk_coeff2, kk_coeffn, m(0:2,0:2), maxr2, p_kk, p_v, &
+      kcoeff0, kk_coeff0, kk_coeff2, kk_coeffn, m(0:2,0:2), maxr2, p_kk, &
       r_0
     REAL(dp) :: res_0, res_i, res_j, res_k, scaled_h(0:2,0:2), sqDi, sqDj, &
       sqDk
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: poly_ijk, poly_jk, poly_k,xi
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: poly_ijk, poly_jk,xi
     REAL(dp), DIMENSION(0:2)                 :: l, normD, p_shift, resPos, &
                                                 resPosReal, riPos, rpos, wrPos
 
 #ifdef FMG_INTEGRATE
     INTEGER :: ipoly,pShift
+    REAL(dp) :: det, gval,p_v
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: mres, k_vals, poly_k
+#elif defined(FMG_INTEGRATE_FULL)
     REAL(dp) :: det, gval
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: mres, k_vals
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: k_vals
+    INTEGER, PARAMETER :: npoly=1
 #else
-    integer, parameter :: npoly=1
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: poly_k
+    REAL(dp) :: p_v
+    INTEGER, PARAMETER :: npoly=1
 #endif
 
     failure=.FALSE.
     k_bounds_alloc=.FALSE.
     poly_alloc=.FALSE.
+#ifndef  FMG_INTEGRATE_FULL
     IF (ALL(poly==0.0_dp)) GOTO 21
+#endif
     IF (PRESENT(poly_shift)) THEN
         p_shift=poly_shift
     ELSE
@@ -55,6 +63,12 @@
     END IF
     g_scale=1.0_dp
     IF (PRESENT(scale)) g_scale=scale
+#if defined(FMG_INTEGRATE)||defined(FMG_INTEGRATE_FULL)
+    det=(h(0,0)*(h(1,1)*h(2,2)-h(1,2)*h(2,1))&
+        -h(1,0)*(h(0,1)*h(2,2)-h(0,2)*h(2,1))&
+        +h(2,0)*(h(0,1)*h(1,2)-h(0,2)*h(1,1)))
+    g_scale=g_scale*ABS(det)/REAL(ndim(0)*ndim(1)*ndim(2),dp)
+#endif
     IF (PRESENT(local_bounds)) THEN
         DO i=0,2
             l_bounds(:,permut(i))=local_bounds(:,i)
@@ -63,8 +77,6 @@
         l_bounds(1,:)=0
         l_bounds(2,:)=ndim-1
     END IF
-    CPPrecondition(ALL(l_bounds(2,:)<ndim),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ALL(l_bounds(1,:)>=0),cp_failure_level,routineP,error,failure)
     IF (PRESENT(local_shift)) THEN
         DO i=0,2
             l_shift(permut(i))=local_shift(i)
@@ -81,6 +93,9 @@
     DO i=0,2
         period(permut(i))=periodic(i)
     END DO
+    CPPrecondition(ALL(l_bounds(2,:)<ndim.or.period(:)==1),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ALL(l_bounds(1,:)>=0 .or.period(:)==1),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ALL(l_bounds(2,:)-l_bounds(1,:)<ndim),cp_failure_level,routineP,error,failure)
     rPos=0.0_dp
     DO j=0,2
         DO i=0,2
@@ -279,11 +294,10 @@
     k_bounds_alloc=.TRUE.
     k_bounds=0
     istart=imin
-    iiShift=shiftPos(0)+istart
-    if (iiShift<0) iiShift=iiShift-ndim(0)+1
+    iiShift=shiftPos(0)-l_bounds(2,0)+istart
+    IF (iiShift>0) iiShift=iiShift+ndim(0)-1
     iiShift=(iiShift/ndim(0))*ndim(0)-shiftPos(0)
-    !iiShift=FLOOR(REAL(shiftPos(0)+istart)/REAL(ndim(0)))*ndim(0)-shiftPos(0)
-    IF (istart>iiShift+l_bounds(2,0)) iiShift=iiShift+ndim(0)
+    !iiShift=CEILING(REAL(shiftPos(0)+istart-l_bounds(2,0))/REAL(ndim(0)))*ndim(0)-shiftPos(0))
     istart=MAX(iiShift+l_bounds(1,0),istart)
     iend=MIN(iiShift+l_bounds(2,0),imax)
     iJump=ndim(0)-l_bounds(2,0)+l_bounds(1,0)-1
@@ -306,7 +320,7 @@
             END IF
             jstart=jmin
             ijShift=shiftPos(1)+jstart-l_bounds(2,1)
-            if (ijShift>0) ijShift=ijShift+ndim(1)-1
+            IF (ijShift>0) ijShift=ijShift+ndim(1)-1
             ijShift=(ijShift/ndim(1))*ndim(1)-shiftPos(1)
             ! ijShift=CEILING(REAL(shiftPos(1)+jstart-l_bounds(2,1))/REAL(ndim(1)))*ndim(1)-shiftPos(1)
             jstart=MAX(ijShift+l_bounds(1,1),jstart)
@@ -360,16 +374,27 @@
     size_ijk=poly_size3(grad)*npoly
     ALLOCATE(poly_ijk(size_ijk),&
         poly_jk(size_jk),&
-        poly_k(0:size_k-1),xi(grad+1),stat=stat)
+        xi(grad+1),stat=stat)
     CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
 #ifdef FMG_INTEGRATE
-    ALLOCATE(mres(npoly),k_vals(0:grad),stat=stat)
+    ALLOCATE(poly_k(0:size_k-1),mres(npoly),k_vals(0:grad),stat=stat)
     CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
     mres=0.0_dp
+#elif defined(FMG_INTEGRATE_FULL)
+    ALLOCATE(k_vals(0:grad),stat=stat)
+    CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
+#else
+    ALLOCATE(poly_k(0:size_k-1),stat=stat)
+    CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
 #endif
-    poly_alloc=.TRUE.
+poly_alloc=.TRUE.
+#ifdef FMG_INTEGRATE_FULL
+    CPPreconditionNoFail(SIZE(poly)==poly_size3(grad),cp_failure_level,routineP,error)
+    poly_ijk=0.0_dp
+#else
     CALL poly_affine_t3(poly,scaled_h,-resPosReal+p_shift,poly_ijk,&
         npoly=npoly,error=error)
+#endif
     
     ij_coeff0=EXP(-2.0_dp*alphai*m(0,1))
     ik_coeff0=EXP(-2.0_dp*alphai*m(0,2))
@@ -397,14 +422,14 @@
     iJump=ndim(0)-l_bounds(2,0)+l_bounds(1,0)-1
     istart=MAX(0,imin)
     iiShift=shiftPos(0)-l_bounds(2,0)+istart
-    if (iiShift>0) iiShift=iiShift+ndim(0)-1
+    IF (iiShift>0) iiShift=iiShift+ndim(0)-1
     iiShift=(iiShift/ndim(0))*ndim(0)-shiftPos(0)
     !iiShift=CEILING(REAL(shiftPos(0)+istart-l_bounds(2,0))/REAL(ndim(0)))*ndim(0)-shiftPos(0)
     istart=MAX(iiShift+l_bounds(1,0),istart)
     iistart=istart-iiShift-l_bounds(1,0)+l_shift(0)
     istart2=MIN(-1,imax)
     iiShift2=shiftPos(0)+istart2-l_bounds(1,0)
-    if (iiShift2<0) iiShift2=iiShift2-ndim(0)+1
+    IF (iiShift2<0) iiShift2=iiShift2-ndim(0)+1
     iiShift2=(iiShift2/ndim(0))*ndim(0)-shiftPos(0)
     !iiShift2=FLOOR(REAL(shiftPos(0)+istart2-l_bounds(1,0))/REAL(ndim(0)))*ndim(0)-shiftPos(0)
     istart2=MIN(iiShift2+l_bounds(2,0),istart2)
@@ -432,26 +457,27 @@
         k_coeffn_i=kcoeff0*ik_coeff0**istart
         res_i=res_0*(ii_coeff0**istart*i_coeffn_i)**istart
     END IF
-    do
-        do i=istart,iend
-            CALL poly_p_eval3b(poly_ijk,size_ijk,REAL(i,dp),poly_jk,size_jk,npoly=npoly,grad=grad,xi=xi)
+    DO
+        DO i=istart,iend
             ! perform j loop
-            IF (ABS(res_i)>small) call j_loop
+            IF (ABS(res_i)>small) THEN
+                CALL j_loop
+            END IF
             j_coeffn_i=j_coeffn_i*ij_coeff0
             k_coeffn_i=k_coeffn_i*ik_coeff0
             res_i=res_i*ii_coeffn
             ii_coeffn=ii_coeffn*ii_coeff2
             ii=ii+1
-        end do
+        END DO
         istart=iend+iJump+1
-        if (istart>imax) EXIT
-        iend=min(iend+ndim(0),imax)
+        IF (istart>imax) EXIT
+        iend=MIN(iend+ndim(0),imax)
         ii=l_shift(0)
         j_coeffn_i=j_coeffn_i*ij_coeff0_jump
         k_coeffn_i=k_coeffn_i*ik_coeff0_jump
         res_i=res_i*ii_coeffn**(iJump)*ii_coeffn_jump
         ii_coeffn=ii_coeffn*ii_coeff2_jump
-    END do
+    END DO
     
     ! neg i side
     i_coeffn_i=1.0_dp/icoeff0
@@ -460,7 +486,7 @@
     res_i=res_0
     ii_coeffn=i_coeffn_i*ii_coeff0
     
-    iend2=max(iiShift2+l_bounds(1,0),imin)
+    iend2=MAX(iiShift2+l_bounds(1,0),imin)
     ii=iistart2
     IF (istart2<-1) THEN
         ii_coeffn=i_coeffn_i*ii_coeff0**(-(2*istart2+1))
@@ -468,27 +494,28 @@
         k_coeffn_i=kcoeff0*ik_coeff0**(istart2+1)
         res_i=res_0*(ii_coeff0**(-istart2-1)*i_coeffn_i)**(-istart2-1)
     END IF
-    do
-        do i=istart2,iend2,-1
+    DO
+        DO i=istart2,iend2,-1
             j_coeffn_i=j_coeffn_i*ij_coeff1
             k_coeffn_i=k_coeffn_i*ik_coeff1
             res_i=res_i*ii_coeffn
             ii_coeffn=ii_coeffn*ii_coeff2
 
-            CALL poly_p_eval3b(poly_ijk,size_ijk,REAL(i,dp),poly_jk,size_jk,npoly=npoly,grad=grad,xi=xi)
             ! perform j loop
-            IF (ABS(res_i)>small) call j_loop
+            IF (ABS(res_i)>small) THEN
+                CALL j_loop
+            END IF
             ii=ii-1
-        end do
+        END DO
         istart2=iend2-iJump-1
-        if (istart2<imin) EXIT
-        iend2=max(iend2-ndim(0),imin)
+        IF (istart2<imin) EXIT
+        iend2=MAX(iend2-ndim(0),imin)
         ii=l_ub(0)
         j_coeffn_i=j_coeffn_i/ij_coeff0_jump
         k_coeffn_i=k_coeffn_i/ik_coeff0_jump
         res_i=res_i*ii_coeffn**iJump*ii_coeffn_jump
         ii_coeffn=ii_coeffn*ii_coeff2_jump
-    end do
+    END DO
 
     ! the final cleanup
 21  CONTINUE
@@ -499,37 +526,52 @@
         CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
     END IF        
     IF (poly_alloc) THEN
+#ifdef FMG_INTEGRATE
         DEALLOCATE(poly_ijk,poly_jk,poly_k,stat=stat)
         CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
-#ifdef FMG_INTEGRATE
         ! set result
-        det=(h(0,0)*(h(1,1)*h(2,2)-h(1,2)*h(2,1))&
-            -h(1,0)*(h(0,1)*h(2,2)-h(0,2)*h(2,1))&
-            +h(2,0)*(h(0,1)*h(1,2)-h(0,2)*h(1,1)))
-        res=ABS(det)/REAL(ndim(0)*ndim(1)*ndim(2),dp)*mres
+        res=mres
         DEALLOCATE(mres,k_vals,stat=stat)
         CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
-    else
+    ELSE
         res=0.0_dp
+#elif defined(FMG_INTEGRATE_FULL)
+        CALL poly_affine_t3t(poly_ijk,scaled_h,-resPosReal+p_shift,poly,&
+            npoly=npoly,error=error)
+        DEALLOCATE(k_vals,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
+        DEALLOCATE(poly_ijk,poly_jk,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
+    ELSE
+        poly=0.0_dp
+#else
+        DEALLOCATE(poly_ijk,poly_jk,poly_k,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
 #endif
     END IF
-    contains
+    CONTAINS
     
 !!!!!!!!!!!!!
     !!!!!!! j loop 
-subroutine j_loop
-    !def calc_j(i,ii,j_coeffn_i,k_coeffn_i,res_i,poly_jk):
+SUBROUTINE j_loop
     ! calculate j bounds
     ccj1 = ccj1_i1 * i +ccj1_i0
     ccj0 = (ccj0_i2*i+ccj0_i1)*i+ccj0_i0
     delta_j=ccj1*ccj1-4*ccj2*ccj0
     IF (delta_j<0) THEN
-        return
+        RETURN
     END IF
     sqDj=SQRT(delta_j)
     jmin=CEILING((-ccj1-sqDj)/(2.0_dp*ccj2))
     jmax=FLOOR((-ccj1+sqDj)/(2.0_dp*ccj2))
     
+#ifdef FMG_INTEGRATE_FULL
+    poly_jk=0.0_dp
+#else
+    CALL poly_p_eval3b(poly_ijk,size_ijk,REAL(i,dp),poly_jk,size_jk,&
+            npoly=npoly,grad=grad,xi=xi)
+#endif
+
     IF (period(1)==0) THEN 
         jmin=MAX(l_bounds(1,1)-shiftPos(1),jmin)
         jmax=MIN(l_bounds(2,1)-shiftPos(1),jmax)
@@ -544,7 +586,7 @@ subroutine j_loop
     jJump=ndim(1)-l_bounds(2,1)+l_bounds(1,1)
     jstart=MAX(0,jmin)
     ijShift=shiftPos(1)+jstart-l_bounds(2,1)
-    if (ijShift>0) ijShift=ijShift+ndim(1)-1
+    IF (ijShift>0) ijShift=ijShift+ndim(1)-1
     ijShift=(ijShift/ndim(1))*ndim(1)-shiftPos(1)
     !ijShift=CEILING(REAL(shiftPos(1)+jstart-l_bounds(2,1))/REAL(ndim(1)))*ndim(1)-shiftPos(1)
     jstart=MAX(ijShift+l_bounds(1,1),jstart)
@@ -556,30 +598,30 @@ subroutine j_loop
         jj_coeffn=j_coeffn_j*jj_coeff0**(2*jstart+1)
         res_j=res_i*(jj_coeff0**jstart*j_coeffn_j)**jstart
     END IF
-    do
-        do j=jstart,jend
+    DO
+        DO j=jstart,jend
             kmin=k_bounds(0,j-jmin,i-imin)
             kmax=k_bounds(1,j-jmin,i-imin)
-        
-            CALL poly_p_eval2b(poly_jk,size_jk,REAL(j,dp),poly_k,size_k,npoly=npoly,grad=grad,xi=xi)
             ! do k loop
             IF (res_j/=0.0_dp.and.k_coeffn_j/=0.0_dp.and.kmin<=kmax &
-                .and.ABS(res_j)>small) call k_loop
+                .and.ABS(res_j)>small) THEN
+                CALL k_loop
+            END IF
             k_coeffn_j=k_coeffn_j*jk_coeff0
             res_j=res_j*jj_coeffn
             jj_coeffn=jj_coeffn*jj_coeff2
             ij=ij+1
-        end do
+        END DO
         jstart=jend+jJump
         IF (jstart>jmax) EXIT
         ij=l_shift(1)
-        jend=min(jend+ndim(1),jmax)
+        jend=MIN(jend+ndim(1),jmax)
         IF (jJump/=1) THEN ! remove if?
             k_coeffn_j=k_coeffn_i*jk_coeff0**jstart
             jj_coeffn=j_coeffn_j*jj_coeff0**(2*jstart+1)
             res_j=res_i*(jj_coeff0**jstart*j_coeffn_j)**jstart
         END IF
-    END do
+    END DO
 
     ! neg j side
     j_coeffn_j=1.0_dp/j_coeffn_i
@@ -589,7 +631,7 @@ subroutine j_loop
     
     jstart=MIN(-1,jmax)
     ijShift=shiftPos(1)+jstart-l_bounds(1,1)
-    if (ijShift<0) ijShift=ijShift-ndim(1)+1
+    IF (ijShift<0) ijShift=ijShift-ndim(1)+1
     ijShift=(ijShift/ndim(1))*ndim(1)-shiftPos(1)
     !ijShift=FLOOR(REAL(shiftPos(1)+jstart-l_bounds(1,1))/REAL(ndim(1)))*ndim(1)-shiftPos(1))
     jstart=MIN(ijShift+l_bounds(2,1),jstart)
@@ -600,41 +642,50 @@ subroutine j_loop
         jj_coeffn=j_coeffn_j*jj_coeff0**(-(2*jstart+1))
         res_j=res_i*(jj_coeff0**(-jstart-1)*j_coeffn_j)**(-jstart-1)
     END IF
-    do
-        do j=jstart,jend,-1
+    DO
+        DO j=jstart,jend,-1
             k_coeffn_j=k_coeffn_j*jk_coeff1
             res_j=res_j*jj_coeffn
             jj_coeffn=jj_coeffn*jj_coeff2
         
             kmin=k_bounds(0,j-jmin,i-imin)
             kmax=k_bounds(1,j-jmin,i-imin)
-        
-            CALL poly_p_eval2b(poly_jk,size_jk,REAL(j,dp),poly_k,size_k,npoly=npoly,grad=grad,xi=xi)
             ! perform k loop
             IF (res_j/=0.0_dp.and.k_coeffn_j/=0.0_dp.and.kmin<=kmax &
-                .and.ABS(res_j)>small) call k_loop
+                .and.ABS(res_j)>small) THEN
+                CALL k_loop
+            END IF
             ij=ij-1
-        end do
+        END DO
         jstart=jend-jJump
-        if (jstart<jmin) EXIT
-        jend=max(jend-ndim(1),jmin)
+        IF (jstart<jmin) EXIT
+        jend=MAX(jend-ndim(1),jmin)
         ij=l_ub(1)
         IF (jJump/=1) THEN ! remove if?
             k_coeffn_j=k_coeffn_i*jk_coeff0**(jstart+1)
             jj_coeffn=j_coeffn_j*jj_coeff0**(-(2*jstart+1))
             res_j=res_i*(jj_coeff0**(-jstart-1)*j_coeffn_j)**(-jstart-1)
         END IF
-    end do
-end subroutine
+    END DO
+#ifdef FMG_INTEGRATE_FULL
+    CALL poly_padd_uneval3b(poly_ijk,size_ijk,REAL(i,dp),poly_jk,size_jk,&
+        npoly=npoly,grad=grad,xi=xi)
+    !CALL poly_padd_uneval3(poly_ijk,REAL(i,dp),poly_jk,npoly=npoly,error=error)
+#endif
+END SUBROUTINE
 
 !!!!!!!!!!!!
     !!!!!!! k loop
-subroutine k_loop()
+SUBROUTINE k_loop()
+#ifndef FMG_INTEGRATE_FULL
+    CALL poly_p_eval2b(poly_jk,size_jk,REAL(j,dp),poly_k,&
+        size_k,npoly=npoly,grad=grad,xi=xi)
+#endif
     ! starting point
     kJump=ndim(2)-l_bounds(2,2)+l_bounds(1,2)
     kstart=MAX(0,kmin)
     ikShift=shiftPos(2)-l_bounds(2,2)+kstart
-    if (ikShift>0) ikShift=ikShift+ndim(2)-1
+    IF (ikShift>0) ikShift=ikShift+ndim(2)-1
     ikShift=(ikShift/ndim(2))*ndim(2)-shiftPos(2)
     ! ikShift=CEILING(REAL(shiftPos(2)-l_bounds(2,2)+kstart)/REAL(ndim(2)))*ndim(2)-shiftPos(2)
     kstart=MAX(ikShift+l_bounds(1,2),kstart)
@@ -642,14 +693,14 @@ subroutine k_loop()
     ikstart=kstart-ikShift-l_bounds(1,2)+l_shift(2)
     kstart2=MIN(-1,kmax)
     ikShift2=shiftPos(2)+kstart2-l_bounds(1,2)
-    if (ikShift2<0) ikShift2=ikShift2-ndim(2)+1
+    IF (ikShift2<0) ikShift2=ikShift2-ndim(2)+1
     ikShift2=(ikShift2/ndim(2))*ndim(2)-shiftPos(2)
     !ikShift2=FLOOR(REAL(shiftPos(2)+kstart2-l_bounds(1,2))/REAL(ndim(2)))*ndim(2)-shiftPos(2)
     kstart2=MIN(ikShift2+l_bounds(2,2),kstart2)
     kend2=MAX(ikShift2+l_bounds(1,2),kmin)
     ikstart2=kstart2-ikShift2-l_bounds(1,2)+l_shift(2)
 
-#ifdef FMG_INTEGRATE
+#if defined(FMG_INTEGRATE)||defined(FMG_INTEGRATE_FULL)
     k_vals=0.0_dp
 #endif  
     IF (kJump/=1 .AND. (ikstart+kmax-kstart>=ndim(2)+l_shift(2) .OR.&
@@ -667,7 +718,7 @@ subroutine k_loop()
         END IF
         DO
             DO k=kstart,kend
-#ifdef FMG_INTEGRATE
+#if defined(FMG_INTEGRATE)||defined(FMG_INTEGRATE_FULL)
                 gval=grid(ik,ij,ii)*res_k
                 k_vals(0)=k_vals(0)+gval
                 p_kk=gval
@@ -711,7 +762,7 @@ subroutine k_loop()
             DO k=kstart2,kend2,-1
                 res_k=res_k*kk_coeffn
                 kk_coeffn=kk_coeffn*kk_coeff2
-#ifdef FMG_INTEGRATE
+#if defined(FMG_INTEGRATE)||defined(FMG_INTEGRATE_FULL)
                 gval=grid(ik,ij,ii)*res_k
                 k_vals(0)=k_vals(0)+gval
                 p_kk=gval
@@ -751,7 +802,7 @@ subroutine k_loop()
         END IF
         DO
             DO k=kstart,kend
-#ifdef FMG_INTEGRATE
+#if defined(FMG_INTEGRATE)||defined(FMG_INTEGRATE_FULL)
                 gval=grid(ik,ij,ii)*res_k
                 k_vals(0)=k_vals(0)+gval
                 p_kk=gval
@@ -793,7 +844,7 @@ subroutine k_loop()
             DO k=kstart2,kend2,-1
                 res_k=res_k*kk_coeffn
                 kk_coeffn=kk_coeffn*kk_coeff2
-#ifdef FMG_INTEGRATE
+#if defined(FMG_INTEGRATE)||defined(FMG_INTEGRATE_FULL)
                 gval=grid(ik,ij,ii)*res_k
                 k_vals(0)=k_vals(0)+gval
                 p_kk=gval
@@ -828,5 +879,10 @@ subroutine k_loop()
         mres(ipoly)=mres(ipoly)+p_v
         pShift=pShift+grad+1
     END DO
+#elif defined(FMG_INTEGRATE_FULL)
+    CALL poly_padd_uneval2b(poly_jk,size_jk,REAL(j,dp),k_vals,&
+        size_k,npoly=npoly,grad=grad,xi=xi)
+    !CALL poly_padd_uneval2(poly_jk,REAL(j,dp),k_vals,npoly=npoly,error=error)
 #endif
-end subroutine
+END SUBROUTINE
+

@@ -20,7 +20,7 @@ IMPLICIT NONE
 PRIVATE
 
 PUBLIC :: collocGauss, collocGauss_safe,sphRad2,calc_max_r2,&
-    calcBox , integrateGauss, calcRadius2
+    calcBox , integrateGauss, calcRadius2, integrateGaussFull
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gauss_colloc'
 
@@ -436,6 +436,43 @@ SUBROUTINE integrateGauss(h,h_inv,grid,poly,alphai,posi,max_r2,&
 
 #define FMG_INTEGRATE
 #include "colloc_int_body.f90"
+#undef FMG_INTEGRATE
+END SUBROUTINE
+
+! *****************************************************************************
+!> \brief integrates a gaussian times any polynomial up to a give order.
+!>
+!> Most things are the same as for collocGauss (see its comments).
+!> Returns the integrals of all the monomials in d3 format into poly
+! *****************************************************************************
+SUBROUTINE integrateGaussFull(h,h_inv,grid,poly,alphai,posi,max_r2,&
+        periodic,gdim,local_bounds,local_shift,poly_shift,scale,error)
+    REAL(dp), DIMENSION(0:2, 0:2), &
+      INTENT(in)                             :: h, h_inv
+    REAL(dp), DIMENSION(0:, 0:, 0:), &
+      INTENT(inout)                          :: grid
+    REAL(dp), DIMENSION(:), INTENT(out)      :: poly
+    REAL(dp), INTENT(in)                     :: alphai
+    REAL(dp), DIMENSION(0:2), INTENT(in)     :: posi
+    REAL(dp), INTENT(in)                     :: max_r2
+    INTEGER, DIMENSION(0:2), INTENT(in)      :: periodic
+    INTEGER, DIMENSION(0:2), INTENT(in), &
+      OPTIONAL                               :: gdim
+    INTEGER, DIMENSION(2, 0:2), INTENT(in), &
+      OPTIONAL                               :: local_bounds
+    INTEGER, DIMENSION(0:2), INTENT(in), &
+      OPTIONAL                               :: local_shift
+    REAL(dp), DIMENSION(0:2), INTENT(in), &
+      OPTIONAL                               :: poly_shift
+    REAL(dp), INTENT(in), OPTIONAL           :: scale
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'integrateGaussFull', &
+        routineP=moduleN//':'//routineN
+
+#define FMG_INTEGRATE_FULL
+#include "colloc_int_body.f90"
+#undef FMG_INTEGRATE_FULL
 END SUBROUTINE
 
 ! *****************************************************************************
@@ -466,8 +503,8 @@ SUBROUTINE collocGauss_safe(h,h_inv,grid,poly,alphai,posi,max_r2,&
     INTEGER                                  :: bounds(0:1,0:2), i, idir, ii, &
                                                 ij, ik, j, k, &
                                                 l_bounds(0:1,0:2)
-    INTEGER, DIMENSION(0:2)                  :: cellShift, l_shift, ndim, &
-                                                shiftPos
+    INTEGER, DIMENSION(0:2)                  :: cellShift, l_shift, lb, ndim, &
+                                                shiftPos, ub
     REAL(dp)                                 :: f, max_miss, maxr2, maxr2_0, &
                                                 maxr2_2, min_miss, p_v(1), &
                                                 r_2, scaled_h(0:2,0:2)
@@ -492,6 +529,8 @@ SUBROUTINE collocGauss_safe(h,h_inv,grid,poly,alphai,posi,max_r2,&
     ELSE
         l_shift=0 ! l_bounds(0,:)
     END IF
+    lb=l_bounds(0,:)
+    ub=l_bounds(1,:)-l_bounds(0,:)
 
     rPos=0
     DO j=0,2
@@ -545,23 +584,23 @@ SUBROUTINE collocGauss_safe(h,h_inv,grid,poly,alphai,posi,max_r2,&
     max_miss=-1.0_dp
     min_miss=-1.0_dp
     DO i=bounds(0,0),bounds(1,0)
-        ii=MODULO(i,ndim(0))
-        IF (ii<l_bounds(0,0) .OR. ii>l_bounds(1,0)) CYCLE
-        ii=ii-l_bounds(0,0)+l_shift(0)
+        ii=MODULO(i-lb(0),ndim(0))
+        IF (ii>ub(0)) CYCLE
+        ii=ii+l_shift(0)
         DO idir=0,2
             ri(idir)=scaled_h(idir,0)*i-posi(idir)
         END DO
         DO j=bounds(0,1),bounds(1,1)
-            ij=MODULO(j,ndim(1))
-            IF (ij<l_bounds(0,1) .OR. ij>l_bounds(1,1)) CYCLE
-            ij=ij-l_bounds(0,1)+l_shift(1)
+            ij=MODULO(j-lb(1),ndim(1))
+            IF (ij>ub(1)) CYCLE
+            ij=ij+l_shift(1)
             DO idir=0,2
                 rj(idir)=scaled_h(idir,1)*j+ri(idir)
             END DO
             DO k=bounds(0,2),bounds(1,2)
-                ik=MODULO(k,ndim(2))
-                IF (ik<l_bounds(0,2) .OR. ik>l_bounds(1,2)) CYCLE
-                ik=ik-l_bounds(0,2)+l_shift(2)
+                ik=MODULO(k-lb(2),ndim(2))
+                IF (ik>ub(2)) CYCLE
+                ik=ik+l_shift(2)
                 r_2=0.0_dp
                 DO idir=0,2
                     r(idir)=scaled_h(idir,2)*k+rj(idir)
