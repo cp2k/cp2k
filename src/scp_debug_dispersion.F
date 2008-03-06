@@ -40,9 +40,8 @@ SUBROUTINE scp_qs_disp_debug ( qs_env,  error )
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE scp_qs_debug (MODULE scp_debug)", &
-      routineN = 'scp_qs_disp_debug', routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'scp_qs_disp_debug', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iatom, idim, natoms
     REAL(dp)                                 :: em, ep
@@ -54,7 +53,6 @@ SUBROUTINE scp_qs_disp_debug ( qs_env,  error )
   NULLIFY(particle_set, scp_env, energy)
 
   WRITE ( *, * ) '******************************START DEBUG***********************************'
-!-------------
    CALL get_qs_env(qs_env=qs_env, &
                    scp_env = scp_env, &
                    particle_set=particle_set,&
