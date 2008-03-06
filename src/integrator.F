@@ -1160,8 +1160,8 @@ CONTAINS
     ! SnapShots read from an external file
     CALL parser_get_object(reftraj_env%info%traj_parser,Nread,error=error)
     CALL parser_get_next_line(reftraj_env%info%traj_parser,1,error=error)
-    READ(reftraj_env%info%traj_parser%input_line,FMT="(T6,I8,T20,F20.10,T52,F12.3)")&
-         trj_itimes, trj_epot, trj_time
+    READ(reftraj_env%info%traj_parser%input_line,FMT="(T6,I8,T23,F12.3,T41,F20.10)")&
+         trj_itimes, trj_time, trj_epot
 
     DO I=1,Nread
        CALL parser_get_next_line(reftraj_env%info%traj_parser,1,error=error)
