@@ -56,7 +56,7 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE write_trajectory (force_env, root_section, it, time, etot, pk_name,&
-       pos, act, middle_name, particles, error)
+       pos, act, middle_name, particles, extended_xmol_title, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
     INTEGER, INTENT(IN)                      :: it
@@ -67,6 +67,7 @@ CONTAINS
     CHARACTER(LEN=*), OPTIONAL               :: middle_name
     TYPE(particle_list_type), OPTIONAL, &
       POINTER                                :: particles
+    LOGICAL, INTENT(IN), OPTIONAL            :: extended_xmol_title
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_trajectory', &
@@ -78,7 +79,9 @@ CONTAINS
       title
     INTEGER                                  :: iskip, nat, outformat, &
                                                 traj_unit
-    LOGICAL                                  :: failure, new_file
+    LOGICAL                                  :: failure, &
+                                                my_extended_xmol_title, &
+                                                new_file
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -93,7 +96,7 @@ CONTAINS
     my_pos     = "APPEND"
     my_act     = "WRITE"
     my_middle  = "pos"
-    my_pk_name = "TRAJECTORY" 
+    my_pk_name = "TRAJECTORY"
     IF (PRESENT(middle_name))  my_middle  = middle_name
     IF (PRESENT(pos))          my_pos     = pos
     IF (PRESENT(act))          my_act     = act
@@ -145,13 +148,13 @@ CONTAINS
              CALL m_flush(traj_unit)
           ENDIF
        ELSE IF(outformat==dump_xmol) THEN
+          my_extended_xmol_title = .FALSE.
+          IF (PRESENT(extended_xmol_title)) my_extended_xmol_title = extended_xmol_title
           ! This information can be digested by Molden
-          IF (time == 0.0_dp) THEN
-            WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
-              " i = ",it,", E = ",etot
+          IF (my_extended_xmol_title) THEN
+            WRITE (UNIT=title,FMT="(A,I8,A,F20.10,A,F12.3)")" i = ",it,", E = ",etot,", timestep = ",time*REAL(it,KIND=dp)
           ELSE
-            WRITE (UNIT=title,FMT="(A,I8,A,F20.10,A,F12.3)")&
-              " i = ",it,", E = ",etot,", timestep = ",time*REAL(it,KIND=dp)
+            WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i = ",it,", E = ",etot
           END IF
        ELSE IF(outformat==dump_atomic) THEN
           ! Do Nothing..

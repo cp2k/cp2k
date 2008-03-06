@@ -679,15 +679,15 @@ CONTAINS
 
        ! Print Coordinates
        CALL write_trajectory(force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
-            pos=my_pos, act=my_act, error=error)
+            pos=my_pos, act=my_act, extended_xmol_title=.TRUE., error=error)
 
        ! Print Velocities
        CALL write_trajectory(force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
-            "VELOCITIES", my_pos, my_act, middle_name="vel", error=error)
+            "VELOCITIES", my_pos, my_act, middle_name="vel", extended_xmol_title=.TRUE., error=error)
 
        ! Print Force
        CALL write_trajectory(force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
-            "FORCES", my_pos, my_act, middle_name="frc", error=error)
+            "FORCES", my_pos, my_act, middle_name="frc", extended_xmol_title=.TRUE., error=error)
 
        ! Print Simulation Cell 
        CALL write_simulation_cell(cell, motion_section, itimes, time*femtoseconds, my_pos, my_act, error)
@@ -749,28 +749,28 @@ CPSourceFileRef,&
 
           ! Print Shell Coordinates
           CALL write_trajectory (force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
-               "SHELL_TRAJECTORY", my_pos, my_act, "shpos", shell_particles, error)
+               "SHELL_TRAJECTORY", my_pos, my_act, "shpos", shell_particles, extended_xmol_title=.TRUE., error=error)
 
           IF(shell_adiabatic) THEN
              ! Print Shell Velocities
              CALL write_trajectory (force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
-                  "SHELL_VELOCITIES", my_pos, my_act, "shvel", shell_particles, error)
+                  "SHELL_VELOCITIES", my_pos, my_act, "shvel", shell_particles, extended_xmol_title=.TRUE., error=error)
 
              ! Print Shell Forces
              CALL write_trajectory (force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
-                  "SHELL_FORCES", my_pos, my_act, "shfrc", shell_particles, error)
+                  "SHELL_FORCES", my_pos, my_act, "shfrc", shell_particles, extended_xmol_title=.TRUE., error=error)
 
              ! Print Core Coordinates
              CALL write_trajectory (force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
-                  "CORE_TRAJECTORY", my_pos, my_act, "copos", shell_particles, error)
+                  "CORE_TRAJECTORY", my_pos, my_act, "copos", shell_particles, extended_xmol_title=.TRUE., error=error)
 
              ! Print Core Velocities
              CALL write_trajectory (force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
-                  "CORE_VELOCITIES", my_pos, my_act, "covel", shell_particles, error)
+                  "CORE_VELOCITIES", my_pos, my_act, "covel", shell_particles, extended_xmol_title=.TRUE., error=error)
 
              ! Print Core Forces
              CALL write_trajectory (force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
-                  "CORE_FORCES", my_pos, my_act, "cofrc", shell_particles, error)
+                  "CORE_FORCES", my_pos, my_act, "cofrc", shell_particles, extended_xmol_title=.TRUE., error=error)
 
              ! Temperature per Kinds
              IF(simpar%temperature_per_kind) THEN
