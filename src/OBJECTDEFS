@@ -489,7 +489,6 @@ OBJECTS_GENERIC =\
  s_square_methods.o\
  scf_control_types.o\
  scp_coeff_types.o\
- scp_debug_dispersion.o\
  scp_diis_utils.o\
  scp_dispersion.o\
  scp_density_methods.o\

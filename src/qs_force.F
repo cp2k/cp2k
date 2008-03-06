@@ -334,7 +334,6 @@ CONTAINS
       END IF 
 
       IF ( dft_control%scp_control%dispersion ) THEN
-!         CALL scp_qs_disp_debug ( qs_env, error )
          CALL scp_qs_dispersion ( qs_env, .TRUE., error )
          CALL get_qs_env ( qs_env = qs_env, energy = energy, error = error )
          CALL get_scp_env ( scp_env = scp_env, energy = scp_energy_loc, error = error )
