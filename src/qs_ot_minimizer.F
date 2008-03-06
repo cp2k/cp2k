@@ -177,7 +177,6 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,aux_coeff_set, error)
    CASE DEFAULT
            CALL stop_program("ot_mini","OT_METHOD NYI")
    END SELECT
-
    CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE ot_mini
@@ -899,8 +898,9 @@ SUBROUTINE ot_diis_step(qs_ot_env,error)
 ! ***SCP
    ENDIF
 
-   k=0
-   nscp=0
+   k    = 0
+   nscp = 0
+   n    = 0
    IF ( do_ks ) THEN
      CALL cp_fm_get_info(qs_ot_env(1)%matrix_x,nrow_global=n,error=error)
      DO ispin=1,nspin

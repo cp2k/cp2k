@@ -441,9 +441,9 @@ CONTAINS
     iter_count = 0
     total_steps = 0
     scf_outer_loop: DO
-
-     CALL init_scf_loop(scf_env=scf_env, qs_env=qs_env, &
-                        scf_section=scf_section, error=error)
+       
+       CALL init_scf_loop(scf_env=scf_env, qs_env=qs_env, &
+            scf_section=scf_section, error=error)
 
 !   ****** Setting Some SCP flags*******
 ! check if we are doing SCP:
@@ -502,11 +502,8 @@ CONTAINS
                                    just_energy=energy_only,&
                                    diis_step=diis_step,&
                                    error=error)
-! ***SCP
-!          IF ( scp ) CALL scp_qs_debug ( qs_env, error )
-! ***SCP
+
           ! print 'heavy weight' or relatively expensive quantities
-          
           scf_env%p_mix = scf_control%p_mix
           scf_env%iter_param = 0.0_dp
           IF (scf_env%mixing_method==ao_mixing_nr) scf_env%iter_param = scf_env%p_mix
@@ -552,7 +549,7 @@ CONTAINS
              ENDIF
 ! ***SCP
           END SELECT
-          
+
           ! another heavy weight print object, print controlled by dft_section
           IF (SIZE(mos) > 1) THEN
              CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,&
