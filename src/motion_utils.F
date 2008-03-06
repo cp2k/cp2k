@@ -152,7 +152,8 @@ CONTAINS
           IF (PRESENT(extended_xmol_title)) my_extended_xmol_title = extended_xmol_title
           ! This information can be digested by Molden
           IF (my_extended_xmol_title) THEN
-            WRITE (UNIT=title,FMT="(A,I8,A,F20.10,A,F12.3)")" i = ",it,", E = ",etot,", timestep = ",time*REAL(it,KIND=dp)
+            WRITE (UNIT=title,FMT="(A,I8,A,F12.3,A,F20.10)")&
+              " i = ",it,", time = ",time*REAL(it,KIND=dp),", E = ",etot
           ELSE
             WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i = ",it,", E = ",etot
           END IF
