@@ -34,10 +34,10 @@ MODULE force_fields
                                              force_field_pack,&
                                              force_field_qeff_output
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_ff_type_charmm,&
-                                             do_ff_type_g87,&
-                                             do_ff_type_g96,&
-                                             do_ff_type_off
+  USE input_constants,                 ONLY: do_ff_charmm,&
+                                             do_ff_g87,&
+                                             do_ff_g96,&
+                                             do_ff_undef
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -62,11 +62,10 @@ CONTAINS
 !> \brief 1. If reading in from external file, make sure its there first
 !>      2. Read in the force_field from the corresponding locations
 ! *****************************************************************************
-  SUBROUTINE force_field_control (atomic_kind_set,particle_set,&
-       molecule_kind_set,molecule_set,&
-       ewald_env,fist_nonbond_env,&
-       root_section,para_env,globenv, qmmm, qmmm_env, subsys_section, mm_section,&
-       shell_particle_set, core_particle_set, cell, error)
+  SUBROUTINE force_field_control (atomic_kind_set,particle_set, molecule_kind_set,&
+       molecule_set, ewald_env,fist_nonbond_env, root_section,para_env,globenv,&
+       qmmm, qmmm_env, subsys_section, mm_section, shell_particle_set, core_particle_set,&
+       cell, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -121,12 +120,12 @@ CONTAINS
     ! 3. If reading in from external file, make sure its there first
     !-----------------------------------------------------------------------------
     SELECT CASE (ff_type%ff_type)
-    CASE (do_ff_type_charmm,do_ff_type_g96,do_ff_type_g87)
+    CASE (do_ff_charmm,do_ff_g96,do_ff_g87)
        INQUIRE(FILE=ff_type%ff_file_name,EXIST=found)
        IF(.NOT.found) THEN
           CALL stop_program ("force_field_control","force field file missing")
        END IF
-    CASE (do_ff_type_off)
+    CASE (do_ff_undef)
        ! Do Nothing
     CASE DEFAULT
        CALL stop_program ("force_field_control","force field type not implemented")
@@ -136,11 +135,11 @@ CONTAINS
     ! 4. Read in the force field from the corresponding locations
     !-----------------------------------------------------------------------------
     SELECT CASE (ff_type%ff_type)
-    CASE (do_ff_type_charmm)
+    CASE (do_ff_charmm)
        CALL read_force_field_charmm(ff_type,para_env,mm_section,error)
-    CASE (do_ff_type_g87,do_ff_type_g96)
+    CASE (do_ff_g87,do_ff_g96)
        CALL read_force_field_gromos(ff_type,para_env,mm_section,error)
-    CASE (do_ff_type_off)
+    CASE (do_ff_undef)
        ! Do Nothing
     CASE DEFAULT
        CALL stop_program ("force_field_control","force field type not implemented")
@@ -149,12 +148,10 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 5. Pack all force field info into different structures
     !-----------------------------------------------------------------------------
-    CALL force_field_pack (particle_set,atomic_kind_set,&
-         molecule_kind_set,molecule_set,&
-         ewald_env,fist_nonbond_env,&
-         ff_type,root_section, qmmm, qmmm_env, mm_section, subsys_section, &
-         shell_particle_set=shell_particle_set, core_particle_set=core_particle_set,&
-         cell=cell, error=error)
+    CALL force_field_pack (particle_set,atomic_kind_set, molecule_kind_set,molecule_set,&
+         ewald_env,fist_nonbond_env,ff_type,root_section, qmmm, qmmm_env, mm_section,&
+         subsys_section, shell_particle_set=shell_particle_set, &
+         core_particle_set=core_particle_set, cell=cell, error=error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 6. Output total system charge assigned to qeff

@@ -264,11 +264,11 @@ CONTAINS
                           "Provides force field parameters through an external file with CHARMM format",&
                           "Provides force field parameters through an external file with GROMOS 87 format",&
                           "Provides force field parameters through an external file with GROMOS 96 format"),&
-            enum_i_vals=(/do_ff_type_off,&
-                          do_ff_type_charmm,&
-                          do_ff_type_g87,&
-                          do_ff_type_g96/),&
-            default_i_val=do_ff_type_off, error=error)
+            enum_i_vals=(/do_ff_undef,&
+                          do_ff_charmm,&
+                          do_ff_g87,&
+                          do_ff_g96/),&
+            default_i_val=do_ff_undef, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

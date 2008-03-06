@@ -161,6 +161,7 @@ MODULE force_field_types
 
 ! *****************************************************************************
   TYPE gromos_info_type
+    INTEGER                                        :: ff_type
     REAL(KIND=dp), POINTER                         :: solvent_k(:)
     REAL(KIND=dp), POINTER                         :: solvent_r0(:)
     REAL(KIND=dp), POINTER                         :: bond_k(:)

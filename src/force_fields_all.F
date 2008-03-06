@@ -30,8 +30,8 @@ MODULE force_fields_all
        impr_kind_type, input_info_type, onfo_kind_type, torsion_kind_type, &
        ub_kind_type
   USE input_constants,                 ONLY: do_ff_charmm,&
-                                             do_ff_type_g87,&
-                                             do_ff_type_g96,&
+                                             do_ff_g87,&
+                                             do_ff_g96,&
                                              do_ff_undef,&
                                              do_qmmm_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -150,7 +150,7 @@ CONTAINS
           ALLOCATE(map_bond_kind(nbond),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           counter=0
-         IF((ff_type%ff_type==do_ff_type_g96).OR.(ff_type%ff_type==do_ff_type_g87)) THEN
+         IF((ff_type%ff_type==do_ff_g96).OR.(ff_type%ff_type==do_ff_g87)) THEN
           DO j=1,nbond
             map_bond_kind(j)=j
           END DO
@@ -254,7 +254,7 @@ CONTAINS
           ALLOCATE(map_bend_kind(nbend),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           counter=0
-         IF((ff_type%ff_type==do_ff_type_g96).OR.(ff_type%ff_type==do_ff_type_g87)) THEN
+         IF((ff_type%ff_type==do_ff_g96).OR.(ff_type%ff_type==do_ff_g87)) THEN
           DO j=1,nbend
             map_bend_kind(j)=j
           END DO
@@ -474,7 +474,7 @@ CONTAINS
           ALLOCATE(map_torsion_kind(ntorsion),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           counter=0
-         IF((ff_type%ff_type==do_ff_type_g96).OR.(ff_type%ff_type==do_ff_type_g87)) THEN
+         IF((ff_type%ff_type==do_ff_g96).OR.(ff_type%ff_type==do_ff_g87)) THEN
           DO j=1,ntorsion
             map_torsion_kind(j)=j
           END DO
@@ -598,7 +598,7 @@ CONTAINS
           ALLOCATE(map_impr_kind(nimpr),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           counter=0
-         IF((ff_type%ff_type==do_ff_type_g96).OR.(ff_type%ff_type==do_ff_type_g87)) THEN
+         IF((ff_type%ff_type==do_ff_g96).OR.(ff_type%ff_type==do_ff_g87)) THEN
           DO j=1,nimpr
             map_impr_kind(j)=j
           END DO
@@ -841,7 +841,8 @@ CONTAINS
                 bond_list(j)%bond_kind%k(1) = gro_info%solvent_k(itype)
                 bond_list(j)%bond_kind%r0   = gro_info%solvent_r0(itype)
              END IF
-             bond_list(j)%bond_kind%id_type =  bond_list(j)%id_type
+             bond_list(j)%bond_kind%id_type =  gro_info%ff_type
+             bond_list(j)%id_type           =  gro_info%ff_type
              found = .TRUE.
           END IF
 
@@ -982,7 +983,8 @@ CPSourceFileRef,&
                bend_list(j)%bend_kind%k      = gro_info%bend_k(itype/k)
                bend_list(j)%bend_kind%theta0 = gro_info%bend_theta0(itype/k)
              END IF
-             bend_list(j)%bend_kind%id_type = bend_list(j)%id_type
+             bend_list(j)%bend_kind%id_type = gro_info%ff_type
+             bend_list(j)%id_type           = gro_info%ff_type
              found = .TRUE.
           END IF
 
@@ -1287,7 +1289,8 @@ CPSourceFileRef,&
                    torsion_list(j)%torsion_kind%k(1)   = gro_info%torsion_k(itype/k)
                    torsion_list(j)%torsion_kind%cosphi0(1) = gro_info%torsion_cosphi0(itype/k)
                 END IF
-                torsion_list(j)%torsion_kind%id_type = torsion_list(j)%id_type
+                torsion_list(j)%torsion_kind%id_type = gro_info%ff_type
+                torsion_list(j)%id_type              = gro_info%ff_type
                 found = .TRUE.
                 imul = torsion_list(j)%torsion_kind%nmul
              END IF
@@ -1489,7 +1492,8 @@ CPSourceFileRef,&
               impr_list(j)%impr_kind%phi0 = gro_info%impr_phi0(itype)
             END IF
             found = .TRUE.
-            impr_list(j)%impr_kind%id_type = impr_list(j)%id_type
+            impr_list(j)%impr_kind%id_type = gro_info%ff_type
+            impr_list(j)%id_type           = gro_info%ff_type
           END IF
 
           ! loop over params from charmm

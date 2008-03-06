@@ -15,9 +15,7 @@ MODULE topology_connectivity_util
   USE f77_blas
   USE input_constants,                 ONLY: do_conn_g87,&
                                              do_conn_g96,&
-                                             do_ff_charmm,&
-                                             do_ff_g87,&
-                                             do_ff_g96
+                                             do_ff_charmm
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -426,11 +424,9 @@ CONTAINS
           first = first_list(map_atom_mol(conn_info%bond_a(jind)))
           bond_list(ibond)%a=conn_info%bond_a(jind)-first+1
           bond_list(ibond)%b=conn_info%bond_b(jind)-first+1
-          IF(topology%conn_type==do_conn_g96) THEN
-             bond_list(ibond)%id_type = do_ff_g96
-             bond_list(ibond)%itype   = conn_info%bond_type(jind)
-          ELSE IF(topology%conn_type==do_conn_g87) THEN
-             bond_list(ibond)%id_type = do_ff_g87
+          IF((topology%conn_type==do_conn_g96).OR.(topology%conn_type==do_conn_g87)) THEN
+             ! id_type will be specified in the force_field setup.. depends on the value
+             ! parmtype variable.. 
              bond_list(ibond)%itype   = conn_info%bond_type(jind)
           ELSE
              bond_list(ibond)%id_type = do_ff_charmm
@@ -455,11 +451,9 @@ CONTAINS
           first = first_list(map_atom_mol(min_index))
           bond_list(ibond)%a=conn_info%c_bond_a(jind)-first+1
           bond_list(ibond)%b=conn_info%c_bond_b(jind)-first+1
-          IF(topology%conn_type==do_conn_g96) THEN
-             bond_list(ibond)%id_type = do_ff_g96
-             bond_list(ibond)%itype   = conn_info%c_bond_type(jind)
-          ELSE IF(topology%conn_type==do_conn_g87) THEN
-             bond_list(ibond)%id_type = do_ff_g87
+          IF((topology%conn_type==do_conn_g96).OR.(topology%conn_type==do_conn_g87)) THEN
+             ! id_type will be specified in the force_field setup.. depends on the value
+             ! parmtype variable.. 
              bond_list(ibond)%itype   = conn_info%c_bond_type(jind)
           ELSE
              bond_list(ibond)%id_type = do_ff_charmm
@@ -611,11 +605,9 @@ CONTAINS
           bend_list(ibend)%a=conn_info%theta_a(jind)-first+1
           bend_list(ibend)%b=conn_info%theta_b(jind)-first+1
           bend_list(ibend)%c=conn_info%theta_c(jind)-first+1
-          IF(topology%conn_type==do_conn_g96) THEN
-             bend_list(ibend)%id_type = do_ff_g96
-             bend_list(ibend)%itype   = conn_info%theta_type(jind)
-          ELSE IF(topology%conn_type==do_conn_g87) THEN
-             bend_list(ibend)%id_type = do_ff_g87
+          IF((topology%conn_type==do_conn_g96).OR.(topology%conn_type==do_conn_g87)) THEN
+             ! id_type will be specified in the force_field setup.. depends on the value
+             ! parmtype variable.. 
              bend_list(ibend)%itype   = conn_info%theta_type(jind)
           ELSE
              bend_list(ibend)%id_type = do_ff_charmm
@@ -643,11 +635,9 @@ CONTAINS
           bend_list(ibend)%a=c_var_a(jind)-first+1
           bend_list(ibend)%b=c_var_b(jind)-first+1
           bend_list(ibend)%c=c_var_c(jind)-first+1
-          IF(topology%conn_type==do_conn_g96) THEN
-             bend_list(ibend)%id_type = do_ff_g96
-             bend_list(ibend)%itype   = c_var_type(jind)
-          ELSE IF(topology%conn_type==do_conn_g87) THEN
-             bend_list(ibend)%id_type = do_ff_g87
+          IF((topology%conn_type==do_conn_g96).OR.(topology%conn_type==do_conn_g87)) THEN
+             ! id_type will be specified in the force_field setup.. depends on the value
+             ! parmtype variable.. 
              bend_list(ibend)%itype   = c_var_type(jind)
           ELSE
              bend_list(ibend)%id_type = do_ff_charmm
@@ -967,11 +957,9 @@ CONTAINS
           torsion_list(itorsion)%b=conn_info%phi_b(jind)-first+1
           torsion_list(itorsion)%c=conn_info%phi_c(jind)-first+1
           torsion_list(itorsion)%d=conn_info%phi_d(jind)-first+1
-          IF(topology%conn_type==do_conn_g96) THEN
-             torsion_list(itorsion)%id_type = do_ff_g96
-             torsion_list(itorsion)%itype   = conn_info%phi_type(jind)
-          ELSE IF(topology%conn_type==do_conn_g87) THEN
-             torsion_list(itorsion)%id_type = do_ff_g87
+          IF((topology%conn_type==do_conn_g96).OR.(topology%conn_type==do_conn_g87)) THEN
+             ! id_type will be specified in the force_field setup.. depends on the value
+             ! parmtype variable.. 
              torsion_list(itorsion)%itype   = conn_info%phi_type(jind)
           ELSE
              torsion_list(itorsion)%id_type = do_ff_charmm
@@ -1002,11 +990,9 @@ CONTAINS
           torsion_list(itorsion)%b=c_var_b(jind)-first+1
           torsion_list(itorsion)%c=c_var_c(jind)-first+1
           torsion_list(itorsion)%d=c_var_d(jind)-first+1
-          IF(topology%conn_type==do_conn_g96) THEN
-             torsion_list(itorsion)%id_type = do_ff_g96
-             torsion_list(itorsion)%itype   = c_var_type(jind)
-          ELSE IF(topology%conn_type==do_conn_g87) THEN
-             torsion_list(itorsion)%id_type = do_ff_g87
+          IF((topology%conn_type==do_conn_g96).OR.(topology%conn_type==do_conn_g87)) THEN
+             ! id_type will be specified in the force_field setup.. depends on the value
+             ! parmtype variable.. 
              torsion_list(itorsion)%itype   = c_var_type(jind)
           ELSE
              torsion_list(itorsion)%id_type = do_ff_charmm
@@ -1172,11 +1158,9 @@ CONTAINS
           impr_list(iimpr)%b=conn_info%impr_b(jind)-first+1
           impr_list(iimpr)%c=conn_info%impr_c(jind)-first+1
           impr_list(iimpr)%d=conn_info%impr_d(jind)-first+1
-          IF(topology%conn_type==do_conn_g96) THEN
-             impr_list(iimpr)%id_type = do_ff_g96
-             impr_list(iimpr)%itype   = conn_info%impr_type(jind)
-          ELSE IF(topology%conn_type==do_conn_g87) THEN
-             impr_list(iimpr)%id_type = do_ff_g87
+          IF((topology%conn_type==do_conn_g96).OR.(topology%conn_type==do_conn_g87)) THEN
+             ! id_type will be specified in the force_field setup.. depends on the value
+             ! parmtype variable.. 
              impr_list(iimpr)%itype   = conn_info%impr_type(jind)
           ELSE
              impr_list(iimpr)%id_type = do_ff_charmm
@@ -1207,11 +1191,9 @@ CONTAINS
           impr_list(iimpr)%b=c_var_b(jind)-first+1
           impr_list(iimpr)%c=c_var_c(jind)-first+1
           impr_list(iimpr)%d=c_var_d(jind)-first+1
-          IF(topology%conn_type==do_conn_g96) THEN
-             impr_list(iimpr)%id_type = do_ff_g96
-             impr_list(iimpr)%itype   = c_var_type(jind)
-          ELSE IF(topology%conn_type==do_conn_g87) THEN
-             impr_list(iimpr)%id_type = do_ff_g87
+          IF((topology%conn_type==do_conn_g96).OR.(topology%conn_type==do_conn_g87)) THEN
+             ! id_type will be specified in the force_field setup.. depends on the value
+             ! parmtype variable.. 
              impr_list(iimpr)%itype   = c_var_type(jind)
           ELSE
              impr_list(iimpr)%id_type = do_ff_charmm

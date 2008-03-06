@@ -40,10 +40,10 @@ MODULE force_fields_input
                                              gromos_info_type,&
                                              input_info_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_ff_type_charmm,&
-                                             do_ff_type_g87,&
-                                             do_ff_type_g96,&
-                                             do_ff_type_off
+  USE input_constants,                 ONLY: do_ff_charmm,&
+                                             do_ff_g87,&
+                                             do_ff_g96,&
+                                             do_ff_undef
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -122,13 +122,13 @@ CONTAINS
        CPPostcondition(ff_type%max_energy<=ff_type%emax_spline,cp_failure_level,routineP,error,failure)
        ! Read the parameter file name only if the force field type requires it..
        SELECT CASE(ff_type%ff_type)
-       CASE(do_ff_type_charmm,do_ff_type_g96,do_ff_type_g87)
+       CASE(do_ff_charmm,do_ff_g96,do_ff_g87)
           CALL section_vals_val_get(ff_section,"PARM_FILE_NAME",c_val=ff_type%ff_file_name,error=error)
           CALL cp_assert(TRIM(ff_type%ff_file_name)/="",cp_failure_level,cp_assertion_failed,routineP,&
                "Force Field Parameter's filename is empty! Please check your input file. "//&
 CPSourceFileRef,&
                only_ionode=.TRUE.)
-       CASE(do_ff_type_off)
+       CASE(do_ff_undef)
           ! Do Nothing
        CASE DEFAULT
           CALL stop_program ("force_fields_input","force field type not implemented")
@@ -1374,7 +1374,7 @@ CPSourceFileRef,&
     avail_section(21) = "SOLVENTCONSTR"
 
     gro_info => ff_type%gro_info
-
+    gro_info%ff_type = ff_type%ff_type
     NULLIFY(namearray)
     ! ATOMTYPENAME SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the ATOMTYPENAME section'
@@ -1430,7 +1430,7 @@ CPSourceFileRef,&
           CALL parser_get_next_line(parser,1,error=error)
           CALL parser_get_object(parser,gro_info%bond_k(itype),error=error)
           CALL parser_get_object(parser,gro_info%bond_r0(itype),error=error)
-          IF(ff_type%ff_type==do_ff_type_g96) THEN
+          IF(ff_type%ff_type==do_ff_g96) THEN
              CALL convert_to_cp2k_units("KJ",energy=gro_info%bond_k(itype))
              CALL convert_to_cp2k_units("NM",length=gro_info%bond_k(itype),l_power=-4)
              CALL convert_to_cp2k_units("NM",length=gro_info%bond_r0(itype))
@@ -1457,7 +1457,7 @@ CPSourceFileRef,&
           CALL parser_get_next_line(parser,1,error=error)
           CALL parser_get_object(parser,gro_info%bend_k(itype),error=error)
           CALL parser_get_object(parser,gro_info%bend_theta0(itype),error=error)
-          IF(ff_type%ff_type==do_ff_type_g96) THEN
+          IF(ff_type%ff_type==do_ff_g96) THEN
 
              CALL convert_to_cp2k_units("DEGREE",angle=gro_info%bend_theta0(itype))
              gro_info%bend_theta0(itype) = COS(gro_info%bend_theta0(itype))

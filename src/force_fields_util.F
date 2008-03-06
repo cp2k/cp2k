@@ -492,7 +492,6 @@ CONTAINS
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
             colv_list=colv_list,&
             nbond=nbond,&
-            bond_kind_set=bond_kind_set,&
             bond_list=bond_list)
        IF (ASSOCIATED(colv_list)) THEN
           DO icolv=1,SIZE(colv_list)
@@ -521,7 +520,6 @@ CONTAINS
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
             colv_list=colv_list,&
             nbend=nbend,&
-            bend_kind_set=bend_kind_set,&
             bend_list=bend_list)
        IF (ASSOCIATED(colv_list)) THEN
           DO ibend=1,nbend
@@ -557,7 +555,6 @@ CONTAINS
             ng3x3=ng3x3,&
             g3x3_list=g3x3_list,&
             nbond=nbond,&
-            bond_kind_set=bond_kind_set,&
             bond_list=bond_list)
        DO ig3x3=1,ng3x3
           atm_a = g3x3_list(ig3x3)%a
@@ -584,7 +581,6 @@ CONTAINS
             ng3x3=ng3x3,&
             g3x3_list=g3x3_list,&
             nbend=nbend,&
-            bend_kind_set=bend_kind_set,&
             bend_list=bend_list)
        DO ig3x3=1,ng3x3
           atm_a = g3x3_list(ig3x3)%a
@@ -613,7 +609,6 @@ CONTAINS
             ng4x6=ng4x6,&
             g4x6_list=g4x6_list,&
             nbond=nbond,&
-            bond_kind_set=bond_kind_set,&
             bond_list=bond_list)
        DO ig4x6=1,ng4x6
           atm_a = g4x6_list(ig4x6)%a
@@ -641,7 +636,6 @@ CONTAINS
             ng4x6=ng4x6,&
             g4x6_list=g4x6_list,&
             nbend=nbend,&
-            bend_kind_set=bend_kind_set,&
             bend_list=bend_list)
        DO ig4x6=1,ng4x6
           atm_a = g4x6_list(ig4x6)%a

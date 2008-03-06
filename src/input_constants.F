@@ -94,12 +94,6 @@ MODULE input_constants
   ! Blacs type of distribution 
   INTEGER, PARAMETER, PUBLIC :: blacs_square=1, blacs_row=2, blacs_col=3
 
-  ! Types of force fields supported
-  INTEGER, PARAMETER, PUBLIC :: do_ff_type_off=0,&
-                                do_ff_type_charmm=1,&
-                                do_ff_type_g87=2,&
-                                do_ff_type_g96=3
-                                 
   ! EWALD methods       
   INTEGER, PARAMETER, PUBLIC :: do_ewald_none=1,&
                                 do_ewald_ewald=2,&
