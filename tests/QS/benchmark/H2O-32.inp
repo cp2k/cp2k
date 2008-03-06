@@ -18,6 +18,10 @@
       &END OT
     # SCF_GUESS        RESTART
     # EPS_SCF      1.0E-7
+      &PRINT
+        &RESTART OFF
+        &END
+      &END
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade

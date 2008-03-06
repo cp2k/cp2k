@@ -17,6 +17,12 @@
       &OT ON
         MINIMIZER DIIS
       &END OT
+
+      &PRINT
+        &RESTART OFF
+        &END
+      &END
+
     # SCF_GUESS        RESTART
     # EPS_SCF      1.0E-7
     &END SCF
