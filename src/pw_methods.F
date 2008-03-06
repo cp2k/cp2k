@@ -32,6 +32,8 @@ MODULE pw_methods
                                              PW_MODE_DISTRIBUTED,&
                                              PW_MODE_LOCAL,&
                                              pw_grid_type
+  USE pw_methods_cuda,                 ONLY: cuda_pw_fft_wrap_c1dr3d,&
+                                             cuda_pw_fft_wrap_r3dc1d
   USE pw_types,                        ONLY: &
        COMPLEXDATA1D, COMPLEXDATA3D, NOSPACE, REALDATA1D, REALDATA3D, &
        REALSPACE, RECIPROCALSPACE, SQUARE, SQUAREROOT, pw_type
@@ -122,7 +124,6 @@ SUBROUTINE pw_copy ( pw1, pw2 )
 
     INTEGER                                  :: handle, i, j, ng, ng1, ng2, ns
     REAL(KIND=dp)                            :: zc
-
 
   CALL timeset ( 'pw_copy', 'I', 'Mcopy', handle )
   CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_copy")
@@ -1370,6 +1371,9 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         DEALLOCATE ( c_out, STAT = ierr )
         CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
       CASE ( "FW_R3DC1D" )
+#if defined ( __CUDA )
+        CALL cuda_pw_fft_wrap_r3dc1d(pw1, pw2, dir, n, norm)
+#else
         IF (.NOT. ASSOCIATED (c_out)) &
             ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
         CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
@@ -1379,10 +1383,10 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         l3 = LBOUND(pw1%cr3d,3)
         CALL copy_rc(nsize,pw1%cr3d(l1,l2,l3),c_out(1,1,1))
         CALL fft3d ( dir, n, c_out, scale = 1._dp, debug=test )
-        IF ( test ) WRITE ( *,'(A)') "  PW_GATHER : 3d -> 1d "
         CALL pw_gather ( pw2, c_out, scale = norm )
         DEALLOCATE ( c_out, STAT = ierr )
         CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
+#endif
       CASE ( "BW_C3DC3D" )
         c_in => pw1 % cc3d
         c_out => pw2 % cc3d
@@ -1404,6 +1408,9 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         CALL pw_scatter ( pw1, c_out )
         CALL fft3d ( dir, n, c_out, scale = norm, debug=test )
       CASE ( "BW_C1DR3D" )
+#if defined ( __CUDA )
+        CALL cuda_pw_fft_wrap_c1dr3d(pw1, pw2, dir, n, norm)
+#else
         IF (.NOT. ASSOCIATED (c_out)) &
             ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
         CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
@@ -1421,6 +1428,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         CALL copy_cr(nsize,c_out(1,1,1),pw2%cr3d(l1,l2,l3))
         DEALLOCATE ( c_out, STAT = ierr )
         CPPreconditionNoErr(ierr == 0,cp_failure_level,"pw_zero")
+#endif
     END SELECT
 
     IF ( test ) WRITE ( *,'(A)') " End of FFT Protocol "
