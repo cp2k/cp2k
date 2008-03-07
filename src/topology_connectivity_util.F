@@ -424,12 +424,10 @@ CONTAINS
           first = first_list(map_atom_mol(conn_info%bond_a(jind)))
           bond_list(ibond)%a=conn_info%bond_a(jind)-first+1
           bond_list(ibond)%b=conn_info%bond_b(jind)-first+1
+          ! Set by default id_type to charmm and modify when handling the forcefield
+          bond_list(ibond)%id_type = do_ff_charmm
           IF((topology%conn_type==do_conn_g96).OR.(topology%conn_type==do_conn_g87)) THEN
-             ! id_type will be specified in the force_field setup.. depends on the value
-             ! parmtype variable.. 
              bond_list(ibond)%itype   = conn_info%bond_type(jind)
-          ELSE
-             bond_list(ibond)%id_type = do_ff_charmm
           END IF
           !point this to the right bond_kind_type if using force field
           NULLIFY(bond_list(ibond)%bond_kind)
@@ -451,12 +449,10 @@ CONTAINS
           first = first_list(map_atom_mol(min_index))
           bond_list(ibond)%a=conn_info%c_bond_a(jind)-first+1
           bond_list(ibond)%b=conn_info%c_bond_b(jind)-first+1
+          ! Set by default id_type to charmm and modify when handling the forcefield
+          bond_list(ibond)%id_type = do_ff_charmm
           IF((topology%conn_type==do_conn_g96).OR.(topology%conn_type==do_conn_g87)) THEN
-             ! id_type will be specified in the force_field setup.. depends on the value
-             ! parmtype variable.. 
              bond_list(ibond)%itype   = conn_info%c_bond_type(jind)
-          ELSE
-             bond_list(ibond)%id_type = do_ff_charmm
           END IF
           !point this to the right bond_kind_type if using force field
           NULLIFY(bond_list(ibond)%bond_kind)
@@ -605,12 +601,10 @@ CONTAINS
           bend_list(ibend)%a=conn_info%theta_a(jind)-first+1
           bend_list(ibend)%b=conn_info%theta_b(jind)-first+1
           bend_list(ibend)%c=conn_info%theta_c(jind)-first+1
+          ! Set by default id_type to charmm and modify when handling the forcefield
+          bend_list(ibend)%id_type = do_ff_charmm
           IF((topology%conn_type==do_conn_g96).OR.(topology%conn_type==do_conn_g87)) THEN
-             ! id_type will be specified in the force_field setup.. depends on the value
-             ! parmtype variable.. 
              bend_list(ibend)%itype   = conn_info%theta_type(jind)
-          ELSE
-             bend_list(ibend)%id_type = do_ff_charmm
           END IF
           !point this to the right bend_kind_type if using force field
           NULLIFY(bend_list(ibend)%bend_kind)
@@ -635,12 +629,10 @@ CONTAINS
           bend_list(ibend)%a=c_var_a(jind)-first+1
           bend_list(ibend)%b=c_var_b(jind)-first+1
           bend_list(ibend)%c=c_var_c(jind)-first+1
+          ! Set by default id_type to charmm and modify when handling the forcefield
+          bend_list(ibend)%id_type = do_ff_charmm
           IF((topology%conn_type==do_conn_g96).OR.(topology%conn_type==do_conn_g87)) THEN
-             ! id_type will be specified in the force_field setup.. depends on the value
-             ! parmtype variable.. 
              bend_list(ibend)%itype   = c_var_type(jind)
-          ELSE
-             bend_list(ibend)%id_type = do_ff_charmm
           END IF
           !point this to the right bend_kind_type if using force field
           NULLIFY(bend_list(ibend)%bend_kind)
@@ -957,12 +949,10 @@ CONTAINS
           torsion_list(itorsion)%b=conn_info%phi_b(jind)-first+1
           torsion_list(itorsion)%c=conn_info%phi_c(jind)-first+1
           torsion_list(itorsion)%d=conn_info%phi_d(jind)-first+1
+          ! Set by default id_type to charmm and modify when handling the forcefield
+          torsion_list(itorsion)%id_type = do_ff_charmm
           IF((topology%conn_type==do_conn_g96).OR.(topology%conn_type==do_conn_g87)) THEN
-             ! id_type will be specified in the force_field setup.. depends on the value
-             ! parmtype variable.. 
              torsion_list(itorsion)%itype   = conn_info%phi_type(jind)
-          ELSE
-             torsion_list(itorsion)%id_type = do_ff_charmm
           END IF
           !point this to the right torsion_kind_type if using force field
           NULLIFY(torsion_list(itorsion)%torsion_kind)
@@ -990,12 +980,10 @@ CONTAINS
           torsion_list(itorsion)%b=c_var_b(jind)-first+1
           torsion_list(itorsion)%c=c_var_c(jind)-first+1
           torsion_list(itorsion)%d=c_var_d(jind)-first+1
+          ! Set by default id_type to charmm and modify when handling the forcefield
+          torsion_list(itorsion)%id_type = do_ff_charmm
           IF((topology%conn_type==do_conn_g96).OR.(topology%conn_type==do_conn_g87)) THEN
-             ! id_type will be specified in the force_field setup.. depends on the value
-             ! parmtype variable.. 
              torsion_list(itorsion)%itype   = c_var_type(jind)
-          ELSE
-             torsion_list(itorsion)%id_type = do_ff_charmm
           END IF
           !point this to the right torsion_kind_type if using force field
           NULLIFY(torsion_list(itorsion)%torsion_kind)
@@ -1158,12 +1146,10 @@ CONTAINS
           impr_list(iimpr)%b=conn_info%impr_b(jind)-first+1
           impr_list(iimpr)%c=conn_info%impr_c(jind)-first+1
           impr_list(iimpr)%d=conn_info%impr_d(jind)-first+1
+          ! Set by default id_type to charmm and modify when handling the forcefield
+          impr_list(iimpr)%id_type = do_ff_charmm
           IF((topology%conn_type==do_conn_g96).OR.(topology%conn_type==do_conn_g87)) THEN
-             ! id_type will be specified in the force_field setup.. depends on the value
-             ! parmtype variable.. 
              impr_list(iimpr)%itype   = conn_info%impr_type(jind)
-          ELSE
-             impr_list(iimpr)%id_type = do_ff_charmm
           END IF
           !point this to the right impr_kind_type if using force field
           NULLIFY(impr_list(iimpr)%impr_kind)
@@ -1191,12 +1177,10 @@ CONTAINS
           impr_list(iimpr)%b=c_var_b(jind)-first+1
           impr_list(iimpr)%c=c_var_c(jind)-first+1
           impr_list(iimpr)%d=c_var_d(jind)-first+1
+          ! Set by default id_type to charmm and modify when handling the forcefield
+          impr_list(iimpr)%id_type = do_ff_charmm
           IF((topology%conn_type==do_conn_g96).OR.(topology%conn_type==do_conn_g87)) THEN
-             ! id_type will be specified in the force_field setup.. depends on the value
-             ! parmtype variable.. 
              impr_list(iimpr)%itype   = c_var_type(jind)
-          ELSE
-             impr_list(iimpr)%id_type = do_ff_charmm
           END IF
           !point this to the right impr_kind_type if using force field
           NULLIFY(impr_list(iimpr)%impr_kind)

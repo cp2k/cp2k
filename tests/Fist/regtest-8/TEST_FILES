@@ -1,7 +1,8 @@
 # GROMOS TOPOLOGY AND CONNECTIVITY TESTS
-G87.inp 2
-G87_2.inp 2
-G96.inp 2
-G96_ei_scale.inp 2
-water.inp 2
-water_vel.inp 2
+G87.inp            2
+G87_2.inp          2
+G96.inp            2
+G96_ei_scale.inp   2
+water.inp          2
+water_vel.inp      2
+water_2.inp        2
