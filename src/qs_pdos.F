@@ -360,7 +360,7 @@ CONTAINS
   END SUBROUTINE  calculate_projected_dos
 
 ! *****************************************************************************
-!> \brief   Compute additinal virtual states to compute he unoccupied pdos 
+!> \brief   Compute additional virtual states  starting from the available MOS
 !> \author  MI
 !> \date    08.03.2008
 !> \par History: 
