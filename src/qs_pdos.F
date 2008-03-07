@@ -24,8 +24,8 @@ MODULE qs_pdos
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
-                                             cp_fm_init_random,&
                                              cp_fm_get_submatrix,&
+                                             cp_fm_init_random,&
                                              cp_fm_release,&
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -41,14 +41,14 @@ MODULE qs_pdos
                                              dp
   USE orbital_pointers,                ONLY: nso,&
                                              nsoset
-  USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
-  USE qs_ot_eigensolver,               ONLY: ot_eigensolver
   USE particle_types,                  ONLY: particle_type
   USE preconditioner,                  ONLY: preconditioner_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_type
+  USE qs_ot_eigensolver,               ONLY: ot_eigensolver
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
@@ -101,13 +101,15 @@ CONTAINS
     CHARACTER(LEN=26)                        :: fmtstr
     CHARACTER(LEN=default_string_length)     :: my_act, my_mittle, my_pos, &
                                                 spin(2)
-    INTEGER :: handle, homo, iatom, imo, irow, iset, isgf, ishell, iso, istat, &
-      iterstep, iw, kind_number, lcomponent, lshell, maxl, maxlgto, mepos, my_spin, n_dependent, &
-      nao, natom, ncol_global, nkind, nlumo, nmo, nrow_global, nset, nsgf, nvirt
+    INTEGER :: handle, homo, iatom, imo, irow, iset, isgf, ishell, iso, &
+      istat, iterstep, iw, kind_number, lcomponent, lshell, maxl, maxlgto, &
+      mepos, my_spin, n_dependent, nao, natom, ncol_global, nkind, nlumo, &
+      nmo, nrow_global, nset, nsgf, nvirt
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
-    LOGICAL                                  :: append, do_virt, failure, ionode,&
-                                                separate_components, should_output
+    LOGICAL                                  :: append, do_virt, failure, &
+                                                ionode, separate_components, &
+                                                should_output
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, evals_virt
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -377,14 +379,13 @@ CONTAINS
     TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp), DIMENSION(:), POINTER     :: evals_virt
     TYPE(cp_fm_type), POINTER                :: mo_virt
-    INTEGER, INTENT(IN)                      :: nvirt
-    INTEGER, INTENT(IN)                      :: ispin
+    INTEGER, INTENT(IN)                      :: nvirt, ispin
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'grnrrate_virtual_mo', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'generate_virtual_mo', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  ::  istat, nmo, nrow_global
+    INTEGER                                  :: istat, nmo, nrow_global
     LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
@@ -394,7 +395,6 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix, s_matrix
     TYPE(scf_control_type), POINTER          :: scf_control
-
 
        failure = .FALSE.
        NULLIFY(evals_virt,mo_virt)
