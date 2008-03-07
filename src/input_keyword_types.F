@@ -681,10 +681,8 @@ CONTAINS
     CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        color_tag='<font color="#000000">'
-       IF (enable_color_tags) THEN
-          IF (keyword%supported_feature) THEN
-             color_tag='<font color="#00CC00">'
-          END IF
+       IF (enable_color_tags.AND.keyword%supported_feature) THEN
+          color_tag='<font color="#00CC00">'
        END IF
        WRITE(unit_nr,'(a)') '<TR><TD WITDH="20%">'// &
             '<A NAME="'//TRIM(keyword%names(1))//'"><u>'//TRIM(color_tag)//TRIM(keyword%names(1))//'</font></u></A>'// &

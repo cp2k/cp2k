@@ -390,10 +390,8 @@ CONTAINS
        WRITE(179,*) '<META NAME="keywords" contents="scientific,computing,chemistry,physics,'//&
             'documentation,help,manual,Fortran,parallel">'
        color_tag='<font color="#000000">'
-       IF (enable_color_tags) THEN
-          IF (section%supported_feature) THEN
-             color_tag='<font color="#00CC00">'
-          END IF
+       IF (enable_color_tags.AND.section%supported_feature) THEN
+          color_tag='<font color="#00CC00">'
        END IF
        WRITE(179,*) "<H1> Section "//TRIM(color_tag)//section%name//"</font> </H1>"
        WRITE(179,*) ' <A HREF="index.html">Index of all sections</A>. This section is located at '
@@ -424,7 +422,7 @@ CONTAINS
           WRITE(179,*) "<UL>"
           DO isub=1,section%n_subsections
              color_tag='<font color="#0000FF">'
-             IF (section%subsections(isub)%section%supported_feature) THEN
+             IF (enable_color_tags.AND.section%subsections(isub)%section%supported_feature) THEN
                 color_tag='<font color="#00CC00">'
              END IF
              WRITE(179,*) '<LI><A HREF="'//TRIM(local_prefix)//"~"//TRIM(section%subsections(isub)%section%name)//".html"//'">'// &
@@ -443,7 +441,7 @@ CONTAINS
           DO ikeyword=-1,section%n_keywords
              IF (ASSOCIATED(section%keywords(ikeyword)%keyword)) THEN
                 color_tag='<font color="#0000FF">'
-                IF (section%keywords(ikeyword)%keyword%supported_feature) THEN
+                IF (enable_color_tags.AND.section%keywords(ikeyword)%keyword%supported_feature) THEN
                    color_tag='<font color="#00CC00">'
                 END IF
                 WRITE(179,*) '<LI><A HREF="#'//TRIM(section%keywords(ikeyword)%keyword%names(1))//'">'//&
@@ -494,7 +492,7 @@ CONTAINS
        CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
        local_prefix=TRIM(prefix//"~"//TRIM(section%name))
        color_tag='<font color="#0000FF">'
-       IF (section%supported_feature) THEN
+       IF (enable_color_tags.AND.section%supported_feature) THEN
           color_tag='<font color="#00CC00">'
        END IF
        WRITE(unit_nr,*) '<LI><A HREF="'//TRIM(local_prefix)//'.html">'//TRIM(color_tag)//TRIM(section%name)//"</font></A>"
