@@ -239,7 +239,7 @@ CONTAINS
            "Create and initialize the xas environment"
        END IF
       CALL xas_env_create(xas_env, error=error)
-      CALL xas_env_init(xas_env, xas_control, qs_env, xas_section, globenv, logger, error=error)
+      CALL xas_env_init(xas_env, xas_control, qs_env, xas_section, logger, error=error)
       CALL set_qs_env(qs_env,xas_env=xas_env, error=error)
       CALL xas_env_release(xas_env,error=error)
       CALL get_qs_env(qs_env,xas_env=xas_env,error=error)
@@ -575,13 +575,12 @@ CONTAINS
 !>      05.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE xas_env_init(xas_env, xas_control, qs_env, xas_section, globenv, logger, error)
+  SUBROUTINE xas_env_init(xas_env, xas_control, qs_env, xas_section, logger, error)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
     TYPE(xas_control_type)                   :: xas_control
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: xas_section
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1093,13 +1092,13 @@ CONTAINS
       IF( .NOT. xas_control%xas_method == xas_dscf) THEN
         length = (.NOT. xas_control%dipole_form==xas_dip_vel)
         CALL xas_write(xas_control,spectrum, dft_control%xas_estate, &
-             xas_section, homo, iatom, iter, ionode, length=length, error=error)
+             xas_section, homo, iatom, iter, length=length, error=error)
       END IF
 
       IF(BTEST(cp_print_key_should_output(logger%iter_info,xas_section,&
         "PRINT%CLS_FUNCTION_CUBES",error=error),cp_p_file)) THEN
         CALL xas_print_cubes(xas_control,qs_env,xas_section,mos,all_vectors,iter,&
-             iatom,ionode,error=error)
+             iatom,error=error)
       END IF
 
     END IF  ! failure
@@ -1125,14 +1124,14 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE xas_write(xas_control, spectrum, estate, xas_section, homo, iatom, iter,&
-             ionode,length, error)
+             length, error)
 
     TYPE(xas_control_type)                   :: xas_control
     REAL(dp), DIMENSION(:, :), POINTER       :: spectrum
     INTEGER, INTENT(IN)                      :: estate
     TYPE(section_vals_type), POINTER         :: xas_section
     INTEGER, INTENT(IN)                      :: homo, iatom, iter
-    LOGICAL, INTENT(IN)                      :: ionode, length
+    LOGICAL, INTENT(IN)                      :: length
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_write', &
@@ -1149,6 +1148,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
    
     failure = .FALSE.
+    NULLIFY(print_section)
     print_section => section_vals_get_subs_vals(xas_section,"PRINT",error=error)
 
     my_pos = "APPEND"
@@ -1217,7 +1217,7 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE  xas_print_cubes(xas_control,qs_env,xas_section,&
-              mos,all_vectors,iter,iatom,ionode,error)
+              mos,all_vectors,iter,iatom,error)
 
     TYPE(xas_control_type)                   :: xas_control
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1226,7 +1226,6 @@ CONTAINS
       POINTER                                :: mos
     TYPE(cp_fm_type), POINTER                :: all_vectors
     INTEGER, INTENT(IN)                      :: iter, iatom
-    LOGICAL, INTENT(IN)                      :: ionode
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_print_cubes', &
@@ -1241,7 +1240,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: print_key
 
     failure = .FALSE.
-
+    NULLIFY(logger)
     logger => cp_error_get_logger(error)
     nspins = SIZE(mos)
 

@@ -1130,6 +1130,11 @@ CONTAINS
               lone_keyword_l_val=.TRUE., error=error)
          CALL section_add_keyword(print_key,keyword,error=error)
          CALL keyword_release(keyword,error=error)
+         CALL keyword_create(keyword, name="NLUMO",&
+            description="Number of virtual orbitals to be added to the MOS set  ",&
+            usage="NLUMO integer",default_i_val=0, error=error)
+         CALL section_add_keyword(print_key,keyword,error=error)
+         CALL keyword_release(keyword,error=error) 
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 

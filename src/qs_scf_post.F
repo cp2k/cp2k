@@ -1256,10 +1256,10 @@ CPSourceFileRef,&
             END IF
             IF(dft_control%nspins==2) THEN
               CALL calculate_projected_dos(mos(ispin)%mo_set,atomic_kind_set,&
-                   particle_set,qs_env, dft_section,ispin=ispin,error=error)
+                   particle_set,qs_env, scf_env, dft_section,ispin=ispin,error=error)
             ELSE
               CALL calculate_projected_dos(mos(ispin)%mo_set,atomic_kind_set,&
-                   particle_set,qs_env,dft_section,error=error)
+                   particle_set,qs_env,scf_env,dft_section,error=error)
             END IF
          END DO
        ENDIF
