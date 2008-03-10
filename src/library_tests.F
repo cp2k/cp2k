@@ -293,7 +293,7 @@ CONTAINS
 
     siz = ABS ( runtest ( 2 ) )
     IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of matmul ( F95 ) "
-    DO i = 4, 10, 2
+    DO i = 5, siz, 2
        len = 2**i + 1
        IF ( 8.0_dp * REAL ( len*len,KIND=dp) > max_memory * 0.3_dp ) EXIT
        ALLOCATE ( ma ( len, len ), STAT = ierr )
@@ -386,7 +386,7 @@ CONTAINS
 
     ! test for matrix multpies
     IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of matmul ( BLAS ) "
-    DO i = 4, 10, 2
+    DO i = 5, siz, 2
        len = 2**i + 1
        IF ( 8.0_dp * REAL ( len*len,KIND=dp) > max_memory * 0.3_dp ) EXIT
        ALLOCATE ( ma ( len, len ), STAT = ierr )
@@ -697,6 +697,10 @@ CONTAINS
          rs_dims=(/para_env%num_pe,1/), iounit=iw, error=error)
     no = grid % npts
 
+    NULLIFY(ca%pw)
+    NULLIFY(cb%pw)
+    NULLIFY(cc%pw)
+
     CALL pw_create ( ca%pw, grid, COMPLEXDATA1D ,error=error)
     CALL pw_create ( cb%pw, grid, COMPLEXDATA3D ,error=error)
     CALL pw_create ( cc%pw, grid, COMPLEXDATA1D ,error=error)
@@ -974,7 +978,7 @@ CONTAINS
     IF (ionode) WRITE(6,*) "use MPI X in the input for larger (e.g. 6) of smaller (e.g. 3) messages"
     IF (MODULO(nprocs,2).NE.0) THEN
        WRITE(6,*) "Testing only with an even number of tasks"
-       STOP
+       RETURN
     ENDIF
 
     ! equal loads

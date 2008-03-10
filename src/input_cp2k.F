@@ -523,7 +523,7 @@ CONTAINS
 
     NULLIFY(keyword, print_key)
     CALL keyword_create(keyword, name="memory",&
-         description="tries to allocate the given amount of memory (in bytes)",&
+         description="Set the maximum amount of memory allocated for a given test (in bytes)",&
          usage="MEMORY <REAL>",default_r_val=256.e6_dp, error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -539,7 +539,7 @@ CONTAINS
 
     CALL keyword_create(keyword, name="matmul",&
          description="Tests the performance of different kinds of matrix matrix "//&
-         "multiply kernels for the BLAS and F95 INTRINSIC matmul. Tests are repeated the given number of times.",&
+         "multiply kernels for the BLAS and F95 INTRINSIC matmul. Matrices up to 2**N+1 will be tested. ",&
          usage="matmul 10",default_i_val=0,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)

@@ -13,12 +13,14 @@ MODULE cg_test
 
   USE f77_blas
   USE kinds,                           ONLY: dp
-  USE lebedev,                         ONLY: get_number_of_lebedev_grid,&
+  USE lebedev,                         ONLY: deallocate_lebedev_grids,&
+                                             get_number_of_lebedev_grid,&
                                              init_lebedev_grids,&
                                              lebedev_grid
   USE machine,                         ONLY: m_cputime
   USE mathconstants,                   ONLY: pi
   USE spherical_harmonics,             ONLY: clebsch_gordon,&
+                                             clebsch_gordon_deallocate,&
                                              clebsch_gordon_init,&
                                              y_lm
   USE termination,                     ONLY: stop_memory
@@ -158,6 +160,9 @@ SUBROUTINE clebsch_gordon_test (error)
      IF ( ierr/= 0 ) CALL stop_memory ( "clebsch_gordon_test","a") 
      DEALLOCATE (b1, b2, b3, STAT=ierr)
      IF ( ierr/= 0 ) CALL stop_memory ( "clebsch_gordon_test","b") 
+
+     CALL deallocate_lebedev_grids()
+     CALL clebsch_gordon_deallocate()
 
   END IF
 
