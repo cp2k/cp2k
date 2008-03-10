@@ -23,6 +23,7 @@ MODULE input_cp2k
   USE input_constants
   USE input_cp2k_force_eval,           ONLY: create_force_eval_section
   USE input_cp2k_motion,               ONLY: create_motion_section
+  USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
   USE input_cp2k_vib,                  ONLY: create_vib_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -514,7 +515,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key
+    TYPE(section_type), POINTER              :: print_key, subsection
 
     CALL section_create(section,name="test",&
          description="Tests to perform on the supported libraries.",&
@@ -606,7 +607,70 @@ CONTAINS
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)
 
+    NULLIFY(subsection)
+    CALL create_rs_pw_transfer_section(subsection,error)
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)
+
   END SUBROUTINE create_test_section
+
+! *****************************************************************************
+!> \brief   creates the rs_pw_transfer section for use in the test section
+!> \author  Joost VandeVondele
+!> \date    2008-03-09
+! *****************************************************************************
+  SUBROUTINE create_rs_pw_transfer_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_rs_pw_transfer_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    CALL section_create(section,name="RS_PW_TRANSFER",&
+         description="Describes how to benchmark the rs_pw_transfer routines.",&
+         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         error=error)
+
+    NULLIFY(keyword)
+    CALL keyword_create(keyword, name="GRID",&
+         description="Specify the number of grid points (not all grid points are allowed)",&
+         usage="GRID_DIMENSIONS 128 128 128", type_of_var=integer_t, n_var=3,&
+         default_i_vals=(/128,128,128/), error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="HALO_SIZE",&
+         description="number of grid points of the halo",&
+         usage="HALO_SIZE 17",default_i_val=17,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="N_LOOP",&
+         description="Number of rs_pw_transfers being timed",&
+         usage="N_LOOP 100",default_i_val=10,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="RS2PW",&
+         description="should the direction be rs2pw (pw2rs otherwise)",&
+         usage="rs2pw TRUE",default_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    NULLIFY(subsection)
+    CALL create_rsgrid_section(subsection,error)
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)
+
+  END SUBROUTINE create_rs_pw_transfer_section
 
 ! *****************************************************************************
 !> \brief section to setup debugging parameter

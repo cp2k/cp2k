@@ -48,11 +48,13 @@ MODULE library_tests
                                              fft_radix_operations,&
                                              init_fft
   USE global_types,                    ONLY: global_environment_type
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_cputime
+  USE machine,                         ONLY: m_cputime,&
+                                             m_walltime
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
                                              mp_sum,&
@@ -76,11 +78,18 @@ MODULE library_tests
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              COMPLEXDATA3D,&
                                              REALDATA3D,&
+                                             REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_create,&
                                              pw_p_type,&
                                              pw_release
+  USE realspace_grid_types,            ONLY: &
+       init_input_type, pw2rs, realspace_grid_input_type, &
+       realspace_grid_type, rs2pw, rs_grid_create, rs_grid_print, &
+       rs_grid_release, rs_grid_zero, rs_pw_transfer
   USE termination,                     ONLY: stop_memory
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -111,8 +120,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'lib_test', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iw
+    INTEGER                                  :: handle, iw
+    LOGICAL                                  :: explicit
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: rs_pw_transfer_section
+
+    CALL timeset(routineN,handle)
 
     logger => cp_error_get_logger(error)
     iw=cp_print_key_unit_nr(logger,root_section,"TEST%PROGRAM_RUN_INFO",extension=".log",error=error)
@@ -143,7 +156,15 @@ CONTAINS
     !
     IF ( runtest ( 10 )/= 0 ) CALL eigensolver_test( para_env, iw, globenv, error)
 
+    rs_pw_transfer_section => section_vals_get_subs_vals(root_section,"TEST%RS_PW_TRANSFER",error=error)
+    CALL section_vals_get(rs_pw_transfer_section,explicit=explicit, error=error)
+    IF (explicit) THEN
+      CALL rs_pw_transfer_test ( para_env, iw, globenv, rs_pw_transfer_section, error )
+    ENDIF
+
     CALL cp_print_key_finished_output(iw,logger,root_section,"TEST%PROGRAM_RUN_INFO", error=error)
+
+    CALL timestop(handle)
 
   END SUBROUTINE lib_test
 
@@ -645,6 +666,109 @@ CONTAINS
     END DO
 
   END SUBROUTINE fft_test
+
+! *****************************************************************************
+!> \brief   test rs_pw_transfer performance
+!> \author  Joost VandeVondele
+! *****************************************************************************
+  SUBROUTINE rs_pw_transfer_test ( para_env, iw, globenv, rs_pw_transfer_section, error )
+
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER                                  :: iw
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: rs_pw_transfer_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rs_pw_transfer_test', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: dir, halo_size, handle, &
+                                                i_loop, n_loop, ns_max
+    INTEGER, DIMENSION(3)                    :: no, np
+    INTEGER, DIMENSION(:), POINTER           :: i_vals
+    LOGICAL                                  :: do_rs2pw
+    REAL(KIND=dp)                            :: tend, tstart
+    TYPE(cell_type), POINTER                 :: box
+    TYPE(pw_grid_type), POINTER              :: grid
+    TYPE(pw_p_type)                          :: ca
+    TYPE(realspace_grid_input_type)          :: input_settings
+    TYPE(realspace_grid_type), POINTER       :: rs_grid
+    TYPE(section_vals_type), POINTER         :: rs_grid_section
+
+    CALL timeset(routineN,handle)
+
+    !..set fft lib
+    CALL init_fft ( globenv%default_fft_library, alltoall=.FALSE., fftsg_sizes=.TRUE., &
+         wisdom_file="", para_env=para_env )
+
+    ! .. set cell (should otherwise be irrelevant)
+    NULLIFY(box)
+    CALL cell_create(box,error=error)
+    box % hmat = RESHAPE ( (/20.0_dp,0.0_dp,0.0_dp,0.0_dp,20.0_dp,0.0_dp,&
+         0.0_dp,0.0_dp,20.0_dp/), (/3,3/) )
+    CALL get_hinv ( box )
+
+    ! .. grid type and pw_grid
+    NULLIFY(grid)
+    CALL section_vals_val_get(rs_pw_transfer_section,"GRID",i_vals=i_vals,error=error )
+    np = i_vals
+    CALL pw_grid_create ( grid, para_env%group ,error=error)
+    CALL pw_grid_setup ( box, grid, grid_span=FULLSPACE, npts=np, fft_usage=.TRUE.,&
+         rs_dims=(/para_env%num_pe,1/), iounit=iw, error=error)
+    no = grid % npts
+
+    NULLIFY(ca%pw)
+    CALL pw_create ( ca%pw, grid, REALDATA3D ,error=error)
+    ca % pw % in_space = REALSPACE
+    CALL pw_zero(ca%pw)
+
+    ! .. rs input setting type
+    CALL section_vals_val_get(rs_pw_transfer_section,"HALO_SIZE",i_val=halo_size,error=error )
+    rs_grid_section => section_vals_get_subs_vals(rs_pw_transfer_section,"RS_GRID",error=error)
+    ns_max=2*halo_size+1
+    CALL init_input_type(input_settings,ns_max,rs_grid_section,1,(/-1,-1,-1/),error)
+
+    ! .. rs type
+    NULLIFY(rs_grid)
+    CALL rs_grid_create(rs_grid,pw_grid=grid, input_settings=input_settings,error=error)
+    CALL rs_grid_print(rs_grid,iw,error=error)
+    CALL rs_grid_zero(rs_grid)
+
+    CALL section_vals_val_get(rs_pw_transfer_section,"N_loop",i_val=N_loop,error=error )
+    CALL section_vals_val_get(rs_pw_transfer_section,"RS2PW",l_val=do_rs2pw,error=error )
+    IF (do_rs2pw) THEN
+       dir=rs2pw
+    ELSE
+       dir=pw2rs
+    ENDIF
+
+    ! go for the real loops, sync to get max timings
+    IF (para_env%ionode) THEN
+       WRITE(iw,'(T2,A)') ""
+       WRITE(iw,'(T2,A)') "Timing rs_pw_transfer routine"
+       WRITE(iw,'(T2,A)') ""
+       WRITE(iw,'(T2,A)') "iteration      time[s]"
+    ENDIF
+    DO i_loop=1,N_loop
+       CALL mp_sync(para_env%group)
+       tstart=m_walltime()
+       CALL rs_pw_transfer ( rs_grid, ca%pw, dir )
+       CALL mp_sync(para_env%group)
+       tend=m_walltime()
+       IF (para_env%ionode) THEN
+          WRITE(iw,'(T2,I9,1X,F12.6)') i_loop,tend-tstart
+       ENDIF
+    ENDDO
+
+    !cleanup 
+    CALL rs_grid_release(rs_grid,error=error)
+    CALL pw_release ( ca%pw ,error=error)
+    CALL pw_grid_release ( grid ,error=error)
+    CALL cell_release(box,error=error)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE rs_pw_transfer_test
 
 ! *****************************************************************************
 !> \brief Tests the performance of PW calls to FFT routines
