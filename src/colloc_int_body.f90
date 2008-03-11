@@ -292,7 +292,7 @@
     ALLOCATE(k_bounds(0:1,0:max_j-1,0:MAX(0,imax-imin+1)),stat=stat)
     CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
     k_bounds_alloc=.TRUE.
-    k_bounds=0
+    ! k_bounds=0
     istart=imin
     iiShift=shiftPos(0)-l_bounds(2,0)+istart
     IF (iiShift>0) iiShift=iiShift+ndim(0)-1
@@ -677,212 +677,61 @@ END SUBROUTINE
 !!!!!!!!!!!!
     !!!!!!! k loop
 SUBROUTINE k_loop()
-#ifndef FMG_INTEGRATE_FULL
-    CALL poly_p_eval2b(poly_jk,size_jk,REAL(j,dp),poly_k,&
-        size_k,npoly=npoly,grad=grad,xi=xi)
-#endif
-    ! starting point
-    kJump=ndim(2)-l_bounds(2,2)+l_bounds(1,2)
-    kstart=MAX(0,kmin)
-    ikShift=shiftPos(2)-l_bounds(2,2)+kstart
-    IF (ikShift>0) ikShift=ikShift+ndim(2)-1
-    ikShift=(ikShift/ndim(2))*ndim(2)-shiftPos(2)
-    ! ikShift=CEILING(REAL(shiftPos(2)-l_bounds(2,2)+kstart)/REAL(ndim(2)))*ndim(2)-shiftPos(2)
-    kstart=MAX(ikShift+l_bounds(1,2),kstart)
-    kend=MIN(ikShift+l_bounds(2,2),kmax)
-    ikstart=kstart-ikShift-l_bounds(1,2)+l_shift(2)
-    kstart2=MIN(-1,kmax)
-    ikShift2=shiftPos(2)+kstart2-l_bounds(1,2)
-    IF (ikShift2<0) ikShift2=ikShift2-ndim(2)+1
-    ikShift2=(ikShift2/ndim(2))*ndim(2)-shiftPos(2)
-    !ikShift2=FLOOR(REAL(shiftPos(2)+kstart2-l_bounds(1,2))/REAL(ndim(2)))*ndim(2)-shiftPos(2)
-    kstart2=MIN(ikShift2+l_bounds(2,2),kstart2)
-    kend2=MAX(ikShift2+l_bounds(1,2),kmin)
-    ikstart2=kstart2-ikShift2-l_bounds(1,2)+l_shift(2)
-
-#if defined(FMG_INTEGRATE)||defined(FMG_INTEGRATE_FULL)
-    k_vals=0.0_dp
-#endif  
-    IF (kJump/=1 .AND. (ikstart+kmax-kstart>=ndim(2)+l_shift(2) .OR.&
-        ikstart2+kmin-kstart2<=l_ub(2)-ndim(2))) THEN
-        ! will wrap
-        ! pos k side
-        k_coeffn_k=k_coeffn_j
-        kk_coeffn=k_coeffn_k*kk_coeff0
-        res_k=res_j
-        k=kstart
-        ik=ikstart
-        IF (k>0) THEN
-            kk_coeffn=k_coeffn_k*kk_coeff0**(2*kstart+1)
-            res_k=res_j*(kk_coeff0**kstart*k_coeffn_k)**kstart
-        END IF
-        DO
-            DO k=kstart,kend
-#if defined(FMG_INTEGRATE)||defined(FMG_INTEGRATE_FULL)
-                gval=grid(ik,ij,ii)*res_k
-                k_vals(0)=k_vals(0)+gval
-                p_kk=gval
-                DO kgrad=1,grad
-                    p_kk=p_kk*REAL(k,dp)
-                    k_vals(kgrad)=k_vals(kgrad)+p_kk
-                END DO
-#else
-                p_v=poly_k(0)
-                p_kk=REAL(k,dp)
-                DO kgrad=1,grad
-                    p_v=p_v+poly_k(kgrad)*p_kk
-                    p_kk=p_kk*REAL(k,dp)
-                END DO
-                grid(ik,ij,ii)=grid(ik,ij,ii)+p_v*res_k
-#endif
-
-                res_k=res_k*kk_coeffn
-                kk_coeffn=kk_coeffn*kk_coeff2
-                ik=ik+1
-            END DO
-            kstart=kend+kJump
-            IF (kstart>kmax) EXIT
-            kend=MIN(kend+ndim(2),kmax)
-            ik=l_shift(2)
-            kk_coeffn=k_coeffn_k*kk_coeff0**(2*kstart+1)
-            res_k=res_j*(kk_coeff0**kstart*k_coeffn_k)**kstart
-        END DO
-
-        ! neg k side
-        k_coeffn_k=1.0_dp/k_coeffn_j
-        kk_coeffn=k_coeffn_k*kk_coeff0
-        res_k=res_j
-        k=kstart2
-        ik=ikstart2
-        IF (k<-1) THEN
-            kk_coeffn=k_coeffn_k*kk_coeff0**(-(2*kstart2+1))
-            res_k=res_j*(kk_coeff0**(-kstart2-1)*k_coeffn_k)**(-kstart2-1)
-        END IF
-        DO
-            DO k=kstart2,kend2,-1
-                res_k=res_k*kk_coeffn
-                kk_coeffn=kk_coeffn*kk_coeff2
-#if defined(FMG_INTEGRATE)||defined(FMG_INTEGRATE_FULL)
-                gval=grid(ik,ij,ii)*res_k
-                k_vals(0)=k_vals(0)+gval
-                p_kk=gval
-                DO kgrad=1,grad
-                    p_kk=p_kk*REAL(k,dp)
-                    k_vals(kgrad)=k_vals(kgrad)+p_kk
-                END DO
-#else
-                p_v=poly_k(0)
-                p_kk=k
-                DO kgrad=1,grad
-                    p_v=p_v+poly_k(kgrad)*p_kk
-                    p_kk=p_kk*k
-                END DO
-                grid(ik,ij,ii)=grid(ik,ij,ii)+p_v*res_k
-#endif
-                ik=ik-1
-            END DO
-            kstart2=kend2-kJump
-            IF (kstart2<kmin) EXIT
-            kend2=MAX(kend2-ndim(2),kmin)
-            ik=l_ub(2)
-            kk_coeffn=k_coeffn_k*kk_coeff0**(-(2*kstart2+1))
-            res_k=res_j*(kk_coeff0**(-kstart2-1)*k_coeffn_k)**(-kstart2-1)
-        END DO
-    ELSE
-        ! no jump
-        ! pos k side
-        k_coeffn_k=k_coeffn_j
-        kk_coeffn=k_coeffn_k*kk_coeff0
-        res_k=res_j
-        k=kstart
-        ik=ikstart
-        IF (k>0) THEN
-            kk_coeffn=k_coeffn_k*kk_coeff0**(2*kstart+1)
-            res_k=res_j*(kk_coeff0**kstart*k_coeffn_k)**kstart
-        END IF
-        DO
-            DO k=kstart,kend
-#if defined(FMG_INTEGRATE)||defined(FMG_INTEGRATE_FULL)
-                gval=grid(ik,ij,ii)*res_k
-                k_vals(0)=k_vals(0)+gval
-                p_kk=gval
-                DO kgrad=1,grad
-                    p_kk=p_kk*REAL(k,dp)
-                    k_vals(kgrad)=k_vals(kgrad)+p_kk
-                END DO
-#else
-                p_v=poly_k(0)
-                p_kk=REAL(k,dp)
-                DO kgrad=1,grad
-                    p_v=p_v+poly_k(kgrad)*p_kk
-                    p_kk=p_kk*REAL(k,dp)
-                END DO
-                grid(ik,ij,ii)=grid(ik,ij,ii)+p_v*res_k
-#endif
-
-                res_k=res_k*kk_coeffn
-                kk_coeffn=kk_coeffn*kk_coeff2
-                ik=ik+1
-            END DO
-            kstart=kend+kJump
-            IF (kstart>kmax) EXIT
-            kend=MIN(kend+ndim(2),kmax)
-            ik=l_shift(2)
-        END DO
-
-        ! neg k side
-        k_coeffn_k=1.0_dp/k_coeffn_j
-        kk_coeffn=k_coeffn_k*kk_coeff0
-        res_k=res_j
-        k=kstart2
-        ik=ikstart2
-        IF (k<-1) THEN
-            kk_coeffn=k_coeffn_k*kk_coeff0**(-(2*kstart2+1))
-            res_k=res_j*(kk_coeff0**(-kstart2-1)*k_coeffn_k)**(-kstart2-1)
-        END IF
-        DO
-            DO k=kstart2,kend2,-1
-                res_k=res_k*kk_coeffn
-                kk_coeffn=kk_coeffn*kk_coeff2
-#if defined(FMG_INTEGRATE)||defined(FMG_INTEGRATE_FULL)
-                gval=grid(ik,ij,ii)*res_k
-                k_vals(0)=k_vals(0)+gval
-                p_kk=gval
-                DO kgrad=1,grad
-                    p_kk=p_kk*REAL(k,dp)
-                    k_vals(kgrad)=k_vals(kgrad)+p_kk
-                END DO
-#else
-                p_v=poly_k(0)
-                p_kk=k
-                DO kgrad=1,grad
-                    p_v=p_v+poly_k(kgrad)*p_kk
-                    p_kk=p_kk*k
-                END DO
-                grid(ik,ij,ii)=grid(ik,ij,ii)+p_v*res_k
-#endif
-                ik=ik-1
-            END DO
-            kstart2=kend2-kJump
-            IF (kstart2<kmin) EXIT
-            kend2=MAX(kend2-ndim(2),kmin)
-            ik=l_ub(2)
-        END DO
-    END IF
-#ifdef FMG_INTEGRATE
-    pShift=0
-    DO ipoly=1,npoly
-        p_v=0.0_dp
-        DO kgrad=0,grad
-            p_v=p_v+poly_k(pShift+kgrad)*k_vals(kgrad)
-        END DO
-        mres(ipoly)=mres(ipoly)+p_v
-        pShift=pShift+grad+1
-    END DO
-#elif defined(FMG_INTEGRATE_FULL)
-    CALL poly_padd_uneval2b(poly_jk,size_jk,REAL(j,dp),k_vals,&
-        size_k,npoly=npoly,grad=grad,xi=xi)
-    !CALL poly_padd_uneval2(poly_jk,REAL(j,dp),k_vals,npoly=npoly,error=error)
-#endif
-END SUBROUTINE
-
+    select case(grad)
+    case(1)
+        call kloop1
+    case(2)
+        call kloop2
+    case(3)
+        call kloop3
+    case(4)
+        call kloop4
+    case(5)
+        call kloop5
+    case(6)
+        call kloop6
+    case(7)
+        call kloop7
+    case(8)
+        call kloop8
+    case default
+        call kloopdefault
+    end select
+end subroutine
+    subroutine kloop1
+        integer, parameter :: grad_val=1
+#include "colloc_int_kloop1.f90"
+    end subroutine
+    subroutine kloop2
+        integer, parameter :: grad_val=2
+#include "colloc_int_kloop2.f90"
+    end subroutine
+    subroutine kloop3
+        integer, parameter :: grad_val=3
+#include "colloc_int_kloop3.f90"
+    end subroutine
+    subroutine kloop4
+        integer, parameter :: grad_val=4
+#include "colloc_int_kloop4.f90"
+    end subroutine
+    subroutine kloop5
+        integer, parameter :: grad_val=5
+#include "colloc_int_kloop5.f90"
+    end subroutine
+    subroutine kloop6
+        integer, parameter :: grad_val=6
+#include "colloc_int_kloop6.f90"
+    end subroutine
+    subroutine kloop7
+        integer, parameter :: grad_val=7
+#include "colloc_int_kloop7.f90"
+    end subroutine
+    subroutine kloop8
+        integer, parameter :: grad_val=8
+#include "colloc_int_kloop8.f90"
+    end subroutine
+    subroutine kloopdefault
+        integer :: grad_val
+        grad_val=grad
+#include "colloc_int_kloop.f90"
+    end subroutine
