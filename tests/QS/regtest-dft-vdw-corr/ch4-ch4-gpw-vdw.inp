@@ -1,0 +1,25 @@
+! -*- cp2k -*-
+&GLOBAL
+  PROJECT ch4-ch4-vdw
+  PRINT_LEVEL LOW
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+&MULTIPLE_FORCE_EVALS
+  FORCE_EVAL_ORDER 2 3
+  MULTIPLE_SUBSYS F
+&END
+
+! generic parameters
+@SET DFT PADE
+@SET EPS_SCF 1.0e-3
+@SET SCF_GUESS ATOMIC
+
+@SET METHOD MIXED
+@include ch4-ch4-force-env.inc
+
+@SET METHOD QS
+@include ch4-ch4-force-env.inc
+
+@SET METHOD FIST
+@include ch4-ch4-force-env.inc
