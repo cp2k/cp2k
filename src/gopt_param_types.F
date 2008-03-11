@@ -49,7 +49,7 @@ MODULE gopt_param_types
 ! *****************************************************************************
   TYPE cg_ls_param_type
      INTEGER         :: brent_max_iter, type_id
-     REAL(KIND = dp) :: brent_tol, brack_limit, initial_step
+     REAL(KIND = dp) :: brent_tol, brack_limit, initial_step, max_step
   END TYPE cg_ls_param_type
 
 ! *****************************************************************************
@@ -153,10 +153,16 @@ CONTAINS
           CALL section_vals_val_get(gopt_section,"CG%MAX_STEEP_STEPS",i_val=gopt_param%max_steep_steps,error=error)
           CALL section_vals_val_get(gopt_section,"CG%RESTART_LIMIT",r_val=gopt_param%restart_limit,error=error)
           CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%TYPE",i_val=gopt_param%cg_ls%type_id,error=error)
-          CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%BRENT_TOL",r_val=gopt_param%cg_ls%brent_tol,error=error)
-          CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%INITIAL_STEP",r_val=gopt_param%cg_ls%initial_step,error=error)
-          CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%BRENT_MAX_ITER",i_val=gopt_param%cg_ls%brent_max_iter,error=error)
-          CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%BRACK_LIMIT",r_val=gopt_param%cg_ls%brack_limit,error=error)
+          CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%GOLD%INITIAL_STEP",&
+               r_val=gopt_param%cg_ls%initial_step,error=error)
+          CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%GOLD%BRENT_TOL",&
+               r_val=gopt_param%cg_ls%brent_tol,error=error)
+          CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%GOLD%BRENT_MAX_ITER",&
+               i_val=gopt_param%cg_ls%brent_max_iter,error=error)
+          CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%GOLD%BRACK_LIMIT",&
+               r_val=gopt_param%cg_ls%brack_limit,error=error)
+          CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%2PNT%MAX_ALLOWED_STEP",&
+               r_val=gopt_param%cg_ls%max_step,error=error)
        END SELECT
        
        SELECT CASE(gopt_param%type_id)

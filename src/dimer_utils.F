@@ -27,7 +27,7 @@ MODULE dimer_utils
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dimer_utils'
 
-  PUBLIC :: rotate_dimer, update_dimer_vec
+  PUBLIC :: rotate_dimer, update_dimer_vec, get_theta
   REAL(KIND=dp), PARAMETER, PUBLIC     :: dimer_thrs=EPSILON(0.0_dp)*1.0E4_dp
 
 CONTAINS
@@ -57,7 +57,7 @@ CONTAINS
        output_unit= cp_logger_get_default_unit_nr(logger)
     END IF
     ! Orthogonality check for the rotation..
-    check = ABS(DOT_PRODUCT(nvec,theta))<MAX(1.0E-10_dp,dimer_thrs)
+    check = ABS(DOT_PRODUCT(nvec,theta))<MAX(1.0E-9_dp,dimer_thrs)
     IF (.NOT.check.AND.(output_unit>0)) THEN
        WRITE(output_unit,*)"NVEC and THETA should be orthogonal! Residue: ",&
             ABS(DOT_PRODUCT(nvec,theta))
@@ -112,7 +112,31 @@ CONTAINS
             i_rep_val=i_rep_val,error=error)
     END DO Main_Loop
     CPPostcondition(isize==SIZE(dimer_env%nvec),cp_failure_level,routineP,error,failure)
-   
   END SUBROUTINE update_dimer_vec
+
+! *****************************************************************************
+!> \brief This function orthonormalize the vector for the rotational search
+!> \par History
+!>      none
+!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+! *****************************************************************************
+  SUBROUTINE get_theta(gradient, dimer_env, norm, error)
+    REAL(KIND=dp), DIMENSION(:)              :: gradient
+    TYPE(dimer_env_type), POINTER            :: dimer_env
+    REAL(KIND=dp), INTENT(OUT)               :: norm
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_theta', &
+      routineP = moduleN//':'//routineN
+
+    gradient = gradient  - DOT_PRODUCT(gradient, dimer_env%nvec) * dimer_env%nvec
+    norm     = SQRT(DOT_PRODUCT(gradient, gradient))
+    IF (norm<EPSILON(0.0_dp)) THEN
+       ! This means that NVEC is totally aligned with minimum curvature mode
+       gradient = 0.0_dp
+    ELSE
+       gradient = gradient/norm
+    END IF
+  END SUBROUTINE get_theta
 
 END MODULE dimer_utils

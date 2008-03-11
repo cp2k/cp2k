@@ -20,3 +20,5 @@ NaCl-H2O.inp              2
 #Dimer Method
 water_2_TS.inp           25
 water_2_TS_CG.inp        25
+argon.inp                25
+2d_pot.inp               25

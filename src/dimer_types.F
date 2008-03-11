@@ -106,9 +106,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dimer_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, isize, j, n_rep_val, stat
+    INTEGER                                  :: i, isize, j, k, n_rep_val, &
+                                                stat
     LOGICAL                                  :: explicit, failure
-    REAL(KIND=dp)                            :: norm
+    REAL(KIND=dp)                            :: norm, xval(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: array
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: nvec_section
@@ -154,8 +155,29 @@ CONTAINS
        ELSE
           CALL random_numbers(dimer_env%nvec, globenv%gaussian_rng_stream, error)
        END IF
+       ! Check for translation in the dimer vector and remove them 
+       IF (natom>1) THEN
+          xval = 0.0_dp
+          DO j = 1, natom
+             DO k = 1, 3
+                i = (j-1)*3+k
+                xval(k) = xval(k)+dimer_env%nvec(i)
+             END DO
+          END DO
+          ! Subtract net translations
+          xval = xval / REAL(natom*3,KIND=dp)
+          DO j = 1, natom
+             DO k = 1, 3
+                i = (j-1)*3+k
+                dimer_env%nvec(i)=dimer_env%nvec(i)-xval(k)
+             END DO
+          END DO
+       END IF
        norm = SQRT(SUM(dimer_env%nvec**2))
-       CPPostcondition(norm>0.0_dp,cp_failure_level,routineP,error,failure)
+       CALL cp_assert(norm>EPSILON(0.0_dp),cp_failure_level,cp_assertion_failed,routineP,&
+            "The norm of the dimer vector is 0! Calculation cannot proceed further. "//&
+CPSourceFileRef,&
+            only_ionode=.TRUE.)
        dimer_env%nvec = dimer_env%nvec / norm
        dimer_env%rot%rotation_step= do_first_rotation_step
        CALL section_vals_val_get(dimer_section,"DR",r_val=dimer_env%dr,error=error)

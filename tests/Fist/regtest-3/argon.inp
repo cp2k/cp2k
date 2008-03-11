@@ -1,0 +1,91 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &SPLINE
+        EMAX_SPLINE 10.0
+        R0_NB 0.3
+      &END
+      &CHARGE
+        ATOM Ar
+        CHARGE 0.0
+      &END
+      &NONBONDED
+      #  &GENPOT
+      #    atoms Ar Ar
+      #    FUNCTION (1-exp(-x**2))/x
+      #    VARIABLES x
+      #    RCUT [angstrom] 7.0
+      #  &END
+        &LENNARD-JONES
+          atoms Ar Ar
+          EPSILON 119.8
+          SIGMA [angstrom] 3.4
+          RCUT [angstrom] 7.0
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+    &PRINT
+      &FF_INFO
+       SPLINE_DATA
+      &END
+    &END
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+ Ar         0.0000000000        0.0000000000        0.0000000000
+# Ar         2.3000000000        0.0000000000        0.0000000000
+ Ar         3.90        0.0000000000        0.0000000000
+    &END COORD
+    &TOPOLOGY
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT TEST
+  RUN_TYPE geo_opt
+&END GLOBAL
+&MOTION
+  &GEO_OPT
+    TYPE TRANSITION_STATE
+    MAX_ITER 100
+    OPTIMIZER CG
+    &CG
+#      MAX_STEEP_STEPS 20
+      MAX_STEEP_STEPS 0
+      &LINE_SEARCH
+        TYPE 2PNT
+      &END LINE_SEARCH
+    &END CG
+
+    &TRANSITION_STATE
+      METHOD DIMER
+      &DIMER
+        DR 0.0001
+        ANGLE_TOLERANCE [deg] 0.1
+        INTERPOLATE_GRADIENT
+        &ROT_OPT
+          OPTIMIZER CG
+          MAX_ITER 100
+          &CG
+#            MAX_STEEP_STEPS 100
+            MAX_STEEP_STEPS 0
+            &LINE_SEARCH
+              TYPE 2PNT
+            &END
+          &END
+        &END
+      &END
+    &END
+  &END GEO_OPT
+&END MOTION

@@ -982,13 +982,13 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection
+    TYPE(section_type), POINTER              :: subsection, subsubsection
 
     failure=.FALSE.
 
     IF (.NOT.failure) THEN
        ! create the CG subsection
-       NULLIFY(section,subsection,keyword)
+       NULLIFY(section,subsection,subsubsection,keyword)
        CALL section_create(section,name="CG",&
             description="Provides parameters to tune the conjugate gradient optimization",&
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
@@ -1008,7 +1008,7 @@ CONTAINS
             " to the RESTART_LIMIT the CG is reset and one step of steepest descent is "//&
             " performed.",&
             usage="RESTART_LIMIT {real}",&
-            default_r_val=0.1_dp,error=error)
+            default_r_val=0.9_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1042,26 +1042,48 @@ CONTAINS
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       ! 2PNT
+       NULLIFY(subsubsection)
+       CALL section_create(subsubsection,name="2PNT",&
+            description="Provides parameters to tune the line search for the two point based line search.",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+       CALL keyword_create(keyword, name="MAX_ALLOWED_STEP",&
+            description="Max allowed value for the line search step.",&
+            usage="MAX_ALLOWED_STEP {real}",&
+            default_r_val=0.25_dp,error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(subsection,subsubsection,error=error)
+       CALL section_release(subsubsection,error=error)
+
+       ! GOLD
+       NULLIFY(subsubsection)
+       CALL section_create(subsubsection,name="GOLD",&
+            description="Provides parameters to tune the line search for the gold search.",&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)       
+
        CALL keyword_create(keyword, name="INITIAL_STEP",&
             description="Initial step size used, e.g. for bracketing or minimizers. "//&
             "Might need to be reduced for systems with close contacts",&
             usage="INITIAL_STEP {real}",&
             default_r_val=0.2_dp,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="BRACK_LIMIT",&
             description="Limit in 1D bracketing during line search in Conjugate Gradients Optimization.",&
             usage="BRACK_LIMIT {real}",&
             default_r_val=100.0_dp,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="BRENT_TOL",&
             description="Tolerance requested during Brent line search in Conjugate Gradients Optimization.",&
             usage="BRENT_TOL {real}",&
             default_r_val=0.01_dp,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="BRENT_MAX_ITER",&
@@ -1069,8 +1091,10 @@ CONTAINS
             "(used for the line search in Conjugated Gradients Optimization)",&
             usage="BRENT_MAX_ITER {integer}",&
             default_i_val=100,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(subsection,subsubsection,error=error)
+       CALL section_release(subsubsection,error=error)
 
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)

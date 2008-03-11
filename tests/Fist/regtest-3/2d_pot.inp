@@ -1,0 +1,97 @@
+
+&FORCE_EVAL
+  &EXTERNAL_POTENTIAL
+     # FUNCTION  0.05*cos(sqrt(X**2+Y**2))
+     # FUNCTION  -0.5*0.05*(X**2+2.0*Y**2)
+      FUNCTION -(exp(-((X-4)**2+(Y-1)**2)/5.0)+exp(-((X+1)**2+(Y-3)**2)/5.0))
+     # FUNCTION -(exp(-((X-4)**2+(Y-1)**2)/5.0)+exp(-((X+1)**2+(Y-1)**2)/5.0))
+     # FUNCTION exp(-((X-1)**2+(Y-1)**2))
+     # FUNCTION 1./((X-1)**2+(Y-1)**2+10.)
+     # FUNCTION -((X-1)**2+5.0*(Y-1)**2)
+     DX 1.0E-5
+     ERROR_LIMIT 1.0E-12
+  &END
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &SPLINE
+        EMAX_SPLINE 10.0
+        R0_NB 0.3
+      &END
+      &CHARGE
+        ATOM Ar
+        CHARGE 0.0
+      &END
+      &NONBONDED
+        &LENNARD-JONES
+          atoms Ar Ar
+          EPSILON 0.0
+          SIGMA [angstrom] 1.0
+          RCUT [angstrom] 10.0
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+    &PRINT
+    #  &FF_INFO
+    #   SPLINE_DATA
+    #  &END
+    &END
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 25.0 25.0 25.0
+      UNIT BOHR
+    &END CELL
+    &COORD
+ Ar        1.0 1.0 0.0
+    &END COORD
+    &TOPOLOGY
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT TEST
+  RUN_TYPE geo_opt
+&END GLOBAL
+&MOTION
+  &GEO_OPT
+    TYPE TRANSITION_STATE
+    MAX_ITER 40
+    OPTIMIZER CG
+    &CG
+#      MAX_STEEP_STEPS 20
+      MAX_STEEP_STEPS 0
+      &LINE_SEARCH
+        TYPE 2PNT
+      &END LINE_SEARCH
+    &END CG
+
+    &TRANSITION_STATE
+      METHOD DIMER
+      &DIMER
+        DR [bohr] 0.0001
+        ANGLE_TOLERANCE [deg] 0.1
+        INTERPOLATE_GRADIENT
+        &ROT_OPT
+          OPTIMIZER CG
+          MAX_ITER 100
+          &CG
+#            MAX_STEEP_STEPS 100
+            MAX_STEEP_STEPS 0
+            &LINE_SEARCH
+              TYPE 2PNT
+            &END
+          &END
+        &END
+        &DIMER_VECTOR
+           0.1 0.9 0.0
+        &END
+      &END
+    &END
+  &END GEO_OPT
+&END MOTION

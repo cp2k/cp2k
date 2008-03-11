@@ -122,8 +122,8 @@ CONTAINS
 
     INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dx, dx_min, norm_tls_vec, &
-                                                opt_energy2
+    REAL(KIND=dp)                            :: dx, dx_min, dx_thrs, &
+                                                norm_tls_vec, opt_energy2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tls_norm
 
     failure = .FALSE.
@@ -136,11 +136,18 @@ CONTAINS
        tls_norm = tls_vec / norm_tls_vec
        dimer_env%tsl%tls_vec => tls_norm
     
-       dx = 0.01_dp
+       dx      = norm_tls_vec
+       dx_thrs = gopt_param%cg_ls%max_step
        x0 = x0 + dx * tls_norm
        CALL cp_eval_at(gopt_env, x0, opt_energy2, master=gopt_env%force_env%para_env%mepos,&
             para_env=gopt_env%force_env%para_env, error=error)
+       ! First let's try to interpolate the minimum
        dx_min = -opt_energy/(opt_energy2-opt_energy)*dx -dx
+       ! If the solution is negative we reject it and just do a fixed step
+       IF (dx_min<0.0_dp)   dx_min = dx_thrs
+       ! In case the solution is larger than the maximum threshold let's assume the maximum allowed
+       ! step length
+       IF (dx_min>dx_thrs)  dx_min = dx_thrs
        x0 = x0 + dx_min * tls_norm
 
        ! Here we compute the value of the energy in point zero..
@@ -188,8 +195,8 @@ CONTAINS
     b1         =  0.5_dp*dCdp 
     angle      = -0.5_dp*ATAN(dCdp/(2.0_dp*ABS(curvature0)))
     dimer_env%rot%angle1 = angle
+    dimer_env%cg_rot%nvec_old = dimer_env%nvec
     IF (angle>dimer_env%rot%angle_tol) THEN
-       dimer_env%cg_rot%nvec_old = dimer_env%nvec
        ! Rotating the dimer of dtheta degrees
        CALL rotate_dimer(dimer_env%nvec,theta,angle,error=error)
        ! Re-compute energy, gradients and rotation vector for new R1
@@ -922,17 +929,17 @@ CONTAINS
           dgg = DOT_PRODUCT((xi+g),xi)
        END IF
        gam = dgg/gg
-       g   = -xi
-       h   = g + gam * h
+       g   =   h
+       h   = -xi + gam * h
     ELSE
        dimer_env => gopt_env%dimer_env
-       check = ABS(DOT_PRODUCT(g,g)-1.0_dp)<MAX(1.0E-10_dp,dimer_thrs)
+       check = ABS(DOT_PRODUCT(g,g)-1.0_dp)<MAX(1.0E-9_dp,dimer_thrs)
        CPPrecondition(check,cp_failure_level,routineP,error,failure)
 
-       check = ABS(DOT_PRODUCT(xi,xi)-1.0_dp)<MAX(1.0E-10_dp,dimer_thrs)
+       check = ABS(DOT_PRODUCT(xi,xi)-1.0_dp)<MAX(1.0E-9_dp,dimer_thrs)
        CPPrecondition(check,cp_failure_level,routineP,error,failure)
 
-       check = ABS(DOT_PRODUCT(h,dimer_env%cg_rot%nvec_old))<MAX(1.0E-10_dp,dimer_thrs)
+       check = ABS(DOT_PRODUCT(h,dimer_env%cg_rot%nvec_old))<MAX(1.0E-9_dp,dimer_thrs)
        CPPrecondition(check,cp_failure_level,routineP,error,failure)
        gg  = dimer_env%cg_rot%norm_theta_old**2
        IF (Fletcher_Reeves) THEN
@@ -944,11 +951,15 @@ CONTAINS
        ! Compute Theta** and store it in nvec_old
        CALL rotate_dimer(dimer_env%cg_rot%nvec_old,g,dimer_env%rot%angle2+pi/2.0_dp,error)
        gam = dgg/gg
-       g   = -xi
-       h   = g * dimer_env%cg_rot%norm_theta + gam * dimer_env%cg_rot%norm_h * dimer_env%cg_rot%nvec_old
-       h   = h - DOT_PRODUCT(h,dimer_env%nvec)*dimer_env%nvec
+       g   =    h
+       h   = - xi * dimer_env%cg_rot%norm_theta + gam * dimer_env%cg_rot%norm_h * dimer_env%cg_rot%nvec_old
+       h   =    h - DOT_PRODUCT(h,dimer_env%nvec)*dimer_env%nvec
        norm_h = SQRT(DOT_PRODUCT(h,h))
-       IF (norm_h /=0.0_dp)  h = h/norm_h
+       IF (norm_h < EPSILON(0.0_dp)) THEN
+          h = 0.0_dp
+       ELSE
+          h = h/norm_h
+       END IF
        dimer_env%cg_rot%norm_h = norm_h
     END IF
     CALL timestop(handle)

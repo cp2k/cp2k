@@ -215,19 +215,19 @@ CONTAINS
           CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos,&
                gopt_env%force_env%para_env, error)
 
+          ! Get Conjugate Directions:  updates the searching direction (h)
+          wildcard = "   CG"
+          CALL get_conjugate_direction(gopt_env, Fletcher_Reeves, g, xi, h, error)
+
           ! Reset Condition or Steepest Descent Requested
-          IF ( ABS(DOT_PRODUCT(g,h))/SQRT((DOT_PRODUCT(g,g)*DOT_PRODUCT(h,h))) < res_lim &
+          IF ( ABS(DOT_PRODUCT(g,h))/SQRT((DOT_PRODUCT(g,g)*DOT_PRODUCT(h,h))) > res_lim &
                .OR. its+1 <= max_steep_steps) THEN
              ! Steepest Descent
              wildcard = "   SD"
-             g  = -xi
-             h  =   g
-          ELSE
-             ! Conjugate Gradients
-             wildcard = "   CG"
-             CALL get_conjugate_direction(gopt_env, Fletcher_Reeves, g, xi, h, error)
+             h  =   -xi
           END IF
-          xi  = h
+          g   = -xi
+          xi  =   h
        END DO
        IF(its == maxiter .AND. (.NOT.conv))THEN
           CALL print_geo_opt_nc(gopt_env, output_unit)
