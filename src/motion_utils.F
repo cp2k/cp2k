@@ -29,6 +29,7 @@ MODULE motion_utils
                                              dp,&
                                              sp
   USE machine,                         ONLY: m_flush
+  USE mathlib,                         ONLY: diamat_all
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_coordinates
@@ -42,12 +43,181 @@ MODULE motion_utils
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'motion_utils'
-
   PUBLIC :: write_trajectory, write_stress_tensor, write_simulation_cell,&
-            get_output_format
+            get_output_format, rot_ana
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'motion_utils'
+  REAL(KIND=dp), PARAMETER, PUBLIC     :: thrs_motion = 1.0E4_dp*EPSILON(0.0_dp)
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief Performs an analysis of the principal inertia axis
+!>      Getting back the generators of the translating and
+!>      rotating frame
+!> \author Teodoro Laino 08.2006
+! *****************************************************************************
+  SUBROUTINE rot_ana(particles, mat, dof, iw, keep_rotations, mass_weighted, natoms, error)
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat
+    INTEGER, INTENT(OUT)                     :: dof
+    INTEGER, INTENT(IN)                      :: iw
+    LOGICAL, INTENT(IN)                      :: keep_rotations, mass_weighted
+    INTEGER, INTENT(IN)                      :: natoms
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rot_ana', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, iparticle, iseq, &
+                                                iw2, j, k, lrot(3), stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: cp(3), Ip(3,3), Ip_eigval(3), &
+                                                mass, masst, norm, rcom(3), &
+                                                rm(3)
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: Rot, Tr
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,"I","",handle)
+    logger => cp_error_get_logger(error)
+    iw2 = cp_logger_get_default_unit_nr(logger)
+    failure = .FALSE.
+    CPPostcondition(ASSOCIATED(particles),cp_failure_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(mat),cp_failure_level,routineP,error,failure)
+    IF (.NOT.keep_rotations) THEN
+       rcom  = 0.0_dp
+       masst = 0.0_dp
+       ! Center of mass
+       DO iparticle = 1, natoms
+          mass = 1.0_dp
+          IF (mass_weighted) mass = particles(iparticle)%atomic_kind%mass
+          CPPostcondition(mass>0.0_dp,cp_failure_level,routineP,error,failure)
+          masst = masst + mass
+          rcom =  particles(iparticle)%r * mass + rcom
+       END DO
+       rcom = rcom / masst
+       ! Intertia Tensor
+       Ip   = 0.0_dp
+       DO iparticle = 1, natoms
+          mass = 1.0_dp
+          IF (mass_weighted) mass = particles(iparticle)%atomic_kind%mass
+          rm = particles(iparticle)%r - rcom
+          Ip(1,1) = Ip(1,1) + mass * ( rm(2)**2 + rm(3)**2 )
+          Ip(2,2) = Ip(2,2) + mass * ( rm(1)**2 + rm(3)**2 )
+          Ip(3,3) = Ip(3,3) + mass * ( rm(1)**2 + rm(2)**2 )
+          Ip(1,2) = Ip(1,2) - mass * ( rm(1)*rm(2) )
+          Ip(1,3) = Ip(1,3) - mass * ( rm(1)*rm(3) )
+          Ip(2,3) = Ip(2,3) - mass * ( rm(2)*rm(3) )
+       END DO
+       ! Diagonalize the Inertia Tensor
+       CALL diamat_all(Ip,Ip_eigval)
+       IF (iw>0) THEN
+          WRITE(iw,'(T2,A,3F12.6)')"ROT| Rotational Analysis Info "
+          WRITE(iw,'(T2,A)')"ROT| Principal axes and moments of inertia in atomic units:"
+          WRITE(iw,'(T2,A,T32,3(3X,I6,6X))')"ROT|",1,2,3
+          WRITE(iw,'(T2,A,T30,3(3X,F12.6))')"ROT| EIGENVALUES",Ip_eigval
+          WRITE(iw,'(T2,A,T30,3(3X,F12.6))')"ROT|      X",Ip(1,1),Ip(1,2),Ip(1,3)
+          WRITE(iw,'(T2,A,T30,3(3X,F12.6))')"ROT|      Y",Ip(2,1),Ip(2,2),Ip(2,3)
+          WRITE(iw,'(T2,A,T30,3(3X,F12.6))')"ROT|      Z",Ip(3,1),Ip(3,2),Ip(3,3)
+       END IF
+       IF (iw>0) THEN
+          WRITE(iw,'(/,T2,A)')"ROT| Standard Molecule Orientation - ANGSTROM "
+          DO iparticle = 1, natoms
+             WRITE(iw,'(T2,"ROT|",T20,A,T30,3(3X,F12.6))')&
+                  TRIM(particles(iparticle)%atomic_kind%name),&
+                  MATMUL(particles(iparticle)%r,Ip)*angstrom
+          END DO
+       END IF
+    END IF
+    ! Build up the Translational vectors
+    ALLOCATE(Tr(natoms*3,3),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    Tr   = 0.0_dp
+    DO k = 1, 3
+       iseq = 0
+       DO iparticle = 1, natoms
+          mass = 1.0_dp
+          IF (mass_weighted) mass = SQRT(particles(iparticle)%atomic_kind%mass)
+          DO j = 1, 3
+             iseq = iseq + 1
+             IF (j==k) Tr(iseq,k) = mass
+          END DO
+       END DO
+    END DO
+    ! Normalize Translations
+    DO i = 1, 3
+       norm = SQRT(DOT_PRODUCT(Tr(:,i),Tr(:,i)))
+       Tr(:,i) = Tr(:,i)/norm
+    END DO
+    dof = 3
+    ! Build up the Rotational vectors
+    ALLOCATE(Rot(natoms*3,3),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    lrot = 0
+    IF (.NOT.keep_rotations) THEN
+       DO iparticle = 1, natoms
+          mass = 1.0_dp
+          IF (mass_weighted) mass = SQRT(particles(iparticle)%atomic_kind%mass)
+          rm = particles(iparticle)%r - rcom
+          cp(1) = rm(1)*Ip(1,1) + rm(2) * Ip(2,1) + rm(3) * Ip(3,1)
+          cp(2) = rm(1)*Ip(1,2) + rm(2) * Ip(2,2) + rm(3) * Ip(3,2)
+          cp(3) = rm(1)*Ip(1,3) + rm(2) * Ip(2,3) + rm(3) * Ip(3,3)
+          ! X Rot
+          Rot((iparticle-1)*3+1,1) = (cp(2)*Ip(1,3)-Ip(1,2)*cp(3))*mass
+          Rot((iparticle-1)*3+2,1) = (cp(2)*Ip(2,3)-Ip(2,2)*cp(3))*mass
+          Rot((iparticle-1)*3+3,1) = (cp(2)*Ip(3,3)-Ip(3,2)*cp(3))*mass
+          ! Y Rot
+          Rot((iparticle-1)*3+1,2) = (cp(3)*Ip(1,1)-Ip(1,3)*cp(1))*mass
+          Rot((iparticle-1)*3+2,2) = (cp(3)*Ip(2,1)-Ip(2,3)*cp(1))*mass
+          Rot((iparticle-1)*3+3,2) = (cp(3)*Ip(3,1)-Ip(3,3)*cp(1))*mass
+          ! Z Rot
+          Rot((iparticle-1)*3+1,3) = (cp(1)*Ip(1,2)-Ip(1,1)*cp(2))*mass
+          Rot((iparticle-1)*3+2,3) = (cp(1)*Ip(2,2)-Ip(2,1)*cp(2))*mass
+          Rot((iparticle-1)*3+3,3) = (cp(1)*Ip(3,2)-Ip(3,1)*cp(2))*mass
+       END DO
+
+       ! Normalize Rotations and count the number of degree of freedom
+       lrot = 1
+       DO i = 1, 3
+          norm = SQRT(DOT_PRODUCT(Rot(:,i),Rot(:,i)))
+          IF (norm <= thrs_motion) THEN
+             lrot(i) = 0
+             CYCLE
+          END IF
+          Rot(:,i) = Rot(:,i)/norm
+          ! Clean Rotational modes for spurious/numerical contamination
+          IF (i<3) THEN
+             DO j = 1,i
+                Rot(:,i+1) = Rot(:,i+1) - DOT_PRODUCT(Rot(:,i+1),Rot(:,j)) * Rot(:,j)
+             END DO
+          END IF
+       END DO
+    END IF
+    dof = dof + COUNT(lrot==1)
+    IF (iw>0) THEN
+       WRITE(iw,'(T2,A,I6)')"ROT| Numer of Rotovibrational vectors:",dof
+       IF (dof==5) WRITE(iw,'(T2,A)')"ROT| Linear Molecule detected.."
+       IF (dof==3.AND.(.NOT.keep_rotations)) WRITE(iw,'(T2,A)')"ROT| Single Atom detected.." 
+    END IF
+    ! Give back the vectors generating the rototranslating Frame
+    ALLOCATE(mat(natoms*3,dof),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    iseq = 0
+    DO i = 1, 3
+       mat(:,i)=Tr(:,i)
+       IF (lrot(i)==1) THEN 
+          iseq = iseq + 1
+          mat(:,3+iseq) = Rot(:,i) 
+       END IF
+    END DO
+    DEALLOCATE(Tr,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)   
+    DEALLOCATE(Rot,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE rot_ana
 
 ! *****************************************************************************
 !> \brief   Prints the information controlled by the TRAJECTORY section
