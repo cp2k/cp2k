@@ -652,12 +652,13 @@ CONTAINS
       jkind_old, jpgf, jset, jset_old, maxco, maxpgf, maxset, maxsgf, &
       maxsgf_set, na1, na2, natom, nb1, nb2, ncoa, ncob, nkind, nlist, nnode, &
       nseta, nsetb, ntasks, nthread, sgfa, sgfb, stat, tp(3)
+    INTEGER(kind=int_8), DIMENSION(:), &
+      POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
-    INTEGER, DIMENSION(:), POINTER           :: atom_pair_recv, &
-                                                atom_pair_send, la_max, &
-                                                la_min, lb, lb_max, lb_min, &
-                                                npgfa, npgfb, nsgfa, nsgfb
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
+                                                lb_min, npgfa, npgfb, nsgfa, &
+                                                nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: atom_pair_changed, distributed_rs_grids, failure, &
       map_consistent, my_minimum_image, my_soft

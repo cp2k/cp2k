@@ -306,13 +306,14 @@ CONTAINS
       jatom_old, jkind, jkind_old, jpgf, jpgf_new, jset, jset_new, jset_old, &
       maxco, maxpgf, maxset, maxsgf_set, n, na1, na2, natom, nb1, nb2, ncoa, &
       ncob, nkind, nseta, nsetb, ntasks, nthread, offs_dv, sgfa, sgfb, stat
+    INTEGER(KIND=int_8), DIMENSION(:), &
+      POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
-    INTEGER, DIMENSION(:), POINTER           :: atom_pair_recv, &
-                                                atom_pair_send, la_max, &
-                                                la_min, lb_max, lb_min, &
-                                                npgfa, npgfb, nsgfa, nsgfb
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
+                                                lb_min, npgfa, npgfb, nsgfa, &
+                                                nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, failure, &
       h_duplicated, has_dv, map_consistent, my_compute_tau, my_gapw, &

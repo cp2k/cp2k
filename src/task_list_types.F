@@ -24,7 +24,7 @@ MODULE task_list_types
   TYPE task_list_type
     INTEGER(kind=int_8), DIMENSION(:, :), POINTER :: tasks
     REAL(KIND=dp), DIMENSION(:, :), POINTER       :: dist_ab
-    INTEGER, DIMENSION(:), POINTER                :: atom_pair_send, atom_pair_recv
+    INTEGER(kind=int_8), DIMENSION(:), POINTER                :: atom_pair_send, atom_pair_recv
     INTEGER                                       :: ntasks
   END TYPE task_list_type
 

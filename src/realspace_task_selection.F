@@ -127,7 +127,8 @@ CONTAINS
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rval
-    INTEGER, DIMENSION(:), POINTER           :: atom_pair_send, atom_pair_recv
+    INTEGER(kind=int_8), DIMENSION(:), &
+      POINTER                                :: atom_pair_send, atom_pair_recv
     LOGICAL, INTENT(IN), OPTIONAL            :: symmetric
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -521,7 +522,8 @@ CONTAINS
 ! *****************************************************************************
 SUBROUTINE get_atom_pair ( atom_pair, my_tasks, send, my_symmetric, natoms, maxset, maxpgf)
 
-    INTEGER, DIMENSION(:), POINTER           :: atom_pair
+    INTEGER(kind=int_8), DIMENSION(:), &
+      POINTER                                :: atom_pair
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: my_tasks
     LOGICAL                                  :: send, my_symmetric
@@ -530,10 +532,13 @@ SUBROUTINE get_atom_pair ( atom_pair, my_tasks, send, my_symmetric, natoms, maxs
     INTEGER                                  :: acol, arow, i, iatom, ilevel, &
                                                 ipgf, iset, j, jatom, jpgf, &
                                                 jset, stat
+    INTEGER(kind=int_8)                      :: natom8
     INTEGER, DIMENSION(:), POINTER           :: index
 
 ! calculate list of atom pairs
 ! fill pair list taking into acount symmetry
+
+  natom8=natoms
 
   atom_pair = 0
   DO i = 1,SIZE(atom_pair)
@@ -551,9 +556,9 @@ SUBROUTINE get_atom_pair ( atom_pair, my_tasks, send, my_symmetric, natoms, maxs
         acol = jatom
      ENDIF
      IF ( send ) THEN
-        atom_pair(i) = my_tasks(1,i)*natoms*natoms+(arow-1)*natoms + (acol-1)
+        atom_pair(i) = my_tasks(1,i)*natom8*natom8+(arow-1)*natom8 + (acol-1)
      ELSE
-        atom_pair(i) = my_tasks(2,i)*natoms*natoms+(arow-1)*natoms + (acol-1)
+        atom_pair(i) = my_tasks(2,i)*natom8*natom8+(arow-1)*natom8 + (acol-1)
      ENDIF
   ENDDO
 
@@ -586,7 +591,8 @@ SUBROUTINE distribute_matrix( rs, pmat, atom_pair_send, atom_pair_recv, natoms, 
 
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(real_matrix_type), POINTER          :: pmat
-    INTEGER, DIMENSION(:), POINTER           :: atom_pair_send, atom_pair_recv
+    INTEGER(KIND=int_8), DIMENSION(:), &
+      POINTER                                :: atom_pair_send, atom_pair_recv
     INTEGER                                  :: natoms
     LOGICAL                                  :: scatter
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -597,7 +603,8 @@ SUBROUTINE distribute_matrix( rs, pmat, atom_pair_send, atom_pair_recv, natoms, 
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: acol, arow, handle, i, j, k, &
-                                                l, ncol, nrow, pair, stat
+                                                l, ncol, nrow, stat
+    INTEGER(KIND=int_8)                      :: natom8, pair
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: recv_disps, recv_sizes, &
                                                 send_disps, send_sizes
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf_r, send_buf_r
@@ -616,17 +623,18 @@ SUBROUTINE distribute_matrix( rs, pmat, atom_pair_send, atom_pair_recv, natoms, 
   IF (stat/=0) CALL stop_memory("get_my_tasks","recv_disps",rs%group_size)
 
   ! set up send buffer sizes
+  natom8=natoms
 
   send_sizes = 0
   DO i = 1, SIZE(atom_pair_send)
 
      ! proc we're sending this block to
-     k = atom_pair_send(i) / natoms**2 + 1
+     k = atom_pair_send(i) / natom8**2 + 1
 
-     pair = MOD(atom_pair_send(i),natoms**2)
+     pair = MOD(atom_pair_send(i),natom8**2)
 
-     arow = pair / natoms + 1
-     acol = MOD(pair, natoms) + 1
+     arow = pair / natom8 + 1
+     acol = MOD(pair, natom8) + 1
 
      nrow = pmat%last_row(arow) - pmat%first_row(arow) + 1
      ncol = pmat%last_col(acol) - pmat%first_col(acol) + 1       
@@ -649,12 +657,12 @@ SUBROUTINE distribute_matrix( rs, pmat, atom_pair_send, atom_pair_recv, natoms, 
   send_sizes=0
   DO i = 1, SIZE(atom_pair_send)
 
-     l = atom_pair_send(i) / natoms**2 + 1
+     l = atom_pair_send(i) / natom8**2 + 1
 
-     pair = MOD(atom_pair_send(i),natoms**2)
+     pair = MOD(atom_pair_send(i),natom8**2)
 
-     arow = pair / natoms + 1
-     acol = MOD(pair, natoms) + 1
+     arow = pair / natom8 + 1
+     acol = MOD(pair, natom8) + 1
 
      nrow = pmat%last_row(arow)-pmat%first_row(arow) + 1
      ncol = pmat%last_col(acol)-pmat%first_col(acol) + 1
@@ -681,12 +689,12 @@ SUBROUTINE distribute_matrix( rs, pmat, atom_pair_send, atom_pair_recv, natoms, 
   DO i = 1, SIZE(atom_pair_recv)
 
      ! proc we're receiving this data from
-     k = atom_pair_recv(i) / natoms**2 + 1
+     k = atom_pair_recv(i) / natom8**2 + 1
 
-     pair = MOD(atom_pair_recv(i),natoms**2)
+     pair = MOD(atom_pair_recv(i),natom8**2)
 
-     arow = pair / natoms + 1
-     acol = MOD(pair,natoms) + 1
+     arow = pair / natom8 + 1
+     acol = MOD(pair,natom8) + 1
 
      nrow = pmat%last_row(arow) - pmat%first_row(arow) + 1
      ncol = pmat%last_col(acol) - pmat%first_col(acol) + 1       
@@ -712,11 +720,11 @@ SUBROUTINE distribute_matrix( rs, pmat, atom_pair_send, atom_pair_recv, natoms, 
   !do unpacking
   recv_sizes=0
   DO i = 1, SIZE(atom_pair_recv)
-     l = atom_pair_recv(i) / natoms**2 + 1
-     pair = MOD(atom_pair_recv(i),natoms**2)
+     l = atom_pair_recv(i) / natom8**2 + 1
+     pair = MOD(atom_pair_recv(i),natom8**2)
 
-     arow = pair / natoms + 1
-     acol = MOD(pair, natoms) + 1
+     arow = pair / natom8 + 1
+     acol = MOD(pair, natom8) + 1
 
      nrow = pmat%last_row(arow)-pmat%first_row(arow) + 1
      ncol = pmat%last_col(acol)-pmat%first_col(acol) + 1

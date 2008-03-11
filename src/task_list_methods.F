@@ -69,7 +69,8 @@ CONTAINS
       POINTER                                :: tasks
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dist_ab
     INTEGER                                  :: ntasks
-    INTEGER, DIMENSION(:), POINTER           :: atom_pair_send, atom_pair_recv
+    INTEGER(kind=int_8), DIMENSION(:), &
+      POINTER                                :: atom_pair_send, atom_pair_recv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_qs_task_list', &
