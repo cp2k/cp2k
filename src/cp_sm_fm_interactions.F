@@ -73,7 +73,7 @@ CONTAINS
     TYPE(real_matrix_type), POINTER    :: real_matrix
     REAL(kind=dp), INTENT(in), OPTIONAL :: alpha,beta
 
-        CHARACTER(len=*), PARAMETER :: routineN = 'scp_qs_energies', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_fm_to_sm', &
       routineP = moduleN//':'//routineN
 
     TYPE(real_block_node_type), POINTER :: block_node
@@ -261,7 +261,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER :: fm ! the matrix to copy TO
     TYPE(cp_error_type), INTENT(inout)  :: error
 
-        CHARACTER(len=*), PARAMETER :: routineN = 'scp_qs_energies', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_sm_to_fm', &
       routineP = moduleN//':'//routineN
 
     TYPE(real_block_node_type), POINTER :: block_node
