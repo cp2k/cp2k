@@ -829,10 +829,18 @@ CONTAINS
        CALL m_getpid(pid)
        CALL m_hostnm(host_name)
 
+       ! Deleting (if existing) the external EXIT files
        delete_it = .FALSE.
        INQUIRE (FILE="EXIT",EXIST=delete_it)
        IF(delete_it) THEN
           CALL open_file(file_name="EXIT",unit_number=unit_exit)
+          CALL close_file(unit_number=unit_exit,file_status="DELETE")
+       END IF
+
+       delete_it = .FALSE.
+       INQUIRE (FILE=TRIM(logger%iter_info%project_name)//".EXIT",EXIST=delete_it)
+       IF(delete_it) THEN
+          CALL open_file(file_name=TRIM(logger%iter_info%project_name)//".EXIT",unit_number=unit_exit)
           CALL close_file(unit_number=unit_exit,file_status="DELETE")
        END IF
 

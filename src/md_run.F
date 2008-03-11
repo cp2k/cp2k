@@ -363,7 +363,7 @@ CONTAINS
       CALL free_energy_evaluate(md_env,should_stop,motion_section,error)
 
       IF (should_stop) EXIT
-      ! Test for EXIT_MD or for WALL_TIME to exit 
+      ! Test for <PROJECT_NAME>.EXIT_MD or for WALL_TIME to exit 
       ! Default:
       ! IF so we don't overwrite the restart or append to the trajectory
       ! because the execution could in principle stop inside the SCF where energy

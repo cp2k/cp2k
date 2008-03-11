@@ -21,7 +21,8 @@ MODULE termination
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE machine,                         ONLY: default_output_unit,&
                                              m_flush,&
                                              m_walltime
@@ -47,12 +48,12 @@ MODULE termination
             stop_program
 
   INTERFACE stop_memory
-    MODULE PROCEDURE stop_allocate,stop_allocate_new,&
-                     stop_deallocate,stop_deallocate_new
+     MODULE PROCEDURE stop_allocate,stop_allocate_new,&
+                      stop_deallocate,stop_deallocate_new
   END INTERFACE
 
   INTERFACE stop_program
-    MODULE PROCEDURE stop_program_new,stop_program_old
+     MODULE PROCEDURE stop_program_new,stop_program_old
   END INTERFACE
 
 CONTAINS
@@ -64,10 +65,10 @@ CONTAINS
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE set_error_unit(lunit)
-
     INTEGER, INTENT(IN)                      :: lunit
 
-!   ---------------------------------------------------------------------------
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_error_unit', &
+      routineP = moduleN//':'//routineN
 
     error_unit = lunit
 
@@ -88,6 +89,9 @@ CONTAINS
 
     CHARACTER(LEN=*), INTENT(IN)             :: routine, array
     INTEGER, INTENT(IN)                      :: memory
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'stop_allocate', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=240)                       :: message
 
@@ -113,8 +117,7 @@ CONTAINS
   END SUBROUTINE stop_allocate
 
 ! *****************************************************************************
-  SUBROUTINE stop_allocate_new(routineN,moduleN,line_number,object,&
-                               memory)
+  SUBROUTINE stop_allocate_new(routineN,moduleN,line_number,object,memory)
 
     CHARACTER(LEN=*), INTENT(IN)             :: routineN, moduleN
     INTEGER, INTENT(IN)                      :: line_number
@@ -122,8 +125,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: memory
 
     CHARACTER(LEN=240)                       :: message
-
-!   ---------------------------------------------------------------------------
 
     IF (memory == 0) THEN
       message = "The memory allocation for the data object <"//TRIM(object)//&
@@ -153,9 +154,10 @@ CONTAINS
 
     CHARACTER(LEN=*), INTENT(IN)             :: routine, array
 
-    CHARACTER(LEN=240)                       :: message
+    CHARACTER(len=*), PARAMETER :: routineN = 'stop_deallocate', &
+      routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
+    CHARACTER(LEN=240)                       :: message
 
     WRITE (message,"(A)")&
       "The memory deallocation for the data object <"//TRIM(array)//"> failed"
@@ -172,8 +174,6 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: object
 
     CHARACTER(LEN=240)                       :: message
-
-!   ---------------------------------------------------------------------------
 
     message = "The memory deallocation for the data object <"//TRIM(object)//&
               "> failed"
@@ -196,9 +196,10 @@ CONTAINS
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
 
-    LOGICAL                                  :: ionode
+    CHARACTER(len=*), PARAMETER :: routineN = 'stop_program_old', &
+      routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
+    LOGICAL                                  :: ionode
 
     IF (PRESENT(para_env)) THEN
       ionode = para_env%ionode
@@ -219,8 +220,7 @@ CONTAINS
   END SUBROUTINE stop_program_old
 
 ! *****************************************************************************
-  SUBROUTINE stop_program_new(routineN,moduleN,line_number,&
-                              error_message,para_env)
+  SUBROUTINE stop_program_new(routineN,moduleN,line_number,error_message,para_env)
 
     CHARACTER(LEN=*), INTENT(IN)             :: routineN, moduleN
     INTEGER, INTENT(IN)                      :: line_number
@@ -230,8 +230,6 @@ CONTAINS
 
     CHARACTER(LEN=80)                        :: message
     LOGICAL                                  :: ionode
-
-!   ---------------------------------------------------------------------------
 
     IF (PRESENT(para_env)) THEN
       ionode = para_env%ionode
@@ -258,12 +256,10 @@ CONTAINS
 
   END SUBROUTINE stop_program_new
 
-!*****
-
 ! *****************************************************************************
-!> \brief External manipulations during a run : when the EXIT_$runtype
+!> \brief External manipulations during a run : when the <PROJECT_NAME>.EXIT_$runtype
 !>      command is sent the program stops at the level of $runtype
-!>      when a general EXIT command is sent the program is stopped
+!>      when a general <PROJECT_NAME>.EXIT command is sent the program is stopped
 !>      at all levels (at least those that call this function)
 !>      if the file WAIT exists, the program waits here till it disappears
 !> \author MI (10.03.2005)
@@ -276,22 +272,24 @@ CONTAINS
       OPTIONAL, POINTER                      :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: exit_fname = "EXIT", &
-      routineN = 'external_control', routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'external_control', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=10)                        :: exit_fname_level
+    CHARACTER(LEN=default_string_length)     :: exit_fname, exit_fname_level, &
+                                                exit_gname, exit_gname_level
     INTEGER                                  :: i, unit_number
     LOGICAL                                  :: failure, should_wait
     REAL(KIND=dp)                            :: t1, t2, time_check
     TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
-
     failure=.FALSE.
     logger => cp_error_get_logger(error)
     should_stop = .FALSE.
 
-    exit_fname_level = exit_fname//"_"//TRIM(flag)
+    exit_gname       = "EXIT"
+    exit_gname_level = TRIM(exit_gname)//"_"//TRIM(flag)
+    exit_fname       = TRIM(logger%iter_info%project_name)//"."//TRIM(exit_gname)
+    exit_fname_level = TRIM(logger%iter_info%project_name)//"."//TRIM(exit_gname_level)
 
     IF (logger%para_env%source==logger%para_env%mepos) THEN
        ! allows for halting execution for a while
@@ -300,8 +298,8 @@ CONTAINS
        INQUIRE (FILE="WAIT",EXIST=should_wait)
        IF (should_wait) THEN
           CALL open_file(file_name="WAITING",file_status="UNKNOWN",&
-             file_form="FORMATTED",file_action="WRITE",&
-             unit_number=unit_number)
+               file_form="FORMATTED",file_action="WRITE",&
+               unit_number=unit_number)
           WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
                "*** waiting till the file WAIT has been removed ***"
           DO
@@ -317,21 +315,44 @@ CONTAINS
           ENDDO
           CALL close_file(unit_number=unit_number,file_status="DELETE")
        ENDIF
-
-       ! EXIT control
-       INQUIRE (FILE=exit_fname_level,EXIST=should_stop)
-       IF (should_stop) THEN
-          CALL open_file(file_name=exit_fname_level,unit_number=unit_number)
-          CALL close_file(unit_number=unit_number,file_status="DELETE")
-          WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
-               "*** "//flag//" run terminated by external request ***"
-       ELSE
+       ! EXIT control sequence
+       ! Check for <PROJECT_NAME>.EXIT_<FLAG>
+       IF (.NOT.should_stop) THEN
+          INQUIRE (FILE=exit_fname_level,EXIST=should_stop)
+          IF (should_stop) THEN
+             CALL open_file(file_name=exit_fname_level,unit_number=unit_number)
+             CALL close_file(unit_number=unit_number,file_status="DELETE")
+             WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
+                  "*** "//flag//" run terminated by external request ***"
+          END IF
+       END IF
+       ! Check for <PROJECT_NAME>.EXIT
+       IF (.NOT.should_stop) THEN
           INQUIRE (FILE=exit_fname,EXIST=should_stop)
           IF(should_stop) THEN
-            WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
-               "*** "//TRIM(flag)//" run terminated by external request ***"
+             WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
+                  "*** "//TRIM(flag)//" run terminated by external request ***"
           ENDIF
        END IF
+       ! Check for EXIT_<FLAG>
+       IF (.NOT.should_stop) THEN
+          INQUIRE (FILE=exit_gname_level,EXIST=should_stop)
+          IF (should_stop) THEN
+             CALL open_file(file_name=exit_gname_level,unit_number=unit_number)
+             CALL close_file(unit_number=unit_number,file_status="DELETE")
+             WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
+                  "*** "//flag//" run terminated by external request ***"
+          END IF
+       END IF
+       ! Check for EXIT
+       IF (.NOT.should_stop) THEN
+          INQUIRE (FILE=exit_gname,EXIST=should_stop)
+          IF(should_stop) THEN
+             WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
+                  "*** "//TRIM(flag)//" run terminated by external request ***"
+          ENDIF
+       END IF
+
        IF ((.NOT.should_stop).AND.(globenv%cp2k_target_time > 0.0_dp)) THEN
           ! Check for execution time
           time_check  = m_walltime() - globenv%cp2k_start_time
