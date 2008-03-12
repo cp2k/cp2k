@@ -3510,8 +3510,8 @@ CONTAINS
     ! Tapering function
     ft = taper  (rij)
     dft= dtaper_ana (rij)
-    ri(:) = ft*ri(:)
     dri(:) = dft*ri(:)+ft*dri(:)
+    ri(:) = ft*ri(:)
 
   END SUBROUTINE dterep_ana
 
@@ -3529,6 +3529,8 @@ CONTAINS
     REAL(dp), INTENT(IN)                     :: r
     REAL(dp), DIMENSION(:), INTENT(IN)       :: ri, dri
     LOGICAL, INTENT(IN)                      :: shortrange
+
+    REAL(dp), PARAMETER                      :: thrs = 1.0E-7_dp
 
     INTEGER                                  :: j
     REAL(dp)                                 :: delta, od, rn
@@ -3548,15 +3550,15 @@ CONTAINS
        IF  (ABS(ri(j)-ri0(j))>EPSILON(0.0_dp)) THEN
           WRITE(*,*)"Error in value of the integral.."
        END IF
-       IF      ((ABS(nri(j))>EPSILON(0.0_dp)).AND.(ABS(dri(j))>EPSILON(0.0_dp))) THEN
-          IF ((nri(j)-dri(j))/nri(j)*100._dp>0.1_dp) THEN
+       IF      ((ABS(nri(j))>thrs).AND.(ABS(dri(j))>thrs)) THEN
+          IF (ABS((nri(j)-dri(j))/nri(j))*100._dp>0.5_dp) THEN
              WRITE(*,*)"Error in the value of the derivative::",j,ABS(nri(j)-dri(j))/nri(j)*100._dp
              STOP
           END IF
-       ELSEIF  ((ABS(nri(j))<EPSILON(0.0_dp)).AND.(ABS(dri(j))>EPSILON(0.0_dp))) THEN
+       ELSEIF  ((ABS(nri(j))<thrs).AND.(ABS(dri(j))>thrs)) THEN
           WRITE(*,*) j,ABS(nri(j)-dri(j))/nri(j)*100._dp
           STOP
-       ELSEIF  ((ABS(nri(j))>EPSILON(0.0_dp)).AND.(ABS(dri(j))<EPSILON(0.0_dp))) THEN
+       ELSEIF  ((ABS(nri(j))>thrs).AND.(ABS(dri(j))<thrs)) THEN
           WRITE(*,*) j,ABS(nri(j)-dri(j))/nri(j)*100._dp
           STOP
        END IF
