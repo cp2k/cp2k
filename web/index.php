@@ -58,6 +58,12 @@ knowledge about the active development.
 <LI> <A HREF="quickstep.html">Quickstep</A>: Density functional calculations
 </UL>
 
+<H3> upcoming tutorials and workshops related to CP2K </H3>
+<UL>
+<LI> <A HREF="http://www.cecam.org/workshop-229.html">First principles molecular dynamics simulations in condensed matter and molecular physics</A>
+<LI> <A HREF="http://www.cecam.org/workshop-222.html">Standardisation and databasing of ab-initio and classical simulations</A>
+</UL>
+
 <H3> Who is behind this project? </H3>
 
 A partial answer is given by the <A HREF="http://developer.berlios.de/project/memberlist.php?group_id=129">list of developers</A> 
