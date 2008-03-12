@@ -720,7 +720,7 @@ CONTAINS
        IF (.NOT. scf_control%outer_scf%have_scf) EXIT scf_outer_loop
 
        ! ** In case we use the OUTER SCF loop let's print some info..
-       IF (output_unit>0) WRITE(output_unit,'(/,T3,A,I4,A,E10.2,A,F25.14)') &
+       IF (output_unit>0) WRITE(output_unit,'(/,T3,A,I4,A,E10.2,A,F21.10)') &
                             "outer SCF iter = ",scf_env%outer_scf%iter_count, &
                             " RMS gradient = ",outer_loop_eps," energy =",energy%total
 
