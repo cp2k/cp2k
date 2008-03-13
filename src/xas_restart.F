@@ -18,7 +18,8 @@
 MODULE xas_restart
 
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_files,                        ONLY: open_file
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_fm_types,                     ONLY: cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -186,6 +187,8 @@ CONTAINS
          CALL make_basis_sm(mo_coeff,homo,matrix_s(1)%matrix,error=error)
       END DO
     END IF
+
+    IF (para_env%ionode)  CALL close_file(unit_number=rst_unit)
 
     CALL timestop(0.0_dp,handle)
 

@@ -19,15 +19,10 @@ MODULE scp_coeff_types
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_retain,&
                                              distribution_1d_type
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
   USE termination,                     ONLY: stop_program
-  USE util,                            ONLY: locate
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -82,11 +77,11 @@ MODULE scp_coeff_types
             get_aux_coeff_set, aux_coeff_create, setup_aux_coeff, &
             aux_coeff_release, get_aux_coeff, aux_coeff_zero_fc
             
-  CONTAINS
+CONTAINS
 
 ! *****************************************************************************
-SUBROUTINE aux_coeff_set_create(aux_coeff_set,atomic_kind_set,&
-                                distribution, error)
+  SUBROUTINE aux_coeff_set_create(aux_coeff_set,atomic_kind_set,&
+       distribution, error)
 
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -103,49 +98,49 @@ SUBROUTINE aux_coeff_set_create(aux_coeff_set,atomic_kind_set,&
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  NULLIFY(atomic_kind,aux_basis_set)
-  ALLOCATE(aux_coeff_set, stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     last_coeff_set_id=last_coeff_set_id+1
-     aux_coeff_set%id_nr=last_coeff_set_id
-     aux_coeff_set%ref_count=1
-     NULLIFY(aux_coeff_set%distribution, aux_coeff_set%coeffs_of_kind)
-!    set coeffs_of_kind
-     nkind=SIZE(atomic_kind_set)
-     IF (PRESENT(distribution)) THEN
-       IF (ASSOCIATED(distribution)) THEN
-         ALLOCATE(aux_coeff_set%coeffs_of_kind(nkind), stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-         aux_coeff_set%distribution_method=aux_coeff_distributed
-         DO ikind=1,nkind
-            NULLIFY(aux_coeff_set%coeffs_of_kind(ikind)%coeffs)
-            atomic_kind => atomic_kind_set(ikind)
-            CALL get_atomic_kind(atomic_kind,aux_basis_set=aux_basis_set)
-            n_els = distribution%n_el(ikind)
-            IF ((.NOT.ASSOCIATED(aux_basis_set)).OR.(n_els ==0)) CYCLE
-            CALL aux_coeff_create(aux_coeff_set%coeffs_of_kind(ikind)%coeffs,&
-                             error=error)
-            CALL setup_aux_coeff(aux_coeff_set%coeffs_of_kind(ikind)%coeffs,&
-               aux_basis_set=aux_basis_set, n_els=n_els, error=error)
-         END DO
- 
-         CALL distribution_1d_retain(distribution,error=error)
-         CALL distribution_1d_release(aux_coeff_set%distribution,error=error)
-         aux_coeff_set%distribution => distribution
+    NULLIFY(atomic_kind,aux_basis_set)
+    ALLOCATE(aux_coeff_set, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       last_coeff_set_id=last_coeff_set_id+1
+       aux_coeff_set%id_nr=last_coeff_set_id
+       aux_coeff_set%ref_count=1
+       NULLIFY(aux_coeff_set%distribution, aux_coeff_set%coeffs_of_kind)
+       !    set coeffs_of_kind
+       nkind=SIZE(atomic_kind_set)
+       IF (PRESENT(distribution)) THEN
+          IF (ASSOCIATED(distribution)) THEN
+             ALLOCATE(aux_coeff_set%coeffs_of_kind(nkind), stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             aux_coeff_set%distribution_method=aux_coeff_distributed
+             DO ikind=1,nkind
+                NULLIFY(aux_coeff_set%coeffs_of_kind(ikind)%coeffs)
+                atomic_kind => atomic_kind_set(ikind)
+                CALL get_atomic_kind(atomic_kind,aux_basis_set=aux_basis_set)
+                n_els = distribution%n_el(ikind)
+                IF ((.NOT.ASSOCIATED(aux_basis_set)).OR.(n_els ==0)) CYCLE
+                CALL aux_coeff_create(aux_coeff_set%coeffs_of_kind(ikind)%coeffs,&
+                     error=error)
+                CALL setup_aux_coeff(aux_coeff_set%coeffs_of_kind(ikind)%coeffs,&
+                     aux_basis_set=aux_basis_set, n_els=n_els, error=error)
+             END DO
+
+             CALL distribution_1d_retain(distribution,error=error)
+             CALL distribution_1d_release(aux_coeff_set%distribution,error=error)
+             aux_coeff_set%distribution => distribution
+          END IF
+       ELSE
+          aux_coeff_set%distribution_method=aux_coeff_replicated
+          CALL stop_program ('aux_coeff_set_create','replicated coefs NYI')
        END IF
-     ELSE
-       aux_coeff_set%distribution_method=aux_coeff_replicated
-       CALL stop_program ('aux_coeff_set_create','replicated coefs NYI')
-     END IF
-  END IF
+    END IF
 
-END SUBROUTINE aux_coeff_set_create
+  END SUBROUTINE aux_coeff_set_create
 
 ! *****************************************************************************
-SUBROUTINE aux_coeff_set_retain(aux_coeff_set, error)
+  SUBROUTINE aux_coeff_set_retain(aux_coeff_set, error)
 
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -155,18 +150,18 @@ SUBROUTINE aux_coeff_set_retain(aux_coeff_set, error)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(aux_coeff_set),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPreconditionNoFail(aux_coeff_set%ref_count>0,cp_failure_level,routineP,error)
-     aux_coeff_set%ref_count=aux_coeff_set%ref_count+1
-  END IF
+    CPPrecondition(ASSOCIATED(aux_coeff_set),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CPPreconditionNoFail(aux_coeff_set%ref_count>0,cp_failure_level,routineP,error)
+       aux_coeff_set%ref_count=aux_coeff_set%ref_count+1
+    END IF
 
-END SUBROUTINE aux_coeff_set_retain
+  END SUBROUTINE aux_coeff_set_retain
 
 ! *****************************************************************************
-SUBROUTINE aux_coeff_zero_fc (aux_coeff_set, error)
+  SUBROUTINE aux_coeff_zero_fc (aux_coeff_set, error)
 
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -179,26 +174,23 @@ SUBROUTINE aux_coeff_zero_fc (aux_coeff_set, error)
     REAL(dp), DIMENSION(:, :), POINTER       :: force
     TYPE(aux_coeff_type), POINTER            :: local_coeffs
 
-  failure=.FALSE.
-  NULLIFY ( local_coeffs, force )
+    failure=.FALSE.
+    NULLIFY ( local_coeffs, force )
 
-  CPPrecondition(ASSOCIATED(aux_coeff_set),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     DO ikind=1,SIZE(aux_coeff_set%coeffs_of_kind)
-      local_coeffs => aux_coeff_set%coeffs_of_kind(ikind)%coeffs
-!      CPPrecondition(ASSOCIATED(local_coeffs),cp_failure_level,routineP,error,failure)
-      IF ( .NOT. ASSOCIATED ( local_coeffs ) ) CYCLE
-!      IF( .NOT. failure ) THEN
-        CALL get_aux_coeff(coeffs=local_coeffs,fc=force,error=error)
-        force(:,:)=0.0_dp
-!      END IF
-     END DO
-  END IF
+    CPPrecondition(ASSOCIATED(aux_coeff_set),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       DO ikind=1,SIZE(aux_coeff_set%coeffs_of_kind)
+          local_coeffs => aux_coeff_set%coeffs_of_kind(ikind)%coeffs
+          IF ( .NOT. ASSOCIATED ( local_coeffs ) ) CYCLE
+          CALL get_aux_coeff(coeffs=local_coeffs,fc=force,error=error)
+          force(:,:)=0.0_dp
+       END DO
+    END IF
 
-END SUBROUTINE aux_coeff_zero_fc
+  END SUBROUTINE aux_coeff_zero_fc
 
 ! *****************************************************************************
-SUBROUTINE aux_coeff_set_release(aux_coeff_set, error)
+  SUBROUTINE aux_coeff_set_release(aux_coeff_set, error)
 
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -209,33 +201,33 @@ SUBROUTINE aux_coeff_set_release(aux_coeff_set, error)
     INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  IF (ASSOCIATED(aux_coeff_set)) THEN
-     CPPreconditionNoFail(aux_coeff_set%ref_count>0,cp_failure_level,routineP,error)
-     aux_coeff_set%ref_count=aux_coeff_set%ref_count-1
-     IF (aux_coeff_set%ref_count==0) THEN
-        CALL distribution_1d_release(aux_coeff_set%distribution, error=error)
-        IF(ASSOCIATED(aux_coeff_set%coeffs_of_kind)) THEN
-           DO i=1,SIZE(aux_coeff_set%coeffs_of_kind)
-              IF(ASSOCIATED(aux_coeff_set%coeffs_of_kind(i)%coeffs)) THEN
-                 CALL aux_coeff_release(aux_coeff_set%coeffs_of_kind(i)%coeffs,error=error)
-              ENDIF
-           END DO
-           DEALLOCATE(aux_coeff_set%coeffs_of_kind,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        DEALLOCATE(aux_coeff_set, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-     END IF
-  END IF
-  NULLIFY(aux_coeff_set)
+    IF (ASSOCIATED(aux_coeff_set)) THEN
+       CPPreconditionNoFail(aux_coeff_set%ref_count>0,cp_failure_level,routineP,error)
+       aux_coeff_set%ref_count=aux_coeff_set%ref_count-1
+       IF (aux_coeff_set%ref_count==0) THEN
+          CALL distribution_1d_release(aux_coeff_set%distribution, error=error)
+          IF(ASSOCIATED(aux_coeff_set%coeffs_of_kind)) THEN
+             DO i=1,SIZE(aux_coeff_set%coeffs_of_kind)
+                IF(ASSOCIATED(aux_coeff_set%coeffs_of_kind(i)%coeffs)) THEN
+                   CALL aux_coeff_release(aux_coeff_set%coeffs_of_kind(i)%coeffs,error=error)
+                ENDIF
+             END DO
+             DEALLOCATE(aux_coeff_set%coeffs_of_kind,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          DEALLOCATE(aux_coeff_set, stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END IF
+    END IF
+    NULLIFY(aux_coeff_set)
 
-END SUBROUTINE aux_coeff_set_release
+  END SUBROUTINE aux_coeff_set_release
 
 ! *****************************************************************************
-SUBROUTINE get_aux_coeff_set(aux_coeff_set,distribution, coeffs_of_kind,&
-                             ncoefs,id_nr,ref_count,error)
+  SUBROUTINE get_aux_coeff_set(aux_coeff_set,distribution, coeffs_of_kind,&
+       ncoefs,id_nr,ref_count,error)
 
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
     TYPE(distribution_1d_type), OPTIONAL, &
@@ -252,31 +244,31 @@ SUBROUTINE get_aux_coeff_set(aux_coeff_set,distribution, coeffs_of_kind,&
     LOGICAL                                  :: failure
     TYPE(aux_coeff_type), POINTER            :: coeffs_att
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(aux_coeff_set),cp_failure_level,routineP,error,failure)
-  CPPrecondition(aux_coeff_set%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     IF (PRESENT(id_nr)) id_nr = aux_coeff_set%id_nr
-     IF (PRESENT(ref_count)) ref_count = aux_coeff_set%ref_count
-     IF (PRESENT(distribution)) distribution => aux_coeff_set%distribution
-     IF (PRESENT(coeffs_of_kind)) coeffs_of_kind => aux_coeff_set%coeffs_of_kind
-     IF (PRESENT(ncoefs))THEN
-       ncoefs=0
-       nkind=SIZE(aux_coeff_set%coeffs_of_kind)
-       DO ikind=1, nkind
-         coeffs_att=>aux_coeff_set%coeffs_of_kind(ikind)%coeffs
-         IF(ASSOCIATED(coeffs_att))THEN
-           CALL get_aux_coeff(coeffs=coeffs_att,ncoef_of_kind=ncoef_of_kind,error=error)
-           ncoefs=ncoefs+ncoef_of_kind
-         END IF
-       END DO
-     END IF
-  END IF
-END SUBROUTINE get_aux_coeff_set
+    CPPrecondition(ASSOCIATED(aux_coeff_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(aux_coeff_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       IF (PRESENT(id_nr)) id_nr = aux_coeff_set%id_nr
+       IF (PRESENT(ref_count)) ref_count = aux_coeff_set%ref_count
+       IF (PRESENT(distribution)) distribution => aux_coeff_set%distribution
+       IF (PRESENT(coeffs_of_kind)) coeffs_of_kind => aux_coeff_set%coeffs_of_kind
+       IF (PRESENT(ncoefs))THEN
+          ncoefs=0
+          nkind=SIZE(aux_coeff_set%coeffs_of_kind)
+          DO ikind=1, nkind
+             coeffs_att=>aux_coeff_set%coeffs_of_kind(ikind)%coeffs
+             IF(ASSOCIATED(coeffs_att))THEN
+                CALL get_aux_coeff(coeffs=coeffs_att,ncoef_of_kind=ncoef_of_kind,error=error)
+                ncoefs=ncoefs+ncoef_of_kind
+             END IF
+          END DO
+       END IF
+    END IF
+  END SUBROUTINE get_aux_coeff_set
 
 ! *****************************************************************************
-SUBROUTINE aux_coeff_create(coeffs, error)
+  SUBROUTINE aux_coeff_create(coeffs, error)
 
     TYPE(aux_coeff_type), POINTER            :: coeffs
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -287,21 +279,21 @@ SUBROUTINE aux_coeff_create(coeffs, error)
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  ALLOCATE(coeffs, stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     last_coeff_id=last_coeff_id+1
-     coeffs%id_nr=last_coeff_id
-     coeffs%ref_count=1
-     NULLIFY( coeffs%c, coeffs%fc )
-  END IF
+    ALLOCATE(coeffs, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       last_coeff_id=last_coeff_id+1
+       coeffs%id_nr=last_coeff_id
+       coeffs%ref_count=1
+       NULLIFY( coeffs%c, coeffs%fc )
+    END IF
 
-END SUBROUTINE aux_coeff_create
+  END SUBROUTINE aux_coeff_create
 
 ! *****************************************************************************
-SUBROUTINE aux_coeff_release(coeffs, error)
+  SUBROUTINE aux_coeff_release(coeffs, error)
 
     TYPE(aux_coeff_type), POINTER            :: coeffs
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -312,29 +304,29 @@ SUBROUTINE aux_coeff_release(coeffs, error)
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
-  IF (ASSOCIATED(coeffs)) THEN
-     CPPreconditionNoFail(coeffs%ref_count>0,cp_failure_level,routineP,error)
-     coeffs%ref_count=coeffs%ref_count-1
-     IF (coeffs%ref_count==0) THEN
-       IF (ASSOCIATED(coeffs%c)) THEN
-         DEALLOCATE(coeffs%c,stat=stat)
-         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    failure=.FALSE.
+    IF (ASSOCIATED(coeffs)) THEN
+       CPPreconditionNoFail(coeffs%ref_count>0,cp_failure_level,routineP,error)
+       coeffs%ref_count=coeffs%ref_count-1
+       IF (coeffs%ref_count==0) THEN
+          IF (ASSOCIATED(coeffs%c)) THEN
+             DEALLOCATE(coeffs%c,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF (ASSOCIATED(coeffs%fc)) THEN
+             DEALLOCATE(coeffs%fc,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          DEALLOCATE(coeffs,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
-       IF (ASSOCIATED(coeffs%fc)) THEN
-         DEALLOCATE(coeffs%fc,stat=stat)
-         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       END IF
-       DEALLOCATE(coeffs,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-     END IF
-  END IF
-  NULLIFY(coeffs)
+    END IF
+    NULLIFY(coeffs)
 
-END SUBROUTINE aux_coeff_release
+  END SUBROUTINE aux_coeff_release
 
 ! *****************************************************************************
-SUBROUTINE setup_aux_coeff(coeffs,aux_basis_set, n_els, error)
+  SUBROUTINE setup_aux_coeff(coeffs,aux_basis_set, n_els, error)
 
     TYPE(aux_coeff_type), POINTER            :: coeffs
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
@@ -347,25 +339,24 @@ SUBROUTINE setup_aux_coeff(coeffs,aux_basis_set, n_els, error)
     INTEGER                                  :: ncgf, stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
-  CALL get_gto_basis_set(gto_basis_set=aux_basis_set,ncgf=ncgf)
-  coeffs%ncoef_atom=ncgf
-  coeffs%n_els=n_els
-  IF(.NOT.ASSOCIATED(coeffs%c)) THEN
-    ALLOCATE(coeffs%c(n_els,ncgf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    coeffs%c(:,:)=0.0_dp
-  END IF
-  IF(.NOT.ASSOCIATED(coeffs%fc)) THEN
-    ALLOCATE(coeffs%fc(n_els,ncgf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    coeffs%fc(:,:)=0.0_dp
-  END IF
+    failure=.FALSE.
+    CALL get_gto_basis_set(gto_basis_set=aux_basis_set,ncgf=ncgf)
+    coeffs%ncoef_atom=ncgf
+    coeffs%n_els=n_els
+    IF(.NOT.ASSOCIATED(coeffs%c)) THEN
+       ALLOCATE(coeffs%c(n_els,ncgf),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       coeffs%c(:,:)=0.0_dp
+    END IF
+    IF(.NOT.ASSOCIATED(coeffs%fc)) THEN
+       ALLOCATE(coeffs%fc(n_els,ncgf),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       coeffs%fc(:,:)=0.0_dp
+    END IF
 
-END SUBROUTINE setup_aux_coeff
+  END SUBROUTINE setup_aux_coeff
 ! *****************************************************************************
-SUBROUTINE get_aux_coeff(coeffs, c, fc, n_els,&
-                         ncoef_atom,ncoef_of_kind,id_nr,ref_count,error)
+  SUBROUTINE get_aux_coeff(coeffs, c, fc, n_els, ncoef_atom,ncoef_of_kind,id_nr,ref_count,error)
 
     TYPE(aux_coeff_type), POINTER            :: coeffs
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -380,88 +371,61 @@ SUBROUTINE get_aux_coeff(coeffs, c, fc, n_els,&
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
-  CPPrecondition(ASSOCIATED(coeffs),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     IF (PRESENT(id_nr)) id_nr = coeffs%id_nr
-     IF (PRESENT(ref_count)) ref_count = coeffs%ref_count
-     IF (PRESENT(n_els)) n_els = coeffs%n_els
-     IF (PRESENT(ncoef_atom)) ncoef_atom = coeffs%ncoef_atom
-     IF (PRESENT(ncoef_of_kind)) ncoef_of_kind = coeffs%ncoef_atom*coeffs%n_els
-     IF (PRESENT(c)) c => coeffs%c
-     IF (PRESENT(fc)) fc => coeffs%fc
-  END IF
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(coeffs),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       IF (PRESENT(id_nr)) id_nr = coeffs%id_nr
+       IF (PRESENT(ref_count)) ref_count = coeffs%ref_count
+       IF (PRESENT(n_els)) n_els = coeffs%n_els
+       IF (PRESENT(ncoef_atom)) ncoef_atom = coeffs%ncoef_atom
+       IF (PRESENT(ncoef_of_kind)) ncoef_of_kind = coeffs%ncoef_atom*coeffs%n_els
+       IF (PRESENT(c)) c => coeffs%c
+       IF (PRESENT(fc)) fc => coeffs%fc
+    END IF
 
-END SUBROUTINE get_aux_coeff
+  END SUBROUTINE get_aux_coeff
 ! *****************************************************************************
-SUBROUTINE aux_coeff_set_initialize(aux_coeff_set,dft_section,para_env,error)
+  SUBROUTINE aux_coeff_set_initialize(aux_coeff_set,para_env,error)
 
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
-    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'aux_coeff_set_initialize', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: group, i, iatom, icoef, iel, ikind, n_els, ncoef_atom, &
-      ncoef_atom_max, ncoef_of_kind, ncoef_tot, nel_tot, nkind
-    INTEGER, DIMENSION(:), POINTER           :: ibuffer
-    LOGICAL                                  :: explicit
-    REAL(kind=dp), DIMENSION(:), POINTER     :: buffer
+    INTEGER                                  :: group, ikind, n_els, &
+                                                ncoef_atom, ncoef_atom_max, &
+                                                ncoef_of_kind, ncoef_tot, &
+                                                nel_tot, nkind
     TYPE(aux_coeff_type), POINTER            :: coeffs
-    TYPE(section_vals_type), POINTER         :: scp_section, work_section
 
-  group=para_env%group
-  explicit = .FALSE.
-  ! initialize to default values
+    group=para_env%group
+    ! initialize to default values
 
-  nel_tot=0
-  ncoef_tot=0
-  ncoef_atom_max=0
+    nel_tot=0
+    ncoef_tot=0
+    ncoef_atom_max=0
 
-! get the SCP coefficients' parameters from input structure
-  scp_section => section_vals_get_subs_vals(dft_section,"SCP",error=error )
-  work_section => section_vals_get_subs_vals(scp_section,"SCP_COEFF%COORD",error=error)
-  CALL section_vals_get ( work_section, explicit=explicit, error = error )
-! get total numbers
-  nkind=SIZE(aux_coeff_set%coeffs_of_kind)
-  DO ikind=1,nkind
-     coeffs=> aux_coeff_set%coeffs_of_kind(ikind)%coeffs
-     IF(.not.ASSOCIATED(coeffs)) CYCLE
-     CALL get_aux_coeff(coeffs,n_els=n_els,ncoef_atom=ncoef_atom,&
-          ncoef_of_kind=ncoef_of_kind,error=error)
-     nel_tot=nel_tot+n_els
-     ncoef_tot=ncoef_tot+ncoef_of_kind
-     ncoef_atom_max=MAX(ncoef_atom_max,ncoef_atom)
-  END DO
-  CALL mp_sum(nel_tot,group)
-  CALL mp_sum(ncoef_tot,group)
-  CALL mp_max(ncoef_atom_max,group)
+    ! get total numbers
+    nkind=SIZE(aux_coeff_set%coeffs_of_kind)
+    DO ikind=1,nkind
+       coeffs=> aux_coeff_set%coeffs_of_kind(ikind)%coeffs
+       IF(.NOT.ASSOCIATED(coeffs)) CYCLE
+       CALL get_aux_coeff(coeffs,n_els=n_els,ncoef_atom=ncoef_atom,&
+            ncoef_of_kind=ncoef_of_kind,error=error)
+       nel_tot=nel_tot+n_els
+       ncoef_tot=ncoef_tot+ncoef_of_kind
+       ncoef_atom_max=MAX(ncoef_atom_max,ncoef_atom)
+    END DO
+    CALL mp_sum(nel_tot,group)
+    CALL mp_sum(ncoef_tot,group)
+    CALL mp_max(ncoef_atom_max,group)
 
-  aux_coeff_set%nel_tot=nel_tot
-  aux_coeff_set%ncoef_tot=ncoef_tot
-  aux_coeff_set%ncoef_atom_max=ncoef_atom_max
+    aux_coeff_set%nel_tot=nel_tot
+    aux_coeff_set%ncoef_tot=ncoef_tot
+    aux_coeff_set%ncoef_atom_max=ncoef_atom_max
 
-! Get values from the input if there is a restart
-  IF (explicit) THEN
-    CALL section_vals_val_get ( scp_section,'SCP_COEFF%RESTART_INDEX%_DEFAULT_KEYWORD_',i_vals=ibuffer, error=error)
-    DO ikind = 1, nkind
-      coeffs => aux_coeff_set%coeffs_of_kind(ikind)%coeffs
-      IF ( ASSOCIATED(coeffs)) THEN
-        DO iel = 1, coeffs%n_els
-          iatom=aux_coeff_set%distribution%list(ikind)%array(iel)
-          i=locate(ibuffer,iatom)
-          CALL section_vals_val_get ( scp_section,'SCP_COEFF%COORD%_DEFAULT_KEYWORD_',r_vals=buffer, &
-                                      i_rep_val=i, error=error)
-          DO icoef=1,coeffs%ncoef_atom
-           coeffs%c(iel,icoef)=buffer(icoef)
-          END DO
-        END DO 
-      END IF
-    END DO 
-  END IF
-
-END SUBROUTINE aux_coeff_set_initialize
+  END SUBROUTINE aux_coeff_set_initialize
 
 END MODULE scp_coeff_types

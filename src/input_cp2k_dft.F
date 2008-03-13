@@ -25,7 +25,6 @@ MODULE input_cp2k_dft
   USE input_cp2k_poisson,              ONLY: create_poisson_section
   USE input_cp2k_resp,                 ONLY: create_resp_section
   USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
-  USE input_cp2k_thermostats,          ONLY: create_coord_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -1755,10 +1754,9 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: scp_coeff_section
 
     failure=.FALSE.
-    NULLIFY(keyword, scp_coeff_section)
+    NULLIFY(keyword)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,"SCP",&
@@ -1780,66 +1778,11 @@ CONTAINS
             usage="DISPERSION",default_l_val=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
-! COEFF section
-       CALL create_scp_coeff_section(scp_coeff_section, error=error)
-       CALL section_add_subsection(section, scp_coeff_section, error=error)
-       CALL section_release(scp_coeff_section,error=error)
-
+       
     END IF
   END SUBROUTINE create_scp_section
 
 ! *****************************************************************************
-!> \param section will contain the coeff section for SCP
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
-!> \author CJM
-! *****************************************************************************
-  SUBROUTINE create_scp_coeff_section(coeff_section, error)
-    TYPE(section_type), POINTER              :: coeff_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_scp_coeff_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
-  
-    CPPrecondition(.NOT.ASSOCIATED(coeff_section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN  
-       CALL section_create(coeff_section,name="SCP_COEFF",&
-            description="parameters needed to perform a SCP run",&
-            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            error=error)
-       
-       NULLIFY( keyword, subsection)
-
-
-       CALL section_create(subsection,name="RESTART_INDEX",&
-            description="Specify information to restart parameters for SCP_COEFF",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error) 
-
-       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="Specify indexes used to restart calculation",repeats=.TRUE.,&
-            usage="<INTEGER> <INTEGER> .. <INTEGER>", type_of_var=integer_t, n_var=-1, error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL section_add_subsection(coeff_section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL create_coord_section(subsection,"SCP_COEFF",error=error)
-       CALL section_add_subsection(coeff_section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-       
-    END IF
-
-  END SUBROUTINE create_scp_coeff_section
-! *****************************************************************************
-
   SUBROUTINE create_dftb_control_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error

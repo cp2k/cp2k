@@ -61,6 +61,7 @@ MODULE qs_initial_guess
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE qs_wf_history_methods,           ONLY: wfi_update
   USE scf_control_types,               ONLY: scf_control_type
+  USE scp_environment_types,           ONLY: scp_environment_type
   USE sparse_matrix_types,             ONLY: get_matrix_diagonal,&
                                              real_matrix_p_type,&
                                              set_matrix_diagonal
@@ -111,7 +112,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
     LOGICAL                                  :: exist, failure, id_equal, &
-                                                ortho_basis
+                                                ortho_basis, scp
     REAL(KIND=dp)                            :: maxocc, nelec, paa, scale, &
                                                 total_rho, trps1, trps2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: econf, pdiag, sdiag
@@ -136,6 +137,7 @@ CONTAINS
       POINTER                                :: h_core_sparse, p_rmpv, &
                                                 s_sparse
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
     logger => cp_error_get_logger(error)
@@ -151,12 +153,12 @@ CONTAINS
 
     CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,&
          particle_set=particle_set,mos=mo_array, matrix_s=s_sparse,&
-         matrix_h=h_core_sparse,input=input,&
+         matrix_h=h_core_sparse,input=input,scp_env=scp_env,&
          scf_control=scf_control, id_nr=qs_env_id, dft_control=dft_control,&
          error=error)
 
     nspin=dft_control%nspins
-
+    scp = dft_control%scp
     p_rmpv => qs_env%rho%rho_ao
     work1 => scf_env%scf_work1
     work2 => scf_env%scf_work2
@@ -239,7 +241,8 @@ CPSourceFileRef,&
 
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
        CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,&
-            id_nr=id_nr,multiplicity=dft_control%multiplicity,dft_section=dft_section,error=error)
+            id_nr=id_nr,multiplicity=dft_control%multiplicity,dft_section=dft_section,&
+            scp=scp, scp_env=scp_env, error=error)
 
        DO ispin=1,nspin
           IF (scf_control%level_shift /= 0.0_dp) THEN
@@ -273,7 +276,7 @@ CPSourceFileRef,&
              j = last_read -i
              CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
              CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,&
-                  id_nr=j,multiplicity=dft_control%multiplicity,&
+                  id_nr=j,multiplicity=dft_control%multiplicity,scp=scp, scp_env=scp_env,&
                   dft_section=dft_section,error=error)
           
              DO ispin=1,nspin

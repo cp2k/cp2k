@@ -56,6 +56,9 @@ MODULE qs_mo_types
   USE particle_types,                  ONLY: particle_type
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
+  USE scp_environment_types,           ONLY: scp_environment_type
+  USE scp_restarts,                    ONLY: read_aux_coeff_set,&
+                                             write_scp_coeff_set
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -207,8 +210,8 @@ CONTAINS
     ALLOCATE (mo_set%occupation_numbers(mo_set%nmo),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
     CALL set_mo_occupation(mo_set%occupation_numbers,&
-                           mo_set%eigenvalues,mo_set%homo,mo_set%lfomo,&
-                           mo_set%maxocc,mo_set%nelectron, uocc=mo_set%uniform_occupation)
+         mo_set%eigenvalues,mo_set%homo,mo_set%lfomo,&
+         mo_set%maxocc,mo_set%nelectron, uocc=mo_set%uniform_occupation)
 
     CALL fm_pool_create_fm(fm_pool,mo_set%mo_coeff,&
          name=name,error=error)
@@ -271,7 +274,7 @@ CONTAINS
     IF (level_shift == 0.0_dp) RETURN
 
     DO imo=mo_set%homo+1,mo_set%nmo
-      mo_set%eigenvalues(imo) = mo_set%eigenvalues(imo) - level_shift
+       mo_set%eigenvalues(imo) = mo_set%eigenvalues(imo) - level_shift
     END DO
 
   END SUBROUTINE correct_mo_eigenvalues
@@ -293,24 +296,22 @@ CONTAINS
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
-
     failure =.FALSE.
     IF (ASSOCIATED(mo_set)) THEN
        IF (ASSOCIATED(mo_set%eigenvalues)) THEN
           DEALLOCATE (mo_set%eigenvalues,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
        END IF
 
        IF (ASSOCIATED(mo_set%occupation_numbers)) THEN
           DEALLOCATE (mo_set%occupation_numbers,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
        END IF
 
        CALL cp_fm_release(mo_set%mo_coeff,error=error)
 
        DEALLOCATE (mo_set,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
     END IF
 
   END SUBROUTINE deallocate_mo_set
@@ -335,8 +336,6 @@ CONTAINS
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: mo_coeff
     LOGICAL, INTENT(OUT), OPTIONAL           :: uniform_occupation
 
-!   ---------------------------------------------------------------------------
-
     IF (PRESENT(maxocc)) maxocc = mo_set%maxocc
     IF (PRESENT(homo)) homo = mo_set%homo
     IF (PRESENT(lfomo)) lfomo = mo_set%lfomo
@@ -359,7 +358,7 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE set_mo_occupation(occupation,eigenvalues,homo,lfomo,maxocc,nelectron,&
-                               uocc,smear)
+       uocc,smear)
 
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation, eigenvalues
     INTEGER, INTENT(OUT)                     :: homo, lfomo
@@ -375,8 +374,6 @@ CONTAINS
     REAL(KIND=dp)                            :: e1, e2, edelta, edist, &
                                                 my_smear, nelec
 
-!   ---------------------------------------------------------------------------
-
     my_smear = 0.0_dp
     IF(PRESENT(smear)) my_smear = smear
 
@@ -391,57 +388,57 @@ CONTAINS
 
     perform_smear: IF (my_smear /= 0.0_dp) THEN
 
-!     *** Define the energy window for the eigenvalues ***
+       !     *** Define the energy window for the eigenvalues ***
 
-      e1 = eigenvalues(nomo) - 0.5_dp*smear
-      e2 = eigenvalues(nomo) + 0.5_dp*smear
+       e1 = eigenvalues(nomo) - 0.5_dp*smear
+       e2 = eigenvalues(nomo) + 0.5_dp*smear
 
-!     *** Find the lowest fractional occupied MO ***
+       !     *** Find the lowest fractional occupied MO ***
 
-      DO imo=1,nomo
-        IF (eigenvalues(imo) > e1) THEN
-          lfomo = imo
-          EXIT
-        END IF
-      END DO
+       DO imo=1,nomo
+          IF (eigenvalues(imo) > e1) THEN
+             lfomo = imo
+             EXIT
+          END IF
+       END DO
 
-!     *** Find the highest fractional occupied (non-zero) MO which will be the HOMO ***
-      IF(e2 > eigenvalues(nmo)) THEN
-        WRITE(6,*) "WARNING might be too few states for the smearing !"
-      END IF
-      DO imo=nmo,nomo,-1
-        IF (eigenvalues(imo) < e2) THEN
-          homo = imo
-          EXIT
-        END IF
-      END DO
+       !     *** Find the highest fractional occupied (non-zero) MO which will be the HOMO ***
+       IF(e2 > eigenvalues(nmo)) THEN
+          WRITE(6,*) "WARNING might be too few states for the smearing !"
+       END IF
+       DO imo=nmo,nomo,-1
+          IF (eigenvalues(imo) < e2) THEN
+             homo = imo
+             EXIT
+          END IF
+       END DO
 
-!     *** Get the number of electrons to be smeared ***
+       !     *** Get the number of electrons to be smeared ***
 
-      edist = 0.0_dp
-      nelec = 0.0_dp
+       edist = 0.0_dp
+       nelec = 0.0_dp
 
-      DO imo=lfomo,homo
-        nelec = nelec + occupation(imo)
-        edist = edist + ABS(e2 - eigenvalues(imo))
-      END DO
+       DO imo=lfomo,homo
+          nelec = nelec + occupation(imo)
+          edist = edist + ABS(e2 - eigenvalues(imo))
+       END DO
 
-!     *** Smear electrons inside the window ***
+       !     *** Smear electrons inside the window ***
 
-      DO imo=lfomo,homo
-        edelta = ABS(e2 - eigenvalues(imo))
-        occupation(imo) = MIN(maxocc,nelec*edelta/edist)
-        nelec = nelec - occupation(imo)
-        edist = edist - edelta
-      END DO
+       DO imo=lfomo,homo
+          edelta = ABS(e2 - eigenvalues(imo))
+          occupation(imo) = MIN(maxocc,nelec*edelta/edist)
+          nelec = nelec - occupation(imo)
+          edist = edist - edelta
+       END DO
 
-!     *** Check, if the smearing involves more than one MO ***
+       !     *** Check, if the smearing involves more than one MO ***
 
-      IF (lfomo == homo) THEN
-        homo = nomo
-        lfomo = nomo + 1
-      END IF
-      uocc = .FALSE.
+       IF (lfomo == homo) THEN
+          homo = nomo
+          lfomo = nomo + 1
+       END IF
+       uocc = .FALSE.
     END IF perform_smear
 
   END SUBROUTINE set_mo_occupation
@@ -453,8 +450,8 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE set_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,nmo,&
-                        eigenvalues,occupation_numbers,mo_coeff,&
-                        uniform_occupation,error)
+       eigenvalues,occupation_numbers,mo_coeff,&
+       uniform_occupation,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: maxocc
@@ -473,8 +470,6 @@ CONTAINS
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
-
     IF (PRESENT(maxocc)) mo_set%maxocc = maxocc
     IF (PRESENT(homo))  mo_set%homo = homo
     IF (PRESENT(lfomo))  mo_set%lfomo = lfomo
@@ -482,28 +477,32 @@ CONTAINS
     IF (PRESENT(nelectron))  mo_set%nelectron = nelectron
     IF (PRESENT(nmo)) mo_set%nmo = nmo
     IF (PRESENT(eigenvalues)) THEN
-      IF(ASSOCIATED(mo_set%eigenvalues)) DEALLOCATE(mo_set%eigenvalues,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
-      mo_set%eigenvalues => eigenvalues
+       IF(ASSOCIATED(mo_set%eigenvalues)) DEALLOCATE(mo_set%eigenvalues,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+       mo_set%eigenvalues => eigenvalues
     END IF
     IF (PRESENT(occupation_numbers)) THEN
-      IF(ASSOCIATED(mo_set%occupation_numbers)) &
-                    DEALLOCATE(mo_set%occupation_numbers,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
-      mo_set%occupation_numbers => occupation_numbers
+       IF(ASSOCIATED(mo_set%occupation_numbers)) &
+            DEALLOCATE(mo_set%occupation_numbers,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+       mo_set%occupation_numbers => occupation_numbers
     END IF
     IF(PRESENT(uniform_occupation)) mo_set%uniform_occupation=uniform_occupation
 
   END SUBROUTINE set_mo_set
 
 ! *****************************************************************************
-  SUBROUTINE write_mo_set_to_restart(mo_array, particle_set, dft_section, error)
-
+  SUBROUTINE write_mo_set_to_restart(mo_array, particle_set, dft_section, scp, scp_env, atomic_kind_set, error)
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: dft_section
+    LOGICAL, INTENT(IN)                      :: scp
+    TYPE(scp_environment_type), OPTIONAL, &
+      POINTER                                :: scp_env
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: atomic_kind_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_set_to_restart', &
@@ -534,9 +533,9 @@ CONTAINS
                   do_backup=.TRUE., file_form="UNFORMATTED", error=error)
 
              CALL write_mo_set_low(mo_array, particle_set, ires, error)
-             
-             CALL cp_print_key_finished_output(ires,logger,dft_section,&
-                  TRIM(keys(ikey)), error=error)
+             IF (scp) CALL write_scp_coeff_set(ires, scp_env, atomic_kind_set, particle_set, error)
+
+             CALL cp_print_key_finished_output(ires,logger,dft_section,TRIM(keys(ikey)), error=error)
           END IF
        END DO
     END IF
@@ -608,15 +607,15 @@ CPSourceFileRef,&
        END DO
        
        ALLOCATE (nso_info(nshell_max,nset_max,natom),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
        nso_info(:,:,:) = 0
        
        ALLOCATE (nshell_info(nset_max,natom),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
        nshell_info(:,:) = 0
        
        ALLOCATE (nset_info(natom),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
        nset_info(:) = 0
        
        DO iatom=1,natom
@@ -658,20 +657,19 @@ CPSourceFileRef,&
        WRITE (ires) nso_info
        
        DEALLOCATE (nset_info,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
        
        DEALLOCATE (nshell_info,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
        
        DEALLOCATE (nso_info,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
-       
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
     END IF
     
     ! use the scalapack block size as a default for buffering columns
     CALL cp_fm_get_info(mo_array(1)%mo_set%mo_coeff,ncol_block=max_block,error=error)
     ALLOCATE(vecbuffer(nao,max_block),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
     
     DO ispin=1,nspin
        nmo=mo_array(ispin)%mo_set%nmo
@@ -697,7 +695,7 @@ CPSourceFileRef,&
     END DO
     
     DEALLOCATE (vecbuffer,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
     
     CALL timestop(0.0_dp,handle)
 
@@ -745,7 +743,7 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
   SUBROUTINE read_mo_set_from_restart(mo_array,atomic_kind_set,particle_set,&
-                                      para_env,id_nr,multiplicity,dft_section,error)
+       para_env,id_nr,multiplicity,dft_section,scp,scp_env,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -754,8 +752,10 @@ CPSourceFileRef,&
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER, INTENT(in)                      :: id_nr, multiplicity
+    INTEGER, INTENT(IN)                      :: id_nr, multiplicity
     TYPE(section_vals_type), POINTER         :: dft_section
+    LOGICAL, INTENT(IN)                      :: scp
+    TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_mo_set_from_restart', &
@@ -766,8 +766,6 @@ CPSourceFileRef,&
                                                 restart_unit
     LOGICAL                                  :: exist
     TYPE(cp_logger_type), POINTER            :: logger
-
-!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
     logger=>cp_error_get_logger()
@@ -794,6 +792,10 @@ CPSourceFileRef,&
     
     CALL read_mos_restart_low (mo_array, para_env, particle_set, natom,&
          restart_unit, multiplicity=multiplicity, error=error)
+    IF (scp) CALL read_aux_coeff_set(restart_unit, scp_env%aux_coeff_set, para_env, error)
+
+    ! Close restart file
+    IF (para_env%ionode) CALL close_file(unit_number=restart_unit)
 
     DO ispin = 1,nspin
         CALL write_mo_set(mo_array(ispin)%mo_set,atomic_kind_set,particle_set,&
@@ -839,7 +841,7 @@ CPSourceFileRef,&
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
 
-    logger=>cp_error_get_logger()
+    logger => cp_error_get_logger(error)
 
     nspin = SIZE(mos)
     nao = mos(1)%mo_set%nao
@@ -1088,19 +1090,18 @@ CPSourceFileRef,&
 
     DEALLOCATE(vecbuffer,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
+    
     IF (para_env%ionode) THEN
-      DEALLOCATE(vecbuffer_read,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(offset_info,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(nso_info,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(nshell_info,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(nset_info,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      CALL close_file(unit_number=rst_unit)
+       DEALLOCATE(vecbuffer_read,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(offset_info,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(nso_info,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(nshell_info,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(nset_info,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
   END SUBROUTINE read_mos_restart_low
@@ -1155,8 +1156,6 @@ CPSourceFileRef,&
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
-
-! -------------------------------------------------------------------------
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)

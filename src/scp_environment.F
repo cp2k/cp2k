@@ -12,11 +12,9 @@ MODULE scp_environment
                                              get_atomic_kind_set
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-! USE fist_environment_types,          ONLY: fist_environment_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
-  USE kinds,                           ONLY: dp,&
-                                             int_size
+  USE kinds,                           ONLY: dp
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE scp_coeff_types,                 ONLY: aux_coeff_set_create,&
@@ -30,7 +28,6 @@ MODULE scp_environment
                                              set_scp_env
   USE scp_force_types,                 ONLY: allocate_scp_force,&
                                              scp_force_type
-  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -43,11 +40,8 @@ MODULE scp_environment
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scp_environment'
 
-!-----------------------------------------------------------------------------!
 
 CONTAINS
-
-!-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
 !> \brief Initializes the SCP environment using the QS environment
@@ -62,8 +56,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scp_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, istat, nkind
+    INTEGER                                  :: handle, nkind, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
+    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
@@ -75,7 +70,8 @@ CONTAINS
 
     CALL timeset(routineN,"I",'',handle)
 
-    ! nullifying  pointers
+    failure = .FALSE.
+    ! Nullifying  pointers
     NULLIFY ( aux_coeff_set )
     NULLIFY ( energy, force )
     NULLIFY ( para_env )
@@ -93,37 +89,28 @@ CONTAINS
          error=error)
 
     ! Allocate and initialize coefs pointer
-    CALL aux_coeff_set_create(aux_coeff_set=aux_coeff_set,&
-                               atomic_kind_set=atomic_kind_set,&
-                               distribution=local_particles,&
-                               error=error)
-    CALL aux_coeff_set_initialize (aux_coeff_set,dft_section,para_env, &
-                                   error=error)
-    CALL set_scp_env ( scp_env=scp_env,&
-                       aux_coeff_set = aux_coeff_set, &
-                       error=error)
+    CALL aux_coeff_set_create(aux_coeff_set=aux_coeff_set,atomic_kind_set=atomic_kind_set,&
+         distribution=local_particles, error=error)
+    CALL aux_coeff_set_initialize(aux_coeff_set,para_env,error)
+    CALL set_scp_env (scp_env=scp_env,aux_coeff_set = aux_coeff_set, error=error)
     CALL aux_coeff_set_release(aux_coeff_set, error=error)
 
    ! Allocate the data structure for energies ***
-    CALL allocate_scp_energy ( energy )
+    CALL allocate_scp_energy (energy)
 
    ! Allocate the data structure for energies ***
     nkind = SIZE(atomic_kind_set)
-    ALLOCATE (natom_of_kind(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "natom_of_kind",nkind*int_size)
+    ALLOCATE (natom_of_kind(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                            natom_of_kind=natom_of_kind)
     CALL allocate_scp_force(force,natom_of_kind)
-    DEALLOCATE (natom_of_kind,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "natom_of_kind")
+    DEALLOCATE (natom_of_kind,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ! set the scp_env
-    CALL set_scp_env ( scp_env=scp_env,&
-                       energy=energy,&
-                       force=force,&
-                       error=error)
+    CALL set_scp_env (scp_env=scp_env,energy=energy,force=force,error=error)
 
    !Sets up pw, grids, densities
     IF ( PRESENT ( qs_env ) )  CALL scp_qs_env_setup(scp_env,qs_env,error)

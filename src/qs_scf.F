@@ -170,7 +170,6 @@ MODULE qs_scf
   USE scp_energy_types,                ONLY: scp_energy_type
   USE scp_environment_types,           ONLY: get_scp_env,&
                                              scp_environment_type
-  USE scp_restarts,                    ONLY: write_scp_restart
   USE sparse_matrix_output,            ONLY: write_fm_with_basis_info,&
                                              write_sparse_matrix
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
@@ -375,9 +374,7 @@ CONTAINS
             scf_control,logger,qs_charges,ks_env,mos,atomic_kind_set, &
             particle_set,harris_env,dft_section,input,&
             scf_section)
-! ***SCP
     NULLIFY ( aux_coeff_set, scp_env )
-! ***SCP
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -414,13 +411,13 @@ CONTAINS
     ! short cut flags setting the different methods
     gapw = dft_control%qs_control%gapw
     gapw_xc = dft_control%qs_control%gapw_xc
-! **** SCP
     scp = dft_control%scp
+    ! **** SCP
     IF ( scp ) THEN
-      CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error=error )
-      CALL get_scp_env ( scp_env = scp_env, aux_coeff_set = aux_coeff_set, error = error )
-    END IF 
-! **** SCP
+       CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error=error )
+       CALL get_scp_env ( scp_env = scp_env, aux_coeff_set = aux_coeff_set, error = error )
+    END IF
+    ! **** SCP
     harris_flag = qs_env%use_harris
     has_unit_metric=.FALSE.
     IF (dft_control%qs_control%semi_empirical) &
@@ -493,15 +490,11 @@ CONTAINS
           IF (output_unit > 0) CALL m_flush(output_unit)
 
           total_steps = total_steps + 1
-! ***SCP
+          ! ***SCP
           IF ( scp ) CALL qs_ks_scp_update ( qs_env, just_energy=energy_only, error=error )
-! ***SCP
-          CALL qs_ks_update_qs_env(ks_env,&
-                                   qs_env=qs_env,&
-                                   calculate_forces=.FALSE.,&
-                                   just_energy=energy_only,&
-                                   diis_step=diis_step,&
-                                   error=error)
+          ! ***SCP
+          CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,calculate_forces=.FALSE.,&
+               just_energy=energy_only,diis_step=diis_step,error=error)
 
           ! print 'heavy weight' or relatively expensive quantities
           scf_env%p_mix = scf_control%p_mix
@@ -536,18 +529,16 @@ CONTAINS
                                                  diis_step,error)
              END IF
           CASE(ot_method_nr)
-! ***SCP
+             ! ***SCP
              IF ( scp ) THEN
-  
-               CALL qs_scf_loop_do_ot(scf_env,mos,rho,qs_env%mo_derivs,energy%total, &
-                                      matrix_s, aux_coeff_set, energy_only,      &
-                                      has_unit_metric,error)
+                
+                CALL qs_scf_loop_do_ot(scf_env,mos,rho,qs_env%mo_derivs,energy%total, &
+                     matrix_s, aux_coeff_set, energy_only,has_unit_metric,error)
              ELSE
-               CALL qs_scf_loop_do_ot(scf_env,mos,rho,qs_env%mo_derivs,energy%total, &
-                                      matrix_s, energy_only=energy_only,             &
-                                      has_unit_metric=has_unit_metric,error=error)
+                CALL qs_scf_loop_do_ot(scf_env,mos,rho,qs_env%mo_derivs,energy%total, &
+                     matrix_s, energy_only=energy_only,has_unit_metric=has_unit_metric,error=error)
              ENDIF
-! ***SCP
+             ! ***SCP
           END SELECT
 
           ! another heavy weight print object, print controlled by dft_section
@@ -654,12 +645,12 @@ CONTAINS
              !   *** but guarantees that rho and wfn are consistent at this point
              CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
              CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
-! ***SCP
-            IF ( scp ) THEN
-             CALL update_rhoscp ( qs_env = qs_env, error = error )
-             CALL qs_ks_scp_did_change(qs_env, rho_changed=.TRUE.,error=error)
-            ENDIF
-! ***SCP
+             ! ***SCP
+             IF ( scp ) THEN
+                CALL update_rhoscp ( qs_env = qs_env, error = error )
+                CALL qs_ks_scp_did_change(qs_env, rho_changed=.TRUE.,error=error)
+             ENDIF
+             ! ***SCP
 
              outer_loop_converged=.TRUE.
              IF (scf_control%outer_scf%have_scf) THEN
@@ -681,10 +672,8 @@ CONTAINS
           END IF
 
           !   *** Write WaveFunction restart file ***
-          CALL write_mo_set(mos,particle_set,dft_section=dft_section,error=error)
-! SCP restart
-          IF ( scp ) CALL write_scp_restart ( scp_env, input, globenv, atomic_kind_set, particle_set, error )
-! SCP restart
+          CALL write_mo_set(mos,particle_set,dft_section=dft_section,scp=scp,scp_env=scp_env,&
+               atomic_kind_set=atomic_kind_set,error=error)
 
           !   *** Exit if we have finished with the SCF inner loop ***
           IF (exit_inner_loop) THEN
@@ -707,12 +696,12 @@ CONTAINS
           ! ** update qs_env%rho
           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
           CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
-! *** SCP
+          ! *** SCP
           IF ( scp ) THEN
-           CALL update_rhoscp ( qs_env = qs_env, error = error )
-           CALL qs_ks_scp_did_change(qs_env, rho_changed=.TRUE.,error=error)
+             CALL update_rhoscp ( qs_env = qs_env, error = error )
+             CALL qs_ks_scp_did_change(qs_env, rho_changed=.TRUE.,error=error)
           ENDIF
-! *** SCP
+          ! *** SCP
           CALL timestop(0.0_dp,handle2)
 
        END DO scf_loop
@@ -742,10 +731,10 @@ CONTAINS
        CALL outer_loop_optimize(scf_env,scf_control,error)
        CALL outer_loop_update_qs_env(qs_env,scf_env,error)
        CALL qs_ks_did_change(ks_env,potential_changed=.TRUE.,error=error)
-! *** SCP
+       ! *** SCP
        IF ( scp ) CALL qs_ks_scp_did_change(qs_env, potential_changed=.TRUE.,error=error)
-! *** SCP
-
+       ! *** SCP
+       
     END DO scf_outer_loop
 
     IF(qs_env%dft_control%qs_control%becke_constraint)THEN

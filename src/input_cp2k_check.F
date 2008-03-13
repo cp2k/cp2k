@@ -469,18 +469,6 @@ CONTAINS
                    check=check, error=error)
             END IF
           END IF
-! SCP
-          CALL section_vals_val_get(r_section,"RESTART_SCP_COEFF",l_val=flag,error=error)
-          IF (flag.AND.check_restart(input_file, restart_file, "FORCE_EVAL%DFT%SCP",error)) THEN
-             section => section_vals_get_subs_vals(restart_file,&
-                  "FORCE_EVAL%DFT%SCP%SCP_COEFF%RESTART_INDEX",error=error)
-             CALL section_vals_set_subs_vals(input_file,"FORCE_EVAL%DFT%SCP%SCP_COEFF%RESTART_INDEX",&
-                  section,error=error)
-             section => section_vals_get_subs_vals(restart_file,&
-                  "FORCE_EVAL%DFT%SCP%SCP_COEFF%COORD",error=error)
-             CALL section_vals_set_subs_vals(input_file,"FORCE_EVAL%DFT%SCP%SCP_COEFF%COORD",&
-                  section,error=error)
-          END IF
 
 ! KG 
           CALL section_vals_val_get(r_section,"RESTART_KG_COEFF_POS",l_val=flag,error=error)
@@ -830,13 +818,6 @@ CPSourceFileRef,&
        CALL section_vals_remove_values(section_to_delete,error)
        section_to_delete => section_vals_get_subs_vals(input_file,&
             "MOTION%FREE_ENERGY%METADYN%EXT_LAGRANGE_VVP",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-! SCP section
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "FORCE_EVAL%DFT%SCP%SCP_COEFF%RESTART_INDEX",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(input_file,&
-            "FORCE_EVAL%DFT%SCP%SCP_COEFF%COORD",error=error)
        CALL section_vals_remove_values(section_to_delete,error)
     END IF
     CALL timestop(handle)
