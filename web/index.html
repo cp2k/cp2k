@@ -88,7 +88,8 @@ having CVS write permission.
  <li><a href="http://developer.berlios.de/patch/?group_id=129">send patches</a></li>
  <li>Goedecker-Teter-Hutter (GTH) pseudopotential parameter sets
  (<a href="http://cvs.berlios.de/cgi-bin/viewcvs.cgi/cp2k/potentials/Goedecker/cp2k">CP2K format</a>,
-  <a href="http://cvs.berlios.de/cgi-bin/viewcvs.cgi/cp2k/potentials/Goedecker/cpmd">CPMD format</a>)</li>
+  <a href="http://cvs.berlios.de/cgi-bin/viewcvs.cgi/cp2k/potentials/Goedecker/cpmd">CPMD format</a>,
+  <a href="http://cvs.berlios.de/cgi-bin/viewcvs.cgi/cp2k/potentials/Goedecker/abinit">ABINIT format</a>)</li>
  <li><a href="http://cvs.berlios.de/cgi-bin/viewcvs.cgi/cp2k/basis_sets">Gaussian basis sets generator for Quickstep</a></li>
 </ul>
 
