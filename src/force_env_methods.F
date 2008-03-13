@@ -197,8 +197,8 @@ CONTAINS
     INTEGER                                  :: nat, output_unit, &
                                                 print_forces, stat
     LOGICAL                                  :: energy_consistency, failure, &
-                                                ionode, my_eval, my_skip, &
-                                                need_f, pvd, pvn
+                                                my_eval, my_skip, need_f, &
+                                                pvd, pvn
     REAL(kind=dp)                            :: e_pot
     REAL(kind=dp), DIMENSION(:), POINTER     :: pos
     TYPE(cell_type), POINTER                 :: cell
@@ -211,9 +211,6 @@ CONTAINS
 
     NULLIFY(logger,results)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit = -1
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
     failure=.FALSE.
     need_f=.TRUE.
     my_eval=.TRUE.
