@@ -138,6 +138,8 @@ CONTAINS
     
        dx      = norm_tls_vec
        dx_thrs = gopt_param%cg_ls%max_step
+       ! If curvature is positive let's make the largest step allowed
+       IF (dimer_env%rot%curvature>0) dx = dx_thrs
        x0 = x0 + dx * tls_norm
        CALL cp_eval_at(gopt_env, x0, opt_energy2, master=gopt_env%force_env%para_env%mepos,&
             para_env=gopt_env%force_env%para_env, error=error)

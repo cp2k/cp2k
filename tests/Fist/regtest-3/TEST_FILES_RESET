@@ -50,3 +50,7 @@ water_2_TS.inp
 # bug fix in dimer method
 water_2_TS_CG.inp
 water_2_TS.inp
+# further tuning of the dimer translation
+argon.inp
+water_2_TS_CG.inp
+water_2_TS.inp
