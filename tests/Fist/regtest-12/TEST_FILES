@@ -1,0 +1,58 @@
+# molname constraints
+water_3_dist_2.inp        2
+water_3_dist_3.inp        2
+water32_hbonds_3.inp      2
+water32_hbonds_4.inp      2
+water_massive.inp         2
+# applying constraint to the 0 step of MD
+water_3_dist_startC.inp   2
+# just keep echo_input alive
+acn-3.inp                 0
+# Restart of restraints
+H2O-fixd-rest.inp         2
+H2O-fixd-rest-2.inp       2
+H2O-restraint_1.inp       2
+H2O-restraint_2.inp       2
+# Constrained FIXED_ATOMS + other kinds of contraints
+ethene_colv3.inp          2
+nh3_4x6_fixd.inp          2
+water_3_g3x3_fxd.inp      2
+#bug fix for nonbonded14
+test_pair.inp            11
+test_ub1.inp             11
+test_ub2.inp             11
+mfi.inp                   2
+# Intermolecular constraints
+water_3_dist_inter.inp    2
+water_3_dist_inter2.inp   2
+water_3_dist_mix.inp      2
+# Intermolecular restraints
+H2O-constr_1_ext.inp      2
+H2O-restraint_1_ext.inp   2
+nh3_4x6_ext.inp           2
+nh3_r4x6_ext.inp          2
+water_3_g3x3_ext.inp      2
+water_3_rg3x3_ext.inp     2
+# more mixing
+H2OFe-5_75-3.inp          2
+H2OFe-5_75-4.inp          2
+#general mixing
+H2OFe-5_75-5.inp          2
+#restart mix_env
+H2OFe-5_75-6.inp          2
+#general mapping
+H2OFe-5_75-7.inp          2
+#target two different molecule name (same nature)
+water_3_dist_2_restr.inp  2
+# check charges of Ti in the dumped topology
+interface.inp             2
+# silent in parallel
+interface-2.inp           0
+# geo_opt with save_mem.. bug fix
+mfi_geo.inp               7
+mfi_geo2.inp              7
+# fixed atoms with only partial components
+nh3_fixd_x.inp            2
+nh3_fixd_xy.inp           2
+nh3_fixd_y.inp            2
+nh3_fixd_z.inp            2
