@@ -50,6 +50,7 @@ MODULE gopt_f_types
 ! *****************************************************************************
   TYPE gopt_f_type
      INTEGER                                  :: ref_count, id_nr, its
+     INTEGER                                  :: nfree
      INTEGER                                  :: type_id, ts_method_id
      LOGICAL                                  :: dimer_rotation, do_line_search
      CHARACTER(LEN=default_string_length)     :: label
@@ -106,6 +107,7 @@ CONTAINS
        gopt_env%globenv        => globenv
        gopt_env%motion_section => section_vals_get_subs_vals(force_env%root_section,"MOTION",error=error)
        gopt_env%geo_section    => geo_opt_section
+       gopt_env%nfree   = force_env%subsys%particles%n_els
        gopt_env%type_id = gopt_param%type_id
        IF (gopt_param%type_id==default_ts_method_id) THEN 
           gopt_env%ts_method_id = gopt_param%ts_method_id

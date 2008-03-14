@@ -9,18 +9,14 @@
 !>      10.2005
 ! *****************************************************************************
 MODULE cg_optimizer
-  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE cg_utils,                        ONLY: cg_linmin,&
                                              get_conjugate_direction
   USE cp_output_handling,              ONLY: cp_iterate,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
   USE dimer_utils,                     ONLY: update_dimer_vec
-  USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type
+  USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_methods,                  ONLY: check_converg,&
                                              check_rot_conv,&
@@ -36,8 +32,6 @@ MODULE cg_optimizer
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -76,19 +70,14 @@ CONTAINS
 
     INTEGER                                  :: handle, output_unit
     LOGICAL                                  :: failure
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: motion_section, root_section
 
     CALL timeset(routineN,"I","",handle)
-    para_env=>force_env%para_env
-    root_section=>force_env%root_section
-    logger => cp_error_get_logger(error)
+    para_env     => force_env%para_env
+    root_section => force_env%root_section
+    logger       => cp_error_get_logger(error)
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -96,10 +85,7 @@ CONTAINS
        output_unit = cp_print_key_unit_nr(logger,geo_section,"PRINT%PROGRAM_RUN_INFO",&
             extension=".geoLog",error=error)
 
-       CALL force_env_get(force_env,subsys=subsys,error=error)
-       CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,particles=particles,error=error)
        CALL print_geo_opt_header(gopt_env, output_unit, "CONJUGATE GRADIENTS")
-       particle_set => particles%els
        CALL  cp_cg_main(force_env, x0, gopt_param,  output_unit, globenv,&
             force_env_section, motion_section, gopt_env, error)
        CALL cp_print_key_finished_output(output_unit,logger,geo_section,&

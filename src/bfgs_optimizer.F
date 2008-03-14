@@ -8,18 +8,13 @@
 ! *****************************************************************************
 MODULE bfgs_optimizer
 
-  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
-  USE cell_types,                      ONLY: cell_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_iterate,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
-  USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type
+  USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_methods,                  ONLY: check_converg,&
                                              geo_opt_io,&
@@ -37,8 +32,6 @@ MODULE bfgs_optimizer
   USE mathlib,                         ONLY: diamat_all
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
-  USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -76,8 +69,10 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
     CHARACTER(LEN=default_path_length)       :: hes_filename
-    INTEGER :: handle, handle2, hesunit, hesunit_read, i, indf, istat, its, &
-      j, maxiter, natom, ndf, nfree, nkind, output_unit
+    INTEGER                                  :: handle, handle2, hesunit, &
+                                                hesunit_read, i, indf, istat, &
+                                                its, j, maxiter, ndf, nfree, &
+                                                output_unit
     LOGICAL                                  :: conv, failure, hesrest, &
                                                 ionode, should_stop
     REAL(KIND=dp)                            :: ediff, emin, eold, etot, &
@@ -87,21 +82,15 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: eigvec, hes_mat
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: root_section
 
     failure = .FALSE.
     NULLIFY(logger, g)
-    logger => cp_error_get_logger(error)
-    para_env=>force_env%para_env
-    root_section=>force_env%root_section
+    logger       => cp_error_get_logger(error)
+    para_env     => force_env%para_env
+    root_section => force_env%root_section
 
     CALL timeset(routineN,"I","",handle)
     ionode      = para_env%mepos==para_env%source
@@ -118,14 +107,9 @@ CONTAINS
     CALL section_vals_val_get(geo_section,"BFGS%RESTART_HESSIAN",l_val=hesrest,error=error)
     output_unit = cp_print_key_unit_nr(logger,geo_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".geoLog",error=error)
-    CALL force_env_get(force_env, cell=cell, subsys=subsys,error=error)
-    CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds, particles=particles,error=error)
 
-    nkind = atomic_kinds%n_els
-    natom = particles%n_els
-    particle_set => particles%els
-    ndf = SIZE(x0)
-    nfree = SIZE(particle_set)
+    ndf   = SIZE(x0)
+    nfree = gopt_env%nfree
 
     ! Initialize hessian (hes = unitary matrix )
     ALLOCATE (hes(ndf*(ndf+1)/2),STAT=istat)
@@ -465,7 +449,6 @@ CONTAINS
      END IF
 
      IF(.NOT. set) THEN
-        ! CALL DCOPY(ndf,1.0,0,work,1) ! bug
         work(1:ndf)=1.0_dp
      ENDIF
 
