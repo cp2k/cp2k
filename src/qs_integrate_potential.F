@@ -47,7 +47,7 @@ MODULE qs_integrate_potential
                                              return_cube_nonortho
   USE d3_poly,                         ONLY: poly_d32cp2k
   USE distribution_2d_types,           ONLY: distribution_2d_release
-  USE gauss_colloc,                    ONLY: integrateGaussFull,integrateGaussFullFlat
+  USE gauss_colloc,                    ONLY: integrateGaussFull
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_constants,                 ONLY: pw_interp,&

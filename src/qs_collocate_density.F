@@ -55,7 +55,7 @@ MODULE qs_collocate_density
                                              return_cube_nonortho
   USE d3_poly,                         ONLY: poly_cp2k2d3
   USE distribution_2d_types,           ONLY: distribution_2d_release
-  USE gauss_colloc,                    ONLY: collocGauss, collocGaussFlat
+  USE gauss_colloc,                    ONLY: collocGauss
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_constants,                 ONLY: pw_interp,&
