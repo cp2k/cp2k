@@ -55,7 +55,7 @@ MODULE qs_collocate_density
                                              return_cube_nonortho
   USE d3_poly,                         ONLY: poly_cp2k2d3
   USE distribution_2d_types,           ONLY: distribution_2d_release
-  USE gauss_colloc,                    ONLY: collocGauss
+  USE gauss_colloc,                    ONLY: collocGauss, collocGaussFlat
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
   USE input_constants,                 ONLY: pw_interp,&
@@ -1157,7 +1157,7 @@ CONTAINS
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:) :: pol_y
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: pol_x
       REAL(KIND=dp) :: t_exp_1,t_exp_2,t_exp_min_1,t_exp_min_2,t_exp_plus_1,t_exp_plus_2
-      LOGICAL, PARAMETER :: use_f=.FALSE.
+      LOGICAL, PARAMETER :: use_subpatch=.FALSE.
 
     failure = .FALSE.
 
@@ -1439,14 +1439,15 @@ CONTAINS
     ENDDO
     ENDDO
 
-    IF (use_f) THEN
-        CALL collocate_general_f()
+    IF (use_subpatch) THEN
+        CALL collocate_general_real()
     ELSE
-    IF (rsgrid%orthorhombic ) THEN
-       CALL collocate_ortho()
-    ELSE
-       CALL collocate_general_opt()
-    END IF
+       IF (rsgrid%orthorhombic ) THEN
+          CALL collocate_ortho()
+       ELSE
+          ! call collocate_general_wings()
+          CALL collocate_general_opt()
+       END IF
     END IF
 
     IF (ga_gb_function /= FUNC_AB) THEN
@@ -1747,7 +1748,25 @@ CONTAINS
 
     END SUBROUTINE collocate_general_opt
 
-    SUBROUTINE collocate_general_f
+    SUBROUTINE collocate_general_real
+    INTEGER, DIMENSION(2, 3)                 :: local_b
+    INTEGER, DIMENSION(3)                    :: local_s
+    REAL(dp), &
+      DIMENSION((lp+1)*(lp+2)*(lp+3)/6)      :: poly_d3
+
+        CALL poly_cp2k2d3(coef_xyz,lp,poly_d3,error)
+        local_b(1,:)=rsgrid%lb_real-rsgrid%lb
+        local_b(2,:)=rsgrid%ub_real-rsgrid%lb
+        local_s=rsgrid%lb_real-rsgrid%lb
+        CALL collocGauss(h=cell%hmat,h_inv=cell%h_inv,&
+            grid=grid,poly=poly_d3,alphai=zetp,posi=rp,max_r2=radius*radius,&
+            periodic=cell%perd,gdim=ng,local_bounds=local_b,local_shift=local_s,&
+            error=error)
+        ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
+        
+    END SUBROUTINE
+
+    SUBROUTINE collocate_general_wings
     INTEGER, DIMENSION(2, 3)                 :: local_b
     REAL(dp), &
       DIMENSION((lp+1)*(lp+2)*(lp+3)/6)      :: poly_d3
@@ -1759,7 +1778,6 @@ CONTAINS
             grid=grid,poly=poly_d3,alphai=zetp,posi=rp,max_r2=radius*radius,&
             periodic=cell%perd,gdim=ng,local_bounds=local_b,&
             error=error)
-        ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
         
     END SUBROUTINE
 !

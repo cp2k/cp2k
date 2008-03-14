@@ -20,7 +20,14 @@ IMPLICIT NONE
 PRIVATE
 
 PUBLIC :: collocGauss, collocGauss_safe,sphRad2,calc_max_r2,&
-    calcBox , integrateGauss, calcRadius2, integrateGaussFull
+    calcBox , integrateGauss, calcRadius2, integrateGaussFull,&
+    collocGaussFlat,integrateGaussFullFlat
+
+#ifdef FD_DEBUG
+#define IF_CHECK(x,y) x
+#else
+#define IF_CHECK(x,y) y
+#endif
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gauss_colloc'
 
@@ -398,6 +405,42 @@ SUBROUTINE collocGauss(h,h_inv,grid,poly,alphai,posi,max_r2,&
 END SUBROUTINE
 
 ! *****************************************************************************
+!> \brief collocate a periodically repeated gaussian on a non orthormbic grid
+!>
+!> like collocGauss, but takes a flattened grid as input.
+!> A little bit less optimized, mostly to connect to other languages.
+! *****************************************************************************
+SUBROUTINE collocGaussFlat(h,h_inv,grid,ngpts,ldim,poly,alphai,posi,max_r2,&
+        periodic,gdim,local_bounds,local_shift,poly_shift,scale,error)
+    REAL(dp), DIMENSION(0:2, 0:2), &
+      INTENT(in)                             :: h, h_inv
+    INTEGER, INTENT(in) :: ngpts,ldim(0:2)
+    REAL(dp), DIMENSION(IF_CHECK(ngpts,*)), &
+      INTENT(inout)                          :: grid
+    REAL(dp), DIMENSION(:), INTENT(in)       :: poly
+    REAL(dp), INTENT(in)                     :: alphai
+    REAL(dp), DIMENSION(0:2), INTENT(in)     :: posi
+    REAL(dp), INTENT(in)                     :: max_r2
+    INTEGER, DIMENSION(0:2), INTENT(in)      :: periodic
+    INTEGER, DIMENSION(0:2), INTENT(in), &
+      OPTIONAL                               :: gdim
+    INTEGER, DIMENSION(2, 0:2), INTENT(in), &
+      OPTIONAL                               :: local_bounds
+    INTEGER, DIMENSION(0:2), INTENT(in), &
+      OPTIONAL                               :: local_shift
+    REAL(dp), DIMENSION(0:2), INTENT(in), &
+      OPTIONAL                               :: poly_shift
+    REAL(dp), INTENT(in), OPTIONAL           :: scale
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'collocGaussFlat', &
+        routineP=moduleN//':'//routineN
+#define FM_FLAT_GRID
+#include "colloc_int_body.f90"
+#undef FM_FLAT_GRID
+END SUBROUTINE
+
+! *****************************************************************************
 !> \brief integrates a gaussian times a polynomial.
 !>
 !> Most things are the same as for collocGauss (see its comments).
@@ -473,6 +516,45 @@ SUBROUTINE integrateGaussFull(h,h_inv,grid,poly,alphai,posi,max_r2,&
 #define FMG_INTEGRATE_FULL
 #include "colloc_int_body.f90"
 #undef FMG_INTEGRATE_FULL
+END SUBROUTINE
+
+! *****************************************************************************
+!> \brief integrates a gaussian times any polynomial up to a give order.
+!>
+!> like integrateGaussFull, but with a flat grid.
+!> a little bit less optimized, mostly to connect to other languages
+! *****************************************************************************
+SUBROUTINE integrateGaussFullFlat(h,h_inv,grid,ngpts,ldim,poly,alphai,posi,max_r2,&
+        periodic,gdim,local_bounds,local_shift,poly_shift,scale,error)
+    REAL(dp), DIMENSION(0:2, 0:2), &
+      INTENT(in)                             :: h, h_inv
+    INTEGER, INTENT(in) :: ngpts,ldim(0:2)
+    REAL(dp), DIMENSION(IF_CHECK(ngpts,*)), &
+      INTENT(inout)                          :: grid
+    REAL(dp), DIMENSION(:), INTENT(out)      :: poly
+    REAL(dp), INTENT(in)                     :: alphai
+    REAL(dp), DIMENSION(0:2), INTENT(in)     :: posi
+    REAL(dp), INTENT(in)                     :: max_r2
+    INTEGER, DIMENSION(0:2), INTENT(in)      :: periodic
+    INTEGER, DIMENSION(0:2), INTENT(in), &
+      OPTIONAL                               :: gdim
+    INTEGER, DIMENSION(2, 0:2), INTENT(in), &
+      OPTIONAL                               :: local_bounds
+    INTEGER, DIMENSION(0:2), INTENT(in), &
+      OPTIONAL                               :: local_shift
+    REAL(dp), DIMENSION(0:2), INTENT(in), &
+      OPTIONAL                               :: poly_shift
+    REAL(dp), INTENT(in), OPTIONAL           :: scale
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'integrateGaussFullFlat', &
+        routineP=moduleN//':'//routineN
+
+#define FM_FLAT_GRID
+#define FMG_INTEGRATE_FULL
+#include "colloc_int_body.f90"
+#undef FMG_INTEGRATE_FULL
+#undef FM_FLAT_GRID
 END SUBROUTINE
 
 ! *****************************************************************************

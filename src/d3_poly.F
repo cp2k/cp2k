@@ -34,6 +34,12 @@ MODULE d3_poly
         poly_padd_uneval3,poly_padd_uneval3b,poly_padd_uneval2,poly_padd_uneval2b,&
         poly_affine_t3t,poly_d32cp2k
     
+#ifdef FD_DEBUG
+#define IF_CHECK(x,y) x
+#else
+#define IF_CHECK(x,y) y
+#endif
+
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'd3_poly'
 ! maximum grad for cached values
     INTEGER, PUBLIC, PARAMETER :: max_grad2=12
@@ -474,11 +480,16 @@ END SUBROUTINE
 ! *****************************************************************************
 SUBROUTINE poly_mult3b(p1,size_p1,grad1,p2,size_p2,grad2,pRes,size_pRes,np1,sumUp)
     INTEGER, INTENT(in)                      :: size_p1
-    REAL(dp), DIMENSION(size_p1), INTENT(in) :: p1
+    REAL(dp), &
+      DIMENSION(IF_CHECK(size_p1, *)), &
+      INTENT(in)                             :: p1
     INTEGER, INTENT(in)                      :: grad1, size_p2
-    REAL(dp), DIMENSION(size_p2), INTENT(in) :: p2
+    REAL(dp), &
+      DIMENSION(IF_CHECK(size_p2, *)), &
+      INTENT(in)                             :: p2
     INTEGER, INTENT(in)                      :: grad2, size_pRes
-    REAL(dp), DIMENSION(size_pRes), &
+    REAL(dp), &
+      DIMENSION(IF_CHECK(size_pRes, *)), &
       INTENT(inout)                          :: pRes
     INTEGER, INTENT(in)                      :: np1
     LOGICAL, INTENT(in)                      :: sumUp
@@ -495,7 +506,7 @@ SUBROUTINE poly_mult3b(p1,size_p1,grad1,p2,size_p2,grad2,pRes,size_pRes,np1,sumU
     my_size_p1=size_p1/np1
     newSize=size_pRes/np1
 
-    IF (.not.sumUp) pRes=0.0_dp
+    IF (.not.sumUp) pRes(1:size_pRes)=0.0_dp
     iShift=0
     shiftRes=0
     DO ipoly=1,np1
@@ -571,11 +582,15 @@ END SUBROUTINE
 ! *****************************************************************************
 SUBROUTINE poly_mult3ab(p1,size_p1,grad1,p2,pRes,size_pRes,np1,sumUp)
     INTEGER, INTENT(in)                      :: size_p1
-    REAL(dp), DIMENSION(size_p1), INTENT(in) :: p1
+    REAL(dp), &
+      DIMENSION(IF_CHECK(size_p1, *)), &
+      INTENT(in)                             :: p1
     INTEGER, INTENT(in)                      :: grad1
-    REAL(dp), DIMENSION(4), INTENT(in)       :: p2
+    REAL(dp), DIMENSION(IF_CHECK(4, *)), &
+      INTENT(in)                             :: p2
     INTEGER, INTENT(in)                      :: size_pRes
-    REAL(dp), DIMENSION(size_pRes), &
+    REAL(dp), &
+      DIMENSION(IF_CHECK(size_pRes, *)), &
       INTENT(inout)                          :: pRes
     INTEGER, INTENT(in)                      :: np1
     LOGICAL, INTENT(in)                      :: sumUp
@@ -593,7 +608,7 @@ SUBROUTINE poly_mult3ab(p1,size_p1,grad1,p2,pRes,size_pRes,np1,sumUp)
     my_size_p1=size_p1/np1
     newSize=size_pRes/np1
 
-    IF (.not.sumUp) pRes=0.0_dp
+    IF (.not.sumUp) pRes(1:size_pRes)=0.0_dp
     iShift=0
     shiftRes=0
     DO ipoly=1,np1
@@ -862,14 +877,19 @@ SUBROUTINE poly_affine_t3t(p,m,b,pRes,npoly,error)
         monoDim2=monoDim1+monoSize2
         monoFullDim2=monoSize2*monoDim2
         monoDimAtt=monoSize1*monoDim2
-        CALL poly_mult3ab(monoG1(1:monoFullDim1),monoFullDim1,igrad,basepoly(:,1),&
-            monoG2(1:monoDimAtt),monoDimAtt,monoSize1,.FALSE.)
+        CALL poly_mult3ab(IF_CHECK(monoG1(1:monoFullDim1),monoG1(1)),monoFullDim1,igrad,&
+            IF_CHECK(basepoly(:,1),basepoly(1,1)),&
+            IF_CHECK(monoG2(1:monoDimAtt),monoG2(1)),monoDimAtt,monoSize1,.FALSE.)
         monoDimAtt2=monoFullDim2-monoDim2
         start_idx1=(monoSize1-igrad-1)*monoDim1
-        CALL poly_mult3ab(monoG1(start_idx1+1:monoFullDim1),monoFullDim1-start_idx1,igrad,basepoly(:,2),&
-            monoG2(monoDimAtt+1:monoDimAtt2),monoDimAtt2-monoDimAtt,igrad+1,.FALSE.)
-        CALL poly_mult3ab(monoG1(monoFullDim1-monoDim1+1:monoFullDim1),monoDim1,igrad,&
-            basepoly(:,3),monoG2(monoDimAtt2+1:monoFullDim2),monoFullDim2-monoDimAtt2,1,.FALSE.)
+        CALL poly_mult3ab(IF_CHECK(monoG1(start_idx1+1:monoFullDim1),monoG1(start_idx1+1)),&
+            monoFullDim1-start_idx1,igrad,IF_CHECK(basepoly(:,2),basepoly(1,2)),&
+            IF_CHECK(monoG2(monoDimAtt+1:monoDimAtt2),monoG2(monoDimAtt+1)),&
+            monoDimAtt2-monoDimAtt,igrad+1,.FALSE.)
+        CALL poly_mult3ab(IF_CHECK(monoG1(monoFullDim1-monoDim1+1:monoFullDim1),monoG1(monoFullDim1-monoDim1+1)),&
+            monoDim1,igrad,IF_CHECK(basepoly(:,3),basepoly(1,3)),&
+            IF_CHECK(monoG2(monoDimAtt2+1:monoFullDim2),monoG2(monoDimAtt2+1)),&
+            monoFullDim2-monoDimAtt2,1,.FALSE.)
         igrad=igrad+1
 
         ! even grads
@@ -901,15 +921,19 @@ SUBROUTINE poly_affine_t3t(p,m,b,pRes,npoly,error)
         monoDim1=monoDim2+monoSize1
         monoFullDim1=monoSize1*monoDim1
         monoDimAtt=monoSize2*monoDim1
-        CALL poly_mult3ab(monoG2(1:monoFullDim2),monoFullDim2,igrad,basepoly(:,1),&
-            monoG1(1:monoDimAtt),monoDimAtt,monoSize2,.FALSE.)
+        CALL poly_mult3ab(IF_CHECK(monoG2(1:monoFullDim2),monoG2(1)),monoFullDim2,igrad,&
+            IF_CHECK(basepoly(:,1),basepoly(1,1)),IF_CHECK(monoG1(1:monoDimAtt),monoG1(1)),&
+            monoDimAtt,monoSize2,.FALSE.)
         monoDimAtt2=monoFullDim1-monoDim1
         start_idx1=(monoSize2-igrad-1)*monoDim2
-        CALL poly_mult3ab(monoG2(start_idx1+1:monoFullDim2),monoFullDim2-start_idx1,igrad,&
-            basepoly(:,2),monoG1(monoDimAtt+1:monoDimAtt2),monoDimAtt2-monoDimAtt,&
+        CALL poly_mult3ab(IF_CHECK(monoG2(start_idx1+1:monoFullDim2),monoG2(start_idx1+1)),&
+            monoFullDim2-start_idx1,igrad,IF_CHECK(basepoly(:,2),basepoly(1,2)),&
+            IF_CHECK(monoG1(monoDimAtt+1:monoDimAtt2),monoG1(monoDimAtt+1)),monoDimAtt2-monoDimAtt,&
             igrad+1,.FALSE.)
-        CALL poly_mult3ab(monoG2(monoFullDim2-monoDim2+1:monoFullDim2),monoDim2,igrad,&
-            basepoly(:,3),monoG1(monoDimAtt2+1:monoFullDim1),monoFullDim1-monoDimAtt2,1,.FALSE.)
+        CALL poly_mult3ab(IF_CHECK(monoG2(monoFullDim2-monoDim2+1:monoFullDim2),monoG2(monoFullDim2-monoDim2+1)),&
+            monoDim2,igrad,IF_CHECK(basepoly(:,3),basepoly(1,3)),&
+            IF_CHECK(monoG1(monoDimAtt2+1:monoFullDim1),monoG1(monoDimAtt2+1)),&
+            monoFullDim1-monoDimAtt2,1,.FALSE.)
         igrad=igrad+1
 
         ! ! alterantive to unrolling
@@ -1014,14 +1038,19 @@ SUBROUTINE poly_affine_t3(p,m,b,pRes,npoly,error)
         monoDim2=monoDim1+monoSize2
         monoFullDim2=monoSize2*monoDim2
         monoDimAtt=monoSize1*monoDim2
-        CALL poly_mult3ab(monoG1(1:monoFullDim1),monoFullDim1,igrad,basepoly(:,1),&
-            monoG2(1:monoDimAtt),monoDimAtt,monoSize1,.FALSE.)
+        CALL poly_mult3ab(IF_CHECK(monoG1(1:monoFullDim1),monoG1(1)),monoFullDim1,igrad,&
+            IF_CHECK(basepoly(:,1),basepoly(1,1)),&
+            IF_CHECK(monoG2(1:monoDimAtt),monoG2(1)),monoDimAtt,monoSize1,.FALSE.)
         monoDimAtt2=monoFullDim2-monoDim2
         start_idx1=(monoSize1-igrad-1)*monoDim1
-        CALL poly_mult3ab(monoG1(start_idx1+1:monoFullDim1),monoFullDim1-start_idx1,igrad,basepoly(:,2),&
-            monoG2(monoDimAtt+1:monoDimAtt2),monoDimAtt2-monoDimAtt,igrad+1,.FALSE.)
-        CALL poly_mult3ab(monoG1(monoFullDim1-monoDim1+1:monoFullDim1),monoDim1,igrad,&
-            basepoly(:,3),monoG2(monoDimAtt2+1:monoFullDim2),monoFullDim2-monoDimAtt2,1,.FALSE.)
+        CALL poly_mult3ab(IF_CHECK(monoG1(start_idx1+1:monoFullDim1),monoG1(start_idx1+1)),&
+            monoFullDim1-start_idx1,igrad,IF_CHECK(basepoly(:,2),basepoly(1,2)),&
+            IF_CHECK(monoG2(monoDimAtt+1:monoDimAtt2),monoG2(monoDimAtt+1)),&
+            monoDimAtt2-monoDimAtt,igrad+1,.FALSE.)
+        CALL poly_mult3ab(IF_CHECK(monoG1(monoFullDim1-monoDim1+1:monoFullDim1),monoG1(monoFullDim1-monoDim1+1)),&
+            monoDim1,igrad,IF_CHECK(basepoly(:,3),basepoly(1,3)),&
+            IF_CHECK(monoG2(monoDimAtt2+1:monoFullDim2),monoG2(monoDimAtt2+1)),&
+            monoFullDim2-monoDimAtt2,1,.FALSE.)
         igrad=igrad+1
 
         ! even grads
@@ -1053,15 +1082,20 @@ SUBROUTINE poly_affine_t3(p,m,b,pRes,npoly,error)
         monoDim1=monoDim2+monoSize1
         monoFullDim1=monoSize1*monoDim1
         monoDimAtt=monoSize2*monoDim1
-        CALL poly_mult3ab(monoG2(1:monoFullDim2),monoFullDim2,igrad,basepoly(:,1),&
-            monoG1(1:monoDimAtt),monoDimAtt,monoSize2,.FALSE.)
+        CALL poly_mult3ab(IF_CHECK(monoG2(1:monoFullDim2),monoG2(1)),monoFullDim2,igrad,&
+            IF_CHECK(basepoly(:,1),basepoly(1,1)),&
+            IF_CHECK(monoG1(1:monoDimAtt),monoG1(1)),monoDimAtt,monoSize2,.FALSE.)
         monoDimAtt2=monoFullDim1-monoDim1
         start_idx1=(monoSize2-igrad-1)*monoDim2
-        CALL poly_mult3ab(monoG2(start_idx1+1:monoFullDim2),monoFullDim2-start_idx1,igrad,&
-            basepoly(:,2),monoG1(monoDimAtt+1:monoDimAtt2),monoDimAtt2-monoDimAtt,&
+        CALL poly_mult3ab(IF_CHECK(monoG2(start_idx1+1:monoFullDim2),monoG2(start_idx1+1)),&
+            monoFullDim2-start_idx1,igrad,&
+            IF_CHECK(basepoly(:,2),basepoly(1,2)),&
+            IF_CHECK(monoG1(monoDimAtt+1:monoDimAtt2),monoG1(monoDimAtt+1)),monoDimAtt2-monoDimAtt,&
             igrad+1,.FALSE.)
-        CALL poly_mult3ab(monoG2(monoFullDim2-monoDim2+1:monoFullDim2),monoDim2,igrad,&
-            basepoly(:,3),monoG1(monoDimAtt2+1:monoFullDim1),monoFullDim1-monoDimAtt2,1,.FALSE.)
+        CALL poly_mult3ab(IF_CHECK(monoG2(monoFullDim2-monoDim2+1:monoFullDim2),monoG2(monoFullDim2-monoDim2+1)),&
+            monoDim2,igrad,IF_CHECK(basepoly(:,3),basepoly(1,3)),&
+            IF_CHECK(monoG1(monoDimAtt2+1:monoFullDim1),monoG1(monoDimAtt2+1)),&
+            monoFullDim1-monoDimAtt2,1,.FALSE.)
         igrad=igrad+1
 
         ! ! alterantive to unrolling
@@ -1111,13 +1145,17 @@ END SUBROUTINE
 ! *****************************************************************************
 SUBROUTINE poly_p_eval3b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
     INTEGER, INTENT(in)                      :: size_p
-    REAL(dp), DIMENSION(size_p), INTENT(in)  :: p
+    REAL(dp), &
+      DIMENSION(IF_CHECK(size_p, *)), &
+      INTENT(in)                             :: p
     REAL(dp), INTENT(in)                     :: x
     INTEGER, INTENT(in)                      :: size_pRes
-    REAL(dp), DIMENSION(size_pRes), &
+    REAL(dp), &
+      DIMENSION(IF_CHECK(size_pRes, *)), &
       INTENT(inout)                          :: pRes
     INTEGER, INTENT(in)                      :: npoly, grad
-    REAL(dp), DIMENSION(grad+1), &
+    REAL(dp), &
+      DIMENSION(IF_CHECK(grad+1, *)), &
       INTENT(inout)                          :: xi
 
     CHARACTER(len=*), PARAMETER :: routineN = 'poly_p_eval3b', &
@@ -1131,7 +1169,7 @@ SUBROUTINE poly_p_eval3b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
     IF (.not.module_initialized) CALL init_d3_poly_module
     inSize=size_p/npoly
     newSize=size_pRes/npoly
-    pRes=0.0
+    pRes(1:size_pRes)=0.0
     xi(1)=1.0
     DO i=1,grad
         xi(i+1)=xi(i)*x
@@ -1214,14 +1252,17 @@ END SUBROUTINE
 ! *****************************************************************************
 SUBROUTINE poly_padd_uneval3b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
     INTEGER, INTENT(in)                      :: size_p
-    REAL(dp), DIMENSION(size_p), &
+    REAL(dp), &
+      DIMENSION(IF_CHECK(size_p, *)), &
       INTENT(inout)                          :: p
     REAL(dp), INTENT(in)                     :: x
     INTEGER, INTENT(in)                      :: size_pRes
-    REAL(dp), DIMENSION(size_pRes), &
+    REAL(dp), &
+      DIMENSION(IF_CHECK(size_pRes, *)), &
       INTENT(in)                             :: pRes
     INTEGER, INTENT(in)                      :: npoly, grad
-    REAL(dp), DIMENSION(grad+1), &
+    REAL(dp), &
+      DIMENSION(IF_CHECK(grad+1, *)), &
       INTENT(inout)                          :: xi
 
     CHARACTER(len=*), PARAMETER :: routineN = 'poly_padd_uneval3b', &
@@ -1314,13 +1355,18 @@ END SUBROUTINE
 !> \brief low level routine of poly_p_eval2 without checks
 ! *****************************************************************************
 SUBROUTINE poly_p_eval2b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
-    REAL(dp), DIMENSION(*), INTENT(in)       :: p
     INTEGER, INTENT(in)                      :: size_p
+    REAL(dp), &
+      DIMENSION(IF_CHECK(size_p, *)), &
+      INTENT(in)                             :: p
     REAL(dp), INTENT(in)                     :: x
-    REAL(dp), DIMENSION(*), INTENT(inout)    :: pRes
-    INTEGER, INTENT(in)                      :: size_pRes, npoly
+    INTEGER, INTENT(in)                      :: size_pRes
+    REAL(dp), &
+      DIMENSION(IF_CHECK(size_pRes, *)), &
+      INTENT(inout)                          :: pRes
+    INTEGER, INTENT(in)                      :: npoly
     INTEGER                                  :: grad
-    REAL(dp), DIMENSION(*)                   :: xi
+    REAL(dp), DIMENSION(IF_CHECK(grad+1, *)) :: xi
 
     CHARACTER(len=*), PARAMETER :: routineN = 'poly_p_eval2b', &
       routineP = moduleN//':'//routineN
@@ -1331,12 +1377,9 @@ SUBROUTINE poly_p_eval2b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
 
     IF (.not.module_initialized) CALL init_d3_poly_module
     inSize=size_p/npoly
-    !grad=grad_size2(inSize)
     newSize=size_pRes/npoly
-    DO i=1,size_pRes
-       pRes(i)=0.0_dp
-    END DO
-    !CPPreconditionNoFail(newSize>=poly_size1(grad),cp_failure_level,routineP,error)
+    pRes(1:size_pRes)=0.0_dp
+    !CPPreconditionNoFail(newSize>grad,cp_failure_level,routineP,error)
     xi(1)=1.0_dp
     DO i=1,grad
         xi(i+1)=xi(i)*x
@@ -1413,15 +1456,17 @@ END SUBROUTINE
 ! *****************************************************************************
 SUBROUTINE poly_padd_uneval2b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
     INTEGER, INTENT(in)                      :: size_p
-    REAL(dp), DIMENSION(size_p), &
+    REAL(dp), &
+      DIMENSION(IF_CHECK(size_p, *)), &
       INTENT(inout)                          :: p
     REAL(dp), INTENT(in)                     :: x
     INTEGER, INTENT(in)                      :: size_pRes
-    REAL(dp), DIMENSION(size_pRes), &
+    REAL(dp), &
+      DIMENSION(IF_CHECK(size_pRes, *)), &
       INTENT(in)                             :: pRes
     INTEGER, INTENT(in)                      :: npoly
     INTEGER                                  :: grad
-    REAL(dp), DIMENSION(grad+1)              :: xi
+    REAL(dp), DIMENSION(IF_CHECK(grad+1, *)) :: xi
 
     CHARACTER(len=*), PARAMETER :: routineN = 'poly_padd_uneval2b', &
       routineP = moduleN//':'//routineN
@@ -1434,9 +1479,8 @@ SUBROUTINE poly_padd_uneval2b(p,size_p,x,pRes,size_pRes,npoly,grad,xi)
     IF (.not.module_initialized) CALL init_d3_poly_module
     inSize=size_p/npoly
     upSize=(grad+1)*(grad+2)/2
-    !grad=grad_size2(inSize)
     newSize=size_pRes/npoly
-    !CPPreconditionNoFail(newSize>=poly_size1(grad),cp_failure_level,routineP,error)
+    !CPPreconditionNoFail(newSize>grad,cp_failure_level,routineP,error)
     xi(1)=1.0_dp
     DO i=1,grad
         xi(i+1)=xi(i)*x

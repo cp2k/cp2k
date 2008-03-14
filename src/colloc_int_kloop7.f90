@@ -28,8 +28,8 @@
 !    fout.close()
 !
 #ifndef FMG_INTEGRATE_FULL
-    CALL poly_p_eval2b(poly_jk(1),size_jk,REAL(j,dp),poly_k(0),&
-        size_k,npoly=npoly,grad=grad_val,xi=xi(1))
+    CALL poly_p_eval2b(IF_CHECK(poly_jk,poly_jk(1)),size_jk,REAL(j,dp),&
+         IF_CHECK(poly_k,poly_k(0)),size_k,npoly=npoly,grad=grad_val,xi=IF_CHECK(xi,xi(1)))
 #endif
     ! starting point
     kJump=ndim(2)-l_bounds(2,2)+l_bounds(1,2)
@@ -69,7 +69,7 @@
         DO
             DO k=kstart,kend
 #if defined(FMG_INTEGRATE)||defined(FMG_INTEGRATE_FULL)
-                gval=grid(ik,ij,ii)*res_k
+                gval=IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))*res_k
                 k_vals(0)=k_vals(0)+gval
                 p_kk=gval
                     p_kk=p_kk*REAL(k,dp)
@@ -103,7 +103,7 @@
                     p_kk=p_kk*REAL(k,dp)
                     p_v=p_v+poly_k(7)*p_kk
                     p_kk=p_kk*REAL(k,dp)
-                grid(ik,ij,ii)=grid(ik,ij,ii)+p_v*res_k
+                IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))=IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))+p_v*res_k
 #endif
 
                 res_k=res_k*kk_coeffn
@@ -133,7 +133,7 @@
                 res_k=res_k*kk_coeffn
                 kk_coeffn=kk_coeffn*kk_coeff2
 #if defined(FMG_INTEGRATE)||defined(FMG_INTEGRATE_FULL)
-                gval=grid(ik,ij,ii)*res_k
+                gval=IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))*res_k
                 k_vals(0)=k_vals(0)+gval
                 p_kk=gval
                     p_kk=p_kk*REAL(k,dp)
@@ -167,7 +167,7 @@
                     p_kk=p_kk*k
                     p_v=p_v+poly_k(7)*p_kk
                     p_kk=p_kk*k
-                grid(ik,ij,ii)=grid(ik,ij,ii)+p_v*res_k
+                IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))=IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))+p_v*res_k
 #endif
                 ik=ik-1
             END DO
@@ -193,7 +193,7 @@
         DO
             DO k=kstart,kend
 #if defined(FMG_INTEGRATE)||defined(FMG_INTEGRATE_FULL)
-                gval=grid(ik,ij,ii)*res_k
+                gval=IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))*res_k
                 k_vals(0)=k_vals(0)+gval
                 p_kk=gval
                     p_kk=p_kk*REAL(k,dp)
@@ -227,7 +227,7 @@
                     p_kk=p_kk*REAL(k,dp)
                     p_v=p_v+poly_k(7)*p_kk
                     p_kk=p_kk*REAL(k,dp)
-                grid(ik,ij,ii)=grid(ik,ij,ii)+p_v*res_k
+                IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))=IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))+p_v*res_k
 #endif
 
                 res_k=res_k*kk_coeffn
@@ -255,7 +255,7 @@
                 res_k=res_k*kk_coeffn
                 kk_coeffn=kk_coeffn*kk_coeff2
 #if defined(FMG_INTEGRATE)||defined(FMG_INTEGRATE_FULL)
-                gval=grid(ik,ij,ii)*res_k
+                gval=IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))*res_k
                 k_vals(0)=k_vals(0)+gval
                 p_kk=gval
                     p_kk=p_kk*REAL(k,dp)
@@ -289,7 +289,7 @@
                     p_kk=p_kk*k
                     p_v=p_v+poly_k(7)*p_kk
                     p_kk=p_kk*k
-                grid(ik,ij,ii)=grid(ik,ij,ii)+p_v*res_k
+                IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))=IF_FLAT(grid(ii+ij+ik+1),grid(ik,ij,ii))+p_v*res_k
 #endif
                 ik=ik-1
             END DO
@@ -315,7 +315,6 @@
         pShift=pShift+grad_val+1
     END DO
 #elif defined(FMG_INTEGRATE_FULL)
-    CALL poly_padd_uneval2b(poly_jk,size_jk,REAL(j,dp),k_vals,&
-        size_k,npoly=npoly,grad=grad_val,xi=xi)
-    !CALL poly_padd_uneval2(poly_jk,REAL(j,dp),k_vals,npoly=npoly,error=error)
+    CALL poly_padd_uneval2b(IF_CHECK(poly_jk,poly_jk(1)),size_jk,REAL(j,dp),IF_CHECK(k_vals,k_vals(0)),&
+        size_k,npoly=npoly,grad=grad_val,xi=IF_CHECK(xi,xi(1)))
 #endif

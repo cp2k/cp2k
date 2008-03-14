@@ -25,7 +25,7 @@
       sqDk
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: poly_ijk, poly_jk,xi
     REAL(dp), DIMENSION(0:2)                 :: l, normD, p_shift, resPos, &
-                                                resPosReal, riPos, rpos, wrPos
+                                                resPosReal, riPos, rpos, wrPos,ldim2
 
 #ifdef FMG_INTEGRATE
     INTEGER :: ipoly,pShift
@@ -40,6 +40,12 @@
     REAL(dp) :: p_v
     INTEGER, PARAMETER :: npoly=1
 #endif
+#ifdef FM_FLAT_GRID
+    INTEGER :: ii_cum, ij_cum, ik_cum,iidim,ijdim
+#define IF_FLAT(x,y) x
+#else
+#define IF_FLAT(x,y) y
+#endif
 
     failure=.FALSE.
     k_bounds_alloc=.FALSE.
@@ -52,14 +58,24 @@
     ELSE
         p_shift=0.0_dp
     END IF
+#ifdef FM_FLAT_GRID
+    CPPrecondition(ngpts>=ldim(0)*ldim(1)*ldim(2),cp_failure_level,routineP,error,failure)
+    ldim2(permut(0))=ldim(0)
+    ldim2(permut(1))=ldim(1)
+    ldim2(permut(2))=ldim(2)
+    ijdim=ldim(2)
+    iidim=ldim(2)*ldim(1)
+#else
+    ldim2(permut(0))=SIZE(grid,1)
+    ldim2(permut(1))=SIZE(grid,2)
+    ldim2(permut(2))=SIZE(grid,3)
+#endif
     IF (PRESENT(gdim)) THEN
         DO i=0,2
             ndim(permut(i))=gdim(i)
         END DO
     ELSE
-        ndim(permut(0))=SIZE(grid,1)
-        ndim(permut(1))=SIZE(grid,2)
-        ndim(permut(2))=SIZE(grid,3)
+        ndim=ldim2
     END IF
     g_scale=1.0_dp
     IF (PRESENT(scale)) g_scale=scale
@@ -85,8 +101,8 @@
         l_shift=0 ! l_bounds(1,:)
     END IF
     l_ub=l_bounds(2,:)-l_bounds(1,:)+l_shift
-    DO i=1,3
-        CPPrecondition(l_ub(permut(i-1))<SIZE(grid,i),cp_failure_level,routineP,error,failure)
+    DO i=0,2
+        CPPrecondition(l_ub(permut(i))<ldim2(i),cp_failure_level,routineP,error,failure)
     END DO
     IF (failure) GOTO 21
     
@@ -450,7 +466,7 @@ poly_alloc=.TRUE.
     END IF
     
     iend=MIN(iiShift+l_bounds(2,0),imax)
-    ii=iistart
+    ii=iistart IF_FLAT(*iidim,)
     IF (i>0) THEN
         ii_coeffn=i_coeffn_i*ii_coeff0**(2*istart+1)
         j_coeffn_i=jcoeff0*ij_coeff0**istart
@@ -467,12 +483,12 @@ poly_alloc=.TRUE.
             k_coeffn_i=k_coeffn_i*ik_coeff0
             res_i=res_i*ii_coeffn
             ii_coeffn=ii_coeffn*ii_coeff2
-            ii=ii+1
+            ii=ii + IF_FLAT(iidim,1)
         END DO
         istart=iend+iJump+1
         IF (istart>imax) EXIT
         iend=MIN(iend+ndim(0),imax)
-        ii=l_shift(0)
+        ii=l_shift(0) IF_FLAT(*iidim,)
         j_coeffn_i=j_coeffn_i*ij_coeff0_jump
         k_coeffn_i=k_coeffn_i*ik_coeff0_jump
         res_i=res_i*ii_coeffn**(iJump)*ii_coeffn_jump
@@ -487,7 +503,7 @@ poly_alloc=.TRUE.
     ii_coeffn=i_coeffn_i*ii_coeff0
     
     iend2=MAX(iiShift2+l_bounds(1,0),imin)
-    ii=iistart2
+    ii=iistart2 IF_FLAT(* iidim,)
     IF (istart2<-1) THEN
         ii_coeffn=i_coeffn_i*ii_coeff0**(-(2*istart2+1))
         j_coeffn_i=jcoeff0*ij_coeff0**(istart2+1)
@@ -505,12 +521,12 @@ poly_alloc=.TRUE.
             IF (ABS(res_i)>small) THEN
                 CALL j_loop
             END IF
-            ii=ii-1
+            ii=ii-IF_FLAT(iidim,1)
         END DO
         istart2=iend2-iJump-1
         IF (istart2<imin) EXIT
         iend2=MAX(iend2-ndim(0),imin)
-        ii=l_ub(0)
+        ii=l_ub(0) IF_FLAT(*iidim,)
         j_coeffn_i=j_coeffn_i/ij_coeff0_jump
         k_coeffn_i=k_coeffn_i/ik_coeff0_jump
         res_i=res_i*ii_coeffn**iJump*ii_coeffn_jump
@@ -568,8 +584,9 @@ SUBROUTINE j_loop
 #ifdef FMG_INTEGRATE_FULL
     poly_jk=0.0_dp
 #else
-    CALL poly_p_eval3b(poly_ijk,size_ijk,REAL(i,dp),poly_jk,size_jk,&
-            npoly=npoly,grad=grad,xi=xi)
+    CALL poly_p_eval3b(IF_CHECK(poly_ijk,poly_ijk(1)),size_ijk,REAL(i,dp),&
+         IF_CHECK(poly_jk,poly_jk(1)),size_jk,&
+            npoly=npoly,grad=grad,xi=IF_CHECK(xi,xi(1)))
 #endif
 
     IF (period(1)==0) THEN 
@@ -591,7 +608,7 @@ SUBROUTINE j_loop
     !ijShift=CEILING(REAL(shiftPos(1)+jstart-l_bounds(2,1))/REAL(ndim(1)))*ndim(1)-shiftPos(1)
     jstart=MAX(ijShift+l_bounds(1,1),jstart)
     jend=MIN(ijShift+l_bounds(2,1),jmax)
-    ij=jstart-ijShift-l_bounds(1,1)+l_shift(1)
+    ij=(jstart-ijShift-l_bounds(1,1)+l_shift(1))IF_FLAT(*ijdim,)
 
     IF (jstart>0) THEN
         k_coeffn_j=k_coeffn_i*jk_coeff0**jstart
@@ -610,11 +627,11 @@ SUBROUTINE j_loop
             k_coeffn_j=k_coeffn_j*jk_coeff0
             res_j=res_j*jj_coeffn
             jj_coeffn=jj_coeffn*jj_coeff2
-            ij=ij+1
+            ij=ij+IF_FLAT(ijdim,1)
         END DO
         jstart=jend+jJump
         IF (jstart>jmax) EXIT
-        ij=l_shift(1)
+        ij=l_shift(1)IF_FLAT(*ijdim,)
         jend=MIN(jend+ndim(1),jmax)
         IF (jJump/=1) THEN ! remove if?
             k_coeffn_j=k_coeffn_i*jk_coeff0**jstart
@@ -636,7 +653,7 @@ SUBROUTINE j_loop
     !ijShift=FLOOR(REAL(shiftPos(1)+jstart-l_bounds(1,1))/REAL(ndim(1)))*ndim(1)-shiftPos(1))
     jstart=MIN(ijShift+l_bounds(2,1),jstart)
     jend=MAX(ijShift+l_bounds(1,1),jmin)
-    ij=jstart-ijShift-l_bounds(1,1)+l_shift(1)
+    ij=(jstart-ijShift-l_bounds(1,1)+l_shift(1))IF_FLAT(*ijdim,)
     IF (jstart<-1) THEN
         k_coeffn_j=k_coeffn_i*jk_coeff0**(jstart+1)
         jj_coeffn=j_coeffn_j*jj_coeff0**(-(2*jstart+1))
@@ -655,12 +672,12 @@ SUBROUTINE j_loop
                 .and.ABS(res_j)>small) THEN
                 CALL k_loop
             END IF
-            ij=ij-1
+            ij=ij-IF_FLAT(ijdim,1)
         END DO
         jstart=jend-jJump
         IF (jstart<jmin) EXIT
         jend=MAX(jend-ndim(1),jmin)
-        ij=l_ub(1)
+        ij=l_ub(1)IF_FLAT(*ijdim,)
         IF (jJump/=1) THEN ! remove if?
             k_coeffn_j=k_coeffn_i*jk_coeff0**(jstart+1)
             jj_coeffn=j_coeffn_j*jj_coeff0**(-(2*jstart+1))
@@ -668,8 +685,9 @@ SUBROUTINE j_loop
         END IF
     END DO
 #ifdef FMG_INTEGRATE_FULL
-    CALL poly_padd_uneval3b(poly_ijk,size_ijk,REAL(i,dp),poly_jk,size_jk,&
-        npoly=npoly,grad=grad,xi=xi)
+    CALL poly_padd_uneval3b(IF_CHECK(poly_ijk,poly_ijk(1)),size_ijk,REAL(i,dp),&
+         IF_CHECK(poly_jk,poly_jk(1)),size_jk,&
+        npoly=npoly,grad=grad,xi=IF_CHECK(xi,xi(1)))
     !CALL poly_padd_uneval3(poly_ijk,REAL(i,dp),poly_jk,npoly=npoly,error=error)
 #endif
 END SUBROUTINE
@@ -677,61 +695,62 @@ END SUBROUTINE
 !!!!!!!!!!!!
     !!!!!!! k loop
 SUBROUTINE k_loop()
-    select case(grad)
-    case(1)
-        call kloop1
-    case(2)
-        call kloop2
-    case(3)
-        call kloop3
-    case(4)
-        call kloop4
-    case(5)
-        call kloop5
-    case(6)
-        call kloop6
-    case(7)
-        call kloop7
-    case(8)
-        call kloop8
-    case default
-        call kloopdefault
-    end select
-end subroutine
-    subroutine kloop1
-        integer, parameter :: grad_val=1
+    SELECT CASE(grad)
+    CASE(1)
+        CALL kloop1
+    CASE(2)
+        CALL kloop2
+    CASE(3)
+        CALL kloop3
+    CASE(4)
+        CALL kloop4
+    CASE(5)
+        CALL kloop5
+    CASE(6)
+        CALL kloop6
+    CASE(7)
+        CALL kloop7
+    CASE(8)
+        CALL kloop8
+    CASE default
+        CALL kloopdefault
+    END SELECT
+END SUBROUTINE
+    SUBROUTINE kloop1
+        INTEGER, PARAMETER :: grad_val=1
 #include "colloc_int_kloop1.f90"
-    end subroutine
-    subroutine kloop2
-        integer, parameter :: grad_val=2
+    END SUBROUTINE
+    SUBROUTINE kloop2
+        INTEGER, PARAMETER :: grad_val=2
 #include "colloc_int_kloop2.f90"
-    end subroutine
-    subroutine kloop3
-        integer, parameter :: grad_val=3
+    END SUBROUTINE
+    SUBROUTINE kloop3
+        INTEGER, PARAMETER :: grad_val=3
 #include "colloc_int_kloop3.f90"
-    end subroutine
-    subroutine kloop4
-        integer, parameter :: grad_val=4
+    END SUBROUTINE
+    SUBROUTINE kloop4
+        INTEGER, PARAMETER :: grad_val=4
 #include "colloc_int_kloop4.f90"
-    end subroutine
-    subroutine kloop5
-        integer, parameter :: grad_val=5
+    END SUBROUTINE
+    SUBROUTINE kloop5
+        INTEGER, PARAMETER :: grad_val=5
 #include "colloc_int_kloop5.f90"
-    end subroutine
-    subroutine kloop6
-        integer, parameter :: grad_val=6
+    END SUBROUTINE
+    SUBROUTINE kloop6
+        INTEGER, PARAMETER :: grad_val=6
 #include "colloc_int_kloop6.f90"
-    end subroutine
-    subroutine kloop7
-        integer, parameter :: grad_val=7
+    END SUBROUTINE
+    SUBROUTINE kloop7
+        INTEGER, PARAMETER :: grad_val=7
 #include "colloc_int_kloop7.f90"
-    end subroutine
-    subroutine kloop8
-        integer, parameter :: grad_val=8
+    END SUBROUTINE
+    SUBROUTINE kloop8
+        INTEGER, PARAMETER :: grad_val=8
 #include "colloc_int_kloop8.f90"
-    end subroutine
-    subroutine kloopdefault
-        integer :: grad_val
+    END SUBROUTINE
+    SUBROUTINE kloopdefault
+        INTEGER :: grad_val
         grad_val=grad
 #include "colloc_int_kloop.f90"
-    end subroutine
+    END SUBROUTINE
+#undef IF_FLAT
