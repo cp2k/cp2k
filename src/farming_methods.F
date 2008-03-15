@@ -92,7 +92,7 @@ CONTAINS
         IF (todo==do_wait) THEN
            dep_OK=.FALSE.
            DO itry=start,END
-              IF (farming_env%job(icheck)%status.EQ.job_running) dep_OK=.TRUE.
+              IF (farming_env%job(itry)%status.EQ.job_running) dep_OK=.TRUE.
            ENDDO 
            IF (.NOT. dep_OK) todo=do_deadlock
         ENDIF
