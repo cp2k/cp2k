@@ -39,9 +39,9 @@ MODULE md_util
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: initialize_velocities,&
                                              simulation_parameters_type
+  USE md_ener_types,                   ONLY: md_ener_type
   USE md_energies,                     ONLY: md_write_output
   USE md_environment_types,            ONLY: get_md_env,&
-                                             md_ener_type,&
                                              md_environment_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE particle_list_types,             ONLY: particle_list_type

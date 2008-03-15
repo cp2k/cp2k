@@ -11,6 +11,7 @@
 ! *****************************************************************************
 MODULE md_run
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
+  USE averages_types,                  ONLY: average_quantities_type
   USE barostat_types,                  ONLY: barostat_type,&
                                              create_barostat_type,&
                                              release_barostat_type
@@ -52,17 +53,17 @@ MODULE md_run
   USE machine,                         ONLY: m_walltime
   USE md,                              ONLY: read_md_section,&
                                              simulation_parameters_type
+  USE md_ener_types,                   ONLY: create_md_ener,&
+                                             md_ener_type,&
+                                             release_md_ener
   USE md_energies,                     ONLY: initialize_md_ener,&
                                              md_ener_reftraj,&
                                              md_energy,&
                                              md_write_output
-  USE md_environment_types,            ONLY: create_md_ener,&
-                                             get_md_env,&
-                                             md_ener_type,&
+  USE md_environment_types,            ONLY: get_md_env,&
                                              md_env_create,&
                                              md_env_release,&
                                              md_environment_type,&
-                                             release_md_ener,&
                                              set_md_env
   USE md_util,                         ONLY: comvel_control,&
                                              md_output,&
@@ -104,10 +105,12 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE qs_mol_dyn ( force_env, globenv, error )
+  SUBROUTINE qs_mol_dyn ( force_env, globenv, averages, error )
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(average_quantities_type), &
+      OPTIONAL, POINTER                      :: averages
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn', &
@@ -120,6 +123,7 @@ CONTAINS
     para_env=> force_env % para_env
     ! Real call to MD driver - Low Level
     CALL md_env_create(md_env, para_env, error=error)
+    CALL set_md_env(md_env, averages=averages, error=error)
     CALL qs_mol_dyn_low(md_env, force_env, globenv, error)
     CALL md_env_release(md_env, error=error)
 

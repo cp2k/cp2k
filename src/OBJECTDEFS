@@ -11,6 +11,7 @@ OBJECTS_GENERIC =\
  atomic_kind_list_types.o\
  atomic_kind_types.o\
  atoms_input.o\
+ averages_types.o\
  barostat_types.o\
  barostat_utils.o\
  basis_set_types.o\
@@ -286,6 +287,7 @@ OBJECTS_GENERIC =\
  mc_types.o\
  md.o\
  md_conserved_quantities.o\
+ md_ener_types.o\
  md_energies.o\
  md_environment_types.o\
  md_run.o\

@@ -32,11 +32,11 @@ MODULE md_conserved_quantities
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: zero
   USE md,                              ONLY: simulation_parameters_type
-  USE md_environment_types,            ONLY: get_md_env,&
-                                             md_ener_type,&
-                                             md_environment_type,&
-                                             set_md_env,&
+  USE md_ener_types,                   ONLY: md_ener_type,&
                                              zero_md_ener
+  USE md_environment_types,            ONLY: get_md_env,&
+                                             md_environment_type,&
+                                             set_md_env
   USE message_passing,                 ONLY: mp_sum
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type

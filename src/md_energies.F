@@ -15,6 +15,8 @@ MODULE md_energies
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE averages_types,                  ONLY: average_quantities_type,&
+                                             compute_averages
   USE barostat_types,                  ONLY: barostat_type
   USE barostat_utils,                  ONLY: print_barostat_status
   USE cell_types,                      ONLY: cell_type,&
@@ -48,11 +50,11 @@ MODULE md_energies
   USE machine,                         ONLY: m_flush
   USE md,                              ONLY: simulation_parameters_type
   USE md_conserved_quantities,         ONLY: compute_conserved_quantity
-  USE md_environment_types,            ONLY: get_md_env,&
-                                             md_ener_type,&
-                                             md_environment_type,&
-                                             set_md_env,&
+  USE md_ener_types,                   ONLY: md_ener_type,&
                                              zero_md_ener
+  USE md_environment_types,            ONLY: get_md_env,&
+                                             md_environment_type,&
+                                             set_md_env
   USE motion_utils,                    ONLY: write_simulation_cell,&
                                              write_stress_tensor,&
                                              write_trajectory
@@ -75,13 +77,6 @@ MODULE md_energies
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_energies'
 
-! *****************************************************************************
-  TYPE average_quantities_type
-     REAL ( dp ) :: avetemp, avepot, avekin, avevol, aveca, avecb, avecc
-     REAL ( dp ) :: avetemp_baro, avehugoniot, avecpu
-     REAL ( dp ) :: aveal, avebe, avega, avepress, avekinc, avetempc, avepxx
-     REAL ( dp ) :: avetemp_qm, avekin_qm
-  END TYPE average_quantities_type
 
   PUBLIC :: initialize_md_ener,&
             md_energy,&
@@ -299,11 +294,11 @@ CONTAINS
                                                 econs, pv_scalar, pv_xx
     REAL(KIND=dp)                            :: harm_shell, hugoniot
     REAL(KIND=dp), POINTER                   :: constant, time, used_time
-    REAL(KIND=dp), SAVE                      :: econs_avg, itimes_old, t_old
+    REAL(KIND=dp), SAVE                      :: itimes_old, t_old
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(average_quantities_type), SAVE      :: averages
+    TYPE(average_quantities_type), POINTER   :: averages
     TYPE(barostat_type), POINTER             :: barostat
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -330,8 +325,8 @@ CONTAINS
     CALL get_cp2k_units ( unit )
 
     ! Zeroing
-    hugoniot = 0._dp
-    econs = 0.0_dp
+    hugoniot = 0.0_dp
+    econs    = 0.0_dp
     shell_adiabatic = .FALSE.
     shell_present   = .FALSE.
     NULLIFY(motion_section, atomic_kinds, atomic_kind_set)
@@ -342,7 +337,7 @@ CONTAINS
     CALL get_md_env(md_env=md_env, itimes=itimes, constant=constant,&
          t=time, used_time = used_time, simpar=simpar, force_env=force_env, &
          init=init, md_ener=md_ener, reftraj=reftraj, thermostats=thermostats,&
-         barostat=barostat, para_env=para_env, error=error)
+         barostat=barostat, para_env=para_env, averages=averages, error=error)
 
     root_section   => force_env%root_section
     motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
@@ -376,10 +371,7 @@ CONTAINS
          shell_present=shell_present, &
          shell_adiabatic=shell_adiabatic)
 
-    CALL get_cell ( cell, abc = abc,  &
-         alpha = cell_angle ( 3 ), &
-         beta  = cell_angle ( 2 ), &
-         gamma = cell_angle ( 1 ) )
+    CALL get_cell (cell, abc=abc, alpha=cell_angle(3), beta=cell_angle(2), gamma=cell_angle(1))
 
     my_pos = "APPEND"
     my_act = "WRITE"
@@ -473,12 +465,10 @@ CONTAINS
             "MD%PRINT%PROGRAM_RUN_INFO", error=error)
     ELSE
        ! Performing protocol for anything beyond the first step of MD
-       IF ( &
-            simpar%ensemble == nph_uniaxial_ensemble .OR.&
-            simpar%ensemble == nph_uniaxial_damped_ensemble)&
-            hugoniot = md_ener%epot + md_ener%ekin - simpar%e0 -  &
-            .5_dp * ( pv_xx/unit%bar + simpar%p0 ) * &
-            ( simpar%v0 - cell%deth )
+       IF ( simpar%ensemble == nph_uniaxial_ensemble .OR. simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
+          hugoniot = md_ener%epot + md_ener%ekin - simpar%e0 - 0.5_dp * ( pv_xx/unit%bar + simpar%p0 ) * &
+               ( simpar%v0 - cell%deth )
+       END IF
 
        IF (simpar%ensemble==reftraj_ensemble) THEN
           time = reftraj%time
@@ -489,64 +479,10 @@ CONTAINS
           econs = md_ener%delta_cons!(md_ener%constant-constant)/nat*kelvin
        END IF
 
-       ! average quantities:
+       ! Compute average quantities
        delta_t = itimes - itimes_old
-       SELECT CASE (delta_t)
-       CASE (1)
-          IF ( virial%pv_availability ) averages%avepress = pv_scalar
-          IF ( virial%pv_availability ) averages%avepxx = pv_xx
-          averages%avecpu = used_time
-          averages%avehugoniot = hugoniot
-          averages%avetemp_baro = md_ener%temp_baro
-          averages%avepot = md_ener%epot
-          averages%avekin = md_ener%ekin
-          averages%avetemp = md_ener%temp_part
-          averages%avekin_qm  = md_ener%ekin_qm
-          averages%avetemp_qm = md_ener%temp_qm
-          averages%avevol = cell%deth
-          averages%aveca = abc ( 1 )
-          averages%avecb = abc ( 2 )
-          averages%avecc = abc ( 3 )
-          averages%aveal = cell_angle ( 3 )
-          averages%avebe = cell_angle ( 2 )
-          averages%avega = cell_angle ( 1 )
-          econs_avg =  0._dp
-       CASE DEFAULT
-          IF ( virial%pv_availability ) &
-               averages%avepress = (averages%avepress*REAL(delta_t-1,dp)+pv_scalar)/ &
-               REAL ( delta_t, dp )
-          IF ( virial%pv_availability ) &
-               averages%avepxx = (averages%avepxx*REAL(delta_t-1,dp)+pv_xx)/ &
-               REAL ( delta_t, dp )
-          averages%avecpu = (averages%avecpu*REAL(delta_t-1,dp)+used_time)/ &
-               REAL(delta_t,dp)
-          averages%avehugoniot = (averages%avehugoniot*REAL(delta_t-1,dp)+hugoniot)/ &
-               REAL(delta_t,dp)
-          averages%avetemp_baro= (averages%avetemp_baro*REAL(delta_t-1,dp)+md_ener%temp_baro)/ &
-               REAL(delta_t,dp)
-          averages%avepot = (averages%avepot*REAL(delta_t-1,dp)+md_ener%epot)/ &
-               REAL(delta_t,dp)
-          averages%avekin = (averages%avekin*REAL(delta_t-1,dp)+md_ener%ekin)/ &
-               REAL(delta_t,dp)
-          averages%avetemp = (averages%avetemp*REAL(delta_t-1,dp)+md_ener%temp_part)/ &
-               REAL(delta_t,dp)
-          averages%avekin_qm = (averages%avekin_qm*REAL(delta_t-1,dp)+md_ener%ekin_qm)/ &
-               REAL(delta_t,dp)
-          averages%avetemp_qm = (averages%avetemp_qm*REAL(delta_t-1,dp)+md_ener%temp_qm)/ &
-               REAL(delta_t,dp)
-          averages%avevol = (averages%avevol*REAL(delta_t-1,dp)+cell%deth)/ &
-               REAL(delta_t,dp)
-          averages%aveca = (averages%aveca*REAL(delta_t-1,dp)+abc(1))/REAL(delta_t,dp)
-          averages%avecb = (averages%avecb*REAL(delta_t-1,dp)+abc(2))/REAL(delta_t,dp)
-          averages%avecc = (averages%avecc*REAL(delta_t-1,dp)+abc(3))/REAL(delta_t,dp)
-          averages%aveal = (averages%aveal*REAL(delta_t-1,dp)+cell_angle(3))/ &
-               REAL(delta_t,dp)
-          averages%avebe = (averages%avebe*REAL(delta_t-1,dp)+cell_angle(2))/ &
-               REAL(delta_t,dp)
-          averages%avega = (averages%avega*REAL(delta_t-1,dp)+cell_angle(1))/ &
-               REAL(delta_t,dp)
-          econs_avg = econs_avg + md_ener%delta_cons!(md_ener%constant-constant)/nat*kelvin
-       END SELECT
+       CALL compute_averages(averages, md_ener, cell, virial, pv_scalar, pv_xx, used_time,&
+            hugoniot, abc, cell_angle, delta_t, error)
 
        ! Print to the screen
        iw = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%PROGRAM_RUN_INFO",&
@@ -566,7 +502,7 @@ CONTAINS
           WRITE ( iw, '( A,T39,2(1X,F20.2) )' ) ' CPU [S]                      = ', &
                used_time, averages%avecpu
           WRITE ( iw, '( A,T39,2(1X,E20.12) )' ) ' {E-E0}/{k_b*N_at}            = ', &
-               econs, econs_avg/REAL( delta_t,dp)
+               econs, averages%econs
           WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' POTENTIAL ENERGY', &
                ADJUSTL(unit%e_label), '= ', md_ener%epot, averages%avepot
           IF(simpar%ensemble/=reftraj_ensemble) THEN
