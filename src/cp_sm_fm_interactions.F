@@ -125,16 +125,16 @@ CONTAINS
 
           ipe = cp_blacs_pnum(context%group,iprow,ipcol)
 
+          nrow_local = fm%matrix_struct%nrow_locals(iprow)
+          ncol_local = fm%matrix_struct%ncol_locals(ipcol)
           IF (ipe /= mype) THEN
-             nrow_local = fm%matrix_struct%nrow_locals(iprow)
-             ncol_local = fm%matrix_struct%ncol_locals(ipcol)
              ALLOCATE (fm_block(nrow_local,ncol_local), STAT=istat)
              IF (istat /= 0) CALL stop_memory(routineP,"fm_block",nrow_local*ncol_local)
           ELSE
              fm_block => fm%local_data
           END IF
 
-          CALL mp_bcast(fm_block,ipe,group)
+          IF (nrow_local*ncol_local.NE.0) CALL mp_bcast(fm_block,ipe,group)
 
           DO iblock_row=1,nblock_row
 
