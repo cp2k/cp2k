@@ -558,7 +558,10 @@ CONTAINS
 
        CALL keyword_create(keyword, name="ALPHA_IMOMM",&
             variants=s2a("ALPHA"),&
-            description="Specifies the scaling factor to be used in the IMOMM QM/MM link scheme",&
+            description="Specifies the scaling factor to be used for projecting the forces "//&
+            "on the capping hydrogen in the IMOMM QM/MM link scheme to the MM atom of the link. "//&
+            "A good guess can be derived from the bond distances of the forcefield: "//&
+            "alpha = r_eq(QM-MM) / r_eq(QM-H).",&
             usage="ALPHA_IMOMM real",n_var=1,type_of_var=real_t,&
             default_r_val=ALPHA_IMOMM_DEFAULT,error=error)
        CALL section_add_keyword(section,keyword,error=error)

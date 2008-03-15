@@ -1349,9 +1349,11 @@ CONTAINS
 
        CALL keyword_create(keyword, name="temp_tol",&
             variants=(/"temp_to              ", "temperature_tolerance"/),&
-            description="The maximum accepted oscillations of the temperature"//&
-            "from the wanted temperature before rescaling the velocites."//&
-            "If it is 0 no rescaling is performed", &
+            description="The maximum accepted deviation of the (global) temperature"//&
+            "from the desired target temperature before a rescaling of the velocites "//&
+            "is performed. If it is 0 no rescaling is performed. NOTE: This keyword is "//&
+            "obsolescent; Using a CSVR thermostat with a short timeconstant is "//&
+            "recommended as a better alternative.", &
             usage="temp_tol 0.0", default_r_val=0.0_dp, unit_str='K', error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

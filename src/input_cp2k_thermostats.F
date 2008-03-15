@@ -376,7 +376,10 @@ CONTAINS
        NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="timecon",&
-            description="timeconstant of the thermostat.",&
+            description="Timeconstant of the CSVR thermostat. A small time "//&
+            "constant will result in strong thermostatting (useful for "//&
+            "initial equilibrations) and a large timeconstant would be adequate "//&
+            "get weak thermostatting in production runs.",&
             usage="timeconstant real", &
             default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs",error=error),&
             unit_str="fs",error=error)

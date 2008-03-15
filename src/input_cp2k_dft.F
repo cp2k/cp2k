@@ -1058,13 +1058,13 @@ CONTAINS
             print_level=high_print_level,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
-            description="the stride used to write the cube file "//&
-            "(the bigger, the smaller the cube gets)",&
+            description="The stride used to write the cube file "//&
+            "(larger values result in smaller cube files).",&
             default_i_val=2, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="stride_xyz",&
-            description="the stride per each Cartesian direction "//&
+            description="The stride per each Cartesian direction "//&
             "used to write the cube file ",&
             n_var=3,default_i_vals=(/0,0,0/),&
             type_of_var=integer_t, &
@@ -1075,13 +1075,15 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"tot_density_cube",&
-            description="Controls the printing of cube files with "//&
-            "the total density (electronic+core)", &
+            description="Controls printing of cube files with "//&
+            "the total density (electrons+atomic core). Note that "//&
+            "the value of the total density is positive where the "//&
+            "electron density dominates and negative where the core is.",&
             print_level=high_print_level,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
-            description="the stride used to write the cube file "//&
-            "(the bigger, the smaller the cube gets)",&
+            description="The stride used to write the cube file "//&
+            "(larger values result in smaller cube files)",&
             default_i_val=2, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
@@ -1095,13 +1097,13 @@ CONTAINS
             print_level=high_print_level,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
-            description="the stride used to write the cube file "//&
-            "(the bigger, the smaller the cube gets)",&
+            description="The stride used to write the cube file "//&
+            "(larger values result in smaller cube files)",&
             default_i_val=2, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="stride_xyz",&
-            description="the stride per each Cartesian direction "//&
+            description="The stride per each Cartesian direction "//&
             "used to write the cube file ",&
             n_var=3,default_i_vals=(/0,0,0/),&
             type_of_var=integer_t, &
