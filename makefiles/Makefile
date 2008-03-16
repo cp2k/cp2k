@@ -139,7 +139,7 @@ ALL_LIB =  $(LIB_CP2K_ARCHIVE) $(LIB2_ARCHIVE) $(LIB1_ARCHIVE) $(LIBNV_ARCHIVE)
 # some practical variables for the build.
 # note that the last cvs entry is not necessarily the most recent
 #
-ifeq($(CPPSHELL),)
+ifeq ($(CPPSHELL),)
 CPPSHELL := -D__COMPILE_ARCH="\"$(ARCH)\""\
             -D__COMPILE_DATE="\"$(shell date)\""\
             -D__COMPILE_HOST="\"$(shell hostname)\""\
