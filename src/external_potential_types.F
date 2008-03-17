@@ -12,6 +12,7 @@
 MODULE external_potential_types
   USE bibliography,                    ONLY: Goedecker1996,&
                                              Hartwigsen1998,&
+                                             Krack2000,&
                                              Krack2005,&
                                              cite_reference
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
@@ -885,6 +886,8 @@ CONTAINS
     apname2 = ""
     NULLIFY(parser)
     failure = .FALSE.
+    CALL cite_reference(Krack2000)
+
     potential%name = potential_name
     read_from_input = .FALSE.
     CALL section_vals_get(potential_section,explicit=read_from_input, error=error)

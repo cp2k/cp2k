@@ -953,12 +953,14 @@ CPSourceFileRef,&
   END SUBROUTINE qs_scf_post_moments
 
 ! *****************************************************************************
-!> \brief Computes and prints X-RAY spectra
+!> \brief Computes and prints the X-ray diffraction spectrum.
 !> \param qs_env the qs_env in which the qs_env lives
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE qs_scf_post_xray(input, dft_section, logger, qs_env, ionode, output_unit, error)
+  SUBROUTINE qs_scf_post_xray(input,dft_section,logger,qs_env,ionode,&
+                              output_unit,error)
+
     TYPE(section_vals_type), POINTER         :: input, dft_section
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -966,7 +968,7 @@ CPSourceFileRef,&
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_xray', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_post_xray', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename
@@ -975,26 +977,39 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: print_key
 
     print_key => section_vals_get_subs_vals(section_vals=input,&
-         subsection_name="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",error=error)
+                                            subsection_name="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
+                                            error=error)
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-       q_max = section_get_rval(section_vals=dft_section,&
-            keyword_name="PRINT%XRAY_DIFFRACTION_SPECTRUM%Q_MAX",error=error)
-       unit_nr = cp_print_key_unit_nr(logger=logger,basis_section=input,&
-            print_key_path="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",extension=".dat",&
-            middle_name="xray",log_filename=.FALSE.,error=error)
-       CALL xray_diffraction_spectrum(qs_env=qs_env,unit_number=unit_nr,&
-                                      q_max=q_max,error=error)
-       IF (ionode) THEN
-          INQUIRE (UNIT=unit_nr,NAME=filename)
-          WRITE (UNIT=output_unit,FMT="(/,/,T2,A,2(/,/,T3,A),/)")&
-               "X-RAY DIFFRACTION SPECTRUM",&
-               "The coherent X-ray diffraction spectrum was written to the file:",&
-               TRIM(filename)
-       END IF
-       CALL cp_print_key_finished_output(unit_nr=unit_nr,logger=logger,&
-            basis_section=input,print_key_path="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
-            error=error)
+      q_max = section_get_rval(section_vals=dft_section,&
+                               keyword_name="PRINT%XRAY_DIFFRACTION_SPECTRUM%Q_MAX",&
+                               error=error)
+      unit_nr = cp_print_key_unit_nr(logger=logger,&
+                                     basis_section=input,&
+                                     print_key_path="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
+                                     extension=".dat",&
+                                     middle_name="xrd",&
+                                     log_filename=.FALSE.,&
+                                     error=error)
+      IF (ionode) THEN
+        INQUIRE (UNIT=unit_nr,NAME=filename)
+        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
+          "X-RAY DIFFRACTION SPECTRUM"
+        IF (unit_nr /= output_unit) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T3,A,/,/,T3,A,/)")&
+            "The coherent X-ray diffraction spectrum is written to the file:",&
+            TRIM(filename)
+        END IF
+      END IF
+      CALL xray_diffraction_spectrum(qs_env=qs_env,&
+                                     unit_number=unit_nr,&
+                                     q_max=q_max,&
+                                     error=error)
+      CALL cp_print_key_finished_output(unit_nr=unit_nr,&
+                                        logger=logger,&
+                                        basis_section=input,&
+                                        print_key_path="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
+                                        error=error)
     END IF
 
   END SUBROUTINE qs_scf_post_xray

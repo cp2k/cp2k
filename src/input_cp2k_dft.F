@@ -12,8 +12,8 @@
 MODULE input_cp2k_dft
   USE bibliography,                    ONLY: &
        Avezac2005, Becke1988, Elstner1998, Goedecker1996, Heyd2004, &
-       Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Krack2002, Lee1988, &
-       Lippert1997, Lippert1999, Ortiz1994, Perdew1981, Perdew1996, &
+       Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Krack2000, Krack2002, &
+       Lee1988, Lippert1997, Lippert1999, Ortiz1994, Perdew1981, Perdew1996, &
        Porezag1995, Seifert1996, VandeVondele2003, VandeVondele2005a, &
        VandeVondele2005b, Vosko1980, Zhang1998, Zhechkov2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
@@ -1277,7 +1277,7 @@ CONTAINS
             "diffraction spectrum",&
             print_level=debug_print_level,&
             filename="",&
-            citations=(/Krack2002/),&
+            citations=(/Krack2000,Krack2002/),&
             error=error)
        CALL keyword_create(&
             keyword=keyword,&
@@ -1405,7 +1405,7 @@ CONTAINS
        CALL section_create(section,"qs",&
             description="parameters needed to set up the Quickstep framework",&
             n_keywords=35, n_subsections=2, repeats=.FALSE., required=.FALSE.,&
-            citations=(/Lippert1997,Lippert1999,Krack2002,VandeVondele2005a/),&
+            citations=(/Lippert1997,Lippert1999,Krack2000,VandeVondele2005a/),&
             error=error)
 
        NULLIFY(keyword, subsection)
