@@ -222,13 +222,15 @@ CONTAINS
 
                 DO j = 1, nrep
                    IF(calc_intens)THEN
-                      CALL get_results(results=rep_env%results(j)%results,&
-                           description=description,&
-                           n_rep=nres,error=error)
-                      CALL get_results(results=rep_env%results(j)%results,&
-                           description=description,&
-                           values=tmp_dip(icoord+j,:,1),&
-                           nval=nres,error=error)
+                      IF (icoord+j <= ncoord) THEN
+                         CALL get_results(results=rep_env%results(j)%results,&
+                              description=description,&
+                              n_rep=nres,error=error)
+                         CALL get_results(results=rep_env%results(j)%results,&
+                              description=description,&
+                              values=tmp_dip(icoord+j,:,1),&
+                              nval=nres,error=error)
+                      END IF
                    END IF
                    IF (icoord+j <= ncoord) THEN
                       DO i = 1, ncoord
@@ -273,16 +275,18 @@ CONTAINS
                 CALL rep_env_calc_e_f(rep_env,calc_f=.TRUE.,error=error)
 
                 DO j = 1, nrep
-                   IF(calc_intens)THEN
-                      k=(icoord+j+2)/3
-                      CALL get_results(results=rep_env%results(j)%results,&
-                           description=description,&
-                           n_rep=nres,error=error)
-                      CALL get_results(results=rep_env%results(j)%results,&
-                           description=description,&
-                           values=tmp_dip(icoord+j,:,2),&
-                           nval=nres,error=error)
-                      tmp_dip(icoord+j,:,1)=(tmp_dip(icoord+j,:,1)-tmp_dip(icoord+j,:,2))/(2.0_dp*Dx*mass(k))
+                   IF (calc_intens) THEN
+                      IF (icoord+j <= ncoord) THEN
+                         k=(icoord+j+2)/3
+                         CALL get_results(results=rep_env%results(j)%results,&
+                              description=description,&
+                              n_rep=nres,error=error)
+                         CALL get_results(results=rep_env%results(j)%results,&
+                              description=description,&
+                              values=tmp_dip(icoord+j,:,2),&
+                              nval=nres,error=error)
+                         tmp_dip(icoord+j,:,1)=(tmp_dip(icoord+j,:,1)-tmp_dip(icoord+j,:,2))/(2.0_dp*Dx*mass(k))
+                      END IF
                    END IF
                    IF (icoord+j <= ncoord) THEN
                       imap = Clist(icoord+j)
