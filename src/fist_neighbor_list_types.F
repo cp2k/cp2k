@@ -12,6 +12,7 @@ MODULE fist_neighbor_list_types
                                              pbc
   USE f77_blas
   USE kinds,                           ONLY: dp
+  USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -171,8 +172,7 @@ CONTAINS
        ELSE
           DO i=1,SIZE(fist_neighbor%neighbor_kind_pairs)
              list_size = SIZE(fist_neighbor%neighbor_kind_pairs(i)%list)
-             ALLOCATE(fist_neighbor%neighbor_kind_pairs(i)%id_kind(list_size),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CALL reallocate(fist_neighbor%neighbor_kind_pairs(i)%id_kind,1,list_size)
           END DO
        ENDIF
     ELSE
