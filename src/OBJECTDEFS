@@ -21,6 +21,9 @@ OBJECTS_GENERIC =\
  bibliography.o\
  block_p_types.o\
  bsse.o\
+ cell_opt.o\
+ cell_opt_types.o\
+ cell_opt_utils.o\
  cell_types.o\
  cg_optimizer.o\
  cg_utils.o\

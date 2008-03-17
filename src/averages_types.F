@@ -12,7 +12,9 @@ MODULE averages_types
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE md_ener_types,                   ONLY: md_ener_type
-  USE virial_types,                    ONLY: virial_type
+  USE virial_types,                    ONLY: virial_create,&
+                                             virial_release,&
+                                             virial_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -26,8 +28,13 @@ MODULE averages_types
      REAL(KIND=dp) :: avetemp_baro, avehugoniot, avecpu
      REAL(KIND=dp) :: aveal, avebe, avega, avepress, avekinc, avetempc, avepxx
      REAL(KIND=dp) :: avetemp_qm, avekin_qm, econs
+     TYPE(virial_type), POINTER :: virial
   END TYPE average_quantities_type
 
+! *****************************************************************************
+  INTERFACE get_averages
+     MODULE PROCEDURE get_averages_1r, get_averages_3x3r
+  END INTERFACE get_averages
 
 ! *** Public subroutines and data types ***
   PUBLIC :: average_quantities_type, create_averages,  release_averages,&
@@ -43,8 +50,9 @@ CONTAINS
 !> \brief Creates averages environment
 !> \author Teodoro Laino [tlaino] - 03.2008 - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE create_averages ( averages, error )
+  SUBROUTINE create_averages ( averages, virial_avg, error )
     TYPE(average_quantities_type), POINTER   :: averages
+    LOGICAL, INTENT(IN), OPTIONAL            :: virial_avg
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_averages', &
@@ -79,7 +87,10 @@ CONTAINS
     averages%avetemp_qm=0.0_dp
     averages%avekin_qm=0.0_dp
     averages%econs=0.0_dp
-
+    NULLIFY(averages%virial)
+    IF (PRESENT(virial_avg)) THEN
+       IF (virial_avg) CALL virial_create(averages%virial, error)
+    END IF
   END SUBROUTINE create_averages
 
 ! *****************************************************************************
@@ -124,6 +135,7 @@ CONTAINS
        CPPrecondition(averages%ref_count>0,cp_failure_level,routineP,error,failure)
        averages%ref_count=averages%ref_count-1
        IF (averages%ref_count==0) THEN
+          CALL virial_release(averages%virial, error)
           DEALLOCATE(averages,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
@@ -175,27 +187,80 @@ CONTAINS
        averages%avebe = cell_angle ( 2 )
        averages%avega = cell_angle ( 1 )
        averages%econs =  0._dp
+       IF (ASSOCIATED(averages%virial).AND.virial%pv_availability) THEN
+          averages%virial%pv_total      = virial%pv_total
+          averages%virial%pv_virial     = virial%pv_virial
+          averages%virial%pv_kinetic    = virial%pv_kinetic
+          averages%virial%pv_constraint = virial%pv_constraint
+          averages%virial%pv_xc         = virial%pv_xc
+       END IF
     CASE DEFAULT
-       IF (virial%pv_availability) averages%avepress = (averages%avepress*REAL(delta_t-1,dp)+pv_scalar)/REAL(delta_t, dp)
-       IF (virial%pv_availability) averages%avepxx = (averages%avepxx*REAL(delta_t-1,dp)+pv_xx)/REAL(delta_t, dp)
-       averages%avecpu = (averages%avecpu*REAL(delta_t-1,dp)+used_time)/REAL(delta_t,dp)
-       averages%avehugoniot = (averages%avehugoniot*REAL(delta_t-1,dp)+hugoniot)/REAL(delta_t,dp)
-       averages%avetemp_baro= (averages%avetemp_baro*REAL(delta_t-1,dp)+md_ener%temp_baro)/REAL(delta_t,dp)
-       averages%avepot = (averages%avepot*REAL(delta_t-1,dp)+md_ener%epot)/REAL(delta_t,dp)
-       averages%avekin = (averages%avekin*REAL(delta_t-1,dp)+md_ener%ekin)/REAL(delta_t,dp)
-       averages%avetemp = (averages%avetemp*REAL(delta_t-1,dp)+md_ener%temp_part)/REAL(delta_t,dp)
-       averages%avekin_qm = (averages%avekin_qm*REAL(delta_t-1,dp)+md_ener%ekin_qm)/REAL(delta_t,dp)
-       averages%avetemp_qm = (averages%avetemp_qm*REAL(delta_t-1,dp)+md_ener%temp_qm)/REAL(delta_t,dp)
-       averages%avevol = (averages%avevol*REAL(delta_t-1,dp)+cell%deth)/REAL(delta_t,dp)
-       averages%aveca = (averages%aveca*REAL(delta_t-1,dp)+abc(1))/REAL(delta_t,dp)
-       averages%avecb = (averages%avecb*REAL(delta_t-1,dp)+abc(2))/REAL(delta_t,dp)
-       averages%avecc = (averages%avecc*REAL(delta_t-1,dp)+abc(3))/REAL(delta_t,dp)
-       averages%aveal = (averages%aveal*REAL(delta_t-1,dp)+cell_angle(3))/REAL(delta_t,dp)
-       averages%avebe = (averages%avebe*REAL(delta_t-1,dp)+cell_angle(2))/REAL(delta_t,dp)
-       averages%avega = (averages%avega*REAL(delta_t-1,dp)+cell_angle(1))/REAL(delta_t,dp)
-       averages%econs = (averages%econs*REAL(delta_t-1,dp) + md_ener%delta_cons)/REAL(delta_t,dp)
+       IF (virial%pv_availability) averages%avepress = get_averages(averages%avepress,pv_scalar,delta_t)
+       IF (virial%pv_availability) averages%avepxx   = get_averages(averages%avepxx,pv_xx,delta_t)
+       averages%avecpu       = get_averages(averages%avecpu,used_time,delta_t)
+       averages%avehugoniot  = get_averages(averages%avehugoniot,hugoniot,delta_t)
+       averages%avetemp_baro = get_averages(averages%avetemp_baro,md_ener%temp_baro,delta_t)
+       averages%avepot       = get_averages(averages%avepot,md_ener%epot,delta_t)
+       averages%avekin       = get_averages(averages%avekin,md_ener%ekin,delta_t)
+       averages%avetemp      = get_averages(averages%avetemp,md_ener%temp_part,delta_t)
+       averages%avekin_qm    = get_averages(averages%avekin_qm,md_ener%ekin_qm,delta_t)
+       averages%avetemp_qm   = get_averages(averages%avetemp_qm,md_ener%temp_qm,delta_t)
+       averages%avevol       = get_averages(averages%avevol,cell%deth,delta_t)
+       averages%aveca        = get_averages(averages%aveca,abc(1),delta_t)
+       averages%avecb        = get_averages(averages%avecb,abc(2),delta_t)
+       averages%avecc        = get_averages(averages%avecc,abc(3),delta_t)
+       averages%aveal        = get_averages(averages%aveal,cell_angle(3),delta_t) 
+       averages%avebe        = get_averages(averages%avebe,cell_angle(2),delta_t)
+       averages%avega        = get_averages(averages%avega,cell_angle(1),delta_t)
+       averages%econs        = get_averages(averages%econs,md_ener%delta_cons,delta_t)
+       IF (ASSOCIATED(averages%virial).AND.virial%pv_availability) THEN
+          averages%virial%pv_total      = get_averages(averages%virial%pv_total,virial%pv_total,delta_t)
+          averages%virial%pv_virial     = get_averages(averages%virial%pv_virial,virial%pv_virial,delta_t)
+          averages%virial%pv_kinetic    = get_averages(averages%virial%pv_kinetic,virial%pv_kinetic,delta_t)
+          averages%virial%pv_constraint = get_averages(averages%virial%pv_constraint,virial%pv_constraint,delta_t)
+          averages%virial%pv_xc         = get_averages(averages%virial%pv_xc,virial%pv_xc,delta_t)
+       END IF
     END SELECT
-
   END SUBROUTINE compute_averages
+
+! *****************************************************************************
+!> \brief computes the averages - low level for REAL
+!> \author Teodoro Laino [tlaino] - 03.2008 - University of Zurich
+! *****************************************************************************
+  FUNCTION get_averages_1r(avg, add, delta_t) RESULT(res)
+    REAL(KIND=dp), INTENT(INOUT)             :: avg
+    REAL(KIND=dp), INTENT(IN)                :: add
+    INTEGER, INTENT(IN)                      :: delta_t
+    REAL(KIND=dp)                            :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_averages_1r', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    res = (avg*REAL(delta_t-1,dp) + add)/REAL(delta_t,dp)
+  END FUNCTION get_averages_1r
+
+! *****************************************************************************
+!> \brief computes the averages - low level for REAL (3,3)
+!> \author Teodoro Laino [tlaino] - 03.2008 - University of Zurich
+! *****************************************************************************
+  FUNCTION get_averages_3x3r(avg, add, delta_t) RESULT(res)
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(INOUT)                          :: avg
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: add
+    INTEGER, INTENT(IN)                      :: delta_t
+    REAL(KIND=dp), DIMENSION(3, 3)           :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_averages_3x3r', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    res = (avg*REAL(delta_t-1,dp) + add)/REAL(delta_t,dp)
+  END FUNCTION get_averages_3x3r
 
 END MODULE averages_types

@@ -88,6 +88,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_cell_opt_section(subsection, error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)       
+
        CALL create_md_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -416,7 +420,7 @@ CONTAINS
             usage="RESTART {logical}",&
             default_l_val=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="IUPVOLUME",&
             description="Every iupvolume steps update maximum volume displacement.",&
@@ -798,29 +802,107 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        IF (.NOT.just_optimizers) THEN
+          ! Transition states section
           CALL create_ts_section(subsection, error)
+          CALL section_add_subsection(section,subsection,error=error)
+          CALL section_release(subsection,error=error)
+
+          ! Create the PRINT subsection 
+          NULLIFY(subsection)
+          CALL section_create(subsection,name="PRINT",&
+               description="Controls the printing properties during a geometry optimization run",&
+               n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+               error=error)
+          NULLIFY(print_key)
+          CALL cp_print_key_section_create(print_key,"program_run_info",&
+               description="Controls the printing of basic information during the Geometry Optimization", &
+               print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
+               error=error)
+          CALL section_add_subsection(subsection,print_key,error=error)
+          CALL section_release(print_key,error=error)        
           CALL section_add_subsection(section,subsection,error=error)
           CALL section_release(subsection,error=error)
        END IF
 
-       ! create the PRINT subsection 
-       NULLIFY(subsection)
-       CALL section_create(subsection,name="PRINT",&
-            description="Controls the printing properties during a geometry optimization run",&
-            n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
-            error=error)
-       NULLIFY(print_key)
-       CALL cp_print_key_section_create(print_key,"program_run_info",&
-            description="Controls the printing of basic information during the Geometry Optimization", &
-            print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)        
-       CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)    
-
     END IF
   END SUBROUTINE create_geoopt_section
+
+! *****************************************************************************
+!> \brief creates the section for the cell optimization
+!> \param section the section to be created
+!> \param error variable to control error logging, stopping,... 
+!>        see module cp_error_handling 
+!> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
+! *****************************************************************************
+  SUBROUTINE create_cell_opt_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_cell_opt_section', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, subsection
+
+    CALL create_geoopt_section(section, label="CELL_OPT",&
+         description="This section sets the environment for the optimization of the simulation cell."//&
+         " Two possible schemes are available: (1) Zero temperature optimization; "//&
+         " (2) Finite temperature optimization. ",just_optimizers=.TRUE.,error=error)
+    
+    NULLIFY(keyword,print_key,subsection)
+    CALL keyword_create(keyword, name="TYPE",&
+         description="Specify which kind of method to use for the optimization of the simulation cell",&
+         usage="TYPE (GEO_OPT|MD)",&
+         enum_c_vals=s2a("GEO_OPT","MD"),&
+         enum_desc=s2a(&
+         "Performs a geometry optimization (the GEO_OPT section must be defined) between cell optimization steps. "//&
+         " The stress tensor is computed at the optimized geometry.",&
+         "Performs a molecular dynamics run (the MD section needs must defined) for computing the stress tensor "//&
+         " used for the cell optimization."),&
+         enum_i_vals=(/default_cell_geo_opt_id,default_cell_md_id/),&
+         default_i_val=default_cell_geo_opt_id,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+   
+    CALL keyword_create(keyword, name="EXTERNAL_PRESSURE",&
+         description="Specifies the external pressure (1 value or the full 9 components of the pressure tensor) "//&
+         "applied during the cell optimization.",&
+         usage="EXTERNAL_PRESSURE {REAL} .. {REAL}",unit_str="bar",&
+         default_r_vals=(/1.0_dp,0.0_dp,0.0_dp,&
+                          0.0_dp,1.0_dp,0.0_dp,&
+                          0.0_dp,0.0_dp,1.0_dp/),n_var=-1,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="KEEP_SHAPE",&
+         description="Keep fixed the shape of the cell (angles between cell vectors do not change)",&
+         usage="KEEP_SHAPE {LOGICAL}",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)       
+
+    ! Create the PRINT subsection 
+    NULLIFY(subsection)
+    CALL section_create(subsection,name="PRINT",&
+         description="Controls the printing properties during a geometry optimization run",&
+         n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+         error=error)
+    NULLIFY(print_key)
+    CALL cp_print_key_section_create(print_key,"program_run_info",&
+         description="Controls the printing of basic information during the Geometry Optimization", &
+         print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
+         error=error)
+    CALL section_add_subsection(subsection,print_key,error=error)
+    CALL section_release(print_key,error=error)
+    CALL cp_print_key_section_create(print_key,"cell",&
+         description="Controls the printing of the cell eveytime a calculation using a new cell is started.", &
+         print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
+         error=error)
+    CALL section_add_subsection(subsection,print_key,error=error)
+    CALL section_release(print_key,error=error)
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)    
+
+  END SUBROUTINE create_cell_opt_section
 
 ! *****************************************************************************
 !> \brief creates the section for tuning transition states search
@@ -838,7 +920,8 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection, subsection2
+    TYPE(section_type), POINTER              :: print_key, subsection, &
+                                                subsection2, subsection3
 
     failure=.FALSE.
 
@@ -892,6 +975,20 @@ CONTAINS
        CALL create_geoopt_section(subsection2, label="ROT_OPT",&
             description="This section sets the environment for the optimization of the rotation of the Dimer.",&
             just_optimizers=.TRUE.,error=error)
+       NULLIFY(subsection3)
+       CALL section_create(subsection3,name="PRINT",&
+            description="Controls the printing properties during the dimer rotation optimization run",&
+            n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+            error=error)
+       NULLIFY(print_key)
+       CALL cp_print_key_section_create(print_key,"program_run_info",&
+            description="Controls the printing of basic information during the Geometry Optimization", &
+            print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(subsection3,print_key,error=error)
+       CALL section_release(print_key,error=error)        
+       CALL section_add_subsection(subsection2,subsection3,error=error)
+       CALL section_release(subsection3,error=error)
        CALL section_add_subsection(subsection,subsection2,error=error)
        CALL section_release(subsection2,error=error)
 

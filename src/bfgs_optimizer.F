@@ -24,6 +24,8 @@ MODULE bfgs_optimizer
                                              write_final_info
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
+  USE input_constants,                 ONLY: default_cell_method_id,&
+                                             default_ts_method_id
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
@@ -99,10 +101,13 @@ CONTAINS
     rad         = 0.10_dp
     rat         = 0.0_dp
 
-    ! Stop if Dimer.. not yet working
-    IF (gopt_env%dimer_rotation) CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="DIMER method not yet working with BFGS.", &
-         error=error, error_level=cp_failure_level)
+    ! Stop if not implemented
+    SELECT CASE(gopt_env%type_id)
+    CASE(default_ts_method_id,default_cell_method_id)
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="BFGS method not yet working with for DIMER or CELL_OPT", &
+            error=error, error_level=cp_failure_level)
+    END SELECT
 
     CALL section_vals_val_get(geo_section,"BFGS%RESTART_HESSIAN",l_val=hesrest,error=error)
     output_unit = cp_print_key_unit_nr(logger,geo_section,"PRINT%PROGRAM_RUN_INFO",&

@@ -12,6 +12,7 @@
 MODULE gopt_param_types
   USE f77_blas
   USE input_constants,                 ONLY: default_bfgs_method_id,&
+                                             default_cell_method_id,&
                                              default_cg_method_id,&
                                              default_lbfgs_method_id,&
                                              default_minimization_method_id,&
@@ -57,7 +58,7 @@ MODULE gopt_param_types
      LOGICAL                  :: Fletcher_Reeves
      INTEGER                  :: id_nr, ref_count
      INTEGER                  :: method_id, type_id
-     INTEGER                  :: ts_method_id
+     INTEGER                  :: ts_method_id, cell_method_id
      INTEGER                  :: max_f_per_iter, max_iter, max_h_rank
      INTEGER                  :: max_steep_steps
      REAL(KIND = dp)          :: restart_limit
@@ -171,6 +172,8 @@ CONTAINS
           gopt_param%ts_method_id=none_ts_method_id
        CASE(default_ts_method_id)
           CALL section_vals_val_get(gopt_section,"TRANSITION_STATE%METHOD",i_val=gopt_param%ts_method_id,error=error)
+       CASE(default_cell_method_id)
+          CALL section_vals_val_get(gopt_section,"TYPE",i_val=gopt_param%cell_method_id,error=error)
        END SELECT
     END IF
 

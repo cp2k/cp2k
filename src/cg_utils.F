@@ -15,7 +15,10 @@ MODULE cg_utils
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
-  USE input_constants,                 ONLY: default_minimization_method_id,&
+  USE input_constants,                 ONLY: default_cell_geo_opt_id,&
+                                             default_cell_md_id,&
+                                             default_cell_method_id,&
+                                             default_minimization_method_id,&
                                              default_ts_method_id,&
                                              ls_2pnt,&
                                              ls_fit,&
@@ -95,6 +98,28 @@ CONTAINS
        CASE DEFAULT
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Line Search type not yet implemented in CG for TS search.", &
+               error=error, error_level=cp_failure_level)
+       END SELECT
+    CASE(default_cell_method_id)
+       SELECT CASE(gopt_env%cell_method_id)
+       CASE(default_cell_geo_opt_id)
+          SELECT CASE(gopt_param%cg_ls%type_id)
+          CASE(ls_fit)
+             CALL linmin_fit(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brent_tol,&
+                  gopt_param%cg_ls%brent_max_iter, gopt_param%cg_ls%brack_limit, &
+                  gopt_param%cg_ls%initial_step, output_unit, gopt_param, globenv, error)
+          CASE(ls_gold)
+             CALL linmin_gold(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brent_tol,&
+                  gopt_param%cg_ls%brent_max_iter, gopt_param%cg_ls%brack_limit, &
+                  gopt_param%cg_ls%initial_step, output_unit, globenv, error)
+          CASE DEFAULT
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Line Search type not yet implemented in CG.", &
+                  error=error, error_level=cp_failure_level)
+          END SELECT
+       CASE(default_cell_md_id)
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="No Line Search types yet implemented in CG.", &
                error=error, error_level=cp_failure_level)
        END SELECT
     END SELECT
@@ -383,6 +408,7 @@ CONTAINS
        xx = step
        CALL cg_mnbrak(gopt_env, ax, xx, bx, pcom, xicom, brack_limit, output_unit,&
             globenv=globenv, error=error)
+
        opt_energy = cg_dbrent(gopt_env, ax, xx, bx, brent_tol, brent_max_iter, &
                               xmin, pcom, xicom, output_unit, globenv, error)
        xicom = xmin*xicom

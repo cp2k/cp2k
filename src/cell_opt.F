@@ -4,16 +4,15 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief performs geometry optimization
+!> \brief performs CELL optimization
 !> \par History
-!>      none
+!>      03.2008 - Teodoro Laino [tlaino] - University of Zurich - Cell Optimization
 ! *****************************************************************************
-MODULE geo_opt
+MODULE cell_opt
   USE bfgs_optimizer,                  ONLY: geoopt_bfgs
   USE cg_optimizer,                    ONLY: geoopt_cg
   USE cp_lbfgs_geo,                    ONLY: geoopt_lbfgs
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
-                                             cp_iterate,&
                                              cp_rm_iter_level
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_type
@@ -26,6 +25,7 @@ MODULE geo_opt
                                              gopt_param_release,&
                                              gopt_param_type
   USE input_constants,                 ONLY: default_bfgs_method_id,&
+                                             default_cell_method_id,&
                                              default_cg_method_id,&
                                              default_lbfgs_method_id
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -35,12 +35,11 @@ MODULE geo_opt
                                              timestop
 #include "cp_common_uses.h"
 
- IMPLICIT NONE
- PRIVATE
+  IMPLICIT NONE
+  PRIVATE
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_opt'
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'geo_opt'
-
- PUBLIC :: cp_geo_opt, cp_rot_opt
+  PUBLIC :: cp_cell_opt
 
  CONTAINS
 
@@ -48,13 +47,14 @@ MODULE geo_opt
 !> \brief Main driver to perform geometry optimization
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
-   RECURSIVE SUBROUTINE cp_geo_opt(force_env, globenv, error)
+   SUBROUTINE cp_cell_opt(force_env, globenv, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_geo_opt', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cell_opt', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, stat
@@ -74,17 +74,17 @@ MODULE geo_opt
     NULLIFY (gopt_param,force_env_section,gopt_env,x0)
     root_section      => force_env%root_section
     force_env_section => force_env%force_env_section
-    geo_section       => section_vals_get_subs_vals(root_section,"MOTION%GEO_OPT",error=error)
+    geo_section       => section_vals_get_subs_vals(root_section,"MOTION%CELL_OPT",error=error)
 
-    CALL gopt_param_read(gopt_param, geo_section, error=error)
+    CALL gopt_param_read(gopt_param, geo_section, type_id=default_cell_method_id, error=error)
     CALL gopt_f_create(gopt_env, gopt_param, force_env=force_env, globenv=globenv,&
          geo_opt_section=geo_section, error=error)
     CALL gopt_f_create_x0(gopt_env, x0, error=error)
 
-    CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",error=error)
-    CALL cp_geo_opt_low(force_env, globenv, gopt_param, gopt_env,&
+    CALL cp_add_iter_level(logger%iter_info,"CELL_OPT",error=error)
+    CALL cp_cell_opt_low(force_env, globenv, gopt_param, gopt_env,&
          force_env_section, geo_section, x0, error)
-    CALL cp_rm_iter_level(logger%iter_info,"GEO_OPT",error=error)
+    CALL cp_rm_iter_level(logger%iter_info,"CELL_OPT",error=error)
 
     DEALLOCATE(x0, stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -92,57 +92,15 @@ MODULE geo_opt
     CALL gopt_param_release(gopt_param, error=error)
     CALL timestop(handle)
 
-  END SUBROUTINE cp_geo_opt
-
-! *****************************************************************************
-!> \brief Main driver to perform rotation optimization for Dimer
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-! *****************************************************************************
-   SUBROUTINE cp_rot_opt(gopt_env, x0, gopt_param, geo_section, error)
-    TYPE(gopt_f_type), POINTER               :: gopt_env
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
-    TYPE(gopt_param_type), POINTER           :: gopt_param
-    TYPE(section_vals_type), POINTER         :: geo_section
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_rot_opt', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle
-    LOGICAL                                  :: failure
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                root_section
-
-    failure = .FALSE.
-    CALL timeset(routineN,handle)
-    NULLIFY (force_env_section,root_section)
-    logger => cp_error_get_logger(error)
-    CPPrecondition(ASSOCIATED(gopt_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(gopt_env%force_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(gopt_env%globenv),cp_failure_level,routineP,error,failure)
-    root_section      => gopt_env%force_env%root_section
-    force_env_section => gopt_env%force_env%force_env_section
-
-    CALL cp_add_iter_level(logger%iter_info,"ROT_OPT",error=error)
-    CALL cp_iterate(logger%iter_info,iter_nr=0,error=error)
-    CALL cp_geo_opt_low(gopt_env%force_env, gopt_env%globenv, gopt_param, gopt_env,&
-         force_env_section, geo_section, x0, error)
-    CALL cp_rm_iter_level(logger%iter_info,"ROT_OPT",error=error)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE cp_rot_opt
+  END SUBROUTINE cp_cell_opt
 
 ! *****************************************************************************
 !> \brief call to low level geometry optimizers
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE cp_geo_opt_low(force_env, globenv, gopt_param, gopt_env, force_env_section,&
+  SUBROUTINE cp_cell_opt_low(force_env, globenv, gopt_param, gopt_env, force_env_section,&
        geo_section, x0, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -152,7 +110,7 @@ MODULE geo_opt
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_geo_opt_low', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cell_opt_low', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -180,6 +138,6 @@ MODULE geo_opt
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
 
-  END SUBROUTINE cp_geo_opt_low
+  END SUBROUTINE cp_cell_opt_low
 
-END MODULE geo_opt
+END MODULE cell_opt

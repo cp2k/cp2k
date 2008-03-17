@@ -25,6 +25,9 @@ MODULE gopt_f_methods
                                              force_env_type
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
+  USE input_constants,                 ONLY: default_cell_method_id,&
+                                             default_minimization_method_id,&
+                                             default_ts_method_id
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
@@ -73,33 +76,50 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_create_x0', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: idg, idir, ip, ndg, stat
+    INTEGER                                  :: i, idg, idir, ip, j, ndg, stat
     LOGICAL                                  :: failure
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
 
     failure=.FALSE.
-    NULLIFY(particles,subsys)
+    NULLIFY(particles,subsys,cell)
 
-    CALL force_env_get(gopt_env%force_env, subsys=subsys,&
-         error=error)
-    ! before starting we handle the case of translating coordinates (QM/MM)
-    CALL apply_qmmm_translate(gopt_env%force_env,error=error)
-    CALL cp_subsys_get(subsys, particles=particles,error=error)
-    ndg=particles%n_els*3
+    SELECT CASE(gopt_env%type_id)
+    CASE(default_minimization_method_id,default_ts_method_id)
+       CALL force_env_get(gopt_env%force_env, subsys=subsys,error=error)
+       ! before starting we handle the case of translating coordinates (QM/MM)
+       CALL apply_qmmm_translate(gopt_env%force_env,error=error)
+       CALL cp_subsys_get(subsys, particles=particles,error=error)
+       ndg=particles%n_els*3
 
-    ALLOCATE(x0(ndg),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(x0(ndg),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    idg=0
-    CALL cp_subsys_get(subsys, particles=particles,error=error)
-    DO ip=1,particles%n_els
-       DO idir=1,3
-          idg=idg+1
-          CPInvariant(SIZE(x0)>=idg,cp_failure_level,routineP,error,failure)
-          x0(idg)=particles%els(ip)%r(idir)
+       idg=0
+       CALL cp_subsys_get(subsys, particles=particles,error=error)
+       DO ip=1,particles%n_els
+          DO idir=1,3
+             idg=idg+1
+             CPInvariant(SIZE(x0)>=idg,cp_failure_level,routineP,error,failure)
+             x0(idg)=particles%els(ip)%r(idir)
+          END DO
        END DO
-    END DO
+    CASE(default_cell_method_id)
+       CALL force_env_get(gopt_env%force_env, cell=cell, error=error)
+       ALLOCATE(x0(6),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       idg = 0
+       DO i = 1, 3
+          DO j = 1, i
+             idg = idg + 1
+             x0(idg) = cell%hmat(j,i)
+          END DO
+       END DO
+    CASE DEFAULT
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END SELECT
 
   END SUBROUTINE gopt_f_create_x0
 
@@ -457,7 +477,7 @@ CONTAINS
        IF (gopt_env%dimer_rotation) THEN
           my_label = "OPTIMIZING DIMER ROTATION"
        ELSE
-          my_label = "STARTING GEOMETRY OPTIMIZATION"
+          my_label = "STARTING "//gopt_env%tag(1:8)//" OPTIMIZATION"
        END IF
 
        ix = (80 - 7 - LEN_TRIM(my_label))/2

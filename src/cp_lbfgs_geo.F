@@ -28,6 +28,8 @@ MODULE cp_lbfgs_geo
                                              write_final_info
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
+  USE input_constants,                 ONLY: default_cell_method_id,&
+                                             default_ts_method_id
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: external_control
@@ -90,9 +92,13 @@ CONTAINS
        CALL cp_print_key_finished_output(output_unit,logger,geo_section,&
             "PRINT%PROGRAM_RUN_INFO", error=error)       
 
-       IF (gopt_env%dimer_rotation) CALL cp_unimplemented_error(fromWhere=routineP, &
-                                    message="DIMER method not yet working with L-BFGS.", &
-                                    error=error, error_level=cp_failure_level)
+       ! Stop if not implemented
+       SELECT CASE(gopt_env%type_id)
+       CASE(default_ts_method_id,default_cell_method_id)
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="L-BFGS method not yet working with for DIMER or CELL_OPT", &
+               error=error, error_level=cp_failure_level)
+       END SELECT
 
        CALL cp_opt_gopt_create(optimizer, para_env=para_env, obj_funct=gopt_env,&
             x0=x0, wanted_relative_f_delta=gopt_param%wanted_rel_f_error,&

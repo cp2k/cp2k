@@ -7,6 +7,7 @@
 MODULE cp2k_runs
 
   USE bsse,                            ONLY: do_bsse_calculation
+  USE cell_opt,                        ONLY: cp_cell_opt
   USE cp2k_info,                       ONLY: enable_color_tags
   USE cp_files,                        ONLY: close_file,&
                                              get_unit_number,&
@@ -61,8 +62,8 @@ MODULE cp2k_runs
                                              globenv_release,&
                                              globenv_retain
   USE input_constants,                 ONLY: &
-       bsse_run, do_band, do_cp2k, do_ep, do_farming, do_fist, do_kg, &
-       do_mixed, do_qmmm, do_qs, do_test, electronic_spectra_run, &
+       bsse_run, cell_opt_run, do_band, do_cp2k, do_ep, do_farming, do_fist, &
+       do_kg, do_mixed, do_qmmm, do_qs, do_test, electronic_spectra_run, &
        energy_force_run, energy_run, geo_opt_run, linear_response_run, &
        mol_dyn_run, mon_car_run, none_run, pint_run, qs_debug_run, vib_anal
   USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
@@ -321,6 +322,8 @@ CONTAINS
              CALL qs_mol_dyn ( force_env, globenv, error=suberror )
           CASE (geo_opt_run)
              CALL cp_geo_opt(force_env,globenv,error=suberror)
+          CASE (cell_opt_run)
+             CALL cp_cell_opt(force_env,globenv,error=suberror)
           CASE (mon_car_run)
              CALL do_mon_car ( force_env, globenv, input_file_name, error=suberror )
           CASE (electronic_spectra_run)

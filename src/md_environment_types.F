@@ -145,7 +145,7 @@ CONTAINS
     md_env%t              = 0.0_dp
     md_env%init           = .TRUE.
     md_env%first_time     = .TRUE.
-    CALL create_averages(md_env%averages, error)
+    CALL create_averages(md_env%averages, error=error)
 
   END SUBROUTINE md_env_create
 

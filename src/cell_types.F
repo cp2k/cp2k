@@ -16,7 +16,8 @@ MODULE cell_types
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
-  USE cp_units,                        ONLY: cp_unit_to_cp2k
+  USE cp_units,                        ONLY: cp_unit_to_cp2k,&
+                                             cp_units_rad
   USE f77_blas
   USE input_constants,                 ONLY: &
        do_cell_cp2k, do_cell_xsc, use_perd_none, use_perd_x, use_perd_xy, &
@@ -74,23 +75,20 @@ MODULE cell_types
    END TYPE cell_p_type
 
 ! *** Public subroutines ***
-
   PUBLIC :: get_cell, get_cell_param, get_hinv, init_cell, read_cell,&
             write_cell, cell_create, cell_retain, cell_release,&
-            cell_clone, compare_cells, parse_cell_line 
+            cell_clone, compare_cells, parse_cell_line, set_cell_param
 
 ! *** Public functions ***
-
   PUBLIC :: plane_distance, pbc, real_to_scaled, scaled_to_real
 
 ! *** Public data types ***
-
   PUBLIC :: cell_type, cell_p_type
 
   INTERFACE pbc
-    MODULE PROCEDURE pbc1,pbc2,pbc3
+     MODULE PROCEDURE pbc1,pbc2,pbc3
   END INTERFACE
-
+  
 CONTAINS
 
 ! *****************************************************************************
@@ -109,17 +107,17 @@ CONTAINS
     CPPrecondition(ASSOCIATED(cell_2),cp_failure_level,routineP,error,failure)
 
     compare = (&
-    (cell_2%unit_of_length_name == cell_1%unit_of_length_name).AND.&
-    (cell_2%deth == cell_1%deth).AND.&
-    (cell_2%subcells == cell_1%subcells).AND.&
-    (cell_2%unit_of_length == cell_1%unit_of_length).AND.&
-    (ALL(cell_2%perd == cell_1%perd)).AND.&
-    (ALL(cell_2%hmat == cell_1%hmat)).AND.&
-    (ALL(cell_2%h_inv == cell_1%h_inv)).AND.&
-    (((.NOT.cell_2%orthorhombic) .OR.       cell_1%orthorhombic).AND.&
-           (cell_2%orthorhombic  .OR. (.NOT.cell_1%orthorhombic))).AND.&
-    (((.NOT.cell_2%scaled_coordinates) .OR.       cell_1%scaled_coordinates).AND.&
-           (cell_2%scaled_coordinates  .OR. (.NOT.cell_1%scaled_coordinates))))
+         (cell_2%unit_of_length_name == cell_1%unit_of_length_name).AND.&
+         (cell_2%deth == cell_1%deth).AND.&
+         (cell_2%subcells == cell_1%subcells).AND.&
+         (cell_2%unit_of_length == cell_1%unit_of_length).AND.&
+         (ALL(cell_2%perd == cell_1%perd)).AND.&
+         (ALL(cell_2%hmat == cell_1%hmat)).AND.&
+         (ALL(cell_2%h_inv == cell_1%h_inv)).AND.&
+         (((.NOT.cell_2%orthorhombic) .OR.       cell_1%orthorhombic).AND.&
+                (cell_2%orthorhombic  .OR. (.NOT.cell_1%orthorhombic))).AND.&
+         (((.NOT.cell_2%scaled_coordinates) .OR.       cell_1%scaled_coordinates).AND.&
+          (cell_2%scaled_coordinates  .OR. (.NOT.cell_1%scaled_coordinates))))
 
   END FUNCTION compare_cells
 
@@ -188,12 +186,11 @@ CONTAINS
 !> \date    16.01.2002
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE get_cell(cell,unit_of_length_name,alpha,beta,deth,gamma,&
-                      subcells,unit_of_length,orthorhombic,scaled_coordinates,&
-                      abc,periodic,h,h_inv, id_nr)
+  SUBROUTINE get_cell(cell,unit_of_length_name,alpha,beta,gamma,deth,subcells,&
+       unit_of_length,orthorhombic,scaled_coordinates,abc,periodic,h,h_inv,id_nr)
     TYPE(cell_type), POINTER                 :: cell
     CHARACTER(LEN=8), INTENT(OUT), OPTIONAL  :: unit_of_length_name
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha, beta, deth, gamma, &
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha, beta, gamma, deth, &
                                                 subcells, unit_of_length
     LOGICAL, INTENT(OUT), OPTIONAL           :: orthorhombic, &
                                                 scaled_coordinates
@@ -217,34 +214,26 @@ CONTAINS
     IF (PRESENT(h)) h(:,:) = cell%hmat(:,:)
     IF (PRESENT(h_inv)) h_inv(:,:) = cell%h_inv(:,:)
 
-!   *** Calculate the lengths of the cell vectors a, b, and c ***
-
+    !   *** Calculate the lengths of the cell vectors a, b, and c ***
     IF (PRESENT(abc)) THEN
-      abc(1) = SQRT(cell%hmat(1,1)*cell%hmat(1,1) +&
-               cell%hmat(2,1)*cell%hmat(2,1) +&
-               cell%hmat(3,1)*cell%hmat(3,1))
-      abc(2) = SQRT(cell%hmat(1,2)*cell%hmat(1,2) +&
-               cell%hmat(2,2)*cell%hmat(2,2) +&
-               cell%hmat(3,2)*cell%hmat(3,2))
-      abc(3) = SQRT(cell%hmat(1,3)*cell%hmat(1,3) +&
-               cell%hmat(2,3)*cell%hmat(2,3) +&
-               cell%hmat(3,3)*cell%hmat(3,3))
+       abc(1) = SQRT(cell%hmat(1,1)*cell%hmat(1,1) +&
+                     cell%hmat(2,1)*cell%hmat(2,1) +&
+                     cell%hmat(3,1)*cell%hmat(3,1))
+       abc(2) = SQRT(cell%hmat(1,2)*cell%hmat(1,2) +&
+                     cell%hmat(2,2)*cell%hmat(2,2) +&
+                     cell%hmat(3,2)*cell%hmat(3,2))
+       abc(3) = SQRT(cell%hmat(1,3)*cell%hmat(1,3) +&
+                     cell%hmat(2,3)*cell%hmat(2,3) +&
+                     cell%hmat(3,3)*cell%hmat(3,3))
     END IF
 
-!   *** Angles between the cell vectors a, b, and c   ***
-
-!   *** alpha = <(b,c) ***
-
+    !   *** Angles between the cell vectors a, b, and c   ***
+    !   *** alpha = <(b,c) ***
     IF (PRESENT(alpha)) alpha = angle(cell%hmat(:,2),cell%hmat(:,3))*degree
-
-!   *** beta = <(a,c) ***
-
-    IF (PRESENT(beta)) beta = angle(cell%hmat(:,1),cell%hmat(:,3))*degree
-
-!   *** gamma = <(a,b) ***
-
+    !   *** beta = <(a,c) ***    
+    IF (PRESENT(beta))   beta = angle(cell%hmat(:,1),cell%hmat(:,3))*degree
+    !   *** gamma = <(a,b) ***
     IF (PRESENT(gamma)) gamma = angle(cell%hmat(:,1),cell%hmat(:,2))*degree
-
     IF (PRESENT(id_nr)) id_nr=cell%id_nr
 
   END SUBROUTINE get_cell
@@ -255,27 +244,59 @@ CONTAINS
 !> \date    04.04.2002
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE get_cell_param(box,cell_length,cell_angle)
-    TYPE(cell_type), POINTER                 :: box
+  SUBROUTINE get_cell_param(cell,cell_length,cell_angle,units_angle)
+    TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: cell_length
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(OUT), OPTIONAL                  :: cell_angle
+    INTEGER, INTENT(IN), OPTIONAL            :: units_angle
 
     REAL(KIND=dp)                            :: alpha, beta, gamma
-    TYPE(cell_type), POINTER                 :: cell
-
-!   ---------------------------------------------------------------------------
-
-    cell => box
 
     CALL get_cell(cell=cell,abc=cell_length)
 
     IF (PRESENT(cell_angle)) THEN
       CALL get_cell(cell=cell,alpha=alpha,beta=beta,gamma=gamma)
       cell_angle(:) = (/alpha,beta,gamma/)
+      IF (PRESENT(units_angle)) THEN
+         IF(units_angle==cp_units_rad) cell_angle = cell_angle/degree
+      END IF
     END IF
 
   END SUBROUTINE get_cell_param
+
+! *****************************************************************************
+!> \brief   Sets the cell using the internal parameters (a,b,c) (alpha,beta,gamma)
+!>          using the convention: a parallel to the x axis, b in the x-y plane and
+!>          and c univoquely determined; gamma is the angle between a and b; beta
+!>          is the angle between c and a and alpha is the angle between c and b
+!> \author  Teodoro Laino
+!> \date    03.2008
+! *****************************************************************************
+  SUBROUTINE set_cell_param(cell,cell_length,cell_angle)
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: cell_length
+    REAL(KIND=dp), DIMENSION(3), &
+      INTENT(IN), OPTIONAL                   :: cell_angle
+
+    REAL(KIND=dp)                            :: cos_beta, cos_gamma, &
+                                                ctg_alpha, sin_gamma
+
+    cos_gamma = COS(cell_angle(3))
+    sin_gamma = SIN(cell_angle(3))
+    cos_beta  = COS(cell_angle(2))
+    ctg_alpha = COS(cell_angle(1))/SIN(cell_angle(1))
+    
+    cell%hmat(:,1)=(/   1.0_dp,                      0.0_dp,  0.0_dp/)
+    cell%hmat(:,2)=(/cos_gamma,                   sin_gamma,  0.0_dp/)
+    cell%hmat(:,3)=(/ cos_beta, ctg_alpha*(1.0_dp-cos_beta),  0.0_dp/)
+    cell%hmat(3,3)=SQRT(1.0_dp-cell%hmat(1,3)**2-cell%hmat(2,3)**2)
+
+    cell%hmat(:,1)=cell%hmat(:,1)*cell_length(1)
+    cell%hmat(:,2)=cell%hmat(:,2)*cell_length(2)
+    cell%hmat(:,3)=cell%hmat(:,3)*cell_length(3)
+    CALL get_hinv(cell)
+  END SUBROUTINE set_cell_param
 
 ! *****************************************************************************
 !> \brief   Calculate the inverse of the h matrix.
@@ -283,21 +304,20 @@ CONTAINS
 !> \date    16.01.2002
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE get_hinv(box)
-    TYPE(cell_type), POINTER                 :: box
+  SUBROUTINE get_hinv(cell)
+    TYPE(cell_type), POINTER                 :: cell
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_hinv', &
       routineP = moduleN//':'//routineN
 
-    box%deth = ABS ( det_3x3(box%hmat) )
+    cell%deth = ABS(det_3x3(cell%hmat))
 
-    IF (box%deth < 1.0E-10_dp) THEN
+    IF (cell%deth < 1.0E-10_dp) THEN
       CALL stop_program(moduleN,routineN,__LINE__,&
-                        "An invalid set of box vectors was specified. "//&
+                        "An invalid set of cell vectors was specified. "//&
                         "The determinant det(h) is too small")
     END IF
-
-    box%h_inv = inv_3x3(box%hmat)
+    cell%h_inv = inv_3x3(cell%hmat)
 
   END SUBROUTINE get_hinv
 
@@ -320,13 +340,10 @@ CONTAINS
 
     INTEGER                                  :: dim
 
-!   ---------------------------------------------------------------------------
-
     IF (PRESENT(hmat)) cell%hmat(:,:) = hmat(:,:)
     IF (PRESENT(periodic)) cell%perd(:) = periodic(:)
 
-!   *** Calculate the absolute value of the determinant of the matrix h ***
-
+    !   *** Calculate the absolute value of the determinant of the matrix h ***
     cell%deth = ABS ( det_3x3(cell%hmat) )
 
     IF (cell%deth < 1.0E-10_dp) THEN
@@ -364,8 +381,6 @@ CONTAINS
     REAL(KIND=dp)                            :: a, alpha, b, beta, c, cosa, &
                                                 cosb, cosg, d, gamma, x, y, z
     REAL(KIND=dp), DIMENSION(3)              :: abc
-
-!   ---------------------------------------------------------------------------
 
     x = REAL(h,KIND=dp)
     y = REAL(k,KIND=dp)
@@ -425,8 +440,6 @@ CONTAINS
 
     REAL(KIND=dp), DIMENSION(3)              :: s
 
-!   ---------------------------------------------------------------------------
-
     IF (cell%orthorhombic) THEN
       r_pbc(1) = r(1) - cell%hmat(1,1)*cell%perd(1)*ANINT(cell%h_inv(1,1)*r(1))
       r_pbc(2) = r(2) - cell%hmat(2,2)*cell%perd(2)*ANINT(cell%h_inv(2,2)*r(2))
@@ -459,8 +472,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: r_pbc
 
     REAL(KIND=dp), DIMENSION(3)              :: s
-
-!   ---------------------------------------------------------------------------
 
     IF (cell%orthorhombic) THEN
       r_pbc(1) = r(1) - cell%hmat(1,1)*cell%perd(1)*&
@@ -500,8 +511,6 @@ CONTAINS
     REAL(KIND=dp)                            :: rab2, rab2_pbc
     REAL(KIND=dp), DIMENSION(3)              :: r, ra_pbc, rab, rb_image, &
                                                 rb_pbc, s2r
-
-!   ---------------------------------------------------------------------------
 
     CALL get_cell(cell=cell,periodic=periodic)
 
@@ -766,8 +775,6 @@ CPSourceFileRef,&
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: s
     TYPE(cell_type), POINTER                 :: cell
 
-!   ---------------------------------------------------------------------------
-
     IF (cell%orthorhombic) THEN
       r(1) = cell%hmat(1,1)*s(1)
       r(2) = cell%hmat(2,2)*s(2)
@@ -806,55 +813,55 @@ CPSourceFileRef,&
 
        CALL get_cell(cell=cell,abc=abc,alpha=alpha,beta=beta,gamma=gamma)
 
-     WRITE (UNIT=output_unit,FMT="(T2,A,T61,F20.3)")&
-          "CELL| Volume ["//TRIM(cell%unit_of_length_name)//"**3]:",&
-          cell%deth/cell%unit_of_length**3
-     WRITE (UNIT=output_unit,FMT="(T2,A,T30,3F10.3,4X,A6,F11.3)")&
-          "CELL| Vector a ["//TRIM(cell%unit_of_length_name)//"]:",&
-          cell%hmat(:,1)/cell%unit_of_length,&
-          "|a| = ",abc(1)/cell%unit_of_length,&
-          "CELL| Vector b ["//TRIM(cell%unit_of_length_name)//"]:",&
-          cell%hmat(:,2)/cell%unit_of_length,&
-          "|b| = ",abc(2)/cell%unit_of_length,&
-          "CELL| Vector c ["//TRIM(cell%unit_of_length_name)//"]:",&
-          cell%hmat(:,3)/cell%unit_of_length,&
-          "|c| = ",abc(3)/cell%unit_of_length
-     WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
-          "CELL| Angle (b,c) [degree]: ",alpha,&
-          "CELL| Angle (a,c) [degree]: ",beta,&
-          "CELL| Angle (a,b) [degree]: ",gamma
-     WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
-          "CELL| Grid size for subcell generation",cell%subcells
+       WRITE (UNIT=output_unit, FMT='( )')
+       WRITE (UNIT=output_unit,FMT="(T2,A,T61,F20.3)")&
+            "CELL| Volume ["//TRIM(cell%unit_of_length_name)//"**3]:",&
+            cell%deth/cell%unit_of_length**3
+       WRITE (UNIT=output_unit,FMT="(T2,A,T30,3F10.3,4X,A6,F11.3)")&
+            "CELL| Vector a ["//TRIM(cell%unit_of_length_name)//"]:",&
+            cell%hmat(:,1)/cell%unit_of_length,&
+            "|a| = ",abc(1)/cell%unit_of_length,&
+            "CELL| Vector b ["//TRIM(cell%unit_of_length_name)//"]:",&
+            cell%hmat(:,2)/cell%unit_of_length,&
+            "|b| = ",abc(2)/cell%unit_of_length,&
+            "CELL| Vector c ["//TRIM(cell%unit_of_length_name)//"]:",&
+            cell%hmat(:,3)/cell%unit_of_length,&
+            "|c| = ",abc(3)/cell%unit_of_length
+       WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
+            "CELL| Angle (b,c) [degree]: ",alpha,&
+            "CELL| Angle (a,c) [degree]: ",beta,&
+            "CELL| Angle (a,b) [degree]: ",gamma
+       WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
+            "CELL| Grid size for subcell generation",cell%subcells
 
-     IF ( PRESENT ( cell_ref ) ) THEN
-        WRITE (UNIT=output_unit, FMT='( )' )
-        CALL get_cell(cell=cell_ref,abc=abc,alpha=alpha,beta=beta,gamma=gamma)
+       IF ( PRESENT ( cell_ref ) ) THEN
+          WRITE (UNIT=output_unit, FMT='( )' )
+          CALL get_cell(cell=cell_ref,abc=abc,alpha=alpha,beta=beta,gamma=gamma)
 
-        WRITE (UNIT=output_unit,FMT="(T2,A,T61,F20.3)")&
-          "CELL_REF| Volume ["//TRIM(cell_ref%unit_of_length_name)//"**3]:",&
-          cell_ref%deth/cell%unit_of_length**3
-        WRITE (UNIT=output_unit,FMT="(T2,A,T30,3F10.3,4X,A6,F11.3)")&
-          "CELL_REF| Vector a ["//TRIM(cell_ref%unit_of_length_name)//"]:",&
-          cell_ref%hmat(:,1)/cell_ref%unit_of_length,&
-          "|a| = ",abc(1)/cell_ref%unit_of_length,&
-          "CELL_REF| Vector b ["//TRIM(cell_ref%unit_of_length_name)//"]:",&
-          cell_ref%hmat(:,2)/cell_ref%unit_of_length,&
-          "|b| = ",abc(2)/cell_ref%unit_of_length,&
-          "CELL_REF| Vector c ["//TRIM(cell_ref%unit_of_length_name)//"]:",&
-          cell_ref%hmat(:,3)/cell_ref%unit_of_length,&
-          "|c| = ",abc(3)/cell_ref%unit_of_length
-        WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
-          "CELL_REF| Angle (b,c) [degree]: ",alpha,&
-          "CELL_REF| Angle (a,c) [degree]: ",beta,&
-          "CELL_REF| Angle (a,b) [degree]: ",gamma
-        WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
-          "CELL_REF| Grid size for subcell generation",cell_ref%subcells
-      ENDIF
+          WRITE (UNIT=output_unit,FMT="(T2,A,T61,F20.3)")&
+               "CELL_REF| Volume ["//TRIM(cell_ref%unit_of_length_name)//"**3]:",&
+               cell_ref%deth/cell%unit_of_length**3
+          WRITE (UNIT=output_unit,FMT="(T2,A,T30,3F10.3,4X,A6,F11.3)")&
+               "CELL_REF| Vector a ["//TRIM(cell_ref%unit_of_length_name)//"]:",&
+               cell_ref%hmat(:,1)/cell_ref%unit_of_length,&
+               "|a| = ",abc(1)/cell_ref%unit_of_length,&
+               "CELL_REF| Vector b ["//TRIM(cell_ref%unit_of_length_name)//"]:",&
+               cell_ref%hmat(:,2)/cell_ref%unit_of_length,&
+               "|b| = ",abc(2)/cell_ref%unit_of_length,&
+               "CELL_REF| Vector c ["//TRIM(cell_ref%unit_of_length_name)//"]:",&
+               cell_ref%hmat(:,3)/cell_ref%unit_of_length,&
+               "|c| = ",abc(3)/cell_ref%unit_of_length
+          WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
+               "CELL_REF| Angle (b,c) [degree]: ",alpha,&
+               "CELL_REF| Angle (a,c) [degree]: ",beta,&
+               "CELL_REF| Angle (a,b) [degree]: ",gamma
+          WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
+               "CELL_REF| Grid size for subcell generation",cell_ref%subcells
+       ENDIF
 
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
-       "PRINT%CELL",error=error)
-
+         "PRINT%CELL",error=error)
   END SUBROUTINE write_cell
 
 ! *****************************************************************************
@@ -907,7 +914,7 @@ CPSourceFileRef,&
 !>      09.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE cell_retain(cell,error)
+  SUBROUTINE cell_retain(cell,error)
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -916,14 +923,14 @@ SUBROUTINE cell_retain(cell,error)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPreconditionNoFail(cell%ref_count>0,cp_failure_level,routineP,error)
-     cell%ref_count=cell%ref_count+1
-  END IF
-END SUBROUTINE cell_retain
+    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CPPreconditionNoFail(cell%ref_count>0,cp_failure_level,routineP,error)
+       cell%ref_count=cell%ref_count+1
+    END IF
+  END SUBROUTINE cell_retain
 
 ! *****************************************************************************
 !> \brief releases the given cell (see doc/ReferenceCounting.html)
@@ -934,7 +941,7 @@ END SUBROUTINE cell_retain
 !>      09.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE cell_release(cell,error)
+  SUBROUTINE cell_release(cell,error)
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -944,16 +951,16 @@ SUBROUTINE cell_release(cell,error)
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  IF (ASSOCIATED(cell)) THEN
-     CPPreconditionNoFail(cell%ref_count>0,cp_failure_level,routineP,error)
-     cell%ref_count=cell%ref_count-1
-     IF (cell%ref_count==0) THEN
-        DEALLOCATE(cell,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-     END IF
-  END IF
-END SUBROUTINE cell_release
+    IF (ASSOCIATED(cell)) THEN
+       CPPreconditionNoFail(cell%ref_count>0,cp_failure_level,routineP,error)
+       cell%ref_count=cell%ref_count-1
+       IF (cell%ref_count==0) THEN
+          DEALLOCATE(cell,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END IF
+    END IF
+  END SUBROUTINE cell_release
 
 END MODULE cell_types

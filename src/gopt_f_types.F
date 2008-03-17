@@ -8,8 +8,12 @@
 !>      for the geometry optimizer
 !> \par History
 !>      01.2008 - Luca Bellucci and Teodoro Laino - Generalizing for Dimer Method.
+!>      03.2008 - Teodoro Laino [tlaino] - University of Zurich - Cell Optimization
 ! *****************************************************************************
 MODULE gopt_f_types
+  USE cell_opt_types,                  ONLY: cell_opt_env_create,&
+                                             cell_opt_env_release,&
+                                             cell_opt_env_type
   USE dimer_types,                     ONLY: dimer_env_create,&
                                              dimer_env_release,&
                                              dimer_env_retain,&
@@ -23,7 +27,8 @@ MODULE gopt_f_types
   USE gopt_param_types,                ONLY: gopt_param_read,&
                                              gopt_param_release,&
                                              gopt_param_type
-  USE input_constants,                 ONLY: default_dimer_method_id,&
+  USE input_constants,                 ONLY: default_cell_method_id,&
+                                             default_dimer_method_id,&
                                              default_minimization_method_id,&
                                              default_ts_method_id
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -51,9 +56,9 @@ MODULE gopt_f_types
   TYPE gopt_f_type
      INTEGER                                  :: ref_count, id_nr, its
      INTEGER                                  :: nfree
-     INTEGER                                  :: type_id, ts_method_id
+     INTEGER                                  :: type_id, ts_method_id, cell_method_id
      LOGICAL                                  :: dimer_rotation, do_line_search
-     CHARACTER(LEN=default_string_length)     :: label
+     CHARACTER(LEN=default_string_length)     :: label, tag
      TYPE(force_env_type), POINTER            :: force_env
      TYPE(global_environment_type), POINTER   :: globenv
      ! Motion section must be references only for IO of the MOTION%PRINT..
@@ -61,6 +66,7 @@ MODULE gopt_f_types
      TYPE(dimer_env_type), POINTER            :: dimer_env
      TYPE(gopt_f_type), POINTER               :: gopt_dimer_env
      TYPE(gopt_param_type), POINTER           :: gopt_dimer_param
+     TYPE(cell_opt_env_type), POINTER         :: cell_env
   END TYPE gopt_f_type
 
 CONTAINS
@@ -94,12 +100,11 @@ CONTAINS
     ALLOCATE(gopt_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       NULLIFY (gopt_env%dimer_env, gopt_env%gopt_dimer_env, gopt_env%gopt_dimer_param)
+       NULLIFY (gopt_env%dimer_env, gopt_env%gopt_dimer_env, gopt_env%gopt_dimer_param, gopt_env%cell_env)
        gopt_env%ref_count=1
        last_gopt_f_id=last_gopt_f_id+1
        gopt_env%id_nr=last_gopt_f_id
        gopt_env%its=0
-       gopt_env%label="GEO_OPT"
        gopt_env%dimer_rotation=.FALSE.
        gopt_env%do_line_search=.FALSE.
        CALL force_env_retain(force_env, error=error)
@@ -107,32 +112,44 @@ CONTAINS
        gopt_env%globenv        => globenv
        gopt_env%motion_section => section_vals_get_subs_vals(force_env%root_section,"MOTION",error=error)
        gopt_env%geo_section    => geo_opt_section
-       gopt_env%nfree   = force_env%subsys%particles%n_els
-       gopt_env%type_id = gopt_param%type_id
-       IF (gopt_param%type_id==default_ts_method_id) THEN 
-          gopt_env%ts_method_id = gopt_param%ts_method_id
-          SELECT CASE(gopt_param%ts_method_id)
-          CASE(default_dimer_method_id)
-             ! For the Dimer method we use the same framework of geometry optimizers
-             ! already defined for cp2k..
-             natom = force_env_get_natom(force_env,error)
-             dimer_section => section_vals_get_subs_vals(geo_opt_section,"TRANSITION_STATE%DIMER",error=error)
-             CALL dimer_env_create(gopt_env%dimer_env, natom, globenv, dimer_section, error)
-
-             ! Setup the GEO_OPT environment for the rotation of the Dimer
-             rot_opt_section => section_vals_get_subs_vals(dimer_section,"ROT_OPT",error=error)
-             CALL gopt_param_read(gopt_env%gopt_dimer_param, rot_opt_section,&
-                  type_id=default_minimization_method_id,error=error)
-             gopt_env%gopt_dimer_param%type_id = default_ts_method_id
-
-             CALL gopt_f_create(gopt_env%gopt_dimer_env, gopt_env%gopt_dimer_param, force_env=force_env,&
-                  globenv=globenv, geo_opt_section=rot_opt_section, error=error)
-             CALL dimer_env_retain(gopt_env%dimer_env, error)
-             gopt_env%gopt_dimer_env%dimer_env      => gopt_env%dimer_env
-             gopt_env%gopt_dimer_env%label          = "ROT_OPT"
-             gopt_env%gopt_dimer_env%dimer_rotation = .TRUE.
+       gopt_env%type_id        = gopt_param%type_id
+       SELECT CASE(gopt_env%type_id)
+       CASE(default_ts_method_id,default_minimization_method_id)
+          gopt_env%nfree   = force_env%subsys%particles%n_els
+          gopt_env%label   = "GEO_OPT"
+          gopt_env%tag     = "GEOMETRY"
+          SELECT CASE(gopt_param%type_id)
+          CASE(default_ts_method_id)
+             gopt_env%ts_method_id = gopt_param%ts_method_id
+             SELECT CASE(gopt_param%ts_method_id)
+             CASE(default_dimer_method_id)
+                ! For the Dimer method we use the same framework of geometry optimizers
+                ! already defined for cp2k..
+                natom = force_env_get_natom(force_env,error)
+                dimer_section => section_vals_get_subs_vals(geo_opt_section,"TRANSITION_STATE%DIMER",error=error)
+                CALL dimer_env_create(gopt_env%dimer_env, natom, globenv, dimer_section, error)
+                
+                ! Setup the GEO_OPT environment for the rotation of the Dimer
+                rot_opt_section => section_vals_get_subs_vals(dimer_section,"ROT_OPT",error=error)
+                CALL gopt_param_read(gopt_env%gopt_dimer_param, rot_opt_section,&
+                     type_id=default_minimization_method_id,error=error)
+                gopt_env%gopt_dimer_param%type_id = default_ts_method_id
+                
+                CALL gopt_f_create(gopt_env%gopt_dimer_env, gopt_env%gopt_dimer_param, force_env=force_env,&
+                     globenv=globenv, geo_opt_section=rot_opt_section, error=error)
+                CALL dimer_env_retain(gopt_env%dimer_env, error)
+                gopt_env%gopt_dimer_env%dimer_env      => gopt_env%dimer_env
+                gopt_env%gopt_dimer_env%label          = "ROT_OPT"
+                gopt_env%gopt_dimer_env%dimer_rotation = .TRUE.
+             END SELECT
           END SELECT
-       END IF
+       CASE(default_cell_method_id)
+          gopt_env%nfree   = 6
+          gopt_env%label   = "CELL_OPT"
+          gopt_env%tag     = "  CELL  "
+          gopt_env%cell_method_id = gopt_param%cell_method_id
+          CALL cell_opt_env_create(gopt_env%cell_env, force_env, gopt_env%geo_section, error)
+       END SELECT
     END IF
   END SUBROUTINE gopt_f_create
 
@@ -189,6 +206,7 @@ CONTAINS
                   gopt_env%globenv,&
                   gopt_env%motion_section,&
                   gopt_env%geo_section)
+          CALL cell_opt_env_release(gopt_env%cell_env,error)
           CALL dimer_env_release(gopt_env%dimer_env, error)
           CALL gopt_f_release(gopt_env%gopt_dimer_env, error=error)
           CALL gopt_param_release(gopt_env%gopt_dimer_param, error=error)

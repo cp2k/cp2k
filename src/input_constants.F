@@ -170,9 +170,10 @@ MODULE input_constants
                                 linear_response_run=10,&
                                 pint_run=11,&
                                 vib_anal=12,&
-                                do_band=13
+                                do_band=13,&
+                                cell_opt_run=14
   
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(21), PUBLIC :: run_type_names=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(22), PUBLIC :: run_type_names=&
        (/"NONE                     ",&
          "ENERGY                   ",&
          "ENERGY_FORCE             ",&
@@ -186,6 +187,7 @@ MODULE input_constants
          "PINT                     ",&
          "VIBRATIONAL_ANALYSIS     ",&   
          "BAND                     ",&   
+         "CELL_OPT                 ",&   
          "WFN_OPT                  ",&   ! Aliases to the previous unique names
          "WAVEFUNCTION_OPTIMIZATION",&   !
          "MOLECULAR_DYNAMICS       ",&   !
@@ -195,7 +197,7 @@ MODULE input_constants
          "LINEAR_RESPONSE          ",&   !
          "NORMAL_MODES             " /)  !
 
-  INTEGER, PARAMETER, PUBLIC, DIMENSION(21) :: run_type_index=&
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(22) :: run_type_index=&
        (/ none_run,& 
           energy_run,&
           energy_force_run,&
@@ -209,6 +211,7 @@ MODULE input_constants
           pint_run,&
           vib_anal,&
           do_band,&
+          cell_opt_run,&
           energy_run,&
           energy_run,&
           mol_dyn_run,&
@@ -425,7 +428,8 @@ MODULE input_constants
                                 default_cg_method_id=3
 
   INTEGER, PUBLIC, PARAMETER :: default_minimization_method_id=1,&
-                                default_ts_method_id=2
+                                default_ts_method_id=2,&
+                                default_cell_method_id=3
 
   INTEGER, PUBLIC, PARAMETER :: none_ts_method_id=0,&
                                 default_dimer_method_id=1
@@ -433,6 +437,9 @@ MODULE input_constants
   INTEGER, PUBLIC, PARAMETER :: do_first_rotation_step=0,&
                                 do_second_rotation_step=1,&
                                 do_third_rotation_step=2
+
+  INTEGER, PUBLIC, PARAMETER :: default_cell_geo_opt_id=0,&
+                                default_cell_md_id=1
 
   INTEGER, PARAMETER, PUBLIC :: add_last_no=0, add_last_numeric=1, add_last_symbolic=2
   INTEGER, PARAMETER, PUBLIC :: silent_print_level=0, low_print_level=1,&
