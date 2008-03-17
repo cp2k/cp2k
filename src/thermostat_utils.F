@@ -368,8 +368,8 @@ CONTAINS
           END DO
        END DO
        CALL section_vals_val_get(region_sections,"MOLNAME", i_rep_section=ig,n_rep_val=n_rep, error=error)
-       IF (n_rep /= 0) THEN
-          CALL section_vals_val_get(region_sections,"MOLNAME", i_rep_section=ig,c_vals=tmpstringlist, error=error)
+       DO jg = 1,  n_rep
+          CALL section_vals_val_get(region_sections,"MOLNAME", i_rep_section=ig,i_rep_val=jg,c_vals=tmpstringlist, error=error)
           DO ilist = 1, SIZE(tmpstringlist)
              DO ikind = 1, SIZE(molecule_kind_set)
                 molecule_kind => molecule_kind_set(ikind)
@@ -388,7 +388,7 @@ CONTAINS
                 END IF
              END DO
           END DO
-       END IF
+       END DO
        CALL setup_thermostat_subsys(region_sections, qmmm_env, thermolist, molecule_set,&
             subsys_qm=.FALSE., ig=ig, error=error)
        CALL setup_thermostat_subsys(region_sections, qmmm_env, thermolist, molecule_set,&
