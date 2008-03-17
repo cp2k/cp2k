@@ -71,18 +71,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iparticle, iseq, &
-                                                iw2, j, k, lrot(3), stat
+                                                j, k, lrot(3), stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cp(3), Ip(3,3), Ip_eigval(3), &
                                                 mass, masst, norm, rcom(3), &
                                                 rm(3)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: Rot, Tr
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,"I","",handle)
-    logger => cp_error_get_logger(error)
-    iw2 = cp_logger_get_default_unit_nr(logger)
     failure = .FALSE.
     CPPostcondition(ASSOCIATED(particles),cp_failure_level,routineP,error,failure)
     CPPostcondition(.NOT.ASSOCIATED(mat),cp_failure_level,routineP,error,failure)
