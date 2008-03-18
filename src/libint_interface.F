@@ -136,7 +136,17 @@ MODULE libint_interface
             tmp_max = MAX(tmp_max, ABS(p_work(i)))
           END DO
           tmp_max = tmp_max*max_contraction
-          IF(tmp_max<eps_schwarz) RETURN
+          IF(tmp_max<eps_schwarz) THEN
+#if defined (__PGI) || defined (__AIX)
+#if defined (__UGLY_BUT_FAST)
+          !! do_nothing
+#else
+            DEALLOCATE(p_work)
+#endif
+#endif
+            RETURN
+          END IF
+
           DO i = 1,nco(n_a)
             p1 = (i-1) *nco(n_b)
             DO j = 1,nco(n_b)
@@ -166,7 +176,16 @@ MODULE libint_interface
             tmp_max = MAX(tmp_max, ABS(p_work(i)))
           END DO
           tmp_max = tmp_max*max_contraction
-          IF(tmp_max<eps_schwarz) RETURN
+          IF(tmp_max<eps_schwarz) THEN
+#if defined (__PGI) || defined (__AIX)
+#if defined (__UGLY_BUT_FAST)
+          !! do_nothing
+#else
+            DEALLOCATE(p_work)
+#endif
+#endif
+            RETURN
+          END IF
 
           DO j = 1,nco(n_b)
             p1 = (j-1)*nco(n_a)
@@ -197,7 +216,16 @@ MODULE libint_interface
             tmp_max = MAX(tmp_max, ABS(p_work(i)))
           END DO
           tmp_max = tmp_max*max_contraction
-          IF(tmp_max<eps_schwarz) RETURN
+          IF(tmp_max<eps_schwarz) THEN
+#if defined (__PGI) || defined (__AIX)
+#if defined (__UGLY_BUT_FAST)
+          !! do_nothing
+#else
+            DEALLOCATE(p_work)
+#endif
+#endif
+            RETURN
+          END IF
 
           DO i = 1,nco(n_a)
             p1 = (i-1)*nco(n_b)
@@ -228,7 +256,16 @@ MODULE libint_interface
             tmp_max = MAX(tmp_max, ABS(p_work(i)))
           END DO
           tmp_max = tmp_max*max_contraction
-          IF(tmp_max<eps_schwarz) RETURN
+          IF(tmp_max<eps_schwarz) THEN
+#if defined (__PGI) || defined (__AIX)
+#if defined (__UGLY_BUT_FAST)
+          !! do_nothing
+#else
+            DEALLOCATE(p_work)
+#endif
+#endif
+            RETURN
+          END IF
 
           DO j = 1,nco(n_b)
             p1 = (j-1)*nco(n_a)
@@ -259,7 +296,16 @@ MODULE libint_interface
             tmp_max = MAX(tmp_max, ABS(p_work(i)))
           END DO
           tmp_max = tmp_max*max_contraction
-          IF(tmp_max<eps_schwarz) RETURN
+          IF(tmp_max<eps_schwarz) THEN
+#if defined (__PGI) || defined (__AIX)
+#if defined (__UGLY_BUT_FAST)
+          !! do_nothing
+#else
+            DEALLOCATE(p_work)
+#endif
+#endif
+            RETURN
+          END IF
 
           DO k = 1,nco(n_c)
             p1 = (k-1)*nco(n_d)
@@ -290,7 +336,16 @@ MODULE libint_interface
             tmp_max = MAX(tmp_max, ABS(p_work(i)))
           END DO
           tmp_max = tmp_max*max_contraction
-          IF(tmp_max<eps_schwarz) RETURN
+          IF(tmp_max<eps_schwarz) THEN
+#if defined (__PGI) || defined (__AIX)
+#if defined (__UGLY_BUT_FAST)
+          !! do_nothing
+#else
+            DEALLOCATE(p_work)
+#endif
+#endif
+            RETURN
+          END IF
 
           DO k = 1,nco(n_c)
             p1 = (k-1)*nco(n_d)
@@ -321,7 +376,16 @@ MODULE libint_interface
             tmp_max = MAX(tmp_max, ABS(p_work(i)))
           END DO
           tmp_max = tmp_max*max_contraction
-          IF(tmp_max<eps_schwarz) RETURN
+          IF(tmp_max<eps_schwarz) THEN
+#if defined (__PGI) || defined (__AIX)
+#if defined (__UGLY_BUT_FAST)
+          !! do_nothing
+#else
+            DEALLOCATE(p_work)
+#endif
+#endif
+            RETURN
+          END IF
 
           DO l = 1,nco(n_d)
             p1 = (l-1)*nco(n_c)
@@ -352,7 +416,16 @@ MODULE libint_interface
             tmp_max = MAX(tmp_max, ABS(p_work(i)))
           END DO
           tmp_max = tmp_max*max_contraction
-          IF(tmp_max<eps_schwarz) RETURN
+          IF(tmp_max<eps_schwarz) THEN
+#if defined (__PGI) || defined (__AIX)
+#if defined (__UGLY_BUT_FAST)
+          !! do_nothing
+#else
+            DEALLOCATE(p_work)
+#endif
+#endif
+            RETURN
+          END IF
 
           DO l = 1,nco(n_d)
             p1 = (l-1)*nco(n_c)
