@@ -1,17 +1,26 @@
 CC       = gcc
-CPP      = cpp
+CPP      = 
 FC       = mpfort -compiler xlf95_r -qsuffix=f=F
 LD       = mpfort -compiler xlf95_r
 AR       = ar -r
-DFLAGS   = -D__AIX -D__ESSL -D__FFTSG -D__FFTESSL\
-           -D__parallel -D__BLACS -D__SCALAPACK
+DFLAGS   = -WF,-D__AIX,-D__ESSL,-D__FFTSG,-D__FFTESSL,-D__parallel,-D__BLACS,-D__SCALAPACK,-D__LIBINT
 CPPFLAGS = -C $(DFLAGS) -P -traditional
-FCFLAGS  = -O3 -qstrict -q64 -qarch=pwr5 -qcache=auto -qmaxmem=-1 -qtune=pwr5
-FCFLAGS2 = -O0 -qstrict -q64 -qarch=pwr5 -qcache=auto -qmaxmem=-1 -qtune=pwr5
+FCFLAGS  = -O3 -qstrict -q64 -qarch=pwr5 -qcache=auto -qmaxmem=-1 -qtune=pwr5 \
+           -qextname=wrapper_build_deriv1_eri:wrapper_build_eri:wrapper_free_libderiv:wrapper_free_libint:wrapper_init_deriv:wrapper_init_lib $(DFLAGS)
+FCFLAGS2 = -O0 -qstrict -q64 -qarch=pwr5 -qcache=auto -qmaxmem=-1 -qtune=pwr5 $(DFLAGS)
 LDFLAGS  = $(FCFLAGS) -L/apps/lapack-3/64/lib -L/apps/scalapack/64/lib
 
-LIBS     = -lscalapack /apps/scalapack/64/lib/blacsF77init_MPI-ppc64-0.a /apps/scalapack/64/lib/blacs_MPI-ppc64-0.a\
-           -llapack_ppc64 -lessl /opt/ibmcmp/xlmass/4.3/lib64/libmass_64.a
+LIBS     = -lscalapack\
+	   /apps/scalapack/64/lib/blacsF77init_MPI-ppc64-0.a \
+	   /apps/scalapack/64/lib/blacs_MPI-ppc64-0.a\
+           -llapack_ppc64 -lessl\
+	   /opt/ibmcmp/xlmass/4.3/lib64/libmass_64.a\
+	   /users/teo/cp2k/libint_tools/libint_cpp_wrapper.o\
+	   /apps/libint-1.1.4/lib/libderiv.a\
+	   /apps/libint-1.1.4/lib/libint.a /opt/ibmcmp/vacpp/8.0/lib64/libibmc++.a
+
+CPPSHELL = -WF,-D__COMPILE_ARCH="\"$(ARCH)\"",-D__COMPILE_DATE="\"$(shell date)\"",-D__COMPILE_HOST="\"$(shell hostname)\"",-D__COMPILE_LASTCVS="\"$(shell tail -n1 $(SRCDIR)/CVS/Entries)\""
+
 
 OBJECTS_ARCHITECTURE = machine_aix.o
 

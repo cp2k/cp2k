@@ -1,13 +1,49 @@
 CC       = gcc
-CPP      = cpp
-FC       = xlf95_r -qsuffix=f=f90
+CPP      = 
+FC       = xlf95_r -qsuffix=f=F
 LD       = xlf95_r
 AR       = ar -r 
-DFLAGS   = -D__AIX -D__ESSL -D__FFTSG -D__FFTESSL
+DFLAGS   = -WF,-D__AIX,-D__ESSL,-D__FFTSG,-D__FFTESSL
 CPPFLAGS = -C $(DFLAGS) -P -traditional
-FCFLAGS  = -O3 -qstrict -q64 -qarch=pwr5 -qcache=auto -qmaxmem=-1 -qtune=pwr5
+FCFLAGS  = -O2 -qstrict -q64 -qarch=pwr5 -qcache=auto -qmaxmem=-1 -qtune=pwr5 $(DFLAGS)
+FCFLAGS2 = -O0 -qstrict -q64 -qarch=pwr5 -qcache=auto -qmaxmem=-1 -qtune=pwr5 $(DFLAGS)
 LDFLAGS  = $(FCFLAGS) -L/apps/lapack-3/64/lib
 
 LIBS     = -llapack_ppc64 -lessl /opt/ibmcmp/xlmass/4.3/lib64/libmass_64.a
+CPPSHELL = -WF,-D__COMPILE_ARCH="\"$(ARCH)\"",-D__COMPILE_DATE="\"$(shell date)\"",-D__COMPILE_HOST="\"$(shell hostname)\"",-D__COMPILE_LASTCVS="\"$(shell tail -n1 $(SRCDIR)/CVS/Entries)\""
 
 OBJECTS_ARCHITECTURE = machine_aix.o
+
+### To speed up compilation time ###
+cp2k_runs.o: cp2k_runs.F
+	$(FC) -c $(FCFLAGS2) $<
+f77_interface.o: f77_interface.F
+	$(FC) -c $(FCFLAGS2) $<
+
+md_run.o: md_run.F
+	$(FC) -c $(FCFLAGS2) $<
+
+geo_opt.o: geo_opt.F
+	$(FC) -c $(FCFLAGS2) $<
+cp_lbfgs_optimizer_gopt.o: cp_lbfgs_optimizer_gopt.F
+	$(FC) -c $(FCFLAGS2) $<
+
+force_env_methods.o: force_env_methods.F
+	$(FC) -c $(FCFLAGS2) $<
+
+qmmm_init.o: qmmm_init.F
+	$(FC) -c $(FCFLAGS2) $<
+
+mc_ensembles.o: mc_ensembles.F
+	$(FC) -c $(FCFLAGS2) $<
+mc_types.o: mc_types.F
+	$(FC) -c $(FCFLAGS2) $<
+mc_moves.o: mc_moves.F
+	$(FC) -c $(FCFLAGS2) $<
+
+pint_types.o: pint_types.F
+	$(FC) -c $(FCFLAGS2) $<
+
+nddo_methods.o: nddo_methods.F
+	$(FC) -c $(FCFLAGS2) $<
+
