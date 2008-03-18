@@ -199,7 +199,6 @@ CONTAINS
 
     IF (.NOT.ASSOCIATED(force)) THEN
 !   *** Allocate the force data structure ***
-       dft_control%forces=.TRUE.
        nkind = SIZE(atomic_kind_set)
        ALLOCATE (natom_of_kind(nkind),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -212,8 +211,7 @@ CONTAINS
       IF (harris_flag) THEN
          NULLIFY(harris_force)
         CALL harris_force_create(harris_force=harris_force,natom=natom,error=error)
-        CALL harris_env_set(harris_env=harris_env, &
-             harris_force=harris_force, error=error)
+        CALL harris_env_set(harris_env=harris_env, harris_force=harris_force, error=error)
       END IF
     END IF
     CALL zero_qs_force(force)

@@ -604,8 +604,7 @@ CONTAINS
     ! *** Calculate the overlap and the core Hamiltonian integral matrix ***
 
     CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
-         globenv=globenv,&
-         calculate_forces=.FALSE.,error=error)
+         globenv=globenv, calculate_forces=.FALSE.,error=error)
     CALL qs_env_update_s_mstruct(qs_env, error=error)
 
     !  *** init the ks_env
@@ -1602,7 +1601,6 @@ CONTAINS
 
     IF (.NOT.ASSOCIATED(force)) THEN
        !   *** Allocate the force data structure ***
-       dft_control%forces=.TRUE.
        nkind = SIZE(atomic_kind_set)
        ALLOCATE (natom_of_kind(nkind),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

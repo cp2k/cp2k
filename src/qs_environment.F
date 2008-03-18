@@ -319,8 +319,6 @@ CONTAINS
     
   END SUBROUTINE qs_init
 
-!****f* qs_environment/qs_init_subsys [1.0] *
-
 ! *****************************************************************************
 !> \brief Initialize the qs environment (subsys)
 !> \author Creation (22.05.2000,MK)
@@ -520,9 +518,7 @@ CONTAINS
        lmax_sphere = 2*maxlgto
        dft_control%qs_control%gapw_control%lmax_sphere= lmax_sphere
     END IF
-    maxl = MAX(2*maxlgto,maxlppl,maxlppnl,lmax_sphere)
-
-    IF (dft_control%forces) maxl = maxl + 1
+    maxl = MAX(2*maxlgto,maxlppl,maxlppnl,lmax_sphere) + 1
 
     CALL init_orbital_pointers(maxl)
     CALL init_spherical_harmonics(maxl,root_section,error)

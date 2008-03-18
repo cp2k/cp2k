@@ -72,6 +72,7 @@ MODULE kg_force
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_p_type
+  USE qs_core_energies,                ONLY: calculate_ecore_overlap
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
@@ -305,16 +306,13 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, error )
 
   CALL calculate_p_density(rhop_r, rhop_g, total_rhop_rspace, kg_env,error=error)
 
-! from the frozen rho, calculate the thomas-fermi and xc potentials
-!  CALL xc_calculate_pw1 (rho_r%pw, rho_g%pw, vxc_r%pw, energy%exc, &
-!                         dft_control,auxbas_pw_pool)
   ALLOCATE(my_rho_r(1))
   my_rho_r(1)%pw => rho_r%pw
   ALLOCATE(my_rho_g(1))
   my_rho_g(1)%pw => rho_g%pw
   CALL xc_vxc_pw_create1(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau,&
        energy%exc,xc_section,cell,auxbas_pw_pool,error=error)
-! ALLOCATE(vxc_r)
+
   vxc_r%pw => my_vxc_r(1)%pw
   NULLIFY(my_rho_r(1)%pw,my_rho_g(1)%pw, my_vxc_r(1)%pw)
   DEALLOCATE(my_rho_r,my_rho_g, my_vxc_r)
@@ -803,6 +801,7 @@ END SUBROUTINE kg_calculate_forces
     CALL zero_qs_force(force)
 
     ! Do the SCF calculation for KG GPW
+    CALL calculate_ecore_overlap(qs_env,para_env,.TRUE.,molecular=.TRUE., error=error)
     CALL kg_qs_energies(kg_env,globenv,error=error)
 
     CALL get_qs_env(qs_env=qs_env,&

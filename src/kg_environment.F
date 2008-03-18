@@ -262,8 +262,7 @@ CONTAINS
                              maxlppl=maxlppl,&
                              maxlppnl=maxlppnl)
 
-    maxl = MAX(maxlgto,maxlppl,maxlppnl)
-    IF (dft_control%forces) maxl = maxl + 1
+    maxl = MAX(maxlgto,maxlppl,maxlppnl) + 1
 
     CALL init_orbital_pointers(maxl)
     CALL init_spherical_harmonics(maxl,root_section,error)
@@ -331,18 +330,16 @@ CONTAINS
     CALL allocate_kg_energy(energy)
 
     ! Allocate the force data structure
-    IF (dft_control%forces) THEN
-      nkind = SIZE(atomic_kind_set)
-      ALLOCATE (natom_of_kind(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "natom_of_kind",nkind*int_size)
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             natom_of_kind=natom_of_kind)
-      CALL allocate_kg_force(force,natom_of_kind)
-      DEALLOCATE (natom_of_kind,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "natom_of_kind")
-    END IF
+    nkind = SIZE(atomic_kind_set)
+    ALLOCATE (natom_of_kind(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "natom_of_kind",nkind*int_size)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                           natom_of_kind=natom_of_kind)
+    CALL allocate_kg_force(force,natom_of_kind)
+    DEALLOCATE (natom_of_kind,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "natom_of_kind")
 
     ! set the kg_env
     CALL set_kg_env ( kg_env=kg_env,&
@@ -549,18 +546,16 @@ CONTAINS
 
     CALL allocate_qs_energy ( qs_energy )
 
-    IF ( dft_control%forces ) THEN
-      nkind = SIZE(atomic_kind_set)
-      ALLOCATE (natom_of_kind(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "natom_of_kind",nkind*int_size)
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                               natom_of_kind=natom_of_kind)
-      CALL allocate_qs_force ( qs_force,natom_of_kind )
-      DEALLOCATE (natom_of_kind,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "natom_of_kind")
-    END IF
+    nkind = SIZE(atomic_kind_set)
+    ALLOCATE (natom_of_kind(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "natom_of_kind",nkind*int_size)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             natom_of_kind=natom_of_kind)
+    CALL allocate_qs_force ( qs_force,natom_of_kind )
+    DEALLOCATE (natom_of_kind,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "natom_of_kind")
 
 !   No idea whether OT can work with KG
     CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.,error=error)

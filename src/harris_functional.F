@@ -79,8 +79,7 @@ CONTAINS
 !>      06.2005 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
-  SUBROUTINE harris_energy_correction(qs_env, harris_env, para_env, &
-                                      EII_necessary, fast, error)
+  SUBROUTINE harris_energy_correction(qs_env, harris_env, para_env, EII_necessary, fast, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(harris_env_type), POINTER           :: harris_env
@@ -103,9 +102,6 @@ CONTAINS
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
-
-!rho_tot_gspace, &
-!   ------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
 
@@ -143,18 +139,7 @@ CONTAINS
       CALL pw_pool_create_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                               use_data=COMPLEXDATA1D, &
                               in_space=RECIPROCALSPACE, error=error)
-      !CALL pw_pool_create_pw(auxbas_pw_pool, rho_tot_gspace%pw, &
-      !                        use_data=COMPLEXDATA1D, &
-      !                        in_space=RECIPROCALSPACE, error=error)
 
-      ! ** CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho) ** !
-      !CALL coeff_add(rho_core, rho%rho_g(ispin), rho_tot_gspace)
-      !DO ispin=2, qs_env%dft_control%nspins
-      !   CALL coeff_sumup(rho%rho_g(ispin), rho_tot_gspace)
-      !END DO
-
-      !CALL calculate_hartree(rho_tot_gspace, ehartree=harris_energy%Ehartree_tot, &
-      !                       vhartree=v_hartree_gspace)
       DO ispin = 1,nspins
         CALL pw_poisson_solve(poisson_env, rho%rho_g(ispin)%pw, &
                               ehartree=harris_energy%Ehartree_elec, &
@@ -166,14 +151,9 @@ CONTAINS
                                vhartree=v_hartree_gspace%pw,error=error)
       END IF
 
-      !CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw, &
-      !                             error=error)
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_gspace%pw, &
                                    error=error)
 
-      !CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, &
-      !                   vxc_tau = v_tau_rspace, exc=harris_energy%Exc, &
-      !                   just_energy=.FALSE., error=error)
       CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, &
                          vxc_tau=v_tau_rspace, exc=harris_energy%Exc, &
                          just_energy=.FALSE., harris=.TRUE., error=error)
@@ -204,7 +184,7 @@ CONTAINS
           qs_env%energy%core_self = 0.0_dp
 
           CALL calculate_ecore_overlap(qs_env=qs_env, para_env=para_env, &
-                                       calculate_forces=dft_control%forces, &
+                                       calculate_forces=.FALSE., &
                                        E_overlap_core=harris_energy%Ecore_overlap,&
                                        error=error)
           CALL calculate_ecore_self(qs_env, E_self_core=harris_energy%Ecore_self,error=error)
@@ -221,21 +201,9 @@ CONTAINS
       harris_energy%Eharris_correction = - harris_energy%Ehartree_elec &
                                          - harris_energy%integral_vxc &
                                          + harris_energy%Exc + harris_energy%EII
-
-      !IF (ASSOCIATED(v_rspace_new)) THEN
-      !  DEALLOCATE(v_rspace_new,stat=stat)
-      !  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      !END IF
-      !
-      !IF (ASSOCIATED(v_tau_rspace)) THEN
-      !  DEALLOCATE(v_tau_rspace,stat=stat)
-      !  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      !END IF
-
     END IF
 
     CALL timestop(0.0_dp, handle)
-
   END SUBROUTINE harris_energy_correction
 
 ! *****************************************************************************

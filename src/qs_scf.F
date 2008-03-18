@@ -554,8 +554,7 @@ CONTAINS
 
           ! ** calculation of the harris energy correction ***
           IF (harris_flag) THEN
-             CALL harris_energy_correction(qs_env, harris_env, para_env=para_env,&
-                                           fast=.TRUE., error=error)
+             CALL harris_energy_correction(qs_env, harris_env, para_env=para_env, fast=.TRUE., error=error)
              IF (scf_env%method .NE. ot_method_nr) THEN
                 CALL harris_eigenvalue_trace_KS_Pmix(scf_env, qs_env, harris_env,error=error)
              ELSE

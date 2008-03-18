@@ -75,7 +75,7 @@ CONTAINS
 
     CHARACTER(len=default_path_length)       :: basis_set_file_name, &
                                                 potential_file_name
-    INTEGER                                  :: excitations, method_id, run_id
+    INTEGER                                  :: excitations, method_id
     LOGICAL                                  :: failure, is_present, l_param, &
                                                 not_SE, was_present
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
@@ -179,26 +179,12 @@ CPSourceFileRef,&
     dft_control % sic_scaling_b = 1.0_dp
 
     dft_control % xas_estate    = -1
-
     dft_control%dft_plus_u = .FALSE.
 
     CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
          c_val=basis_set_file_name , error=error)
     CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
          c_val=potential_file_name , error=error)
-
-    tmp_section => section_vals_get_subs_vals(root_section,"GLOBAL",&
-         error=error)
-    CALL section_vals_val_get(tmp_section,"RUN_TYPE",i_val=run_id,error=error)
-    SELECT CASE (run_id)!FM to rm, ugly!!
-    CASE (energy_run,mon_car_run,electronic_spectra_run,&
-          bsse_run,linear_response_run)
-      dft_control%forces = .FALSE.
-    CASE (mol_dyn_run,energy_force_run,geo_opt_run,qs_debug_run,pint_run,vib_anal,do_band)
-      dft_control%forces = .TRUE.
-    CASE DEFAULT
-      CALL stop_program(routineN,"unknown run type ")
-    END SELECT
 
 !   *** Read the input section ***
     tmp_section => section_vals_get_subs_vals(dft_section,"sic",&
@@ -708,14 +694,6 @@ CPSourceFileRef,&
 
        WRITE (UNIT=output_unit,FMT="(T2,A,T76,I5)")&
          "DFT| Charge",dft_control%charge
-
-       IF (dft_control%forces) THEN
-         WRITE (UNIT=output_unit,FMT="(T2,A,T78,A)")&
-           "DFT| Force calculation","YES"
-       ELSE
-         WRITE (UNIT=output_unit,FMT="(T2,A,T78,A)")&
-           "DFT| Force calculation"," NO"
-       END IF
 
        IF (dft_control%sic_method_id.NE.sic_none) CALL cite_reference(VandeVondele2005b)
        SELECT CASE ( dft_control%sic_method_id )

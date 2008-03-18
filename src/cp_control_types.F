@@ -24,23 +24,25 @@ MODULE cp_control_types
 
   PRIVATE
 
-!------------------------------------------------------------------------------!
-! Control parameters for pw grids
+! *****************************************************************************
+! \brief Control parameters for pw grids
 ! *****************************************************************************
   TYPE pw_grid_option
      LOGICAL :: spherical
      LOGICAL :: fullspace
      INTEGER, DIMENSION(2) :: distribution_layout
   END TYPE pw_grid_option
-!------------------------------------------------------------------------------!
-! Control parameters for SCP calculations
+
+! *****************************************************************************
+! \brief Control parameters for SCP calculations
 ! *****************************************************************************
   TYPE scp_control_type
      LOGICAL                              :: dispersion
      INTEGER                              :: coeff_guess
   END TYPE scp_control_type
-!------------------------------------------------------------------------------!
-! Control parameters for DFTB calculations
+
+! *****************************************************************************
+! \brief Control parameters for DFTB calculations
 ! *****************************************************************************
   TYPE dftb_control_type
      LOGICAL                              :: self_consistent
@@ -54,8 +56,9 @@ MODULE cp_control_types
           DIMENSION(:,:), POINTER         :: sk_pair_list
      CHARACTER(LEN=default_path_length)   :: uff_force_field
   END TYPE dftb_control_type
-!------------------------------------------------------------------------------!
-! Control parameters for semi empirical calculations
+
+! *****************************************************************************
+! \brief Control parameters for semi empirical calculations
 ! *****************************************************************************
   TYPE semi_empirical_control_type
      LOGICAL               :: orthogonal_basis
@@ -66,16 +69,17 @@ MODULE cp_control_types
      REAL(KIND = dp)       :: rc_coulomb
      REAL(KIND = dp)       :: rc_range
   END TYPE semi_empirical_control_type
-!------------------------------------------------------------------------------!
-! Control parameters for GAPW method within QUICKSTEP ***
-! eps_3c_reduce:to reduce the cutoff value for the interaction of
-!              the primitive Gaussian-type
-!              functions with the GAPW projectors in the construction of
-!              the 3 center terms. This factor multiplies eps_pgf_orb in
-!              the calculation of a shorter radius that can be used for
-!              the construction of the OCE coefficients. The default is 1
-!              (no effects). Larger values can be used to reduce the memory
-!              allocations, but should be tested first.
+
+! *****************************************************************************
+! \brief Control parameters for GAPW method within QUICKSTEP ***
+!        eps_3c_reduce:to reduce the cutoff value for the interaction of
+!                     the primitive Gaussian-type
+!                     functions with the GAPW projectors in the construction of
+!                     the 3 center terms. This factor multiplies eps_pgf_orb in
+!                     the calculation of a shorter radius that can be used for
+!                     the construction of the OCE coefficients. The default is 1
+!                     (no effects). Larger values can be used to reduce the memory
+!                     allocations, but should be tested first.
 ! *****************************************************************************
   TYPE gapw_control_type
     REAL(KIND = dp)                 :: eps_3c_reduce,&
@@ -96,16 +100,18 @@ MODULE cp_control_types
                                        alpha0_soft
     REAL(KIND = dp)                 :: max_rad_local
   END TYPE gapw_control_type
-!------------------------------------------------------------------------------!
-! parameters for finite field calculations
+
+! *****************************************************************************
+! \brief parameters for finite field calculations
 ! *****************************************************************************
   TYPE finite_field_type
     LOGICAL                         :: berry_phase
     REAL(KIND = dp)                 :: efield_strength
     REAL(KIND = dp), DIMENSION(3)   :: efield_polarisation
   END TYPE finite_field_type
-!------------------------------------------------------------------------------!
-! some parameters useful for mulliken_restraints
+
+! *****************************************************************************
+! \brief some parameters useful for mulliken_restraints
 ! *****************************************************************************
   TYPE mulliken_restraint_type
     INTEGER                         :: ref_count
@@ -114,8 +120,9 @@ MODULE cp_control_types
     INTEGER                         :: natoms
     INTEGER, POINTER, DIMENSION(:)  :: atoms
   END TYPE mulliken_restraint_type
-!------------------------------------------------------------------------------!
-! some parameters useful for ddapc_restraints
+
+! *****************************************************************************
+! \brief some parameters useful for ddapc_restraints
 ! *****************************************************************************
   TYPE ddapc_restraint_type
     INTEGER                         :: ref_count
@@ -128,7 +135,8 @@ MODULE cp_control_types
     REAL(KIND=dp), POINTER, DIMENSION(:)  :: coeff
   END TYPE ddapc_restraint_type
 
-! *** some parameters useful for becke_constraints
+! *****************************************************************************
+! \brief some parameters useful for becke_constraints
 ! *****************************************************************************
   TYPE becke_constraint_type
     INTEGER                         :: ref_count
@@ -143,8 +151,8 @@ MODULE cp_control_types
     REAL(KIND=dp), POINTER, DIMENSION(:)  :: coeff
  END TYPE becke_constraint_type
 
-!------------------------------------------------------------------------------!
-! some parameters useful for s2_restraints
+! *****************************************************************************
+! \brief some parameters useful for s2_restraints
 ! *****************************************************************************
   TYPE s2_restraint_type
     INTEGER                         :: ref_count
@@ -153,12 +161,11 @@ MODULE cp_control_types
     REAL(KIND = dp)                 :: s2_order_p
     INTEGER                         :: functional_form
   END TYPE s2_restraint_type
-!------------------------------------------------------------------------------!
-! Control parameters for a QUICKSTEP and KIM-GORDON calculation ***
-!
-! eps_pgf_orb: Cutoff value for the interaction of the primitive Gaussian-type
-!              functions (primitive basis functions).
-!
+
+! *****************************************************************************
+! \brief Control parameters for a QUICKSTEP and KIM-GORDON calculation ***
+!        eps_pgf_orb: Cutoff value for the interaction of the primitive 
+!                     Gaussian-type functions (primitive basis functions).
 ! *****************************************************************************
   TYPE qs_control_type
     CHARACTER(LEN=10)               :: method
@@ -200,9 +207,10 @@ MODULE cp_control_types
     INTEGER                         :: wf_interpolation_method_nr
     INTEGER                         :: wf_extrapolation_order
   END TYPE qs_control_type
-!------------------------------------------------------------------------------!
-! Control parameters for a TIME-DEPENDENT PERTURBATION calculation ***
-! ATTRIBUTES
+
+! *****************************************************************************
+! \brief Control parameters for a TIME-DEPENDENT PERTURBATION calculation
+! \par  ATTRIBUTES
 !   - n_ev       : number of eigenvalues to calculate
 !   - n_reortho  : how many time to reorthogonalize (in the lanczos algorithm)
 !   - do_kernel  : wether to evaluate the kernel (this is a debugging option)
@@ -210,11 +218,10 @@ MODULE cp_control_types
 !                  to calculate
 !   - lumos_eigenvalues : holds the eigenvalues of the lumos (if calculated in QS)
 !
-! NOTES
+! \par  NOTES
 !   The lumos are helpfull in choosing a initial vector for the TDDFPT
 !   calculation, since they can be used to construct the solutions of the
 !   TDDFPT operator without the perturbation kernel.
-!
 ! *****************************************************************************
   TYPE tddfpt_control_type
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: lumos
@@ -236,8 +243,9 @@ MODULE cp_control_types
      REAL(KIND=dp)                             :: sic_scaling_a,sic_scaling_b
      REAL(KIND = dp), DIMENSION(:,:), POINTER  :: lumos_eigenvalues
   END TYPE tddfpt_control_type
-!------------------------------------------------------------------------------!
-! Control parameters for a DFT calculation
+
+! *****************************************************************************
+! \brief Control parameters for a DFT calculation
 ! *****************************************************************************
   TYPE dft_control_type
      TYPE(qs_control_type)           :: qs_control
@@ -255,16 +263,13 @@ MODULE cp_control_types
      INTEGER                         :: sic_list_id
      REAL(KIND=dp)                   :: sic_scaling_a,&
                                         sic_scaling_b
-     LOGICAL                         :: forces,&
-                                        do_tddfpt_calculation, &
+     LOGICAL                         :: do_tddfpt_calculation, &
                                         do_xas_calculation, &
                                         use_kinetic_energy_density, &
                                         restricted,roks,uks,lsd,dft_plus_u,scp
   END TYPE dft_control_type
-!------------------------------------------------------------------------------!
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_types'
-
   INTEGER, SAVE :: last_dft_control_id=0
 
 ! *** Public data types ***

@@ -770,10 +770,6 @@ CONTAINS
       POINTER                                :: matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
 
-!    INTEGER                                  :: homo, ispin, nao, &
-!                                                ndep, nelectron_spin, &
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY(dft_control,kg_fm,scf_control,S_sm_pools)
@@ -836,9 +832,8 @@ CONTAINS
 
       ! update ecore
       CALL calculate_ecore_self(qs_env,error=error)
+      CALL calculate_ecore_overlap(qs_env,para_env,.FALSE.,molecular=.TRUE., error=error)
 
-      CALL calculate_ecore_overlap(qs_env,para_env,dft_control%forces,molecular=.TRUE.,&
-           error=error)
       output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%DETAILED_ENERGY",&
            extension=".scfLog",error=error)
       IF (output_unit>0) THEN
