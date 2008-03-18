@@ -80,6 +80,11 @@ MODULE cp_units
   INTEGER, PARAMETER, PUBLIC :: cp_units_k=150
   ! Pressure
   INTEGER, PARAMETER, PUBLIC :: cp_units_bar=161
+  INTEGER, PARAMETER, PUBLIC :: cp_units_atm=162
+  INTEGER, PARAMETER, PUBLIC :: cp_units_kbar=163
+  INTEGER, PARAMETER, PUBLIC :: cp_units_Pa=164
+  INTEGER, PARAMETER, PUBLIC :: cp_units_MPa=165
+  INTEGER, PARAMETER, PUBLIC :: cp_units_GPa=166
   ! Angles
   INTEGER, PARAMETER, PUBLIC :: cp_units_rad=170,&
                                 cp_units_deg=171
@@ -89,8 +94,7 @@ MODULE cp_units
                                 cp_units_wn=182,&
                                 cp_units_ps=183
 
-  INTEGER, PARAMETER, PUBLIC :: cp_unit_max_kinds=8, &
-       cp_unit_basic_desc_length=15, &
+  INTEGER, PARAMETER, PUBLIC :: cp_unit_max_kinds=8, cp_unit_basic_desc_length=15,&
        cp_unit_desc_length=cp_unit_max_kinds*cp_unit_basic_desc_length
 
   PUBLIC :: cp_unit_type, cp_unit_p_type, cp_unit_set_type
@@ -243,8 +247,23 @@ CONTAINS
        CASE("temperature")
           unit_id(i_unit)=cp_units_none
           kind_id(i_unit)=cp_ukind_temperature
+       CASE("atm")
+          unit_id(i_unit)=cp_units_atm
+          kind_id(i_unit)=cp_ukind_pressure
        CASE("bar")
           unit_id(i_unit)=cp_units_bar
+          kind_id(i_unit)=cp_ukind_pressure
+       CASE("kbar")
+          unit_id(i_unit)=cp_units_kbar
+          kind_id(i_unit)=cp_ukind_pressure
+       CASE("Pa")
+          unit_id(i_unit)=cp_units_Pa
+          kind_id(i_unit)=cp_ukind_pressure
+       CASE("MPa")
+          unit_id(i_unit)=cp_units_MPa
+          kind_id(i_unit)=cp_ukind_pressure
+       CASE("GPa")
+          unit_id(i_unit)=cp_units_GPa
           kind_id(i_unit)=cp_ukind_pressure
        CASE("au_p")
           unit_id(i_unit)=cp_units_au
@@ -616,7 +635,7 @@ CONTAINS
           END SELECT
        CASE(cp_ukind_pressure)
           SELECT CASE (basic_unit)
-          CASE(cp_units_bar, cp_units_au,cp_units_none)
+          CASE(cp_units_bar,cp_units_atm,cp_units_kbar,cp_units_Pa,cp_units_MPa,cp_units_GPa,cp_units_au,cp_units_none)
           CASE default
              CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
                   routineP,"unknown pressure unit:"//TRIM(cp_to_string(basic_unit)),&
@@ -671,8 +690,7 @@ CONTAINS
 !>        see module cp_error_handling 
 !> \author fawzi
 ! *****************************************************************************
-  FUNCTION cp_basic_unit_to_cp2k(value,basic_kind,basic_unit,power,error)&
-       RESULT(res)
+  FUNCTION cp_basic_unit_to_cp2k(value,basic_kind,basic_unit,power,error)  RESULT(res)
     REAL(kind=dp), INTENT(in)                :: value
     INTEGER, INTENT(in)                      :: basic_kind, basic_unit
     INTEGER, INTENT(in), OPTIONAL            :: power
@@ -757,6 +775,16 @@ CONTAINS
           SELECT CASE (basic_unit)
           CASE(cp_units_bar)
              res=(joule/(a_bohr**3*1.0E+05_dp))**(-my_power)*value
+          CASE(cp_units_atm)
+             res=(joule/(a_bohr**3*1.0E+05_dp))**(-my_power)*(value*1.01325_dp)
+          CASE(cp_units_kbar)
+             res=(joule/(a_bohr**3*1.0E+05_dp))**(-my_power)*(value*1000.0_dp)
+          CASE(cp_units_Pa)
+             res=(joule/(a_bohr**3*1.0E+05_dp))**(-my_power)*(value*1.0E-5_dp)
+          CASE(cp_units_MPa)
+             res=(joule/(a_bohr**3*1.0E+05_dp))**(-my_power)*(value*1.00E1_dp)
+          CASE(cp_units_GPa)
+             res=(joule/(a_bohr**3*1.0E+05_dp))**(-my_power)*(value*1.00E4_dp)
           CASE(cp_units_au)
              res=value
           CASE default
@@ -932,6 +960,16 @@ CONTAINS
           SELECT CASE (basic_unit)
           CASE(cp_units_bar)
              res="bar"
+          CASE(cp_units_atm)
+             res="atm"
+          CASE(cp_units_kbar)
+             res="kbar"
+          CASE(cp_units_Pa)
+             res="Pa"
+          CASE(cp_units_MPa)
+             res="MPa"
+          CASE(cp_units_GPa)
+             res="GPa"
           CASE(cp_units_au)
              res="au_p"
           CASE(cp_units_none)
