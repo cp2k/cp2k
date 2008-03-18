@@ -1001,7 +1001,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="write_cube",&
             description="If the cube file should be written. If false, the eigenvalues are still computed.",&
-            default_l_val=.TRUE., error=error)
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="nlumo",&
