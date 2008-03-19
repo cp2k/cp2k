@@ -53,7 +53,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ff_map', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: amb_imax = 47, &
-                                                chm_imax = 107, grm_imax = 22
+                                                chm_imax = 108, grm_imax = 22
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
@@ -102,7 +102,7 @@ CONTAINS
             "NN2U","NN3A","NN3G","NN3I","NN  ","NPH ","NP  ","NR  ","NR  ","NTL ",&
             "NY  ","O2L ","OBL ","OB  ","OCL ","OC  ","OHL ","OH  ","OM  ","ON1C",&
             "ON2b","ON6B","ON  ","O   ","OSL ","OS  ","OT  ","P2  ","PL  ","POT ",&
-            "P   ","SL  ","SM  ","SOD ","S   ","SS  ","ZN  "/)
+            "P   ","SL  ","SM  ","SOD ","S   ","SS  ","ZN  ","CN6B"/)
 
        charmm_map%element=(/&
             "C ","Ca","C ","C ","C ","C ","C ","Cs","Cl","C ",&
@@ -115,7 +115,7 @@ CONTAINS
             "N ","N ","N ","N ","N ","N ","N ","H ","N ","N ",&
             "N ","O ","O ","O ","O ","O ","O ","O ","O ","O ",&
             "O ","O ","O ","O ","O ","O ","O ","P ","P ","K ",&
-            "P ","S ","S ","Na","S ","S ","Zn"/)
+            "P ","S ","S ","Na","S ","S ","Zn","C "/)
 
     CASE("GROMOS")
        ALLOCATE(gromos_map,stat=stat)
