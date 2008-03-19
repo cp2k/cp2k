@@ -72,6 +72,8 @@ CONTAINS
     SELECT CASE(gopt_env%type_id)
     CASE(default_minimization_method_id)
        SELECT CASE(gopt_param%cg_ls%type_id)
+       CASE(ls_2pnt)
+          CALL linmin_2pnt(gopt_env, xvec, xi, opt_energy, gopt_param, error=error)
        CASE(ls_fit)
           CALL linmin_fit(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brent_tol,&
                gopt_param%cg_ls%brent_max_iter, gopt_param%cg_ls%brack_limit, &
@@ -104,6 +106,8 @@ CONTAINS
        SELECT CASE(gopt_env%cell_method_id)
        CASE(default_cell_geo_opt_id)
           SELECT CASE(gopt_param%cg_ls%type_id)
+          CASE(ls_2pnt)
+             CALL linmin_2pnt(gopt_env, xvec, xi, opt_energy, gopt_param, error=error)
           CASE(ls_fit)
              CALL linmin_fit(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brent_tol,&
                   gopt_param%cg_ls%brent_max_iter, gopt_param%cg_ls%brack_limit, &
@@ -118,15 +122,106 @@ CONTAINS
                   error=error, error_level=cp_failure_level)
           END SELECT
        CASE(default_cell_md_id)
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="No Line Search types yet implemented in CG.", &
-               error=error, error_level=cp_failure_level)
+          SELECT CASE(gopt_param%cg_ls%type_id)
+          CASE(ls_2pnt)
+             CALL linmin_2pnt(gopt_env, xvec, xi, opt_energy, gopt_param, use_only_grad=.TRUE.,&
+                  error=error) 
+          CASE DEFAULT
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+                  message="Line Search type not yet implemented in CG for MD cell opt.", &
+                  error=error, error_level=cp_failure_level)
+          END SELECT
        END SELECT
     END SELECT
     gopt_env%do_line_search = .FALSE.
     CALL timestop(handle)
 
   END SUBROUTINE cg_linmin
+
+! *****************************************************************************
+!> \brief Line search subroutine based on 2 points (using gradients and energies
+!>        or only gradients)
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+!> \author Teodoro Laino - created [tlaino] - 03.2008
+! *****************************************************************************
+  SUBROUTINE linmin_2pnt(gopt_env, x0, ls_vec, opt_energy, gopt_param, use_only_grad, error)
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: x0, ls_vec
+    REAL(KIND=dp), INTENT(INOUT)             :: opt_energy
+    TYPE(gopt_param_type), POINTER           :: gopt_param
+    LOGICAL, INTENT(IN), OPTIONAL            :: use_only_grad
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'linmin_2pnt', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, stat
+    LOGICAL                                  :: failure, my_use_only_grad
+    REAL(KIND=dp)                            :: a, b, c, dx, dx_min, dx_thrs, &
+                                                norm_grad1, norm_grad2, &
+                                                norm_ls_vec, opt_energy2, &
+                                                x_grad_zero
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: gradient2, ls_norm
+
+    failure = .FALSE.
+    CALL timeset(routineN,handle)
+    norm_ls_vec = SQRT(DOT_PRODUCT(ls_vec,ls_vec))
+    my_use_only_grad = .FALSE.
+    IF (PRESENT(use_only_grad)) my_use_only_grad = use_only_grad
+    IF (norm_ls_vec/=0.0_dp) THEN 
+       ALLOCATE(ls_norm(SIZE(ls_vec)),stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(gradient2(SIZE(ls_vec)),stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       
+       ls_norm = ls_vec / norm_ls_vec
+       dx      = norm_ls_vec
+       dx_thrs = gopt_param%cg_ls%max_step
+       
+       x0 = x0 + dx * ls_norm
+       CALL cp_eval_at(gopt_env, x0, opt_energy2, gradient2,master=gopt_env%force_env%para_env%mepos,&
+            para_env=gopt_env%force_env%para_env,error=error)
+
+       norm_grad1 = DOT_PRODUCT(   ls_vec,ls_norm)       
+       norm_grad2 = DOT_PRODUCT(gradient2,ls_norm)       
+       IF (my_use_only_grad) THEN
+          ! a*x+b=y
+          ! per x=0; b=norm_grad1
+          b = norm_grad1
+          ! per x=dx; a*dx+b=norm_grad2
+          a = (norm_grad2 - b)/dx
+          x_grad_zero= -b/a
+          dx_min = x_grad_zero - dx
+       ELSE
+          ! ax**2+b*x+c=y
+          ! per x=0 ; c=opt_energy
+          c = opt_energy
+          ! per x=dx;          a*dx**2 + b*dx + c = opt_energy2
+          ! per x=dx;        2*a*dx    + b        = norm_grad2
+          !
+          !                  - a*dx**2        + c = (opt_energy2-norm_grad2*dx)
+          !                    a*dx**2            = c - (opt_energy2-norm_grad2*dx)
+          a = (c - (opt_energy2-norm_grad2*dx))/dx**2
+          b = norm_grad2 - 2.0_dp*a*dx
+          dx_min = -b/(2.0_dp*a) - dx
+          opt_energy = opt_energy2
+       END IF
+       ! In case the solution is larger than the maximum threshold let's assume the maximum allowed
+       ! step length
+       IF (ABS(dx_min)>dx_thrs)  dx_min = SIGN(1.0_dp,dx_min)*dx_thrs
+       x0 = x0 + dx_min * ls_norm
+
+       DEALLOCATE(ls_norm,stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(gradient2,stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ELSE
+       ! Do Nothing, since.. if the effective force is 0 means that we are already
+       ! in the saddle point..
+    END IF
+    CALL timestop(handle)
+  END SUBROUTINE linmin_2pnt
 
 ! *****************************************************************************
 !> \brief Translational minimization for the Dimer Method - 2pnt LS
@@ -168,13 +263,15 @@ CONTAINS
        x0 = x0 + dx * tls_norm
        CALL cp_eval_at(gopt_env, x0, opt_energy2, master=gopt_env%force_env%para_env%mepos,&
             para_env=gopt_env%force_env%para_env, error=error)
-       ! First let's try to interpolate the minimum
-       dx_min = -opt_energy/(opt_energy2-opt_energy)*dx -dx
-       ! If the solution is negative we reject it and just do a fixed step
-       IF (dx_min<0.0_dp)   dx_min = dx_thrs
-       ! In case the solution is larger than the maximum threshold let's assume the maximum allowed
-       ! step length
-       IF (dx_min>dx_thrs)  dx_min = dx_thrs
+       IF (dimer_env%rot%curvature>0) THEN
+          dx_min=0.0_dp
+       ELSE
+          ! First let's try to interpolate the minimum
+          dx_min = -opt_energy/(opt_energy2-opt_energy)*dx -dx
+          ! In case the solution is larger than the maximum threshold let's assume the maximum allowed
+          ! step length
+          IF (ABS(dx_min)>dx_thrs)  dx_min = SIGN(1.0_dp,dx_min)*dx_thrs
+       END IF
        x0 = x0 + dx_min * tls_norm
 
        ! Here we compute the value of the energy in point zero..

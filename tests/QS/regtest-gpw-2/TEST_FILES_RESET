@@ -313,3 +313,6 @@ Ar-13.inp
 # bug fix in dimer method
 hcn_ts.inp
 hcn_ts_r.inp
+# bug fix line search
+hcn_ts.inp
+hcn_ts_r.inp

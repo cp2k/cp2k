@@ -51,6 +51,7 @@ interface-2.inp           0
 # geo_opt with save_mem.. bug fix
 mfi_geo.inp               7
 mfi_geo2.inp              7
+mfi_geo3.inp              7
 # fixed atoms with only partial components
 nh3_fixd_x.inp            2
 nh3_fixd_xy.inp           2
@@ -59,3 +60,4 @@ nh3_fixd_z.inp            2
 #Cell opt
 argon_opt_cell.inp        7
 argon_opt_cell_ks.inp     7
+argon_opt_cell_md.inp     7
