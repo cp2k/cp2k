@@ -1147,7 +1147,7 @@ CONTAINS
             error=error)
        CALL keyword_create(keyword, name="MAX_ALLOWED_STEP",&
             description="Max allowed value for the line search step.",&
-            usage="MAX_ALLOWED_STEP {real}",&
+            usage="MAX_ALLOWED_STEP {real}",unit_str="internal_cp2k",&
             default_r_val=0.25_dp,error=error)
        CALL section_add_keyword(subsubsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1164,21 +1164,21 @@ CONTAINS
        CALL keyword_create(keyword, name="INITIAL_STEP",&
             description="Initial step size used, e.g. for bracketing or minimizers. "//&
             "Might need to be reduced for systems with close contacts",&
-            usage="INITIAL_STEP {real}",&
+            usage="INITIAL_STEP {real}",unit_str="internal_cp2k",&
             default_r_val=0.2_dp,error=error)
        CALL section_add_keyword(subsubsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="BRACK_LIMIT",&
             description="Limit in 1D bracketing during line search in Conjugate Gradients Optimization.",&
-            usage="BRACK_LIMIT {real}",&
+            usage="BRACK_LIMIT {real}",unit_str="internal_cp2k",&
             default_r_val=100.0_dp,error=error)
        CALL section_add_keyword(subsubsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="BRENT_TOL",&
             description="Tolerance requested during Brent line search in Conjugate Gradients Optimization.",&
-            usage="BRENT_TOL {real}",&
+            usage="BRENT_TOL {real}",unit_str="internal_cp2k",&
             default_r_val=0.01_dp,error=error)
        CALL section_add_keyword(subsubsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1246,7 +1246,7 @@ CONTAINS
             description="Convergence criterium (overrides the general ones):"//&
             "Requested norm threshold of the gradient multiplied "// &
             "by the approximate Hessian.",&
-            usage="WANTED_PROJ_GRADIENT {real}",&
+            usage="WANTED_PROJ_GRADIENT {real}",unit_str="internal_cp2k",&
             default_r_val=1.0E-16_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1255,7 +1255,7 @@ CONTAINS
             description="Convergence criterium (overrides the general ones):"//&
             "Requested relative error on the objective function"//&
             "of the optimizer (the energy)",&
-            usage="WANTED_REL_F_ERROR {real}",&
+            usage="WANTED_REL_F_ERROR {real}",unit_str="internal_cp2k",&
             default_r_val=1.0E-16_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
