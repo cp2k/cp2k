@@ -137,6 +137,8 @@ SUBROUTINE fftcu3d ( fft_in_place, fsign, scale, n, zin, zout )
   stop
 
 #endif
+#else
+  fsign = 0
 #endif
 
 END SUBROUTINE fftcu3d
