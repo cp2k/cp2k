@@ -15,9 +15,7 @@ MODULE cg_utils
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
-  USE input_constants,                 ONLY: default_cell_geo_opt_id,&
-                                             default_cell_md_id,&
-                                             default_cell_method_id,&
+  USE input_constants,                 ONLY: default_cell_method_id,&
                                              default_minimization_method_id,&
                                              default_ts_method_id,&
                                              ls_2pnt,&
@@ -49,11 +47,11 @@ CONTAINS
 !>      10.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE cg_linmin(gopt_env, xvec, xi, opt_energy, output_unit, gopt_param,&
+  SUBROUTINE cg_linmin(gopt_env, xvec, xi, g, opt_energy, output_unit, gopt_param,&
        globenv, error)
 
     TYPE(gopt_f_type), POINTER               :: gopt_env
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec, xi
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec, xi, g
     REAL(KIND=dp), INTENT(INOUT)             :: opt_energy
     INTEGER                                  :: output_unit
     TYPE(gopt_param_type), POINTER           :: gopt_param
@@ -73,7 +71,8 @@ CONTAINS
     CASE(default_minimization_method_id)
        SELECT CASE(gopt_param%cg_ls%type_id)
        CASE(ls_2pnt)
-          CALL linmin_2pnt(gopt_env, xvec, xi, opt_energy, gopt_param, error=error)
+          CALL linmin_2pnt(gopt_env, xvec, xi, g, opt_energy, gopt_param, output_unit=output_unit,&
+               error=error)
        CASE(ls_fit)
           CALL linmin_fit(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brent_tol,&
                gopt_param%cg_ls%brent_max_iter, gopt_param%cg_ls%brack_limit, &
@@ -95,7 +94,7 @@ CONTAINS
                   error)
           ELSE
              CALL tslmin_2pnt(gopt_env, gopt_env%dimer_env, xvec, xi, opt_energy, gopt_param,&
-                  error)
+                  output_unit, error)
           END IF
        CASE DEFAULT
           CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -103,34 +102,14 @@ CONTAINS
                error=error, error_level=cp_failure_level)
        END SELECT
     CASE(default_cell_method_id)
-       SELECT CASE(gopt_env%cell_method_id)
-       CASE(default_cell_geo_opt_id)
-          SELECT CASE(gopt_param%cg_ls%type_id)
-          CASE(ls_2pnt)
-             CALL linmin_2pnt(gopt_env, xvec, xi, opt_energy, gopt_param, error=error)
-          CASE(ls_fit)
-             CALL linmin_fit(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brent_tol,&
-                  gopt_param%cg_ls%brent_max_iter, gopt_param%cg_ls%brack_limit, &
-                  gopt_param%cg_ls%initial_step, output_unit, gopt_param, globenv, error)
-          CASE(ls_gold)
-             CALL linmin_gold(gopt_env, xvec, xi, opt_energy, gopt_param%cg_ls%brent_tol,&
-                  gopt_param%cg_ls%brent_max_iter, gopt_param%cg_ls%brack_limit, &
-                  gopt_param%cg_ls%initial_step, output_unit, globenv, error)
-          CASE DEFAULT
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Line Search type not yet implemented in CG.", &
-                  error=error, error_level=cp_failure_level)
-          END SELECT
-       CASE(default_cell_md_id)
-          SELECT CASE(gopt_param%cg_ls%type_id)
-          CASE(ls_2pnt)
-             CALL linmin_2pnt(gopt_env, xvec, xi, opt_energy, gopt_param, use_only_grad=.TRUE.,&
-                  error=error) 
-          CASE DEFAULT
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Line Search type not yet implemented in CG for MD cell opt.", &
-                  error=error, error_level=cp_failure_level)
-          END SELECT
+       SELECT CASE(gopt_param%cg_ls%type_id)
+       CASE(ls_2pnt)
+          CALL linmin_2pnt(gopt_env, xvec, xi, g, opt_energy, gopt_param, use_only_grad=.TRUE.,&
+               output_unit=output_unit, error=error)
+       CASE DEFAULT
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Line Search type not yet implemented in CG for cell optimization.", &
+               error=error, error_level=cp_failure_level)
        END SELECT
     END SELECT
     gopt_env%do_line_search = .FALSE.
@@ -145,12 +124,14 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Teodoro Laino - created [tlaino] - 03.2008
 ! *****************************************************************************
-  SUBROUTINE linmin_2pnt(gopt_env, x0, ls_vec, opt_energy, gopt_param, use_only_grad, error)
+  SUBROUTINE linmin_2pnt(gopt_env, x0, ls_vec, g, opt_energy, gopt_param, use_only_grad,&
+       output_unit, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: x0, ls_vec
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: x0, ls_vec, g
     REAL(KIND=dp), INTENT(INOUT)             :: opt_energy
     TYPE(gopt_param_type), POINTER           :: gopt_param
     LOGICAL, INTENT(IN), OPTIONAL            :: use_only_grad
+    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'linmin_2pnt', &
@@ -158,10 +139,8 @@ CONTAINS
 
     INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure, my_use_only_grad
-    REAL(KIND=dp)                            :: a, b, c, dx, dx_min, dx_thrs, &
-                                                norm_grad1, norm_grad2, &
-                                                norm_ls_vec, opt_energy2, &
-                                                x_grad_zero
+    REAL(KIND=dp) :: a, b, c, dx, dx_min, dx_min_save, dx_thrs, norm_grad1, &
+      norm_grad2, norm_ls_vec, opt_energy2, x_grad_zero
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gradient2, ls_norm
 
     failure = .FALSE.
@@ -178,13 +157,13 @@ CONTAINS
        ls_norm = ls_vec / norm_ls_vec
        dx      = norm_ls_vec
        dx_thrs = gopt_param%cg_ls%max_step
-       
+
        x0 = x0 + dx * ls_norm
        CALL cp_eval_at(gopt_env, x0, opt_energy2, gradient2,master=gopt_env%force_env%para_env%mepos,&
             para_env=gopt_env%force_env%para_env,error=error)
 
-       norm_grad1 = DOT_PRODUCT(   ls_vec,ls_norm)       
-       norm_grad2 = DOT_PRODUCT(gradient2,ls_norm)       
+       norm_grad1 = -DOT_PRODUCT(        g,ls_norm)
+       norm_grad2 =  DOT_PRODUCT(gradient2,ls_norm)
        IF (my_use_only_grad) THEN
           ! a*x+b=y
           ! per x=0; b=norm_grad1
@@ -192,7 +171,7 @@ CONTAINS
           ! per x=dx; a*dx+b=norm_grad2
           a = (norm_grad2 - b)/dx
           x_grad_zero= -b/a
-          dx_min = x_grad_zero - dx
+          dx_min = x_grad_zero
        ELSE
           ! ax**2+b*x+c=y
           ! per x=0 ; c=opt_energy
@@ -204,14 +183,27 @@ CONTAINS
           !                    a*dx**2            = c - (opt_energy2-norm_grad2*dx)
           a = (c - (opt_energy2-norm_grad2*dx))/dx**2
           b = norm_grad2 - 2.0_dp*a*dx
-          dx_min = -b/(2.0_dp*a) - dx
+          dx_min = -b/(2.0_dp*a)
           opt_energy = opt_energy2
        END IF
+       dx_min_save = dx_min
        ! In case the solution is larger than the maximum threshold let's assume the maximum allowed
        ! step length
        IF (ABS(dx_min)>dx_thrs)  dx_min = SIGN(1.0_dp,dx_min)*dx_thrs
-       x0 = x0 + dx_min * ls_norm
+       x0 = x0 + (dx_min-dx) * ls_norm
 
+       ! Print out LS info
+       IF (output_unit>0) THEN
+          WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
+          WRITE(UNIT=output_unit,FMT="(T2,A,T31,A,T78,A)")&
+               "***","2PNT LINE SEARCH INFO","***"
+          WRITE(UNIT=output_unit,FMT="(T2,A,T78,A)")"***","***"
+          WRITE(UNIT=output_unit,FMT="(T2,A,3X,A,F12.6,T45,A,F12.6,T78,A)")&
+               "***","DX (EVALUATED)=",dx,"DX (THRESHOLD)=",dx_thrs,"***"
+          WRITE(UNIT=output_unit,FMT="(T2,A,3X,A,F12.6,T45,A,F12.6,T78,A)")&
+               "***","DX (FITTED   )=",dx_min_save,"DX (ACCEPTED )=",dx_min,"***"
+          WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
+       END IF
        DEALLOCATE(ls_norm,stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(gradient2,stat=stat)
@@ -229,12 +221,13 @@ CONTAINS
 !>        see module cp_error_handling
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! *****************************************************************************
-  SUBROUTINE tslmin_2pnt(gopt_env, dimer_env, x0, tls_vec, opt_energy, gopt_param, error)
+  SUBROUTINE tslmin_2pnt(gopt_env, dimer_env, x0, tls_vec, opt_energy, gopt_param, output_unit, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(dimer_env_type), POINTER            :: dimer_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0, tls_vec
     REAL(KIND=dp), INTENT(INOUT)             :: opt_energy
     TYPE(gopt_param_type), POINTER           :: gopt_param
+    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tslmin_2pnt', &
@@ -242,7 +235,8 @@ CONTAINS
 
     INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dx, dx_min, dx_thrs, &
+    REAL(KIND=dp)                            :: dx, dx_min, dx_min_acc, &
+                                                dx_min_save, dx_thrs, &
                                                 norm_tls_vec, opt_energy2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tls_norm
 
@@ -264,15 +258,35 @@ CONTAINS
        CALL cp_eval_at(gopt_env, x0, opt_energy2, master=gopt_env%force_env%para_env%mepos,&
             para_env=gopt_env%force_env%para_env, error=error)
        IF (dimer_env%rot%curvature>0) THEN
-          dx_min=0.0_dp
+          dx_min      = 0.0_dp
+          dx_min_save = dx
+          dx_min_acc  = dx
        ELSE
           ! First let's try to interpolate the minimum
-          dx_min = -opt_energy/(opt_energy2-opt_energy)*dx -dx
+          dx_min = -opt_energy/(opt_energy2-opt_energy)*dx
           ! In case the solution is larger than the maximum threshold let's assume the maximum allowed
           ! step length
+          dx_min_save = dx_min
           IF (ABS(dx_min)>dx_thrs)  dx_min = SIGN(1.0_dp,dx_min)*dx_thrs
+          dx_min_acc  = dx_min
+          dx_min      = dx_min - dx
        END IF
        x0 = x0 + dx_min * tls_norm
+
+       ! Print out LS info
+       IF (output_unit>0) THEN
+          WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
+          WRITE(UNIT=output_unit,FMT="(T2,A,T24,A,T78,A)")&
+               "***","2PNT TRASLATIONAL LINE SEARCH INFO","***"
+          WRITE(UNIT=output_unit,FMT="(T2,A,T78,A)")"***","***"
+          WRITE(UNIT=output_unit,FMT="(T2,A,3X,A,F12.6,T78,A)")&
+               "***","LOCAL CURVATURE =",dimer_env%rot%curvature,"***"
+          WRITE(UNIT=output_unit,FMT="(T2,A,3X,A,F12.6,T45,A,F12.6,T78,A)")&
+               "***","DX (EVALUATED)=",dx,"DX (THRESHOLD)=",dx_thrs,"***"
+          WRITE(UNIT=output_unit,FMT="(T2,A,3X,A,F12.6,T45,A,F12.6,T78,A)")&
+               "***","DX (FITTED   )=",dx_min_save,"DX (ACCEPTED )=",dx_min_acc,"***"
+          WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
+       END IF
 
        ! Here we compute the value of the energy in point zero..
        CALL cp_eval_at(gopt_env, x0, opt_energy, master=gopt_env%force_env%para_env%mepos,&
@@ -1021,6 +1035,7 @@ CONTAINS
 !> \brief Computes the Conjugate direction for the next search
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \par   Info for DIMER method
 !> \param g contains the theta  of the previous step.. (norm 1.0 vector)
 !> \param xi contains the -theta of the present step.. (norm 1.0 vector)
 !> \param h contains the search direction of the previous step (must be orthogonal

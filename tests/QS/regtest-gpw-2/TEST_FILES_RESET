@@ -316,3 +316,6 @@ hcn_ts_r.inp
 # bug fix line search
 hcn_ts.inp
 hcn_ts_r.inp
+# bug fix in line search
+hcn_ts.inp
+hcn_ts_r.inp

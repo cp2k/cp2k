@@ -387,7 +387,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich 
 !> \data  11.2007
 ! *****************************************************************************
-  SUBROUTINE write_final_info(conv, it, gopt_env, x0, master, para_env, force_env,&
+  RECURSIVE SUBROUTINE write_final_info(conv, it, gopt_env, x0, master, para_env, force_env,&
     motion_section, root_section, force_env_section, error)
     LOGICAL, INTENT(IN)                      :: conv
     INTEGER, INTENT(INOUT)                   :: it

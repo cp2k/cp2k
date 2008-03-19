@@ -61,3 +61,5 @@ water_2_TS.inp
 argon.inp
 water_2_TS_CG.inp
 water_2_TS.inp
+# bug fix in line search
+2d_pot.inp

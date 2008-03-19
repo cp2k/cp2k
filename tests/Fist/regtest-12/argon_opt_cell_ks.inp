@@ -141,6 +141,11 @@
     MAX_FORCE 0.002
     RMS_FORCE 0.001
     &CG
+      &LINE_SEARCH
+        TYPE 2PNT
+        &2PNT
+        &END
+      &END
     &END
   &END
   &GEO_OPT

@@ -133,13 +133,18 @@
   &CELL_OPT
     TYPE GEO_OPT
     OPTIMIZER CG
-    MAX_ITER 5
+    MAX_ITER 30
     EXTERNAL_PRESSURE 1.0
     MAX_DR 0.02
     RMS_DR 0.01
     MAX_FORCE 0.002
     RMS_FORCE 0.001
     &CG
+      &LINE_SEARCH
+        TYPE 2PNT
+        &2PNT
+        &END
+      &END
     &END
   &END
   &GEO_OPT

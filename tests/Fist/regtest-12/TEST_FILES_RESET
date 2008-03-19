@@ -1,3 +1,8 @@
 #
 # just add file names for which the reference needs to be reset below, with some comment
 #
+# bug fix in line search
+argon_opt_cell.inp
+argon_opt_cell_ks.inp
+argon_opt_cell_md.inp
+mfi_geo3.inp

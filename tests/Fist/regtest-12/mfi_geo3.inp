@@ -84,29 +84,10 @@
             CREATE_MOLECULES T
         &END GENERATE
     &END TOPOLOGY
-
-    &PRINT
-        #&INTERATOMIC_DISTANCES
-        #&END INTERATOMIC_DISTANCES
-        #&TOPOLOGY_INFO
-        #    XYZ_INFO T
-        #    GENERATE_INFO F
-        #&END TOPOLOGY_INFO
-        #&KINDS
-        #&END KINDS
-    &END PRINT
-
-
   &END SUBSYS
-  &PRINT
-    &FORCES
-        &EACH
-          MD 1
-        &END
-    &END FORCES
-  &END PRINT
 &END FORCE_EVAL
 &GLOBAL
+  PRINT_LEVEL LOW
   PROJECT mfi
   RUN_TYPE GEO_OPT
   SAVE_MEM
@@ -121,6 +102,6 @@
       &END
     &END
     MINIMIZER CG
-    MAX_ITER 20
+    MAX_ITER 40
   &END GEO_OPT
 &END MOTION

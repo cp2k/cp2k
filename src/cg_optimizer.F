@@ -176,7 +176,7 @@ CONTAINS
           emin = MIN(emin, opt_energy)
 
           ! Line minimization
-          CALL cg_linmin(gopt_env, x0, xi, opt_energy, output_unit, gopt_param, globenv, error)
+          CALL cg_linmin(gopt_env, x0, xi, g, opt_energy, output_unit, gopt_param, globenv, error)
 
           ! Check for an external exit command
           CALL external_control(should_stop,"GEO",globenv,error)
