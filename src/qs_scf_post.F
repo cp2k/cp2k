@@ -57,20 +57,24 @@ MODULE qs_scf_post
                                              default_string_length,&
                                              dp
   USE lowdin,                          ONLY: lowdin_charges
+  USE mathconstants,                   ONLY: pi
   USE molecular_states,                ONLY: construct_molecular_states
   USE molecule_types_new,              ONLY: molecule_type
   USE mulliken,                        ONLY: mulliken_charges
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE physcon,                         ONLY: debye
+  USE physcon,                         ONLY: angstrom,&
+                                             debye
   USE preconditioner,                  ONLY: preconditioner_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_grids,                        ONLY: get_pw_grid_info
   USE pw_methods,                      ONLY: pw_axpy,&
                                              pw_copy,&
                                              pw_integrate_function,&
                                              pw_scale,&
-                                             pw_transfer
+                                             pw_transfer,&
+                                             pw_zero
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_p_type,&
@@ -119,7 +123,8 @@ MODULE qs_scf_post
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xray_diffraction,                ONLY: xray_diffraction_spectrum
+  USE xray_diffraction,                ONLY: calculate_rhotot_elec_gspace,&
+                                             xray_diffraction_spectrum
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -1189,10 +1194,12 @@ CPSourceFileRef,&
     INTEGER                                  :: handle, homo, ispin, iw, nmo, &
                                                 output_unit, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: stride_xyz
-    LOGICAL                                  :: all_equal, failure, ionode
-    REAL(KIND=dp)                            :: maxocc, s_square, &
-                                                s_square_ideal, &
-                                                total_abs_spin_dens, udvol
+    LOGICAL                                  :: all_equal, failure, ionode, &
+                                                print_total_density
+    REAL(KIND=dp) :: maxocc, q_max, rho_hard, rho_soft, rho_total, &
+      rho_total_rspace, s_square, s_square_ideal, total_abs_spin_dens, udvol, &
+      volume
+    REAL(KIND=dp), DIMENSION(3)              :: dr
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, &
                                                 occupation_numbers
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1210,7 +1217,8 @@ CPSourceFileRef,&
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type)                          :: wf_r
+    TYPE(pw_p_type)                          :: rho_elec_gspace, &
+                                                rho_elec_rspace, wf_r
     TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -1320,7 +1328,8 @@ CPSourceFileRef,&
                "Ideal and single determinant S**2 : ",s_square_ideal,s_square
        ENDIF
 
-       !   *** total density ***
+       ! Print the total density (electronic + core charge)
+
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
             "DFT%PRINT%TOT_DENSITY_CUBE", error=error),cp_p_file)) THEN
           NULLIFY(rho_core,rho0_s_gs)
@@ -1353,63 +1362,242 @@ CPSourceFileRef,&
           CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)
        END IF
 
-       !   *** Cube file of the electron density ***
+       ! Write cube file with electron density
+
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%E_DENSITY_CUBE", error=error),cp_p_file)) THEN
-          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
-          CALL pw_env_get(pw_env, error=error)
-          IF (dft_control%nspins.ne.1) THEN
-             CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
-             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-                  pw_pools=pw_pools,error=error)
-             CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
-                  use_data = REALDATA3D,&
-                  in_space = REALSPACE, error=error)
-             CALL pw_copy(rho%rho_r(1)%pw,wf_r%pw)
-             CALL pw_axpy(rho%rho_r(2)%pw,wf_r%pw)
-             filename = "ELECTRON_DENSITY"
-             unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
-                  extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
-             CALL pw_to_cube(wf_r%pw,unit_nr,ionode,"SPIN 1 + SPIN 2 ELECTRON DENSITY",&
-                  particles=particles,&
-                  stride=section_get_ival(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE",error=error),&
-                  error=error)
-             CALL cp_print_key_finished_output(unit_nr,logger,input,&
-                  "DFT%PRINT%E_DENSITY_CUBE",error=error)
-             CALL pw_copy(rho%rho_r(1)%pw,wf_r%pw)
-             CALL pw_axpy(rho%rho_r(2)%pw,wf_r%pw,alpha=-1._dp)
-             filename = "SPIN_DENSITY"
-             unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
-                  extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
-             CALL pw_to_cube(wf_r%pw,unit_nr,ionode,"SPIN 1 DENSITY - SPIN 2 DENSITY",&
-                  particles=particles,&
-                  stride=section_get_ival(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE",error=error),&
-                  error=error)
-             CALL cp_print_key_finished_output(unit_nr,logger,input,&
-                  "DFT%PRINT%E_DENSITY_CUBE",error=error)
-             CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw, error=error)
-          ELSE
-             filename = "ELECTRON_DENSITY"
-             unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
-                  extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
-             NULLIFY(stride_xyz)
-             CALL section_vals_val_get(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE_XYZ",&
-                  i_vals=stride_xyz,error=error) 
-             IF(stride_xyz(1)==0) THEN
-               CALL pw_to_cube(rho%rho_r(1)%pw,unit_nr,&
-                  ionode,"ELECTRON_DENSITY",particles=particles,&
-                  stride=section_get_ival(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE",error=error),&
-                  error=error)
+                 "DFT%PRINT%E_DENSITY_CUBE",error=error),cp_p_file)) THEN
+          CALL section_vals_val_get(dft_section,&
+                                    keyword_name="PRINT%E_DENSITY_CUBE%TOTAL_DENSITY",&
+                                    l_val=print_total_density,&
+                                    error=error)
+          IF (dft_control%qs_control%gapw.AND.print_total_density) THEN
+             ! Print total electronic density
+             CALL get_qs_env(qs_env=qs_env,&
+                             pw_env=pw_env,&
+                             error=error)
+             CALL pw_env_get(pw_env=pw_env,&
+                             auxbas_pw_pool=auxbas_pw_pool,&
+                             pw_pools=pw_pools,&
+                             error=error)
+             CALL pw_pool_create_pw(pool=auxbas_pw_pool,&
+                                    pw=rho_elec_rspace%pw,&
+                                    use_data=REALDATA3D,&
+                                    in_space=REALSPACE,&
+                                    error=error)
+             CALL pw_zero(rho_elec_rspace%pw)
+             CALL pw_pool_create_pw(pool=auxbas_pw_pool,&
+                                    pw=rho_elec_gspace%pw,&
+                                    use_data=COMPLEXDATA1D,&
+                                    in_space=RECIPROCALSPACE,&
+                                    error=error)
+             CALL pw_zero(rho_elec_gspace%pw)
+             CALL get_pw_grid_info(pw_grid=rho_elec_gspace%pw%pw_grid,&
+                                   dr=dr,&
+                                   vol=volume,&
+                                   error=error)
+             q_max = SQRT(SUM((pi/dr(:))**2))
+             CALL calculate_rhotot_elec_gspace(qs_env=qs_env,&
+                                               auxbas_pw_pool=auxbas_pw_pool,&
+                                               rhotot_elec_gspace=rho_elec_gspace,&
+                                               q_max=q_max,&
+                                               rho_hard=rho_hard,&
+                                               rho_soft=rho_soft,&
+                                               error=error)
+             rho_total = rho_hard + rho_soft
+             CALL get_pw_grid_info(pw_grid=rho_elec_gspace%pw%pw_grid,&
+                                   vol=volume,&
+                                   error=error)
+             CALL pw_transfer(rho_elec_gspace%pw,rho_elec_rspace%pw,debug=.FALSE.)
+             rho_total_rspace = pw_integrate_function(rho_elec_rspace%pw,isign=-1)/volume
+             filename = "TOTAL_ELECTRON_DENSITY"
+             unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
+                                            extension=".cube",middle_name=TRIM(filename),&
+                                            log_filename=.FALSE.,error=error)
+             IF (ionode) THEN
+                INQUIRE (UNIT=unit_nr,NAME=filename)
+                WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
+                  "The total electron density is written in cube file format to the file:",&
+                  TRIM(filename)
+                WRITE (UNIT=output_unit,FMT="(/,(T2,A,F20.10))")&
+                  "q(max) [1/Angstrom]              :",q_max/angstrom,&
+                  "Soft electronic charge (G-space) :",rho_soft,&
+                  "Hard electronic charge (G-space) :",rho_hard,&
+                  "Total electronic charge (G-space):",rho_total,&
+                  "Total electronic charge (R-space):",rho_total_rspace
+              END IF
+              NULLIFY (stride_xyz)
+              CALL section_vals_val_get(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE_XYZ",&
+                                        i_vals=stride_xyz,&
+                                        error=error)
+             IF (stride_xyz(1) == 0) THEN
+                CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,ionode,"TOTAL ELECTRON DENSITY",&
+                                particles=particles,&
+                                stride=section_get_ival(dft_section,&
+                                                        "PRINT%E_DENSITY_CUBE%STRIDE",&
+                                                        error=error),&
+                                error=error)
              ELSE
-               CALL pw_to_cube(rho%rho_r(1)%pw,unit_nr,ionode,"ELECTRON DENSITY",&
-                    particles=particles, stride_xyz=stride_xyz, error=error)
+                CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,ionode,"TOTAL ELECTRON DENSITY",&
+                                particles=particles,&
+                                stride_xyz=stride_xyz,&
+                                error=error)
              END IF
              CALL cp_print_key_finished_output(unit_nr,logger,input,&
-                  "DFT%PRINT%E_DENSITY_CUBE",error=error)
-          ENDIF
-       ENDIF
+                                               "DFT%PRINT%E_DENSITY_CUBE",&
+                                               error=error)
+             ! Print total spin density for spin-polarized systems
+             IF (dft_control%nspins > 1) THEN
+                CALL pw_zero(rho_elec_gspace%pw)
+                CALL pw_zero(rho_elec_rspace%pw)
+                CALL calculate_rhotot_elec_gspace(qs_env=qs_env,&
+                                                  auxbas_pw_pool=auxbas_pw_pool,&
+                                                  rhotot_elec_gspace=rho_elec_gspace,&
+                                                  q_max=q_max,&
+                                                  rho_hard=rho_hard,&
+                                                  rho_soft=rho_soft,&
+                                                  fsign=-1.0_dp,&
+                                                  error=error)
+                rho_total = rho_hard + rho_soft
+                CALL pw_transfer(rho_elec_gspace%pw,rho_elec_rspace%pw,debug=.FALSE.)
+                rho_total_rspace = pw_integrate_function(rho_elec_rspace%pw,isign=-1)/volume
+                filename = "TOTAL_SPIN_DENSITY"
+                unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
+                                               extension=".cube",middle_name=TRIM(filename),&
+                                               log_filename=.FALSE.,error=error)
+                IF (ionode) THEN
+                   INQUIRE (UNIT=unit_nr,NAME=filename)
+                   WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
+                     "The total spin density is written in cube file format to the file:",&
+                     TRIM(filename)
+                   WRITE (UNIT=output_unit,FMT="(/,(T2,A,F20.10))")&
+                     "q(max) [1/Angstrom]                    :",q_max/angstrom,&
+                     "Soft part of the spin density (G-space):",rho_soft,&
+                     "Hard part of the spin density (G-space):",rho_hard,&
+                     "Total spin density (G-space)           :",rho_total,&
+                     "Total spin density (R-space)           :",rho_total_rspace
+                END IF
+                NULLIFY (stride_xyz)
+                CALL section_vals_val_get(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE_XYZ",&
+                                          i_vals=stride_xyz,&
+                                          error=error)
+                IF (stride_xyz(1) == 0) THEN
+                   CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,ionode,"TOTAL SPIN DENSITY",&
+                                    particles=particles,&
+                                    stride=section_get_ival(dft_section,&
+                                                            "PRINT%E_DENSITY_CUBE%STRIDE",&
+                                                            error=error),&
+                                    error=error)
+                ELSE
+                   CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,ionode,"TOTAL SPIN DENSITY",&
+                                   particles=particles,&
+                                   stride_xyz=stride_xyz,&
+                                   error=error)
+                END IF
+             END IF
+             CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_elec_gspace%pw,error=error)
+             CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_elec_rspace%pw,error=error)
+          ELSE
+             IF (dft_control%nspins > 1) THEN
+                CALL get_qs_env(qs_env=qs_env,&
+                                pw_env=pw_env,&
+                                error=error)
+                CALL pw_env_get(pw_env=pw_env,&
+                                auxbas_pw_pool=auxbas_pw_pool,&
+                                pw_pools=pw_pools,&
+                                error=error)
+                CALL pw_pool_create_pw(pool=auxbas_pw_pool,&
+                                       pw=rho_elec_rspace%pw,&
+                                       use_data=REALDATA3D,&
+                                       in_space=REALSPACE,&
+                                       error=error)
+                CALL pw_copy(rho%rho_r(1)%pw,rho_elec_rspace%pw)
+                CALL pw_axpy(rho%rho_r(2)%pw,rho_elec_rspace%pw)
+                filename = "ELECTRON_DENSITY"
+                unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
+                                               extension=".cube",middle_name=TRIM(filename),&
+                                               log_filename=.FALSE.,error=error)
+                IF (ionode) THEN
+                   INQUIRE (UNIT=unit_nr,NAME=filename)
+                   WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
+                     "The sum of alpha and beta density is written in cube file format to the file:",&
+                     TRIM(filename)
+                END IF
+                CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,ionode,"SUM OF ALPHA AND BETA DENSITY",&
+                                particles=particles,&
+                                stride=section_get_ival(dft_section,&
+                                                        "PRINT%E_DENSITY_CUBE%STRIDE",&
+                                                        error=error),&
+                                error=error)
+                CALL cp_print_key_finished_output(unit_nr,logger,input,&
+                                         "DFT%PRINT%E_DENSITY_CUBE",error=error)
+                CALL pw_copy(rho%rho_r(1)%pw,rho_elec_rspace%pw)
+                CALL pw_axpy(rho%rho_r(2)%pw,rho_elec_rspace%pw,alpha=-1.0_dp)
+                filename = "SPIN_DENSITY"
+                unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
+                                               extension=".cube",middle_name=TRIM(filename),&
+                                               log_filename=.FALSE.,error=error)
+                IF (ionode) THEN
+                   INQUIRE (UNIT=unit_nr,NAME=filename)
+                   WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
+                     "The spin density is written in cube file format to the file:",&
+                     TRIM(filename)
+                END IF
+                NULLIFY (stride_xyz)
+                CALL section_vals_val_get(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE_XYZ",&
+                                          i_vals=stride_xyz,error=error)
+                IF (stride_xyz(1) == 0) THEN
+                   CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,ionode,"SPIN DENSITY",&
+                                   particles=particles,&
+                                   stride=section_get_ival(dft_section,&
+                                                           "PRINT%E_DENSITY_CUBE%STRIDE",&
+                                                           error=error),&
+                                   error=error)
+                ELSE
+                   CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,ionode,"SPIN DENSITY",&
+                                   particles=particles,&
+                                   stride_xyz=stride_xyz,&
+                                   error=error)
+                END IF
+                CALL cp_print_key_finished_output(unit_nr,logger,input,&
+                                                  "DFT%PRINT%E_DENSITY_CUBE",&
+                                                  error=error)
+                CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_elec_rspace%pw,error=error)
+             ELSE
+                filename = "ELECTRON_DENSITY"
+                unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
+                                               extension=".cube",middle_name=TRIM(filename),&
+                                               log_filename=.FALSE.,error=error)
+                IF (ionode) THEN
+                   INQUIRE (UNIT=unit_nr,NAME=filename)
+                   WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
+                     "The electron density is written in cube file format to the file:",&
+                     TRIM(filename)
+                END IF
+                NULLIFY (stride_xyz)
+                CALL section_vals_val_get(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE_XYZ",&
+                                          i_vals=stride_xyz,error=error)
+                IF (stride_xyz(1) == 0) THEN
+                   CALL pw_to_cube(rho%rho_r(1)%pw,unit_nr,ionode,"ELECTRON DENSITY",&
+                                   particles=particles,&
+                                   stride=section_get_ival(dft_section,&
+                                                           "PRINT%E_DENSITY_CUBE%STRIDE",&
+                                                           error=error),&
+                                   error=error)
+                ELSE
+                   CALL pw_to_cube(rho%rho_r(1)%pw,unit_nr,ionode,"ELECTRON DENSITY",&
+                                   particles=particles,&
+                                   stride_xyz=stride_xyz,&
+                                   error=error)
+                END IF
+                CALL cp_print_key_finished_output(unit_nr,logger,input,&
+                                                  "DFT%PRINT%E_DENSITY_CUBE",&
+                                                  error=error)
+             END IF ! nspins
+          END IF ! total density for GAPW
+       END IF ! print key
 
-       !   *** write the hartree potential ***
+       ! Print the hartree potential
+
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
             "DFT%PRINT%V_HARTREE_CUBE",error=error),cp_p_file)) THEN
           NULLIFY(stride_xyz)

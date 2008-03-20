@@ -24,6 +24,7 @@ MODULE xray_diffraction
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_gather,&
                                              mp_gatherv
@@ -36,7 +37,6 @@ MODULE xray_diffraction
   USE physcon,                         ONLY: angstrom
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: get_pw_grid_info
   USE pw_methods,                      ONLY: pw_axpy,&
                                              pw_integrate_function,&
@@ -87,7 +87,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xray_diffraction_spectrum', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: nblock = 10
+    INTEGER, PARAMETER                       :: nblock = 100
 
     INTEGER                                  :: group, handle, i, ig, &
                                                 ig_shell, ipe, ishell, istat, &
@@ -100,7 +100,7 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cutoff, f, f2, q, rho_hard, &
                                                 rho_soft, rho_total
-    REAL(KIND=dp), DIMENSION(3)              :: dr
+    REAL(KIND=dp), DIMENSION(3)              :: dg, dr
     REAL(KIND=dp), DIMENSION(:), POINTER :: f2sum, f2sum_gather, f4sum, &
       f4sum_gather, fmax, fmax_gather, fmin, fmin_gather, fsum, fsum_gather, &
       gsq, q_shell, q_shell_gather
@@ -111,8 +111,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_grid_type), POINTER              :: pw_grid
-    TYPE(pw_p_type), POINTER                 :: rhotot_elec_gspace
+    TYPE(pw_p_type)                          :: rhotot_elec_gspace
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rho_atom_type), DIMENSION(:), &
@@ -148,12 +147,10 @@ CONTAINS
       NULLIFY (para_env)
       NULLIFY (particle_set)
       NULLIFY (pw_env)
-      NULLIFY (pw_grid)
       NULLIFY (q_shell)
       NULLIFY (q_shell_gather)
       NULLIFY (rho)
       NULLIFY (rho_atom_set)
-      NULLIFY (rhotot_elec_gspace)
 
       CALL cite_reference(Krack2002)
 
@@ -177,24 +174,22 @@ CONTAINS
 
       ! Plane waves grid to assemble the total electronic density
 
-      ALLOCATE (rhotot_elec_gspace,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      CALL pw_pool_create_pw(auxbas_pw_pool,&
-                             rhotot_elec_gspace%pw,&
+      CALL pw_pool_create_pw(pool=auxbas_pw_pool,&
+                             pw=rhotot_elec_gspace%pw,&
                              use_data=COMPLEXDATA1D,&
                              in_space=RECIPROCALSPACE,&
                              error=error)
       CALL pw_zero(rhotot_elec_gspace%pw)
 
-      pw_grid => rhotot_elec_gspace%pw%pw_grid
-
-      CALL get_pw_grid_info(pw_grid=pw_grid,&
+      CALL get_pw_grid_info(pw_grid=rhotot_elec_gspace%pw%pw_grid,&
                             dr=dr,&
                             npts=npts,&
                             cutoff=cutoff,&
                             ngpts=ngpts,&
                             gsquare=gsq,&
                             error=error)
+
+      dg(:) = twopi/(npts(:)*dr(:))
 
       ! Build the total electronic density in reciprocal space
 
@@ -402,12 +397,16 @@ CONTAINS
           "# Total electronic charge (G-space):",rho_total,&
           "# Density cutoff [Rydberg]         :",2.0_dp*cutoff,&
           "# q(min) [1/Angstrom]              :",q_shell(2)/angstrom,&
-          "# q(max) [1/Angstrom]              :",q_shell(nshell)/angstrom
+          "# q(max) [1/Angstrom]              :",q_shell(nshell)/angstrom,&
+          "# q(max) [1/Angstrom] (requested)  :",q_max/angstrom
         WRITE (UNIT=unit_number,FMT="(A,2X,I8)")&
           "# Number of g-vectors (grid points):",ngpts,&
           "# Number of g-vector shells        :",nshell
-        WRITE (UNIT=unit_number,FMT="(A,3X,3I6)")&
+        WRITE (UNIT=unit_number,FMT="(A,3(1X,I6))")&
           "# Grid size (a,b,c)                :",npts(1:3)
+        WRITE (UNIT=unit_number,FMT="(A,3F7.3)")&
+          "# dg [1/Angstrom]                  :",dg(1:3)/angstrom,&
+          "# dr [Angstrom]                    :",dr(1:3)*angstrom
         WRITE (UNIT=unit_number,FMT="(A)")&
           "#",&
           "# shell  points         q [1/A]      <|F(q)|^2>     Min(|F(q)|) "//&
@@ -502,8 +501,6 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool,&
                                 rhotot_elec_gspace%pw,&
                                 error=error)
-      DEALLOCATE (rhotot_elec_gspace,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
       CALL timestop(0.0_dp,handle)
 
@@ -520,13 +517,14 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE calculate_rhotot_elec_gspace(qs_env,auxbas_pw_pool,&
                                           rhotot_elec_gspace,q_max,rho_hard,&
-                                          rho_soft,error)
+                                          rho_soft,fsign,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(pw_p_type), POINTER                 :: rhotot_elec_gspace
+    TYPE(pw_p_type), INTENT(INOUT)           :: rhotot_elec_gspace
     REAL(KIND=dp), INTENT(IN)                :: q_max
     REAL(KIND=dp), INTENT(OUT)               :: rho_hard, rho_soft
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: fsign
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_rhotot_elec_gspace', &
@@ -539,8 +537,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
     LOGICAL                                  :: failure, orthorhombic, &
                                                 paw_atom
-    REAL(KIND=dp)                            :: eps_rho_gspace, rho_total, &
-                                                scale, volume
+    REAL(KIND=dp)                            :: alpha, eps_rho_gspace, &
+                                                rho_total, scale, volume
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: delta_cpc, pab, work, zet
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -551,8 +549,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(pw_grid_type), POINTER              :: pw_grid
-    TYPE(pw_p_type), POINTER                 :: rho_elec_gspace
+    TYPE(pw_p_type)                          :: rho_elec_gspace
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: cpc_h, cpc_s
@@ -563,7 +560,7 @@ CONTAINS
     failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(rhotot_elec_gspace),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(auxbas_pw_pool),cp_failure_level,routineP,error,failure)
 
     IF (.NOT.failure) THEN
 
@@ -583,11 +580,9 @@ CONTAINS
       NULLIFY (orb_basis_set)
       NULLIFY (pab)
       NULLIFY (particle_set)
-      NULLIFY (pw_grid)
       NULLIFY (rho)
       NULLIFY (rho_atom)
       NULLIFY (rho_atom_set)
-      NULLIFY (rho_elec_gspace)
       NULLIFY (work)
       NULLIFY (zet)
 
@@ -604,22 +599,25 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
       nspin = dft_control%nspins
 
-      pw_grid => rhotot_elec_gspace%pw%pw_grid
-
       ! Load the soft contribution of the electronic density
 
-      ALLOCATE (rho_elec_gspace,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       CALL pw_pool_create_pw(pool=auxbas_pw_pool,&
                              pw=rho_elec_gspace%pw,&
                              use_data=COMPLEXDATA1D,&
                              in_space=RECIPROCALSPACE,&
                              error=error)
 
+      CALL pw_zero(rhotot_elec_gspace%pw)
+
       DO ispin=1,nspin
         CALL pw_zero(rho_elec_gspace%pw)
-        CALL pw_transfer(rho%rho_r(ispin)%pw,rho_elec_gspace%pw)
-        CALL pw_axpy(rho_elec_gspace%pw,rhotot_elec_gspace%pw)
+        CALL pw_transfer(rho%rho_r(ispin)%pw,rho_elec_gspace%pw,debug=.FALSE.)
+        IF (PRESENT(fsign).AND.(ispin == 2)) THEN
+          alpha = fsign
+        ELSE
+          alpha = 1.0_dp
+        END IF
+        CALL pw_axpy(rho_elec_gspace%pw,rhotot_elec_gspace%pw,alpha=alpha)
       END DO
 
       ! Release the auxiliary PW grid for the calculation of the soft
@@ -628,12 +626,10 @@ CONTAINS
       CALL pw_pool_give_back_pw(pool=auxbas_pw_pool,&
                                 pw=rho_elec_gspace%pw,&
                                 error=error)
-      DEALLOCATE (rho_elec_gspace,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
       rho_soft = pw_integrate_function(rhotot_elec_gspace%pw,isign=-1)
 
-      CALL get_pw_grid_info(pw_grid=pw_grid,&
+      CALL get_pw_grid_info(pw_grid=rhotot_elec_gspace%pw%pw_grid,&
                             vol=volume,&
                             orthorhombic=orthorhombic,&
                             error=error)
@@ -687,7 +683,12 @@ CONTAINS
           delta_cpc = 0.0_dp
 
           DO ispin=1,nspin
-            delta_cpc = delta_cpc + cpc_h(ispin)%r_coef - cpc_s(ispin)%r_coef
+            IF (PRESENT(fsign).AND.(ispin == 2)) THEN
+              alpha = fsign
+            ELSE
+              alpha = 1.0_dp
+            END IF
+            delta_cpc = delta_cpc + alpha*(cpc_h(ispin)%r_coef - cpc_s(ispin)%r_coef)
           END DO
 
           scale = 1.0_dp

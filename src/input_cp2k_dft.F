@@ -58,8 +58,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates an ep section
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE create_ep_section(section,error)
@@ -131,7 +131,7 @@ CONTAINS
          print_level=medium_print_level,filename="",&
          error=error)
     CALL section_add_subsection(print_section,print_key,error=error)
-    CALL section_release(print_key,error=error)       
+    CALL section_release(print_key,error=error)
 
     CALL cp_print_key_section_create(print_key,"RUN_INFO",&
          description="Prints various informations on the progress of the ep calculation",&
@@ -145,7 +145,7 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
 
     CALL section_add_subsection(print_section,print_key,error=error)
-    CALL section_release(print_key,error=error)       
+    CALL section_release(print_key,error=error)
 
     CALL cp_print_key_section_create(print_key,"EP_MATRIXES",&
          description="Prints various matrixes of an ep calculation",&
@@ -181,7 +181,7 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
 
     CALL section_add_subsection(print_section,print_key,error=error)
-    CALL section_release(print_key,error=error)       
+    CALL section_release(print_key,error=error)
 
     CALL cp_print_key_section_create(print_key,"EP_RHO_CUBE",&
          description="Prints out a cube file with the calculated rho",&
@@ -217,18 +217,18 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
 
     CALL section_add_subsection(print_section,print_key,error=error)
-    CALL section_release(print_key,error=error)       
+    CALL section_release(print_key,error=error)
 
     CALL section_add_subsection(section,print_section,error=error)
-    CALL section_release(print_section,error=error)       
+    CALL section_release(print_section,error=error)
 
   END SUBROUTINE create_ep_section
 
 ! *****************************************************************************
 !> \brief creates the dft section
 !> \param section the section to be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE create_dft_section(section,error)
@@ -331,7 +331,7 @@ CONTAINS
     CALL create_scf_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
-  
+
     CALL create_scp_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
@@ -366,11 +366,11 @@ CONTAINS
 
     CALL create_implicit_solv_section(subsection, error)
     CALL section_add_subsection(section,subsection,error=error)
-    CALL section_release(subsection,error=error)       
+    CALL section_release(subsection,error=error)
 
     CALL create_density_fitting_section(subsection, error)
     CALL section_add_subsection(section,subsection,error=error)
-    CALL section_release(subsection,error=error)       
+    CALL section_release(subsection,error=error)
 
     CALL create_xas_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
@@ -387,8 +387,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Implicit Solvation Model
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author tlaino
 ! *****************************************************************************
   SUBROUTINE create_implicit_solv_section(section,error)
@@ -443,8 +443,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Create Sphere cavity
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author tlaino
 ! *****************************************************************************
   SUBROUTINE create_sphere_section(section,error)
@@ -466,26 +466,26 @@ CONTAINS
        CALL section_create(section,name="SPHERE",&
             description="Treats the implicit solvent environment like a sphere",&
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)    
+            error=error)
 
        CALL keyword_create(keyword,name="RADIUS",&
             description="Value of the spherical cavity in the dielectric medium",&
             usage="RADIUS <REAL>",&
             unit_str="angstrom",&
-            type_of_var=real_t,error=error) 
+            type_of_var=real_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL create_center_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)       
+       CALL section_release(subsection,error=error)
 
     END IF
   END SUBROUTINE create_sphere_section
 
 ! *****************************************************************************
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author tlaino
 ! *****************************************************************************
   SUBROUTINE create_center_section(section,error)
@@ -506,7 +506,7 @@ CONTAINS
        CALL section_create(section,name="CENTER",&
             description="Defines the center of the sphere.",&
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)    
+            error=error)
 
        CALL keyword_create(keyword,name="XYZ",&
             description="Coordinates of the center of the sphere",&
@@ -733,8 +733,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the print dft section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_print_dft_section(section,error)
@@ -765,7 +765,7 @@ CONTAINS
             print_level=silent_print_level,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)       
+       CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"derivatives",&
             description="Print all derivatives after the DFT calculation", &
@@ -781,7 +781,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)       
+       CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key_section=print_key,&
             name="neighbor_lists",&
@@ -851,7 +851,7 @@ CONTAINS
             lone_keyword_l_val=.TRUE.,&
             error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword=keyword,&
             name="sab_2c",&
@@ -862,7 +862,7 @@ CONTAINS
             lone_keyword_l_val=.TRUE.,&
             error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword=keyword,&
             name="sac_3c",&
@@ -910,28 +910,28 @@ CONTAINS
             description="If the printkey is activated controls the printing of the density (P) matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="kinetic_energy",&
             description="If the printkey is activated controls the printing of the kinetic energy matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="kohn_sham_matrix",&
             description="If the printkey is activated controls the printing of the kohn-sham matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="ortho",&
             description="If the printkey is activated controls the printing of the orthogonalization matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="overlap",&
             description="If the printkey is activated controls the printing of the overlap matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="potential_energy",&
             description="If the printkey is activated controls the printing of the potential energy matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
@@ -957,7 +957,7 @@ CONTAINS
             "of derivatives (for the matrixes that support this)",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -975,17 +975,17 @@ CONTAINS
             description="If the printkey is activated controls the printing of the eigenvalues of the mos",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="eigenvectors",&
             description="If the printkey is activated controls the printing of the eigenvectors of the mos",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="occupation_numbers",&
             description="If the printkey is activated controls the printing of the occupation numbers of the mos",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -998,18 +998,18 @@ CONTAINS
             "(the bigger, the smaller the cube gets)",&
             default_i_val=2, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="write_cube",&
             description="If the cube file should be written. If false, the eigenvalues are still computed.",&
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="nlumo",&
             description="If the printkey is activated controls the number of lumos"//&
                         "that are printed and dumped as a cube (-1=all)",&
             default_i_val=5, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="nhomo",&
             description="If the printkey is activated controls the number of homos that dumped as a cube (-1=all),"//&
                         " eigenvalues are always all dumped",&
@@ -1051,26 +1051,59 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"e_density_cube",&
+       CALL cp_print_key_section_create(print_key,&
+            name="E_DENSITY_CUBE",&
             description="Controls the printing of cube files with "//&
-            "the total electronic density and, for LSD "//&
-            "calculations, the spin density", &
-            print_level=high_print_level,filename="",&
+                        "the electronic density and, for LSD "//&
+                        "calculations, the spin density",&
+            print_level=high_print_level,&
+            filename="",&
             error=error)
-       CALL keyword_create(keyword, name="stride",&
+       CALL keyword_create(keyword,&
+            name="STRIDE",&
             description="The stride used to write the cube file "//&
-            "(larger values result in smaller cube files).",&
-            default_i_val=2, error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
-       CALL keyword_create(keyword, name="stride_xyz",&
-            description="The stride per each Cartesian direction "//&
-            "used to write the cube file ",&
-            n_var=3,default_i_vals=(/0,0,0/),&
-            type_of_var=integer_t, &
+                        "(larger values result in smaller cube files).",&
+            usage="STRIDE 3",&
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            n_var=1,&
+            default_i_val=2,&
+            type_of_var=integer_t,&
             error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)   
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,&
+            name="STRIDE_XYZ",&
+            description="The stride per each Cartesian direction "//&
+                        "used to write the cube file.",&
+            usage="STRIDE_XYZ 1 2 2",&
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            n_var=3,&
+            default_i_vals=(/0,0,0/),&
+            type_of_var=integer_t,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,&
+            name="TOTAL_DENSITY",&
+            description="Print the total electronic density in the case "//&
+                        "of a GAPW run. This keyword has only an effect, "//&
+                        "if PAW atoms are present. The default is to print "//&
+                        "only the soft part of the electronic density and "//&
+                        "to ignore the hard part. NOTE: The total density in "//&
+                        "real space might exhibit unphysical features like "//&
+                        "spikes due to the finite and thus truncated g vector "//&
+                        "expansion",&
+            usage="TOTAL_DENSITY {logical}",&
+            repeats=.FALSE.,&
+            required=.FALSE.,&
+            n_var=1,&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -1086,7 +1119,7 @@ CONTAINS
             "(larger values result in smaller cube files)",&
             default_i_val=2, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -1101,7 +1134,7 @@ CONTAINS
             "(larger values result in smaller cube files)",&
             default_i_val=2, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="stride_xyz",&
             description="The stride per each Cartesian direction "//&
             "used to write the cube file ",&
@@ -1109,7 +1142,7 @@ CONTAINS
             type_of_var=integer_t, &
             error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -1135,7 +1168,7 @@ CONTAINS
             description="Number of virtual orbitals to be added to the MOS set  ",&
             usage="NLUMO integer",default_i_val=0, error=error)
          CALL section_add_keyword(print_key,keyword,error=error)
-         CALL keyword_release(keyword,error=error) 
+         CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -1193,7 +1226,7 @@ CONTAINS
             repeats=.FALSE.,&
             required=.FALSE.,&
             n_var=1,&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,& 
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,&
             error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1248,9 +1281,9 @@ CONTAINS
             "(the bigger, the smaller the cube gets)",&
             default_i_val=2, error=error)
        CALL section_add_keyword(print_key2,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(print_key,print_key2,error=error)
-       CALL section_release(print_key2,error=error)       
+       CALL section_release(print_key2,error=error)
 
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -1383,8 +1416,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the input section for the qs part
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_qs_section(section,error)
@@ -1416,14 +1449,14 @@ CONTAINS
             usage="EPS_DEFAULT real", default_r_val=1.0E-10_dp,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)     
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EPS_CORE_CHARGE",&
             description="Precision for mapping the core charges.Overrides EPS_DEFAULT/100.0 value",&
             usage="EPS_CORE_CHARGE real", type_of_var=real_t,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)     
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EPS_GVG_RSPACE",&
             variants=(/"EPS_GVG"/),&
@@ -1600,7 +1633,7 @@ CONTAINS
             usage="LMAXN0 integer",&
             default_i_val=2,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="LADDN0",&
             description="GAPW : XXXXXXXXXX",&
@@ -1643,7 +1676,7 @@ CONTAINS
             variants=s2a("INTERPOLATION","WF_INTERPOLATION"),&
             description="Extrapolation strategy for the wavefunction during e.g. MD."//&
                         "PS and ASPC are recommended, see also EXTRAPOLATION_ORDER.",&
-            usage="EXTRAPOLATION PS",&     
+            usage="EXTRAPOLATION PS",&
             enum_c_vals=s2a("USE_GUESS","USE_PREV_P","USE_PREV_RHO_R","LINEAR_WF",&
             "LINEAR_P","LINEAR_PS","USE_PREV_WF","PS","FROZEN","ASPC"),&
             enum_desc=s2a("Use the method specified with SCF_GUESS, i.e. no extrapolation",&
@@ -1656,7 +1689,7 @@ CONTAINS
             "Higher order extrapolation of the density matrix times the overlap matrix",&
             "Frozen ...",&
             "Always stable predictor corrector, similar to PS, but going for MD stability instead of intial guess accuracy."),&
-            enum_i_vals=(/ do_extrpl_use_guess,& 
+            enum_i_vals=(/ do_extrpl_use_guess,&
             do_extrpl_use_prev_p,&
             do_extrpl_use_prev_rho_r,&
             do_extrpl_linear_wf,&
@@ -1740,7 +1773,7 @@ CONTAINS
        NULLIFY(subsection)
        CALL create_harris_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error) 
+       CALL section_release(subsection,error=error)
 
     END IF
 
@@ -1780,7 +1813,7 @@ CONTAINS
             usage="DISPERSION",default_l_val=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
     END IF
   END SUBROUTINE create_scp_section
 
@@ -2094,10 +2127,10 @@ CONTAINS
             usage="ANALYTICAL_GTERM <LOGICAL>",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)             
+       CALL keyword_release(keyword,error=error)
 
        CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)       
+       CALL section_release(print_key,error=error)
 
     END IF
 
@@ -2258,7 +2291,7 @@ CONTAINS
     IF (.NOT. failure) THEN
 
        CALL section_create(section,"S2_RESTRAINT",&
-            description="Use S2 in a re/constraint (OT only)",& 
+            description="Use S2 in a re/constraint (OT only)",&
             n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
@@ -2291,8 +2324,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the structure of the section needed to select the xc functional
 !> \param section the section that will be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE create_xc_fun_section(section,error)
@@ -2750,7 +2783,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
-      
+
        CALL section_create(subsection,name="XWPBE",&
             description="Uses the short range PBE functional",&
             n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
@@ -2785,8 +2818,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the structure of the section needed to select an xc potential
 !> \param section the section that will be created
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author thomas chassaing
 ! *****************************************************************************
   SUBROUTINE create_xc_potential_section(section,error)
@@ -2855,8 +2888,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the input section for the tddfpt part
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_tddfpt_section(section,error)
@@ -2917,7 +2950,7 @@ CONTAINS
             n_var=1,type_of_var=integer_t,&
             default_i_val=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        ! Logical
        CALL keyword_create(keyword, name="KERNEL",&
@@ -2953,7 +2986,7 @@ CONTAINS
 
        ! Character
        CALL keyword_create(keyword, name="RES_ETYPE",&
-            variants=s2a("RESTRICTED_EXCITATIONS_TYPE", "RES_E_TYPE"),& 
+            variants=s2a("RESTRICTED_EXCITATIONS_TYPE", "RES_E_TYPE"),&
             description="(singlets/triplets) for restricted calculation",&
             usage="RES_ETYPE T",&
             enum_c_vals=s2a("S","SINGLET","SINGLETS","T","TRIPLET","TRIPLETS"),&
@@ -2961,20 +2994,20 @@ CONTAINS
             tddfpt_triplet, tddfpt_triplet, tddfpt_triplet/),&
             default_i_val=tddfpt_singlet, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="DIAG_METHOD",&
-            variants=s2a("DIAGONALIZATION_METHOD", "METHOD"),& 
+            variants=s2a("DIAGONALIZATION_METHOD", "METHOD"),&
             description="Diagonalization method used in tddfpt",&
             usage="DIAG_METHOD DAVIDSON",&
             enum_c_vals=s2a("DAVIDSON","LANCZOS"),&
             enum_i_vals=(/ tddfpt_davidson, tddfpt_lanczos/),&
             default_i_val=tddfpt_davidson, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)      
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="OE_CORR",&
-            variants=s2a("ORBITAL_EIGENVALUES_CORRECTION"),& 
+            variants=s2a("ORBITAL_EIGENVALUES_CORRECTION"),&
             description="Which type of orbital eigenvalue correction to use\n"//&
             "(to yield better HOMO-LUMO energies)",&
             usage="OE_CORR SAOP",&
@@ -2982,7 +3015,7 @@ CONTAINS
             enum_i_vals=(/ oe_none, oe_lb, oe_lb, oe_lb, oe_gllb, oe_gllb, oe_saop, oe_sic /),&
             default_i_val=oe_none, error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)      
+       CALL keyword_release(keyword,error=error)
 
        ! Real
        CALL keyword_create(keyword, name="CONVERGENCE",&
@@ -3008,8 +3041,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the input section for the xc part
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE create_xc_section(section,error)
@@ -3128,8 +3161,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates the structure of the section with the dft scf parameters
 !> \param section will contain the scf section
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE create_scf_section(section,error)
@@ -3410,7 +3443,7 @@ CONTAINS
             " to cumulative (over the scf).",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -3419,21 +3452,21 @@ CONTAINS
             print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error) 
+       CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"MO_ORTHONORMALITY",&
             description="Controls the printing relative to the orthonormality of MOs (CT S C).", &
             print_level=high_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)      
+       CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"MO_MAGNITUDE",&
             description="Prints the min/max eigenvalues of the overlap of the MOs without S (CT C).", &
             print_level=high_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)      
+       CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"detailed_energy",&
             description="Controls the printing of detailed energy information.", &
@@ -3576,10 +3609,10 @@ CONTAINS
   END SUBROUTINE create_outer_scf_section
 
 ! *****************************************************************************
-!> \brief Create the PROPERTIES section 
+!> \brief Create the PROPERTIES section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_properties_section(section,error)
@@ -3606,11 +3639,11 @@ CONTAINS
        CALL create_linres_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
-       
+
        CALL create_et_coupling_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
-       
+
        CALL create_resp_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -3629,8 +3662,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the BSSE section for counterpoise correction
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_bsse_section(section,error)
@@ -3697,7 +3730,7 @@ CONTAINS
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        CALL keyword_create(keyword=keyword,&
             name="MULTIPLICITY",&
             variants=(/"MULTIP"/),&
@@ -3743,8 +3776,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Create the print bsse section
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE create_print_bsse_section(section,error)
@@ -3787,9 +3820,9 @@ CONTAINS
   END SUBROUTINE create_print_bsse_section
 
 ! *****************************************************************************
-!> \brief creates the interpolation section for the periodic QM/MM 
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \brief creates the interpolation section for the periodic QM/MM
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author tlaino
 ! *****************************************************************************
   SUBROUTINE create_gspace_interp_section(section,error)
@@ -3875,8 +3908,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief This section specifies the flags for the harris functional
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
   SUBROUTINE create_harris_section(section,error)
@@ -3921,8 +3954,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the multigrid
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE create_mgrid_section(section,error)
@@ -4010,7 +4043,7 @@ CONTAINS
             n_var=-1,type_of_var=real_t,repeats=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       
+
        NULLIFY(subsection)
        CALL create_rsgrid_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -4025,8 +4058,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the interpolation section
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author tlaino
 ! *****************************************************************************
   SUBROUTINE create_interp_section(section,error)
@@ -4130,8 +4163,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the sic (self interaction correction) section
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE create_sic_section(section,error)
@@ -4201,14 +4234,14 @@ CONTAINS
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
- 
+
     END IF
   END SUBROUTINE create_sic_section
 
 ! *****************************************************************************
 !> \brief creates the section for adiabatic hybrid functionals
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE create_adiabatic_section(section,error)
@@ -4281,8 +4314,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the section for finite fields
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author JGH
 ! *****************************************************************************
   SUBROUTINE create_field_section(section,error)
@@ -4559,7 +4592,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ROTATION",&
             description="Introduce additional variables so that rotations of the occupied"//&
             " subspace are allowed as well, only needed for cases where the energy is not invariant under "//&
-            " a rotation of the occupied subspace such as non-singlet restricted calculations "//& 
+            " a rotation of the occupied subspace such as non-singlet restricted calculations "//&
             " or fractional occupations.",&
             usage="ROTATION",lone_keyword_l_val=.TRUE.,&
             default_l_val=.FALSE.,error=error)
@@ -4771,14 +4804,14 @@ CONTAINS
             usage="EMISSION",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error) 
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RESTART",&
             description="Restart the excited state if the restart file exists",&
             usage="RESTART",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error) 
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="WFN_RESTART_FILE_NAME",&
             variants=(/"RESTART_FILE_NAME"/),&
@@ -4809,10 +4842,10 @@ CONTAINS
             " to cumulative (over the scf).",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
-           
+
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing of basic iteration information in CLS", &
             print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
@@ -4876,11 +4909,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the input structure used to activate
-!>      a linear response calculation 
+!>      a linear response calculation
 !>      Available properties : none
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE create_linres_section(section,error)
@@ -5013,7 +5046,7 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)       
+       CALL section_release(subsection,error=error)
 
     END IF
   END SUBROUTINE create_linres_section
@@ -5244,7 +5277,7 @@ CONTAINS
        CALL section_create(subsection,name="PRINT",&
             description="print results of epr calculation",&
             error=error,repeats=.FALSE.,required=.FALSE.)
- 
+
        CALL cp_print_key_section_create(print_key,"CURRENT_CUBES",&
             description="Controls the printing of the current density ", &
             print_level=high_print_level,add_last=add_last_numeric,filename="",&
@@ -5258,7 +5291,7 @@ CONTAINS
 
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
- 
+
        CALL cp_print_key_section_create(print_key,"NABLAVKS_CUBES",&
             description="Controls the printing of the components of nabla v_ks ", &
             print_level=high_print_level,add_last=add_last_numeric,filename="",&
@@ -5297,7 +5330,7 @@ CONTAINS
 
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
- 
+
        CALL cp_print_key_section_create(print_key,"RESPONSE_FUNCTION_CUBES",&
             description="Controls the printing of the response functions ", &
             print_level=high_print_level,add_last=add_last_numeric,filename="",&
@@ -5308,7 +5341,7 @@ CONTAINS
             default_i_val=2, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
- 
+
        CALL keyword_create(keyword,name="CUBES_LU_BOUNDS",&
             variants=(/"CUBES_LU"/),&
             description="The lower and upper index of the states to be printed as cube",&
@@ -5316,7 +5349,7 @@ CONTAINS
             n_var=2,default_i_vals=(/0,-2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
- 
+
        CALL keyword_create(keyword,name="CUBES_LIST",&
             description="Indexes of the states to be printed as cube files"//&
             "This keyword can be repeated several times"//&
@@ -5327,15 +5360,15 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
- 
+
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
- 
+
        NULLIFY(subsection)
        CALL create_interp_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
- 
+
      END IF
 
   END SUBROUTINE create_epr_section
@@ -5343,8 +5376,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief creates a section with the parameters specific to the kg method
 !> \param section the section to create
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE create_kg_section(section,error)
@@ -5435,8 +5468,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief creates the section for electron transfer coupling
-!> \param error variable to control error logging, stopping,... 
-!>        see module cp_error_handling 
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
 !> \author fschiff
 ! *****************************************************************************
   SUBROUTINE create_et_coupling_section(section,error)
@@ -5463,12 +5496,12 @@ CONTAINS
        CALL create_restraint_A(subsection,"DDAPC_RESTRAINT_A",error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
-       
+
        NULLIFY(subsection)
        CALL create_restraint_A(subsection,"DDAPC_RESTRAINT_B",error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
-        
+
        NULLIFY(subsection)
        CALL create_restraint_A(subsection,"BECKE_CONSTRAINT_A",error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -5498,7 +5531,7 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
     END IF
-  END SUBROUTINE create_et_coupling_section 
+  END SUBROUTINE create_et_coupling_section
 
 ! *****************************************************************************
   SUBROUTINE create_restraint_A(section,section_name,error)
@@ -5570,4 +5603,3 @@ CONTAINS
   END SUBROUTINE create_restraint_A
 
 END MODULE input_cp2k_dft
-
