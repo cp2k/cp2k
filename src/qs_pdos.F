@@ -325,8 +325,8 @@ CONTAINS
           WRITE (UNIT=fmtstr(14:15),FMT="(I2)") maxl+1
         END IF
  
-        WRITE(UNIT=iw,FMT="(A,I5,A,I10)") "#  Projected DOS for kind number ", &
-              kind_number, " at iteration step i = ", iterstep
+        WRITE(UNIT=iw,FMT="(A,I5,A,I10,A,F12.6,A)") "#  Projected DOS for kind number ", &
+              kind_number, " at iteration step i = ", iterstep,"  E-HOMO = ", eigenvalues(homo), "[Ha]"
         IF(separate_components) THEN
           DO imo = 1,nmo+nvirt
             WRITE(UNIT=iw,FMT=fmtstr) imo, eigenvalues(imo),&
