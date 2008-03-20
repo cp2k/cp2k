@@ -50,7 +50,7 @@ MODULE qs_linres_epr_current
   USE cube_utils,                      ONLY: cube_info_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
-  USE input_section_types,             ONLY: section_get_ival,&
+  USE input_section_types,             ONLY: section_get_ivals,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_path_length,&
@@ -554,7 +554,7 @@ CONTAINS
                      &                       error=error)
                 
                 CALL pw_to_cube(wf_r%pw,unit_nr,ionode,"RESPONSE CURRENT DENSITY ",&
-                     &             stride=section_get_ival(epr_section,"PRINT%CURRENT_CUBES%STRIDE",&
+                     &             stride=section_get_ivals(epr_section,"PRINT%CURRENT_CUBES%STRIDE",&
                      &             error=error),error=error)
                 CALL cp_print_key_finished_output(unit_nr,logger,epr_section,&
                      &                            "PRINT%CURRENT_CUBES",error=error)

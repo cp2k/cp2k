@@ -75,7 +75,7 @@ MODULE ep_methods
                                              do_qs,&
                                              ot_precond_full_kinetic
   USE input_cp2k,                      ONLY: create_cp2k_input_reading
-  USE input_section_types,             ONLY: section_get_ival,&
+  USE input_section_types,             ONLY: section_get_ivals,&
                                              section_vals_get_subs_vals,&
                                              section_vals_release,&
                                              section_vals_retain,&
@@ -1866,7 +1866,7 @@ CONTAINS
                 CALL pw_to_cube ( ep_env%main_p_env%rho1%rho_r(1)%pw, iunit=unit_nr,&
                      ionode=logger%para_env%mepos==logger%para_env%source,&
                      title="rho1_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-                     stride=section_get_ival(ep_env%input,"PRINT%EP_RHO_CUBE%STRIDE",error=error),&
+                     stride=section_get_ivals(ep_env%input,"PRINT%EP_RHO_CUBE%STRIDE",error=error),&
                      error=suberror)
                 CALL cp_error_reset(suberror)
                 CALL cp_print_key_finished_output(unit_nr,logger,ep_env%input,&
@@ -1885,7 +1885,7 @@ CONTAINS
           CALL pw_to_cube ( ep_env%main_qs_env%rho%rho_r(1)%pw, iunit=unit_nr,&
                ionode=logger%para_env%mepos==logger%para_env%source,&
                title="rho0_"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-               stride=section_get_ival(ep_env%input,"PRINT%EP_RHO_CUBE%STRIDE",error=error),&
+               stride=section_get_ivals(ep_env%input,"PRINT%EP_RHO_CUBE%STRIDE",error=error),&
                error=suberror)
           CALL cp_error_reset(suberror)
           CALL cp_print_key_finished_output(unit_nr,logger,ep_env%input,&

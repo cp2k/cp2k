@@ -29,7 +29,7 @@ MODULE molecular_states
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE f77_blas
-  USE input_section_types,             ONLY: section_get_ival,&
+  USE input_section_types,             ONLY: section_get_ivals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_path_length,&
                                              dp
@@ -265,7 +265,7 @@ CONTAINS
                   "DFT%PRINT%MOLECULAR_STATES%CUBES",&
                   extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
              CALL pw_to_cube(wf_r%pw,unit_nr,para_env%ionode,filename,&
-                  stride=section_get_ival(force_env_section,&
+                  stride=section_get_ivals(force_env_section,&
                   "DFT%PRINT%MOLECULAR_STATES%CUBES%STRIDE",error=error), error=error)
              CALL cp_print_key_finished_output(unit_nr,logger,force_env_section,&
                   "DFT%PRINT%MOLECULAR_STATES%CUBES",error=error)

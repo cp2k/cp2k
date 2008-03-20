@@ -47,6 +47,7 @@ MODULE qs_scf_post
   USE input_constants,                 ONLY: ot_precond_full_all,&
                                              state_loc_all
   USE input_section_types,             ONLY: section_get_ival,&
+                                             section_get_ivals,&
                                              section_get_lval,&
                                              section_get_rval,&
                                              section_vals_get,&
@@ -756,7 +757,7 @@ CPSourceFileRef,&
                middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
           WRITE(title,*) "WAVEFUNCTION ",ivector," spin ",ispin," i.e. HOMO - ",ivector-homo
           CALL pw_to_cube(wf_r%pw,unit_nr,ionode,title,particles=particles,&
-               stride=section_get_ival(dft_section,"PRINT%MO_CUBES%STRIDE",error=error),&
+               stride=section_get_ivals(dft_section,"PRINT%MO_CUBES%STRIDE",error=error),&
                error=error)
           CALL cp_print_key_finished_output(unit_nr,logger,input,"DFT%PRINT%MO_CUBES",error=error)
        ENDDO
@@ -813,7 +814,7 @@ CPSourceFileRef,&
                middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
           WRITE(title,*) "WAVEFUNCTION ",homo+ivector," spin ",ispin," i.e. LUMO + ",ivector-1
           CALL pw_to_cube(wf_r%pw, unit_nr, ionode, title, particles=particles,&
-               stride=section_get_ival(dft_section,"PRINT%MO_CUBES%STRIDE",error=error),&
+               stride=section_get_ivals(dft_section,"PRINT%MO_CUBES%STRIDE",error=error),&
                error=error)
           CALL cp_print_key_finished_output(unit_nr,logger,input,"DFT%PRINT%MO_CUBES",error=error)
        ENDDO
@@ -1193,7 +1194,6 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_path_length)       :: filename
     INTEGER                                  :: handle, homo, ispin, iw, nmo, &
                                                 output_unit, unit_nr
-    INTEGER, DIMENSION(:), POINTER           :: stride_xyz
     LOGICAL                                  :: all_equal, failure, ionode, &
                                                 print_total_density
     REAL(KIND=dp) :: maxocc, q_max, rho_hard, rho_soft, rho_total, &
@@ -1355,7 +1355,7 @@ CPSourceFileRef,&
                extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
           CALL pw_to_cube(wf_r%pw,unit_nr,ionode,"TOTAL DENSITY",&
                particles=particles,&
-               stride=section_get_ival(dft_section,"PRINT%TOT_DENSITY_CUBE%STRIDE",error=error),&
+               stride=section_get_ivals(dft_section,"PRINT%TOT_DENSITY_CUBE%STRIDE",error=error),&
                error=error)
           CALL cp_print_key_finished_output(unit_nr,logger,input,&
                "DFT%PRINT%TOT_DENSITY_CUBE",error=error)
@@ -1363,7 +1363,6 @@ CPSourceFileRef,&
        END IF
 
        ! Write cube file with electron density
-
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
                  "DFT%PRINT%E_DENSITY_CUBE",error=error),cp_p_file)) THEN
           CALL section_vals_val_get(dft_section,&
@@ -1425,23 +1424,10 @@ CPSourceFileRef,&
                   "Total electronic charge (G-space):",rho_total,&
                   "Total electronic charge (R-space):",rho_total_rspace
               END IF
-              NULLIFY (stride_xyz)
-              CALL section_vals_val_get(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE_XYZ",&
-                                        i_vals=stride_xyz,&
-                                        error=error)
-             IF (stride_xyz(1) == 0) THEN
-                CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,ionode,"TOTAL ELECTRON DENSITY",&
-                                particles=particles,&
-                                stride=section_get_ival(dft_section,&
-                                                        "PRINT%E_DENSITY_CUBE%STRIDE",&
-                                                        error=error),&
-                                error=error)
-             ELSE
-                CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,ionode,"TOTAL ELECTRON DENSITY",&
-                                particles=particles,&
-                                stride_xyz=stride_xyz,&
-                                error=error)
-             END IF
+              CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,ionode,"TOTAL ELECTRON DENSITY",&
+                   particles=particles,&
+                   stride=section_get_ivals(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE",error=error),&
+                   error=error)
              CALL cp_print_key_finished_output(unit_nr,logger,input,&
                                                "DFT%PRINT%E_DENSITY_CUBE",&
                                                error=error)
@@ -1476,23 +1462,10 @@ CPSourceFileRef,&
                      "Total spin density (G-space)           :",rho_total,&
                      "Total spin density (R-space)           :",rho_total_rspace
                 END IF
-                NULLIFY (stride_xyz)
-                CALL section_vals_val_get(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE_XYZ",&
-                                          i_vals=stride_xyz,&
-                                          error=error)
-                IF (stride_xyz(1) == 0) THEN
-                   CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,ionode,"TOTAL SPIN DENSITY",&
-                                    particles=particles,&
-                                    stride=section_get_ival(dft_section,&
-                                                            "PRINT%E_DENSITY_CUBE%STRIDE",&
-                                                            error=error),&
-                                    error=error)
-                ELSE
-                   CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,ionode,"TOTAL SPIN DENSITY",&
-                                   particles=particles,&
-                                   stride_xyz=stride_xyz,&
-                                   error=error)
-                END IF
+                CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,ionode,"TOTAL SPIN DENSITY",&
+                     particles=particles,&
+                     stride=section_get_ivals(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE",error=error),&
+                     error=error)
              END IF
              CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_elec_gspace%pw,error=error)
              CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_elec_rspace%pw,error=error)
@@ -1523,11 +1496,8 @@ CPSourceFileRef,&
                      TRIM(filename)
                 END IF
                 CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,ionode,"SUM OF ALPHA AND BETA DENSITY",&
-                                particles=particles,&
-                                stride=section_get_ival(dft_section,&
-                                                        "PRINT%E_DENSITY_CUBE%STRIDE",&
-                                                        error=error),&
-                                error=error)
+                     particles=particles,stride=section_get_ivals(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE",error=error),&
+                     error=error)
                 CALL cp_print_key_finished_output(unit_nr,logger,input,&
                                          "DFT%PRINT%E_DENSITY_CUBE",error=error)
                 CALL pw_copy(rho%rho_r(1)%pw,rho_elec_rspace%pw)
@@ -1542,22 +1512,10 @@ CPSourceFileRef,&
                      "The spin density is written in cube file format to the file:",&
                      TRIM(filename)
                 END IF
-                NULLIFY (stride_xyz)
-                CALL section_vals_val_get(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE_XYZ",&
-                                          i_vals=stride_xyz,error=error)
-                IF (stride_xyz(1) == 0) THEN
-                   CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,ionode,"SPIN DENSITY",&
-                                   particles=particles,&
-                                   stride=section_get_ival(dft_section,&
-                                                           "PRINT%E_DENSITY_CUBE%STRIDE",&
-                                                           error=error),&
-                                   error=error)
-                ELSE
-                   CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,ionode,"SPIN DENSITY",&
-                                   particles=particles,&
-                                   stride_xyz=stride_xyz,&
-                                   error=error)
-                END IF
+                CALL pw_to_cube(rho_elec_rspace%pw,unit_nr,ionode,"SPIN DENSITY",&
+                     particles=particles,&
+                     stride=section_get_ivals(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE",error=error),&
+                     error=error)
                 CALL cp_print_key_finished_output(unit_nr,logger,input,&
                                                   "DFT%PRINT%E_DENSITY_CUBE",&
                                                   error=error)
@@ -1573,22 +1531,10 @@ CPSourceFileRef,&
                      "The electron density is written in cube file format to the file:",&
                      TRIM(filename)
                 END IF
-                NULLIFY (stride_xyz)
-                CALL section_vals_val_get(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE_XYZ",&
-                                          i_vals=stride_xyz,error=error)
-                IF (stride_xyz(1) == 0) THEN
-                   CALL pw_to_cube(rho%rho_r(1)%pw,unit_nr,ionode,"ELECTRON DENSITY",&
-                                   particles=particles,&
-                                   stride=section_get_ival(dft_section,&
-                                                           "PRINT%E_DENSITY_CUBE%STRIDE",&
-                                                           error=error),&
-                                   error=error)
-                ELSE
-                   CALL pw_to_cube(rho%rho_r(1)%pw,unit_nr,ionode,"ELECTRON DENSITY",&
-                                   particles=particles,&
-                                   stride_xyz=stride_xyz,&
-                                   error=error)
-                END IF
+                CALL pw_to_cube(rho%rho_r(1)%pw,unit_nr,ionode,"ELECTRON DENSITY",&
+                     particles=particles,&
+                     stride=section_get_ivals(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE",error=error),&
+                     error=error)
                 CALL cp_print_key_finished_output(unit_nr,logger,input,&
                                                   "DFT%PRINT%E_DENSITY_CUBE",&
                                                   error=error)
@@ -1597,10 +1543,8 @@ CPSourceFileRef,&
        END IF ! print key
 
        ! Print the hartree potential
-
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
             "DFT%PRINT%V_HARTREE_CUBE",error=error),cp_p_file)) THEN
-          NULLIFY(stride_xyz)
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
           CALL pw_env_get(pw_env, error=error)
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%V_HARTREE_CUBE",&
@@ -1608,19 +1552,11 @@ CPSourceFileRef,&
           udvol = 1.0_dp/qs_env%ks_env%v_hartree_rspace%pw%pw_grid%dvol
           CALL pw_scale(qs_env%ks_env%v_hartree_rspace%pw,udvol)
 
-          CALL section_vals_val_get(dft_section,"PRINT%V_HARTREE_CUBE%STRIDE_XYZ",&
-               i_vals=stride_xyz,error=error) 
-          IF(stride_xyz(1)==0) THEN
-             CALL pw_to_cube(qs_env%ks_env%v_hartree_rspace%pw,&
-                  unit_nr,unit_nr>0,"HARTREE POTENTIAL",particles=particles,&
-                  stride=section_get_ival(dft_section,&
-                  "PRINT%V_HARTREE_CUBE%STRIDE",error=error),&
-                  error=error)
-          ELSE
-              CALL pw_to_cube(qs_env%ks_env%v_hartree_rspace%pw,&
-                   unit_nr,unit_nr>0,"HARTREE POTENTIAL",particles=particles,&
-                   stride_xyz=stride_xyz,error=error)
-          END IF
+          CALL pw_to_cube(qs_env%ks_env%v_hartree_rspace%pw,&
+               unit_nr,unit_nr>0,"HARTREE POTENTIAL",particles=particles,&
+               stride=section_get_ivals(dft_section,&
+               "PRINT%V_HARTREE_CUBE%STRIDE",error=error),&
+               error=error)
           CALL cp_print_key_finished_output(unit_nr,logger,input,&
                "DFT%PRINT%V_HARTREE_CUBE",error=error)
        ENDIF

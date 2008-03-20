@@ -27,7 +27,7 @@ MODULE qs_linres_epr_nablavks
                                              get_potential,&
                                              gth_potential_type
   USE hartree_local_methods,           ONLY: calculate_Vh_1center
-  USE input_section_types,             ONLY: section_get_ival,&
+  USE input_section_types,             ONLY: section_get_ivals,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -1069,7 +1069,7 @@ CONTAINS
                   log_filename=.FALSE.,file_position="REWIND",error=error)
           CALL pw_to_cube(wf_r%pw,unit_nr,ionode,"NABLA V_KS ",&
                   particles=particles,&
-                  stride=section_get_ival(lr_section,&
+                  stride=section_get_ivals(lr_section,&
                   "EPR%PRINT%NABLAVKS_CUBES%STRIDE",error=error),&
                   error=error)
           CALL cp_print_key_finished_output(unit_nr,logger,lr_section,&

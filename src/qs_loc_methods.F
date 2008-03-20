@@ -51,6 +51,7 @@ MODULE qs_loc_methods
        do_loc_none, dump_dcd, dump_xmol, op_loc_berry, op_loc_boys, &
        op_loc_pipek, state_loc_list
   USE input_section_types,             ONLY: section_get_ival,&
+                                             section_get_ivals,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -868,8 +869,6 @@ CONTAINS
                            use_data = COMPLEXDATA1D,&
                            in_space = RECIPROCALSPACE, error=error)
 
-    stride=section_get_ival(print_key,"STRIDE",error=error)
-
     my_state0 = 0
     IF(PRESENT(state0)) my_state0 = state0
 
@@ -917,7 +916,8 @@ CONTAINS
           WRITE(title,'(A7,I5.5,A1,I1.1,A1,3G10.4)') "WFN ",ivector,"_s",my_ispin," ",&
                centers(1:3,istate)*angstrom
        END IF
-       CALL pw_to_cube(wf_r%pw,unit_out_c,unit_out_c>0,title,stride=stride,error=error)
+       CALL pw_to_cube(wf_r%pw,unit_out_c,unit_out_c>0,title,&
+            stride=section_get_ivals(print_key,"STRIDE",error=error),error=error)
        CALL cp_print_key_finished_output(unit_out_c,logger,print_key,"",error=error)
     END DO
 

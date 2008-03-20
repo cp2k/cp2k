@@ -55,9 +55,9 @@ CONTAINS
 
     INTEGER :: bo(2,3), gbo(2,3), handle, i, info, jx, jy, jz, k, m, natom, &
       ncons, ncons_i, ncons_sec, ncons_v, np(3), npoints, nres, nrest_sec, &
-      nvar, output_unit, stride, z
+      nvar, output_unit, stride(3), z
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, my_stride
     LOGICAL                                  :: explicit, failure, has_resp, &
                                                 itc, rheavies
     REAL(KIND=dp) :: dr(3), dvol, mycharge, r(3), rheavies_strength, rmax, &
@@ -121,8 +121,16 @@ CONTAINS
 
        CALL section_vals_val_get(resp_section,"RMIN",r_val=rmin,error=error) 
        CALL section_vals_val_get(resp_section,"RMAX",r_val=rmax,error=error) 
-       CALL section_vals_val_get(resp_section,"STRIDE",i_val=stride,error=error) 
-
+       CALL section_vals_val_get(resp_section,"STRIDE",i_vals=my_stride,error=error) 
+       CPPrecondition(SIZE(my_stride)==1.OR.SIZE(my_stride)==3,cp_failure_level,routineP,error,failure)
+       
+       IF (SIZE(my_stride)==1) THEN
+          DO i = 1,3
+             stride(i) = my_stride(1)
+          END DO
+       ELSE
+          stride = my_stride(1:3)
+       END IF
        IF (output_unit>0) THEN
           WRITE(output_unit,'(2X,A)')        "Starting RESP fit"
           WRITE(output_unit,'(2X,A,I0)')     "Number of explicit constraints: ",ncons_sec
@@ -134,7 +142,7 @@ CONTAINS
           ENDIF
           WRITE(output_unit,'(2X,A,F10.5)')  "Rmin [a.u.]: ",rmin
           WRITE(output_unit,'(2X,A,F10.5)')  "Rmax [a.u.]: ",rmax
-          WRITE(output_unit,'(2X,A,I0)')     "Stride: ",stride
+          WRITE(output_unit,'(2X,A,3I5)')     "Stride: ",stride
        ENDIF
 
        CALL cp_subsys_get(subsys,particles=particles,error=error)
@@ -162,9 +170,9 @@ CONTAINS
        DO jz=bo(1,3),bo(2,3)
        DO jy=bo(1,2),bo(2,2)
        DO jx=bo(1,1),bo(2,1)  
-          IF (.NOT.(MODULO(jz,stride)==0)) CYCLE
-          IF (.NOT.(MODULO(jy,stride)==0)) CYCLE
-          IF (.NOT.(MODULO(jx,stride)==0)) CYCLE
+          IF (.NOT.(MODULO(jz,stride(3))==0)) CYCLE
+          IF (.NOT.(MODULO(jy,stride(2))==0)) CYCLE
+          IF (.NOT.(MODULO(jx,stride(1))==0)) CYCLE
 
           ! compute distance from the grid point to all atoms
           r(3)=jz*dr(3)+shift(3)

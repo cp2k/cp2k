@@ -30,21 +30,22 @@ MODULE realspace_grid_cube
 
 CONTAINS
 
-  SUBROUTINE pw_to_cube ( pw, iunit, ionode, title, particles, stride, stride_xyz, error )
+  SUBROUTINE pw_to_cube ( pw, iunit, ionode, title, particles, stride, error )
     TYPE(pw_type), POINTER                   :: pw
     INTEGER, INTENT(IN)                      :: iunit
     LOGICAL, INTENT(IN)                      :: ionode
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
     TYPE(particle_list_type), OPTIONAL, &
       POINTER                                :: particles
-    INTEGER, INTENT(in), OPTIONAL            :: stride, stride_xyz(3)
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: stride
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_to_cube', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: dest, gid, handle, I1, I2, I3, iat, ionode_rank, ip, L1, L2, &
-      L3, my_rank, my_stride(3), np, num_pe, source, stat, tag, U1, U2, U3, z
+    INTEGER :: dest, gid, handle, i, I1, I2, I3, iat, ionode_rank, ip, L1, &
+      L2, L3, my_rank, my_stride(3), np, num_pe, source, stat, tag, U1, U2, &
+      U3, z
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: buf
     TYPE(particle_list_type), POINTER        :: my_particles
@@ -53,11 +54,19 @@ CONTAINS
 
     failure=.FALSE.
     my_stride=1
-    IF (PRESENT(stride)) my_stride(1:3)=stride
-    IF (PRESENT(stride_xyz)) my_stride(1:3)=stride_xyz(1:3)
-    CPPrecondition(my_stride(1)>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(my_stride(2)>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(my_stride(3)>0,cp_failure_level,routineP,error,failure)
+    IF (PRESENT(stride)) THEN 
+       CPPrecondition(SIZE(stride)==1.OR.SIZE(stride)==3,cp_failure_level,routineP,error,failure)
+       IF (SIZE(stride)==1) THEN
+          DO i = 1,3
+             my_stride(i) = stride(1)
+          END DO
+       ELSE
+          my_stride = stride(1:3)
+       END IF
+       CPPrecondition(my_stride(1)>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(my_stride(2)>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(my_stride(3)>0,cp_failure_level,routineP,error,failure)
+    END IF
 
     IF (ionode) THEN
       ! this format seems to work for e.g. molekel and gOpenmol
@@ -113,7 +122,7 @@ CONTAINS
 
     ! who is ionode, might need fixing
     ionode_rank = 0
-    CPPostcondition(ionode .OR. (ionode_rank.NE.my_rank),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ionode.OR.(ionode_rank.NE.my_rank),cp_failure_level,routineP,error,failure)
 
     dest        = ionode_rank
 

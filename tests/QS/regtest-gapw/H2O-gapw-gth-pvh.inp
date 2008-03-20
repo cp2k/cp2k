@@ -30,7 +30,7 @@
     &END XC
     &PRINT
       &V_HARTREE_CUBE
-        STRIDE_XYZ 1 1 2
+        STRIDE 1 1 2
       &END
     &END
   &END DFT

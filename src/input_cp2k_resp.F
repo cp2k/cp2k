@@ -68,15 +68,16 @@ CONTAINS
 
        NULLIFY(keyword, subsection)
 
-       CALL keyword_create(keyword, name="STRIDE",&
-            description="specifies the stride going over the potential grid.",&
-            usage="STRIDE 2",&
-            default_i_val=3, error=error)
+       CALL keyword_create(keyword, name="stride",&
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
 
        CALL keyword_create(keyword, name="INTEGER_TOTAL_CHARGE",&
-            description="specifies the stride going over the potential grid.",&
+            description="Forces the total charge to be integer",&
             usage="INTEGER_TOTAL_CHARGE TRUE",&
             default_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)

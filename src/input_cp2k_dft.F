@@ -203,9 +203,10 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="stride",&
-         description="How many points are printed out (the bigger the smaller the cube file",&
-         usage="stride 3",&
-         default_i_val=2,error=error)
+         description="The stride (X,Y,Z) used to write the cube file "//&
+         "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+         " 1 number valid for all components.",&
+         usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -666,9 +667,10 @@ CONTAINS
             print_level=high_print_level,add_last=add_last_numeric,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
-            description="the stride used to write the cube file "//&
-            "(the bigger, the smaller the cube gets)",&
-            default_i_val=2, error=error)
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -994,9 +996,10 @@ CONTAINS
             print_level=high_print_level,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
-            description="the stride used to write the cube file "//&
-            "(the bigger, the smaller the cube gets)",&
-            default_i_val=2, error=error)
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="write_cube",&
@@ -1056,33 +1059,12 @@ CONTAINS
             description="Controls the printing of cube files with "//&
                         "the electronic density and, for LSD "//&
                         "calculations, the spin density",&
-            print_level=high_print_level,&
-            filename="",&
-            error=error)
-       CALL keyword_create(keyword,&
-            name="STRIDE",&
-            description="The stride used to write the cube file "//&
-                        "(larger values result in smaller cube files).",&
-            usage="STRIDE 3",&
-            repeats=.FALSE.,&
-            required=.FALSE.,&
-            n_var=1,&
-            default_i_val=2,&
-            type_of_var=integer_t,&
-            error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword,&
-            name="STRIDE_XYZ",&
-            description="The stride per each Cartesian direction "//&
-                        "used to write the cube file.",&
-            usage="STRIDE_XYZ 1 2 2",&
-            repeats=.FALSE.,&
-            required=.FALSE.,&
-            n_var=3,&
-            default_i_vals=(/0,0,0/),&
-            type_of_var=integer_t,&
-            error=error)
+            print_level=high_print_level,filename="",error=error)
+       CALL keyword_create(keyword, name="stride",&
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,&
@@ -1115,9 +1097,10 @@ CONTAINS
             print_level=high_print_level,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
-            description="The stride used to write the cube file "//&
-            "(larger values result in smaller cube files)",&
-            default_i_val=2, error=error)
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)
@@ -1130,17 +1113,10 @@ CONTAINS
             print_level=high_print_level,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
-            description="The stride used to write the cube file "//&
-            "(larger values result in smaller cube files)",&
-            default_i_val=2, error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="stride_xyz",&
-            description="The stride per each Cartesian direction "//&
-            "used to write the cube file ",&
-            n_var=3,default_i_vals=(/0,0,0/),&
-            type_of_var=integer_t, &
-            error=error)
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)
@@ -1277,9 +1253,10 @@ CONTAINS
             print_level=high_print_level,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
-            description="the stride used to write the cube file "//&
-            "(the bigger, the smaller the cube gets)",&
-            default_i_val=2, error=error)
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key2,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(print_key,print_key2,error=error)
@@ -4876,9 +4853,10 @@ CONTAINS
             print_level=high_print_level,common_iter_levels=3,add_last=add_last_numeric,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
-            description="the stride used to write the cube file "//&
-            "(the bigger, the smaller the cube gets)",&
-            default_i_val=2, error=error)
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -5133,9 +5111,10 @@ CONTAINS
             print_level=high_print_level,add_last=add_last_numeric,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
-            description="the stride used to write the cube file "//&
-            "(the bigger, the smaller the cube gets)",&
-            default_i_val=2, error=error)
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
@@ -5146,9 +5125,10 @@ CONTAINS
             print_level=high_print_level,add_last=add_last_numeric,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
-            description="the stride used to write the cube file "//&
-            "(the bigger, the smaller the cube gets)",&
-            default_i_val=2, error=error)
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -5283,9 +5263,10 @@ CONTAINS
             print_level=high_print_level,add_last=add_last_numeric,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
-            description="the stride used to write the cube file "//&
-            "(the bigger, the smaller the cube gets)",&
-            default_i_val=2, error=error)
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -5297,9 +5278,10 @@ CONTAINS
             print_level=high_print_level,add_last=add_last_numeric,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
-            description="the stride used to write the cube file "//&
-            "(the bigger, the smaller the cube gets)",&
-            default_i_val=2, error=error)
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -5336,9 +5318,10 @@ CONTAINS
             print_level=high_print_level,add_last=add_last_numeric,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
-            description="the stride used to write the cube file "//&
-            "(the bigger, the smaller the cube gets)",&
-            default_i_val=2, error=error)
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
