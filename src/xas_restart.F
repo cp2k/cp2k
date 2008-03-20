@@ -135,7 +135,7 @@ CONTAINS
 
       INQUIRE (FILE=filename,EXIST=file_exists)
       ! open file
-      IF(file_exists) THEN
+      IF (file_exists) THEN
 
          CALL open_file(file_name=TRIM(filename),&
                      file_action="READ",&
@@ -144,10 +144,10 @@ CONTAINS
                      file_status="OLD",&
                      unit_number=rst_unit)
 
-         IF(output_unit > 0) WRITE (UNIT=output_unit,FMT="(/,T20,A,I5,/)")&
+         IF (output_unit > 0) WRITE (UNIT=output_unit,FMT="(/,T20,A,I5,/)")&
              "Read restart file for atom ", iatom
 
-      ELSEIF (.NOT.file_exists) THEN
+      ELSE IF (.NOT.file_exists) THEN
           IF(output_unit > 0) WRITE (UNIT=output_unit,FMT="(/,T10,A,I5,A,/)")&
                "Restart file for atom ", iatom,&
                " not available. Initialization done with GS orbitals"
@@ -188,7 +188,9 @@ CONTAINS
       END DO
     END IF
 
-    IF (para_env%ionode)  CALL close_file(unit_number=rst_unit)
+    IF (para_env%ionode) THEN
+      IF (file_exists) CALL close_file(unit_number=rst_unit)
+    END IF
 
     CALL timestop(0.0_dp,handle)
 
