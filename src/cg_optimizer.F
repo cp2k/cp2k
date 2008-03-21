@@ -221,14 +221,16 @@ CONTAINS
 
        ! Write final particle information and restart, if converged
        CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=its,error=error)
-       IF (.NOT.gopt_env%dimer_rotation) THEN
-          CALL write_final_info(conv, its, gopt_env, x0, gopt_env%force_env%para_env%mepos,&
-               gopt_env%force_env%para_env, force_env, gopt_env%motion_section, root_section,&
-               force_env_section, error)
-       ELSE
-          CALL update_dimer_vec(gopt_env%dimer_env, motion_section, error)
-          CALL write_restart(force_env=force_env,root_section=root_section,&
-               force_env_section=force_env_section,error=error)     
+       IF (gopt_env%eval_opt_geo) THEN
+          IF (.NOT.gopt_env%dimer_rotation) THEN
+             CALL write_final_info(conv, its, gopt_env, x0, gopt_env%force_env%para_env%mepos,&
+                  gopt_env%force_env%para_env, force_env, gopt_env%motion_section, root_section,&
+                  force_env_section, error)
+          ELSE
+             CALL update_dimer_vec(gopt_env%dimer_env, motion_section, error)
+             CALL write_restart(force_env=force_env,root_section=root_section,&
+                  force_env_section=force_env_section,error=error)     
+          END IF
        END IF
 
        DEALLOCATE(xold, stat=stat)

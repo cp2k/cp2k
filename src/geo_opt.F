@@ -49,9 +49,10 @@ MODULE geo_opt
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-   RECURSIVE SUBROUTINE cp_geo_opt(force_env, globenv, error)
+   RECURSIVE SUBROUTINE cp_geo_opt(force_env, globenv, eval_opt_geo, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
+    LOGICAL, INTENT(IN), OPTIONAL            :: eval_opt_geo
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_geo_opt', &
@@ -78,7 +79,7 @@ MODULE geo_opt
 
     CALL gopt_param_read(gopt_param, geo_section, error=error)
     CALL gopt_f_create(gopt_env, gopt_param, force_env=force_env, globenv=globenv,&
-         geo_opt_section=geo_section, error=error)
+         geo_opt_section=geo_section, eval_opt_geo=eval_opt_geo, error=error)
     CALL gopt_f_create_x0(gopt_env, x0, error=error)
 
     CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",error=error)

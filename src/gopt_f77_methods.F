@@ -222,7 +222,7 @@ CPSourceFileRef,&
           ! Perform a geometry optimization
           CALL gopt_new_error_create(new_error, gopt_env%force_env%root_section, para_env,&
                project_name, id_run=geo_opt_run, error=error)
-          CALL cp_geo_opt(gopt_env%force_env, gopt_env%globenv, new_error)
+          CALL cp_geo_opt(gopt_env%force_env, gopt_env%globenv, eval_opt_geo=.FALSE., error=new_error)
           CALL force_env_get(gopt_env%force_env,potential_energy=potential_energy,virial=virial,error=error)
           CALL cp_virial(virial, virial_avg)
        CASE(default_cell_md_id)
@@ -264,6 +264,7 @@ CPSourceFileRef,&
 
        ! Possibly give back the gradients
        IF (PRESENT(gradient)) THEN
+          CPPrecondition(ANY(virial_avg%pv_total/=0),cp_failure_level,routineP,error,failure)
           ! Convert the average ptens
           av_ptens(1,1)=virial_avg%pv_total(1,1)/cell%deth
           av_ptens(2,1)=virial_avg%pv_total(2,1)/cell%deth

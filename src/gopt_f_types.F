@@ -57,7 +57,7 @@ MODULE gopt_f_types
      INTEGER                                  :: ref_count, id_nr, its
      INTEGER                                  :: nfree
      INTEGER                                  :: type_id, ts_method_id, cell_method_id
-     LOGICAL                                  :: dimer_rotation, do_line_search
+     LOGICAL                                  :: dimer_rotation, do_line_search, eval_opt_geo
      CHARACTER(LEN=default_string_length)     :: label, tag
      TYPE(force_env_type), POINTER            :: force_env
      TYPE(global_environment_type), POINTER   :: globenv
@@ -80,12 +80,14 @@ CONTAINS
 !> \par History
 !>      none
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE gopt_f_create(gopt_env, gopt_param, force_env, globenv, geo_opt_section, error)
+  RECURSIVE SUBROUTINE gopt_f_create(gopt_env, gopt_param, force_env, globenv, geo_opt_section,&
+       eval_opt_geo, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: geo_opt_section
+    LOGICAL, INTENT(IN), OPTIONAL            :: eval_opt_geo
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_create', &
@@ -112,6 +114,9 @@ CONTAINS
        gopt_env%globenv        => globenv
        gopt_env%motion_section => section_vals_get_subs_vals(force_env%root_section,"MOTION",error=error)
        gopt_env%geo_section    => geo_opt_section
+       gopt_env%eval_opt_geo=.TRUE.
+       IF (PRESENT(eval_opt_geo)) gopt_env%eval_opt_geo = eval_opt_geo
+
        gopt_env%type_id        = gopt_param%type_id
        SELECT CASE(gopt_env%type_id)
        CASE(default_ts_method_id,default_minimization_method_id)
@@ -136,7 +141,7 @@ CONTAINS
                 gopt_env%gopt_dimer_param%type_id = default_ts_method_id
                 
                 CALL gopt_f_create(gopt_env%gopt_dimer_env, gopt_env%gopt_dimer_param, force_env=force_env,&
-                     globenv=globenv, geo_opt_section=rot_opt_section, error=error)
+                     globenv=globenv, geo_opt_section=rot_opt_section, eval_opt_geo=eval_opt_geo, error=error)
                 CALL dimer_env_retain(gopt_env%dimer_env, error)
                 gopt_env%gopt_dimer_env%dimer_env      => gopt_env%dimer_env
                 gopt_env%gopt_dimer_env%label          = "ROT_OPT"

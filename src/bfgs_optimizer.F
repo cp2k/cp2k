@@ -284,9 +284,11 @@ CONTAINS
 
     ! Write final particle information, if converged
     CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=its,error=error)
-    CALL write_final_info(conv, its, gopt_env, x0, gopt_env%force_env%para_env%mepos,&
-         gopt_env%force_env%para_env, force_env, gopt_env%motion_section, root_section,&
-         force_env_section, error)
+    IF (gopt_env%eval_opt_geo) THEN
+       CALL write_final_info(conv, its, gopt_env, x0, gopt_env%force_env%para_env%mepos,&
+            gopt_env%force_env%para_env, force_env, gopt_env%motion_section, root_section,&
+            force_env_section, error)
+    END IF
 
     DEALLOCATE (hes,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
