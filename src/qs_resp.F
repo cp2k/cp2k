@@ -122,8 +122,10 @@ CONTAINS
        CALL section_vals_val_get(resp_section,"RMIN",r_val=rmin,error=error) 
        CALL section_vals_val_get(resp_section,"RMAX",r_val=rmax,error=error) 
        CALL section_vals_val_get(resp_section,"STRIDE",i_vals=my_stride,error=error) 
-       CPPrecondition(SIZE(my_stride)==1.OR.SIZE(my_stride)==3,cp_failure_level,routineP,error,failure)
-       
+       CALL cp_assert(SIZE(my_stride)==1.OR.SIZE(my_stride)==3,cp_fatal_level,cp_assertion_failed,routineP,&
+            "STRIDE keyword can accept only 1 (the same for X,Y,Z) or 3 values. Correct your input file."//&
+CPSourceFileRef,&
+            only_ionode=.TRUE.)       
        IF (SIZE(my_stride)==1) THEN
           DO i = 1,3
              stride(i) = my_stride(1)
