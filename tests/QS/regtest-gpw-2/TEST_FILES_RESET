@@ -387,3 +387,6 @@ H2O-meta_coord.inp
 H2O-meta_coord_1.inp
 #  
 H2O-meta_coord_2.inp
+# more numerics
+hcn_ts.inp
+hcn_ts_r.inp
