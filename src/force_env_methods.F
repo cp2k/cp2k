@@ -197,8 +197,7 @@ CONTAINS
     INTEGER                                  :: nat, output_unit, &
                                                 print_forces, stat
     LOGICAL                                  :: energy_consistency, failure, &
-                                                my_eval, my_skip, need_f, &
-                                                pvd, pvn
+                                                my_eval, my_skip, need_f
     REAL(kind=dp)                            :: e_pot
     REAL(kind=dp), DIMENSION(:), POINTER     :: pos
     TYPE(cell_type), POINTER                 :: cell
@@ -227,12 +226,7 @@ CONTAINS
     END IF
     CALL force_env_get(force_env,virial=virial,error=error)
     CALL force_env_set(force_env,additional_potential=0.0_dp,error=error)
-    IF (virial%pv_availability) THEN
-       pvn = virial%pv_numer
-       pvd = virial%pv_diagonal
-       CALL zero_virial(virial)
-       CALL virial_set(virial,pv_availability=.TRUE.,pv_numer=pvn,pv_diagonal=pvd)
-    END IF
+    IF (virial%pv_availability) CALL zero_virial(virial,reset=.FALSE.)
     IF (.NOT.failure) THEN
        IF (my_eval) THEN 
          SELECT CASE ( force_env%in_use )
@@ -245,7 +239,7 @@ CONTAINS
          CASE ( use_qs_force )
             IF (.NOT.need_f) THEN
                CALL qs_energies(qs_env=force_env%qs_env, globenv=force_env%globenv, &
-                    consistent_energies=energy_consistency, calc_forces=calc_force, error=error)
+                    consistent_energies=energy_consistency, calc_forces=need_f, error=error)
             ELSE
                CALL qs_forces(force_env%qs_env,force_env%globenv, error=error)
             END IF
@@ -329,6 +323,9 @@ CONTAINS
           CALL transfer_result_type(res_target=force_env%results,res_source=results,error=error)
        END IF
     END IF
+    ! If the virial is defined but we are not computing forces let's zero the virial for
+    ! consistency
+    IF (virial%pv_availability.AND.(.NOT.need_f)) CALL zero_virial(virial,reset=.FALSE.)
   END SUBROUTINE force_env_calc_energy_force
 
 ! *****************************************************************************
