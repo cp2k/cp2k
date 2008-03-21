@@ -683,15 +683,17 @@ CPSourceFileRef,&
              CALL gopt_f_io(optimizer%obj_funct, force_env, force_env%root_section, force_env%force_env_section,&
                   its, optimizer%f, dataunit, optimizer%eold, optimizer%emin, wildcard, gopt_param,&
                   error=error)
-
+             
+             ! Check convergence
              IF (is_master) CALL check_converg(SIZE(optimizer%x),optimizer%x-xold,optimizer%gradient,&
                   dataunit,conv,gopt_param)
+             CALL mp_bcast(conv,optimizer%master,optimizer%para_env%group)
+
              CALL cp_print_key_finished_output(dataunit,logger,geo_section,&
                   "PRINT%PROGRAM_RUN_INFO", error=error)
              optimizer%eold = optimizer%f
              optimizer%emin = MIN(optimizer%emin,optimizer%eold)
              xold = optimizer%x
-             CALL mp_bcast(conv,optimizer%master,optimizer%para_env%group)
              IF (PRESENT(converged)) converged=conv
              EXIT
           CASE (4)
