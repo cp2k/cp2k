@@ -15,20 +15,16 @@ MODULE cg_optimizer
                                              cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dimer_utils,                     ONLY: update_dimer_vec
   USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE gopt_f_methods,                  ONLY: check_converg,&
-                                             check_rot_conv,&
-                                             geo_opt_io,&
+  USE gopt_f_methods,                  ONLY: gopt_f_ii,&
+                                             gopt_f_io,&
+                                             gopt_f_io_finalize,&
+                                             gopt_f_io_init,&
                                              print_geo_opt_header,&
-                                             print_geo_opt_nc,&
-                                             write_cycle_infos,&
-                                             write_final_info,&
-                                             write_rot_cycle_infos
+                                             print_geo_opt_nc
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
-  USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -162,15 +158,13 @@ CONTAINS
        emin = HUGE(0.0_dp)
        ! Main Loop
        wildcard = "   SD"
-       IF (.NOT.gopt_env%dimer_rotation) THEN
-          CALL write_cycle_infos(output_unit,it=0,etot=opt_energy,wildcard=wildcard)
-       ELSE
-          CALL write_rot_cycle_infos(output_unit,it=0,etot=opt_energy,dimer_env=gopt_env%dimer_env,&
-               wildcard=wildcard)
-       END IF
+       CALL gopt_f_io_init(gopt_env, output_unit, opt_energy, wildcard, error)
+       
        DO its = 1, maxiter
           gopt_env%its = its
-          CALL cp_iterate(logger%iter_info,iter_nr=its,error=error)
+          CALL cp_iterate(logger%iter_info,iter_nr=its,last=(its==maxiter),error=error)
+          CALL gopt_f_ii(its, output_unit)
+
           xold = x0
           eold = opt_energy
           emin = MIN(emin, opt_energy)
@@ -183,19 +177,9 @@ CONTAINS
           IF(should_stop) EXIT
           
           ! Some IO and Convergence check
-          IF (.NOT.gopt_env%dimer_rotation) THEN
-             CALL geo_opt_io(force_env=force_env, root_section=root_section, force_env_section=force_env_section,&
-                  motion_section=gopt_env%motion_section, its=its, opt_energy=opt_energy, error=error)
-             CALL write_cycle_infos(output_unit,its,opt_energy,opt_energy-eold,emin=emin, wildcard=wildcard)
-             CALL check_converg(SIZE(x0),x0-xold,xi,output_unit,conv,gopt_param)
-          ELSE
-             CALL update_dimer_vec(gopt_env%dimer_env, motion_section, error)
-             CALL write_restart(force_env=force_env,root_section=root_section,&
-                  force_env_section=force_env_section,error=error)
-             CALL write_rot_cycle_infos(output_unit,its,opt_energy,opt_energy-eold,emin,gopt_env%dimer_env,&
-                  wildcard)
-             CALL check_rot_conv(gopt_env%dimer_env, output_unit, conv, error)
-          END IF
+          CALL gopt_f_io(gopt_env, force_env, root_section, force_env_section, its, opt_energy,&
+               output_unit, eold, emin, wildcard, gopt_param, SIZE(x0), x0-xold, xi, conv, &
+               error=error)
 
           IF (conv.OR.(its==maxiter))  EXIT
           CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos,&
@@ -221,17 +205,8 @@ CONTAINS
 
        ! Write final particle information and restart, if converged
        CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=its,error=error)
-       IF (gopt_env%eval_opt_geo) THEN
-          IF (.NOT.gopt_env%dimer_rotation) THEN
-             CALL write_final_info(conv, its, gopt_env, x0, gopt_env%force_env%para_env%mepos,&
-                  gopt_env%force_env%para_env, force_env, gopt_env%motion_section, root_section,&
-                  force_env_section, error)
-          ELSE
-             CALL update_dimer_vec(gopt_env%dimer_env, motion_section, error)
-             CALL write_restart(force_env=force_env,root_section=root_section,&
-                  force_env_section=force_env_section,error=error)     
-          END IF
-       END IF
+       CALL gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section, force_env_section,&
+            gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos, error)
 
        DEALLOCATE(xold, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)

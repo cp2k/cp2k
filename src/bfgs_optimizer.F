@@ -16,12 +16,12 @@ MODULE bfgs_optimizer
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE gopt_f_methods,                  ONLY: check_converg,&
-                                             geo_opt_io,&
+  USE gopt_f_methods,                  ONLY: gopt_f_ii,&
+                                             gopt_f_io,&
+                                             gopt_f_io_finalize,&
+                                             gopt_f_io_init,&
                                              print_geo_opt_header,&
-                                             print_geo_opt_nc,&
-                                             write_cycle_infos,&
-                                             write_final_info
+                                             print_geo_opt_nc
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
   USE input_constants,                 ONLY: default_cell_method_id,&
@@ -46,9 +46,7 @@ MODULE bfgs_optimizer
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bfgs_optimizer'
   LOGICAL, PARAMETER                       :: debug_this_module=.TRUE.
 
-  PUBLIC :: geoopt_bfgs,&
-            write_cycle_infos,&
-            check_converg
+  PUBLIC :: geoopt_bfgs
 
 CONTAINS
 
@@ -70,6 +68,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
+    CHARACTER(LEN=5)                         :: wildcard
     CHARACTER(LEN=default_path_length)       :: hes_filename
     INTEGER                                  :: handle, handle2, hesunit, &
                                                 hesunit_read, i, indf, istat, &
@@ -100,6 +99,7 @@ CONTAINS
     conv        = .FALSE.
     rad         = 0.10_dp
     rat         = 0.0_dp
+    wildcard    = " BFGS"
 
     ! Stop if not implemented
     SELECT CASE(gopt_env%type_id)
@@ -169,7 +169,7 @@ CONTAINS
     dr(:) = 0.0_dp
 
     ! Geometry optimization starts now
-    CALL print_geo_opt_header(gopt_env, output_unit, "BFGS")
+    CALL print_geo_opt_header(gopt_env, output_unit, wildcard)
 
     ! Calculate Energy & Gradients
     CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
@@ -177,25 +177,11 @@ CONTAINS
 
     ! Print info at time 0
     emin = etot
-    its = 0
-    CALL write_cycle_infos(output_unit,its,etot,wildcard=" BFGS")
-
+    CALL gopt_f_io_init(gopt_env, output_unit, etot, wildcard=wildcard, error=error)
     DO its = 1, maxiter
        gopt_env%its = its
        CALL cp_iterate(logger%iter_info,iter_nr=its,last=(its==maxiter),error=error)
-
-       ! check for an external exit command
-       CALL external_control(should_stop,"GEO",globenv,error)
-       IF(should_stop) EXIT
-       CALL geo_opt_io(force_env=force_env, root_section=root_section, force_env_section=force_env_section,&
-            motion_section=gopt_env%motion_section, its=its, opt_energy=etot, error=error)
-
-       IF ( output_unit > 0) THEN
-          WRITE(UNIT=output_unit,FMT="(/,T2,26('-'))")
-          WRITE(UNIT=output_unit,FMT="(T2,A,I6)")"OPTIMIZATION STEP: ",its
-          WRITE(UNIT=output_unit,FMT="(T2,26('-'))")
-          CALL m_flush(output_unit)
-       END IF
+       CALL gopt_f_ii(its, output_unit)
 
        ! Hessian update/restarting
        IF ((its == 1).AND.hesrest) THEN
@@ -262,7 +248,6 @@ CONTAINS
        x0 = x0 + dr
 
        CALL energy_predict(ndf,work,hes,dr,g,output_unit,conv,pred)
-       IF (conv) EXIT
        eold = etot
 
        ! Energy & Gradients at new step
@@ -270,25 +255,28 @@ CONTAINS
             gopt_env%force_env%para_env, error)
        ediff = etot - eold
 
-       CALL write_cycle_infos(output_unit,its,etot,ediff,pred,rat,step,rad,emin," BFGS")
+       ! check for an external exit command
+       CALL external_control(should_stop,"GEO",globenv,error)
+       IF(should_stop) EXIT
 
+       ! Some IO and Convergence check
+       CALL gopt_f_io(gopt_env, force_env, root_section, force_env_section, its, etot,&
+            output_unit, eold, emin, wildcard, gopt_param, ndf, dr, g, conv, ediff, pred,&
+            rat, step, rad, error)
+
+       IF (conv.OR.(its==maxiter)) EXIT
        IF (etot < emin) emin = etot
        CALL update_trust_rad(rat,rad,step,ediff)
-       CALL check_converg(ndf,dr,g,output_unit,conv,gopt_param)
-       IF (conv.OR.(its==maxiter)) EXIT
     END DO
 
     IF(its == maxiter .AND. (.NOT.conv))THEN
        CALL print_geo_opt_nc(gopt_env, output_unit)
     END IF
 
-    ! Write final particle information, if converged
+    ! Write final  information, if converged
     CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=its,error=error)
-    IF (gopt_env%eval_opt_geo) THEN
-       CALL write_final_info(conv, its, gopt_env, x0, gopt_env%force_env%para_env%mepos,&
-            gopt_env%force_env%para_env, force_env, gopt_env%motion_section, root_section,&
-            force_env_section, error)
-    END IF
+    CALL gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section,force_env_section,&
+         gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos,error)
 
     DEALLOCATE (hes,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -628,7 +616,7 @@ CONTAINS
   END SUBROUTINE trust_radius
 
 ! *****************************************************************************
-   SUBROUTINE energy_predict(ndf,work,hes,dr,g,output_unit,conv,pred)
+  SUBROUTINE energy_predict(ndf,work,hes,dr,g,output_unit,conv,pred)
 
     INTEGER, INTENT(IN)                      :: ndf
     REAL(KIND=dp), INTENT(INOUT)             :: work(ndf), &
@@ -648,12 +636,12 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-     ener1 = DDOT(ndf,g,1,dr,1)
-     CALL DSPMV('U',ndf,one,hes,dr,1,zero,work,1)
-     ener2 = DDOT(ndf,dr,1,work,1)
-     pred  = ener1 + 0.5_dp * ener2
-     conv = .FALSE.
-   CALL timestop(handle)
+    ener1 = DDOT(ndf,g,1,dr,1)
+    CALL DSPMV('U',ndf,one,hes,dr,1,zero,work,1)
+    ener2 = DDOT(ndf,dr,1,work,1)
+    pred  = ener1 + 0.5_dp * ener2
+    conv = .FALSE.
+    CALL timestop(handle)
 
   END SUBROUTINE energy_predict
 

@@ -63,3 +63,7 @@ water_2_TS_CG.inp
 water_2_TS.inp
 # bug fix in line search
 2d_pot.inp
+# bug fix in writing restart for BFGS
+silicon_cluster_4.inp
+silicon_cluster_5.inp
+silicon_cluster_6.inp

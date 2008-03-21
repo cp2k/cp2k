@@ -51,7 +51,7 @@ MODULE cp_lbfgs_optimizer_gopt
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_type
   USE gopt_f_methods,                  ONLY: check_converg,&
-                                             write_cycle_infos
+                                             gopt_f_io
   USE gopt_f_types,                    ONLY: gopt_f_release,&
                                              gopt_f_retain,&
                                              gopt_f_type
@@ -208,11 +208,9 @@ CONTAINS
 !>      09.2003 refactored (retain/release,para_env) [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE cp_opt_gopt_create(optimizer, para_env, &
-       obj_funct, x0, m, print_every, &
-       wanted_relative_f_delta, wanted_projected_gradient,&
-       lower_bound,upper_bound, kind_of_bound, master, max_f_per_iter,&
-       error)
+  SUBROUTINE cp_opt_gopt_create(optimizer, para_env, obj_funct, x0, m, print_every, &
+       wanted_relative_f_delta, wanted_projected_gradient, lower_bound,upper_bound,&
+       kind_of_bound, master, max_f_per_iter, error)
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(gopt_f_type), POINTER               :: obj_funct
@@ -680,10 +678,13 @@ CPSourceFileRef,&
                   "PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
              IF (is_master) its = optimizer%isave(30)
              CALL mp_bcast(its,optimizer%master,optimizer%para_env%group)
-             CALL write_cycle_infos(dataunit,its,optimizer%f,optimizer%f-optimizer%eold,&
-                  emin=optimizer%emin,wildcard=wildcard)
-             IF (is_master) &
-             CALL check_converg(SIZE(optimizer%x),optimizer%x-xold,optimizer%gradient,&
+
+             ! Some IO and Convergence check
+             CALL gopt_f_io(optimizer%obj_funct, force_env, force_env%root_section, force_env%force_env_section,&
+                  its, optimizer%f, dataunit, optimizer%eold, optimizer%emin, wildcard, gopt_param,&
+                  error=error)
+
+             IF (is_master) CALL check_converg(SIZE(optimizer%x),optimizer%x-xold,optimizer%gradient,&
                   dataunit,conv,gopt_param)
              CALL cp_print_key_finished_output(dataunit,logger,geo_section,&
                   "PRINT%PROGRAM_RUN_INFO", error=error)

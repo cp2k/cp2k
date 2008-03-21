@@ -19,6 +19,7 @@ MODULE gopt_f_methods
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE dimer_types,                     ONLY: dimer_env_type
+  USE dimer_utils,                     ONLY: update_dimer_vec
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
   USE force_env_types,                 ONLY: force_env_get,&
@@ -55,7 +56,7 @@ MODULE gopt_f_methods
 
   PUBLIC :: gopt_f_create_x0, write_cycle_infos, check_converg, write_final_info,&
        print_geo_opt_header, check_rot_conv, write_rot_cycle_infos, print_geo_opt_nc,&
-       geo_opt_io
+       geo_opt_io, gopt_f_io_init, gopt_f_io, gopt_f_io_finalize, gopt_f_ii
 
 CONTAINS
 
@@ -122,6 +123,136 @@ CONTAINS
     END SELECT
 
   END SUBROUTINE gopt_f_create_x0
+
+! *****************************************************************************
+!> \brief Prints iteration step of the optimization procedure on screen
+!> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
+! *****************************************************************************
+  SUBROUTINE gopt_f_ii(its, output_unit)
+
+    INTEGER, INTENT(IN)                      :: its, output_unit
+
+    IF ( output_unit > 0) THEN
+       WRITE(UNIT=output_unit,FMT="(/,T2,26('-'))")
+       WRITE(UNIT=output_unit,FMT="(T2,A,I6)")"OPTIMIZATION STEP: ",its
+       WRITE(UNIT=output_unit,FMT="(T2,26('-'))")
+       CALL m_flush(output_unit)
+    END IF
+  END SUBROUTINE gopt_f_ii
+
+! *****************************************************************************
+!> \brief Handles the Output during an optimization run 
+!> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
+! *****************************************************************************
+  SUBROUTINE gopt_f_io_init(gopt_env, output_unit, opt_energy, wildcard, error)
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    INTEGER, INTENT(IN)                      :: output_unit
+    REAL(KIND=dp)                            :: opt_energy
+    CHARACTER(LEN=5)                         :: wildcard
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_io_init', &
+      routineP = moduleN//':'//routineN
+
+    IF (.NOT.gopt_env%dimer_rotation) THEN
+       CALL write_cycle_infos(output_unit,it=0,etot=opt_energy,wildcard=wildcard)
+    ELSE
+       CALL write_rot_cycle_infos(output_unit,it=0,etot=opt_energy,dimer_env=gopt_env%dimer_env,&
+            wildcard=wildcard)
+    END IF
+  END SUBROUTINE gopt_f_io_init
+
+! *****************************************************************************
+!> \brief Handles the Output during an optimization run 
+!> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
+! *****************************************************************************
+  SUBROUTINE gopt_f_io(gopt_env, force_env, root_section, force_env_section, its, opt_energy,&
+       output_unit, eold, emin, wildcard, gopt_param, ndf, dx, xi, conv, ediff, pred, rat,&
+       step, rad, error)
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(section_vals_type), POINTER         :: root_section, &
+                                                force_env_section
+    INTEGER, INTENT(IN)                      :: its
+    REAL(KIND=dp), INTENT(IN)                :: opt_energy
+    INTEGER, INTENT(IN)                      :: output_unit
+    REAL(KIND=dp)                            :: eold, emin
+    CHARACTER(LEN=5)                         :: wildcard
+    TYPE(gopt_param_type), POINTER           :: gopt_param
+    INTEGER, INTENT(IN), OPTIONAL            :: ndf
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: dx
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: xi
+    LOGICAL, OPTIONAL                        :: conv
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: ediff, pred, rat, step, rad
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_io', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (.NOT.gopt_env%dimer_rotation) THEN
+       CALL geo_opt_io(force_env=force_env, root_section=root_section, force_env_section=force_env_section,&
+            motion_section=gopt_env%motion_section, its=its, opt_energy=opt_energy, error=error)
+       CALL write_cycle_infos(output_unit,its,etot=opt_energy,ediff=opt_energy-eold,&
+            pred=pred,rat=rat,step=step,rad=rad,emin=emin, wildcard=wildcard)
+       ! Possibly check convergence
+       IF (PRESENT(conv)) THEN 
+           CPPostcondition(PRESENT(ndf),cp_failure_level,routineP,error,failure)
+           CPPostcondition(PRESENT(dx),cp_failure_level,routineP,error,failure)
+           CPPostcondition(PRESENT(xi),cp_failure_level,routineP,error,failure)
+           CALL check_converg(ndf,dx,xi,output_unit,conv,gopt_param)
+       END IF
+    ELSE
+       CALL update_dimer_vec(gopt_env%dimer_env, gopt_env%motion_section, error)
+       CALL write_restart(force_env=force_env,root_section=root_section,&
+            force_env_section=force_env_section,error=error)
+       CALL write_rot_cycle_infos(output_unit,its,opt_energy,opt_energy-eold,emin,gopt_env%dimer_env,&
+            wildcard)
+       ! Possibly check convergence
+       IF (PRESENT(conv)) THEN 
+          CPPostcondition(ASSOCIATED(gopt_env%dimer_env),cp_failure_level,routineP,error,failure)
+          CALL check_rot_conv(gopt_env%dimer_env, output_unit, conv, error)
+       END IF
+    END IF
+
+  END SUBROUTINE gopt_f_io
+
+! *****************************************************************************
+!> \brief Handles the Output at the end of an optimization run 
+!> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
+! *****************************************************************************
+  RECURSIVE SUBROUTINE gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section,&
+       force_env_section, para_env, master, error)
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    TYPE(force_env_type), POINTER            :: force_env
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
+    LOGICAL                                  :: conv
+    INTEGER                                  :: its
+    TYPE(section_vals_type), POINTER         :: root_section, &
+                                                force_env_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER, INTENT(IN)                      :: master
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_io_finalize', &
+      routineP = moduleN//':'//routineN
+
+    IF (gopt_env%eval_opt_geo) THEN
+       IF (.NOT.gopt_env%dimer_rotation) THEN
+          CALL write_final_info(conv, its, gopt_env, x0, master, para_env, force_env,&
+               gopt_env%motion_section, root_section, force_env_section, error)
+       ELSE
+          CALL update_dimer_vec(gopt_env%dimer_env, gopt_env%motion_section, error)
+          CALL write_restart(force_env=force_env,root_section=root_section,&
+               force_env_section=force_env_section,error=error)     
+       END IF
+    END IF
+
+  END SUBROUTINE gopt_f_io_finalize
 
 ! *****************************************************************************
   SUBROUTINE write_cycle_infos(output_unit,it,etot,ediff,pred,rat,step,rad,emin,wildcard)

@@ -22,10 +22,10 @@ MODULE cp_lbfgs_geo
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE gopt_f_methods,                  ONLY: geo_opt_io,&
+  USE gopt_f_methods,                  ONLY: gopt_f_ii,&
+                                             gopt_f_io_finalize,&
                                              print_geo_opt_header,&
-                                             print_geo_opt_nc,&
-                                             write_final_info
+                                             print_geo_opt_nc
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
   USE input_constants,                 ONLY: default_cell_method_id,&
@@ -107,17 +107,19 @@ CONTAINS
 
        DO its=1,gopt_param%max_iter
           gopt_env%its = its
+          CALL cp_iterate(logger%iter_info,iter_nr=its,last=(its==gopt_param%max_iter),error=error)
+          CALL gopt_f_ii(its, output_unit)
+
+          ! Real optimization step..
           IF (.NOT.cp_opt_gopt_next(optimizer,geo_section=geo_section, input=root_section,&
                force_env=force_env,gopt_param=gopt_param, converged=converged,error=error)) EXIT
-          ! check for an external exit command
+
+          ! Check for an external exit command
           CALL external_control(should_stop,"GEO",globenv,error)
           IF (should_stop) THEN
              CALL cp_opt_gopt_stop(optimizer, error=error)
              EXIT
           END IF
-          ! Some IO
-          CALL geo_opt_io(force_env=force_env, root_section=root_section, force_env_section=force_env_section,&
-               motion_section=gopt_env%motion_section, its=its, opt_energy=optimizer%f, error=error)
           IF (its==gopt_param%max_iter) EXIT
        END DO
 
@@ -125,13 +127,10 @@ CONTAINS
           CALL print_geo_opt_nc(gopt_env, output_unit)
        END IF
 
-       ! Write final particle information, if converged
+       ! Write final output information, if converged
        CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=its,error=error)
-       IF (gopt_env%eval_opt_geo) THEN
-          CALL write_final_info(converged, its, gopt_env, optimizer%x, optimizer%master,&
-               optimizer%para_env, force_env, gopt_env%motion_section, root_section,&
-               force_env_section, error)
-       END IF
+       CALL gopt_f_io_finalize(gopt_env, force_env, optimizer%x, converged, its, root_section,&
+            force_env_section, optimizer%para_env, optimizer%master, error)
 
        CALL cp_opt_gopt_release(optimizer, error=error)
        CALL cp_print_key_finished_output(output_unit,logger,geo_section,&

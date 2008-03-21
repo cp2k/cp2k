@@ -54,8 +54,8 @@ MODULE gopt_f_types
 !>      none
 ! *****************************************************************************
   TYPE gopt_f_type
-     INTEGER                                  :: ref_count, id_nr, its
-     INTEGER                                  :: nfree
+     INTEGER                                  :: ref_count, id_nr
+     INTEGER                                  :: nfree, its
      INTEGER                                  :: type_id, ts_method_id, cell_method_id
      LOGICAL                                  :: dimer_rotation, do_line_search, eval_opt_geo
      CHARACTER(LEN=default_string_length)     :: label, tag
@@ -74,7 +74,6 @@ CONTAINS
 ! *****************************************************************************
 !> \param gopt_env the geometry optimization environment to be created
 !>      force_env:
-!>      globenv:
 !> \param error variable to control error logging, stopping,... 
 !>             see module cp_error_handling 
 !> \par History
@@ -111,9 +110,9 @@ CONTAINS
        gopt_env%do_line_search=.FALSE.
        CALL force_env_retain(force_env, error=error)
        gopt_env%force_env      => force_env
-       gopt_env%globenv        => globenv
        gopt_env%motion_section => section_vals_get_subs_vals(force_env%root_section,"MOTION",error=error)
        gopt_env%geo_section    => geo_opt_section
+       gopt_env%globenv        => globenv
        gopt_env%eval_opt_geo=.TRUE.
        IF (PRESENT(eval_opt_geo)) gopt_env%eval_opt_geo = eval_opt_geo
 
