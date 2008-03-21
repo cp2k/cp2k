@@ -26,3 +26,5 @@ virial.inp
 virial.inp
 #  
 MC_QS.inp
+#  
+GEMC_swap_box1.inp

@@ -200,23 +200,17 @@ MODULE qs_rho0_ggrid
             tp(dir) = MODULO ( tp(dir), rs_grid%npts(dir) )
             tp(dir) = tp(dir) + rs_grid%lb(dir)
          END DO
-         IF(rs_grid%distributed)THEN
-            IF( ALL (tp.GE.rs_grid%lb_real) .AND. ALL (tp.LE.rs_grid%ub_real) ) THEN
-               ! local atom
-               npme = npme + 1
-               cores (npme) = iat
-            ENDIF
-         ELSEIF(rs_grid%parallel) THEN
-            ! replicated realspace grid, split the atoms up between procs
-            IF (MODULO(nat,rs_grid%group_size) == rs_grid % my_pos ) THEN
-               npme = npme + 1
-               cores (npme) = iat
-            ENDIF
-         ELSE
-            ! serial job
-            npme = npme + 1
-            cores (npme) = iat           
-         ENDIF
+         IF(rs_grid%parallel .AND. .NOT. rs_grid%distributed) THEN
+             ! replicated realspace grid, split the atoms up between procs
+             IF (MODULO(nat,rs_grid%group_size) == rs_grid % my_pos ) THEN
+                npme = npme + 1
+                cores (npme) = iat
+             ENDIF
+          ELSE
+             npme = npme + 1
+             cores (npme) = iat
+          ENDIF
+
       END DO
 
       ithread=0
@@ -235,7 +229,7 @@ MODULE qs_rho0_ggrid
            l0_ikind,zet0_s,0,0,0.0_dp,0,&
            ra, (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, 1.0_dp, pab,0,0,&
            rs_grid,cell, cube_info(igrid),eps_rho_rspace,ga_gb_function=401,&
-           ithread=ithread,collocate_rho0=.TRUE.,rpgf0_s=rpgf0_s,error=error)
+           ithread=ithread,collocate_rho0=.TRUE.,rpgf0_s=rpgf0_s,use_subpatch=.TRUE.,error=error)
 
       END DO  !  j
 
@@ -578,22 +572,15 @@ MODULE qs_rho0_ggrid
             tp(dir) = MODULO ( tp(dir), rs_v%npts(dir) )
             tp(dir) = tp(dir) + rs_v%lb(dir)
          END DO
-         IF(rs_v%distributed)THEN
-            IF( ALL (tp.GE.rs_v%lb_real) .AND. ALL (tp.LE.rs_v%ub_real) ) THEN
-               ! local atom
-               npme = npme + 1
-               cores (npme) = iat
-            ENDIF
-         ELSEIF(rs_v%parallel) THEN
-            ! replicated realspace grid, split the atoms up between procs
-            IF (MODULO(nat,rs_v%group_size) == rs_v % my_pos ) THEN
-               npme = npme + 1
-               cores (npme) = iat
-            ENDIF
+         IF(rs_v%parallel .AND. .NOT. rs_v%distributed) THEN
+             ! replicated realspace grid, split the atoms up between procs
+             IF (MODULO(nat,rs_v%group_size) == rs_v % my_pos ) THEN
+                npme = npme + 1
+                cores (npme) = iat
+             ENDIF
          ELSE
-            ! serial job
-            npme = npme + 1
-            cores (npme) = iat           
+             npme = npme + 1
+             cores (npme) = iat
          ENDIF
       END DO
 
@@ -623,7 +610,7 @@ MODULE qs_rho0_ggrid
              eps_gvg_rspace=eps_rho_rspace,&
              calculate_forces=calculate_forces,&
              hdab=hdab,hadb=hadb,ithread=ithread,&
-             collocate_rho0=.TRUE.,rpgf0_s=rpgf0_s,error=error)
+             collocate_rho0=.TRUE.,rpgf0_s=rpgf0_s,use_subpatch=.TRUE.,error=error)
 
 ! Convert from cartesian to spherical
         IF (calculate_forces) THEN

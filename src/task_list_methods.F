@@ -79,9 +79,10 @@ CONTAINS
                                                 max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: ab, bcol, brow, cost, curr_tasks, dest, dir, handle, iatom, &
-      igrid_level, ikind, ilist, inode, ipgf, iset, jatom, jkind, jpgf, jset, &
-      maxpgf, maxset, natoms, nkind, nlist, nnode, nseta, nsetb, tp(3)
+    INTEGER :: ab, added_tasks, bcol, brow, cost, curr_tasks, dest, dir, &
+      handle, iatom, igrid_level, ikind, ilist, inode, ipgf, iset, j, jatom, &
+      jkind, jpgf, jset, lb_cube(3), maxpgf, maxset, natoms, nkind, nlist, &
+      nnode, nseta, nsetb, tp(3), ub_cube(3)
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb
     LOGICAL                                  :: distributed_rs_grids, &
@@ -287,29 +288,51 @@ CONTAINS
                             END DO
 
                             IF(rs_rho(igrid_level)%rs_grid%distributed) THEN
-                               CALL rs_find_node(rs_rho(igrid_level)%rs_grid,tp,dest)
-                               tasks(4,ntasks) = 1
+                               
+                               ! find the bounds required for proper collocation
+                               CALL get_task_bounds(rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                                    la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                                    lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                                    ra,rab,rab2,dft_control%qs_control%eps_rho_rspace,&
+                                    lb_cube,ub_cube)
+
+                               ! finds the node(s) that need to process this task
+                               ! on exit tasks(4,:) is 1 for distributed tasks and 2 for generalised tasks 
+                               CALL rs_find_node(rs_rho(igrid_level)%rs_grid,tp,dest,&
+                                    ntasks=ntasks,tasks=tasks,lb_cube=lb_cube,ub_cube=ub_cube,added_tasks=added_tasks)
+                               
+                               IF ( ntasks > curr_tasks ) THEN
+                                  curr_tasks = (curr_tasks+add_tasks)*mult_tasks
+                                  CALL reallocate(dist_ab,1,3,1,curr_tasks)
+                               END IF
+
                             ELSE
                                dest =  rs_rho(igrid_level)%rs_grid%my_pos
-                               tasks(4,ntasks) = 0 
+                               tasks (1,ntasks) = dest
+                               tasks(4,ntasks) = 0
+                               added_tasks = 1
                             ENDIF
 
                             ! cost_factor for this task
                             CALL estimate_task_cost(cost,rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                                                    la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                                                    lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                                                    ra,rab,rab2,dft_control%qs_control%eps_rho_rspace)
+                                 la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                                 lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                                 ra,rab,rab2,dft_control%qs_control%eps_rho_rspace)
+                            
+                            DO j= 1, added_tasks
 
-                            tasks (1,ntasks) = dest
-                            tasks (2,ntasks) = rs_rho(igrid_level)% rs_grid % my_pos
-                            tasks (5,ntasks) = cost
+                               tasks (2,ntasks-added_tasks+j) = rs_rho(igrid_level)% rs_grid % my_pos
+                               tasks (5,ntasks-added_tasks+j) = cost
 
-                            !encode the atom pairs and basis info as a single long integer
-                            CALL pair2int(tasks(3,ntasks),igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
+                               !encode the atom pairs and basis info as a single long integer
+                               CALL pair2int(tasks(3,ntasks-added_tasks+j),igrid_level,&
+                                    iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
+                               
+                               dist_ab (1,ntasks-added_tasks+j) = rab(1)
+                               dist_ab (2,ntasks-added_tasks+j) = rab(2)
+                               dist_ab (3,ntasks-added_tasks+j) = rab(3)
 
-                            dist_ab (1,ntasks) = rab(1)
-                            dist_ab (2,ntasks) = rab(2)
-                            dist_ab (3,ntasks) = rab(3)
+                            ENDDO
 
                          END DO loop_jpgf
 
@@ -405,5 +428,59 @@ CONTAINS
     ENDIF
 
   END SUBROUTINE estimate_task_cost
+
+! *****************************************************************************
+!> \brief checks whether the task requires the use of the generalised collocation routines
+!> 
+!> \note
+!>      -) this requires the radius to be computed in the same way as
+!>      collocate_pgf_product_rspace, we should factor that part into a subroutine
+!>      -) in principle, the computed radius could be recycled in integrate_pgf/collocate_pgf if it is certainly
+!>         the same, this could lead to a small speedup
+!> \par History
+!>      02.2008 created [MattW]
+! *****************************************************************************
+  SUBROUTINE get_task_bounds(rsgrid,cube_info,la_max,zeta,la_min,lb_max,zetb,lb_min,ra,rab,rab2,eps,lb_cube,ub_cube)
+
+    TYPE(realspace_grid_type), POINTER       :: rsgrid
+    TYPE(cube_info_type), INTENT(IN)         :: cube_info
+    INTEGER, INTENT(IN)                      :: la_max
+    REAL(KIND=dp), INTENT(IN)                :: zeta
+    INTEGER, INTENT(IN)                      :: la_min, lb_max
+    REAL(KIND=dp), INTENT(IN)                :: zetb
+    INTEGER, INTENT(IN)                      :: lb_min
+    REAL(KIND=dp), INTENT(IN)                :: ra(3), rab(3), rab2, eps
+    INTEGER                                  :: lb_cube(3), ub_cube(3)
+
+    INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
+    REAL(KIND=dp)                            :: cutoff, f, prefactor, radius, &
+                                                rap(3), rb(3), rbp(3), rp(3), &
+                                                zetp
+
+    zetp = zeta + zetb
+    f    = zetb/zetp
+    rap(:)    = f*rab(:)
+    rbp(:)    = rap(:) - rab(:)
+    rp(:)     = ra(:) + rap(:)
+    rb(:)     = ra(:)+rab(:)
+    cutoff    = 0.0_dp
+    prefactor = EXP(-zeta*f*rab2)
+    radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,ra=ra,rb=rb,rp=rp,&
+               zetp=zetp,eps=eps,&
+               prefactor=prefactor,cutoff=cutoff)
+
+    IF (rsgrid%orthorhombic ) THEN
+       CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
+    ELSE
+       ! untested so far
+       CALL return_cube_nonortho(cube_info,radius,lb_cube,ub_cube,rp)
+    ENDIF
+
+    ! are the bounds relative to (0,0,0)??
+    ub_cube(:) = ub_cube(:)
+    lb_cube(:) = lb_cube(:)
+
+    END SUBROUTINE get_task_bounds
+
 
 END MODULE task_list_methods

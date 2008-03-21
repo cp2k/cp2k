@@ -105,6 +105,12 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)        
 
+       CALL keyword_create(keyword, name="HALO_REDUCTION_FACTOR",&
+            description="Can be used to reduce the halo of the distributed grid (experimental features).",&
+            usage="HALO_REDUCTION_FACTOR 0.5",&
+            default_r_val=1.0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)        
     END IF
   END SUBROUTINE create_rsgrid_section
 

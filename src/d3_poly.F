@@ -42,8 +42,8 @@ MODULE d3_poly
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'd3_poly'
 ! maximum grad for cached values
-    INTEGER, PUBLIC, PARAMETER :: max_grad2=12
-    INTEGER, PUBLIC, PARAMETER :: max_grad3=8
+    INTEGER, PUBLIC, PARAMETER :: max_grad2=5
+    INTEGER, PUBLIC, PARAMETER :: max_grad3=3
     INTEGER, PUBLIC, PARAMETER :: cached_dim1=max_grad2+1
     INTEGER, PUBLIC, PARAMETER :: cached_dim2=(max_grad2+1)*(max_grad2+2)/2
     INTEGER, PUBLIC, PARAMETER :: cached_dim3=(max_grad3+1)*(max_grad3+2)*(max_grad3+3)/6
@@ -629,7 +629,7 @@ SUBROUTINE poly_mult3ab(p1,size_p1,grad1,p2,pRes,size_pRes,np1,sumUp)
         ! one could remove multiplications even more agressively...
         msize_p1=my_size_p1
         DO ipoly=0,np1-1
-            shift1=1+ipoly*my_size_p1
+            shift1=1+ipoly*my_size_p1+(max_grad3+1)*(max_grad3+2)*(max_grad3+3)/6
             shiftRes_0=1+ipoly*newSize
             DO g1=max_grad3+1,grad1
                 subG2=0

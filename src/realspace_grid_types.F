@@ -20,8 +20,10 @@ MODULE realspace_grid_types
                                              section_vals_type,&
                                              section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_8
   USE mathlib,                         ONLY: det_3x3
+  USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: &
        mp_alltoall, mp_cart_coords, mp_cart_create, mp_cart_shift, &
        mp_comm_dup, mp_comm_free, mp_environ, mp_isendrecv, mp_max, mp_min, &
@@ -68,6 +70,7 @@ MODULE realspace_grid_types
      REAL(KIND=dp) :: memory_factor
      LOGICAL       :: lock_distribution
      INTEGER       :: nsmax
+     REAL(KIND=dp) :: halo_reduction_factor
   END TYPE realspace_grid_input_type
 
 ! *****************************************************************************
@@ -159,6 +162,9 @@ SUBROUTINE init_input_type(input_settings,nsmax,rs_grid_section,ilevel,higher_gr
        CALL section_vals_val_get(rs_grid_section,"MEMORY_FACTOR",&
                 i_rep_section=isection,&
                 r_val=input_settings%memory_factor,error=error)
+       CALL section_vals_val_get(rs_grid_section,"HALO_REDUCTION_FACTOR",&
+                i_rep_section=isection,&
+                r_val=input_settings%halo_reduction_factor,error=error)
        CALL section_vals_val_get(rs_grid_section,"LOCK_DISTRIBUTION",&
                 i_rep_section=isection,&
                 l_val=input_settings%lock_distribution,error=error)
@@ -176,6 +182,7 @@ SUBROUTINE init_input_type(input_settings,nsmax,rs_grid_section,ilevel,higher_gr
        input_settings%nsmax=-1
        input_settings%distribution_type=rsgrid_replicated
        input_settings%lock_distribution=.FALSE.
+       input_settings%halo_reduction_factor=1.0_dp
    ENDIF
    IF (input_settings%lock_distribution) THEN
      IF (ALL(higher_grid_layout>0)) input_settings%distribution_layout=higher_grid_layout
@@ -235,6 +242,8 @@ END SUBROUTINE init_input_type
        rs % ngpts_local = PRODUCT ( rs % npts )
        rs % lb_local = pw_grid % bounds ( 1, : )
        rs % ub_local = pw_grid % bounds ( 2, : )
+       rs % lb_real = pw_grid % bounds ( 1, : )
+       rs % ub_real = pw_grid % bounds ( 2, : )
        rs % parallel = .FALSE.
        rs % distributed = .FALSE.
        rs % group = -1
@@ -262,8 +271,7 @@ END SUBROUTINE init_input_type
 
        ! this is the eventual border size
        nmin = ( input_settings % nsmax + 1 ) / 2
-
-       ! x is the main distribution direction of pw grids in real space
+       nmin = MAX(0,NINT(nmin* input_settings % halo_reduction_factor))
 
        IF ( input_settings % distribution_type == rsgrid_replicated ) THEN
 
@@ -278,7 +286,7 @@ END SUBROUTINE init_input_type
           DO j=1, MIN(rs % npts (2), rs % group_size)
              i= MIN (rs % npts (1), rs % group_size/(j*k) )
              n_slices_tmp=(/i,j,k/)
-     
+    
              ! we don't match the actual number of CPUs
              IF (PRODUCT(n_slices_tmp) .NE. rs % group_size) CYCLE
 
@@ -1523,21 +1531,32 @@ END SUBROUTINE rs_grid_release
 !>      11.2007 created [MattW]
 !> \author MattW
 ! *****************************************************************************
-SUBROUTINE rs_find_node(rs,point,dest)
+SUBROUTINE rs_find_node(rs,point,dest,ntasks,tasks,lb_cube,ub_cube,added_tasks)
 
     TYPE(realspace_grid_type), POINTER       :: rs
     INTEGER, DIMENSION(3), INTENT(IN)        :: point
     INTEGER, INTENT(OUT)                     :: dest
+    INTEGER, INTENT(INOUT), OPTIONAL         :: ntasks
+    INTEGER(kind=int_8), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: tasks
+    INTEGER, DIMENSION(3), OPTIONAL          :: lb_cube, ub_cube
+    INTEGER, OPTIONAL                        :: added_tasks
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_find_node', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dir, i
-    INTEGER, DIMENSION(2)                    :: pos
-    INTEGER, DIMENSION(3)                    :: coords, lb, ub
-    TYPE(cp_error_type)                      :: error
+    INTEGER                                  :: curr_tasks, dir, i, istat
+    INTEGER, ALLOCATABLE                     :: lb(:,:), pos(:,:), ub(:,:)
+    INTEGER, DIMENSION(3)                    :: coords
 
 !  CPPrecondition(rs%distributed,cp_failure_level,routineP,error,failure)
+
+  ALLOCATE(pos(0:rs%group_size-1,2), stat=istat)
+  IF (istat.NE.0) CALL stop_program("rs_find_node","pos")
+  ALLOCATE(lb(0:rs%group_size-1,3), stat=istat)
+  IF (istat.NE.0) CALL stop_program("rs_find_node","lb")
+  ALLOCATE(ub(0:rs%group_size-1,3), stat=istat)
+  IF (istat.NE.0) CALL stop_program("rs_find_node","ub")
 
   dest = -1
 
@@ -1546,21 +1565,95 @@ SUBROUTINE rs_find_node(rs,point,dest)
      CALL mp_cart_coords(rs % group, i, coords)
      !calculate the real rs grid points on each processor
      DO dir = 1,3
-        pos (:) = get_limit ( rs %  npts ( dir ), rs % group_dim ( dir ), coords(dir) )
-        pos (:) = pos (:) - rs %  npts (dir) / 2 - 1
-        lb(dir) = pos(1)
-        ub(dir) = pos(2)                
+        pos (i,:) = get_limit ( rs %  npts ( dir ), rs % group_dim ( dir ), coords(dir) )
+        pos (i,:) = pos (i,:) - rs %  npts (dir) / 2 - 1
+        lb(i,dir) = pos(i,1)
+        ub(i,dir) = pos(i,2)
      ENDDO
 
+     !try to exit quickly if we don't need the generalised collocation
+     ! integration routines
      ! check whether the point is local to proc i
-     IF ( ALL (point.GE.lb) .AND. ALL (point.LE.ub ) ) THEN
-        dest = i
-        EXIT
+     IF ( ALL (point.GE.lb(i,:)) .AND. ALL (point.LE.ub(i,:) ) ) THEN
+        IF(.NOT. PRESENT(tasks))THEN
+           CALL stop_program("rs_find_node","no tasks sent to routine")
+        ELSE IF ( ALL ( (lb(i,:)-rs%border) .LE. point(:)+lb_cube(:) ) .AND. &
+             ALL ( (ub(i,:)+rs%border) .GE. point(:)+ub_cube(:) ) ) THEN
+           !standard distributed collocation/integration
+           tasks(4,ntasks)=1
+           tasks(1,ntasks)=i
+           added_tasks = 1
+           dest=i
+           EXIT
+        ELSE
+           !generalised collocation/integration needed
+           !let the fun commence....
+           tasks(4,ntasks)=2
+           tasks(1,ntasks)=i
+           dest=i
+           added_tasks = 1
+        ENDIF
+       
      ENDIF
 
   ENDDO
 
-  CPPostconditionNoFail(dest.GE.0 .AND. dest.LE.rs % group_size,cp_warning_level,routineP,error)
+  IF (PRESENT(tasks)) THEN
+
+     !how elegant
+     IF(ub_cube(1)+point(1).GT.rs%ub(1)) THEN
+        ub_cube(1)=ub_cube(1)-rs%npts(1)
+     ENDIF
+     IF(lb_cube(1)+point(1).LT.rs%lb(1)) THEN
+        lb_cube(1)=lb_cube(1)+rs%npts(1)
+     ENDIF
+     IF(ub_cube(2)+point(2).GT.rs%ub(2)) THEN
+        ub_cube(2)=ub_cube(2)-rs%npts(2)
+     ENDIF
+     IF(lb_cube(2)+point(2).LT.rs%lb(2)) THEN
+        lb_cube(2)=lb_cube(2)+rs%npts(2)
+     ENDIF
+     IF(ub_cube(3)+point(3).GT.rs%ub(3)) THEN
+        ub_cube(3)=ub_cube(3)-rs%npts(3)
+     ENDIF
+     IF(lb_cube(3)+point(3).LT.rs%lb(3)) THEN
+        lb_cube(3)=lb_cube(3)+rs%npts(3)
+     ENDIF
+
+     IF(tasks(4,ntasks) .EQ. 2 ) THEN
+        ! find all procs that should collocate this poinst
+        DO i = 0, rs % group_size - 1
+           ! check there is some density to be mapped on this proc
+           IF ((lb(i,1) .GT. ub_cube(1)+point(1)) .AND. &
+                (ub(i,1) .LT. lb_cube(1)+point(1))) CYCLE 
+           IF ((lb(i,2) .GT. ub_cube(2)+point(2)) .AND. &
+                (ub(i,2) .LT. lb_cube(2)+point(2))) CYCLE 
+           IF ((lb(i,3) .GT. ub_cube(3)+point(3)) .AND. &
+                (ub(i,3) .LT. lb_cube(3)+point(3))) CYCLE 
+
+           ! avoid double counting
+           IF ( i .EQ. dest) CYCLE
+
+           ntasks=ntasks+1
+           added_tasks=added_tasks+1
+           IF ( ntasks > SIZE(tasks,2)) THEN
+              curr_tasks = (SIZE(tasks,2)+1000)*2
+              CALL reallocate(tasks,1,5,1,curr_tasks)
+           END IF
+           tasks(1,ntasks)=i
+           tasks(4,ntasks)=2
+        ENDDO
+     ENDIF
+  ENDIF
+
+  !CPPostconditionNoFail(dest.GE.0 .AND. dest.LE.rs % group_size,cp_warning_level,routineP,error)
+
+  DEALLOCATE(pos, stat=istat)
+  IF (istat.NE.0) CALL stop_program("rs_find_node","pos")
+  DEALLOCATE(lb, stat=istat)
+  IF (istat.NE.0) CALL stop_program("rs_find_node","lb")
+  DEALLOCATE(ub, stat=istat)
+  IF (istat.NE.0) CALL stop_program("rs_find_node","ub")
 
 END SUBROUTINE rs_find_node
 

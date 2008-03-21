@@ -85,3 +85,23 @@ kg_gpw_2H2O_ppot.inp
 kg_gpw_2H2O_md.inp
 # numerics after rewriting md and md_util
 nai-2.inp
+#  
+kg_gpw_1H2O_TF.inp
+#  
+kg_gpw_2H2O_llp.inp
+#  
+kg_gpw_2H2O_ppot.inp
+#  
+kg_gpw_2H2O_pbellp_geoch.inp
+#  
+kg_gpw_2H2O_md.inp
+#  
+kg_gpw_1H2O_TF.inp
+#  
+kg_gpw_2H2O_llp.inp
+#  
+kg_gpw_2H2O_ppot.inp
+#  
+kg_gpw_2H2O_pbellp_geoch.inp
+#  
+kg_gpw_2H2O_md.inp

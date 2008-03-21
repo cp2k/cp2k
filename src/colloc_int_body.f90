@@ -7,7 +7,7 @@
       kstart, kstart2, max_j, stat,size_jk,size_k,size_ijk
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: k_bounds
     INTEGER, DIMENSION(0:2)                  :: cellShift, l_shift, l_ub, &
-                                                ndim, period, shiftPos
+                                                ndim, period, shiftPos,ldim2
     INTEGER, DIMENSION(2, 0:2)               :: l_bounds
     LOGICAL                                  :: failure, has_overlap, &
                                                 k_bounds_alloc, poly_alloc
@@ -25,7 +25,7 @@
       sqDk
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: poly_ijk, poly_jk,xi
     REAL(dp), DIMENSION(0:2)                 :: l, normD, p_shift, resPos, &
-                                                resPosReal, riPos, rpos, wrPos,ldim2
+                                                resPosReal, riPos, rpos, wrPos
 
 #ifdef FMG_INTEGRATE
     INTEGER :: ipoly,pShift
@@ -41,7 +41,7 @@
     INTEGER, PARAMETER :: npoly=1
 #endif
 #ifdef FM_FLAT_GRID
-    INTEGER :: ii_cum, ij_cum, ik_cum,iidim,ijdim
+    INTEGER :: iidim,ijdim
 #define IF_FLAT(x,y) x
 #else
 #define IF_FLAT(x,y) y
@@ -102,7 +102,7 @@
     END IF
     l_ub=l_bounds(2,:)-l_bounds(1,:)+l_shift
     DO i=0,2
-        CPPrecondition(l_ub(permut(i))<ldim2(i),cp_failure_level,routineP,error,failure)
+        CPPrecondition(l_ub(i)<ldim2(i),cp_failure_level,routineP,error,failure)
     END DO
     IF (failure) GOTO 21
     

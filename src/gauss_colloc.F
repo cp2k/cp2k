@@ -31,7 +31,7 @@ PUBLIC :: collocGauss, collocGauss_safe,sphRad2,calc_max_r2,&
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gauss_colloc'
 
-    REAL(dp), PARAMETER :: small=1.0_dp/HUGE(1.0_dp)
+    REAL(dp), PARAMETER :: small=TINY(1.0_dp)
 
 CONTAINS
 

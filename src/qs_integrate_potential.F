@@ -207,23 +207,16 @@ CONTAINS
              tp(dir) = MODULO ( tp(dir), rs_v%npts(dir) )
              tp(dir) = tp(dir) + rs_v%lb(dir)
           END DO
-          IF(rs_v%distributed)THEN
-             IF( ALL (tp.GE.rs_v%lb_real) .AND. ALL (tp.LE.rs_v%ub_real) ) THEN
-                ! local atom
-                npme = npme + 1
-                cores (npme) = iatom
-             ENDIF
-          ELSEIF(rs_v%parallel) THEN
-             ! replicated realspace grid, split the atoms up between procs
-             IF (MODULO(natom_of_kind,rs_v%group_size) == rs_v % my_pos ) THEN
-                npme = npme + 1
-                cores (npme) = iatom
-             ENDIF
-          ELSE
-             ! serial job
-             npme = npme + 1
-             cores (npme) = iatom            
-          ENDIF
+          IF(rs_v%parallel .AND. .NOT. rs_v%distributed) THEN
+              ! replicated realspace grid, split the atoms up between procs
+              IF (MODULO(natom_of_kind,rs_v%group_size) == rs_v % my_pos ) THEN
+                 npme = npme + 1
+                 cores (npme) = iatom
+              ENDIF
+           ELSE
+              npme = npme + 1
+              cores (npme) = iatom
+           ENDIF
        END DO
        
       DO j=1,npme
@@ -245,7 +238,7 @@ CONTAINS
              eps_gvg_rspace=eps_rho_rspace,&
              calculate_forces=.TRUE.,force_a=force_a,&
              force_b=force_b,use_virial=use_virial,my_virial_a=my_virial_a,&
-             my_virial_b=my_virial_b,error=error)
+             my_virial_b=my_virial_b,use_subpatch=.TRUE.,error=error)
 
         force(ikind)%rho_core(:,iatom) =&
           force(ikind)%rho_core(:,iatom) + force_a(:)
@@ -253,7 +246,7 @@ CONTAINS
         IF (use_virial) THEN
           virial%pv_virial = virial%pv_virial + my_virial_a
         END IF
-      END DO
+     END DO
 
     END DO
 
@@ -317,7 +310,8 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, failure, &
       h_duplicated, has_dv, map_consistent, my_compute_tau, my_gapw, &
-      new_set_pair_coming, p_duplicated, pab_required, scatter, use_virial
+      new_set_pair_coming, p_duplicated, pab_required, scatter, use_subpatch, &
+      use_virial
     REAL(KIND=dp)                            :: dab, eps_gvg_rspace, &
                                                 kind_radius_b, rab2, zetp
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, rb
@@ -733,6 +727,18 @@ CONTAINS
        nb1 = (jpgf - 1)*ncoset(lb_max(jset)) + 1
        nb2 = jpgf*ncoset(lb_max(jset))
 
+       ! check whether we need to use fawzi's generalised collocation scheme
+       IF(rs_v(igrid_level)%rs_grid%distributed)THEN
+          !tasks(4,:) is 0 for replicated, 1 for distributed 2 for exceptional distributed tasks
+          IF (tasks(4,itask) .EQ. 2 ) THEN
+             use_subpatch = .TRUE.
+          ELSE
+             use_subpatch = .FALSE.
+          ENDIF 
+       ELSE
+          use_subpatch = .FALSE.
+       ENDIF
+
        IF (pab_required) THEN
           IF (has_dv) THEN
              IF (iatom <= jatom) THEN
@@ -747,7 +753,7 @@ CONTAINS
                      force_a=force_a,force_b=force_b,ithread=ithread,&
                      compute_tau=my_compute_tau,map_consistent=map_consistent,&
                      use_virial=use_virial,my_virial_a=my_virial_a,&
-                     my_virial_b=my_virial_b,error=error)
+                     my_virial_b=my_virial_b, use_subpatch=use_subpatch,error=error)
              ELSE
                 CALL integrate_pgf_product_rspace(&
                      lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -760,7 +766,7 @@ CONTAINS
                      force_a=force_b,force_b=force_a,ithread=ithread,&
                      compute_tau=my_compute_tau,map_consistent=map_consistent,&
                      use_virial=use_virial,my_virial_a=my_virial_b,&
-                     my_virial_b=my_virial_a,error=error)
+                     my_virial_b=my_virial_a,use_subpatch=use_subpatch,error=error)
              END IF
           ELSE
 
@@ -776,7 +782,7 @@ CONTAINS
                      force_a=force_a,force_b=force_b,ithread=ithread,&
                      compute_tau=my_compute_tau,map_consistent=map_consistent,&
                      use_virial=use_virial,my_virial_a=my_virial_a,&
-                     my_virial_b=my_virial_b,error=error)
+                     my_virial_b=my_virial_b,use_subpatch=use_subpatch,error=error)
              ELSE
                 CALL integrate_pgf_product_rspace(&
                      lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -789,7 +795,7 @@ CONTAINS
                      force_a=force_b,force_b=force_a,ithread=ithread,&
                      compute_tau=my_compute_tau,map_consistent=map_consistent,&
                      use_virial=use_virial,my_virial_a=my_virial_b,&
-                     my_virial_b=my_virial_a,error=error)
+                     my_virial_b=my_virial_a,use_subpatch=use_subpatch,error=error)
              END IF
           END IF
        ELSE
@@ -804,7 +810,7 @@ CONTAINS
                   calculate_forces=calculate_forces,&
                   force_a=force_a,force_b=force_b,ithread=ithread,&
                   compute_tau=my_compute_tau,&
-                  map_consistent=map_consistent,error=error)
+                  map_consistent=map_consistent,use_subpatch=use_subpatch,error=error)
           ELSE
              CALL integrate_pgf_product_rspace(&
                   lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -816,7 +822,7 @@ CONTAINS
                   calculate_forces=calculate_forces,&
                   force_a=force_b,force_b=force_a,ithread=ithread, &
                   compute_tau=my_compute_tau,&
-                  map_consistent=map_consistent,error=error)
+                  map_consistent=map_consistent,use_subpatch=use_subpatch,error=error)
           END IF
        END IF
 
@@ -1066,7 +1072,7 @@ CONTAINS
                                             calculate_forces,hdab,hadb,force_a,force_b,&
                                             ithread,mytimings,compute_tau,map_consistent,&
                                             collocate_rho0,rpgf0_s,use_virial,my_virial_a,&
-                                            my_virial_b,error)
+                                            my_virial_b,use_subpatch,error)
 
     INTEGER, INTENT(IN)                      :: la_max
     REAL(KIND=dp), INTENT(IN)                :: zeta
@@ -1096,6 +1102,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: use_virial
     REAL(KIND=dp), DIMENSION(3,3), OPTIONAL  :: my_virial_a, my_virial_b
     TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL, OPTIONAL                        :: use_subpatch
 
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_pgf_product_rspace', &
       routineP = moduleN//':'//routineN
@@ -1110,7 +1117,8 @@ CONTAINS
     LOGICAL                                  :: my_collocate_rho0, &
                                                 my_compute_tau, &
                                                 my_map_consistent, &
-                                                my_use_virial
+                                                my_use_virial,&
+                                                subpatch_integrate
     REAL(KIND=dp) :: a, axpm0, b, binomial_k_lxa, binomial_l_lxb, cutoff, &
       der_a(3), der_b(3), exp_x0, exp_x1, exp_x2, f, ftza, ftzb, pabval, pg, &
       prefactor, radius, rpg, ya, yap, yb, ybp, za, zap, zb, zbp, zetp
@@ -1132,9 +1140,16 @@ CONTAINS
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: pol_x
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: vab
     REAL(KIND=dp) :: t_exp_1,t_exp_2,t_exp_min_1,t_exp_min_2,t_exp_plus_1,t_exp_plus_2
-    LOGICAL, PARAMETER :: use_subpatch=.FALSE.
 
 !   ---------------------------------------------------------------------------
+
+    subpatch_integrate = .FALSE.
+
+    IF(PRESENT(use_subpatch)) THEN 
+       IF(use_subpatch)THEN 
+         subpatch_integrate = .TRUE.
+       ENDIF
+    ENDIF  
 
     IF (PRESENT(ithread)) THEN
        ithread_l=ithread
@@ -1235,11 +1250,12 @@ CONTAINS
     ALLOCATE(vab(ncoset(la_max_local),ncoset(lb_max_local)))
     vab=0.0_dp
 
-    IF (use_subpatch) THEN
-        CALL integrate_general_real()
+    IF (subpatch_integrate) THEN
+        CALL integrate_general_subpatch()
     ELSE
         IF (rsgrid%orthorhombic ) THEN
           CALL integrate_ortho()
+          !CALL integrate_general_subpatch()
         ELSE
           !CALL integrate_general_wings()
           CALL integrate_general_opt()
@@ -1734,22 +1750,23 @@ CONTAINS
 
 ! *****************************************************************************
 
-    SUBROUTINE integrate_general_real
+    SUBROUTINE integrate_general_subpatch
     INTEGER                                  :: stat
     INTEGER, DIMENSION(2, 3)                 :: local_b
-    INTEGER, DIMENSION(3)                    :: local_s
+    INTEGER, DIMENSION(3)                    :: local_s, periodic
     REAL(dp), DIMENSION((&
       la_max_local+lb_max_local+1)*(&
       la_max_local+lb_max_local+2)*(&
       la_max_local+lb_max_local+3)/6)        :: poly_d3
 
+        periodic=1 ! cell%perd         
         lp=la_max_local+lb_max_local
         local_b(1,:)=rsgrid%lb_real-rsgrid%lb
         local_b(2,:)=rsgrid%ub_real-rsgrid%lb
-        local_s=rsgrid%lb_real-rsgrid%lb
+        local_s=rsgrid%lb_real-rsgrid%lb_local
         CALL integrateGaussFull(h=cell%hmat,h_inv=cell%h_inv,&
             grid=grid,poly=poly_d3,alphai=zetp,posi=rp,max_r2=radius*radius,&
-            periodic=cell%perd,gdim=ng,local_bounds=local_b,local_shift=local_s,&
+            periodic=periodic,gdim=ng,local_bounds=local_b,local_shift=local_s,&
             error=error,scale=rsgrid%ngpts/ABS(cell%deth))
         ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
         ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6),stat=stat)
@@ -1761,19 +1778,20 @@ CONTAINS
     END SUBROUTINE
 
     SUBROUTINE integrate_general_wings()
-    INTEGER                                  :: stat
+    INTEGER                                  :: periodic(3), stat
     INTEGER, DIMENSION(2, 3)                 :: local_b
     REAL(dp), DIMENSION((&
       la_max_local+lb_max_local+1)*(&
       la_max_local+lb_max_local+2)*(&
       la_max_local+lb_max_local+3)/6)        :: poly_d3
 
+        periodic=1 ! cell%perd
         lp=la_max_local+lb_max_local
         local_b(1,:)=rsgrid%lb_local-rsgrid%lb
         local_b(2,:)=rsgrid%ub_local-rsgrid%lb
         CALL integrateGaussFull(h=cell%hmat,h_inv=cell%h_inv,&
             grid=grid,poly=poly_d3,alphai=zetp,posi=rp,max_r2=radius*radius,&
-            periodic=cell%perd,gdim=ng,local_bounds=local_b,&
+            periodic=periodic,gdim=ng,local_bounds=local_b,&
             error=error,scale=rsgrid%ngpts/ABS(cell%deth))
         ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
         ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6),stat=stat)

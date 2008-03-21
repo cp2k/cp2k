@@ -110,7 +110,6 @@ MODULE qs_collocate_density
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                              realspace_grid_type,&
                                              rs2pw,&
-                                             rs_find_node,&
                                              rs_grid_zero,&
                                              rs_pw_transfer
   USE realspace_task_selection,        ONLY: distribute_matrix,&
@@ -298,7 +297,7 @@ CONTAINS
                                               cube_info=cube_info(igrid_level),&
                                               eps_rho_rspace=eps_rho_rspace,&
                                               ga_gb_function=FUNC_AB, ithread=ithread, &
-                                              map_consistent=map_consistent,error=error)
+                                              map_consistent=map_consistent,use_subpatch=.FALSE.,error=error)
           END DO
         END DO
       END DO
@@ -364,7 +363,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_core', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, dest, dir, handle, i, &
+    INTEGER                                  :: atom_a, dir, handle, i, &
                                                 iatom, ierr, ikind, ithread, &
                                                 j, natom, npme, nthread, tp(3)
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores, lb
@@ -436,23 +435,15 @@ CONTAINS
             tp(dir) = MODULO ( tp(dir), rs_rho%npts(dir) )
             tp(dir) = tp(dir) + rs_rho%lb(dir)
          END DO
-         IF(rs_rho%distributed)THEN
-            IF( ALL (tp.GE.rs_rho%lb_real) .AND. ALL (tp.LE.rs_rho%ub_real) ) THEN
-               ! local atom
-               CALL rs_find_node(rs_rho,tp,dest)
-               npme = npme + 1
-               cores (npme) = iatom
-            ENDIF
-         ELSEIF(rs_rho%parallel) THEN
+         IF(rs_rho%parallel .AND. .NOT. rs_rho%distributed) THEN
             ! replicated realspace grid, split the atoms up between procs
             IF (MODULO(natom,rs_rho%group_size) == rs_rho % my_pos ) THEN
                npme = npme + 1
                cores (npme) = iatom
             ENDIF
          ELSE
-            ! serial job
             npme = npme + 1
-            cores (npme) = iatom            
+            cores (npme) = iatom
          ENDIF
       END DO
 
@@ -462,11 +453,10 @@ CONTAINS
             iatom = cores(j)
             atom_a = atom_list(iatom)
             ra(:) = pbc(particle_set(atom_a)%r,cell)
-
             CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
                   (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,-1.0_dp,pab,0,0,rs_rho,&
                   cell,cube_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
-                  ithread=ithread,error=error)
+                  ithread=ithread,use_subpatch=.TRUE.,error=error)
 
          END DO
       ENDIF
@@ -532,7 +522,7 @@ CONTAINS
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: atom_pair_changed, distributed_rs_grids, failure, &
-      map_consistent, my_compute_tau, my_soft
+      map_consistent, my_compute_tau, my_soft, use_subpatch
     REAL(KIND=dp)                            :: eps_rho_rspace, &
                                                 kind_radius_b, rab2, scale, &
                                                 zetp
@@ -821,6 +811,18 @@ CONTAINS
           scale = 2.0_dp
        END IF
 
+       ! check whether we need to use fawzi's generalised collocation scheme
+       IF(rs_rho(igrid_level)%rs_grid%distributed)THEN
+          !tasks(4,:) is 0 for replicated, 1 for distributed 2 for exceptional distributed tasks
+          IF (tasks(4,itask) .EQ. 2 ) THEN
+             use_subpatch = .TRUE.
+          ELSE
+             use_subpatch = .FALSE.
+          ENDIF
+       ELSE
+          use_subpatch = .FALSE.
+       ENDIF
+
        IF (iatom <= jatom) THEN
           CALL collocate_pgf_product_rspace(&
                la_max(iset),zeta(ipgf,iset),la_min(iset),&
@@ -829,7 +831,7 @@ CONTAINS
                rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                eps_rho_rspace,&
                ga_gb_function=ga_gb_function, &
-               map_consistent=map_consistent,error=error)
+               map_consistent=map_consistent,use_subpatch=use_subpatch,error=error)
        ELSE
           CALL collocate_pgf_product_rspace(&
                lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -838,7 +840,7 @@ CONTAINS
                rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                eps_rho_rspace,&
                ga_gb_function=ga_gb_function, &
-               map_consistent=map_consistent,error=error)
+               map_consistent=map_consistent,use_subpatch=use_subpatch,error=error)
        END IF
 
     END DO loop_tasks
@@ -1103,7 +1105,7 @@ CONTAINS
                                           lgrid,ithread,&
                                           map_consistent,&
                                           collocate_rho0,&
-                                          rpgf0_s,idir,ir,error)
+                                          rpgf0_s,idir,ir,use_subpatch,error)
 
       INTEGER, INTENT(IN)                      :: la_max
       REAL(KIND=dp), INTENT(IN)                :: zeta
@@ -1124,6 +1126,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL            :: map_consistent, collocate_rho0
       REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
       INTEGER, INTENT(IN), OPTIONAL            :: idir, ir
+      LOGICAL, OPTIONAL                        :: use_subpatch
       TYPE(cp_error_type), INTENT(INOUT)       :: error
 
       CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product_rspace', &
@@ -1137,7 +1140,7 @@ CONTAINS
                                                   ub_cube
       INTEGER, DIMENSION(:), POINTER           :: ly_max, lz_max, sphere_bounds
       LOGICAL                                  :: failure, my_collocate_rho0, &
-                                                  my_map_consistent
+                                                  my_map_consistent,subpatch_collocate
       REAL(KIND=dp) :: a, b, binomial_k_lxa, binomial_l_lxb, cutoff, f, pg, &
         prefactor, radius, rpg, ya, yap, yb, ybp, za, zap, zb, zbp, zetp
       REAL(KIND=dp), DIMENSION(3)              :: dr, rap, rb, rbp, roffset, rp
@@ -1157,9 +1160,16 @@ CONTAINS
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:) :: pol_y
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: pol_x
       REAL(KIND=dp) :: t_exp_1,t_exp_2,t_exp_min_1,t_exp_min_2,t_exp_plus_1,t_exp_plus_2
-      LOGICAL, PARAMETER :: use_subpatch=.FALSE.
 
     failure = .FALSE.
+
+    subpatch_collocate = .FALSE.
+
+    IF(PRESENT(use_subpatch)) THEN 
+       IF(use_subpatch)THEN 
+         subpatch_collocate = .TRUE.
+       ENDIF
+    ENDIF  
 
     IF (PRESENT(ithread)) THEN
        ithread_l=ithread
@@ -1439,8 +1449,8 @@ CONTAINS
     ENDDO
     ENDDO
 
-    IF (use_subpatch) THEN
-        CALL collocate_general_real()
+    IF (subpatch_collocate) THEN
+        CALL collocate_generate_subpatch()
     ELSE
        IF (rsgrid%orthorhombic ) THEN
           CALL collocate_ortho()
@@ -1748,19 +1758,20 @@ CONTAINS
 
     END SUBROUTINE collocate_general_opt
 
-    SUBROUTINE collocate_general_real
+    SUBROUTINE collocate_generate_subpatch
     INTEGER, DIMENSION(2, 3)                 :: local_b
-    INTEGER, DIMENSION(3)                    :: local_s
+    INTEGER, DIMENSION(3)                    :: local_s, periodic
     REAL(dp), &
       DIMENSION((lp+1)*(lp+2)*(lp+3)/6)      :: poly_d3
 
+        periodic=1 ! cell%perd
         CALL poly_cp2k2d3(coef_xyz,lp,poly_d3,error)
         local_b(1,:)=rsgrid%lb_real-rsgrid%lb
         local_b(2,:)=rsgrid%ub_real-rsgrid%lb
-        local_s=rsgrid%lb_real-rsgrid%lb
+        local_s=rsgrid%lb_real-rsgrid%lb_local
         CALL collocGauss(h=cell%hmat,h_inv=cell%h_inv,&
             grid=grid,poly=poly_d3,alphai=zetp,posi=rp,max_r2=radius*radius,&
-            periodic=cell%perd,gdim=ng,local_bounds=local_b,local_shift=local_s,&
+            periodic=periodic,gdim=ng,local_bounds=local_b,local_shift=local_s,&
             error=error)
         ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
         
@@ -1768,17 +1779,19 @@ CONTAINS
 
     SUBROUTINE collocate_general_wings
     INTEGER, DIMENSION(2, 3)                 :: local_b
+    INTEGER, DIMENSION(3)                    :: periodic
     REAL(dp), &
       DIMENSION((lp+1)*(lp+2)*(lp+3)/6)      :: poly_d3
 
+        periodic=1 ! cell%perd
         CALL poly_cp2k2d3(coef_xyz,lp,poly_d3,error)
-        local_b(1,:)=rsgrid%lb_local-rsgrid%lb
-        local_b(2,:)=rsgrid%ub_local-rsgrid%lb
+        local_b(1,:)=rsgrid%lb_real-rsgrid%lb
         CALL collocGauss(h=cell%hmat,h_inv=cell%h_inv,&
             grid=grid,poly=poly_d3,alphai=zetp,posi=rp,max_r2=radius*radius,&
-            periodic=cell%perd,gdim=ng,local_bounds=local_b,&
+            periodic=periodic,gdim=ng,local_bounds=local_b,&
             error=error)
-        
+        ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
+ 
     END SUBROUTINE
 !
 !   this is a general 'reference' routine to do the collocation

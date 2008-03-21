@@ -433,6 +433,25 @@ CONTAINS
     failure=.FALSE.
     logger => cp_error_get_logger(error)
 
+    IF (.FALSE.) THEN
+       ! useful for testing, we just hack in a well defined functional of tau, ndrho and rho
+       ! and see that things converge properly with OT.
+       DO ii=1,npoints
+          my_tau=tau(ii)
+          my_rho=rho(ii)
+          my_ndrho=norm_drho(ii)
+          IF (grad_deriv>=0) THEN
+                   e_0(ii) = e_0(ii)+my_tau*my_ndrho*my_rho
+          END IF
+          IF (grad_deriv>=1 .OR. grad_deriv==-1) THEN
+             e_rho(ii)=e_rho(ii)+my_tau*my_ndrho
+             e_ndrho(ii)=e_ndrho(ii)+my_tau*my_rho
+             e_tau(ii)=e_tau(ii)+my_rho*my_ndrho
+          ENDIF
+       ENDDO
+       RETURN
+    ENDIF
+
     IF (.NOT. failure) THEN
        abs_grad_deriv=ABS(grad_deriv)
        non_coer=0
@@ -1069,9 +1088,9 @@ CONTAINS
           rho=my_rhoa+my_rhob
           tau=my_tau_a+my_tau_b
           IF (rho>epsilon_rho.AND.tau>epsilon_tau) THEN
-             my_norm_drhoa=MAX(0.0_dp,norm_drhoa(ii))
-             my_norm_drhob=MAX(0.0_dp,norm_drhob(ii))
-             my_norm_drho=MAX(0.0_dp,norm_drho(ii))
+             my_norm_drhoa=MAX(EPSILON(0.0_dp),norm_drhoa(ii))
+             my_norm_drhob=MAX(EPSILON(0.0_dp),norm_drhob(ii))
+             my_norm_drho=MAX(EPSILON(0.0_dp),norm_drho(ii))
              my_rhoa=MAX(EPSILON(0.0_dp)*1.e4_dp,my_rhoa)
              my_rhob=MAX(EPSILON(0.0_dp)*1.e4_dp,my_rhob)
              my_tau_a=MAX(EPSILON(0.0_dp)*1.e4_dp,tau_a(ii))
