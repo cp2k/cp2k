@@ -868,9 +868,9 @@ CONTAINS
          description="Specifies the external pressure (1 value or the full 9 components of the pressure tensor) "//&
          "applied during the cell optimization.",&
          usage="EXTERNAL_PRESSURE {REAL} .. {REAL}",unit_str="bar",&
-         default_r_vals=(/1.0_dp,0.0_dp,0.0_dp,&
-                          0.0_dp,1.0_dp,0.0_dp,&
-                          0.0_dp,0.0_dp,1.0_dp/),n_var=-1,error=error)
+         default_r_vals=(/cp_unit_to_cp2k(100.0_dp,"bar",error=error),0.0_dp,0.0_dp,&
+                          0.0_dp,cp_unit_to_cp2k(100.0_dp,"bar",error=error),0.0_dp,&
+                          0.0_dp,0.0_dp,cp_unit_to_cp2k(100.0_dp,"bar",error=error)/),n_var=-1,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -879,6 +879,14 @@ CONTAINS
          usage="KEEP_SHAPE {LOGICAL}",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)       
+
+    CALL keyword_create(keyword, name="PRESSURE_TOLERANCE",&
+         description="Specifies the Pressure tolerance (compared to the external pressure) to achieve "//&
+         " during the cell optimization.",&
+         usage="PRESSURE_TOLERANCE {REAL}",unit_str="bar",&
+         default_r_val=cp_unit_to_cp2k(100.0_dp,"bar",error=error),error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
     ! Create the PRINT subsection 
     NULLIFY(subsection)

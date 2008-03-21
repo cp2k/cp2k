@@ -61,3 +61,4 @@ nh3_fixd_z.inp            2
 argon_opt_cell.inp        7
 argon_opt_cell_ks.inp     7
 argon_opt_cell_md.inp     7
+Si_tersoff.inp            7

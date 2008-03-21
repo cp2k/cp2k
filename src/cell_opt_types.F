@@ -51,7 +51,7 @@ MODULE cell_opt_types
      ! Simulation cell optimization parameters
      INTEGER                                    :: ref_count, id_nr
      LOGICAL                                    :: keep_shape
-     REAL(KIND=dp)                              :: pres_ext
+     REAL(KIND=dp)                              :: pres_ext, pres_int, pres_tol
      REAL(KIND=dp), DIMENSION(3,3)              :: mtrx
      REAL(KIND=dp), DIMENSION(3,3)              :: rot_matrix
      TYPE(cell_type), POINTER                   :: ref_cell
@@ -94,6 +94,7 @@ CONTAINS
        CALL cell_create(cell_env%ref_cell,error=error)
        CALL cell_clone(cell, cell_env%ref_cell, error)
        CALL section_vals_val_get(geo_section,"KEEP_SHAPE",l_val=cell_env%keep_shape,error=error)
+       CALL section_vals_val_get(geo_section,"PRESSURE_TOLERANCE",r_val=cell_env%pres_tol,error=error)
        
        ! First let's rotate the cell vectors in order to have an upper triangular matrix.
        CALL get_ut_cell_matrix(force_env, error)
@@ -139,7 +140,7 @@ CONTAINS
 ! *****************************************************************************
 !> \par History
 !>      none
-!> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
+!> \author Teodoro Laino - created [tlaino] - 03.2008 - Zurich University
 ! *****************************************************************************
   SUBROUTINE cell_opt_env_release(cell_env, error)
     TYPE(cell_opt_env_type), POINTER         :: cell_env

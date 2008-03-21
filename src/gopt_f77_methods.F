@@ -280,7 +280,7 @@ CPSourceFileRef,&
              CPPrecondition(ASSOCIATED(gradient),cp_failure_level,routineP,error,failure)
              ! Compute the gradients on the cell
              CALL get_dg_dh(gradient,av_ptens,gopt_env%cell_env%pres_ext,cell,gopt_env%cell_env%mtrx,&
-                  keep_shape=gopt_env%cell_env%keep_shape,error=error)
+                  keep_shape=gopt_env%cell_env%keep_shape,pres_int=gopt_env%cell_env%pres_int,error=error)
           END IF
        END IF
        CALL virial_release(virial_avg, error)

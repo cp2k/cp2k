@@ -154,12 +154,23 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_io_init', &
       routineP = moduleN//':'//routineN
 
-    IF (.NOT.gopt_env%dimer_rotation) THEN
-       CALL write_cycle_infos(output_unit,it=0,etot=opt_energy,wildcard=wildcard)
-    ELSE
-       CALL write_rot_cycle_infos(output_unit,it=0,etot=opt_energy,dimer_env=gopt_env%dimer_env,&
-            wildcard=wildcard)
-    END IF
+    REAL(KIND=dp)                            :: pres_int
+
+    SELECT CASE(gopt_env%type_id)
+    CASE(default_ts_method_id,default_minimization_method_id)
+       ! Geometry Optimization (Minimization and Transition State Search)
+       IF (.NOT.gopt_env%dimer_rotation) THEN
+          CALL write_cycle_infos(output_unit,it=0,etot=opt_energy,wildcard=wildcard)
+       ELSE
+          CALL write_rot_cycle_infos(output_unit,it=0,etot=opt_energy,dimer_env=gopt_env%dimer_env,&
+               wildcard=wildcard)
+       END IF
+    CASE(default_cell_method_id)
+       ! Cell Optimization
+       pres_int = gopt_env%cell_env%pres_int
+       CALL write_cycle_infos(output_unit,it=0,etot=opt_energy,pres_int=pres_int,wildcard=wildcard)
+    END SELECT
+
   END SUBROUTINE gopt_f_io_init
 
 ! *****************************************************************************
@@ -192,33 +203,53 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: pres_diff, pres_int, pres_tol
 
     failure = .FALSE.
-    IF (.NOT.gopt_env%dimer_rotation) THEN
+    SELECT CASE(gopt_env%type_id)
+    CASE(default_ts_method_id,default_minimization_method_id)
+       ! Geometry Optimization (Minimization and Transition State Search)
+       IF (.NOT.gopt_env%dimer_rotation) THEN
+          CALL geo_opt_io(force_env=force_env, root_section=root_section, force_env_section=force_env_section,&
+               motion_section=gopt_env%motion_section, its=its, opt_energy=opt_energy, error=error)
+          CALL write_cycle_infos(output_unit,its,etot=opt_energy,ediff=opt_energy-eold,&
+               pred=pred,rat=rat,step=step,rad=rad,emin=emin,wildcard=wildcard)
+          ! Possibly check convergence
+          IF (PRESENT(conv)) THEN 
+             CPPostcondition(PRESENT(ndf),cp_failure_level,routineP,error,failure)
+             CPPostcondition(PRESENT(dx),cp_failure_level,routineP,error,failure)
+             CPPostcondition(PRESENT(xi),cp_failure_level,routineP,error,failure)
+             CALL check_converg(ndf,dx,xi,output_unit,conv,gopt_param)
+          END IF
+       ELSE
+          CALL update_dimer_vec(gopt_env%dimer_env, gopt_env%motion_section, error)
+          CALL write_restart(force_env=force_env,root_section=root_section,&
+               force_env_section=force_env_section,error=error)
+          CALL write_rot_cycle_infos(output_unit,its,opt_energy,opt_energy-eold,emin,gopt_env%dimer_env,&
+               wildcard)
+          ! Possibly check convergence
+          IF (PRESENT(conv)) THEN 
+             CPPostcondition(ASSOCIATED(gopt_env%dimer_env),cp_failure_level,routineP,error,failure)
+             CALL check_rot_conv(gopt_env%dimer_env, output_unit, conv, error)
+          END IF
+       END IF
+    CASE(default_cell_method_id)
+       ! Cell Optimization
+       pres_diff = gopt_env%cell_env%pres_int - gopt_env%cell_env%pres_ext
+       pres_int  = gopt_env%cell_env%pres_int
+       pres_tol  = gopt_env%cell_env%pres_tol
        CALL geo_opt_io(force_env=force_env, root_section=root_section, force_env_section=force_env_section,&
             motion_section=gopt_env%motion_section, its=its, opt_energy=opt_energy, error=error)
        CALL write_cycle_infos(output_unit,its,etot=opt_energy,ediff=opt_energy-eold,&
-            pred=pred,rat=rat,step=step,rad=rad,emin=emin, wildcard=wildcard)
+            pred=pred,rat=rat,step=step,rad=rad,emin=emin,pres_int=pres_int,wildcard=wildcard)
        ! Possibly check convergence
        IF (PRESENT(conv)) THEN 
-           CPPostcondition(PRESENT(ndf),cp_failure_level,routineP,error,failure)
-           CPPostcondition(PRESENT(dx),cp_failure_level,routineP,error,failure)
-           CPPostcondition(PRESENT(xi),cp_failure_level,routineP,error,failure)
-           CALL check_converg(ndf,dx,xi,output_unit,conv,gopt_param)
+          CPPostcondition(PRESENT(ndf),cp_failure_level,routineP,error,failure)
+          CPPostcondition(PRESENT(dx),cp_failure_level,routineP,error,failure)
+          CPPostcondition(PRESENT(xi),cp_failure_level,routineP,error,failure)
+          CALL check_converg(ndf,dx,xi,output_unit,conv,gopt_param,pres_diff,pres_tol)
        END IF
-    ELSE
-       CALL update_dimer_vec(gopt_env%dimer_env, gopt_env%motion_section, error)
-       CALL write_restart(force_env=force_env,root_section=root_section,&
-            force_env_section=force_env_section,error=error)
-       CALL write_rot_cycle_infos(output_unit,its,opt_energy,opt_energy-eold,emin,gopt_env%dimer_env,&
-            wildcard)
-       ! Possibly check convergence
-       IF (PRESENT(conv)) THEN 
-          CPPostcondition(ASSOCIATED(gopt_env%dimer_env),cp_failure_level,routineP,error,failure)
-          CALL check_rot_conv(gopt_env%dimer_env, output_unit, conv, error)
-       END IF
-    END IF
-
+    END SELECT
   END SUBROUTINE gopt_f_io
 
 ! *****************************************************************************
@@ -255,17 +286,22 @@ CONTAINS
   END SUBROUTINE gopt_f_io_finalize
 
 ! *****************************************************************************
-  SUBROUTINE write_cycle_infos(output_unit,it,etot,ediff,pred,rat,step,rad,emin,wildcard)
+  SUBROUTINE write_cycle_infos(output_unit,it,etot,ediff,pred,rat,step,rad,emin,&
+       pres_int,wildcard)
 
     INTEGER, INTENT(IN)                      :: output_unit, it
     REAL(KIND=dp), INTENT(IN)                :: etot
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: ediff, pred, rat, step, rad, &
-                                                emin
+                                                emin, pres_int
     CHARACTER(LEN=5), OPTIONAL               :: wildcard
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_cycle_infos', &
       routineP = moduleN//':'//routineN
 
+    TYPE(unit_convert_type), POINTER         :: unit
+
+    NULLIFY(unit)
+    CALL get_cp2k_units(unit)
     IF (output_unit>0)THEN
        WRITE(UNIT=output_unit,FMT="(/,T2,8('-'),A,I5,1X,12('-'))")&
             "  Informations at step = ",it
@@ -273,6 +309,10 @@ CONTAINS
             " Optimization Method        = ",wildcard
        WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
             " Total Energy               = ",etot
+       IF (PRESENT(pres_int)) THEN
+          WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+               " Internal Pressure [bar]    = ",pres_int*unit%bar
+       END IF
        IF (PRESENT(ediff)) THEN
           WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
                " Real energy change         = ",ediff
@@ -352,23 +392,27 @@ CONTAINS
   END SUBROUTINE write_rot_cycle_infos
 
 ! *****************************************************************************
-  SUBROUTINE check_converg(ndf,dr,g,output_unit,conv,gopt_param)
+  SUBROUTINE check_converg(ndf,dr,g,output_unit,conv,gopt_param,pres_diff,pres_tol)
 
     INTEGER, INTENT(IN)                      :: ndf
     REAL(KIND=dp), INTENT(IN)                :: dr(ndf), g(ndf)
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, INTENT(OUT)                     :: conv
     TYPE(gopt_param_type), POINTER           :: gopt_param
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: pres_diff, pres_tol
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_converg', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: indf
-    LOGICAL                                  :: conv_dx, conv_g, conv_rdx, &
-                                                conv_rg
+    LOGICAL                                  :: conv_dx, conv_g, conv_p, &
+                                                conv_rdx, conv_rg
     REAL(KIND=dp)                            :: dumm, dxcon, gcon, maxdum(4), &
                                                 rmsgcon, rmsxcon
+    TYPE(unit_convert_type), POINTER         :: unit
 
+    NULLIFY(unit)
+    CALL get_cp2k_units(unit)
     dxcon = gopt_param%max_dr
     gcon = gopt_param%max_force
     rmsgcon = gopt_param%rms_force
@@ -379,6 +423,7 @@ CONTAINS
     conv_rdx = .TRUE.
     conv_g   = .TRUE.
     conv_rg  = .TRUE.
+    conv_p   = .TRUE.
 
     dumm     = 0.0_dp
     DO indf = 1, ndf
@@ -399,6 +444,8 @@ CONTAINS
     END DO
     IF( SQRT(dumm/ndf) > rmsgcon )conv_rg = .FALSE.
     maxdum(4) = SQRT(dumm/ndf)
+
+    IF (PRESENT(pres_diff).AND.PRESENT(pres_tol)) conv_p = ABS(pres_diff)<ABS(pres_tol)
 
     IF(output_unit>0)THEN
        WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
@@ -456,10 +503,26 @@ CONTAINS
                " Conv. for gradients        =     ",&
                "              NO"
        END IF
+       IF (PRESENT(pres_diff).AND.PRESENT(pres_tol)) THEN
+          WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+               " Pressure Deviation [bar]   = ",pres_diff*unit%bar
+          WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+               " Pressure Tolerance [bar]   = ",pres_tol*unit%bar
+          IF(conv_p)THEN
+             WRITE(UNIT=output_unit,FMT="(T2,2A)")&
+                  " Conv. for  PRESSURE        =     ",&
+                  "             YES"
+             
+          ELSE
+             WRITE(UNIT=output_unit,FMT="(T2,2A)")&
+                  " Conv. for  PRESSURE        =     ",&
+                  "              NO"
+          END IF
+       END IF
        WRITE(UNIT=output_unit,FMT="(T2,51('-'))")
     END IF
 
-    IF (conv_dx .AND. conv_rdx .AND. conv_g .AND. conv_rg) conv = .TRUE.
+    IF (conv_dx .AND. conv_rdx .AND. conv_g .AND. conv_rg .AND. conv_p) conv = .TRUE.
 
     IF ((conv).AND.(output_unit>0)) THEN
        WRITE (UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)

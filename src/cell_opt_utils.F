@@ -230,7 +230,7 @@ CPSourceFileRef,&
 !> \par History
 !>      none
 ! *****************************************************************************
-  SUBROUTINE get_dg_dh(gradient,av_ptens,pres_ext,cell,mtrx,keep_shape,error)
+  SUBROUTINE get_dg_dh(gradient,av_ptens,pres_ext,cell,mtrx,keep_shape,pres_int,error)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gradient
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: av_ptens
@@ -239,11 +239,13 @@ CPSourceFileRef,&
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: mtrx
     LOGICAL, INTENT(IN), OPTIONAL            :: keep_shape
+    REAL(KIND=dp), INTENT(OUT)               :: pres_int
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_dg_dh', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i
     LOGICAL                                  :: failure, my_keep_shape
     REAL(KIND=dp)                            :: norm, norm_b, norm_c
     REAL(KIND=dp), DIMENSION(3, 3)           :: correction, pten_hinv_old, &
@@ -253,8 +255,15 @@ CPSourceFileRef,&
     my_keep_shape = .FALSE.
     IF (PRESENT(keep_shape)) my_keep_shape =  keep_shape
     gradient = 0.0_dp
-
     ptens      = av_ptens
+
+    ! Evaluating the internal pressure
+    pres_int = 0.0_dp
+    DO i=1,3
+       pres_int=pres_int+ptens(i,i)
+    ENDDO
+    pres_int=pres_int/3.0_dp
+
     ptens(1,1) = av_ptens(1,1) - pres_ext
     ptens(2,2) = av_ptens(2,2) - pres_ext
     ptens(3,3) = av_ptens(3,3) - pres_ext
