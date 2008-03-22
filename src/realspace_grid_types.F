@@ -1577,6 +1577,13 @@ SUBROUTINE rs_find_node(rs,point,dest,ntasks,tasks,lb_cube,ub_cube,added_tasks)
      IF ( ALL (point.GE.lb(i,:)) .AND. ALL (point.LE.ub(i,:) ) ) THEN
         IF(.NOT. PRESENT(tasks))THEN
            CALL stop_program("rs_find_node","no tasks sent to routine")
+        ELSE IF ( .NOT. rs%orthorhombic ) THEN
+           !standard distributed collocation/integration
+           tasks(4,ntasks)=1
+           tasks(1,ntasks)=i
+           added_tasks = 1
+           dest=i
+           EXIT
         ELSE IF ( ALL ( (lb(i,:)-rs%border) .LE. point(:)+lb_cube(:) ) .AND. &
              ALL ( (ub(i,:)+rs%border) .GE. point(:)+ub_cube(:) ) ) THEN
            !standard distributed collocation/integration
