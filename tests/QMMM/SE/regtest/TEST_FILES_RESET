@@ -60,3 +60,5 @@ water_3_walls.inp
 zwitt.inp
 #  
 water_3_full.inp
+# new integral module - numerics
+water_3_full.inp
