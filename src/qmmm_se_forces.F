@@ -272,7 +272,8 @@ CONTAINS
           rij = (/rt1,rt2,rt3/)
           se_kind_mm%zeff = mm_charges(Imm)
           ! Integrals derivatives involving QM - MM atoms
-          CALL rotnuc_ana (se_kind_a,se_kind_mm,rij,itype,denuc=denuc,de1b=de1b,shortrange=.FALSE.)
+          CALL rotnuc_ana (se_kind_a,se_kind_mm,rij,itype,denuc=denuc,de1b=de1b,shortrange=.FALSE.,&
+               error=error)
           ! Nucler - Nuclear term
           force_ab(1:3)=-denuc(1:3)
           IF ( SIZE(p_block_a,1) == 1 ) THEN

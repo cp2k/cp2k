@@ -259,7 +259,8 @@ CONTAINS
           rt3= r_pbc(3) 
           rij = (/rt1,rt2,rt3/)
           se_kind_mm%zeff = mm_charges(Imm)
-          CALL rotnuc_ana (se_kind_a,se_kind_mm,rij,itype,enuc,e1b,shortrange=.FALSE.)
+          CALL rotnuc_ana (se_kind_a,se_kind_mm,rij,itype,enuc,e1b,shortrange=.FALSE.,&
+               error=error)
           enuclear = enuclear + enuc
           ! Contribution to the iatom block
           ! Computation of the QMMM core matrix

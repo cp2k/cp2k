@@ -511,6 +511,7 @@ OBJECTS_GENERIC =\
  scp_rspw_types.o\
  semi_empirical_integrals.o\
  semi_empirical_int_ana.o\
+ semi_empirical_int_utils.o\
  semi_empirical_parameters.o\
  semi_empirical_types.o\
  semi_empirical_utils.o\
