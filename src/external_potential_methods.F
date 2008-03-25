@@ -80,6 +80,7 @@ CONTAINS
 
        CALL initf(1)
        CALL section_vals_val_get(ext_pot_section,"FUNCTION",c_val=coupling_function,error=error)
+       CALL compress(coupling_function, full=.TRUE.)
        CALL section_vals_val_get(ext_pot_section,"PARAMETERS",n_rep_val=n_rep,error=error)
        IF (n_rep /=0) THEN
           CALL section_vals_val_get(ext_pot_section,"PARAMETERS",c_vals=par,error=error)

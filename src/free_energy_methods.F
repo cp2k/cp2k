@@ -257,8 +257,6 @@ SUBROUTINE dump_ac_info(my_val, my_par, dx, lerr, root_section, nforce_eval, cum
 
     CHARACTER(LEN=default_path_length)       :: coupling_function
     CHARACTER(LEN=default_string_length)     :: def_error, par, this_error
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: data_function
     INTEGER                                  :: i, iforce_eval, ipar, isize, &
                                                 iw, j, NEquilStep, output_unit
     LOGICAL                                  :: failure, ionode
@@ -267,7 +265,6 @@ SUBROUTINE dump_ac_info(my_val, my_par, dx, lerr, root_section, nforce_eval, cum
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: fe_section
 
-    NULLIFY(data_function)
     failure = .FALSE.
     output_unit = -1
     logger => cp_error_get_logger(error)
@@ -296,13 +293,8 @@ SUBROUTINE dump_ac_info(my_val, my_par, dx, lerr, root_section, nforce_eval, cum
     ! We must print now the energy of the biased system, the weigthing energy 
     ! and the derivative w.r.t.the coupling parameter of the biased energy
     ! Retrieve the expression of the weighting function:
-    CALL section_vals_val_get(fe_section,"WEIGHTING_FUNCTION",&
-         c_vals=data_function,error=error)
-    ! Clean the function structure
-    coupling_function = ""
-    DO j = 1, SIZE(data_function)
-       coupling_function(LEN_TRIM(coupling_function)+1:) = TRIM(data_function(j))
-    END DO
+    CALL section_vals_val_get(fe_section,"WEIGHTING_FUNCTION",c_val=coupling_function,error=error)
+     CALL compress(coupling_function, full=.TRUE.)
     CALL parsef(2,TRIM(coupling_function),my_par)       
     ene_w   = evalf(2,my_val)
     d_ene_w = evalfd(2,ipar,my_val,dx,err)

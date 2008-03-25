@@ -879,9 +879,8 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
     CHARACTER(LEN=default_path_length)       :: coupling_function
     CHARACTER(LEN=default_string_length)     :: def_error, this_error
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: data_function, my_par, &
-                                                parameters, variables
-    INTEGER :: iforce_eval, iparticle, j, jparticle, mixing_type, my_group, &
+      DIMENSION(:), POINTER                  :: my_par, parameters, variables
+    INTEGER :: iforce_eval, iparticle, jparticle, mixing_type, my_group, &
       mydim, n_rep_val, natom, nforce_eval, output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: glob_natoms, map_index
     LOGICAL                                  :: failure, ionode, &
@@ -1094,14 +1093,10 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
             map_index, mapping_section, .FALSE., error)
     CASE(mix_generic)
        ! Support any number of force_eval sections
-       NULLIFY(data_function, variables, parameters, par_values)
+       NULLIFY(variables, parameters, par_values)
        CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%MIXING_FUNCTION",&
-            c_vals=data_function,error=error)
-       ! Clean the function structure
-       coupling_function = ""
-       DO j = 1, SIZE(data_function)
-          coupling_function(LEN_TRIM(coupling_function)+1:) = TRIM(data_function(j))
-       END DO
+            c_val=coupling_function,error=error)
+       CALL compress(coupling_function, full=.TRUE.)
        CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%VARIABLES",&
             c_vals=variables,error=error)
        CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%PARAMETERS",&

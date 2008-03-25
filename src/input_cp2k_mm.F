@@ -1053,8 +1053,8 @@ CONTAINS
        
        CALL keyword_create(keyword, name="FUNCTION",&
             description="Specifies the functional form in mathematical notation.",&
-            usage="FUNCTION  a*EXP(-b*x^2)/x+D*log10(x)", required=.TRUE., type_of_var=char_t,&
-            n_var=-1, error=error)
+            usage="FUNCTION  a*EXP(-b*x^2)/x+D*log10(x)", required=.TRUE., type_of_var=lchar_t,&
+            n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

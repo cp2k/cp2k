@@ -32,6 +32,7 @@ MODULE input_cp2k_force_eval
                                              section_type
   USE input_val_types,                 ONLY: char_t,&
                                              integer_t,&
+                                             lchar_t,&
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
@@ -183,8 +184,8 @@ CONTAINS
        
        CALL keyword_create(keyword, name="FUNCTION",&
             description="Specifies the functional form in mathematical notation. Varaibles must be the atomic "//&
-            "coordinates (X,Y,Z).",usage="FUNCTION  X^2+Y^2+Z^2+LOG(ABS(X+Y))", required=.TRUE., type_of_var=char_t,&
-            n_var=-1, error=error)
+            "coordinates (X,Y,Z).",usage="FUNCTION  X^2+Y^2+Z^2+LOG(ABS(X+Y))", required=.TRUE.,&
+            type_of_var=lchar_t, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        
@@ -455,8 +456,8 @@ CONTAINS
             error=error)
        CALL keyword_create(keyword, name="MIXING_FUNCTION",&
             description="Specifies the mixing functional form in mathematical notation.",&
-            usage="MIXING_FUNCTION (E1+E2-LOG(E1/E2))", required=.TRUE., type_of_var=char_t,&
-            n_var=-1, error=error)
+            usage="MIXING_FUNCTION (E1+E2-LOG(E1/E2))", required=.TRUE., type_of_var=lchar_t,&
+            n_var=1, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

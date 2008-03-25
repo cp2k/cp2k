@@ -843,11 +843,12 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'read_gp_section', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=default_path_length)       :: fun
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: atm_names, fun, parameters, &
+      DIMENSION(:), POINTER                  :: atm_names, parameters, &
                                                 variables
-    INTEGER                                  :: i, idim, isec, n_items, &
-                                                n_rep, stat
+    INTEGER                                  :: idim, isec, n_items, n_rep, &
+                                                stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rcut
     REAL(KIND=dp), DIMENSION(:), POINTER     :: values
@@ -855,9 +856,9 @@ CPSourceFileRef,&
     failure = .FALSE.
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items
-       NULLIFY(atm_names, parameters, variables, fun, values)
+       NULLIFY(atm_names, parameters, variables, values)
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
-       CALL section_vals_val_get(section,"FUNCTION",i_rep_section=isec,c_vals=fun,error=error)
+       CALL section_vals_val_get(section,"FUNCTION",i_rep_section=isec,c_val=fun,error=error)
        CALL section_vals_val_get(section,"PARAMETERS",n_rep_val=n_rep,i_rep_section=isec,error=error)
        IF (n_rep /= 0) THEN
          CALL section_vals_val_get(section,"PARAMETERS",i_rep_section=isec,c_vals=parameters,error=error)
@@ -879,15 +880,7 @@ CPSourceFileRef,&
        ! function name: read as an array of strings to better treat the presence of
        ! white spaces..
        ! function name
-       nonbonded%pot(start+isec)%pot %set(1)%gp%potential = " "
-       idim = 1
-       DO i = 1, SIZE(fun)
-          nonbonded%pot(start+isec)%pot%set(1)%gp%potential = &
-               nonbonded%pot(start+isec)%pot%set(1)%gp%potential(1:idim)//TRIM(fun(i))
-          idim = idim + LEN_TRIM(fun(i))
-          IF (idim > default_path_length) &
-               CALL stop_program ("input_nonbonded","read_gp_section: string for funtion too long!")
-       END DO
+       nonbonded%pot(start+isec)%pot %set(1)%gp%potential = fun
        CALL compress(nonbonded%pot(start+isec)%pot %set(1)%gp%potential, full=.TRUE.)
        ! parameters
        idim = 1

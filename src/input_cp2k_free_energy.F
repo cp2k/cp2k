@@ -22,6 +22,7 @@ MODULE input_cp2k_free_energy
                                              section_type
   USE input_val_types,                 ONLY: char_t,&
                                              integer_t,&
+                                             lchar_t,&
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
@@ -276,8 +277,8 @@ CONTAINS
 
        CALL keyword_create(keyword, name="WEIGHTING_FUNCTION",&
             description="Specifies the weighting function (umbrella potential, part of the mixing function)",&
-            usage="WEIGHTING_FUNCTION (E1+E2-LOG(E1/E2))", type_of_var=char_t,&
-            n_var=-1, default_c_vals=(/"0"/),error=error)
+            usage="WEIGHTING_FUNCTION (E1+E2-LOG(E1/E2))", type_of_var=lchar_t,&
+            n_var=1, default_lc_val="0",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
