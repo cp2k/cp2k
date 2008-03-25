@@ -513,7 +513,7 @@ CONTAINS
     !
 
     IF(PRESENT(iounit)) THEN
-       CALL pw_grid_print ( cell, pw_grid, iounit, error )
+       CALL pw_grid_print ( pw_grid, iounit, error )
     END IF
 
   END SUBROUTINE pw_grid_setup_internal
@@ -571,9 +571,8 @@ CONTAINS
 !> \brief Output of information on pw_grid
 !> \author JGH[18-05-2007] from earlier versions
 ! *****************************************************************************
-  SUBROUTINE pw_grid_print ( cell, pw_grid, info, error )
+  SUBROUTINE pw_grid_print ( pw_grid, info, error )
 
-    TYPE(cell_type), INTENT(IN)              :: cell
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, INTENT(IN)                      :: info
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1181,7 +1180,7 @@ CONTAINS
                   = REAL(l,dp) * h_inv(1,3) &
                   + REAL(m,dp) * h_inv(2,3) &
                   + REAL(n,dp) * h_inv(3,3)
-                                                                                                                                                  
+
              length = length_x ** 2 + length_y ** 2 + length_z ** 2
              length = twopi * twopi * length
 

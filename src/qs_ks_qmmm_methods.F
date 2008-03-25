@@ -70,8 +70,7 @@ CONTAINS
        CALL qs_ks_qmmm_create(ks_qmmm_env=ks_qmmm_env,qs_env=qs_env,&
             qmmm_env=qmmm_env,error=error)
        CALL set_qs_env(qs_env=qs_env, ks_qmmm_env=ks_qmmm_env,error=error)
-       CALL qs_ks_qmmm_release(ks_qmmm_env=ks_qmmm_env,force_env_section=qs_env%input,&
-            error=error)
+       CALL qs_ks_qmmm_release(ks_qmmm_env=ks_qmmm_env, error=error)
     END IF
   END SUBROUTINE ks_qmmm_env_rebuild
 

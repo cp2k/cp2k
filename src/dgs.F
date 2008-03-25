@@ -14,7 +14,6 @@ MODULE dgs
                                              cell_type,&
                                              get_cell_param,&
                                              get_hinv
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE fft_tools,                       ONLY: BWFFT,&
                                              FFT_RADIX_CLOSEST,&
@@ -77,13 +76,12 @@ CONTAINS
 
 ! *****************************************************************************
 SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
-           para_env, grid_ref, rs_dims, iounit, fft_usage, error )
+           grid_ref, rs_dims, iounit, fft_usage, error )
 
     TYPE(cell_type), POINTER                 :: box_b
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s
     REAL(KIND=dp), INTENT(IN)                :: cutoff_radius
     TYPE(pw_grid_type), POINTER              :: grid_s, grid_b
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: grid_ref
     INTEGER, DIMENSION(2), INTENT(in), &
       OPTIONAL                               :: rs_dims

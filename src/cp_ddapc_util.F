@@ -175,7 +175,6 @@ CONTAINS
                             super_cell,&
                             rho_tot_g,&
                             gcut,&
-                            iw,&
                             iw2,&
                             Vol, &
                             qs_env%input,&

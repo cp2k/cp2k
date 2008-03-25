@@ -342,10 +342,9 @@ CONTAINS
 !>        see module cp_error_handling 
 !> \author teo
 ! *****************************************************************************
-  SUBROUTINE create_colvar_rot_section(section,error,description)
+  SUBROUTINE create_colvar_rot_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: description
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_rot_section', &
       routineP = moduleN//':'//routineN

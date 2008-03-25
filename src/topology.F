@@ -194,8 +194,7 @@ CONTAINS
     ! 7.bis. Set up the QM/MM linkage (if any)
     !-----------------------------------------------------------------------------
     IF (my_qmmm) THEN
-       CALL qmmm_connectivity_control(topology, para_env,  molecule_set, &
-            qmmm_env, subsys_section, error)
+       CALL qmmm_connectivity_control(molecule_set, qmmm_env, subsys_section, error)
     END IF
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------

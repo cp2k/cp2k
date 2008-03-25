@@ -88,12 +88,10 @@ CONTAINS
 !> \brief Reads the force_field input section
 !> \author teo
 ! *****************************************************************************
-  SUBROUTINE read_force_field_section1 ( ff_section, mm_section, ff_type, para_env, globenv, error )
+  SUBROUTINE read_force_field_section1 ( ff_section, mm_section, ff_type, para_env, error )
     TYPE(section_vals_type), POINTER         :: ff_section, mm_section
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_section1', &
@@ -1310,7 +1308,7 @@ CPSourceFileRef,&
 
     NULLIFY(ff_section)
     ff_section => section_vals_get_subs_vals(mm_section,"FORCEFIELD",error=error)
-    CALL read_force_field_section1(ff_section, mm_section, ff_type, para_env, globenv, error)
+    CALL read_force_field_section1(ff_section, mm_section, ff_type, para_env, error)
   END SUBROUTINE read_force_field_section
 
 ! *****************************************************************************

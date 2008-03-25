@@ -8,7 +8,6 @@
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
 MODULE rmsd
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all,&
@@ -39,7 +38,7 @@ CONTAINS
 !> \author Teodoro Laino 08.2006
 ! *****************************************************************************
   SUBROUTINE rmsd3( particle_set, r, r0, output_unit, weights, my_val,&
-       rotate, transl, rot, drmsd3, para_env, error)
+       rotate, transl, rot, drmsd3, error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     REAL(KIND=dp), DIMENSION(:), &
@@ -53,8 +52,6 @@ CONTAINS
       INTENT(OUT), OPTIONAL                  :: transl
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: rot, drmsd3
-    TYPE(cp_para_env_type), OPTIONAL, &
-      POINTER                                :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rmsd3', &

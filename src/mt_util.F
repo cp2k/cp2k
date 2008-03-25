@@ -7,7 +7,6 @@
 MODULE mt_util
   USE bibliography,                    ONLY: Martyna1999,&
                                              cite_reference
-  USE cell_types,                      ONLY: cell_type
   USE erf_fn,                          ONLY: erf
   USE f77_blas
   USE input_constants,                 ONLY: MT0D,&
@@ -47,13 +46,12 @@ CONTAINS
 !> \brief Initialize the Martyna && Tuckerman Poisson Solver
 !> \author Teodoro Laino (16.06.2004)
 ! *****************************************************************************
-  SUBROUTINE MTin_create_screen_fn(screen_function, pw_pool, method, alpha, rel_cutoff, cell, &
+  SUBROUTINE MTin_create_screen_fn(screen_function, pw_pool, method, alpha,  &
        special_dimension, slab_size, super_ref_pw_grid, error)
     TYPE(pw_type), POINTER                   :: screen_function
     TYPE(pw_pool_type), POINTER              :: pw_pool
     INTEGER, INTENT(IN)                      :: method
-    REAL(KIND=dp), INTENT(in)                :: alpha, rel_cutoff
-    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), INTENT(in)                :: alpha
     INTEGER, INTENT(IN)                      :: special_dimension
     REAL(KIND=dp), INTENT(in)                :: slab_size
     TYPE(pw_grid_type), POINTER              :: super_ref_pw_grid
@@ -129,7 +127,7 @@ CONTAINS
        IF ( screen_function% pw_grid % have_g0 )  screen_function%cc ( 1 ) = pi * zlength*zlength / 2.0_dp
     CASE(MT1D)
        iz = special_dimension ! iz is the direction with PBC
-       CALL mt1din(screen_function,iz,error)
+       CALL mt1din(screen_function,error)
        CALL cp_unimplemented_error(routineP, "MT1D unimplemented", error, cp_failure_level)
     END SELECT
     CALL pw_pool_release ( pw_pool_aux, error=error )
@@ -205,9 +203,8 @@ CONTAINS
 !>      Martyna and Tuckerman, J. Chem. Phys. Vol. 121, No. 23, 11949
 !> \author Teodoro Laino (11.2005)
 ! *****************************************************************************
-  SUBROUTINE mt1din(screen_function,iz,error)
+  SUBROUTINE mt1din(screen_function,error)
     TYPE(pw_type), POINTER                   :: screen_function
-    INTEGER, INTENT(IN)                      :: iz
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mt1din', &

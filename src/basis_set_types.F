@@ -1217,11 +1217,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: icgf, ico, ipgf, iset, ishell
-    TYPE(cp_logger_type), POINTER            :: logger
 
-    NULLIFY (logger)
-
-    logger => cp_error_get_logger(error)
     IF (ASSOCIATED(aux_basis_set).AND.(output_unit>0)) THEN
 
        WRITE (UNIT=output_unit,FMT="(/,T8,A,T31,A30)")&
@@ -1319,10 +1315,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: icgf, ico, ipgf, iset, ishell
-    TYPE(cp_logger_type), POINTER            :: logger
 
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
     IF (ASSOCIATED(orb_basis_set).AND.(output_unit>0)) THEN
        WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40)")&
             "Orbital basis set information for",TRIM(orb_basis_set%name)

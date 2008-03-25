@@ -80,7 +80,7 @@ CONTAINS
 !> \author Tedoro Laino
 ! *****************************************************************************
   SUBROUTINE cp_ddapc_create(cp_ddapc_env, cp_ddapc_ewald, &
-       particle_set, radii, cell, super_cell, rho_tot_g, gcut, iw, iw2, Vol,  &
+       particle_set, radii, cell, super_cell, rho_tot_g, gcut, iw2, Vol,  &
        force_env_section, error)
     TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
     TYPE(cp_ddapc_ewald_type), POINTER       :: cp_ddapc_ewald
@@ -90,7 +90,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell, super_cell
     TYPE(pw_type), POINTER                   :: rho_tot_g
     REAL(KIND=dp), INTENT(IN)                :: gcut
-    INTEGER, INTENT(IN)                      :: iw, iw2
+    INTEGER, INTENT(IN)                      :: iw2
     REAL(KIND=dp), INTENT(IN)                :: Vol
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -161,7 +161,7 @@ CONTAINS
           ! Spherical Solvation model
           solvation_section => section_vals_get_subs_vals(force_env_section,"DFT%SCRF",&
                error=error)
-          CALL solvation_ddapc_pot(cp_ddapc_ewald%coeff_mm, cell, solvation_section,&
+          CALL solvation_ddapc_pot(solvation_section,&
                particle_set, cp_ddapc_env%Ms,  radii, error)
        END IF
     END IF

@@ -88,7 +88,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
-     auxbas_pw_pool,auxbas_cube_info,auxbas_grid,rs_pools,auxbas_rs_pool,&
+     auxbas_pw_pool,auxbas_grid,rs_pools,auxbas_rs_pool,&
      xc_pw_pool, poisson_env,error)
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -98,7 +98,6 @@ SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
     TYPE(gridlevel_info_type), OPTIONAL, &
       POINTER                                :: gridlevel_info
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: auxbas_pw_pool
-    TYPE(cube_info_type), OPTIONAL, POINTER  :: auxbas_cube_info
     INTEGER, INTENT(out), OPTIONAL           :: auxbas_grid
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rs_pools

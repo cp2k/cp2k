@@ -713,9 +713,7 @@ CONTAINS
 !>      08.2006 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE solvation_ddapc_pot(coeff, cell, solvation_section, particle_set, M,  radii, error)
-    TYPE(pw_type), POINTER                   :: coeff
-    TYPE(cell_type), POINTER                 :: cell
+  SUBROUTINE solvation_ddapc_pot( solvation_section, particle_set, M,  radii, error)
     TYPE(section_vals_type), POINTER         :: solvation_section
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set

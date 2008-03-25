@@ -136,13 +136,13 @@ CONTAINS
        WRITE ( iw, '(T2,79("*"))' )
     END IF
     !
-    CALL test_input ( root_section, para_env, iw,globenv ,error=error)
+    CALL test_input ( root_section, para_env, error=error)
     !
-    IF ( runtest ( 1 ) /= 0 ) CALL copy_test ( para_env, iw,globenv )
+    IF ( runtest ( 1 ) /= 0 ) CALL copy_test ( para_env, iw)
     !
-    IF ( runtest ( 2 ) /= 0 ) CALL matmul_test ( para_env, iw,globenv )
+    IF ( runtest ( 2 ) /= 0 ) CALL matmul_test ( para_env, iw)
     !
-    IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( para_env, iw,globenv )
+    IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( para_env, iw)
     !
     IF ( runtest ( 4 ) /= 0 ) CALL pw_fft_test ( para_env, iw, globenv, error )
     !
@@ -152,9 +152,9 @@ CONTAINS
     !
     IF ( runtest ( 8 ) /= 0 ) CALL mpi_test ( para_env%group )
     !
-    IF ( runtest ( 9 ) /= 0 ) CALL rng_test( para_env, iw, globenv, error)
+    IF ( runtest ( 9 ) /= 0 ) CALL rng_test( para_env, iw, error)
     !
-    IF ( runtest ( 10 )/= 0 ) CALL eigensolver_test( para_env, iw, globenv, error)
+    IF ( runtest ( 10 )/= 0 ) CALL eigensolver_test( para_env, iw, error)
 
     rs_pw_transfer_section => section_vals_get_subs_vals(root_section,"TEST%RS_PW_TRANSFER",error=error)
     CALL section_vals_get(rs_pw_transfer_section,explicit=explicit, error=error)
@@ -192,11 +192,9 @@ CONTAINS
 !> I---------------------------------------------------------------------------I
 !> \author JGH 30-NOV-2000
 ! *****************************************************************************
-  SUBROUTINE test_input ( root_section, para_env, iw,globenv , error)
+  SUBROUTINE test_input ( root_section, para_env, error)
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER                                  :: iw
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'test_input', &
@@ -235,10 +233,9 @@ CONTAINS
 !>      none
 !> \author JGH  6-NOV-2000
 ! *****************************************************************************
-  SUBROUTINE copy_test ( para_env, iw, globenv )
+  SUBROUTINE copy_test ( para_env, iw)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw
-    TYPE(global_environment_type), POINTER   :: globenv
 
     INTEGER                                  :: i, ierr, j, len, ntim, siz
     CHARACTER(len=*), PARAMETER :: routineN = 'copy_test', &
@@ -297,10 +294,9 @@ CONTAINS
 !>      none
 !> \author JGH  6-NOV-2000
 ! *****************************************************************************
-  SUBROUTINE matmul_test ( para_env, iw, globenv )
+  SUBROUTINE matmul_test ( para_env, iw)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw
-    TYPE(global_environment_type), POINTER   :: globenv
 
     INTEGER                                  :: i, ierr, j, len, ntim, siz
     CHARACTER(len=*), PARAMETER :: routineN = 'matmul_test', &
@@ -509,11 +505,10 @@ CONTAINS
 !>      none
 !> \author JGH  6-NOV-2000
 ! *****************************************************************************
-  SUBROUTINE fft_test ( para_env, iw, globenv )
+  SUBROUTINE fft_test ( para_env, iw )
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw
-    TYPE(global_environment_type), POINTER   :: globenv
 
     INTEGER                                  :: iall, ierr, it, j, len, n(3), &
                                                 ndate( 3 ) = (/ 12, 48, 96 /),&
@@ -1457,10 +1452,9 @@ CONTAINS
 !>      JGH  6-Feb-2001 : Test and performance code
 !> \author JGH  1-JAN-2001
 ! *****************************************************************************
-  SUBROUTINE rng_test(para_env,output_unit, globenv,error)
+  SUBROUTINE rng_test(para_env,output_unit, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: output_unit
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rng_test', &
@@ -1566,10 +1560,9 @@ CONTAINS
 !>      JGH  6-Feb-2001 : Test and performance code
 !> \author JGH  1-JAN-2001
 ! *****************************************************************************
-  SUBROUTINE eigensolver_test(para_env,output_unit,globenv,error)
+  SUBROUTINE eigensolver_test(para_env,output_unit,error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: output_unit
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver_test', &

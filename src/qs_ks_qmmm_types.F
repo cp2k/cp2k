@@ -12,7 +12,6 @@ MODULE qs_ks_qmmm_types
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info
   USE f77_blas
-  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_release,&
@@ -76,9 +75,8 @@ CONTAINS
 !>      05.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE qs_ks_qmmm_release(ks_qmmm_env,force_env_section,error)
+  SUBROUTINE qs_ks_qmmm_release(ks_qmmm_env,error)
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_qmmm_release', &

@@ -18,7 +18,6 @@
 MODULE neb_md_utils
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get,&
@@ -48,14 +47,13 @@ CONTAINS
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
   SUBROUTINE neb_initialize_velocity(vels, neb_section, particle_set, i, iw, globenv,&
-       para_env, error)
+       error)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vels
     TYPE(section_vals_type), POINTER         :: neb_section
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: i, iw
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'neb_initialize_velocity', &

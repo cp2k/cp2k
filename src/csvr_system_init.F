@@ -103,12 +103,11 @@ CONTAINS
 ! *****************************************************************************
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
 ! *****************************************************************************
-  SUBROUTINE initialize_csvr_coef ( dyn_coeff_set, para_env, globenv, csvr, &
+  SUBROUTINE initialize_csvr_coef ( dyn_coeff_set, para_env, csvr, &
              coeff_section, dt, csvr_section, error )
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(section_vals_type), POINTER         :: coeff_section
     REAL(KIND=dp), INTENT(IN)                :: dt

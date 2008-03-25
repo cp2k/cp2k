@@ -9,7 +9,6 @@
 MODULE qmmm_topology_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
@@ -102,12 +101,9 @@ CONTAINS
 !>      12.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE qmmm_connectivity_control(topology, para_env, molecule_set,&
+  SUBROUTINE qmmm_connectivity_control(molecule_set,&
        qmmm_env, subsys_section, error)
     
-    TYPE(topology_parameters_type), &
-      INTENT(INOUT)                          :: topology
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env

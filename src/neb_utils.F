@@ -222,7 +222,7 @@ CPSourceFileRef,&
              END DO
           ELSE
              CALL neb_initialize_velocity(vels, neb_section, particle_set, i, iw, globenv,&
-                  para_env, error)
+                  error)
           END IF
           IF (iw>0) THEN
              WRITE(iw,'(T2,"NEB|",75("*"),/)')
@@ -262,7 +262,7 @@ CPSourceFileRef,&
              CALL dump_replica_coordinates(particle_set, coords, jtarg+1, &
                   input_nr_replica, iw)
              CALL neb_initialize_velocity(vels, neb_section, particle_set,&
-                  jtarg+1, iw, globenv, para_env, error)
+                  jtarg+1, iw, globenv, error)
           END DO
        END IF
        vels(:,1)            = 0.0_dp
@@ -645,7 +645,7 @@ CPSourceFileRef,&
           IF (rotate_frames) THEN
              ! Rotate coordinates
              CALL rmsd3(particle_set, coords(:,i), coords(:,i-1), iw,&
-                  rotate=.TRUE., rot=rot, para_env=para_env, error=error)
+                  rotate=.TRUE., rot=rot, error=error)
              ! Rotate velocities
              DO k = 1, SIZE(vels,1)/3
                 kind = (k-1)*3

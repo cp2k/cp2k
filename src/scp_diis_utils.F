@@ -7,7 +7,6 @@
 MODULE scp_diis_utils
 
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE f77_blas
   USE kinds,                           ONLY: dp
   USE linear_systems,                  ONLY: solve_system
@@ -118,12 +117,11 @@ CONTAINS
 
 !------------------------------------------------------------------------------!
 ! *****************************************************************************
-  SUBROUTINE do_diis_step ( scp_env, atomic_kind_set, local_particles, diis_info, maxerr, error)
+  SUBROUTINE do_diis_step ( scp_env, atomic_kind_set, diis_info, maxerr, error)
 
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(diis_info_type), POINTER            :: diis_info
     REAL(KIND=dp), INTENT(INOUT)             :: maxerr
     TYPE(cp_error_type), INTENT(inout)       :: error

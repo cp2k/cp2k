@@ -355,7 +355,6 @@ CPSourceFileRef,&
        CALL qmmm_pw_grid_init(qmmm_env=qmmm_env_qm,&
                               pw_env=qs_env%pw_env,&
                               cell=qm_cell_small,&
-                              para_env=para_env,&
                               error=error)
        !
        ! Initialize the MM periodic potential

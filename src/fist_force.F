@@ -364,7 +364,7 @@ CONTAINS
                 fgshell_coulomb = 0.0_dp 
                 fgcore_coulomb = 0.0_dp 
                 CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set,&
-                     vg_coulomb, fg_coulomb, pv_g , force_env_section,&
+                     vg_coulomb, fg_coulomb, pv_g , &
                      shell_particle_set=shell_particle_set, core_particle_set=core_particle_set,&
                      fgshell_coulomb=fgshell_coulomb, fgcore_coulomb=fgcore_coulomb,&
                      use_virial=use_virial, error=error)
@@ -372,7 +372,7 @@ CONTAINS
                 CALL mp_sum ( fgcore_coulomb, para_env%group )
              ELSE
                 CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set,&
-                     vg_coulomb, fg_coulomb, pv_g , force_env_section,&
+                     vg_coulomb, fg_coulomb, pv_g , &
                      use_virial=use_virial,error=error)
              END IF
              CALL mp_sum ( fg_coulomb, para_env%group )
@@ -389,7 +389,7 @@ CONTAINS
                 fgshell_coulomb = 0.0_dp 
                 fgcore_coulomb = 0.0_dp 
                 CALL spme_evaluate ( ewald_env, ewald_pw, cell, particle_set,&
-                     fg_coulomb, vg_coulomb, pv_g, force_env_section,&
+                     fg_coulomb, vg_coulomb, pv_g, &
                      shell_particle_set=shell_particle_set, core_particle_set=core_particle_set, &
                      fgshell_coulomb=fgshell_coulomb, fgcore_coulomb=fgcore_coulomb,&
                      use_virial=use_virial, error=error)
@@ -397,7 +397,7 @@ CONTAINS
                 CALL mp_sum ( fgcore_coulomb, para_env%group )
              ELSE
                 CALL spme_evaluate ( ewald_env, ewald_pw, cell, particle_set,&
-                     fg_coulomb, vg_coulomb, pv_g, force_env_section,&
+                     fg_coulomb, vg_coulomb, pv_g, &
                      use_virial=use_virial, error=error)
              END IF
              CALL mp_sum (fg_coulomb, para_env%group)

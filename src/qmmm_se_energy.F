@@ -95,14 +95,14 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_s
+      POINTER                                :: matrix_s
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
 
     CALL timeset(routineN,"I","",handle)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    NULLIFY (matrix_h, matrix_s, atomic_kind_set)
+    NULLIFY (matrix_s, atomic_kind_set)
     NULLIFY (se_kind_a, se_kind_mm)
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
     CALL build_overlap_matrix(qs_env=qs_env,para_env=para_env,error=error)

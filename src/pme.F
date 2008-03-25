@@ -30,7 +30,6 @@ MODULE pme
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_type
   USE f77_blas
-  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
   USE particle_types,                  ONLY: particle_type
@@ -84,7 +83,7 @@ CONTAINS
 !> \author CJM and APSI
 ! *****************************************************************************
   SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, box, particle_set, vg_coulomb, &
-       fg_coulomb, pv_g, force_env_section, shell_particle_set, core_particle_set,&
+       fg_coulomb, pv_g, shell_particle_set, core_particle_set,&
        fgshell_coulomb, fgcore_coulomb, use_virial, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
@@ -94,7 +93,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)               :: vg_coulomb
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: fg_coulomb, pv_g
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: shell_particle_set, &
                                                 core_particle_set

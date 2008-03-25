@@ -1980,10 +1980,10 @@ CONTAINS
        DO id = 1, 3
           particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
           CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set, eplus,&
-               force_env_section=force_env_section, use_virial=use_virial,error=error)
+               use_virial=use_virial,error=error)
           particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) - 2.0_dp * delta
           CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set, eminus,&
-               force_env_section=force_env_section, use_virial=use_virial,error=error )
+               use_virial=use_virial,error=error )
           f_part ( id, i ) = eminus - eplus
           particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
        ENDDO

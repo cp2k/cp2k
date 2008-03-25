@@ -220,7 +220,7 @@ CONTAINS
        CALL qmmm_per_pot_type_create(per_potentials(K)%Pot, LG=LG, gx=gx, gy=gy, gz=gz,&
                                      Gmax=Gmax, Kmax=Kmax, n_rep_real=n_rep_real,&
                                      Fac=Fac, mm_atom_index=mm_atom_index, &
-                                     qm_cell=qm_cell_small, mm_cell=mm_cell, para_env=para_env,&
+                                     mm_cell=mm_cell, para_env=para_env,&
                                      qmmm_per_section=qmmm_periodic, print_section=print_section,&
                                      error=error)
 
@@ -257,7 +257,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE qmmm_per_pot_type_create(Pot, LG, gx, gy, gz, GMax, Kmax, n_rep_real,&
-       Fac, mm_atom_index, qm_cell, mm_cell, para_env, qmmm_per_section, print_section,&
+       Fac, mm_atom_index, mm_cell, para_env, qmmm_per_section, print_section,&
        error)
     TYPE(qmmm_per_pot_type), POINTER         :: Pot
     REAL(KIND=dp), DIMENSION(:), POINTER     :: LG, gx, gy, gz
@@ -265,7 +265,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: Kmax(3), n_rep_real(3)
     REAL(KIND=dp), INTENT(IN)                :: Fac(3)
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
-    TYPE(cell_type), POINTER                 :: qm_cell, mm_cell
+    TYPE(cell_type), POINTER                 :: mm_cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: qmmm_per_section, &
                                                 print_section

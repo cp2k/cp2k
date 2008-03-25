@@ -953,7 +953,7 @@ CONTAINS
     END IF
     IF (PRESENT(ks_qmmm_env)) THEN
        CALL qs_ks_qmmm_retain(ks_qmmm_env, error=error)
-       CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env, qs_env%input, error=error)
+       CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env, error=error)
        qs_env%ks_qmmm_env => ks_qmmm_env
     END IF
     IF (PRESENT(ks_env)) THEN ! accept also null pointers?
@@ -1328,7 +1328,7 @@ SUBROUTINE qs_env_release(qs_env,error)
         ENDIF
         CALL qs_charges_release(qs_env%qs_charges, error=error)
         CALL qs_ks_release(qs_env%ks_env, error=error)
-        CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env, qs_env%input, error=error)
+        CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env, error=error)
         CALL wfi_release(qs_env%wf_history,error=error)
         CALL scf_env_release(qs_env%scf_env, error=error)
         CALL mpools_release(qs_env%mpools,error=error)

@@ -307,7 +307,6 @@ CONTAINS
     IF (qmmm_env_qm%add_mm_charges) maxchrg=MAX(maxchrg,MAXVAL(ABS(added_charges%mm_atom_chrg(:))))
     CALL qmmm_gaussian_initialize(qmmm_gaussian_fns=qmmm_env_qm%pgfs,&
                                   qm_cell_small=qm_cell_small,&
-                                  mm_cell=mm_cell,&
                                   para_env=para_env,&
                                   pw_env=qs_env%pw_env,&
                                   mm_el_pot_radius=qmmm_env_qm%mm_el_pot_radius,&
@@ -324,7 +323,6 @@ CONTAINS
     IF (qmmm_env_qm%move_mm_charges.OR.qmmm_env_qm%add_mm_charges) THEN
        CALL qmmm_gaussian_initialize(qmmm_gaussian_fns=added_charges%pgfs,&
                                      qm_cell_small=qm_cell_small,&
-                                     mm_cell=mm_cell,&
                                      para_env=para_env,&
                                      pw_env=qs_env%pw_env,&
                                      mm_el_pot_radius=added_charges%mm_el_pot_radius,&
@@ -372,10 +370,8 @@ CONTAINS
                             mm_el_pot_radius=qmmm_env_qm%mm_el_pot_radius,&
                             potentials=qmmm_env_qm%potentials,&
                             pgfs=qmmm_env_qm%pgfs,&
-                            qm_cell_small=qm_cell_small,&
                             mm_cell=mm_cell,&
                             para_env=para_env,&
-                            pw_env=qs_env%pw_env,&
                             compatibility=qmmm_env_qm%compatibility,&
                             print_section=print_section,&
                             error=error)
@@ -386,10 +382,8 @@ CONTAINS
                                mm_el_pot_radius=added_charges%mm_el_pot_radius,&
                                potentials=added_charges%potentials,&
                                pgfs=added_charges%pgfs,&
-                               qm_cell_small=qm_cell_small,&
                                mm_cell=mm_cell,&
                                para_env=para_env,&
-                               pw_env=qs_env%pw_env,&
                                compatibility=qmmm_env_qm%compatibility,&
                                print_section=print_section,&
                                error=error)

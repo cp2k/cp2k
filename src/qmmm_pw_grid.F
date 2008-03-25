@@ -9,7 +9,6 @@
 ! *****************************************************************************
 MODULE qmmm_pw_grid
   USE cell_types,                      ONLY: cell_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_constants,                 ONLY: do_par_atom,&
                                              do_qmmm_gauss,&
@@ -54,11 +53,10 @@ CONTAINS
 !>      08.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE qmmm_pw_grid_init(qmmm_env, pw_env, cell, para_env, error)
+  SUBROUTINE qmmm_pw_grid_init(qmmm_env, pw_env, cell, error)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_pw_grid_init', &
@@ -99,7 +97,7 @@ CONTAINS
              pw_mode = PW_MODE_LOCAL
           END IF
 
-          CALL pw_grid_create_copy_no_pbc(pool%pw_grid,el_struct, cell=cell,&
+          CALL pw_grid_create_copy_no_pbc(pool%pw_grid,el_struct, &
                pw_mode=pw_mode, error=error)
           CALL pw_pool_create(qmmm_env%aug_pools(Ilevel)%pool,&
                pw_grid=el_struct,error=error)
@@ -131,9 +129,8 @@ CONTAINS
 !>      06.2007 moved to new module [jgh]
 !> \author Fawzi, Teo
 ! *****************************************************************************
-  SUBROUTINE pw_grid_create_copy_no_pbc(pw_grid_in, pw_grid_out, cell, pw_mode, error)
+  SUBROUTINE pw_grid_create_copy_no_pbc(pw_grid_in, pw_grid_out, pw_mode, error)
     TYPE(pw_grid_type), POINTER              :: pw_grid_in, pw_grid_out
-    TYPE(cell_type), POINTER                 :: cell
     INTEGER, INTENT(IN), OPTIONAL            :: pw_mode
     TYPE(cp_error_type), INTENT(inout)       :: error
 

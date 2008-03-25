@@ -316,7 +316,7 @@ CONTAINS
           SELECT CASE(green%method)
           CASE(MT0D,MT1D,MT2D)
              CALL MTin_create_screen_fn(green%screen_fn,pw_pool=pw_pool,method=green%method,&
-                  alpha=green%MT_alpha, rel_cutoff=green%MT_rel_cutoff, cell=cell, &
+                  alpha=green%MT_alpha, &
                   special_dimension=green%special_dimension, slab_size=green%slab_size, &
                   super_ref_pw_grid=mt_super_ref_pw_grid, error=error)
           END SELECT

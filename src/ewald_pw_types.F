@@ -275,7 +275,7 @@ CONTAINS
           cutoff_radius = exp_radius ( 0, 2.0_dp * alphasq, epsilon , norm )
 
           CALL dg_pme_grid_setup ( cell_ref, npts_s, cutoff_radius,   &
-               pw_small_grid, pw_big_grid, para_env,rs_dims=(/para_env%num_pe,1/),&
+               pw_small_grid, pw_big_grid, rs_dims=(/para_env%num_pe,1/),&
                iounit=output_unit, fft_usage=.TRUE., error=error )
           ! Write some useful info
           IF ( output_unit > 0 ) THEN

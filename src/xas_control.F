@@ -100,15 +100,13 @@ CONTAINS
     INTEGER                                  :: i, ir, istat, n_rep, nex_at
     INTEGER, DIMENSION(:), POINTER           :: bounds, list
     LOGICAL                                  :: failure, was_present
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: loc_section, xas_section
 
     failure=.FALSE.
     was_present = .FALSE.
 
-    NULLIFY(xas_section, loc_section, logger)
+    NULLIFY(xas_section, loc_section )
     xas_section => section_vals_get_subs_vals(dft_section,"XAS",error=error)
-    logger => cp_error_get_logger(error)
 
     NULLIFY(bounds,list)
 

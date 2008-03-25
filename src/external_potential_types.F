@@ -1855,11 +1855,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=20)                        :: string
-    TYPE(cp_logger_type), POINTER            :: logger
 
-    NULLIFY(logger)
-
-    logger => cp_error_get_logger(error)
     IF (output_unit > 0.AND.ASSOCIATED(potential)) THEN
        WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40,/)")&
             "Potential information for",ADJUSTR(TRIM(potential%name))
@@ -1888,11 +1884,6 @@ CONTAINS
     INTEGER, INTENT(in)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    NULLIFY(logger)
-
-    logger => cp_error_get_logger(error)
     IF (output_unit>0.AND.ASSOCIATED(potential)) THEN
        WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40,/)")&
             "Potential information for",ADJUSTR(TRIM(potential%name))
@@ -1919,11 +1910,7 @@ CONTAINS
     CHARACTER(LEN=20)                        :: string
     INTEGER                                  :: i, j, l
     REAL(KIND=dp)                            :: r
-    TYPE(cp_logger_type), POINTER            :: logger
 
-    NULLIFY(logger)
-
-    logger => cp_error_get_logger(error)
     IF (output_unit>0.AND.ASSOCIATED(potential)) THEN
        WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40,/)")&
             "Potential information for",ADJUSTR(TRIM(potential%name))

@@ -537,7 +537,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE get_rho0_mpole(rho0_mpole, g0_h, g0_s, vg0_h, iat, ikind, lmax_0, l0_ikind,&
-                            lmax0_kind, mp_gau_ikind, mp_rho, norm_g0l_h, norm_g0l_s,&
+                            mp_gau_ikind, mp_rho, norm_g0l_h, norm_g0l_s,&
                             orb_radius_3c, set_radius_3c, Qlm_gg, Qlm_car_h, Qlm_car_s, Qlm_tot,  &
                             zet0_h, zet0_s, igrid_zet0_s, rpgf0_h,rpgf0_s, &
                             r_V0hmV0s, max_rpgf0_s, rho0_s_rs, rho0_s_gs)
@@ -547,7 +547,6 @@ CONTAINS
       POINTER                                :: g0_h, g0_s, vg0_h
     INTEGER, INTENT(IN), OPTIONAL            :: iat, ikind
     INTEGER, INTENT(OUT), OPTIONAL           :: lmax_0, l0_ikind
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: lmax0_kind
     TYPE(mpole_gau_overlap), OPTIONAL, &
       POINTER                                :: mp_gau_ikind
     TYPE(mpole_rho_atom), DIMENSION(:), &

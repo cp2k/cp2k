@@ -295,7 +295,7 @@ CPSourceFileRef,&
              ELSE IF (thermostats%thermostat_coef%type_of_thermostat==do_thermo_csvr) THEN
                 ! Initialize or possibly restart CSVR thermostat on Coeffs
                 work_section      => section_vals_get_subs_vals(kg_coeff_section,"THERMOSTAT%CSVR",error=error)
-                CALL initialize_csvr_coef(dyn_coeff_set, para_env, globenv,&
+                CALL initialize_csvr_coef(dyn_coeff_set, para_env, &
                      thermostats%thermostat_coef%csvr, coeff_section=kg_coeff_section,&
                      csvr_section=work_section, dt=simpar%dt, error=error)                
              END IF

@@ -450,7 +450,7 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE set_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,nmo,&
-       eigenvalues,occupation_numbers,mo_coeff,&
+       eigenvalues,occupation_numbers,&
        uniform_occupation,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
@@ -460,7 +460,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: eigenvalues, &
                                                 occupation_numbers
-    TYPE(cp_fm_type), OPTIONAL, POINTER      :: mo_coeff
     LOGICAL, INTENT(IN), OPTIONAL            :: uniform_occupation
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -565,7 +564,6 @@ CONTAINS
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
 
@@ -573,7 +571,6 @@ CONTAINS
     failure = .FALSE.
     nspin = SIZE(mo_array)
     nao = mo_array(1)%mo_set%nao
-    logger => cp_error_get_logger(error)
 
     IF (ires>0) THEN
        !     *** create some info about the basis set first ***
