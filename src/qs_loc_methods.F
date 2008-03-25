@@ -745,7 +745,7 @@ CONTAINS
           IF (.NOT.list_cubes_setup) THEN
              ncubes = 0
              DO ir = 1,n_rep
-                CALL section_vals_val_get(loc_section,"PRINT%WNNIER_CUBES%CUBES_LIST",i_rep_val=ir,i_vals=list,error=error)
+                CALL section_vals_val_get(loc_section,"PRINT%WANNIER_CUBES%CUBES_LIST",i_rep_val=ir,i_vals=list,error=error)
                 IF(ASSOCIATED(list)) THEN
                    CALL reallocate(list_cubes,1,ncubes+ SIZE(list))
                    DO i = 1, SIZE(list)
