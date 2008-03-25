@@ -14,7 +14,6 @@ MODULE cg_optimizer
   USE cp_output_handling,              ONLY: cp_iterate,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_methods,                  ONLY: gopt_f_ii,&
@@ -67,11 +66,9 @@ CONTAINS
     INTEGER                                  :: handle, output_unit
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: motion_section, root_section
 
     CALL timeset(routineN,"I","",handle)
-    para_env     => force_env%para_env
     root_section => force_env%root_section
     logger       => cp_error_get_logger(error)
 
@@ -124,13 +121,11 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: xold
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g, h, xi
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: root_section
 
     CALL timeset(routineN,handle)
     NULLIFY(logger,g, h, xi)
     root_section => force_env%root_section
-    para_env     => force_env%para_env
     logger       => cp_error_get_logger(error)
     conv         = .FALSE.
     failure      = .FALSE.

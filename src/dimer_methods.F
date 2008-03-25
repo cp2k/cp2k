@@ -13,7 +13,6 @@ MODULE dimer_methods
   USE cg_optimizer
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
   USE dimer_types,                     ONLY: dimer_env_type
@@ -66,17 +65,15 @@ CONTAINS
     LOGICAL                                  :: eval_analytical, failure
     REAL(KIND=dp)                            :: angle1, angle2, f1, norm
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dimer_env_type), POINTER            :: dimer_env
 
     failure=.FALSE.
-    NULLIFY(para_env,dimer_env,logger)
+    NULLIFY(dimer_env,logger)
     CALL timeset(routineN,"I","",handle)
     logger => cp_error_get_logger(error)
 
     CPPostcondition(ASSOCIATED(gopt_env),cp_failure_level,routineP,error,failure)
     dimer_env => gopt_env%dimer_env
-    para_env  => gopt_env%force_env%para_env
     CPPostcondition(ASSOCIATED(dimer_env),cp_failure_level,routineP,error,failure)
     iw = cp_print_key_unit_nr(logger,gopt_env%geo_section,"PRINT%PROGRAM_RUN_INFO",extension=".log",error=error)
     ! Possibly rotate Dimer or just compute Gradients of point 0 for Translation

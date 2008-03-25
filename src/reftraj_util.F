@@ -519,14 +519,13 @@ CPSourceFileRef,&
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(reftraj_type), POINTER              :: reftraj
-    TYPE(section_vals_type), POINTER         :: print_section, &
-                                                reftraj_section, root_section
+    TYPE(section_vals_type), POINTER         :: reftraj_section, root_section
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
                                                 
     NULLIFY(reftraj)
-    NULLIFY(print_section,reftraj_section,root_section)
+    NULLIFY(reftraj_section,root_section)
 
     CALL get_md_env(md_env=md_env, force_env=force_env, &
          reftraj=reftraj, error=error)
@@ -536,7 +535,6 @@ CPSourceFileRef,&
 
     reftraj_section => section_vals_get_subs_vals(root_section,&
            "MOTION%MD%REFTRAJ",error=error)
-    print_section => section_vals_get_subs_vals(reftraj_section,"PRINT",error=error)
 
     my_pos = "APPEND"
     my_act = "WRITE"

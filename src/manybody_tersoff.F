@@ -691,7 +691,6 @@ CONTAINS
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
-    TYPE(tersoff_pot_type), POINTER          :: tersoff
 
     CPPostcondition(.NOT.ASSOCIATED(glob_loc_list),cp_failure_level,routineP,error,failure)
     CPPostcondition(.NOT.ASSOCIATED(glob_loc_list_a),cp_failure_level,routineP,error,failure)
@@ -745,7 +744,6 @@ CONTAINS
           DO i = 1, SIZE(pot%type)
              ! TERSOFF
              IF (pot%type(i)==tersoff_type) THEN
-                tersoff => pot%set(i)%tersoff
                 DO ipair = 1, npairs
                    glob_loc_list(:,npairs_tot+ipair) = list(:,istart-1+ipair)
                    glob_cell_v(1:3,npairs_tot+ipair) = cell_v(1:3)

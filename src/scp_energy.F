@@ -74,7 +74,6 @@ CONTAINS
     TYPE(aux_coeff_set_type), POINTER        :: aux_coeff_set
     TYPE(aux_coeff_type), POINTER            :: local_coeffs
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
@@ -90,9 +89,8 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(atomic_kind_set, aux_coeff_set, scp_env, rho_scp, scp_energy)
-    NULLIFY(para_env,logger,force, coeff, local_coeffs, local_particles, scp_force)
+    NULLIFY(para_env,force, coeff, local_coeffs, local_particles, scp_force)
     para_env=>qs_env%para_env
-    logger => cp_error_get_logger(error)
     stat = 0
     t1 = m_walltime()
     my_calculate_forces = .FALSE.

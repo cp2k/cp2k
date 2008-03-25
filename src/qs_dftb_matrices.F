@@ -777,7 +777,6 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dftb_control_type), POINTER         :: dftb_control
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
@@ -790,8 +789,7 @@ CONTAINS
 
 !   ----------------------------------------------------------------------------
 
-    logger => cp_error_get_logger(error)
-    NULLIFY(logger,matrix_s,matrix_h,particle_set,sab_orb,distribution_2d,&
+    NULLIFY(matrix_s,matrix_h,particle_set,sab_orb,distribution_2d,&
             atomic_kind_set)
 
     CALL get_qs_env(qs_env=qs_env,&

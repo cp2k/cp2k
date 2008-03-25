@@ -90,7 +90,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(qs_rho_type), POINTER               :: rho
@@ -99,8 +98,6 @@ CONTAINS
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
 
     failure = .FALSE.
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
     CALL timeset(routineN,"I","",handle)
     IF (calc_force) THEN
        NULLIFY (rho, atomic_kind_set)

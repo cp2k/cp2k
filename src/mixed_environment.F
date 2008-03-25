@@ -87,7 +87,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(mol_kind_new_list_type), POINTER    :: mol_kinds
     TYPE(mol_new_list_type), POINTER         :: mols
@@ -103,7 +102,6 @@ CONTAINS
 
     CALL timeset(routineN,"I",'',handle)
     failure = .FALSE.
-    logger => cp_error_get_logger(error)
 
     NULLIFY ( subsys, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)

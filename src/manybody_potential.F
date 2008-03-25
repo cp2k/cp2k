@@ -260,7 +260,6 @@ CONTAINS
       rtmp(3)
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: glob_cell_v
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(eam_pot_type), POINTER              :: eam
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
@@ -273,8 +272,7 @@ CONTAINS
     failure     = .FALSE.
     any_tersoff = .FALSE.
     CALL timeset ( routineN, handle )
-    NULLIFY(logger,eam,tersoff)
-    logger => cp_error_get_logger(error)
+    NULLIFY(eam,tersoff)
 
     CALL fist_nonbond_env_get(fist_nonbond_env,nonbonded=nonbonded,potparm=potparm,&
          natom_types=nkinds,r_last_update_pbc=r_last_update_pbc,error=error)

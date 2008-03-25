@@ -18,7 +18,6 @@ MODULE replica_methods
   USE cp_para_types,                   ONLY: cp_para_cart_type,&
                                              cp_para_env_type
   USE cp_result_types,                 ONLY: cp_result_create,&
-                                             cp_result_p_type,&
                                              cp_result_retain
   USE f77_blas
   USE f77_interface,                   ONLY: f_env_add_defaults,&
@@ -36,8 +35,7 @@ MODULE replica_methods
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_wf_history_methods,           ONLY: wfi_create
-  USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
-                                             wfi_retain
+  USE qs_wf_history_types,             ONLY: wfi_retain
   USE replica_types,                   ONLY: rep_env_calc_e_f,&
                                              rep_env_create,&
                                              rep_env_release,&
@@ -77,13 +75,9 @@ CONTAINS
     TYPE(cp_error_type)                      :: error
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_cart_type), POINTER         :: cart
-    TYPE(cp_para_env_type), POINTER          :: para_env_f, para_env_inter_rep
-    TYPE(cp_result_p_type), DIMENSION(:), &
-      POINTER                                :: results
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(replica_env_type), POINTER          :: rep_env
 
     failure=.FALSE.
@@ -91,16 +85,14 @@ CONTAINS
     CALL cp_assert(ASSOCIATED(rep_env),cp_failure_level,cp_assertion_failed,&
          routineP,"could not find rep_env with id_nr"//cp_to_string(rep_env_id),&
          failure=failure)
-    NULLIFY(wf_history,qs_env,dft_control,results)
-    NULLIFY(cart,para_env_f,para_env_inter_rep, f_env)
+    NULLIFY(qs_env,dft_control)
+    NULLIFY(cart,f_env)
     IF (.NOT. failure) THEN
        CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
             new_error=error, failure=failure)
        IF (.NOT.failure) THEN
           logger => cp_error_get_logger(error)
           cart => rep_env%cart
-          para_env_f => rep_env%para_env_f
-          para_env_inter_rep => rep_env%para_env_inter_rep
           logger%iter_info%iteration(1)=cart%mepos(2)
           CALL cp_add_iter_level(iteration_info=logger%iter_info,&
                level_name="REPLICA_EVAL",error=error)

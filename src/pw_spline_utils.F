@@ -26,8 +26,7 @@ MODULE pw_spline_utils
                                              precond_spl3_aint2,&
                                              spline3_nopbc_interp,&
                                              spline3_pbc_interp
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
+  USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
@@ -3334,7 +3333,6 @@ CPSourceFileRef,&
                                                 eps_x_att, r_z, r_z_new
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_type), POINTER                   :: Ap, p, r, z
-    TYPE(section_vals_type), POINTER         :: print_key
 
     failure=.FALSE.
     last=.FALSE.
@@ -3350,14 +3348,6 @@ CPSourceFileRef,&
             error=error)
        CALL pw_pool_create_pw(pool,Ap,use_data=REALDATA3D,in_space=REALSPACE,&
             error=error)
-
-       NULLIFY(print_key)
-       IF (PRESENT(print_section)) THEN
-          IF (ASSOCIATED(print_section)) THEN
-             print_key => section_vals_get_subs_vals(print_section,"conv_info",&
-                  error=error)
-          END IF
-       END IF
 
        CALL cp_add_iter_level(logger%iter_info,level_name="SPLINE_FIND_COEFFS",error=error)
        ext_do:DO iiter=1,max_iter,10
@@ -3385,13 +3375,6 @@ CPSourceFileRef,&
                 IF (eps_r_att<eps_r .AND. eps_x_att<eps_x) last=.TRUE.
              END IF
              CALL cp_iterate(logger%iter_info,last=last,error=error)
-!deb         IF (cp_print_key_should_output(logger%iter_info,&
-!deb              print_key,error=error)/=0.AND.&
-!deb              logger%para_env%mepos==logger%para_env%source) THEN
-!deb            WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
-!deb                 fmt="(i6,' eps_x=',e12.4,' eps_r=',e12.4)")&
-!deb                 iter,eps_x_att,eps_r_att
-!deb         END IF
              IF (last) THEN
                 res=.TRUE.
                 EXIT ext_do

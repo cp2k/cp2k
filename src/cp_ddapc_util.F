@@ -87,7 +87,6 @@ CONTAINS
     REAL(KIND=dp)                            :: gcut, pfact, rcmin, Vol
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_radii, radii
     TYPE(cell_type), POINTER                 :: cell, super_cell
-    TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
@@ -104,7 +103,7 @@ CONTAINS
     failure         = .FALSE.
     logger => cp_error_get_logger(error)
     NULLIFY(dft_control, rho, rho_tot_g, rho_core, rho0_s_gs, pw_env,&
-            radii, inp_radii, particle_set, qs_charges, cp_ddapc_env)
+            radii, inp_radii, particle_set, qs_charges)
     allocate_ddapc_env = qs_env%cp_ddapc_ewald%do_solvation.OR.&
                          qs_env%cp_ddapc_ewald%do_qmmm_periodic.OR.&
                          qs_env%cp_ddapc_ewald%do_decoupling.OR.&

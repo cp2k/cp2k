@@ -101,17 +101,15 @@ CONTAINS
     REAL(KIND=dp)                            :: skin
     REAL(KIND=dp), DIMENSION(3)              :: coord, qm_cell_diag
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys_mm, subsys_qm
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particles_mm, particles_qm
+      POINTER                                :: particles_mm
     TYPE(section_vals_type), POINTER         :: walls_section
 
     failure         = .FALSE.
-    logger => cp_error_get_logger(error)
     SELECT CASE(force_env%in_use)
     CASE(use_qmmm)
-       NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm, qm_cell, mm_cell,&
+       NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm, qm_cell, mm_cell,&
             walls_section)
        walls_section => section_vals_get_subs_vals(force_env%root_section,"FORCE_EVAL%QMMM%WALLS",error=error)
        CALL section_vals_get(walls_section, explicit=explicit, error=error)
@@ -133,7 +131,6 @@ CONTAINS
        qm_atom_index   => force_env%qmmm_env%qm_atom_index
        CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
    
-       particles_qm => subsys_qm%particles%els
        qm_cell_diag = (/qm_cell%hmat(1,1),&
                         qm_cell%hmat(2,2),&
                         qm_cell%hmat(3,3)/)
@@ -218,7 +215,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell
     TYPE(cp_subsys_type), POINTER            :: subsys_mm, subsys_qm
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particles_mm, particles_qm
+      POINTER                                :: particles_mm
     TYPE(qs_energy_type), POINTER            :: energy
 
     CALL section_vals_val_get(walls_section,"WALL_SKIN",r_val=skin,error=error)
@@ -234,7 +231,6 @@ CONTAINS
     qm_atom_index   => force_env%qmmm_env%qm_atom_index
     CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
   
-    particles_qm => subsys_qm%particles%els
     qm_cell_diag = (/qm_cell%hmat(1,1),&
                      qm_cell%hmat(2,2),&
                      qm_cell%hmat(3,3)/)

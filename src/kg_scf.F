@@ -296,14 +296,13 @@ CONTAINS
       POINTER                                :: matrix_h, matrix_ks, &
                                                 matrix_p, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: dft_section, kg_section, &
-                                                scf_section
+    TYPE(section_vals_type), POINTER         :: dft_section, scf_section
 
 !   ---------------------------------------------------------------------------
 
     NULLIFY(dft_control,scf_control,ks_env,qs_env)
     NULLIFY(rho, matrix_h, matrix_ks, matrix_p, matrix_s, kg_fm)
-    NULLIFY(dft_section,scf_section,kg_section)
+    NULLIFY(dft_section,scf_section)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
@@ -327,7 +326,6 @@ CONTAINS
     energy_only = .FALSE.
 
     dft_section => section_vals_get_subs_vals(kg_env%input,"DFT",error=error)
-    kg_section => section_vals_get_subs_vals(dft_section,"KG",error=error)
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
 
     output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&

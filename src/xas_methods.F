@@ -1142,14 +1142,11 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp)                                 :: ene2
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: print_section
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
    
     failure = .FALSE.
-    NULLIFY(print_section)
-    print_section => section_vals_get_subs_vals(xas_section,"PRINT",error=error)
 
     my_pos = "APPEND"
     my_act = "WRITE"
@@ -1236,12 +1233,9 @@ CONTAINS
                                                 nstates
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: centers
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
     failure = .FALSE.
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
     nspins = SIZE(mos)
 
     print_key => section_vals_get_subs_vals(xas_section,"PRINT%CLS_FUNCTION_CUBES",error=error)

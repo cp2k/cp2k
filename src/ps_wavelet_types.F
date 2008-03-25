@@ -248,11 +248,9 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: max_val_low, max_val_up
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rbuf, sbuf
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(wavelet),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN

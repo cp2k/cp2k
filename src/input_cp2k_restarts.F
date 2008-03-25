@@ -252,7 +252,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
     LOGICAL                                  :: explicit, failure, &
                                                 skip_vel_section
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(force_env_type), POINTER            :: my_force_b, my_force_env
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
@@ -263,9 +262,8 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    NULLIFY(core_particles,logger,my_force_env, my_force_b, particles,&
+    NULLIFY(core_particles,my_force_env, my_force_b, particles,&
          shell_particles,subsys,work_section)
-    logger => cp_error_get_logger(error)
 
     IF (PRESENT(md_env)) THEN
        CALL get_md_env ( md_env=md_env,force_env=my_force_env,error=error)

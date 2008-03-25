@@ -114,17 +114,15 @@ MODULE geo_opt
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                root_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY (force_env_section,root_section)
+    NULLIFY (force_env_section)
     logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(gopt_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(gopt_env%force_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(gopt_env%globenv),cp_failure_level,routineP,error,failure)
-    root_section      => gopt_env%force_env%root_section
     force_env_section => gopt_env%force_env%force_env_section
 
     CALL cp_add_iter_level(logger%iter_info,"ROT_OPT",error=error)

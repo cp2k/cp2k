@@ -77,7 +77,6 @@ CONTAINS
       nkind, output_unit
     INTEGER, DIMENSION(3)                    :: cell_b, ncell, nsubcell, &
                                                 periodic
-    INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: cell000, include_ab
     REAL(KIND=dp) :: aab, dab, eab, ecore_overlap, f, fab, r_skin, rab2, &
       rab2_max, rab_max, rootaab, subcells, unit_of_length, zab
@@ -114,7 +113,6 @@ CONTAINS
     NULLIFY (force)
     NULLIFY (particle_set)
     NULLIFY (subcell)
-    NULLIFY (list)
 
     group = para_env%group
 
