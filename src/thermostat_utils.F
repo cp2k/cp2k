@@ -319,7 +319,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
     INTEGER :: first_atom, i, ig, ikind, ilist, imol, ipart, jg, last_atom, &
-      n_rep, natom_local, nmol_per_kind, nregions, output_unit, stat
+      mregions, n_rep, natom_local, nmol_per_kind, nregions, output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: thermolist, tmp, tmplist
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
@@ -342,7 +342,8 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     thermolist = HUGE(0)
     molecule_set => molecules%els
-    DO ig = 1, nregions
+    mregions = nregions
+    DO ig = 1, mregions
        CALL section_vals_val_get(region_sections,"LIST", i_rep_section=ig, n_rep_val=n_rep, error=error)
        DO jg = 1, n_rep
           CALL section_vals_val_get(region_sections,"LIST", i_rep_section=ig,i_rep_val=jg,i_vals=tmplist, error=error)
@@ -390,11 +391,13 @@ CONTAINS
           END DO
        END DO
        CALL setup_thermostat_subsys(region_sections, qmmm_env, thermolist, molecule_set,&
-            subsys_qm=.FALSE., ig=ig, error=error)
+            subsys_qm=.FALSE., ig=ig, sum_of_thermostats=sum_of_thermostats, nregions=nregions,&
+            error=error)
        CALL setup_thermostat_subsys(region_sections, qmmm_env, thermolist, molecule_set,&
-            subsys_qm=.TRUE., ig=ig, error=error)
+            subsys_qm=.TRUE., ig=ig, sum_of_thermostats=sum_of_thermostats, nregions=nregions,&
+            error=error)
     END DO
-
+    
     ! Dump IO warning for not thermalized particles
     IF (ANY(thermolist==HUGE(0))) THEN
        nregions = nregions + 1
@@ -464,7 +467,8 @@ CONTAINS
 ! *****************************************************************************
 !> \author 11.2007 [tlaino] - Teodoro Laino - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE setup_thermostat_subsys(region_sections, qmmm_env, thermolist, molecule_set, subsys_qm, ig, error)
+  SUBROUTINE setup_thermostat_subsys(region_sections, qmmm_env, thermolist,&
+       molecule_set, subsys_qm, ig, sum_of_thermostats, nregions, error)
     TYPE(section_vals_type), POINTER         :: region_sections
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     INTEGER, DIMENSION(:), POINTER           :: thermolist
@@ -472,6 +476,7 @@ CONTAINS
       POINTER                                :: molecule_set
     LOGICAL, INTENT(IN)                      :: subsys_qm
     INTEGER, INTENT(IN)                      :: ig
+    INTEGER, INTENT(INOUT)                   :: sum_of_thermostats, nregions
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_thermostat_subsys', &
@@ -481,24 +486,24 @@ CONTAINS
     INTEGER                                  :: first_atom, i, imolecule, &
                                                 ipart, last_atom, nrep, &
                                                 thermo1
-    INTEGER, DIMENSION(:), POINTER           :: atom_index1, atom_index2
+    INTEGER, DIMENSION(:), POINTER           :: atom_index1
     LOGICAL                                  :: failure
     TYPE(molecule_type), POINTER             :: molecule
 
     failure = .FALSE.
-    IF (ASSOCIATED(qmmm_env)) THEN
-       label1               = "MM_SUBSYS"
-       label2               = "QM_SUBSYS"
-       atom_index1          => qmmm_env%mm_atom_index
-       atom_index2          => qmmm_env%qm_atom_index
-       IF (subsys_qm) THEN 
-          label1            = "QM_SUBSYS"
-          label2            = "MM_SUBSYS"
-          atom_index1       => qmmm_env%qm_atom_index
-          atom_index2       => qmmm_env%mm_atom_index
-       END IF
-       CALL section_vals_val_get(region_sections,TRIM(label1),n_rep_val=nrep,i_rep_section=ig,error=error)
-       IF (nrep==1) THEN
+    label1               = "MM_SUBSYS"
+    label2               = "QM_SUBSYS"
+    IF (subsys_qm) THEN 
+       label1            = "QM_SUBSYS"
+       label2            = "MM_SUBSYS"
+    END IF
+    CALL section_vals_val_get(region_sections,TRIM(label1),n_rep_val=nrep,i_rep_section=ig,error=error)
+    IF (nrep==1) THEN
+       IF (ASSOCIATED(qmmm_env)) THEN
+          atom_index1          => qmmm_env%mm_atom_index
+          IF (subsys_qm) THEN 
+             atom_index1       => qmmm_env%qm_atom_index
+          END IF
           CALL section_vals_val_get(region_sections,TRIM(label1),i_val=thermo1,i_rep_section=ig,error=error)
           SELECT CASE(thermo1)
           CASE(do_constr_atomic)
@@ -534,9 +539,11 @@ CONTAINS
                 END IF
              END DO
           END SELECT
+       ELSE
+          sum_of_thermostats = sum_of_thermostats - 1
+          nregions = nregions - 1
        END IF
     END IF
-    
   END SUBROUTINE setup_thermostat_subsys
   
 ! *****************************************************************************
