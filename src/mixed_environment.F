@@ -27,7 +27,6 @@ MODULE mixed_environment
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
   USE f77_blas
-  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -68,13 +67,12 @@ CONTAINS
 !>      mixed_main
 !> \author fschiff
 ! *****************************************************************************
-  SUBROUTINE mixed_init ( mixed_env, root_section,para_env, globenv, force_env_section,&
+  SUBROUTINE mixed_init ( mixed_env, root_section,para_env, force_env_section,&
        use_motion_section, error )
 
     TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     LOGICAL, INTENT(IN)                      :: use_motion_section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -130,7 +128,7 @@ CONTAINS
 
     ! Topology
     CALL topology_control ( atomic_kind_set, particle_set, molecule_kind_set, molecule_set,&
-         subsys%colvar_p,subsys%gci,root_section,para_env,globenv,&
+         subsys%colvar_p,subsys%gci,root_section,para_env,&
          force_env_section=force_env_section, subsys_section=subsys_section,&
          use_motion_section=use_motion_section, error=error)
 

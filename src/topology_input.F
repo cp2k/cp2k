@@ -13,7 +13,6 @@ MODULE topology_input
   USE colvar_types,                    ONLY: colvar_clone,&
                                              colvar_p_type
   USE f77_blas
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_conn_generate,&
                                              do_conn_mol_set,&
                                              do_conn_off,&
@@ -48,11 +47,9 @@ CONTAINS
 !>      none
 !> \author JGH (26-01-2002)
 ! *****************************************************************************
-SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
+SUBROUTINE read_topology_section ( topology, topology_section, error )
     TYPE(topology_parameters_type)           :: topology
     TYPE(section_vals_type), POINTER         :: topology_section
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_section', &

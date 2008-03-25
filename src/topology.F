@@ -18,7 +18,6 @@ MODULE topology
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        do_conn_g87, do_conn_g96, do_conn_generate, do_conn_mol_set, &
        do_conn_off, do_conn_psf, do_conn_psf_u, do_coord_g96, do_coord_pdb, &
@@ -89,7 +88,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE topology_control(atomic_kind_set, particle_set, molecule_kind_set,&
-       molecule_set, colvar_p, gci, root_section, para_env, globenv, qmmm, qmmm_env,&
+       molecule_set, colvar_p, gci, root_section, para_env, qmmm, qmmm_env,&
        force_env_section, subsys_section, use_motion_section, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -105,7 +104,6 @@ CONTAINS
     TYPE(global_constraint_type), POINTER    :: gci
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
@@ -158,7 +156,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 3. Read in the topology section in the input file if any
     !-----------------------------------------------------------------------------
-    CALL read_topology_section(topology,topology_section,globenv,error)
+    CALL read_topology_section(topology,topology_section,error)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------

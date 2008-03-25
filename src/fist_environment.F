@@ -49,7 +49,6 @@ MODULE fist_environment
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_release,&
                                              fist_nonbond_env_type
   USE force_fields,                    ONLY: force_field_control
-  USE global_types,                    ONLY: global_environment_type
   USE header,                          ONLY: fist_header
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
@@ -99,13 +98,12 @@ CONTAINS
 !> \par Used By
 !>      fist_main
 ! *****************************************************************************
-SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_section,&
+SUBROUTINE fist_init ( fist_env, root_section,para_env, force_env_section,&
      subsys_section, use_motion_section, error )
 
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
     LOGICAL, INTENT(IN)                      :: use_motion_section
@@ -192,13 +190,13 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
   CALL get_fist_env (fist_env, qmmm=qmmm, qmmm_env=qmmm_env, error=error)
   ! Topology
   CALL topology_control ( atomic_kind_set, particle_set, molecule_kind_set, molecule_set,&
-       subsys%colvar_p, subsys%gci, root_section, para_env, globenv,qmmm=qmmm,&
+       subsys%colvar_p, subsys%gci, root_section, para_env, qmmm=qmmm,&
        qmmm_env=qmmm_env, force_env_section=force_env_section,subsys_section=subsys_section,&
        use_motion_section=use_motion_section, error=error)
 
   CALL force_field_control ( atomic_kind_set, particle_set,&
                              molecule_kind_set, molecule_set,&
-                             ewald_env, fist_nonbond_env, root_section, para_env, globenv, qmmm=qmmm,&
+                             ewald_env, fist_nonbond_env, root_section, para_env, qmmm=qmmm,&
                              qmmm_env=qmmm_env, subsys_section=subsys_section,&
                              mm_section=mm_section, shell_particle_set=shell_particle_set, &
                              core_particle_set=core_particle_set, cell=cell, error=error )

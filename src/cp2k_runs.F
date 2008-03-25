@@ -334,7 +334,7 @@ CPSourceFileRef,&
                   suberror,failure)
              CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
                   error=suberror)
-             CALL tddfpt_calculation(force_env%qs_env, globenv,error=error)
+             CALL tddfpt_calculation(force_env%qs_env, error=error)
           CASE (bsse_run)
              CALL do_bsse_calculation(force_env, globenv, error=suberror)
           CASE (linear_response_run)
@@ -346,7 +346,7 @@ CPSourceFileRef,&
              ! The Ground State is needed, it can be read from Restart
              CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
                   error=suberror)
-             CALL linres_calculation(force_env%qs_env, globenv, error=suberror)
+             CALL linres_calculation(force_env%qs_env, error=suberror)
           CASE (qs_debug_run)
              SELECT CASE(method_name_id)
              CASE(do_qs, do_qmmm, do_ep)

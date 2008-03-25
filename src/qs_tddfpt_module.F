@@ -14,7 +14,6 @@ MODULE qs_tddfpt_module
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE f77_blas
-  USE global_types,                    ONLY: global_environment_type
   USE header,                          ONLY: tddfpt_header
   USE input_constants,                 ONLY: oe_gllb,&
                                              oe_lb,&
@@ -58,10 +57,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Performs the perturbation calculation
 ! *****************************************************************************
-  SUBROUTINE tddfpt_calculation(qs_env, glob_env, error)
+  SUBROUTINE tddfpt_calculation(qs_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: glob_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_calculation', &

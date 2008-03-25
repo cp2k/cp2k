@@ -17,7 +17,6 @@ MODULE csvr_system_init
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
   USE f77_blas
-  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -47,12 +46,11 @@ CONTAINS
 !> \brief fire up the thermostats, if NPT
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
 ! *****************************************************************************
-  SUBROUTINE initialize_csvr_baro ( simpar, para_env, globenv, csvr, csvr_section, error )
+  SUBROUTINE initialize_csvr_baro ( simpar, para_env, csvr, csvr_section, error )
 
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(section_vals_type), POINTER         :: csvr_section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -72,7 +70,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
 ! *****************************************************************************
   SUBROUTINE initialize_csvr_part ( thermostat_info, simpar, local_molecules,&
-       molecule, molecule_kind_set, para_env, globenv, csvr, csvr_section,&
+       molecule, molecule_kind_set, para_env, csvr, csvr_section,&
        gci, error)
 
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
@@ -82,7 +80,6 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(section_vals_type), POINTER         :: csvr_section
     TYPE(global_constraint_type), POINTER    :: gci
@@ -133,7 +130,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
 ! *****************************************************************************
   SUBROUTINE initialize_csvr_shell( thermostat_info, simpar, local_molecules,&
-       molecule, molecule_kind_set, para_env, globenv, csvr, csvr_section,&
+       molecule, molecule_kind_set, para_env, csvr, csvr_section,&
        gci, error)
  
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
@@ -143,7 +140,6 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(csvr_system_type), POINTER          :: csvr
     TYPE(section_vals_type), POINTER         :: csvr_section
     TYPE(global_constraint_type), POINTER    :: gci

@@ -244,7 +244,7 @@ CONTAINS
 
     ! topology
     CALL topology_control (atomic_kind_set,particle_set, molecule_kind_set,molecule_set,&
-         kg_env%subsys%colvar_p, kg_env%subsys%gci, root_section,para_env,globenv, &
+         kg_env%subsys%colvar_p, kg_env%subsys%gci, root_section,para_env, &
          force_env_section=force_env_section, subsys_section=subsys_section, &
          use_motion_section=use_motion_section, error=error)
 

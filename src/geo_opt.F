@@ -114,7 +114,6 @@ MODULE geo_opt
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 root_section
 

@@ -225,7 +225,7 @@ CONTAINS
 
     ! *** initializations for the setup of the MIXED environment ***
     CALL set_mixed_env (mixed_env, error=error)
-    CALL mixed_init ( mixed_env, root_section, para_env, globenv, force_env_section, &
+    CALL mixed_init ( mixed_env, root_section, para_env, force_env_section, &
                       use_motion_section, error )
     CALL force_env_create ( force_env, root_section, mixed_env = mixed_env, &
          para_env = para_env, globenv = globenv, &

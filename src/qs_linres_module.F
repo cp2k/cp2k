@@ -18,7 +18,6 @@ MODULE qs_linres_module
   USE cp_fm_types,                     ONLY: cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        lr_cg, lr_chemshift, lr_diis, lr_gtensor, lr_none, &
        lr_precond_full_all, lr_precond_none, lr_precond_s_inverse, &
@@ -86,10 +85,9 @@ CONTAINS
 !>      06.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE linres_calculation(qs_env, globenv, error)
+  SUBROUTINE linres_calculation(qs_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_calculation', &
@@ -121,7 +119,7 @@ CONTAINS
     lr_section =>  section_vals_get_subs_vals(qs_env%input, &
                                           "PROPERTIES%LINRES",error=error)
     CALL section_vals_get(lr_section,explicit=lr_calculation,error=error)
-    CALL linres_init(lr_section,p_env,qs_env,globenv,error=error)
+    CALL linres_init(lr_section,p_env,qs_env,error=error)
 
     IF (lr_calculation) THEN
        output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
@@ -144,7 +142,7 @@ CONTAINS
                 " shift without localized psi0??")
 
            CALL linres_localize(linres_control%localized_wfn_control,qs_env,&
-                 dft_control%nspins,globenv,centers_only=.TRUE.,error=error)
+                 dft_control%nspins,centers_only=.TRUE.,error=error)
          END IF
 
          !Initialize the nmr environment
@@ -172,7 +170,7 @@ CONTAINS
                   "Are you sure that you want to calculate the g tensor without localized psi0??")
  
              CALL linres_localize(linres_control%localized_wfn_control,qs_env,&
-                                  dft_control%nspins,globenv,centers_only=.TRUE.,error=error)
+                                  dft_control%nspins,centers_only=.TRUE.,error=error)
            END IF
 
            !Initialize the epr environment
@@ -226,12 +224,11 @@ CONTAINS
 !>      06.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE linres_init(lr_section,p_env,qs_env,globenv,error)
+  SUBROUTINE linres_init(lr_section,p_env,qs_env,error)
 
     TYPE(section_vals_type), POINTER         :: lr_section
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_init', &
@@ -282,7 +279,7 @@ CONTAINS
          END IF
 
          CALL linres_localize(linres_control%localized_wfn_control,qs_env,&
-               dft_control%nspins,globenv,error=error)
+               dft_control%nspins,error=error)
 
          DO ispin=1,dft_control%nspins
             CALL calculate_density_matrix(mos(ispin)%mo_set,&

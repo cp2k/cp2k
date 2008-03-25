@@ -33,7 +33,6 @@ MODULE force_fields
   USE force_fields_util,               ONLY: clean_intra_force_kind,&
                                              force_field_pack,&
                                              force_field_qeff_output
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_ff_charmm,&
                                              do_ff_g87,&
                                              do_ff_g96,&
@@ -63,7 +62,7 @@ CONTAINS
 !>      2. Read in the force_field from the corresponding locations
 ! *****************************************************************************
   SUBROUTINE force_field_control (atomic_kind_set,particle_set, molecule_kind_set,&
-       molecule_set, ewald_env,fist_nonbond_env, root_section,para_env,globenv,&
+       molecule_set, ewald_env,fist_nonbond_env, root_section,para_env,&
        qmmm, qmmm_env, subsys_section, mm_section, shell_particle_set, core_particle_set,&
        cell, error)
 
@@ -79,7 +78,6 @@ CONTAINS
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
@@ -114,7 +112,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 2. Read in the force field section in the input file if any
     !-----------------------------------------------------------------------------
-    CALL read_force_field_section(ff_type,para_env,globenv,mm_section,error)
+    CALL read_force_field_section(ff_type,para_env,mm_section,error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 3. If reading in from external file, make sure its there first

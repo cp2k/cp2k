@@ -192,7 +192,7 @@ CONTAINS
              ! Initialize or possibly restart CSVR thermostat on Particles
              work_section => section_vals_get_subs_vals(thermo_part_section,"CSVR",error=error)
              CALL initialize_csvr_part(thermostats%thermostat_info_part,simpar,local_molecules,&
-                  molecules_new%els, molecule_kinds_new%els, para_env, globenv,&
+                  molecules_new%els, molecule_kinds_new%els, para_env, &
                   thermostats%thermostat_part%csvr, csvr_section=work_section,&
                   gci=gci, error=error)
           END IF
@@ -244,7 +244,7 @@ CPSourceFileRef,&
                    ! Initialize or possibly restart CSVR thermostat on Shells
                    work_section => section_vals_get_subs_vals(thermo_shell_section,"CSVR",error=error)
                    CALL initialize_csvr_shell(thermostats%thermostat_info_shell, simpar, local_molecules,&
-                        molecules_new%els, molecule_kinds_new%els, para_env, globenv,&
+                        molecules_new%els, molecule_kinds_new%els, para_env, &
                         thermostats%thermostat_shell%csvr, csvr_section=work_section, gci=gci,&
                         error=error)               
                 END IF
@@ -340,7 +340,7 @@ CPSourceFileRef,&
           ELSE IF (thermostats%thermostat_baro%type_of_thermostat==do_thermo_csvr) THEN
              ! Initialize or possibly restart CSVR thermostat on Barostat
              work_section => section_vals_get_subs_vals(thermo_baro_section,"CSVR",error=error)
-             CALL initialize_csvr_baro(simpar, para_env, globenv, thermostats%thermostat_baro%csvr,&
+             CALL initialize_csvr_baro(simpar, para_env, thermostats%thermostat_baro%csvr,&
                   csvr_section=work_section, error=error)
           END IF
           CALL thermostat_info(thermostats%thermostat_baro, "BAROSTAT", thermo_baro_section,&

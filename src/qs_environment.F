@@ -77,7 +77,6 @@ MODULE qs_environment
                                              ewald_pw_type
   USE f77_blas
   USE gamma,                           ONLY: init_md_ftable
-  USE global_types,                    ONLY: global_environment_type
   USE harris_energy_types,             ONLY: harris_energy_create,&
                                              harris_energy_type
   USE harris_env_types,                ONLY: harris_env_create,&
@@ -174,12 +173,11 @@ CONTAINS
 !>      QUICKSTEP environment.
 !> \author Creation (22.05.2000,MK)
 ! *****************************************************************************
-  SUBROUTINE qs_init(qs_env,root_section,globenv,subsys,cell,cell_ref,qmmm,&
+  SUBROUTINE qs_init(qs_env,root_section,subsys,cell,cell_ref,qmmm,&
        qmmm_periodic,force_env_section,subsys_section,use_motion_section,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm, qmmm_periodic
@@ -274,7 +272,7 @@ CONTAINS
        !   *** Read the particle coordinates and allocate the atomic kind, ***
        !   *** the molecule kind, and the molecule data structures         ***
        CALL topology_control (atomic_kind_set,particle_set, molecule_kind_set, molecule_set,&
-            my_subsys%colvar_p,my_subsys%gci, root_section, para_env, globenv,&
+            my_subsys%colvar_p,my_subsys%gci, root_section, para_env, &
             force_env_section=force_env_section, subsys_section=subsys_section,&
             use_motion_section=use_motion_section, error=error)
 
@@ -296,7 +294,7 @@ CONTAINS
     END IF
 
     CALL qs_init_subsys(qs_env,my_subsys,my_cell,my_cell_ref,use_ref_cell,&
-         root_section,subsys_section,globenv,my_qmmm,harris=harris_flag,error=error)
+         root_section,subsys_section,my_qmmm,harris=harris_flag,error=error)
 
     IF (.NOT.PRESENT(cell))      CALL cell_release(my_cell,error=error)
     IF (.NOT.PRESENT(cell_ref))  CALL cell_release(my_cell_ref,error=error)
@@ -324,14 +322,13 @@ CONTAINS
 !> \author Creation (22.05.2000,MK)
 ! *****************************************************************************
   SUBROUTINE qs_init_subsys(qs_env,subsys,cell,cell_ref,use_ref_cell,&
-       root_section,subsys_section,globenv,qmmm,harris,error)
+       root_section,subsys_section,qmmm,harris,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(in)                      :: use_ref_cell
     TYPE(section_vals_type), POINTER         :: root_section, subsys_section
-    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(in)                      :: qmmm
     LOGICAL, INTENT(IN), OPTIONAL            :: harris
     TYPE(cp_error_type), INTENT(INOUT)       :: error

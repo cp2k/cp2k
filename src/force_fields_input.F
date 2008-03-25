@@ -39,7 +39,6 @@ MODULE force_fields_input
                                              force_field_type,&
                                              gromos_info_type,&
                                              input_info_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_ff_charmm,&
                                              do_ff_g87,&
                                              do_ff_g96,&
@@ -1296,11 +1295,9 @@ CPSourceFileRef,&
 !>                         molecule_input
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE read_force_field_section ( ff_type , para_env, globenv,  mm_section, error )
+  SUBROUTINE read_force_field_section ( ff_type , para_env, mm_section, error )
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
     TYPE(section_vals_type), POINTER         :: mm_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 

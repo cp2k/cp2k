@@ -89,7 +89,7 @@ CONTAINS
     END IF    
     ! *** Read the input and the database files and perform further  ***
     ! *** initializations for the setup of the FIST environment ***
-    CALL fist_init ( fist_env, root_section, para_env, globenv, force_env_section,&
+    CALL fist_init ( fist_env, root_section, para_env, force_env_section,&
          subsys_section, use_motion_section, error )
 
     CALL force_env_create ( force_env, root_section, fist_env = fist_env, &

@@ -86,7 +86,7 @@ CONTAINS
     NULLIFY(qs_env, sub_force_env)
     !Reference qs_env
     CALL qs_env_create(qs_env,para_env,error=error)
-    CALL qs_init( qs_env, root_section, globenv, subsys=subsys, cell=cell, cell_ref=cell_ref,&
+    CALL qs_init( qs_env, root_section, subsys=subsys, cell=cell, cell_ref=cell_ref,&
          qmmm=qmmm, qmmm_periodic=qmmm_periodic, force_env_section=force_env_section,&
          subsys_section=subsys_section, use_motion_section=use_motion_section, error=error)
     CALL force_env_create(force_env,root_section, qs_env=qs_env, para_env=para_env, globenv=globenv,&
