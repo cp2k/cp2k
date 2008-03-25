@@ -149,7 +149,7 @@ CONTAINS
             extension=".nebLog",error=error)
           CALL build_replica_coords(neb_section, particle_set,&
                coords, vels, neb_env, rep_env%ndim, iw, globenv, &
-               rep_env%para_env, logger, error)
+               rep_env%para_env, error)
           CALL cp_print_key_finished_output(iw,logger,motion_section,&
                "BAND%PROGRAM_RUN_INFO/INITIAL_CONFIGURATION_INFO", error=error)
           IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Building initial set of coordinates. END"
@@ -254,7 +254,7 @@ CONTAINS
        END DO
        ! Initializing forces array
        CALL reorient_images(neb_env%rotate_frames, particle_set, coords, vels,&
-            output_unit, distances, rep_env%para_env, error=error)
+            output_unit, distances, error=error)
        neb_env%avg_distance = SQRT(SUM(distances*distances)/REAL(SIZE(distances),KIND=dp))
        CALL neb_calc_energy_forces(rep_env, neb_env, coords, energies, forces,&
             particle_set, iw, error)
@@ -284,7 +284,7 @@ CONTAINS
           coords (:,:) = coords(:,:) + Dcoords(:,:)
 
           CALL reorient_images(neb_env%rotate_frames, particle_set, coords, vels,&
-               output_unit, distances, rep_env%para_env, error=error)
+               output_unit, distances, error=error)
           neb_env%avg_distance = SQRT(SUM(distances*distances)/REAL(SIZE(distances),KIND=dp))
           CALL neb_calc_energy_forces(rep_env, neb_env, coords, energies, forces,&
                particle_set, iw, error)
@@ -396,7 +396,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! Initializing forces array
        CALL reorient_images(neb_env%rotate_frames, particle_set, coords, vels,&
-            output_unit, distances, rep_env%para_env, error=error)
+            output_unit, distances, error=error)
        neb_env%avg_distance = SQRT(SUM(distances*distances)/REAL(SIZE(distances),KIND=dp))
        CALL neb_calc_energy_forces(rep_env, neb_env, coords, energies, forces,&
             particle_set, iw, error)
@@ -451,7 +451,7 @@ CONTAINS
           coords = coords + sline
           ! Compute forces
           CALL reorient_images(neb_env%rotate_frames, particle_set, coords, vels,&
-               output_unit, distances, rep_env%para_env, error)
+               output_unit, distances, error)
           neb_env%avg_distance = SQRT(SUM(distances*distances)/REAL(SIZE(distances),KIND=dp))
           CALL neb_calc_energy_forces(rep_env, neb_env, coords, energies, forces,&
                particle_set, iw, error)

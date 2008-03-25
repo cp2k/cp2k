@@ -247,7 +247,7 @@ CONTAINS
        ! Update the atomic positions
        x0 = x0 + dr
 
-       CALL energy_predict(ndf,work,hes,dr,g,output_unit,conv,pred)
+       CALL energy_predict(ndf,work,hes,dr,g,conv,pred)
        eold = etot
 
        ! Energy & Gradients at new step
@@ -616,13 +616,12 @@ CONTAINS
   END SUBROUTINE trust_radius
 
 ! *****************************************************************************
-  SUBROUTINE energy_predict(ndf,work,hes,dr,g,output_unit,conv,pred)
+  SUBROUTINE energy_predict(ndf,work,hes,dr,g,conv,pred)
 
     INTEGER, INTENT(IN)                      :: ndf
     REAL(KIND=dp), INTENT(INOUT)             :: work(ndf), &
                                                 hes(ndf*(ndf+1)/2), dr(ndf), &
                                                 g(ndf)
-    INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, INTENT(INOUT)                   :: conv
     REAL(KIND=dp), INTENT(INOUT)             :: pred
 

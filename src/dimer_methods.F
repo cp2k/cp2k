@@ -160,10 +160,10 @@ CONTAINS
        ! Correcting gradients for Translation
        IF (dimer_env%rot%curvature>0) THEN
           gradient =  - DOT_PRODUCT(dimer_env%rot%g0,dimer_env%nvec)*dimer_env%nvec
-          CALL remove_rot_transl_component(gopt_env, x, gradient, iw, error)
+          CALL remove_rot_transl_component(gopt_env, gradient, iw, error)
        ELSE
           gradient =  dimer_env%rot%g0 - 2.0_dp*DOT_PRODUCT(dimer_env%rot%g0,dimer_env%nvec)*dimer_env%nvec 
-          CALL remove_rot_transl_component(gopt_env, x, gradient, iw, error)
+          CALL remove_rot_transl_component(gopt_env, gradient, iw, error)
        END IF
        IF (debug_this_module.AND.(iw>0)) THEN
           WRITE(iw,*)"final gradient:",gradient
@@ -185,9 +185,8 @@ CONTAINS
 !>      none
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! *****************************************************************************
-  SUBROUTINE  remove_rot_transl_component (gopt_env,x,gradient,iw,error)
+  SUBROUTINE  remove_rot_transl_component (gopt_env,gradient,iw,error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: x
     REAL(KIND=dp), DIMENSION(:)              :: gradient
     INTEGER                                  :: iw
     TYPE(cp_error_type), INTENT(inout)       :: error

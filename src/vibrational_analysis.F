@@ -199,7 +199,7 @@ CONTAINS
                      keep_rotations,mass_weighted=.TRUE.,natoms=natoms,error=error)
              END IF
              ! Generate the suitable rototranslating basis set
-             CALL build_D_matrix(particles,RotTrM,nRotTrM,D,full=.FALSE.,&
+             CALL build_D_matrix(RotTrM,nRotTrM,D,full=.FALSE.,&
                   natoms=natoms,error=error)
              !
              ! Loop on atoms and coordinates
@@ -597,9 +597,7 @@ CONTAINS
 !>      internal coordinates (based on Gram-Schmidt orthogonalization)
 !> \author Teodoro Laino 08.2006
 ! *****************************************************************************
-  SUBROUTINE build_D_matrix(particles,mat,dof,Dout,full,natoms,error)
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particles
+  SUBROUTINE build_D_matrix(mat,dof,Dout,full,natoms,error)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat
     INTEGER, INTENT(IN)                      :: dof
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Dout

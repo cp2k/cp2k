@@ -181,7 +181,7 @@ CONTAINS
              END DO
              step = step - crr(:,n_diis)
              ref  = err(:,n_diis)
-             increase_error = check_diis_solution(jv,n_diis,cwrk,step,ref,&
+             increase_error = check_diis_solution(jv,cwrk,step,ref,&
                                                   output_unit,check_diis,error)
              ! possibly enlarge the error space
              IF (increase_error) THEN
@@ -243,9 +243,9 @@ CONTAINS
 !> \brief Check conditions for the acceptance of the DIIS step
 !> \author Teodoro Laino 10.2006
 ! *****************************************************************************
-  FUNCTION check_diis_solution(nv, n_diis, cwrk, step, ref, output_unit, check_diis, error)&
+  FUNCTION check_diis_solution(nv, cwrk, step, ref, output_unit, check_diis, error)&
    RESULT(accepted)
-    INTEGER, INTENT(IN)                      :: nv, n_diis
+    INTEGER, INTENT(IN)                      :: nv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cwrk, step, ref
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, INTENT(IN)                      :: check_diis
@@ -368,7 +368,7 @@ CONTAINS
           i = i + 1
           coords = Icoord + xb*sline
           CALL reorient_images(neb_env%rotate_frames, particle_set, coords, vels,&
-               output_unit, distances, rep_env%para_env, error)
+               output_unit, distances, error)
           neb_env%avg_distance = SQRT(SUM(distances*distances)/REAL(SIZE(distances),KIND=dp))
           CALL neb_calc_energy_forces(rep_env, neb_env, coords, energies, forces,&
                particle_set, iw, error)

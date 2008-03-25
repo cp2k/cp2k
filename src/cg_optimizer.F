@@ -80,7 +80,7 @@ CONTAINS
 
        CALL print_geo_opt_header(gopt_env, output_unit, "CONJUGATE GRADIENTS")
        CALL  cp_cg_main(force_env, x0, gopt_param,  output_unit, globenv,&
-            force_env_section, motion_section, gopt_env, error)
+            force_env_section, gopt_env, error)
        CALL cp_print_key_finished_output(output_unit,logger,geo_section,&
             "PRINT%PROGRAM_RUN_INFO", error=error)
     END IF
@@ -97,14 +97,13 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   RECURSIVE SUBROUTINE cp_cg_main(force_env, x0, gopt_param, output_unit, globenv,&
-       force_env_section, motion_section, gopt_env,  error)
+       force_env_section, gopt_env,  error)
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(gopt_param_type), POINTER           :: gopt_param
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                motion_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 

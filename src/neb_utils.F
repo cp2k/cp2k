@@ -112,7 +112,7 @@ CONTAINS
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
   SUBROUTINE build_replica_coords(neb_section, particle_set,&
-       coords, vels, neb_env, ndim, iw, globenv, para_env, logger, error)
+       coords, vels, neb_env, ndim, iw, globenv, para_env, error)
     TYPE(section_vals_type), POINTER         :: neb_section
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -121,7 +121,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ndim, iw
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_replica_coords', &
@@ -391,9 +390,8 @@ CPSourceFileRef,&
 !>      compute specifically Free Energies in a NEB scheme
 !> \author Teodoro Laino  01.2007
 ! *****************************************************************************
-  SUBROUTINE perform_replica_md(rep_env, coords, irep, n_rep_neb, error)
+  SUBROUTINE perform_replica_md(rep_env, irep, n_rep_neb, error)
     TYPE(replica_env_type), POINTER          :: rep_env
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: coords
     INTEGER, INTENT(IN)                      :: irep, n_rep_neb
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -616,14 +614,13 @@ CPSourceFileRef,&
 !> \author Teodoro Laino 09.2006
 ! *****************************************************************************
   SUBROUTINE reorient_images(rotate_frames, particle_set, coords, vels, iw,&
-       distances, para_env, error)
+       distances, error)
     LOGICAL, INTENT(IN)                      :: rotate_frames
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: coords, vels
     INTEGER, INTENT(IN)                      :: iw
     REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: distances
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'reorient_images', &
