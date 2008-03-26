@@ -383,7 +383,7 @@ CONTAINS
     DEALLOCATE(vxc_r,stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
-    CALL write_restart(kg_env=kg_env, root_section=root_section,force_env_section=kg_env%input,&
+    CALL write_restart(kg_env=kg_env, root_section=root_section,&
          error=error)
 
     CALL diis_info_destroy(diis_info)

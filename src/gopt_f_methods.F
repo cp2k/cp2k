@@ -177,13 +177,12 @@ CONTAINS
 !> \brief Handles the Output during an optimization run 
 !> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
-  SUBROUTINE gopt_f_io(gopt_env, force_env, root_section, force_env_section, its, opt_energy,&
+  SUBROUTINE gopt_f_io(gopt_env, force_env, root_section, its, opt_energy,&
        output_unit, eold, emin, wildcard, gopt_param, ndf, dx, xi, conv, ediff, pred, rat,&
        step, rad, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(section_vals_type), POINTER         :: root_section, &
-                                                force_env_section
+    TYPE(section_vals_type), POINTER         :: root_section
     INTEGER, INTENT(IN)                      :: its
     REAL(KIND=dp), INTENT(IN)                :: opt_energy
     INTEGER, INTENT(IN)                      :: output_unit
@@ -210,7 +209,7 @@ CONTAINS
     CASE(default_ts_method_id,default_minimization_method_id)
        ! Geometry Optimization (Minimization and Transition State Search)
        IF (.NOT.gopt_env%dimer_rotation) THEN
-          CALL geo_opt_io(force_env=force_env, root_section=root_section, force_env_section=force_env_section,&
+          CALL geo_opt_io(force_env=force_env, root_section=root_section, &
                motion_section=gopt_env%motion_section, its=its, opt_energy=opt_energy, error=error)
           CALL write_cycle_infos(output_unit,its,etot=opt_energy,ediff=opt_energy-eold,&
                pred=pred,rat=rat,step=step,rad=rad,emin=emin,wildcard=wildcard)
@@ -224,7 +223,7 @@ CONTAINS
        ELSE
           CALL update_dimer_vec(gopt_env%dimer_env, gopt_env%motion_section, error)
           CALL write_restart(force_env=force_env,root_section=root_section,&
-               force_env_section=force_env_section,error=error)
+               error=error)
           CALL write_rot_cycle_infos(output_unit,its,opt_energy,opt_energy-eold,emin,gopt_env%dimer_env,&
                wildcard)
           ! Possibly check convergence
@@ -238,7 +237,7 @@ CONTAINS
        pres_diff = gopt_env%cell_env%pres_int - gopt_env%cell_env%pres_ext
        pres_int  = gopt_env%cell_env%pres_int
        pres_tol  = gopt_env%cell_env%pres_tol
-       CALL geo_opt_io(force_env=force_env, root_section=root_section, force_env_section=force_env_section,&
+       CALL geo_opt_io(force_env=force_env, root_section=root_section, &
             motion_section=gopt_env%motion_section, its=its, opt_energy=opt_energy, error=error)
        CALL write_cycle_infos(output_unit,its,etot=opt_energy,ediff=opt_energy-eold,&
             pred=pred,rat=rat,step=step,rad=rad,emin=emin,pres_int=pres_int,wildcard=wildcard)
@@ -257,14 +256,13 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
   RECURSIVE SUBROUTINE gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section,&
-       force_env_section, para_env, master, error)
+       para_env, master, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     LOGICAL                                  :: conv
     INTEGER                                  :: its
-    TYPE(section_vals_type), POINTER         :: root_section, &
-                                                force_env_section
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: master
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -275,11 +273,11 @@ CONTAINS
     IF (gopt_env%eval_opt_geo) THEN
        IF (.NOT.gopt_env%dimer_rotation) THEN
           CALL write_final_info(conv, its, gopt_env, x0, master, para_env, force_env,&
-               gopt_env%motion_section, root_section, force_env_section, error)
+               gopt_env%motion_section, root_section, error)
        ELSE
           CALL update_dimer_vec(gopt_env%dimer_env, gopt_env%motion_section, error)
           CALL write_restart(force_env=force_env,root_section=root_section,&
-               force_env_section=force_env_section,error=error)     
+               error=error)     
        END IF
     END IF
 
@@ -582,7 +580,7 @@ CONTAINS
 !> \data  11.2007
 ! *****************************************************************************
   RECURSIVE SUBROUTINE write_final_info(conv, it, gopt_env, x0, master, para_env, force_env,&
-    motion_section, root_section, force_env_section, error)
+    motion_section, root_section, error)
     LOGICAL, INTENT(IN)                      :: conv
     INTEGER, INTENT(INOUT)                   :: it
     TYPE(gopt_f_type), POINTER               :: gopt_env
@@ -590,8 +588,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: master
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(section_vals_type), POINTER         :: motion_section, root_section, &
-                                                force_env_section
+    TYPE(section_vals_type), POINTER         :: motion_section, root_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_final_info', &
@@ -617,7 +614,7 @@ CONTAINS
       it = it + 1
       CALL write_structure_data(particle_set,cell,motion_section,error)
       CALL write_restart(force_env=force_env,root_section=root_section,&
-                         force_env_section=force_env_section,error=error)
+                         error=error)
 
       ! Write out more data for the minimum
       IF (logger%para_env%mepos==logger%para_env%source) THEN
@@ -717,11 +714,9 @@ CONTAINS
 !> \date    02.2008
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE geo_opt_io(force_env, root_section, force_env_section, motion_section, its, opt_energy, error)
+  SUBROUTINE geo_opt_io(force_env, root_section, motion_section, its, opt_energy, error)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(section_vals_type), POINTER         :: root_section, &
-                                                force_env_section, &
-                                                motion_section
+    TYPE(section_vals_type), POINTER         :: root_section, motion_section
     INTEGER, INTENT(IN)                      :: its
     REAL(KIND=dp), INTENT(IN)                :: opt_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -750,7 +745,7 @@ CONTAINS
 
     ! Write Restart File
     CALL write_restart(force_env=force_env,root_section=root_section,&
-         force_env_section=force_env_section,error=error)
+         error=error)
 
     ! Write Trajectory
     CALL write_geo_traj(force_env,  root_section, its, opt_energy, error)

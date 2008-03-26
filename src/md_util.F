@@ -72,10 +72,9 @@ CONTAINS
 !> \par History
 !>      03.2006 created [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE md_output(md_env,force_env_section,root_section,forced_io,error)
+  SUBROUTINE md_output(md_env,root_section,forced_io,error)
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                root_section
+    TYPE(section_vals_type), POINTER         :: root_section
     LOGICAL, INTENT(IN)                      :: forced_io
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -95,8 +94,7 @@ CONTAINS
     IF (do_print) THEN
        ! Dumps all files related to the MD run
        CALL md_write_output (md_env, error)
-       CALL write_restart(md_env=md_env,root_section=root_section,&
-            force_env_section=force_env_section,error=error)
+       CALL write_restart(md_env=md_env,root_section=root_section, error=error)
     END IF
     CALL timestop(0.0_dp,handle)
 

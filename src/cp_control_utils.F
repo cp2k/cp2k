@@ -65,9 +65,9 @@ MODULE cp_control_utils
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE read_dft_control(dft_control,root_section, dft_section, error)
+  SUBROUTINE read_dft_control(dft_control,dft_section, error)
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(section_vals_type), POINTER         :: root_section, dft_section
+    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_dft_control', &

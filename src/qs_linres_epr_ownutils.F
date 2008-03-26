@@ -482,7 +482,7 @@ CONTAINS
                      coeffs=vks_pw_spline(idir1,ispin)%pw,linOp=spl3_pbc,&
                      preconditioner=precond,pool=auxbas_pw_pool,&
                      eps_r=eps_r,eps_x=eps_x,max_iter=max_iter,&
-                     print_section=interp_section,error=error)
+                     error=error)
              CPPostconditionNoFail(success,cp_warning_level,routineP,error)
              CALL pw_spline_precond_release(precond,error=error)
           END DO ! idir1
@@ -767,7 +767,7 @@ CONTAINS
                      coeffs=bind_pw_spline(idir1,iB)%pw,linOp=spl3_pbc,&
                      preconditioner=precond,pool=auxbas_pw_pool,&
                      eps_r=eps_r,eps_x=eps_x,max_iter=max_iter,&
-                     print_section=interp_section,error=error)
+                     error=error)
              CPPostconditionNoFail(success,cp_warning_level,routineP,error)
              CALL pw_spline_precond_release(precond,error=error)
           END DO ! idir1

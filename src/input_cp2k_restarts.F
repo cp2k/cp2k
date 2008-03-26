@@ -111,7 +111,7 @@ CONTAINS
 !>      03.2006 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE write_restart(md_env,force_env,kg_env,meta_env,root_section,force_env_section,&
+  SUBROUTINE write_restart(md_env,force_env,kg_env,meta_env,root_section,&
        coords, vels,  error)
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
@@ -119,8 +119,7 @@ CONTAINS
     TYPE(kg_environment_type), OPTIONAL, &
       POINTER                                :: kg_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
-    TYPE(section_vals_type), POINTER         :: root_section, &
-                                                force_env_section
+    TYPE(section_vals_type), POINTER         :: root_section
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: coords, vels
     TYPE(cp_error_type), INTENT(INOUT)       :: error

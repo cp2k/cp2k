@@ -1956,7 +1956,7 @@ CONTAINS
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE pme_force_numer ( ewald_env, ewald_pw, cell, particle_set, delta, f_part ,&
-       force_env_section, use_virial, error)
+       use_virial, error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(cell_type), POINTER                 :: cell
@@ -1965,7 +1965,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: delta
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: f_part
-    TYPE(section_vals_type), POINTER         :: force_env_section
     LOGICAL, INTENT(IN)                      :: use_virial
     TYPE(cp_error_type), INTENT(inout)       :: error
 

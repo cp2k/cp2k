@@ -379,7 +379,7 @@ CONTAINS
       CALL external_control(should_stop,"MD",globenv,error=error)
       IF (should_stop) THEN
          CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=itimes,error=error)
-         CALL md_output(md_env,force_env_section,root_section,should_stop,error)
+         CALL md_output(md_env,root_section,should_stop,error)
          EXIT
       END IF
 
@@ -395,7 +395,7 @@ CONTAINS
       used_time = time_iter_stop - time_iter_start
       time_iter_start=time_iter_stop
 
-      CALL md_output(md_env,force_env_section,root_section,should_stop,error)
+      CALL md_output(md_env,root_section,should_stop,error)
       IF(simpar%ensemble == reftraj_ensemble) THEN
          CALL write_output_reftraj(md_env,error=error) 
       END IF

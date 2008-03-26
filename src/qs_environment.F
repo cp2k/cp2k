@@ -420,7 +420,7 @@ CONTAINS
     molecule_kind_set => subsys%molecule_kinds_new%els
 
     !   *** Read the input section with the DFT control parameters ***
-    CALL read_dft_control(dft_control,root_section,dft_section,error=error)
+    CALL read_dft_control(dft_control,dft_section,error=error)
 
     IF (dft_control % do_tddfpt_calculation) THEN
        CALL read_tddfpt_control(dft_control%tddfpt_control,dft_control%nspins, &

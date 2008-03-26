@@ -335,7 +335,7 @@ CONTAINS
        IF (method_name_id == do_qs) THEN
           CALL create_small_subsys(subsys_loc, big_subsys=subsys,&
                small_para_env=para_env, small_cell=cell,sub_atom_index=atom_index,&
-               sub_atom_kind_name=atom_type,root_section=root_section,para_env=para_env,&
+               sub_atom_kind_name=atom_type,para_env=para_env,&
                force_env_section=force_env_section,subsys_section=subsys_section,error=error)
 
           CALL quickstep_create_force_env(force_env_loc,root_section,para_env,globenv,subsys=subsys_loc,&

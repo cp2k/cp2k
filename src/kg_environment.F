@@ -220,7 +220,7 @@ CONTAINS
          error=error)
 
     ! Read/write the input section with the dft and qs control parameters
-    CALL read_dft_control ( dft_control, root_section, dft_section,error )
+    CALL read_dft_control ( dft_control, dft_section,error )
 
 !   *** Read the input section with the Quickstep control parameters ***
     CALL read_qs_section(dft_control%qs_control,qs_section,error=error)
@@ -738,7 +738,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL set_qs_env(qs_env=qs_env,kg_sub_pw_env=kg_sub_pw_env,error=error)
-    CALL kg_sub_pw_env_release(kg_sub_pw_env,force_env_section=force_env_section,error=error)
+    CALL kg_sub_pw_env_release(kg_sub_pw_env,error=error)
 
     CALL mp_sum(nelectron_global, para_env%group)
     CALL mp_sum(nao_global, para_env%group)

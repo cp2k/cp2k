@@ -108,7 +108,7 @@ CONTAINS
 !> \author Fawzi Mohamed, Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE create_small_subsys(small_subsys, big_subsys, small_cell,&
-       small_para_env, sub_atom_index, sub_atom_kind_name, root_section,&
+       small_para_env, sub_atom_index, sub_atom_kind_name, &
        para_env, force_env_section, subsys_section, error)
 
     TYPE(cp_subsys_type), POINTER            :: small_subsys, big_subsys
@@ -117,7 +117,6 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(in)        :: sub_atom_index
     CHARACTER(len=default_string_length), &
       DIMENSION(:), INTENT(in)               :: sub_atom_kind_name
-    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section

@@ -225,7 +225,7 @@ CONTAINS
     success=find_coeffs(values=grid,coeffs=TabLR,&
             linOp=spl3_pbc,preconditioner=precond, pool=pw_pool, &
             eps_r=eps_r,eps_x=eps_x,&
-            max_iter=max_iter,print_section=interp_section,error=error)
+            max_iter=max_iter,error=error)
     CPPostconditionNoFail(success,cp_warning_level,routineP,error)
     CALL pw_spline_precond_release(precond,error=error)
     !

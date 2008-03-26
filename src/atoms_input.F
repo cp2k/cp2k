@@ -57,10 +57,9 @@ CONTAINS
 ! *****************************************************************************
 !> \author CJM
 ! *****************************************************************************
-  SUBROUTINE read_atoms_input ( topology, root_section, overwrite, subsys_section, save_mem, error )
+  SUBROUTINE read_atoms_input ( topology, overwrite, subsys_section, save_mem, error )
 
     TYPE(topology_parameters_type)           :: topology
-    TYPE(section_vals_type), POINTER         :: root_section
     LOGICAL, INTENT(IN), OPTIONAL            :: overwrite
     TYPE(section_vals_type), POINTER         :: subsys_section
     LOGICAL, INTENT(IN), OPTIONAL            :: save_mem
@@ -246,13 +245,13 @@ CPSourceFileRef,&
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE read_shell_coord_input ( particle_set, shell_particle_set, cell,&
-             root_section, subsys_section, core_particle_set, save_mem, error )
+             subsys_section, core_particle_set, save_mem, error )
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set, &
                                                 shell_particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(section_vals_type), POINTER         :: root_section, subsys_section
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: core_particle_set
     LOGICAL, INTENT(IN), OPTIONAL            :: save_mem

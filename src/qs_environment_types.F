@@ -739,7 +739,7 @@ CONTAINS
                         pw_env,ewald_env,ewald_pw,mpools,rho,rho_buffer,rho_xc,kinetic,&
                         scf_control,qs_charges,rho_core,ks_env,ks_qmmm_env,&
                         wf_history,scf_env,use_harris,task_list,task_list_soft,&
-                        distribution_2d,dft_section,input,&
+                        distribution_2d,input,&
                         subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,&
                         nddo_mpole,rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,&
                         requires_mo_derivs,mo_derivs,neighbor_list_id,&
@@ -791,7 +791,7 @@ CONTAINS
     TYPE(distribution_2d_type), OPTIONAL, &
       POINTER                                :: distribution_2d
     TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: dft_section, input
+      POINTER                                :: input
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(oce_matrix_type), OPTIONAL, POINTER :: oce
     TYPE(rho_atom_type), DIMENSION(:), &
@@ -916,7 +916,7 @@ CONTAINS
 
     IF(PRESENT(kg_sub_pw_env)) THEN
       CALL kg_sub_pw_env_retain(kg_sub_pw_env,error=error)
-      CALL kg_sub_pw_env_release(qs_env%kg_sub_pw_env, qs_env%input, error=error)
+      CALL kg_sub_pw_env_release(qs_env%kg_sub_pw_env, error=error)
       qs_env%kg_sub_pw_env => kg_sub_pw_env
     END IF
     IF (PRESENT(pw_env)) THEN ! accept also null pointers?
@@ -1300,7 +1300,7 @@ SUBROUTINE qs_env_release(qs_env,error)
         END IF
 
         IF(ASSOCIATED(qs_env%kg_sub_pw_env)) THEN
-          CALL kg_sub_pw_env_release(qs_env%kg_sub_pw_env,qs_env%input,error=error)
+          CALL kg_sub_pw_env_release(qs_env%kg_sub_pw_env,error=error)
         END IF
 
         IF(ASSOCIATED(qs_env%task_list)) THEN

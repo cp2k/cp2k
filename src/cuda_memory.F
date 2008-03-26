@@ -51,17 +51,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cuda_device_mem_init', &
       routineP = moduleN//':'//routineN
 
-#if defined ( __CUDA ) || defined ( __FFTCU )
 
     cuda_section => section_vals_get_subs_vals(root_section,&
       "GLOBAL%CUDA",error=error)
     CALL section_vals_val_get(cuda_section,"MEMORY",i_val=memory,error=error)
 
+#if defined ( __CUDA ) || defined ( __FFTCU )
+
     CALL cuda_device_mem_init_cu(memory)
-
-#else
-
-    RETURN
 
 #endif
 
@@ -76,10 +73,6 @@ CONTAINS
 #if defined ( __CUDA ) || defined ( __FFTCU )
 
     CALL cuda_device_mem_release_cu(device_memory)
-
-#else
-
-    RETURN
 
 #endif 
 

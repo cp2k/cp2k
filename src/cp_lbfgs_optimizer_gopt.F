@@ -680,7 +680,7 @@ CPSourceFileRef,&
              CALL mp_bcast(its,optimizer%master,optimizer%para_env%group)
 
              ! Some IO and Convergence check
-             CALL gopt_f_io(optimizer%obj_funct, force_env, force_env%root_section, force_env%force_env_section,&
+             CALL gopt_f_io(optimizer%obj_funct, force_env, force_env%root_section, &
                   its, optimizer%f, dataunit, optimizer%eold, optimizer%emin, wildcard, gopt_param,&
                   error=error)
              

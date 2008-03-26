@@ -269,7 +269,7 @@ CONTAINS
        CALL pw_env_mol_rebuild(new_pw_mol,cell_mol,pw_env,dft_control,side,num_pe,mepos,&
             error=error,force_env_section=qs_env%input)
        CALL set_molbox_env(molbox_env=molbox_env_p,pw_env_mol=new_pw_mol,&
-            force_env_section=qs_env%input,error=error)
+            error=error)
        CALL pw_env_release(new_pw_mol,error=error)
     ELSE
        CALL pw_env_mol_rebuild(new_pw_mol,cell_mol,pw_env,dft_control,side,num_pe,mepos,&
@@ -277,7 +277,7 @@ CONTAINS
     END IF
 
     CALL set_molbox_env(molbox_env=molbox_env_p,cell_mol=cell_mol,&
-         force_env_section=qs_env%input,error=error)
+         error=error)
     DO i = 1,3
       Li =  SQRT ( SUM ( cell_ref % hmat ( :, i ) ** 2 ) )
       length = cell_mol%hmat( i,i )
@@ -305,7 +305,7 @@ CONTAINS
          error=error)
 
     CALL set_molbox_env(molbox_env=molbox_env_p,poisson_env=poisson_env,&
-         force_env_section=qs_env%input,error=error)
+         error=error)
     CALL pw_poisson_release(poisson_env,error=error)
 
     CALL cell_release(cell_mol,error=error)
@@ -314,7 +314,7 @@ CONTAINS
     NULLIFY(rho_mol_blocks)
     CALL rho_mol_blocks_create(rho_mol_blocks,nmol_local,nat_mol,fm_mol_blocks,error=error)
     CALL set_molbox_env(molbox_env=molbox_env_p,rho_mol_blocks=rho_mol_blocks,&
-         force_env_section=qs_env%input,error=error)
+         error=error)
 
     CALL timestop(0.0_dp,handle)
 

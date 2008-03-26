@@ -3303,7 +3303,7 @@ CPSourceFileRef,&
 !> \author fawzi
 ! *****************************************************************************
   FUNCTION find_coeffs(values,coeffs,linOp,preconditioner, pool, &
-       eps_r,eps_x,max_iter,print_section,error) RESULT(res)
+       eps_r,eps_x,max_iter,error) RESULT(res)
     TYPE(pw_type), POINTER                   :: values, coeffs
     INTERFACE
 ! *****************************************************************************
@@ -3318,8 +3318,6 @@ CPSourceFileRef,&
     TYPE(pw_pool_type), POINTER              :: pool
     REAL(kind=dp), INTENT(in)                :: eps_r, eps_x
     INTEGER, INTENT(in)                      :: max_iter
-    TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: print_section
     TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: res
 
@@ -3496,13 +3494,11 @@ CPSourceFileRef,&
        IF (pbc) THEN
           success=find_coeffs(values=values,coeffs=coeffs,&
                linOp=spl3_pbc,preconditioner=precond, pool=coarse_pool, &
-               eps_r=eps_r,eps_x=eps_x,print_section=param_section,&
-               max_iter=max_iter,error=error)
+               eps_r=eps_r,eps_x=eps_x, max_iter=max_iter,error=error)
        ELSE
           success=find_coeffs(values=values,coeffs=coeffs,&
                linOp=spl3_nopbct,preconditioner=precond, pool=coarse_pool, &
-               eps_r=eps_r,eps_x=eps_x,print_section=param_section,&
-               max_iter=max_iter,error=error)
+               eps_r=eps_r,eps_x=eps_x, max_iter=max_iter,error=error)
        END IF
        CALL pw_spline_precond_release(precond,error=error)
 
@@ -3581,12 +3577,12 @@ CPSourceFileRef,&
           success=find_coeffs(values=pw_coarse_in,coeffs=coeffs,&
                linOp=spl3_pbc,preconditioner=precond, pool=coarse_pool, &
                eps_r=eps_r,eps_x=eps_x,&
-               max_iter=max_iter,print_section=param_section,error=error)
+               max_iter=max_iter,error=error)
        ELSE
           success=find_coeffs(values=pw_coarse_in,coeffs=coeffs,&
                linOp=spl3_nopbc,preconditioner=precond, pool=coarse_pool, &
                eps_r=eps_r,eps_x=eps_x,&
-               max_iter=max_iter,print_section=param_section,error=error)
+               max_iter=max_iter,error=error)
        END IF
        CPPostconditionNoFail(success,cp_warning_level,routineP,error)
        CALL pw_spline_precond_release(precond,error=error)

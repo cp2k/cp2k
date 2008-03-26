@@ -53,12 +53,12 @@ CONTAINS
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-  SUBROUTINE geoopt_lbfgs(force_env, gopt_param, globenv, force_env_section,&
+  SUBROUTINE geoopt_lbfgs(force_env, gopt_param, globenv, &
        geo_section, gopt_env, x0, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: force_env_section, geo_section
+    TYPE(section_vals_type), POINTER         :: geo_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -130,7 +130,7 @@ CONTAINS
        ! Write final output information, if converged
        CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=its,error=error)
        CALL gopt_f_io_finalize(gopt_env, force_env, optimizer%x, converged, its, root_section,&
-            force_env_section, optimizer%para_env, optimizer%master, error)
+            optimizer%para_env, optimizer%master, error)
 
        CALL cp_opt_gopt_release(optimizer, error=error)
        CALL cp_print_key_finished_output(output_unit,logger,geo_section,&

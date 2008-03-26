@@ -711,7 +711,7 @@ CONTAINS
 
 ! ** compute properties that depend on the converged wavefunction
     IF ( .NOT. should_stop ) THEN
-      CALL scf_post_calculation(dft_section, kg_env, error=error)
+      CALL scf_post_calculation(kg_env, error=error)
     END IF
 
 ! *** cleanup

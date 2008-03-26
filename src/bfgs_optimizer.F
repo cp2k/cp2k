@@ -53,13 +53,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Main driver for BFGS geometry optimizations 
 ! *****************************************************************************
-  SUBROUTINE geoopt_bfgs(force_env,gopt_param,globenv,force_env_section,&
+  SUBROUTINE geoopt_bfgs(force_env,gopt_param,globenv,&
        geo_section, gopt_env, x0, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: force_env_section, geo_section
+    TYPE(section_vals_type), POINTER         :: geo_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -260,7 +260,7 @@ CONTAINS
        IF(should_stop) EXIT
 
        ! Some IO and Convergence check
-       CALL gopt_f_io(gopt_env, force_env, root_section, force_env_section, its, etot,&
+       CALL gopt_f_io(gopt_env, force_env, root_section, its, etot,&
             output_unit, eold, emin, wildcard, gopt_param, ndf, dr, g, conv, ediff, pred,&
             rat, step, rad, error)
 
@@ -275,7 +275,7 @@ CONTAINS
 
     ! Write final  information, if converged
     CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=its,error=error)
-    CALL gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section,force_env_section,&
+    CALL gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section,&
          gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos,error)
 
     DEALLOCATE (hes,STAT=istat)

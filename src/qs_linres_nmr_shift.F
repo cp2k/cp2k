@@ -542,7 +542,7 @@ CONTAINS
       success=find_coeffs(values=shift_pw_rspace%pw,coeffs=shiftspl%pw,&
              linOp=spl3_pbc,preconditioner=precond,pool=auxbas_pw_pool, &
              eps_r=eps_r,eps_x=eps_x,max_iter=max_iter, &
-             print_section=interp_section,error=error)
+             error=error)
       CPPostconditionNoFail(success,cp_warning_level,routineP,error)
       CALL pw_spline_precond_release(precond,error=error)
 
@@ -583,7 +583,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE gsum_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_gspace,&
-       &                       i_B,idir,nmr_section,error)
+       &                       i_B,idir,error)
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(particle_type), DIMENSION(:), &
@@ -591,7 +591,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_p_type)                          :: shift_pw_gspace
     INTEGER, INTENT(IN)                      :: i_B, idir
-    TYPE(section_vals_type), POINTER         :: nmr_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'gsum_shift_pwgrid', &

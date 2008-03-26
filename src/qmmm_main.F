@@ -299,7 +299,7 @@ CPSourceFileRef,&
        CALL create_small_subsys(subsys_qm,&
             big_subsys=subsys_mm,small_para_env=para_env,&
             small_cell=qm_cell_small,sub_atom_index=qm_atom_index,&
-            sub_atom_kind_name=qm_atom_type, root_section=root_section, para_env=para_env, &
+            sub_atom_kind_name=qm_atom_type, para_env=para_env, &
             force_env_section=force_env_section, subsys_section=subsys_section,error=error)
        IF (qmmm_link_imomm) CALL qmmm_link_Imomm_coord(qmmm_links, subsys_qm%particles%els,&
             qm_atom_index, error)

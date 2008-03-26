@@ -24,8 +24,7 @@ MODULE cg_optimizer
                                              print_geo_opt_nc
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
@@ -50,12 +49,12 @@ CONTAINS
 !>      10.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE geoopt_cg(force_env,gopt_param,globenv,force_env_section,&
+  RECURSIVE SUBROUTINE geoopt_cg(force_env,gopt_param,globenv,&
        geo_section, gopt_env, x0, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: force_env_section, geo_section
+    TYPE(section_vals_type), POINTER         :: geo_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -66,21 +65,18 @@ CONTAINS
     INTEGER                                  :: handle, output_unit
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: motion_section, root_section
 
     CALL timeset(routineN,"I","",handle)
-    root_section => force_env%root_section
     logger       => cp_error_get_logger(error)
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
        output_unit = cp_print_key_unit_nr(logger,geo_section,"PRINT%PROGRAM_RUN_INFO",&
             extension=".geoLog",error=error)
 
        CALL print_geo_opt_header(gopt_env, output_unit, "CONJUGATE GRADIENTS")
        CALL  cp_cg_main(force_env, x0, gopt_param,  output_unit, globenv,&
-            force_env_section, gopt_env, error)
+             gopt_env, error)
        CALL cp_print_key_finished_output(output_unit,logger,geo_section,&
             "PRINT%PROGRAM_RUN_INFO", error=error)
     END IF
@@ -97,13 +93,12 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   RECURSIVE SUBROUTINE cp_cg_main(force_env, x0, gopt_param, output_unit, globenv,&
-       force_env_section, gopt_env,  error)
+       gopt_env,  error)
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(gopt_param_type), POINTER           :: gopt_param
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -171,7 +166,7 @@ CONTAINS
           IF(should_stop) EXIT
           
           ! Some IO and Convergence check
-          CALL gopt_f_io(gopt_env, force_env, root_section, force_env_section, its, opt_energy,&
+          CALL gopt_f_io(gopt_env, force_env, root_section, its, opt_energy,&
                output_unit, eold, emin, wildcard, gopt_param, SIZE(x0), x0-xold, xi, conv, &
                error=error)
 
@@ -199,7 +194,7 @@ CONTAINS
 
        ! Write final particle information and restart, if converged
        CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=its,error=error)
-       CALL gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section, force_env_section,&
+       CALL gopt_f_io_finalize(gopt_env, force_env, x0, conv, its, root_section, &
             gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos, error)
 
        DEALLOCATE(xold, stat=stat)

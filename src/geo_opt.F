@@ -166,13 +166,13 @@ MODULE geo_opt
 
     SELECT CASE (gopt_param%method_id)
     CASE (default_bfgs_method_id)
-       CALL geoopt_bfgs(force_env,gopt_param,globenv,force_env_section,&
+       CALL geoopt_bfgs(force_env,gopt_param,globenv,&
             geo_section, gopt_env, x0, error=error)
     CASE (default_lbfgs_method_id)
-       CALL geoopt_lbfgs(force_env,gopt_param,globenv,force_env_section,&
+       CALL geoopt_lbfgs(force_env,gopt_param,globenv,&
             geo_section, gopt_env, x0, error=error)
     CASE (default_cg_method_id)
-       CALL geoopt_cg  (force_env,gopt_param,globenv,force_env_section,&
+       CALL geoopt_cg  (force_env,gopt_param,globenv,&
             geo_section, gopt_env, x0, error=error)
     CASE DEFAULT
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)

@@ -255,7 +255,7 @@ CONTAINS
          qmmm_env%mm_atom_chrg, qmmm_env%mm_el_pot_radius, qmmm_env%mm_atom_index,  &
          qmmm_env%num_mm_atoms, cube_info, para_env, eps_mm_rspace, qmmm_env%pgfs,  &
          auxbas_grid, coarser_grid, pw_pools, aug_pools, qmmm_env%potentials,       &
-         interp_section=interp_section, mm_cell=mm_cell, dOmmOqm=qmmm_env%dOmmOqm,  &
+         mm_cell=mm_cell, dOmmOqm=qmmm_env%dOmmOqm,  &
          periodic=qmmm_env%periodic, per_potentials=qmmm_env%per_potentials, &
          par_scheme=qmmm_env%par_scheme, error=error)
 
@@ -265,7 +265,7 @@ CONTAINS
          qmmm_env%added_charges%mm_atom_index, qmmm_env%added_charges%num_mm_atoms,       & 
          cube_info, para_env, eps_mm_rspace, qmmm_env%added_charges%pgfs,auxbas_grid,     &
          coarser_grid, pw_pools, aug_pools, qmmm_env%added_charges%potentials,            &
-         interp_section=interp_section, mm_cell=mm_cell, dOmmOqm=qmmm_env%dOmmOqm,        &
+         mm_cell=mm_cell, dOmmOqm=qmmm_env%dOmmOqm,        &
          periodic=qmmm_env%periodic, per_potentials=qmmm_env%per_potentials,&
          par_scheme=qmmm_env%par_scheme,error=error)
     END IF
@@ -317,7 +317,7 @@ CONTAINS
   SUBROUTINE qmmm_elec_with_gaussian_low( tmp_grid, mm_particles,&
          mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
          cube_info, para_env, eps_mm_rspace, pgfs, auxbas_grid, coarser_grid,&
-         pw_pools, aug_pools, potentials, interp_section, mm_cell, dOmmOqm,&
+         pw_pools, aug_pools, potentials, mm_cell, dOmmOqm,&
          periodic, per_potentials, par_scheme, error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: tmp_grid
     TYPE(particle_type), DIMENSION(:), &
@@ -336,7 +336,6 @@ CONTAINS
       POINTER                                :: pw_pools, aug_pools
     TYPE(qmmm_pot_p_type), DIMENSION(:), &
       POINTER                                :: potentials
-    TYPE(section_vals_type), POINTER         :: interp_section
     TYPE(cell_type), POINTER                 :: mm_cell
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     LOGICAL, INTENT(IN)                      :: periodic

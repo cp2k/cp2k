@@ -37,8 +37,7 @@ MODULE fist_debug
                                              do_ewald_none,&
                                              do_ewald_pme,&
                                              do_ewald_spme
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get
+  USE input_section_types,             ONLY: section_vals_val_get
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -100,7 +99,6 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     TYPE(particle_type), POINTER             :: particle_set( : )
-    TYPE(section_vals_type), POINTER         :: force_env_section
 
     para_env=>force_env%para_env
     group  = para_env%group
@@ -112,8 +110,6 @@ CONTAINS
          local_molecules = local_molecules, &
          molecule_kind_set = molecule_kind_set, &
          fist_nonbond_env = fist_nonbond_env, cell = cell ,error=error)
-    NULLIFY(force_env_section)
-    force_env_section => force_env%force_env_section
 
     use_virial = force_env%virial%pv_availability.AND.(.NOT.force_env%virial%pv_numer)
     CALL fist_nonbond_env_get ( fist_nonbond_env, potparm = potparm ,error=error)
@@ -882,7 +878,7 @@ CONTAINS
     CASE ( do_ewald_pme )
        f_numer = 0.0_dp
        CALL pme_force_numer ( ewald_env, ewald_pw, cell, particle_set, delta, f_numer,&
-            force_env_section=force_env_section, use_virial=.FALSE., error=error)
+            use_virial=.FALSE., error=error)
     CASE ( do_ewald_spme )
        CALL stop_program ( "fist_debug", " NO SPME debug routines " )
     END SELECT

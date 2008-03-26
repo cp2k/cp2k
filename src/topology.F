@@ -505,18 +505,18 @@ CONTAINS
     SELECT CASE (topology%coord_type)
     CASE (do_coord_g96)
        CALL read_coordinate_g96 (topology,para_env,subsys_section,error)
-       CALL read_atoms_input ( topology, root_section, overwrite=.TRUE.,&
+       CALL read_atoms_input ( topology, overwrite=.TRUE.,&
                                subsys_section=subsys_section,save_mem=save_mem,error=error)
     CASE (do_coord_pdb)
        CALL read_coordinate_pdb (topology,para_env,subsys_section,error)
-       CALL read_atoms_input ( topology, root_section, overwrite=.TRUE.,&
+       CALL read_atoms_input ( topology, overwrite=.TRUE.,&
                                subsys_section=subsys_section,save_mem=save_mem,error=error)
     CASE (do_coord_xyz)
        CALL read_coordinate_xyz (topology,para_env,subsys_section,error)
-       CALL read_atoms_input ( topology, root_section, overwrite=.TRUE.,&
+       CALL read_atoms_input ( topology, overwrite=.TRUE.,&
                                subsys_section=subsys_section,save_mem=save_mem,error=error)
     CASE DEFAULT
-       CALL read_atoms_input ( topology, root_section, subsys_section=subsys_section,&
+       CALL read_atoms_input ( topology, subsys_section=subsys_section,&
             save_mem=save_mem,error=error)
     END SELECT
     CALL timestop(0.0_dp,handle2)

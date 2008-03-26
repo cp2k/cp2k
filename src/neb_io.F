@@ -275,7 +275,6 @@ CONTAINS
        ! Dump Restarts
        CALL write_restart(force_env=neb_env%force_env,&
                           root_section=neb_env%root_section,&
-                          force_env_section=neb_env%force_env_section,&
                           coords=coords,&
                           vels=vels,&
                           error=error)

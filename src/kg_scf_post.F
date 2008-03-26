@@ -72,8 +72,7 @@ CONTAINS
 !>      none
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE scf_post_calculation(dft_section,kg_env,error)
-    TYPE(section_vals_type), POINTER         :: dft_section
+  SUBROUTINE scf_post_calculation(kg_env,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 

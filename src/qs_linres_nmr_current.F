@@ -533,7 +533,7 @@ CONTAINS
              DO idir = 1,3
                 ! Here the shifts are computed from summation of the coeff on the G-grip .
                 CALL gsum_shift_pwgrid(nmr_env,pw_env,particle_set,cell,&
-                     &                shift_pw_gspace(idir,ispin),i_B,idir,nmr_section,&
+                     &                shift_pw_gspace(idir,ispin),i_B,idir,&
                      &                error=error)
                 ! Here first G->R and then interpolation to get the shifts.
                 ! The interpolation doesnt work in parallel yet.

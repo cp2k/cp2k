@@ -24,7 +24,6 @@ MODULE kg_gpw_pw_env_types
                                              cell_type
   USE cube_utils,                      ONLY: destroy_cube_info
   USE f77_blas
-  USE input_section_types,             ONLY: section_vals_type
   USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_release,&
@@ -210,11 +209,10 @@ CONTAINS
   END SUBROUTINE kg_sub_pw_env_create
 
 ! *****************************************************************************
-  SUBROUTINE kg_sub_pw_env_destroy(molbox_env_set, force_env_section, error)
+  SUBROUTINE kg_sub_pw_env_destroy(molbox_env_set, error)
 
     TYPE(kg_molbox_env_type), DIMENSION(:), &
       POINTER                                :: molbox_env_set
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_sub_pw_env_destroy', &
@@ -263,10 +261,9 @@ CONTAINS
   END SUBROUTINE kg_sub_pw_env_destroy
 
 ! *****************************************************************************
-  SUBROUTINE kg_sub_pw_env_release(kg_sub_pw_env,force_env_section,error)
+  SUBROUTINE kg_sub_pw_env_release(kg_sub_pw_env,error)
 
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_sub_pw_env_release', &
@@ -282,8 +279,7 @@ CONTAINS
       CPPrecondition(kg_sub_pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
       kg_sub_pw_env%ref_count = kg_sub_pw_env%ref_count - 1
       IF(kg_sub_pw_env%ref_count<1) THEN
-        CALL kg_sub_pw_env_destroy(kg_sub_pw_env%molbox_env_set, force_env_section,&
-             error=error)
+        CALL kg_sub_pw_env_destroy(kg_sub_pw_env%molbox_env_set, error=error)
         DEALLOCATE(kg_sub_pw_env, STAT = istat)
         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
@@ -354,13 +350,12 @@ CONTAINS
   END SUBROUTINE rho_mol_blocks_create
 
 ! *****************************************************************************
-  SUBROUTINE set_molbox_env(molbox_env,cell_mol,poisson_env,force_env_section,&
+  SUBROUTINE set_molbox_env(molbox_env,cell_mol,poisson_env,&
        pw_env_mol,rho_mol_blocks,error)
 
     TYPE(kg_molbox_env_type), POINTER        :: molbox_env
     TYPE(cell_type), OPTIONAL, POINTER       :: cell_mol
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env_mol
     TYPE(rho_mol_blocks_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: rho_mol_blocks

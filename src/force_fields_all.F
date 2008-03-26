@@ -1883,11 +1883,11 @@ CPSourceFileRef,&
       ! Initialize the shells coordinates
        IF(shell_adiabatic) THEN
           CALL read_shell_coord_input(particle_set, shell_particle_set, cell,&
-               root_section, subsys_section, core_particle_set, save_mem=save_mem,&
+               subsys_section, core_particle_set, save_mem=save_mem,&
                error=error)
        ELSE
           CALL read_shell_coord_input(particle_set, shell_particle_set, cell,&
-               root_section, subsys_section,save_mem=save_mem, error=error)
+               subsys_section,save_mem=save_mem, error=error)
        END IF
 
        ! Determine the number of shells per molecule kind
