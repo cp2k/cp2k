@@ -45,12 +45,13 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cuda_device_mem_init(root_section)
     TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(cp_error_type)                      :: error
-    TYPE(section_vals_type), POINTER         :: cuda_section
-    INTEGER                                  :: memory
+
     CHARACTER(len=*), PARAMETER :: routineN = 'cuda_device_mem_init', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: memory
+    TYPE(cp_error_type)                      :: error
+    TYPE(section_vals_type), POINTER         :: cuda_section
 
     cuda_section => section_vals_get_subs_vals(root_section,&
       "GLOBAL%CUDA",error=error)
