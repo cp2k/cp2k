@@ -319,6 +319,7 @@ CONTAINS
        IF ( ierr /= 0 ) EXIT
        ALLOCATE ( mc ( len, len ), STAT = ierr )
        IF ( ierr /= 0 ) EXIT
+       mc = 0.0_dp
 
        CALL RANDOM_NUMBER ( xdum )
        ma = xdum
@@ -341,7 +342,7 @@ CONTAINS
        END IF
        tstart = m_cputime ( )
        DO j = 1, ntim
-          ma = MATMUL ( ma, mb )
+          mc = mc + MATMUL ( ma, mb )
           ma ( 1, 1 ) = REAL ( j,KIND=dp)
        END DO
        tend = m_cputime ( )
@@ -359,7 +360,7 @@ CONTAINS
 
        tstart = m_cputime ( )
        DO j = 1, ntim
-          mc = MATMUL ( ma, TRANSPOSE ( mb ) )
+          mc = mc + MATMUL ( ma, TRANSPOSE ( mb ) )
           ma ( 1, 1 ) = REAL ( j,KIND=dp)
        END DO
        tend = m_cputime ( )
@@ -377,7 +378,7 @@ CONTAINS
 
        tstart = m_cputime ( )
        DO j = 1, ntim
-          mc = MATMUL ( TRANSPOSE ( ma ), mb )
+          mc = mc + MATMUL ( TRANSPOSE ( ma ), mb )
           ma ( 1, 1 ) = REAL ( j,KIND=dp)
        END DO
        tend = m_cputime ( )
@@ -412,6 +413,7 @@ CONTAINS
        IF ( ierr /= 0 ) EXIT
        ALLOCATE ( mc ( len, len ), STAT = ierr )
        IF ( ierr /= 0 ) EXIT
+       mc = 0.0_dp
 
        CALL RANDOM_NUMBER ( xdum )
        ma = xdum
@@ -423,7 +425,7 @@ CONTAINS
 
        tstart = m_cputime ( )
        DO j = 1, ntim
-          CALL dgemm ( "N", "N", len, len, len, 1.0_dp, ma, len, mb, len, 0.0_dp, mc, len )
+          CALL dgemm ( "N", "N", len, len, len, 1.0_dp, ma, len, mb, len, 1.0_dp, mc, len )
        END DO
        tend = m_cputime ( )
        t = tend - tstart+threshold
@@ -440,7 +442,7 @@ CONTAINS
 
        tstart = m_cputime ( )
        DO j = 1, ntim
-          CALL dgemm ( "N", "N", len, len, len, 1.0_dp, ma, len, mb, len, 0.0_dp, mc, len )
+          CALL dgemm ( "N", "N", len, len, len, 1.0_dp, ma, len, mb, len, 1.0_dp, mc, len )
        END DO
        tend = m_cputime ( )
        t = tend - tstart+threshold
@@ -457,7 +459,7 @@ CONTAINS
 
        tstart = m_cputime ( )
        DO j = 1, ntim
-          CALL dgemm ( "N", "T", len, len, len, 1.0_dp, ma, len, mb, len, 0.0_dp, mc, len )
+          CALL dgemm ( "N", "T", len, len, len, 1.0_dp, ma, len, mb, len, 1.0_dp, mc, len )
        END DO
        tend = m_cputime ( )
        t = tend - tstart+threshold
@@ -474,7 +476,7 @@ CONTAINS
 
        tstart = m_cputime ( )
        DO j = 1, ntim
-          CALL dgemm ( "T", "N", len, len, len, 1.0_dp, ma, len, mb, len, 0.0_dp, mc, len )
+          CALL dgemm ( "T", "N", len, len, len, 1.0_dp, ma, len, mb, len, 1.0_dp, mc, len )
        END DO
        tend = m_cputime ( )
        t = tend - tstart+threshold
