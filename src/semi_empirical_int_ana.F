@@ -23,9 +23,10 @@ MODULE semi_empirical_int_ana
   USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: angstrom,&
                                              evolt
-  USE semi_empirical_int_utils,        ONLY: dtaper_ana,&
+  USE semi_empirical_int_arrays,       ONLY: map_full_sp,&
                                              pxy,&
-                                             rij_threshold,&
+                                             rij_threshold
+  USE semi_empirical_int_utils,        ONLY: dtaper_ana,&
                                              taper
   USE semi_empirical_integrals,        ONLY: drotint,&
                                              drotnuc,&
@@ -44,11 +45,6 @@ MODULE semi_empirical_int_ana
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module=.FALSE.
   PUBLIC :: rotnuc_ana, rotint_ana
 
-  INTEGER, DIMENSION(84), PARAMETER ::      map_full = (/4,7,5,8,6,10,&
-       14,17,15,18,16,20,24,27,25,28,26,30,31,61,32,62,33,63,34,67,35,68,36,70,&
-       37,64,38,65,39,69,40,66,41,71,42,72,43,73,44,77,45,78,46,80,47,74,48,75,&
-       49,79,50,76,51,91,52,92,53,93,54,97,55,98,56,100,57,94,58,95,59,99,60,96,&
-       84,87,85,88,86,90/)
 
 CONTAINS
 
@@ -669,7 +665,7 @@ CONTAINS
     INTEGER, DIMENSION(2, 42)                :: map
     REAL(KIND=dp)                            :: tmp
 
-    map = RESHAPE(map_full,(/2,42/))
+    map = RESHAPE(map_full_sp,(/2,42/))
     DO i = 1, np
        i1= map(1,i)
        i2= map(2,i)
@@ -699,7 +695,7 @@ CONTAINS
     INTEGER, DIMENSION(2, 42)                :: map
     REAL(KIND=dp)                            :: tmp
 
-    map = RESHAPE(map_full,(/2,42/))
+    map = RESHAPE(map_full_sp,(/2,42/))
     DO j=1,3
        DO i =1, np
           i1= map(1,i)

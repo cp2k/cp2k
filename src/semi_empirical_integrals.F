@@ -23,9 +23,9 @@ MODULE semi_empirical_integrals
   USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: angstrom,&
                                              evolt
-  USE semi_empirical_int_utils,        ONLY: pxy,&
-                                             rij_threshold,&
-                                             taper
+  USE semi_empirical_int_arrays,       ONLY: pxy,&
+                                             rij_threshold
+  USE semi_empirical_int_utils,        ONLY: taper
   USE semi_empirical_types,            ONLY: semi_empirical_type
 #include "cp_common_uses.h"
 

@@ -14,14 +14,10 @@ MODULE xas_methods
   USE ai_overlap_new,                  ONLY: overlap
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE basis_set_types,                 ONLY: allocate_sto_basis_set,&
-                                             create_gto_from_sto_basis,&
-                                             deallocate_sto_basis_set,&
-                                             get_gto_basis_set,&
-                                             gto_basis_set_type,&
-                                             init_orb_basis_set,&
-                                             set_sto_basis_set,&
-                                             sto_basis_set_type
+  USE basis_set_types,                 ONLY: &
+       allocate_sto_basis_set, create_gto_from_sto_basis, &
+       deallocate_sto_basis_set, get_gto_basis_set, gto_basis_set_type, &
+       init_orb_basis_set, set_sto_basis_set, srules, sto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
@@ -95,7 +91,6 @@ MODULE xas_methods
                                              ot_method_nr,&
                                              qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE semi_empirical_parameters,       ONLY: srules
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              real_matrix_p_type,&
                                              replicate_matrix_structure,&
@@ -597,7 +592,6 @@ CONTAINS
     LOGICAL                                  :: failure, ihavethis
     REAL(dp)                                 :: zatom
     REAL(dp), DIMENSION(:), POINTER          :: sto_zet
-    REAL(dp), DIMENSION(:, :), POINTER       :: sto_alpha
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -888,21 +882,15 @@ CONTAINS
       ALLOCATE(nq(1),lq(1),sto_zet(1),STAT=istat)
       IF( xas_control%state_type == xas_1s_type) THEN
         norb(0) = 1
-        ALLOCATE(sto_alpha(1,0:1),STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         nq(1) = 1
         lq(1) = 0
       ELSEIF( xas_control%state_type == xas_2s_type ) THEN
         norb(0) = 2
-        ALLOCATE(sto_alpha(2,0:1),STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         nq(1) = 2
         lq(1) = 0
       ELSEIF( xas_control%state_type == xas_2p_type ) THEN
         norb(0) = 2
         norb(1) = 1
-        ALLOCATE(sto_alpha(2,0:1),STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         nq(1) = 2
         lq(1) = 1
       ELSE
@@ -944,7 +932,6 @@ CONTAINS
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       DO ik = 1,nk
         NULLIFY(xas_env%my_gto_basis(ik)%gto_basis_set,sto_basis_set)
-        sto_alpha = 0.0_dp
         ne = 0
         DO l=1,4 !lq(1)+1
           nj = 2*(l-1)+1
@@ -955,8 +942,7 @@ CONTAINS
           END DO
         END DO
 
-         sto_alpha(nq(1),lq(1))=srules(kind_z_tmp(ik),ne,nq(1),lq(1))
-        sto_zet(1) = sto_alpha(nq(1),lq(1))
+        sto_zet(1) = srules(kind_z_tmp(ik),ne,nq(1),lq(1))
         CALL allocate_sto_basis_set(sto_basis_set,error)
         name_sto='xas_tmp_sto'
         CALL set_sto_basis_set(sto_basis_set,nshell=1,nq=nq,&
@@ -981,7 +967,6 @@ CONTAINS
       END DO
 
       DEALLOCATE(nq,lq,sto_zet,STAT=istat)
-      DEALLOCATE(sto_alpha,STAT=istat)
       DEALLOCATE(kind_type_tmp,kind_z_tmp,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF  ! failure

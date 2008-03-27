@@ -52,10 +52,10 @@ MODULE nddo_methods
                                              drotnuc,&
                                              rotint,&
                                              rotnuc
-  USE semi_empirical_types,            ONLY: semi_empirical_type
+  USE semi_empirical_types,            ONLY: get_se_param,&
+                                             semi_empirical_type
   USE semi_empirical_utils,            ONLY: contract,&
                                              expand,&
-                                             get_se_param,&
                                              get_se_type,&
                                              traceb
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&

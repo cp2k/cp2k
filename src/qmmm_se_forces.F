@@ -34,11 +34,11 @@ MODULE qmmm_se_forces
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE semi_empirical_int_ana,          ONLY: rotnuc_ana
-  USE semi_empirical_types,            ONLY: semi_empirical_type
-  USE semi_empirical_utils,            ONLY: allocate_se_param,&
-                                             contract,&
+  USE semi_empirical_types,            ONLY: allocate_se_param,&
                                              deallocate_se_param,&
                                              get_se_param,&
+                                             semi_empirical_type
+  USE semi_empirical_utils,            ONLY: contract,&
                                              get_se_type,&
                                              se_param_set_default
   USE sparse_matrix_types,             ONLY: get_block_node,&

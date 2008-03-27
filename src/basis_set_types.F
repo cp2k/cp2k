@@ -99,30 +99,29 @@ MODULE basis_set_types
   END TYPE sto_basis_set_type
 
   ! Public subroutines
-
   PUBLIC :: allocate_gto_basis_set,&
-       deallocate_gto_basis_set,&
-       get_gto_basis_set,&
-       init_aux_basis_set,&
-       init_cphi_and_sphi,&
-       init_orb_basis_set,&
-       read_gto_basis_set,&
-       set_gto_basis_set,&
-       write_aux_basis_set,&
-       write_gto_basis_set,&
-       write_orb_basis_set
+            deallocate_gto_basis_set,&
+            get_gto_basis_set,&
+            init_aux_basis_set,&
+            init_cphi_and_sphi,&
+            init_orb_basis_set,&
+            read_gto_basis_set,&
+            set_gto_basis_set,&
+            write_aux_basis_set,&
+            write_gto_basis_set,&
+            write_orb_basis_set
 
   PUBLIC :: allocate_sto_basis_set,&
-       create_gto_from_sto_basis,&
-       deallocate_sto_basis_set,&
-       get_sto_basis_set,&
-       set_sto_basis_set
+            create_gto_from_sto_basis,&
+            deallocate_sto_basis_set,&
+            get_sto_basis_set,&
+            set_sto_basis_set,&
+            srules
 
   ! Public data types
-
   PUBLIC :: gto_basis_set_p_type,&
-       gto_basis_set_type,&
-       sto_basis_set_type
+            gto_basis_set_type,&
+            sto_basis_set_type
 
 CONTAINS
 
@@ -1653,5 +1652,58 @@ CONTAINS
     gto_basis_set%norm_type = -1
 
   END SUBROUTINE create_gto_from_sto_basis
+
+ ! *****************************************************************************
+  FUNCTION srules(z,ne,n,l)
+    ! Slater rules
+    INTEGER                                  :: z
+    INTEGER, DIMENSION(4, 7)                 :: ne
+    INTEGER                                  :: n, l
+    REAL(dp)                                 :: srules
+
+    REAL(dp), DIMENSION(7), PARAMETER :: &
+      xns = (/ 1.0_dp,2.0_dp,3.0_dp,3.7_dp,4.0_dp,4.2_dp,4.4_dp /)
+
+    INTEGER                                  :: i, l1, l2, m, m1, m2
+    REAL(dp)                                 :: s
+
+    s = 0.0_dp
+    ! The complete shell
+    l1=l+1
+    IF(l1 == 1) l2=2
+    IF(l1 == 2) l2=1
+    IF(l1 == 3) l2=4
+    IF(l1 == 4) l2=3
+    ! Rule a) no contribution from shells further out
+    ! Rule b) 0.35 (1s 0.3) from each other electron in the same shell
+    IF(n == 1) THEN
+       m=ne(1,1)
+       s=s+0.3_dp*REAL(m-1,dp)
+    ELSE
+       m=ne(l1,n)+ne(l2,n)
+       s=s+0.35_dp*REAL(m-1,dp)
+    END IF
+    ! Rule c) if (s,p) shell 0.85 from each electron with n-1, and 1.0
+    !      from all electrons further in
+    IF(l1+l2 == 3) THEN
+       IF(n > 1) THEN
+          m1=ne(1,n-1)+ne(2,n-1)+ne(3,n-1)+ne(4,n-1)
+          m2=0
+          DO i=1,n-2
+             m2=m2+ne(1,i)+ne(2,i)+ne(3,i)+ne(4,I)
+          END DO
+          s=s+0.85_dp*REAL(m1,dp)+1._dp*REAL(m2,dp)
+       END IF
+    ELSE
+       ! Rule d) if (d,f) shell 1.0 from each electron inside
+       m=0
+       DO i=1,n-1
+          m=m+ne(1,i)+ne(2,i)+ne(3,i)+ne(4,i)
+       END DO
+       s=s+1._dp*REAL(m,dp)
+    END IF
+    ! Slater exponent is (Z-S)/NS
+    srules = (REAL(z,dp) - s)/xns(n)
+  END FUNCTION srules
 
 END MODULE basis_set_types

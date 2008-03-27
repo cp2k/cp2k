@@ -36,11 +36,11 @@ MODULE qmmm_se_energy
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_overlap,                      ONLY: build_overlap_matrix
   USE semi_empirical_int_ana,          ONLY: rotnuc_ana
-  USE semi_empirical_types,            ONLY: semi_empirical_type
-  USE semi_empirical_utils,            ONLY: allocate_se_param,&
+  USE semi_empirical_types,            ONLY: allocate_se_param,&
                                              deallocate_se_param,&
-                                             expand,&
                                              get_se_param,&
+                                             semi_empirical_type
+  USE semi_empirical_utils,            ONLY: expand,&
                                              get_se_type,&
                                              se_param_set_default
   USE sparse_matrix_output,            ONLY: write_sparse_matrix

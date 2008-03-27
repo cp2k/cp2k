@@ -65,13 +65,13 @@ MODULE atomic_kind_types
   USE qs_harmonics_atom,               ONLY: allocate_harmonics_atom,&
                                              deallocate_harmonics_atom,&
                                              harmonics_atom_type
-  USE semi_empirical_types,            ONLY: semi_empirical_type
-  USE semi_empirical_utils,            ONLY: allocate_se_param,&
+  USE semi_empirical_types,            ONLY: allocate_se_param,&
                                              deallocate_se_param,&
                                              get_se_param,&
-                                             init_se_param,&
-                                             se_param_set_default,&
+                                             semi_empirical_type,&
                                              write_se_param
+  USE semi_empirical_utils,            ONLY: init_se_param,&
+                                             se_param_set_default
   USE shell_potential_types,           ONLY: shell_kind_type,&
                                              shell_release,&
                                              shell_retain
