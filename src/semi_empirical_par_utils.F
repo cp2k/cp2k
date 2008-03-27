@@ -140,7 +140,7 @@ MODULE semi_empirical_par_utils
                                 4, 5, 6, 7, 8, 9,10,11, 2,    3, 4, 5, 6, 7,-1,&
        -1,-1,-1, 4,-1, 6,      -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /)
 
-  PUBLIC :: calpar, valence_electrons, get_pm6_basis
+  PUBLIC :: calpar, valence_electrons, get_se_basis
 
 CONTAINS
 ! *****************************************************************************
@@ -249,6 +249,9 @@ CONTAINS
   END SUBROUTINE calpar
 
 ! *****************************************************************************
+!> \brief  Gives back the number of valence electrons for element z and also the
+!>         number of atomic orbitals for that specific element
+! *****************************************************************************
   SUBROUTINE valence_electrons ( z, zeff, natorb )
     INTEGER, INTENT(IN)                      :: z
     REAL(KIND=dp)                            :: zeff
@@ -266,35 +269,34 @@ CONTAINS
     END IF
 
   END SUBROUTINE valence_electrons 
-
+  
 ! *****************************************************************************
-  FUNCTION get_pm6_basis(z,l) RESULT(n)
+  FUNCTION get_se_basis(z,l) RESULT(n)
     INTEGER, INTENT(IN)                      :: z, l
     INTEGER                                  :: n
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_pm6_basis', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_se_basis', &
       routineP = moduleN//':'//routineN
 
-  IF ( z < 0 .OR. z > nelem ) THEN
-    CALL stop_program(routineN,moduleN,__LINE__,"invalid atomic number")
-  ELSE
-    IF ( l==0 ) THEN
-      n = nqs(z)
-    ELSEIF ( l==1 ) THEN
-      n = nqp(z)
-    ELSEIF ( l==2 ) THEN
-      n = nqd(z)
-    ELSEIF ( l==3 ) THEN
-      n = nqf(z)
+    IF ( z < 0 .OR. z > nelem ) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,"invalid atomic number")
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,"invalid l quantum number")
+       IF ( l==0 ) THEN
+          n = nqs(z)
+       ELSEIF ( l==1 ) THEN
+          n = nqp(z)
+       ELSEIF ( l==2 ) THEN
+          n = nqd(z)
+       ELSEIF ( l==3 ) THEN
+          n = nqf(z)
+       ELSE
+          CALL stop_program(routineN,moduleN,__LINE__,"invalid l quantum number")
+       END IF
+       IF ( n < 0 ) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,"invalid n quantum number")
+       END IF
     END IF
-    IF ( n < 0 ) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,"invalid n quantum number")
-    END IF
-  END IF
-
-  END FUNCTION get_pm6_basis
+  END FUNCTION get_se_basis
 
 END MODULE semi_empirical_par_utils
 

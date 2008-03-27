@@ -21,8 +21,7 @@ MODULE semi_empirical_utils
                                              do_method_pm6,&
                                              do_method_rm1
   USE kinds,                           ONLY: dp
-  USE periodic_table,                  ONLY: ptable
-  USE semi_empirical_par_utils,        ONLY: get_pm6_basis
+  USE semi_empirical_par_utils,        ONLY: get_se_basis
   USE semi_empirical_parameters,       ONLY: am1_default_parameter,&
                                              mndo_default_parameter,&
                                              pcharge_default_parameter,&
@@ -56,7 +55,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: symbol
-    INTEGER                                  :: dl, l, nl, nshell, stat
+    INTEGER                                  :: l, nshell, stat
     INTEGER, DIMENSION(:), POINTER           :: lq, nq
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
@@ -81,20 +80,8 @@ CONTAINS
        lq=0
        zet=0._dp
        DO l=0,nshell-1
-          IF(se_parameter%typ == do_method_pm6) THEN
-             ! read PM6 basis set table
-             nq(l)=get_pm6_basis(se_parameter%z,l)
-             lq(l)=l
-          ELSE
-             dl=2*l+1
-             nl=ptable(se_parameter%z)%e_conv(l)
-             IF ( nl == 0 ) THEN
-                nq(l) = l+1
-             ELSE
-                nq(l)=(nl-1+2*dl)/(2*dl) + l
-             END IF
-             lq(l)=l
-          END IF
+          nq(l)=get_se_basis(se_parameter%z,l)
+          lq(l)=l
           zet(l)=se_parameter%sto_exponents(l)
           IF(l==0) WRITE(symbol(0),'(I1,A1)') nq(l),"S"
           IF(l==1) WRITE(symbol(1),'(I1,A1)') nq(l),"P"
