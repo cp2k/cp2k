@@ -1450,13 +1450,13 @@ CONTAINS
     ENDDO
 
     IF (subpatch_collocate) THEN
-        CALL collocate_generate_subpatch()
+        CALL collocate_general_subpatch()
     ELSE
        IF (rsgrid%orthorhombic ) THEN
           CALL collocate_ortho()
        ELSE
-          ! call collocate_general_wings()
-          CALL collocate_general_opt()
+          CALL collocate_general_wings()
+          !CALL collocate_general_opt()
        END IF
     END IF
 
@@ -1758,7 +1758,7 @@ CONTAINS
 
     END SUBROUTINE collocate_general_opt
 
-    SUBROUTINE collocate_generate_subpatch
+    SUBROUTINE collocate_general_subpatch
     INTEGER, DIMENSION(2, 3)                 :: local_b
     INTEGER, DIMENSION(3)                    :: local_s, periodic
     REAL(dp), &
