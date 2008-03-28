@@ -17,7 +17,7 @@ MODULE libint_wrapper
 #if defined (__LIBINT)
 #if defined (__G95)
   USE, INTRINSIC :: ISO_C_BINDING
-#elif defined (__INTEL)
+#elif defined (__INTEL) || defined (__GFORTRAN)
   USE, INTRINSIC :: ISO_C_BINDING
 #elif defined (__NAG)
   USE, INTRINSIC :: ISO_C_BINDING
@@ -292,7 +292,7 @@ MODULE libint_wrapper
 !****************************************************************************!
 !****************************************************************************!
 
-#elif defined (__INTEL)
+#elif defined (__INTEL) || defined(__GFORTRAN)
   TYPE, BIND(C) :: prim_data
     REAL(C_DOUBLE) :: F(prim_data_f_size)
     REAL(C_DOUBLE) :: U(3,6)

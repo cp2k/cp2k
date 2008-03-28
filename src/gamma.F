@@ -36,7 +36,7 @@ MODULE gamma
 
 ! *** F_n(t) table ***
 
-  REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: ftable
+  REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE, SAVE :: ftable
 
 ! *** Public subroutines ***
 
@@ -198,7 +198,13 @@ CONTAINS
 !     *** Pretabulation of the F_n(t) function ***
 !     *** for the Taylor series expansion      ***
 
-      IF (nmax > current_nmax) CALL init_md_ftable(nmax)
+      IF (nmax > current_nmax) THEN
+        !Since this initializes a module variable, it is not thread-safe
+        !$OMP CRITICAL
+        CALL init_md_ftable(nmax)
+        !$OMP END CRITICAL
+      END IF
+
 
       itab = NINT(t/tdelta)
       ttab = REAL(itab,dp)*tdelta
@@ -326,7 +332,12 @@ CONTAINS
 !       *** Pretabulation of the F_n(t) function ***
 !       *** for the Taylor series expansion      ***
 
-        IF (nmax > current_nmax) CALL init_md_ftable(nmax)
+        IF (nmax > current_nmax) THEN
+         !Since this initializes a module variable, it is not thread-safe
+         WRITE(*,*) "Error in gamma"
+         STOP
+         !CALL init_md_ftable(nmax)
+        END IF
 
         itab = NINT(t(i)/tdelta)
         ttab = REAL(itab,dp)*tdelta

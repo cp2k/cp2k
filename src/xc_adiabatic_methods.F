@@ -75,7 +75,7 @@ MODULE xc_adiabatic_methods
 
     do_swap_hf = .FALSE.
     !! Assume the first HF section is the Coulomb one
-    IF( qs_env%x_data(1)%potential_parameter%potential_type /= do_hf_potential_coulomb ) do_swap_hf = .TRUE.
+    IF( qs_env%x_data(1,1)%potential_parameter%potential_type /= do_hf_potential_coulomb ) do_swap_hf = .TRUE.
 
     IF( do_swap_hf ) THEN
       swap_value = hf_energy(1)

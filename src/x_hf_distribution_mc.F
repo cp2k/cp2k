@@ -31,23 +31,23 @@ MODULE x_hf_distribution_mc
   PUBLIC     x_hf_optimize_distribution
 
   !! Module Variables
-  INTEGER                                    :: my_nbin
-  INTEGER                                    :: my_ncpu
-  INTEGER(int_8), ALLOCATABLE, DIMENSION(:)  :: my_bin_costs
-  INTEGER(int_8), ALLOCATABLE, DIMENSION(:)  :: my_cost_cpu
-  INTEGER(int_8)                             :: my_cost_optimal
-  INTEGER(int_8)                             :: my_cost_total
-  INTEGER, ALLOCATABLE, DIMENSION(:)         :: my_distribution
-  INTEGER, ALLOCATABLE, DIMENSION(:)         :: my_best_distribution
-  INTEGER(int_8)                             :: my_best_cost
-  TYPE(rng_stream_type), POINTER             :: my_rng_stream
-  INTEGER                                    :: my_moves
-  INTEGER                                    :: my_cycles
-  INTEGER                                    :: my_reduction_steps
-  REAL(dp)                                   :: my_reduction_factor
-  REAL(dp)                                   :: my_initial_temperature
-  REAL(dp)                                   :: my_tolerance
-  REAL(dp)                                   :: my_swap_probability
+!!  INTEGER                                    :: my_nbin
+!!  INTEGER                                    :: my_ncpu
+!!  INTEGER(int_8), ALLOCATABLE, DIMENSION(:)  :: my_bin_costs
+!!  INTEGER(int_8), ALLOCATABLE, DIMENSION(:)  :: my_cost_cpu
+!!  INTEGER(int_8)                             :: my_cost_optimal
+!!  INTEGER(int_8)                             :: my_cost_total
+!!  INTEGER, ALLOCATABLE, DIMENSION(:)         :: my_distribution
+!!  INTEGER, ALLOCATABLE, DIMENSION(:)         :: my_best_distribution
+!!  INTEGER(int_8)                             :: my_best_cost
+!!  TYPE(rng_stream_type), POINTER             :: my_rng_stream
+!!  INTEGER                                    :: my_moves
+!!  INTEGER                                    :: my_cycles
+!!  INTEGER                                    :: my_reduction_steps
+!!  REAL(dp)                                   :: my_reduction_factor
+!!  REAL(dp)                                   :: my_initial_temperature
+!!  REAL(dp)                                   :: my_tolerance
+!!  REAL(dp)                                   :: my_swap_probability
  
   CONTAINS
 
@@ -63,11 +63,29 @@ MODULE x_hf_distribution_mc
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE init(para_env, nbin_in, ncpu_in, bin_costs_in, load_balance_parameter, error)
+  SUBROUTINE init(para_env, nbin_in, ncpu_in, bin_costs_in, load_balance_parameter,my_nbin, my_ncpu, &
+                  my_bin_costs, my_cost_cpu, my_cost_optimal, my_cost_total, my_distribution, my_best_distribution, &
+                  my_best_cost, my_rng_stream, my_moves, my_cycles, my_reduction_steps, my_reduction_factor,&
+                  my_initial_temperature, my_tolerance, my_swap_probability, my_process_id, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER(int_8)                           :: nbin_in, ncpu_in
     INTEGER(int_8), DIMENSION(:), POINTER    :: bin_costs_in
     TYPE(x_hf_load_balance_type)             :: load_balance_parameter
+    INTEGER                                  :: my_nbin, my_ncpu
+    INTEGER(int_8), ALLOCATABLE, &
+      DIMENSION(:)                           :: my_bin_costs, my_cost_cpu
+    INTEGER(int_8)                           :: my_cost_optimal, my_cost_total
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: my_distribution, &
+                                                my_best_distribution
+    INTEGER(int_8)                           :: my_best_cost
+    TYPE(rng_stream_type), POINTER           :: my_rng_stream
+    INTEGER                                  :: my_moves, my_cycles, &
+                                                my_reduction_steps
+    REAL(dp)                                 :: my_reduction_factor, &
+                                                my_initial_temperature, &
+                                                my_tolerance, &
+                                                my_swap_probability
+    INTEGER                                  :: my_process_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: i
@@ -96,7 +114,7 @@ MODULE x_hf_distribution_mc
     ! so the optimization problem is parallellized (Ncpu independent searches)
     NULLIFY(my_rng_stream)
     CALL create_rng_stream(my_rng_stream,"distribute_1d_monte_carlo",distribution_type=UNIFORM,error=error)
-    DO i=1,para_env%mepos
+    DO i=1,my_process_id
        CALL reset_to_next_rng_substream(my_rng_stream,error=error)
     ENDDO
 
@@ -110,15 +128,33 @@ MODULE x_hf_distribution_mc
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE destructor(error)
+  SUBROUTINE destructor(my_nbin, my_ncpu, my_bin_costs, my_cost_cpu, my_cost_optimal, &
+                        my_cost_total, my_distribution, my_best_distribution, my_best_cost, &
+                        my_rng_stream, my_moves, my_cycles, my_reduction_steps, &
+                        my_reduction_factor, my_initial_temperature, my_tolerance, &
+                        my_swap_probability, error)
+    INTEGER                                  :: my_nbin, my_ncpu
+    INTEGER(int_8), ALLOCATABLE, &
+      DIMENSION(:)                           :: my_bin_costs, my_cost_cpu
+    INTEGER(int_8)                           :: my_cost_optimal, my_cost_total
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: my_distribution, &
+                                                my_best_distribution
+    INTEGER(int_8)                           :: my_best_cost
+    TYPE(rng_stream_type), POINTER           :: my_rng_stream
+    INTEGER                                  :: my_moves, my_cycles, &
+                                                my_reduction_steps
+    REAL(dp)                                 :: my_reduction_factor, &
+                                                my_initial_temperature, &
+                                                my_tolerance, &
+                                                my_swap_probability
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-     DEALLOCATE(my_cost_cpu)
-     DEALLOCATE(my_bin_costs)
-     DEALLOCATE(my_distribution)
-     DEALLOCATE(my_best_distribution)
+    DEALLOCATE(my_cost_cpu)
+    DEALLOCATE(my_bin_costs)
+    DEALLOCATE(my_distribution)
+    DEALLOCATE(my_best_distribution)
 
-     CALL delete_rng_stream(my_rng_stream,error=error)
+    CALL delete_rng_stream(my_rng_stream,error=error)
   END SUBROUTINE destructor
 
 ! *****************************************************************************
@@ -128,8 +164,9 @@ MODULE x_hf_distribution_mc
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE compute_cost_cpu(distribution)
-    INTEGER                                  :: distribution(my_nbin)
+  SUBROUTINE compute_cost_cpu(distribution, my_nbin, my_cost_cpu, my_bin_costs)
+    INTEGER                                  :: my_nbin, distribution(my_nbin)
+    INTEGER(int_8), DIMENSION(:)             :: my_cost_cpu, my_bin_costs
 
     INTEGER                                  :: i
 
@@ -146,8 +183,10 @@ MODULE x_hf_distribution_mc
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE compute_max_cost(max_cost)
+  SUBROUTINE compute_max_cost(max_cost, my_ncpu, my_cost_cpu)
     INTEGER(int_8)                           :: max_cost
+    INTEGER                                  :: my_ncpu
+    INTEGER(int_8), DIMENSION(:)             :: my_cost_cpu
 
     INTEGER                                  :: i
 
@@ -174,11 +213,31 @@ MODULE x_hf_distribution_mc
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE distribute_monte_carlo(error)
+  SUBROUTINE distribute_monte_carlo(my_nbin, my_ncpu, my_bin_costs, my_cost_cpu, my_cost_optimal, &
+                                    my_cost_total, my_distribution, my_best_distribution, my_best_cost, &
+                                    my_rng_stream, my_moves, my_cycles, my_reduction_steps, &
+                                    my_reduction_factor, my_initial_temperature, my_tolerance, &
+                                    my_swap_probability, i_thread, error)
+    INTEGER                                  :: my_nbin, my_ncpu
+    INTEGER(int_8), ALLOCATABLE, &
+      DIMENSION(:)                           :: my_bin_costs, my_cost_cpu
+    INTEGER(int_8)                           :: my_cost_optimal, my_cost_total
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: my_distribution, &
+                                                my_best_distribution
+    INTEGER(int_8)                           :: my_best_cost
+    TYPE(rng_stream_type), POINTER           :: my_rng_stream
+    INTEGER                                  :: my_moves, my_cycles, &
+                                                my_reduction_steps
+    REAL(dp)                                 :: my_reduction_factor, &
+                                                my_initial_temperature, &
+                                                my_tolerance, &
+                                                my_swap_probability
+    INTEGER                                  :: i_thread
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER :: best_iac, i, iac, iswap, itmp, itries, jswap, &
-      my_distribution(my_nbin), old_distribution(my_nbin)
+    INTEGER                                  :: best_iac, i, iac, iswap, &
+                                                itmp, itries, jswap, &
+                                                old_distribution(my_nbin)
     INTEGER(int_8)                           :: best_max_cost, max_cost, &
                                                 max_cost_old
     REAL(dp)                                 :: random_accept, random_move, &
@@ -189,8 +248,8 @@ MODULE x_hf_distribution_mc
     DO i=1,my_nbin
       my_distribution(i)=MOD(i-1,my_ncpu)+1
     ENDDO
-    CALL compute_cost_cpu(my_distribution)
-    CALL compute_max_cost(max_cost)
+    CALL compute_cost_cpu(my_distribution, my_nbin, my_cost_cpu, my_bin_costs)
+    CALL compute_max_cost(max_cost, my_ncpu, my_cost_cpu)
     best_max_cost = max_cost
     my_best_distribution = my_distribution
     max_cost_old = max_cost
@@ -233,8 +292,8 @@ MODULE x_hf_distribution_mc
       ! evaluate its cost
       iac = iac + 1
        
-      CALL compute_cost_cpu(my_distribution) 
-      CALL compute_max_cost(max_cost)
+      CALL compute_cost_cpu(my_distribution, my_nbin, my_cost_cpu, my_bin_costs) 
+      CALL compute_max_cost(max_cost, my_ncpu, my_cost_cpu)
 
       ! accept / reject
       random_accept = next_random_number(my_rng_stream,error=error)
@@ -243,7 +302,7 @@ MODULE x_hf_distribution_mc
         old_distribution = my_distribution
       ELSE
         ! restore the old position
-        CALL compute_cost_cpu(old_distribution) 
+        CALL compute_cost_cpu(old_distribution, my_nbin, my_cost_cpu, my_bin_costs) 
       ENDIF
 
       ! if this one happens to be the best so far, store this
@@ -256,9 +315,8 @@ MODULE x_hf_distribution_mc
     ENDDO
     CALL CPU_TIME(t_final)
 
-    CALL compute_cost_cpu(my_best_distribution)
+    CALL compute_cost_cpu(my_best_distribution, my_nbin, my_cost_cpu, my_bin_costs)
     my_best_cost = best_max_cost
-
   END SUBROUTINE distribute_monte_carlo
 
 ! *****************************************************************************
@@ -278,22 +336,47 @@ MODULE x_hf_distribution_mc
 !> \author Manuel Guidon
 ! *****************************************************************************
   SUBROUTINE x_hf_optimize_distribution(para_env, nbin_in, ncpu_in, bin_costs_in, distribution_vector, &
-                                        load_balance_parameter, optimal_cost, error)
+                                        load_balance_parameter, optimal_cost, my_process_id, i_thread, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER(int_8)                           :: nbin_in, ncpu_in
     INTEGER(int_8), DIMENSION(:), POINTER    :: bin_costs_in
     INTEGER, DIMENSION(:), POINTER           :: distribution_vector
     TYPE(x_hf_load_balance_type)             :: load_balance_parameter
     INTEGER(int_8), INTENT(INOUT)            :: optimal_cost
+    INTEGER                                  :: my_process_id, i_thread
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CALL init(para_env, nbin_in, ncpu_in, bin_costs_in, load_balance_parameter, error)
-    CALL distribute_monte_carlo(error)
+    INTEGER                                  :: my_cycles, my_moves, my_nbin, &
+                                                my_ncpu, my_reduction_steps
+    INTEGER(int_8)                           :: my_best_cost, &
+                                                my_cost_optimal, my_cost_total
+    INTEGER(int_8), ALLOCATABLE, &
+      DIMENSION(:)                           :: my_bin_costs, my_cost_cpu
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: my_best_distribution, &
+                                                my_distribution
+    REAL(dp)                                 :: my_initial_temperature, &
+                                                my_reduction_factor, &
+                                                my_swap_probability, &
+                                                my_tolerance
+    TYPE(rng_stream_type), POINTER           :: my_rng_stream
+
+    CALL init(para_env, nbin_in, ncpu_in, bin_costs_in, load_balance_parameter, &
+              my_nbin, my_ncpu, my_bin_costs, my_cost_cpu, my_cost_optimal, &
+              my_cost_total, my_distribution, my_best_distribution, my_best_cost, my_rng_stream, &
+              my_moves, my_cycles, my_reduction_steps, my_reduction_factor, my_initial_temperature, &
+              my_tolerance, my_swap_probability, my_process_id, error)
+    CALL distribute_monte_carlo(my_nbin, my_ncpu, my_bin_costs, my_cost_cpu, my_cost_optimal, &
+                                my_cost_total, my_distribution, my_best_distribution, &
+                                my_best_cost, my_rng_stream, my_moves, my_cycles, &
+                                my_reduction_steps, my_reduction_factor, my_initial_temperature, &
+                                my_tolerance, my_swap_probability, i_thread, error)
     optimal_cost = my_best_cost
     distribution_vector = my_best_distribution
-    
-    CALL destructor(error)
-
+    CALL destructor(my_nbin, my_ncpu, my_bin_costs, my_cost_cpu, my_cost_optimal, &
+                    my_cost_total, my_distribution, my_best_distribution, &
+                    my_best_cost, my_rng_stream, my_moves, my_cycles, &
+                    my_reduction_steps, my_reduction_factor, my_initial_temperature, &
+                    my_tolerance, my_swap_probability, error)
   END SUBROUTINE x_hf_optimize_distribution
 
 END MODULE x_hf_distribution_mc
