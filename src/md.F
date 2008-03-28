@@ -614,7 +614,11 @@ CPSourceFileRef,&
     INTEGER                                  :: i
     REAL(KIND=dp)                            :: factor
 
-    factor = simpar%temp_ext / ( 2.0_dp * ekin ) * REAL(simpar%nfree,KIND=dp)
+    IF (simpar%nfree/=0) THEN
+       factor = simpar%temp_ext / ( 2.0_dp * ekin ) * REAL(simpar%nfree,KIND=dp)
+    ELSE
+       factor = 0.0_dp
+    ENDIF
     ! Note:
     ! this rescaling is still wrong, it should take the masses into account
     ! rescaling is generally not correct, so needs fixing
