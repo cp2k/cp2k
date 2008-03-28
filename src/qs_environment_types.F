@@ -479,7 +479,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: outer_scf_history
     INTEGER, INTENT(out), OPTIONAL           :: outer_scf_ihistory
     TYPE(ep_qs_type), OPTIONAL, POINTER      :: ep_qs_env
-    TYPE(x_hf_type), DIMENSION(:,:), &
+    TYPE(x_hf_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: x_data
     TYPE(et_coupling_type), OPTIONAL, &
       POINTER                                :: et_coupling
@@ -824,7 +824,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: outer_scf_history
     INTEGER, INTENT(IN), OPTIONAL            :: outer_scf_ihistory
     TYPE(ep_qs_type), OPTIONAL, POINTER      :: ep_qs_env
-    TYPE(x_hf_type), DIMENSION(:,:), &
+    TYPE(x_hf_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: x_data
     TYPE(et_coupling_type), OPTIONAL, &
       POINTER                                :: et_coupling

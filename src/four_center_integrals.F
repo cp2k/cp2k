@@ -5847,8 +5847,8 @@ MODULE four_center_integrals
       routineN = 'scale_and_add_fock_to_ks_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, i_thread, iatom, ikind, &
-                                                istat, j, natom, nspins, &
+    INTEGER                                  :: i, iatom, ikind, istat, j, &
+                                                natom, nspins, &
                                                 number_of_p_entries, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of, last_sgf_global
     INTEGER, DIMENSION(:, :), POINTER        :: is_assoc_atomic_block
@@ -5862,8 +5862,8 @@ MODULE four_center_integrals
       POINTER                                :: basis_parameter
     TYPE(x_hf_type), POINTER                 :: actual_x_data
 
+!! All shared data is saved in i_thread = 1!
 
-    !! All shared data is saved in i_thread = 1!
     actual_x_data => qs_env%x_data(irep, 1)
     number_of_p_entries = actual_x_data%number_of_p_entries
     is_assoc_atomic_block => actual_x_data%is_assoc_atomic_block
