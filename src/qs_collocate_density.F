@@ -1455,8 +1455,8 @@ CONTAINS
        IF (rsgrid%orthorhombic ) THEN
           CALL collocate_ortho()
        ELSE
-          !CALL collocate_general_wings()
-          CALL collocate_general_opt()
+          CALL collocate_general_wings()
+          !CALL collocate_general_opt()
        END IF
     END IF
 
@@ -1785,7 +1785,8 @@ CONTAINS
 
         periodic=1 ! cell%perd
         CALL poly_cp2k2d3(coef_xyz,lp,poly_d3,error)
-        local_b(1,:)=rsgrid%lb_real-rsgrid%lb
+        local_b(1,:)=rsgrid%lb_local-rsgrid%lb
+        local_b(2,:)=rsgrid%ub_local-rsgrid%lb
         CALL collocGauss(h=cell%hmat,h_inv=cell%h_inv,&
             grid=grid,poly=poly_d3,alphai=zetp,posi=rp,max_r2=radius*radius,&
             periodic=periodic,gdim=ng,local_bounds=local_b,&
