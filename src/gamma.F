@@ -334,9 +334,9 @@ CONTAINS
 
         IF (nmax > current_nmax) THEN
          !Since this initializes a module variable, it is not thread-safe
-         WRITE(*,*) "Error in gamma"
-         STOP
-         !CALL init_md_ftable(nmax)
+         !$OMP CRITICAL
+         CALL init_md_ftable(nmax)
+         !$OMP END CRITICAL
         END IF
 
         itab = NINT(t(i)/tdelta)
