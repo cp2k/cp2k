@@ -12,6 +12,7 @@
 MODULE util
 
   USE kinds,                           ONLY: dp,&
+                                             int_4,&
                                              int_8
 
   IMPLICIT NONE
@@ -25,7 +26,7 @@ MODULE util
        sort_unique
 
   INTERFACE sort
-     MODULE PROCEDURE sort2, sort2i, sort2i_int_8
+     MODULE PROCEDURE sort2, sort2i_int_4, sort2i_int_8
   END INTERFACE
 
   INTERFACE sort_unique
@@ -155,20 +156,21 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Sorts an array of integers
 ! *****************************************************************************
-  SUBROUTINE sort2i ( arr, n, index )
+  SUBROUTINE sort2i_int_4 ( arr, n, index )
     INTEGER, INTENT(IN)                      :: n
-    INTEGER, INTENT(INOUT)                   :: arr(1:n)
+    INTEGER(kind=int_4), INTENT(INOUT)                   :: arr(1:n)
     INTEGER, INTENT(OUT)                     :: INDEX(1:n)
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'sort2i', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'sort2i_int_4', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: m = 7, nstack = 50
 
-    INTEGER                                  :: a, i, ib, ir, &
+    INTEGER(kind=int_4) :: a, temp
+    INTEGER                                  :: i, ib, ir, &
                                                 istack(1:nstack), itemp, j, &
-                                                jstack, k, l, temp
+                                                jstack, k, l
 #include "sort.f90"
-  END SUBROUTINE sort2i
+  END SUBROUTINE sort2i_int_4
 
 ! *****************************************************************************
 !> \brief Sorts an array of int_8 integers

@@ -23,7 +23,7 @@ MODULE kinds
   IMPLICIT NONE
   
   PRIVATE
-  PUBLIC :: sp, dp, print_kind_info, dp_size, sp_size, int_size, int_8
+  PUBLIC :: sp, dp, print_kind_info, dp_size, sp_size, int_size, int_8, int_4
   PUBLIC :: default_string_length, default_path_length
 
 #if __SGL 
@@ -46,7 +46,7 @@ MODULE kinds
   ! on standard machines it ought to be an 8byte int but this is not guaranteed
   ! this should also be different from the default integer size (which we require to be 4 bytes)
   INTEGER, PARAMETER :: int_8 = SELECTED_INT_KIND(10)
-
+  INTEGER, PARAMETER :: int_4 = SELECTED_INT_KIND(5)
   INTEGER, PARAMETER :: default_string_length=80
   INTEGER, PARAMETER :: default_path_length=250
   CHARACTER(LEN=1),PARAMETER, PUBLIC :: default_blank_character(2) = (/" ",CHAR(9)/)
