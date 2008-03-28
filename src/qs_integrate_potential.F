@@ -1256,8 +1256,8 @@ CONTAINS
         IF (rsgrid%orthorhombic ) THEN
           CALL integrate_ortho()
         ELSE
-          CALL integrate_general_wings()
-          !CALL integrate_general_opt()
+          !CALL integrate_general_wings()
+          CALL integrate_general_opt()
         END IF
     END IF
 
