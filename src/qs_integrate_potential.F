@@ -1787,7 +1787,7 @@ CONTAINS
         periodic=1 ! cell%perd
         lp=la_max_local+lb_max_local
         local_b(1,:)=rsgrid%lb_local-rsgrid%lb
-        local_b(2,:)=rsgrid%ub_local-rsgrid%lb
+        local_b(2,:)=MIN(local_b(1,:)+rsgrid%npts-1,rsgrid%ub_local-rsgrid%lb)
         CALL integrateGaussFull(h=cell%hmat,h_inv=cell%h_inv,&
             grid=grid,poly=poly_d3,alphai=zetp,posi=rp,max_r2=radius*radius,&
             periodic=periodic,gdim=ng,local_bounds=local_b,&
