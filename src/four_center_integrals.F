@@ -1984,6 +1984,7 @@ MODULE four_center_integrals
                                                 shm_storage_counter_integrals, shm_neris_incore
 
 
+    CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, error=error)
     !! One atom systems have no contribution to forces
     IF( SIZE(particle_set,1) == 1) THEN
       RETURN
