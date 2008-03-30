@@ -452,6 +452,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: ra(3), rab(3), rab2, eps
     INTEGER                                  :: lb_cube(3), ub_cube(3)
 
+    INTEGER                                  :: extent(3)
     INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
     REAL(KIND=dp)                            :: cutoff, f, prefactor, radius, &
                                                 rap(3), rb(3), rbp(3), rp(3), &
@@ -474,11 +475,17 @@ CONTAINS
     ELSE
        ! untested so far
        CALL return_cube_nonortho(cube_info,radius,lb_cube,ub_cube,rp)
+       extent(:)  = ub_cube(:) - lb_cube(:) 
+       lb_cube(:) = -extent(:) / 2 - 1
+       ub_cube(:) = extent(:) / 2
     ENDIF
 
     ! are the bounds relative to (0,0,0)??
+    ! the answer is yes for ortho, but no for nonortho!!
     ub_cube(:) = ub_cube(:)
     lb_cube(:) = lb_cube(:)
+
+    !write(6,*)"cube bounds", lb_cube(:), ub_cube(:)
 
     END SUBROUTINE get_task_bounds
 

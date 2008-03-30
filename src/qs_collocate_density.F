@@ -1455,8 +1455,8 @@ CONTAINS
        IF (rsgrid%orthorhombic ) THEN
           CALL collocate_ortho()
        ELSE
-          !CALL collocate_general_wings()
-          CALL collocate_general_opt()
+          CALL collocate_general_wings()
+          !CALL collocate_general_opt()
        END IF
     END IF
 

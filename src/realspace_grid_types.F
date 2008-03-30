@@ -1577,13 +1577,13 @@ SUBROUTINE rs_find_node(rs,point,dest,ntasks,tasks,lb_cube,ub_cube,added_tasks)
      IF ( ALL (point.GE.lb(i,:)) .AND. ALL (point.LE.ub(i,:) ) ) THEN
         IF(.NOT. PRESENT(tasks))THEN
            CALL stop_program("rs_find_node","no tasks sent to routine")
-        ELSE IF ( .NOT. rs%orthorhombic ) THEN
-           !standard distributed collocation/integration
-           tasks(4,ntasks)=1
-           tasks(1,ntasks)=i
-           added_tasks = 1
-           dest=i
-           EXIT
+        !ELSE IF ( .NOT. rs%orthorhombic ) THEN
+        !   !standard distributed collocation/integration
+        !   tasks(4,ntasks)=1
+        !   tasks(1,ntasks)=i
+        !   added_tasks = 1
+        !   dest=i
+        !   EXIT
         ELSE IF ( ALL ( (lb(i,:)-rs%border) .LE. point(:)+lb_cube(:) ) .AND. &
              ALL ( (ub(i,:)+rs%border) .GE. point(:)+ub_cube(:) ) ) THEN
            !standard distributed collocation/integration
@@ -1600,13 +1600,14 @@ SUBROUTINE rs_find_node(rs,point,dest,ntasks,tasks,lb_cube,ub_cube,added_tasks)
            dest=i
            added_tasks = 1
         ENDIF
-       
+            !write(6,*)"found general lbs ubs cube",lb(i,3)-rs%border,point(3)+lb_cube(3),ub(i,3)+rs%border,point(3)+ub_cube(3),&
+            !     lb_cube(3),ub_cube(3)
+
      ENDIF
 
   ENDDO
 
-  IF (PRESENT(tasks)) THEN
-
+  IF (tasks(4,ntasks) .EQ. 2 ) THEN
      !how elegant
      IF(ub_cube(1)+point(1).GT.rs%ub(1)) THEN
         ub_cube(1)=ub_cube(1)-rs%npts(1)
@@ -1627,33 +1628,29 @@ SUBROUTINE rs_find_node(rs,point,dest,ntasks,tasks,lb_cube,ub_cube,added_tasks)
         lb_cube(3)=lb_cube(3)+rs%npts(3)
      ENDIF
 
-     IF(tasks(4,ntasks) .EQ. 2 ) THEN
-        ! find all procs that should collocate this poinst
-        DO i = 0, rs % group_size - 1
-           ! check there is some density to be mapped on this proc
-           IF ((lb(i,1) .GT. ub_cube(1)+point(1)) .AND. &
-                (ub(i,1) .LT. lb_cube(1)+point(1))) CYCLE 
-           IF ((lb(i,2) .GT. ub_cube(2)+point(2)) .AND. &
-                (ub(i,2) .LT. lb_cube(2)+point(2))) CYCLE 
-           IF ((lb(i,3) .GT. ub_cube(3)+point(3)) .AND. &
-                (ub(i,3) .LT. lb_cube(3)+point(3))) CYCLE 
+     ! find all procs that should collocate this poinst
+     DO i = 0, rs % group_size - 1
+        ! check there is some density to be mapped on this proc
+        IF ((lb(i,1) .GT. ub_cube(1)+point(1)) .AND. &
+             (ub(i,1) .LT. lb_cube(1)+point(1))) CYCLE 
+        IF ((lb(i,2) .GT. ub_cube(2)+point(2)) .AND. &
+             (ub(i,2) .LT. lb_cube(2)+point(2))) CYCLE 
+        IF ((lb(i,3) .GT. ub_cube(3)+point(3)) .AND. &
+             (ub(i,3) .LT. lb_cube(3)+point(3))) CYCLE 
 
-           ! avoid double counting
-           IF ( i .EQ. dest) CYCLE
+        ! avoid double counting
+        IF ( i .EQ. dest) CYCLE
 
-           ntasks=ntasks+1
-           added_tasks=added_tasks+1
-           IF ( ntasks > SIZE(tasks,2)) THEN
-              curr_tasks = (SIZE(tasks,2)+1000)*2
-              CALL reallocate(tasks,1,5,1,curr_tasks)
-           END IF
-           tasks(1,ntasks)=i
-           tasks(4,ntasks)=2
-        ENDDO
-     ENDIF
+        ntasks=ntasks+1
+        added_tasks=added_tasks+1
+        IF ( ntasks > SIZE(tasks,2)) THEN
+           curr_tasks = (SIZE(tasks,2)+1000)*2
+           CALL reallocate(tasks,1,5,1,curr_tasks)
+        END IF
+        tasks(1,ntasks)=i
+        tasks(4,ntasks)=2
+     ENDDO
   ENDIF
-
-  !CPPostconditionNoFail(dest.GE.0 .AND. dest.LE.rs % group_size,cp_warning_level,routineP,error)
 
   DEALLOCATE(pos, stat=istat)
   IF (istat.NE.0) CALL stop_program("rs_find_node","pos")
