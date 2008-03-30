@@ -18,3 +18,7 @@ graphite2.inp
 graphite.inp
 graphite2.inp
 graphite3.inp
+# changing non ortho routines
+graphite.inp
+graphite2.inp
+graphite3.inp
