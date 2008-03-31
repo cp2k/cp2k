@@ -140,12 +140,12 @@ CONTAINS
       proc_receiving, stat, task_dim, total_tasks
     INTEGER(kind=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: recv_buf_i, send_buf_i, &
-                                                tasks_required
+                                                tasks_required, taskid
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_recv
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, recv_disps, &
                                                 recv_sizes, send_disps, &
-                                                send_sizes, taskid
+                                                send_sizes 
     LOGICAL                                  :: my_symmetric, send
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf_r, send_buf_r
 
