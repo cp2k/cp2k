@@ -14,8 +14,11 @@
 MODULE semi_empirical_par_utils
   USE f77_blas
   USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: fac
+  USE mathlib,                         ONLY: binomial
   USE periodic_table,                  ONLY: nelem
-  USE physcon,                         ONLY: evolt
+  USE physcon,                         ONLY: bohr,&
+                                             evolt
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
@@ -30,119 +33,217 @@ MODULE semi_empirical_par_utils
 
 !                STANDARD MOPAC PARAMETERS USED FOR AM1, RM1, MNDO, PM3, PM6
 !
-!              H                                                               He
-!              Li Be                                            B  C  N  O  F  Ne
-!              Na Mg                                            Al Si P  S  Cl Ar
-!              K  Ca Sc            Ti V  Cr Mn Fe Co Ni Cu Zn   Ga Ge As Se Br Kr
-!              Rb Sr Y             Zr Nb Mo Tc Ru Rh Pd Ag Cd   In Sn Sb Te I  Xe
-!              Cs Ba La Ce-Lu      Hf Ta W  Re Os Ir Pt Au Hg   Tl Pb Bi Po At Rn
-!              Fr Ra Ac Th Pa U    Np Pu Am Cm Bk Cf            Cb ++ +  -- -  Tv
+!      H                                                                      He
+!      Li Be                                                 B  C  N  O  F    Ne
+!      Na Mg                                                 Al Si P  S  Cl   Ar
+!      K  Ca Sc                Ti V  Cr Mn Fe Co Ni Cu Zn    Ga Ge As Se Br   Kr
+!      Rb Sr Y                 Zr Nb Mo Tc Ru Rh Pd Ag Cd    In Sn Sb Te I    Xe
+!      Cs Ba La Ce-Lu          Hf Ta W  Re Os Ir Pt Au Hg    Tl Pb Bi Po At   Rn
+!      Fr Ra Ac Th Pa U        Np Pu Am Cm Bk Cf Es Fm Md    No Lr Rf Ha 106
+
 !                                      "s" shell
-  INTEGER, DIMENSION(107), PRIVATE :: Nos =(/&
-       1,                                                                2, &!    2
-       1, 2,                                              2, 2, 2, 2, 2, 0, &!   10
-       1, 2,                                              2, 2, 2, 2, 2, 0, &!   18
-       1, 2, 2,              2, 2, 1, 2, 2, 2, 2, 1, 2,   2, 2, 2, 2, 2, 0, &!   36
-       1, 2, 2,              2, 1, 1, 2, 1, 1, 0, 1, 2,   2, 2, 2, 2, 2, 0, &!   54
-       1, 2, 2, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2,                   &
-                             2, 2, 1, 2, 2, 2, 1, 1, 2,   2, 2, 2, 2, 2, 0, &!   86
-       1, 1, 2, 4, 2, 2,     2, 2, 2, 2, 2, 2, 0, 3,-3,   1, 2, 1,-2,-1, 0 /)
+  INTEGER, DIMENSION(0:nelem), PRIVATE :: Nos =(/                           -1,&!    0
+        1,                                                                   2,&!    2
+        1, 2,                                                 2, 2, 2, 2, 2, 0,&!   10
+        1, 2,                                                 2, 2, 2, 2, 2, 0,&!   18
+        1, 2, 2,                2, 2, 1, 2, 2, 2, 2, 1, 2,    2, 2, 2, 2, 2, 0,&!   36
+        1, 2, 2,                2, 1, 1, 2, 1, 1, 0, 1, 2,    2, 2, 2, 2, 2, 0,&!   54
+        1, 2, 2, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2,                     &
+                                2, 2, 1, 2, 2, 2, 1, 1, 2,    2, 2, 2, 2, 2, 0,&!   86
+        1, 1, 2, 4, 2, 2,       2, 2, 2, 2, 2, 2, 0, 3,-3,    1, 2, 1,-2,-1 /)
 
 !                                      "p" shell
-  INTEGER, DIMENSION(107), PRIVATE :: Nop =(/&
-          0 ,                                                           0, &!    2
-          0, 0,                                          1, 2, 3, 4, 5, 6, &!   10
-          0, 0,                                          1, 2, 3, 4, 5, 6, &!   18
-          0, 0, 0,          0, 0, 0, 0, 0, 0, 0, 0, 0,   1, 2, 3, 4, 5, 6, &!   36
-          0, 0, 0,          0, 0, 0, 0, 0, 0, 0, 0, 0,   1, 2, 3, 4, 5, 6, &!   54
-          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,               &
-                            0, 0, 0, 0, 0, 0, 0, 0, 0,   1, 2, 3, 4, 5, 6, &!   86
-          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 /)
+  INTEGER, DIMENSION(0:nelem), PRIVATE :: Nop =(/                           -1,&!    0
+        0,                                                                   0,&!    2
+        0, 0,                                                 1, 2, 3, 4, 5, 6,&!   10
+        0, 0,                                                 1, 2, 3, 4, 5, 6,&!   18
+        0, 0, 0,                0, 0, 0, 0, 0, 0, 0, 0, 0,    1, 2, 3, 4, 5, 6,&!   36
+        0, 0, 0,                0, 0, 0, 0, 0, 0, 0, 0, 0,    1, 2, 3, 4, 5, 6,&!   54
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                     &
+                                0, 0, 0, 0, 0, 0, 0, 0, 0,    1, 2, 3, 4, 5, 6,&!   86
+        0, 0, 0, 0, 0, 0,       0, 0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0 /)
 
 !                                      "d" shell
-  INTEGER, DIMENSION(107), PRIVATE :: Nod =(/&
-          0,                                                           0, &!    2
-          0, 0,                                         0, 0, 0, 0, 0, 0, &!   10
-          0, 0,                                         0, 0, 0, 0, 0, 0, &!   18
-          0, 0, 1,          2, 3, 5, 5, 6, 7, 8, 10, 0, 0, 0, 0, 0, 0, 0, &!   36
-          0, 0, 1,          2, 4, 5, 5, 7, 8,10, 10, 0, 0, 0, 0, 0, 0, 0, &!   54
-          0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 1,             &
-                            2, 3, 5, 5, 6, 7, 9, 10, 0, 0, 0, 0, 0, 0, 0, &!   86
-          0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0 /)
+  INTEGER, DIMENSION(0:nelem), PRIVATE :: Nod =(/                           -1,&!    0
+        0,                                                                   0,&!    2
+        0, 0,                                                 0, 0, 0, 0, 0, 0,&!   10
+        0, 0,                                                 0, 0, 0, 0, 0, 0,&!   18
+        0, 0, 1,                2, 3, 5, 5, 6, 7, 8,10, 0,    0, 0, 0, 0, 0, 0,&!   36
+        0, 0, 1,                2, 4, 5, 5, 7, 8,10,10, 0,    0, 0, 0, 0, 0, 0,&!   54
+        0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,                     &
+                                2, 3, 5, 5, 6, 7, 9,10, 0,    0, 0, 0, 0, 0, 0,&!   86
+        0, 0, 1, 0, 0, 0,       0, 0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0 /)
 
-!          H          <Quantum Numbers for s, p, d and f orbitals>           He
-!          Li Be                                            B  C  N  O  F    Ne
-!          Na Mg                                            Al Si P  S  Cl   Ar
-!          K  Ca Sc            Ti V  Cr Mn Fe Co Ni Cu Zn   Ga Ge As Se Br   Kr
-!          Rb Sr Y             Zr Nb Mo Tc Ru Rh Pd Ag Cd   In Sn Sb Te I    Xe
-!          Cs Ba La Ce-Lu      Hf Ta W  Re Os Ir Pt Au Hg   Tl Pb Bi Po At   Rn
-!          Fr Ra Ac Th Pa U    Np Pu Am Cm Bk Cf Es Fm Md   No Lr Rf Ha 106
+!      H          <Quantum Numbers for s, p, d and f orbitals>                He
+!      Li Be                                                 B  C  N  O  F    Ne
+!      Na Mg                                                 Al Si P  S  Cl   Ar
+!      K  Ca Sc                Ti V  Cr Mn Fe Co Ni Cu Zn    Ga Ge As Se Br   Kr
+!      Rb Sr Y                 Zr Nb Mo Tc Ru Rh Pd Ag Cd    In Sn Sb Te I    Xe
+!      Cs Ba La Ce-Lu          Hf Ta W  Re Os Ir Pt Au Hg    Tl Pb Bi Po At   Rn
+!      Fr Ra Ac Th Pa U        Np Pu Am Cm Bk Cf Es Fm Md    No Lr Rf Ha 106
 
-  INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE ::   nqs = (/             -1,&
-        1,                                                                   1,&
-        2, 2,                                                 2, 2, 2, 2, 2, 3,&
-        3, 3,                                                 3, 3, 3, 3, 3, 4,&
-        4, 4, 4,                4, 4, 4, 4, 4, 4, 4, 4, 4,    4, 4, 4, 4, 4, 5,&
-        5, 5, 5,                5, 5, 5, 5, 5, 5, 5, 5, 5,    5, 5, 5, 5, 5, 6,&
-        6, 6, 6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 6,                     &
-                                6, 6, 6, 6, 6, 6, 6, 6, 6,    6, 6, 6,-1,-1,-1,&
-       -1,-1,-1,-1,-1,-1,     -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /)
+  INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE ::   nqs = (/             -1,&!    0
+        1,                                                                   1,&!    2
+        2, 2,                                                 2, 2, 2, 2, 2, 2,&!   10
+        3, 3,                                                 3, 3, 3, 3, 3, 3,&!   18
+        4, 4, 4,                4, 4, 4, 4, 4, 4, 4, 4, 4,    4, 4, 4, 4, 4, 4,&!   36
+        5, 5, 5,                5, 5, 5, 5, 5, 5, 5, 5, 5,    5, 5, 5, 5, 5, 5,&!   54
+        6, 6, 6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 6,                     &      
+                                6, 6, 6, 6, 6, 6, 6, 6, 6,    6, 6, 6,-1,-1,-1,&!   86
+       -1,-1,-1,-1,-1,-1,      -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /)
 
-  INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE ::   nqp = (/             -1,&
-       -1,                                                                   2,&
-        2, 2,                                                 2, 2, 2, 2, 2, 2,&
-        3, 3,                                                 3, 3, 3, 3, 3, 3,&
-        4, 4, 4,                4, 4, 4, 4, 4, 4, 4, 4, 4,    4, 4, 4, 4, 4, 4,&
-        5, 5, 5,                5, 5, 5, 5, 5, 5, 5, 5, 5,    5, 5, 5, 5, 5, 5,&
-        6, 6, 6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 6,                     &
-                                6, 6, 6, 6, 6, 6, 6, 6, 6,    6, 6, 6,-1,-1,-1,&
+  INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE ::   nqp = (/             -1,&!    0
+       -1,                                                                  -1,&!    2
+        2, 2,                                                 2, 2, 2, 2, 2, 2,&!   10
+        3, 3,                                                 3, 3, 3, 3, 3, 3,&!   18
+        4, 4, 4,                4, 4, 4, 4, 4, 4, 4, 4, 4,    4, 4, 4, 4, 4, 4,&!   36
+        5, 5, 5,                5, 5, 5, 5, 5, 5, 5, 5, 5,    5, 5, 5, 5, 5, 5,&!   54
+        6, 6, 6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 6,                     &      
+                                6, 6, 6, 6, 6, 6, 6, 6, 6,    6, 6, 6,-1,-1,-1,&!   86
         -1,-1,-1,-1,-1,-1,     -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /)
 
-  INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE ::   nqd = (/             -1,&
-       -1,                                                                  -1,&
-       -1,-1,                                                -1,-1,-1,-1,-1,-1,&
-       -1,-1,                                                 3, 3, 3, 3, 3,-1,&
-       -1,-1, 3,                3, 3, 3, 3, 3, 3, 3, 3,-1,   -1,-1, 4, 4, 4,-1,&
-       -1,-1, 4,                4, 4, 4, 4, 4, 4, 4, 4,-1,   -1,-1, 5, 5, 5,-1,&
-       -1,-1, 5,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 5,                     &
-                                5, 5, 5, 5, 5, 5, 5, 5,-1,   -1,-1,-1,-1,-1,-1,&
+  INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE ::   nqd = (/             -1,&!    0
+       -1,                                                                  -1,&!    2
+       -1,-1,                                                -1,-1,-1,-1,-1,-1,&!   10
+       -1,-1,                                                 3, 3, 3, 3, 3,-1,&!   18
+       -1,-1, 3,                3, 3, 3, 3, 3, 3, 3, 3,-1,   -1,-1, 4, 4, 4,-1,&!   36
+       -1,-1, 4,                4, 4, 4, 4, 4, 4, 4, 4,-1,   -1,-1, 5, 5, 5,-1,&!   54
+       -1,-1, 5,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 5,                     &      
+                                5, 5, 5, 5, 5, 5, 5, 5,-1,   -1,-1,-1,-1,-1,-1,&!   86
        -1,-1,-1,-1,-1,-1,      -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /)
     
-  INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE ::   nqf = (/             -1,&
-       -1,                                                                  -1,&
-       -1,-1,                                                -1,-1,-1,-1,-1,-1,&
-       -1,-1,                                                -1,-1,-1,-1,-1,-1,&
-       -1,-1,-1,               -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1,-1,&
-       -1,-1,-1,               -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1,-1,&
-       -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,                     &
-                               -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1,-1,&
+  INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE ::   nqf = (/             -1,&!    0
+       -1,                                                                  -1,&!    2
+       -1,-1,                                                -1,-1,-1,-1,-1,-1,&!   10
+       -1,-1,                                                -1,-1,-1,-1,-1,-1,&!   18
+       -1,-1,-1,               -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1,-1,&!   36
+       -1,-1,-1,               -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1,-1,&!   54
+       -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,                     &      
+                               -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1,-1,&!   86
        -1,-1,-1,-1,-1,-1,      -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /)
 
   ! Number of atomic orbital per element
-  INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE :: norb = (/             - 1,&
-        1,                                                                   1,&
-        4, 4,                                                 4, 4, 4, 4, 4, 4,&
-        0, 4,                                                 4, 4, 4, 4, 4, 4,&
-        0, 4, 9,                9, 9, 9, 9, 9, 9, 9, 9, 4,    4, 4, 4, 4, 4, 4,&
-        4, 4, 9,                9, 9, 9, 9, 9, 9, 9, 9, 4,    4, 4, 4, 4, 4, 4,&
-        2, 2, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 9,                     &
-                                9, 9, 9, 9, 9, 9, 9, 9, 4,    4, 4, 4, 4, 4,-1,&
-       -1,-1,-1, 9,-1, 9,      -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /)
+  INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE :: norb = (/             - 1,&!    0
+        1,                                                                   1,&!    2
+        4, 4,                                                 4, 4, 4, 4, 4, 4,&!   10
+        0, 4,                                                 4, 4, 4, 4, 4, 4,&!   18
+        0, 4, 9,                9, 9, 9, 9, 9, 9, 9, 9, 4,    4, 4, 4, 4, 4, 4,&!   36
+        4, 4, 9,                9, 9, 9, 9, 9, 9, 9, 9, 4,    4, 4, 4, 4, 4, 4,&!   54
+        2, 2, 9,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 9,                     &      
+                                9, 9, 9, 9, 9, 9, 9, 9, 4,    4, 4, 4, 4, 4,-1,&!   86
+       -1,-1,-1,-1,-1,-1,      -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /)
 
   ! Element Valence
-  INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE :: zval = (/              -1,&
-        1,                                                                   2,&
-        1, 2,                                                 3, 4, 5, 6, 7, 8,&
-        1, 2,                                                 3, 4, 5, 6, 7, 8,&
-        1, 2, 3,                4, 5, 6, 7, 8, 9,10,11, 2,    3, 4, 5, 6, 7, 8,&
-        1, 2, 3,                4, 5, 6, 7, 8, 9,10,11, 2,    3, 4, 5, 6, 7, 8,&
-        1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16, 3,                     &
-                                4, 5, 6, 7, 8, 9,10,11, 2,    3, 4, 5, 6, 7,-1,&
+  INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE :: zval = (/              -1,&!    0
+        1,                                                                   2,&!    2
+        1, 2,                                                 3, 4, 5, 6, 7, 8,&!   10
+        1, 2,                                                 3, 4, 5, 6, 7, 8,&!   18
+        1, 2, 3,                4, 5, 6, 7, 8, 9,10,11, 2,    3, 4, 5, 6, 7, 8,&!   36
+        1, 2, 3,                4, 5, 6, 7, 8, 9,10,11, 2,    3, 4, 5, 6, 7, 8,&!   54
+        1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16, 3,                     &      
+                                4, 5, 6, 7, 8, 9,10,11, 2,    3, 4, 5, 6, 7,-1,&!   86
        -1,-1,-1, 4,-1, 6,      -1,-1,-1,-1,-1,-1,-1,-1,-1,   -1,-1,-1,-1,-1 /)
 
-  PUBLIC :: calpar, valence_electrons, get_se_basis
+  ! Number of 1 center 2 electron integrals involving partially filled d shells
+  ! r016:  <SS|DD>
+  INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE :: ir016 =  (/             0,&!    0
+        0,                                                                   0,&!    2
+        0, 0,                                                 0, 0, 0, 0, 0, 0,&!   10
+        0, 0,                                                 0, 0, 0, 0, 0, 0,&!   18
+        0, 0, 2,                4, 6, 5,10,12,14,16,10, 0,    0, 0, 0, 0, 0, 0,&!   36
+        0, 0, 4,                4, 4, 5,10, 7, 8, 0,10, 0,    0, 0, 0, 0, 0, 0,&!   54
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                     &      
+                                4, 6, 8,10,12,14, 9,10, 0,    0, 0, 0, 0, 0, 0,&!   86
+        0, 0, 0, 0, 0, 0,       0, 0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0 /) 
+  
+  ! r066:  <DD|DD> "0" term
+  INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE :: ir066 =  (/             0,&!    0
+        0,                                                                   0,&!    2
+        0, 0,                                                 0, 0, 0, 0, 0, 0,&!   10
+        0, 0,                                                 0, 0, 0, 0, 0, 0,&!   18
+        0, 0, 0,                1, 3,10,10,15,21,28,45, 0,    0, 0, 0, 0, 0, 0,&!   36
+        0, 0, 0,                1, 6,10,10,21,28,45,45, 0,    0, 0, 0, 0, 0, 0,&!   54
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                     &      
+                                1, 3, 6,10,15,21,36,45, 0,    0, 0, 0, 0, 0, 0,&!   86
+        0, 0, 0, 0, 0, 0,       0, 0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0 /) 
+
+  ! r244:  <SD|SD> 
+  INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE :: ir244 =  (/             0,&!    0
+        0,                                                                   0,&!    2
+        0, 0,                                                 0, 0, 0, 0, 0, 0,&!   10
+        0, 0,                                                 0, 0, 0, 0, 0, 0,&!   18
+        0, 0, 1,                2, 3, 5, 5, 6, 7, 8, 5, 0,    0, 0, 0, 0, 0, 0,&!   36
+        0, 0, 1,                2, 4, 5, 5, 5, 5, 0, 5, 0,    0, 0, 0, 0, 0, 0,&!   54
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                     &      
+                                2, 3, 4, 5, 6, 7, 5, 5, 0,    0, 0, 0, 0, 0, 0,&!   86
+        0, 0, 0, 0, 0, 0,       0, 0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0 /) 
+
+  ! r266:  <DD|DD> "2" term
+  INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE :: ir266 =  (/             0,&!    0
+        0,                                                                   0,&!    2
+        0, 0,                                                 0, 0, 0, 0, 0, 0,&!   10
+        0, 0,                                                 0, 0, 0, 0, 0, 0,&!   18
+        0, 0, 0,                8,15,35,35,35,43,50,70, 0,    0, 0, 0, 0, 0, 0,&!   36
+        0, 0, 0,                8,21,35,35,43,50,70,70, 0,    0, 0, 0, 0, 0, 0,&!   54
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                     &      
+                                8,15,21,35,35,43,56,70, 0,    0, 0, 0, 0, 0, 0,&!   86
+        0, 0, 0, 0, 0, 0,       0, 0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0 /) 
+
+  ! r466:  <DD|DD> "4" term
+  INTEGER, DIMENSION(0:nelem), PARAMETER, PRIVATE :: ir466 =  (/             0,&!    0
+        0,                                                                   0,&!    2
+        0, 0,                                                 0, 0, 0, 0, 0, 0,&!   10
+        0, 0,                                                 0, 0, 0, 0, 0, 0,&!   18
+        0, 0, 0,                1, 8,35,35,35,36,43,70, 0,    0, 0, 0, 0, 0, 0,&!   36
+        0, 0, 0,                1,21,35,35,36,43,70,70, 0,    0, 0, 0, 0, 0, 0,&!   54
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                     &      
+                                1, 8,21,35,35,36,56,70, 0,    0, 0, 0, 0, 0, 0,&!   86
+        0, 0, 0, 0, 0, 0,       0, 0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0 /) 
+
+  PUBLIC :: convert_param_to_cp2k, calpar, valence_electrons, get_se_basis
 
 CONTAINS
+! *****************************************************************************
+!> \brief  Converts parameter units to internal
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date   03.2008 [tlaino]
+! *****************************************************************************
+  SUBROUTINE convert_param_to_cp2k(sep)
+    TYPE(semi_empirical_type), POINTER       :: sep
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'convert_param_to_cp2k', &
+      routineP = moduleN//':'//routineN
+
+    sep%beta  = sep%beta/evolt
+    sep%uss   = sep%uss/evolt
+    sep%upp   = sep%upp/evolt
+    sep%udd   = sep%udd/evolt
+    sep%alp   = sep%alp/bohr
+    sep%eisol = sep%eisol/evolt
+    sep%gss   = sep%gss/evolt
+    sep%gsp   = sep%gsp/evolt
+    sep%gpp   = sep%gpp/evolt
+    sep%gp2   = sep%gp2/evolt 
+    sep%gsd   = sep%gsd/evolt
+    sep%gpd   = sep%gpd/evolt
+    sep%gdd   = sep%gdd/evolt
+    sep%hsp   = sep%hsp/evolt
+    sep%fn1   = sep%fn1*bohr/evolt
+    sep%fn2   = sep%fn2/bohr/bohr
+    sep%fn3   = sep%fn3*bohr
+    sep%bfn1  = sep%bfn1*bohr/evolt
+    sep%bfn2  = sep%bfn2/bohr/bohr
+    sep%bfn3  = sep%bfn3*bohr
+    sep%f0sd  = sep%f0sd/evolt
+    sep%g2sd  = sep%g2sd/evolt
+    sep%a     = sep%a*bohr/evolt
+    sep%b     = sep%b/bohr/bohr
+    sep%c     = sep%c*bohr
+    sep%pre   = sep%pre/evolt
+    sep%d     = sep%d/bohr
+
+  END SUBROUTINE convert_param_to_cp2k
+
 ! *****************************************************************************
 !> \brief  Calculates missing parameters
 !> \author Teodoro Laino [tlaino] - University of Zurich
@@ -267,9 +368,10 @@ CONTAINS
       IF(nqd(-z) > 0) natorb = natorb+5
       IF(nqf(-z) > 0) natorb = natorb+7
     END IF
-
   END SUBROUTINE valence_electrons 
-  
+
+! *****************************************************************************
+!> \brief  Gives back the number of basis function for each l
 ! *****************************************************************************
   FUNCTION get_se_basis(z,l) RESULT(n)
     INTEGER, INTENT(IN)                      :: z, l
@@ -278,6 +380,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_se_basis', &
       routineP = moduleN//':'//routineN
 
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
     IF ( z < 0 .OR. z > nelem ) THEN
        CALL stop_program(routineN,moduleN,__LINE__,"invalid atomic number")
     ELSE
@@ -297,6 +402,456 @@ CONTAINS
        END IF
     END IF
   END FUNCTION get_se_basis
+
+! *****************************************************************************
+!> \brief  Finalize the initialization of parameters, defining additional 
+!>         parameters for d-orbitals
+!>
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date   03.2008 [tlaino]
+! *****************************************************************************  
+  SUBROUTINE calpar_d(sep)
+    TYPE(semi_empirical_type), POINTER       :: sep
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'calpar_d', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: z
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(6)              :: amn
+
+    failure = .FALSE.
+    ! Check if this element owns d-orbitals
+    sep%dorb = nqd(sep%z)>0
+    IF (sep%dorb) THEN
+       CALL amn_l(sep, amn)
+       CALL eval_1c_2el_spd(sep)
+       CALL eval_cs_ko(sep, amn)
+    END IF
+    IF (.NOT.sep%dorb) THEN
+       IF (ABS(sep%am) > EPSILON(0.0_dp)) THEN
+          sep%ko(1) = 0.5_dp/sep%am
+       END IF
+       IF (ABS(sep%ad) > EPSILON(0.0_dp)) THEN
+          sep%ko(2) = 0.5_dp/sep%ad
+       END IF
+       IF (ABS(sep%aq) > EPSILON(0.0_dp)) THEN
+          sep%ko(3) = 0.5_dp/sep%aq
+       END IF
+       sep%ko(7) = sep%ko(1)
+       sep%ko(9) = sep%ko(1)
+       sep%cs(2) = sep%dd
+       sep%cs(3) = sep%qq * SQRT(2.0_dp)
+    ELSE
+       sep%ko(9) = sep%ko(1)
+       sep%aq    = 0.5_dp/sep%ko(3)
+    END IF
+  END SUBROUTINE calpar_d
+
+! *****************************************************************************
+!> \brief  Computes the A^{\mu \nu}_l values for the evaluation of the two-center
+!>          two-electron integrals. The term is the one reported in Eq.(7) of TCA
+!>
+!> \par    Notation Index: 1 (SS), 2 (SP), 3 (SD), 4 (PP), 5 (PD), 6 (DD)
+!> 
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date   03.2008 [tlaino]
+! *****************************************************************************    
+  SUBROUTINE amn_l (sep, amn)
+    TYPE(semi_empirical_type), POINTER       :: sep
+    REAL(KIND=dp), DIMENSION(6), INTENT(OUT) :: amn
+
+    INTEGER                                  :: nd, nsp
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: z1, z2, z3, zz
+
+    failure = .FALSE.
+    z1 = sep%sto_exponents(0)
+    z2 = sep%sto_exponents(1)
+    z3 = sep%sto_exponents(2)
+    nsp = nqs(sep%z)
+
+    IF (norb(sep%z)>=4) THEN
+       zz = z1 * z2
+       amn(2) = amn_l_low(z1, z2, nsp, nsp, 1)
+       amn(3) = amn_l_low(z2, z2, nsp, nsp, 2)
+       IF (sep%dorb) THEN
+          nd = nqd(sep%z)
+          amn(4) = amn_l_low(z1, z3, nsp, nd, 2)
+          amn(5) = amn_l_low(z2, z3, nsp, nd, 1)
+          amn(6) = amn_l_low(z3, z3,  nd, nd, 2)
+       END IF
+    END IF
+  END SUBROUTINE amn_l
+
+! *****************************************************************************
+!> \brief  Low level for computing Eq.(7) of TCA
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date   03.2008 [tlaino]
+! *****************************************************************************
+  FUNCTION amn_l_low(z1, z2, n1, n2, l) RESULT(amnl)
+    REAL(KIND=dp), INTENT(IN)                :: z1, z2
+    INTEGER, INTENT(IN)                      :: n1, n2, l
+    REAL(KIND=dp)                            :: amnl
+
+    amnl = fac(n1+n2+l+1)/SQRT(fac(2*n1+1)*fac(2*n2+1)) * (2.0_dp*z1/(z1+z2))**n1 * &
+         (2.0_dp*z2/(z1+z2))**n2 * 2.0_dp * SQRT(z1*z2) * 2.0_dp** l / (z1+z2)**(l+1)
+  END FUNCTION amn_l_low
+
+
+! *****************************************************************************
+!> \brief  Calculation of chare separations and additive terms used for computing
+!>         the two-center two-electron integrals with d-orbitals
+!> \par    Notation
+!>         -) Charge separations [sep%cs(6)]   [see equations (12)-(16) of TCA]
+!>         -) Additive terms od Klopman-Ohno terms [sep%ko(9)] [see equations 
+!>            (19)-(26) of TCA]
+!>         -) Atomic core additive term stored in sep%ko(9): used in the calculation
+!>            of the core-electron attractions and core-core repulsions
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date   03.2008 [tlaino]
+! ***************************************************************************** 
+  SUBROUTINE eval_cs_ko (sep,amn)
+    TYPE(semi_empirical_type), POINTER       :: sep
+    REAL(KIND=dp), DIMENSION(6), INTENT(IN)  :: amn
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'eval_cs_ko', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: d, da, fg
+
+    failure = .FALSE.
+    ! SS term
+    fg = sep%gss
+    sep%ko(1) = ko_ij (0, 1.0_dp, fg)
+    IF (norb(sep%z)>= 4) THEN
+       ! Other terms for SP basis
+       ! SP
+       d  = amn(2)/SQRT(12.0_dp)
+       fg = sep%hsp
+       sep%cs(2) = d
+       sep%ko(2) = ko_ij(1, d, fg)
+       ! PP
+       sep%ko(7) = sep%ko(1)
+       d  = SQRT(amn(3)*0.1_dp)
+       fg = sep%gpp
+       sep%cs(3) = d
+       sep%ko(3) = ko_ij(2, d, fg)
+       ! Terms involving d-orbitals
+       IF (sep%dorb) THEN
+          ! SD
+          da = SQRT(1.0_dp/60.0_dp)
+          d  = SQRT(amn(4)*da)
+          fg = sep%onec2el(19)
+          sep%cs(4) = d
+          sep%ko(4) = ko_ij(2, d, fg)
+          ! PD
+          d  = amn(5)/SQRT(20.0_dp)
+          fg = sep%onec2el(23) - 1.8_dp * sep%onec2el(35)
+          sep%cs(5) = d
+          sep%ko(5) = ko_ij(1, d, fg)
+          ! DD
+          fg = 0.2_dp * (sep%onec2el(29)+2.0_dp*sep%onec2el(30)+2.0_dp*sep%onec2el(31))
+          sep%ko(8) = ko_ij (0, 1.0_dp, fg)
+          d  = SQRT(amn(6)/14.0_dp)
+          fg = sep%onec2el(44) - (20.0_dp/35.0_dp) * sep%onec2el(52)
+          sep%cs(6) = d
+          sep%ko(6) = ko_ij(2, d, fg)
+       END IF
+    END IF
+  END SUBROUTINE eval_cs_ko
+
+! *****************************************************************************
+!> \brief  Computes the 1 center two-electrons integrals for a SPD basis
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date   03.2008 [tlaino]
+! ***************************************************************************** 
+  SUBROUTINE eval_1c_2el_spd(sep)
+    TYPE(semi_empirical_type), POINTER       :: sep
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'eval_1c_2el_spd', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: r016, r036, r066, r125, r155, &
+                                                r234, r236, r244, r246, r266, &
+                                                r355, r466, s15, s3, s5
+
+    failure = .FALSE.
+    IF (sep%dorb) THEN
+       s3  = SQRT(3.0_dp)
+       s5  = SQRT(5.0_dp)
+       s15 = SQRT(15.0_dp)
+
+       ! We evaluate now the Slater-Condon parameters (Rlij)
+       CALL sc_param(sep, r066, r266, r466, r016, r244, r036, r236, r155, r355, r125, r234, r246)
+
+       IF (ABS(sep%f0sd) > EPSILON(0.0_dp)) THEN
+          r016 = sep%f0sd
+       END IF
+       IF (ABS(sep%g2sd) > EPSILON(0.0_dp)) THEN
+          r244 = sep%g2sd
+       END IF
+       CALL eisol_corr(sep, r016, r066, r244, r266, r466)
+       sep%onec2el(1)  =  r016
+       sep%onec2el(2)  =  2.0_dp/(3.d0*s5)*r125
+       sep%onec2el(3)  =  1.0_dp/s15*r125
+       sep%onec2el(4)  =  2.0_dp/(5.0_dp*s5)*r234
+       sep%onec2el(5)  =  r036 + 4.0_dp/35.0_dp*r236
+       sep%onec2el(6)  =  r036 + 2.0_dp/35.0_dp*r236
+       sep%onec2el(7)  =  r036 - 4.0_dp/35.0_dp*r236
+       sep%onec2el(8)  = -1.0_dp/(3.0_dp*s5)*r125
+       sep%onec2el(9)  =  SQRT(3.0_dp/125.0_dp)*r234
+       sep%onec2el(10) =  s3/35.0_dp*r236
+       sep%onec2el(11) =  3.0_dp/35.0_dp*r236
+       sep%onec2el(12) = -1.0_dp/(5.0_dp*s5)*r234
+       sep%onec2el(13) =  r036 - 2.0_dp/35.0_dp*r236
+       sep%onec2el(14) = -2.0_dp*s3/35.0_dp*r236
+       sep%onec2el(15) = -sep%onec2el(3)
+       sep%onec2el(16) = -sep%onec2el(11)
+       sep%onec2el(17) = -sep%onec2el(9)
+       sep%onec2el(18) = -sep%onec2el(14)
+       sep%onec2el(19) =  1.0_dp/5.0_dp*r244
+       sep%onec2el(20) =  2.0_dp/(7.0_dp*s5)*r246
+       sep%onec2el(21) =  sep%onec2el(20)/2.0_dp
+       sep%onec2el(22) = -sep%onec2el(20)
+       sep%onec2el(23) =  4.0_dp/15.0_dp*r155 + 27.0_dp/245.0_dp*r355
+       sep%onec2el(24) =  2.0_dp*s3/15.0_dp*r155 - 9.0_dp*s3/245.0_dp*r355
+       sep%onec2el(25) =  1.0_dp/15.0_dp*r155 + 18.0_dp/245.0_dp*r355
+       sep%onec2el(26) = -s3/15.0_dp*r155 + 12.0_dp*s3/245.0_dp*r355
+       sep%onec2el(27) = -s3/15.0_dp*r155 -  3.0_dp*s3/245.0_dp*r355
+       sep%onec2el(28) = -sep%onec2el(27)
+       sep%onec2el(29) =  r066 + 4.0_dp/49.0_dp* r266 +  4.0_dp/ 49.0_dp*r466
+       sep%onec2el(30) =  r066 + 2.0_dp/49.0_dp* r266 - 24.0_dp/441.0_dp*r466
+       sep%onec2el(31) =  r066 - 4.0_dp/49.0_dp* r266 +  6.0_dp/441.0_dp*r466
+       sep%onec2el(32) =  SQRT(3.0_dp/245.0_dp)*r246
+       sep%onec2el(33) =  1.0_dp/ 5.0_dp*r155 + 24.0_dp/245.0_dp*r355
+       sep%onec2el(34) =  1.0_dp/ 5.0_dp*r155 -  6.0_dp/245.0_dp*r355
+       sep%onec2el(35) =  3.0_dp/49.0_dp*r355
+       sep%onec2el(36) =  1.0_dp/49.0_dp*r266 + 30.0_dp/441.0_dp*r466
+       sep%onec2el(37) =  s3/49.0_dp*r266   - 5.0_dp*s3/441.0_dp*r466
+       sep%onec2el(38) =  r066 - 2.0_dp/49.0_dp*r266 - 4.0_dp/441.0_dp*r466
+       sep%onec2el(39) = -2.0_dp*s3/49.0_dp*r266 + 10.0_dp*s3/441.0_dp*r466
+       sep%onec2el(40) = -sep%onec2el(32)
+       sep%onec2el(41) = -sep%onec2el(34)
+       sep%onec2el(42) = -sep%onec2el(35)
+       sep%onec2el(43) = -sep%onec2el(37)
+       sep%onec2el(44) =  3.0_dp/49.0_dp*r266 + 20.0_dp/441.0_dp*r466
+       sep%onec2el(45) = -sep%onec2el(39)
+       sep%onec2el(46) =  1.0_dp/5.0_dp*r155 - 3.0_dp/35.0_dp*r355
+       sep%onec2el(47) = -sep%onec2el(46)
+       sep%onec2el(48) =  4.0_dp/49.0_dp*r266 + 15.0_dp/441.0_dp*r466
+       sep%onec2el(49) =  3.0_dp/49.0_dp*r266 -  5.0_dp/147.0_dp*r466
+       sep%onec2el(50) = -sep%onec2el(49)
+       sep%onec2el(51) =  r066 + 4.0_dp/49.0_dp*r266 - 34.0_dp/441.0_dp*r466
+       sep%onec2el(52) =  35.0_dp/441.0_dp*r466
+       sep%f0dd     =  r066
+       sep%f2dd     =  r266
+       sep%f4dd     =  r466
+       sep%f0sd     =  r016
+       sep%g2sd     =  r244
+       sep%f0pd     =  r036
+       sep%f2pd     =  r236
+       sep%g1pd     =  r155
+       sep%g3pd     =  r355
+    END IF
+  END SUBROUTINE eval_1c_2el_spd
+
+! *****************************************************************************
+!> \brief  Slater-Condon parameters for 1 center 2 electrons integrals
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date   03.2008 [tlaino]
+! *****************************************************************************
+  SUBROUTINE sc_param (sep, r066, r266, r466, r016, r244, r036, r236, r155, r355, &
+       r125, r234, r246)
+    TYPE(semi_empirical_type), POINTER       :: sep
+    REAL(KIND=dp), INTENT(out)               :: r066, r266, r466, r016, r244, &
+                                                r036, r236, r155, r355, r125, &
+                                                r234, r246
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'sc_param', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: nd, ns
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: ed, ep, es
+
+    failure = .FALSE.
+    ns = nqs(sep%z)
+    nd = nqd(sep%z)
+    es = sep%sto_exponents(0)
+    ep = sep%sto_exponents(1)
+    ed = sep%sto_exponents(2)
+    r016 = sc_param_low (0, ns, es, ns, es, nd, ed, nd, ed)
+    r036 = sc_param_low (0, ns, ep, ns, ep, nd, ed, nd, ed)
+    r066 = sc_param_low (0, nd, ed, nd, ed, nd, ed, nd, ed)
+    r155 = sc_param_low (1, ns, ep, nd, ed, ns, ep, nd, ed)
+    r125 = sc_param_low (1, ns, es, ns, ep, ns, ep, nd, ed)
+    r244 = sc_param_low (2, ns, es, nd, ed, ns, es, nd, ed)
+    r236 = sc_param_low (2, ns, ep, ns, ep, nd, ed, nd, ed)
+    r266 = sc_param_low (2, nd, ed, nd, ed, nd, ed, nd, ed)
+    r234 = sc_param_low (2, ns, ep, ns, ep, ns, es, nd, ed)
+    r246 = sc_param_low (2, ns, es, nd, ed, nd, ed, nd, ed)
+    r355 = sc_param_low (3, ns, ep, nd, ed, ns, ep, nd, ed)
+    r466 = sc_param_low (4, nd, ed, nd, ed, nd, ed, nd, ed)
+  END SUBROUTINE sc_param
+
+! *****************************************************************************
+!> \brief  Slater-Condon parameters for 1 center 2 electrons integrals - Low level
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \par    Notation
+!>         -) k:      Type of integral
+!>         -) na,na:  Principle Quantum Number of AO,corresponding to electron 1
+!>         -) ea,eb:  Exponents of AO,corresponding to electron 1
+!>         -) nb,nc:  Principle Quantum Number of AO,corresponding to electron 2
+!>         -) ec,ed:  Exponents of AO,corresponding to electron 2
+!> \date   03.2008 [tlaino]
+! ***************************************************************************** 
+  FUNCTION sc_param_low (k, na, ea, nb, eb, nc, ec, nd, ed) RESULT(res)
+    INTEGER, INTENT(in)                      :: k, na
+    REAL(KIND=dp), INTENT(in)                :: ea
+    INTEGER, INTENT(in)                      :: nb
+    REAL(KIND=dp), INTENT(in)                :: eb
+    INTEGER, INTENT(in)                      :: nc
+    REAL(KIND=dp), INTENT(in)                :: ec
+    INTEGER, INTENT(in)                      :: nd
+    REAL(KIND=dp), INTENT(in)                :: ed
+    REAL(KIND=dp)                            :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'sc_param_low', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, m, m1, m2, n, nab, ncd
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: a2, aab, acd, ae, aea, aeb, &
+                                                aec, aed, c, e, eab, ecd, ff, &
+                                                s0, s1, s2, s3, tmp
+
+    failure = .FALSE.
+    aea = LOG(ea)
+    aeb = LOG(eb)
+    aec = LOG(ec)
+    aed = LOG(ed)
+    nab = na + nb
+    ncd = nc + nd
+    ecd = ec + ed
+    eab = ea + eb
+    e   = ecd + eab
+    n   = nab + ncd
+    ae  = LOG(e)
+    a2  = LOG(2.0_dp)
+    acd = LOG(ecd)
+    aab = LOG(eab)
+    ff  = fac(n)/SQRT(fac(2*na+1)*fac(2*nb+1)*fac(2*nc+1)*fac(2*nd+1))
+    tmp = na*aea + nb*aeb + nc*aec + nd*aed + 0.5_dp*(aea+aeb+aec+aed) + a2*(n+2) - ae*n
+    c   = evolt * ff * EXP(tmp)
+    s0  = 1.0_dp/e
+    s1  = 0.0_dp
+    s2  = 0.0_dp
+    m = ncd - k
+    DO i = 1, m
+       s0 = s0*e/ecd
+       s1 = s1 + s0 * (binomial(ncd-k, i)-binomial(ncd+k+1, i))/binomial(n, i)
+    END DO
+    m1 = m + 1
+    m2 = ncd + k + 1
+    DO i = m1, m2
+       s0 = s0 * e / ecd
+       s2 = s2 + s0 * binomial(m2, i)/binomial(n, i)
+    END DO
+    s3 = EXP(ae*n-acd*m2-aab*(nab-k))/binomial(n, m2)
+    res = c * (s1-s2+s3)
+  END FUNCTION sc_param_low
+
+! *****************************************************************************
+!> \brief  Corrects the EISOL fo the one-center terms coming from those atoms
+!>         that have partially filled "d" shells
+!> \par    Notation
+!>         r016:  <SS|DD>
+!>         r066:  <DD|DD> "0" term
+!>         r244:  <SD|SD>
+!>         r266:  <DD|DD> "2" term
+!>         r466:  <DD|DD> "4" term
+!>
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date   03.2008 [tlaino]
+! ***************************************************************************** 
+  SUBROUTINE eisol_corr (sep, r016, r066, r244, r266, r466)
+    TYPE(semi_empirical_type), POINTER       :: sep
+    REAL(KIND=dp), INTENT(in)                :: r016, r066, r244, r266, r466
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'eisol_corr', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    sep%eisol = sep%eisol + ir016(sep%z) * r016          +&
+                            ir066(sep%z) * r066          -&
+                            ir244(sep%z) * r244/5.0_dp   -&
+                            ir266(sep%z) * r266/49.0_dp  -&
+                            ir466(sep%z) * r466/49.0_dp
+  END SUBROUTINE eisol_corr
+
+! *****************************************************************************
+!> \brief  Computes the Klopman-Ohno additive terms for 2-center 2-electron
+!>         integrals requiring that the corresponding 1-center 2-electron integral
+!>         is reproduced from the 2-center one for r->0
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date   03.2008 [tlaino]
+! *****************************************************************************
+  FUNCTION ko_ij(l, d, fg) RESULT(res)
+    INTEGER, INTENT(in)                      :: l
+    REAL(KIND=dp), INTENT(in)                :: d, fg
+    REAL(KIND=dp)                            :: res
+
+    INTEGER, PARAMETER                       :: niter = 100
+    REAL(KIND=dp), PARAMETER                 :: epsil = 1.0E-08_dp, &
+                                                g1 = 0.382_dp, g2 = 0.618_dp
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: a1, a2, delta, dsq, ev4, ev8, &
+                                                f1, f2, y1, y2
+
+    failure = .FALSE.
+    ! Term for SS
+    IF (l == 0) THEN
+       res = 0.5_dp * evolt/fg
+       RETURN
+    END IF
+    ! Term for Higher angular momentum
+    dsq = d * d
+    ev4 = evolt * 0.25_dp
+    ev8 = evolt / 8.0_dp
+    a1 = 0.1_dp
+    a2 = 5.0_dp
+    DO i = 1, niter
+       delta = a2 - a1
+       IF (delta < epsil) EXIT
+       y1 = a1 + delta * g1
+       y2 = a1 + delta * g2
+       IF (l == 1) THEN
+          f1 = (ev4*(1/y1 - 1/SQRT(y1**2 + dsq)) - fg) ** 2
+          f2 = (ev4*(1/y2 - 1/SQRT(y2**2 + dsq)) - fg) ** 2
+       ELSE IF (l == 2) THEN
+          f1 = (ev8*(1.0_dp/y1 - 2.0_dp/SQRT(y1**2 + dsq*0.5_dp) + 1.0_dp/SQRT(y1**2 + dsq)) - fg)** 2
+          f2 = (ev8*(1/y2 - 2.0_dp/SQRT(y2**2 + dsq*0.5_dp) + 1.0_dp/SQRT(y2**2 + dsq)) - fg)** 2
+       END IF
+       IF (f1 < f2) THEN
+          a2 = y2
+       ELSE
+          a1 = y1
+       END IF
+    END DO
+    ! Convergence reached.. define additive terms
+    IF (f1 >= f2) THEN
+       res = a2
+    ELSE
+       res = a1
+    END IF
+  END FUNCTION ko_ij
 
 END MODULE semi_empirical_par_utils
 

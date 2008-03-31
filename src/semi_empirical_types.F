@@ -18,6 +18,7 @@ MODULE semi_empirical_types
   USE f77_blas
   USE input_constants,                 ONLY: do_method_am1,&
                                              do_method_mndo,&
+                                             do_method_mndod,&
                                              do_method_pdg,&
                                              do_method_pm3,&
                                              do_method_pm6,&
@@ -40,15 +41,18 @@ MODULE semi_empirical_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_types'
 
 ! *****************************************************************************
+!> \brief Semi-empirical type
+! *****************************************************************************
   TYPE semi_empirical_type
     INTEGER                                :: typ
     CHARACTER(LEN=default_string_length)   :: name
-    LOGICAL                                :: defined
+    LOGICAL                                :: defined, dorb
     INTEGER                                :: z
     REAL(KIND=dp)                          :: zeff
     INTEGER                                :: natorb
     REAL(KIND = dp), DIMENSION(:), POINTER :: beta
     REAL(KIND = dp), DIMENSION(:), POINTER :: sto_exponents
+    REAL(KIND = dp), DIMENSION(:), POINTER :: zn
     TYPE(sto_basis_set_type), POINTER      :: basis
     INTEGER                                :: ngauss
     REAL(KIND = dp)                        :: eheat
@@ -62,15 +66,15 @@ MODULE semi_empirical_types
     REAL(KIND = dp),DIMENSION(2)           :: pre, d
     REAL(KIND = dp),DIMENSION(4)           :: fn1,   fn2,  fn3
     REAL(KIND = dp),DIMENSION(4,4)         :: bfn1, bfn2, bfn3
-    ! Specific PM6
+    REAL(KIND = dp)                        :: f0dd, f2dd, f4dd, f0sd, f0pd, f2pd,&
+                                              g1pd, g2sd, g3pd
+    REAL(KIND = dp), DIMENSION(9)          :: ko
+    REAL(KIND = dp), DIMENSION(6)          :: cs
+    REAL(KIND = dp), DIMENSION(52)         :: onec2el
+    ! Specific for PM6
     REAL(KIND = dp), DIMENSION(0:115)      :: xab
     REAL(KIND = dp), DIMENSION(0:115)      :: aab
     REAL(KIND = dp)                        :: a, b, c, rho
-    REAL(KIND = dp)                        :: f0dd, f2dd, f4dd, f0sd, f0pd, f2pd,&
-                                              g1pd, g2sd, g3pd
-    REAL(KIND = dp), DIMENSION(:), POINTER :: zn
-    REAL(KIND = dp), DIMENSION(9)          :: ko
-    REAL(KIND = dp), DIMENSION(6)          :: cs
   END TYPE semi_empirical_type
 
   PUBLIC :: semi_empirical_type,&
@@ -83,9 +87,10 @@ MODULE semi_empirical_types
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE allocate_se_param(se_parameter, error)
-
-    TYPE(semi_empirical_type), POINTER       :: se_parameter
+!> \brief Allocate semi-empirical type
+! *****************************************************************************
+  SUBROUTINE allocate_se_param(sep, error)
+    TYPE(semi_empirical_type), POINTER       :: sep
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_se_param', &
@@ -95,67 +100,107 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CALL deallocate_se_param(se_parameter, error)
+    CALL deallocate_se_param(sep, error)
 
-    ALLOCATE (se_parameter,STAT=stat)
+    ALLOCATE (sep,STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    NULLIFY ( se_parameter % sto_exponents )
-    NULLIFY ( se_parameter % zn  )
-    NULLIFY ( se_parameter % basis )
-
-    se_parameter % defined = .FALSE.
-    se_parameter % name = ""
-    se_parameter % typ = HUGE(0)
-    se_parameter % z = -1
-    se_parameter % zeff = -1.0_dp
-    se_parameter % natorb = 0
-    se_parameter % ngauss = 0
-
-    ALLOCATE (se_parameter%beta(0:3),STAT=stat)
+    ALLOCATE (sep%beta(0:3),STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    se_parameter % beta(:) = 0._dp
-
-    ALLOCATE (se_parameter%sto_exponents(0:3),STAT=stat)
+    ALLOCATE (sep%sto_exponents(0:3),STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    se_parameter % sto_exponents(:) = -1
-
-    ALLOCATE (se_parameter%zn(0:3),STAT=stat)
+    ALLOCATE (sep%zn(0:3),STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    se_parameter % zn(:) = 0.0_dp
-
-    se_parameter % uss = 0._dp
-    se_parameter % upp = 0._dp
-    se_parameter % udd = 0._dp
-    se_parameter % uff = 0._dp
-    se_parameter % alp = 0._dp
-    se_parameter % eisol = 0._dp
-
-    se_parameter % gss = 0._dp
-    se_parameter % gsp = 0._dp
-    se_parameter % gpp = 0._dp
-    se_parameter % gp2 = 0._dp
-    se_parameter % hsp = 0._dp
-
-    se_parameter % gsd = 0._dp
-    se_parameter % gpd = 0._dp
-    se_parameter % gdd = 0._dp
-
-    se_parameter % pre = 0._dp
-    se_parameter % d = 0._dp
-
-    se_parameter % xab = 0._dp
-    se_parameter % aab = 0._dp
-    se_parameter % a = 0._dp
-    se_parameter % b = 0._dp
-    se_parameter % c = 0._dp
+    NULLIFY(sep%basis)
+    CALL zero_se_param(sep,error)
 
   END SUBROUTINE allocate_se_param
 
 ! *****************************************************************************
-  SUBROUTINE deallocate_se_param(se_parameter, error)
+!> \brief Zero the whole semi-empirical type
+! ***************************************************************************** 
+  SUBROUTINE zero_se_param(sep, error)
+    TYPE(semi_empirical_type), POINTER       :: sep
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    TYPE(semi_empirical_type), POINTER       :: se_parameter
+    CHARACTER(len=*), PARAMETER :: routineN = 'zero_se_param', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(sep),cp_failure_level,routineP,error,failure)
+    sep%defined = .FALSE.
+    sep%dorb    = .FALSE.
+    sep%name    = ""
+    sep%typ     = HUGE(0)
+    sep%z       = HUGE(0)
+    sep%zeff    = HUGE(0.0_dp)
+    sep%natorb  = 0
+    sep%ngauss  = 0
+    sep%eheat   = HUGE(0.0_dp)
+
+    sep%zn            = 0.0_dp
+    sep%sto_exponents = 0.0_dp
+    sep%beta          = 0.0_dp
+
+    sep%uss    = 0.0_dp !eV
+    sep%upp    = 0.0_dp !eV
+    sep%udd    = 0.0_dp !eV
+    sep%uff    = 0.0_dp
+    sep%alp    = 0.0_dp
+    sep%eisol  = 0.0_dp
+    sep%gss    = 0.0_dp
+    sep%gsp    = 0.0_dp
+    sep%gpp    = 0.0_dp
+    sep%gp2    = 0.0_dp
+    sep%gsd    = 0.0_dp
+    sep%gpd    = 0.0_dp
+    sep%gdd    = 0.0_dp
+    sep%hsp    = 0.0_dp
+    sep%dd     = 0.0_dp
+    sep%qq     = 0.0_dp
+    sep%am     = 0.0_dp
+    sep%ad     = 0.0_dp
+    sep%aq     = 0.0_dp
+
+    sep%fn1    = 0.0_dp
+    sep%fn2    = 0.0_dp
+    sep%fn3    = 0.0_dp
+    sep%bfn1   = 0.0_dp
+    sep%bfn2   = 0.0_dp
+    sep%bfn3   = 0.0_dp
+
+    sep%pre    = 0.0_dp
+    sep%d      = 0.0_dp
+
+    sep%xab    = 0.0_dp
+    sep%aab    = 0.0_dp
+    sep%a      = 0.0_dp
+    sep%b      = 0.0_dp
+    sep%c      = 0.0_dp
+    sep%rho    = 0.0_dp
+
+    sep%f0dd   = 0.0_dp
+    sep%f2dd   = 0.0_dp
+    sep%f4dd   = 0.0_dp
+    sep%f0sd   = 0.0_dp
+    sep%f0pd   = 0.0_dp
+    sep%f2pd   = 0.0_dp
+    sep%g1pd   = 0.0_dp
+    sep%g2sd   = 0.0_dp
+    sep%g3pd   = 0.0_dp
+    sep%ko     = 0.0_dp
+    sep%cs     = 0.0_dp
+    sep%onec2el= 0.0_dp
+
+  END SUBROUTINE zero_se_param
+
+! *****************************************************************************
+!> \brief Deallocate the semi-empirical type
+! ***************************************************************************** 
+  SUBROUTINE deallocate_se_param(sep, error)
+
+    TYPE(semi_empirical_type), POINTER       :: sep
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_se_param', &
@@ -165,26 +210,28 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    IF (ASSOCIATED(se_parameter)) THEN
-       CALL deallocate_sto_basis_set(se_parameter%basis, error)
-       DEALLOCATE (se_parameter%beta,STAT=stat)
+    IF (ASSOCIATED(sep)) THEN
+       CALL deallocate_sto_basis_set(sep%basis, error)
+       DEALLOCATE (sep%beta,STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (se_parameter%sto_exponents,STAT=stat)
+       DEALLOCATE (sep%sto_exponents,STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (se_parameter%zn,STAT=stat)
+       DEALLOCATE (sep%zn,STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (se_parameter,STAT=stat)
+       DEALLOCATE (sep,STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
   END SUBROUTINE deallocate_se_param
 
 ! *****************************************************************************
-  SUBROUTINE get_se_param(se_parameter,name,typ,defined,z,zeff,natorb,eheat,&
-       beta,sto_exponents,uss,upp,udd,uff,alp,eisol,&
-       gss,gsp,gpp,gp2,hsp,gsd,gpd,gdd,ppddg,dpddg,ngauss)
+!> \brief Get info from the semi-empirical type
+! ***************************************************************************** 
+  SUBROUTINE get_se_param(sep,name,typ,defined,z,zeff,natorb,eheat,&
+       beta,sto_exponents,uss,upp,udd,uff,alp,eisol,gss,gsp,gpp,gp2,&
+       hsp,gsd,gpd,gdd,ppddg,dpddg,ngauss)
 
-    TYPE(semi_empirical_type), POINTER       :: se_parameter
+    TYPE(semi_empirical_type), POINTER       :: sep
     CHARACTER(LEN=default_string_length), &
       INTENT(OUT), OPTIONAL                  :: name
     INTEGER, INTENT(OUT), OPTIONAL           :: typ
@@ -204,52 +251,48 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_se_param', &
       routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
-
-    IF (ASSOCIATED(se_parameter)) THEN
-
-       IF (PRESENT(name)) name = se_parameter%name
-       IF (PRESENT(typ)) typ = se_parameter%typ
-       IF (PRESENT(defined)) defined = se_parameter%defined
-       IF (PRESENT(z)) z = se_parameter%z
-       IF (PRESENT(zeff)) zeff = se_parameter%zeff
-       IF (PRESENT(natorb)) natorb = se_parameter%natorb
-       IF (PRESENT(eheat)) eheat = se_parameter%eheat
-       IF (PRESENT(beta)) beta => se_parameter%beta
-       IF (PRESENT(sto_exponents)) sto_exponents => se_parameter%sto_exponents
-       IF (PRESENT(ngauss)) ngauss = se_parameter%ngauss
-       IF (PRESENT(uss)) uss = se_parameter%uss
-       IF (PRESENT(upp)) upp = se_parameter%upp
-       IF (PRESENT(udd)) udd = se_parameter%udd
-       IF (PRESENT(uff)) uff = se_parameter%uff
-       IF (PRESENT(alp)) alp = se_parameter%alp
-       IF (PRESENT(eisol)) eisol = se_parameter%eisol
-       IF (PRESENT(gss)) gss = se_parameter%gss
-       IF (PRESENT(gsp)) gsp = se_parameter%gsp
-       IF (PRESENT(gpp)) gpp = se_parameter%gpp
-       IF (PRESENT(gp2)) gp2 = se_parameter%gp2
-       IF (PRESENT(hsp)) hsp = se_parameter%hsp
-       IF (PRESENT(gsd)) gsd = se_parameter%gsd
-       IF (PRESENT(gpd)) gpd = se_parameter%gpd
-       IF (PRESENT(gdd)) gdd = se_parameter%gdd
-       IF (PRESENT(ppddg)) ppddg = se_parameter%pre
-       IF (PRESENT(dpddg)) dpddg = se_parameter%d
-
+    IF (ASSOCIATED(sep)) THEN
+       IF (PRESENT(name)) name = sep%name
+       IF (PRESENT(typ)) typ = sep%typ
+       IF (PRESENT(defined)) defined = sep%defined
+       IF (PRESENT(z)) z = sep%z
+       IF (PRESENT(zeff)) zeff = sep%zeff
+       IF (PRESENT(natorb)) natorb = sep%natorb
+       IF (PRESENT(eheat)) eheat = sep%eheat
+       IF (PRESENT(beta)) beta => sep%beta
+       IF (PRESENT(sto_exponents)) sto_exponents => sep%sto_exponents
+       IF (PRESENT(ngauss)) ngauss = sep%ngauss
+       IF (PRESENT(uss)) uss = sep%uss
+       IF (PRESENT(upp)) upp = sep%upp
+       IF (PRESENT(udd)) udd = sep%udd
+       IF (PRESENT(uff)) uff = sep%uff
+       IF (PRESENT(alp)) alp = sep%alp
+       IF (PRESENT(eisol)) eisol = sep%eisol
+       IF (PRESENT(gss)) gss = sep%gss
+       IF (PRESENT(gsp)) gsp = sep%gsp
+       IF (PRESENT(gpp)) gpp = sep%gpp
+       IF (PRESENT(gp2)) gp2 = sep%gp2
+       IF (PRESENT(hsp)) hsp = sep%hsp
+       IF (PRESENT(gsd)) gsd = sep%gsd
+       IF (PRESENT(gpd)) gpd = sep%gpd
+       IF (PRESENT(gdd)) gdd = sep%gdd
+       IF (PRESENT(ppddg)) ppddg = sep%pre
+       IF (PRESENT(dpddg)) dpddg = sep%d
     ELSE
-
        CALL stop_program(routineN,moduleN,__LINE__,&
-            "The pointer se_parameter is not associated")
-
+            "The pointer sep is not associated")
     END IF
 
   END SUBROUTINE get_se_param
 
 ! *****************************************************************************
-  SUBROUTINE set_se_param(se_parameter,name,typ,defined,z,zeff,natorb,eheat,&
-       beta,sto_exponents,uss,upp,udd,uff,alp,eisol,&
-       gss,gsp,gpp,gp2,hsp,gsd,gpd,gdd,ppddg,dpddg,ngauss)
+!> \brief Set info from the semi-empirical type
+! ***************************************************************************** 
+  SUBROUTINE set_se_param(sep,name,typ,defined,z,zeff,natorb,eheat,&
+       beta,sto_exponents,uss,upp,udd,uff,alp,eisol,gss,gsp,gpp,gp2,&
+       hsp,gsd,gpd,gdd,ppddg,dpddg,ngauss)
 
-    TYPE(semi_empirical_type), POINTER       :: se_parameter
+    TYPE(semi_empirical_type), POINTER       :: sep
     CHARACTER(LEN=default_string_length), &
       INTENT(IN), OPTIONAL                   :: name
     INTEGER, INTENT(IN), OPTIONAL            :: typ
@@ -269,50 +312,46 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_se_param', &
       routineP = moduleN//':'//routineN
 
-!   ---------------------------------------------------------------------------
-
-    IF (ASSOCIATED(se_parameter)) THEN
-
-       IF (PRESENT(name)) se_parameter%name = name
-       IF (PRESENT(typ)) se_parameter%typ = typ
-       IF (PRESENT(defined)) se_parameter%defined = defined
-       IF (PRESENT(z)) se_parameter%z = z
-       IF (PRESENT(zeff)) se_parameter%zeff = zeff
-       IF (PRESENT(natorb)) se_parameter%natorb = natorb
-       IF (PRESENT(eheat)) se_parameter%eheat = eheat
-       IF (PRESENT(beta)) se_parameter%beta = beta
-       IF (PRESENT(sto_exponents)) se_parameter%sto_exponents = sto_exponents
-       IF (PRESENT(ngauss)) se_parameter%ngauss = ngauss
-       IF (PRESENT(uss)) se_parameter%uss = uss
-       IF (PRESENT(upp)) se_parameter%upp = upp
-       IF (PRESENT(udd)) se_parameter%udd = udd
-       IF (PRESENT(uff)) se_parameter%uff = uff
-       IF (PRESENT(alp)) se_parameter%alp = alp
-       IF (PRESENT(eisol)) se_parameter%eisol = eisol
-       IF (PRESENT(gss)) se_parameter%gss = gss
-       IF (PRESENT(gsp)) se_parameter%gsp = gsp
-       IF (PRESENT(gpp)) se_parameter%gpp = gpp
-       IF (PRESENT(gp2)) se_parameter%gp2 = gp2
-       IF (PRESENT(hsp)) se_parameter%hsp = hsp
-       IF (PRESENT(gsd)) se_parameter%gsd = gsd
-       IF (PRESENT(gpd)) se_parameter%gpd = gpd
-       IF (PRESENT(gdd)) se_parameter%gdd = gdd
-       IF (PRESENT(ppddg)) se_parameter%pre = ppddg
-       IF (PRESENT(dpddg)) se_parameter%d = dpddg
-
+    IF (ASSOCIATED(sep)) THEN
+       IF (PRESENT(name)) sep%name = name
+       IF (PRESENT(typ)) sep%typ = typ
+       IF (PRESENT(defined)) sep%defined = defined
+       IF (PRESENT(z)) sep%z = z
+       IF (PRESENT(zeff)) sep%zeff = zeff
+       IF (PRESENT(natorb)) sep%natorb = natorb
+       IF (PRESENT(eheat)) sep%eheat = eheat
+       IF (PRESENT(beta)) sep%beta = beta
+       IF (PRESENT(sto_exponents)) sep%sto_exponents = sto_exponents
+       IF (PRESENT(ngauss)) sep%ngauss = ngauss
+       IF (PRESENT(uss)) sep%uss = uss
+       IF (PRESENT(upp)) sep%upp = upp
+       IF (PRESENT(udd)) sep%udd = udd
+       IF (PRESENT(uff)) sep%uff = uff
+       IF (PRESENT(alp)) sep%alp = alp
+       IF (PRESENT(eisol)) sep%eisol = eisol
+       IF (PRESENT(gss)) sep%gss = gss
+       IF (PRESENT(gsp)) sep%gsp = gsp
+       IF (PRESENT(gpp)) sep%gpp = gpp
+       IF (PRESENT(gp2)) sep%gp2 = gp2
+       IF (PRESENT(hsp)) sep%hsp = hsp
+       IF (PRESENT(gsd)) sep%gsd = gsd
+       IF (PRESENT(gpd)) sep%gpd = gpd
+       IF (PRESENT(gdd)) sep%gdd = gdd
+       IF (PRESENT(ppddg)) sep%pre = ppddg
+       IF (PRESENT(dpddg)) sep%d = dpddg
     ELSE
-
        CALL stop_program(routineN,moduleN,__LINE__,&
-            "The pointer se_parameter is not associated")
-
+            "The pointer sep is not associated")
     END IF
 
   END SUBROUTINE set_se_param
 
 ! *****************************************************************************
-  SUBROUTINE write_se_param(se_parameter,subsys_section,error)
+!> \brief Writes the semi-empirical type
+! ***************************************************************************** 
+  SUBROUTINE write_se_param(sep, subsys_section, error)
 
-    TYPE(semi_empirical_type), POINTER       :: se_parameter
+    TYPE(semi_empirical_type), POINTER       :: sep
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -333,14 +372,14 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    IF (ASSOCIATED(se_parameter).AND.BTEST(cp_print_key_should_output(logger%iter_info,subsys_section,&
+    IF (ASSOCIATED(sep).AND.BTEST(cp_print_key_should_output(logger%iter_info,subsys_section,&
          "PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) THEN
 
        output_unit = cp_print_key_unit_nr(logger,subsys_section,"PRINT%KINDS",&
             extension=".Log",error=error)
 
        IF (output_unit >0) THEN
-          CALL get_se_param(se_parameter,name=name,typ=typ,defined=defined,&
+          CALL get_se_param(sep,name=name,typ=typ,defined=defined,&
                z=z,zeff=zeff,natorb=natorb,eheat=eheat,beta=beta,&
                sto_exponents=sexp,uss=uss,upp=upp,udd=udd,uff=uff,&
                alp=alp,eisol=eisol,&
@@ -494,7 +533,7 @@ CONTAINS
                 WRITE (UNIT=output_unit,FMT="(T55,A)")&
                      "Parameters are not defined"
              END IF
-          CASE (do_method_mndo)
+          CASE (do_method_mndo, do_method_mndod)
              WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
                   " Semi empirical parameters: ","MNDO ",TRIM(name)
              IF ( defined ) THEN

@@ -95,7 +95,8 @@ CONTAINS
     not_SE = .TRUE.
     CALL section_vals_val_get(dft_section,"QS%METHOD",i_val=method_id,error=error)
     SELECT CASE (method_id)
-      CASE (do_method_dftb,do_method_mndo,do_method_am1,do_method_pm3,do_method_pm6,do_method_pdg,do_method_rm1)
+      CASE (do_method_dftb,do_method_mndo,do_method_am1,do_method_pm3,&
+            do_method_pm6,do_method_pdg,do_method_rm1,do_method_mndod)
          not_SE = .FALSE.
     END SELECT
     ! Check for XC section and XC_FUNCTIONAL section
@@ -476,7 +477,8 @@ CPSourceFileRef,&
        qs_control%dftb = .TRUE.
        CALL cite_reference(Porezag1995)
        CALL cite_reference(Seifert1996)
-    CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pm6,do_method_pdg,do_method_rm1)
+    CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pm6,&
+          do_method_pdg,do_method_rm1, do_method_mndod)
        qs_control%semi_empirical = .TRUE.
     END SELECT
 
@@ -545,8 +547,9 @@ CPSourceFileRef,&
          r_val=qs_control%se_control%rc_coulomb,error=error)
     CALL section_vals_val_get(se_section,"RC_RANGE",&
          r_val=qs_control%se_control%rc_range,error=error)
-    IF(qs_control %method_id == do_method_mndo .OR. &
+    IF(  qs_control %method_id == do_method_mndo .OR. &
          qs_control %method_id == do_method_am1  .OR. &
+         qs_control %method_id == do_method_mndod.OR. &
          qs_control %method_id == do_method_pdg  .OR. &
          qs_control %method_id == do_method_pm3  .OR. &
          qs_control %method_id == do_method_pm6  .OR. &

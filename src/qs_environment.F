@@ -89,9 +89,9 @@ MODULE qs_environment
                                              se_header
   USE input_constants,                 ONLY: &
        do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, &
-       do_method_gapw, do_method_gapw_xc, do_method_mndo, do_method_pdg, &
-       do_method_pm3, do_method_pm6, do_method_rm1, general_roks, &
-       restart_guess
+       do_method_gapw, do_method_gapw_xc, do_method_mndo, do_method_mndod, &
+       do_method_pdg, do_method_pm3, do_method_pm6, do_method_rm1, &
+       general_roks, restart_guess
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -433,7 +433,8 @@ CONTAINS
     SELECT CASE (method_id)
     CASE DEFAULT
        CALL qs_header(iw, iw>0)
-    CASE ( do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg, do_method_pm3, do_method_pm6 )
+    CASE ( do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg,&
+           do_method_pm3, do_method_pm6, do_method_mndod )
        CALL se_header(iw, iw>0)
     CASE ( do_method_dftb )
        CALL dftb_header(iw, iw>0)
@@ -656,7 +657,8 @@ CONTAINS
        se_control%rc_interaction = rc
        SELECT CASE ( dft_control%qs_control%method_id)
        CASE DEFAULT
-       CASE (do_method_rm1,do_method_am1,do_method_mndo,do_method_pm3,do_method_pm6)
+       CASE (do_method_rm1,do_method_am1,do_method_mndo,do_method_pm3,&
+             do_method_pm6,do_method_mndod)
           ! Neighbor lists have to be
           ! MAX(interaction range, orbital range)
           ! set new kind radius

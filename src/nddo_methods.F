@@ -24,6 +24,7 @@ MODULE nddo_methods
   USE f77_blas
   USE input_constants,                 ONLY: do_method_am1,&
                                              do_method_mndo,&
+                                             do_method_mndod,&
                                              do_method_pdg,&
                                              do_method_pm3,&
                                              do_method_pm6,&
@@ -455,7 +456,8 @@ CONTAINS
                    END IF
 
                    SELECT CASE (dft_control%qs_control%method_id)
-                     CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pm6,do_method_pdg,do_method_rm1)
+                     CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pm6,do_method_pdg,&
+                           do_method_rm1,do_method_mndod)
                        IF (anag) THEN
                          IF ( .NOT. switch ) THEN
                            CALL rotnuc_ana (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype,&

@@ -15,6 +15,7 @@ MODULE semi_empirical_utils
   USE f77_blas
   USE input_constants,                 ONLY: do_method_am1,&
                                              do_method_mndo,&
+                                             do_method_mndod,&
                                              do_method_pchg,&
                                              do_method_pdg,&
                                              do_method_pm3,&
@@ -24,6 +25,7 @@ MODULE semi_empirical_utils
   USE semi_empirical_par_utils,        ONLY: get_se_basis
   USE semi_empirical_parameters,       ONLY: am1_default_parameter,&
                                              mndo_default_parameter,&
+                                             mndod_default_parameter,&
                                              pcharge_default_parameter,&
                                              pdg_default_parameter,&
                                              pm3_default_parameter,&
@@ -139,6 +141,8 @@ CONTAINS
           CALL pdg_default_parameter(se_parameter,z)
        CASE (do_method_mndo)
           CALL mndo_default_parameter(se_parameter,z)
+       CASE (do_method_mndod)
+          CALL mndod_default_parameter(se_parameter,z)
        CASE (do_method_pchg)
           CALL pcharge_default_parameter(se_parameter,z)
        CASE DEFAULT

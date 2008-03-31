@@ -268,14 +268,18 @@ MODULE input_constants
        do_method_am1=8,&
        do_method_pm3=9,&
        do_method_pm6=10,&
-       do_method_pdg=11,&
-       do_method_rm1=12,&
-       do_method_dftb=13,&
-       do_method_pchg=14
-   INTEGER, PARAMETER, PUBLIC :: use_unit_angstrom=0,&
+       do_method_mndod=11,&
+       do_method_pdg=12,&
+       do_method_rm1=13,&
+       do_method_dftb=14,&
+       do_method_pchg=15
+
+  INTEGER, PARAMETER, PUBLIC :: &
+       use_unit_angstrom=0,&
        use_unit_bohr=1,&
        use_unit_scaled_angstrom=2,&
        use_unit_scaled_bohr=3
+
   INTEGER, PARAMETER, PUBLIC :: rsgrid_distributed=0,&
                                 rsgrid_replicated=1,&
                                 rsgrid_automatic=2

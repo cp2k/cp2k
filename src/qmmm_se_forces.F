@@ -18,6 +18,7 @@ MODULE qmmm_se_forces
   USE f77_blas
   USE input_constants,                 ONLY: do_method_am1,&
                                              do_method_mndo,&
+                                             do_method_mndod,&
                                              do_method_pchg,&
                                              do_method_pdg,&
                                              do_method_pm3,&
@@ -109,7 +110,8 @@ CONTAINS
                        dft_control=dft_control,error=error)
        number_qm_atoms = SIZE(qs_env%subsys%particles%els)
        SELECT CASE (dft_control%qs_control%method_id)
-       CASE (do_method_rm1,do_method_am1,do_method_mndo,do_method_pdg,do_method_pm3,do_method_pm6)
+       CASE (do_method_rm1,do_method_am1,do_method_mndo,do_method_pdg,&
+             do_method_pm3,do_method_pm6,do_method_mndod)
           ! Go on with the calculation.. 
        CASE DEFAULT
           ! Otherwise stop..
