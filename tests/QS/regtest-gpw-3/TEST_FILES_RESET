@@ -461,3 +461,5 @@ O2-ROKS.inp
 rsgrid-dist-1.inp
 rsgrid-dist-2.inp
 rsgrid-dist-3.inp
+#  
+H2O-solv.inp

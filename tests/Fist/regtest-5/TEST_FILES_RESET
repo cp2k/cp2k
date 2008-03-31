@@ -141,3 +141,5 @@ water_reord.inp
 N3dye_vib_bfgs.inp
 # CODATA 2006
 N3dye_vib_bfgs2.inp
+#  
+JAC_gen.inp

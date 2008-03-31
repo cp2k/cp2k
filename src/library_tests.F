@@ -142,7 +142,7 @@ CONTAINS
     !
     IF ( runtest ( 2 ) /= 0 ) CALL matmul_test ( para_env, iw)
     !
-    IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( para_env, iw)
+    IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( para_env, iw, error=error )
     !
     IF ( runtest ( 4 ) /= 0 ) CALL pw_fft_test ( para_env, iw, globenv, error )
     !
@@ -507,10 +507,11 @@ CONTAINS
 !>      none
 !> \author JGH  6-NOV-2000
 ! *****************************************************************************
-  SUBROUTINE fft_test ( para_env, iw )
+  SUBROUTINE fft_test ( para_env, iw, error )
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: iall, ierr, it, j, len, n(3), &
                                                 ndate( 3 ) = (/ 12, 48, 96 /),&
@@ -538,28 +539,36 @@ CONTAINS
        CASE DEFAULT
           EXIT
        CASE ( 1 )
-          CALL init_fft ( "FFTSG", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
+          CALL init_fft ( "FFTSG", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
+                          para_env=para_env, error=error )
           method = "FFTSG  "
        CASE ( 2 )
-          CALL init_fft ( "FFTW2", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
+          CALL init_fft ( "FFTW2", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
+                          para_env=para_env, error=error )
           method = "FFTW2  "
        CASE ( 3 )
-          CALL init_fft ( "FFTW3", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
+          CALL init_fft ( "FFTW3", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
+                          para_env=para_env, error=error )
           method = "FFTW3  "
        CASE ( 4 )
-          CALL init_fft ( "FFTESSL", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
+          CALL init_fft ( "FFTESSL", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
+                          para_env=para_env, error=error )
           method = "FFTESSL"
        CASE ( 5 )
-          CALL init_fft ( "FFTACML", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
+          CALL init_fft ( "FFTACML", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
+                          para_env=para_env, error=error )
           method = "FFTACML"
        CASE ( 6 )
-          CALL init_fft ( "FFTMKL", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
+          CALL init_fft ( "FFTMKL", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
+                          para_env=para_env, error=error )
           method = "FFTMKL"
        CASE ( 7 )
-          CALL init_fft ( "FFTSCI", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
+          CALL init_fft ( "FFTSCI", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
+                          para_env=para_env, error=error )
           method = "FFTSCI"
        CASE ( 8 )
-          CALL init_fft ( "FFTCU", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", para_env=para_env )
+          CALL init_fft ( "FFTCU", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
+                          para_env=para_env, error=error )
           method = "FFTCU"
        END SELECT
        n = 4
@@ -696,7 +705,7 @@ CONTAINS
 
     !..set fft lib
     CALL init_fft ( globenv%default_fft_library, alltoall=.FALSE., fftsg_sizes=.TRUE., &
-         wisdom_file="", para_env=para_env )
+         wisdom_file="", para_env=para_env, error=error )
 
     ! .. set cell (should otherwise be irrelevant)
     NULLIFY(box)
@@ -802,7 +811,7 @@ CONTAINS
 
     !..set fft lib
     CALL init_fft ( globenv%default_fft_library, alltoall=.FALSE., fftsg_sizes=.TRUE., &
-         wisdom_file="", para_env=para_env )
+         wisdom_file="", para_env=para_env, error=error )
 
     ntim = 4
     tim = 1.0_dp

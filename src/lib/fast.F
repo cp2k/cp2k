@@ -131,6 +131,28 @@ SUBROUTINE copy_cri ( n, z, r1, r2 )
 END SUBROUTINE copy_cri
 
 !-----------------------------------------------------------------------------!
+! *****************************************************************************
+SUBROUTINE copy_cc ( n, in, out )
+!
+  IMPLICIT NONE
+#if defined(__SGL)
+  INTEGER, PARAMETER :: dbl = KIND(0.0)
+#else
+  INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
+#endif
+
+  INTEGER, INTENT ( IN ) :: n
+  REAL ( dbl ), INTENT ( IN ) :: in(n)
+  REAL ( dbl ), INTENT ( OUT ) :: out(n)
+  INTEGER :: i
+!$OMP PARALLEL DO
+  DO i=1,n
+       out(i)=in(i)
+  ENDDO
+
+END SUBROUTINE copy_cc
+
+!-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
 SUBROUTINE copy_cr ( n, z, r1 )
@@ -208,6 +230,28 @@ SUBROUTINE copy_cz ( n, c, z )
   ENDDO
 
 END SUBROUTINE copy_cz
+! *****************************************************************************
+SUBROUTINE copy_zz ( n, c, z )
+!
+! z = c
+!
+  IMPLICIT NONE
+#if defined(__SGL)
+  INTEGER, PARAMETER :: dbl = KIND(0.0)
+#else
+  INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
+#endif
+
+  INTEGER, INTENT ( IN ) :: n
+  COMPLEX ( dbl ), INTENT ( IN ) :: c(n)
+  COMPLEX ( dbl ), INTENT ( OUT ) :: z(n)
+  INTEGER :: i
+!$OMP PARALLEL DO
+  DO i=1,n
+    z(i)=c(i)
+  ENDDO
+
+END SUBROUTINE copy_zz
 
 !-----------------------------------------------------------------------------!
 

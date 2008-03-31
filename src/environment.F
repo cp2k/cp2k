@@ -659,7 +659,7 @@ CONTAINS
          alltoall=section_get_lval(global_section,"ALLTOALL_SGL",error), &
          fftsg_sizes=.NOT.section_get_lval(global_section,"EXTENDED_FFT_LENGTHS",error), &
          wisdom_file=globenv%fftw_wisdom_file_name,&
-         para_env=para_env)
+         para_env=para_env,error=error)
 
     !   *** Check for FFT library ***
     CALL fft3d(1,n,zz,status=stat)
@@ -676,7 +676,7 @@ CONTAINS
                alltoall=section_get_lval(global_section,"ALLTOALL_SGL",error), &
                fftsg_sizes=.NOT.section_get_lval(global_section,"EXTENDED_FFT_LENGTHS",error), &
                wisdom_file=globenv%fftw_wisdom_file_name,&
-               para_env=para_env)
+               para_env=para_env,error=error)
 
           CALL fft3d(1,n,zz,status=stat)
        ENDIF
@@ -694,7 +694,7 @@ CONTAINS
                alltoall=section_get_lval(global_section,"ALLTOALL_SGL",error), &
                fftsg_sizes=.NOT.section_get_lval(global_section,"EXTENDED_FFT_LENGTHS",error), &
                wisdom_file=globenv%fftw_wisdom_file_name,&
-               para_env=para_env)
+               para_env=para_env,error=error)
 
           CALL fft3d(1,n,zz,status=stat)
           IF (stat /= 0) THEN
@@ -762,7 +762,7 @@ CONTAINS
     CALL deallocate_md_ftable()
 
     ! finalize the fft (i.e. writes the wisdom)
-    CALL finalize_fft(para_env)
+    CALL finalize_fft(para_env,error)
 
     ! Write message passing performance info
 
