@@ -72,10 +72,9 @@ MODULE x_hf_distribution_mc
     INTEGER(int_8), DIMENSION(:), POINTER    :: bin_costs_in
     TYPE(x_hf_load_balance_type)             :: load_balance_parameter
     INTEGER                                  :: my_nbin, my_ncpu
-    INTEGER(int_8), ALLOCATABLE, &
-      DIMENSION(:)                           :: my_bin_costs, my_cost_cpu
+    INTEGER(int_8), DIMENSION(:), POINTER    :: my_bin_costs, my_cost_cpu
     INTEGER(int_8)                           :: my_cost_optimal, my_cost_total
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: my_distribution, &
+    INTEGER, DIMENSION(:), POINTER           :: my_distribution, &
                                                 my_best_distribution
     INTEGER(int_8)                           :: my_best_cost
     TYPE(rng_stream_type), POINTER           :: my_rng_stream
@@ -134,10 +133,9 @@ MODULE x_hf_distribution_mc
                         my_reduction_factor, my_initial_temperature, my_tolerance, &
                         my_swap_probability, error)
     INTEGER                                  :: my_nbin, my_ncpu
-    INTEGER(int_8), ALLOCATABLE, &
-      DIMENSION(:)                           :: my_bin_costs, my_cost_cpu
+    INTEGER(int_8), DIMENSION(:), POINTER    :: my_bin_costs, my_cost_cpu
     INTEGER(int_8)                           :: my_cost_optimal, my_cost_total
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: my_distribution, &
+    INTEGER, DIMENSION(:), POINTER           :: my_distribution, &
                                                 my_best_distribution
     INTEGER(int_8)                           :: my_best_cost
     TYPE(rng_stream_type), POINTER           :: my_rng_stream
@@ -219,10 +217,9 @@ MODULE x_hf_distribution_mc
                                     my_reduction_factor, my_initial_temperature, my_tolerance, &
                                     my_swap_probability, i_thread, error)
     INTEGER                                  :: my_nbin, my_ncpu
-    INTEGER(int_8), ALLOCATABLE, &
-      DIMENSION(:)                           :: my_bin_costs, my_cost_cpu
+    INTEGER(int_8), DIMENSION(:), POINTER    :: my_bin_costs, my_cost_cpu
     INTEGER(int_8)                           :: my_cost_optimal, my_cost_total
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: my_distribution, &
+    INTEGER, DIMENSION(:), POINTER           :: my_distribution, &
                                                 my_best_distribution
     INTEGER(int_8)                           :: my_best_cost
     TYPE(rng_stream_type), POINTER           :: my_rng_stream
@@ -350,9 +347,8 @@ MODULE x_hf_distribution_mc
                                                 my_ncpu, my_reduction_steps
     INTEGER(int_8)                           :: my_best_cost, &
                                                 my_cost_optimal, my_cost_total
-    INTEGER(int_8), ALLOCATABLE, &
-      DIMENSION(:)                           :: my_bin_costs, my_cost_cpu
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: my_best_distribution, &
+    INTEGER(int_8), DIMENSION(:), POINTER    :: my_bin_costs, my_cost_cpu
+    INTEGER, DIMENSION(:), POINTER           :: my_best_distribution, &
                                                 my_distribution
     REAL(dp)                                 :: my_initial_temperature, &
                                                 my_reduction_factor, &
