@@ -2,3 +2,15 @@
 nh3-meta-4.inp
 # bug fix reflective walls
 nh3-meta-2.inp
+# CODATA 2006
+ar3_angvel_zero_000.inp
+ar3_angvel_zero_001.inp
+ar3_angvel_zero_002.inp
+nh3-meta-0.inp
+nh3-meta-1.inp
+nh3-meta-2.inp
+nh3-meta-3.inp
+nh3-meta-4.inp
+water_2_angvel_zero_000.inp
+water_2_angvel_zero_001.inp
+water_2_angvel_zero_002.inp

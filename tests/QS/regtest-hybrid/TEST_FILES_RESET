@@ -206,3 +206,20 @@ Ne-hybrid-rcam-b3lyp.inp
 Li-hybrid-MCY3.inp
 #  
 Ne-hybrid-MCY3.inp
+# CODATA 2006
+CH3-hybrid-b3lyp-lsd-g03.inp
+CH3-hybrid-handh-lsd.inp
+CH3-hybrid-handhlyp-lsd.inp
+CH3-hybrid-HSE06-lsd.inp
+CH3-hybrid-pbe0-lsd.inp
+H2O-hybrid-b3lyp-g03.inp
+H2O-hybrid-b3lyp.inp
+H2O-hybrid-b3lyp_shortcut.inp
+H2O-hybrid-bhandh.inp
+H2O-hybrid-bhandhlyp.inp
+H2O-hybrid-pbe0.inp
+H2O-hybrid-pbe0_shortcut.inp
+Li-hybrid-MCY3.inp
+Li-hybrid-rcam-b3lyp.inp
+Ne-hybrid-MCY3.inp
+Ne-hybrid-rcam-b3lyp.inp

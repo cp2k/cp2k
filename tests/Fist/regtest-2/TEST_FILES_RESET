@@ -59,3 +59,24 @@ H2O-32_SPME_res_3.inp
 H2O-32_SPME_res_4.inp
 sod2.inp
 sod.inp
+# CODATA 2006
+H2O-32_ewald.inp
+H2O-32_NPT.inp
+H2O-32_NPT_res_1.inp
+H2O-32_NPT_res_2.inp
+H2O-32_NPT_res_3.inp
+H2O-32_NPT_res_4.inp
+H2O-32_NPT_res_5.inp
+H2O-32_PME.inp
+H2O-32_SPME_fixed.inp
+H2O-32_SPME_fixed_mol.inp
+H2O-32_SPME.inp
+H2O-32_SPME_res_1.inp
+H2O-32_SPME_res_2.inp
+H2O-32_SPME_res_3.inp
+H2O-32_SPME_res_4.inp
+nacl_wat.inp
+sod2.inp
+sod.inp
+water_IPBV_flex.inp
+water_IPBV.inp

@@ -43,3 +43,16 @@ h2o-32_3.inp
 h2o-32_4.inp
 # Merging behavior of all optimizer. one more step of energy evaluation after convergence.
 n2.inp
+# CODATA 2006
+ch2o-1.inp
+ch2o-3.inp
+ch2o-r.inp
+h2-1.inp
+h2-2.inp
+h2-3.inp
+h2-4.inp
+h2o-32_1.inp
+h2o-32_2.inp
+h2o-32_3.inp
+h2o-32_4.inp
+MoS.inp

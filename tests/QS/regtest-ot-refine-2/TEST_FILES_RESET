@@ -53,3 +53,12 @@ o2_ot_chol_diis_1.inp
 o2_ot_lwdn_1.inp
 #  
 o2_ot_lwdn_diis_1.inp
+# CODATA 2006
+h2o_ot_chol_1.inp
+h2o_ot_chol_diis_1.inp
+h2o_ot_lwdn_1.inp
+h2o_ot_lwdn_diis_1.inp
+o2_ot_chol_1.inp
+o2_ot_chol_diis_1.inp
+o2_ot_lwdn_1.inp
+o2_ot_lwdn_diis_1.inp

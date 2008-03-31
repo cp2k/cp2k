@@ -120,3 +120,24 @@ N3dye_vib_restart_vec2.inp
 wat_mode_sel.inp
 wat_mode_sel_range.inp
 
+# CODATA 2006
+arginine0.inp
+arginine_crossC.inp
+arginine.inp
+argon_GENPOT_fcc-ql.inp
+argon_GENPOT.inp
+H2O-1-GENPOT-2.inp
+H2O-1-GENPOT.inp
+H2OFe-5_75.inp
+JAC_gen.inp
+JAC.inp
+JAC_us.inp
+liquid.inp
+N3dye_geoopt.inp
+phenobenz.inp
+wat125.inp
+water_reord.inp
+# CODATA 2006
+N3dye_vib_bfgs.inp
+# CODATA 2006
+N3dye_vib_bfgs2.inp

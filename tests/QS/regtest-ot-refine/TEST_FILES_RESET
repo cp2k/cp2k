@@ -53,3 +53,13 @@ o2_ot_refine_2.inp
 o2_ot_refine_diis_1.inp
 #  
 o2_ot_refine_diis_2.inp
+# CODATA 2006
+ethylene_l1_loc.inp
+h2o_ot_refine_1.inp
+h2o_ot_refine_2.inp
+h2o_ot_refine_diis_1.inp
+h2o_ot_refine_diis_2.inp
+o2_ot_refine_1.inp
+o2_ot_refine_2.inp
+o2_ot_refine_diis_1.inp
+o2_ot_refine_diis_2.inp

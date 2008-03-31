@@ -3,3 +3,6 @@
 2gly_IT-NEB-res.inp
 # New memory distribution for FIST neighbor lists: resetting due to numerics
 2gly_IT-NEB-res.inp
+# CODATA 2006
+2gly_IT-NEB.inp
+2gly_IT-NEB-res.inp

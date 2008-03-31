@@ -105,3 +105,17 @@ kg_gpw_2H2O_ppot.inp
 kg_gpw_2H2O_pbellp_geoch.inp
 #  
 kg_gpw_2H2O_md.inp
+# CODATA 2006
+h2o-2.inp
+h2o_energy.inp
+h2o.inp
+kg_gpw_1H2O_TF.inp
+kg_gpw_2H2O_llp.inp
+kg_gpw_2H2O_md.inp
+kg_gpw_2H2O_pbellp_geoch.inp
+kg_gpw_2H2O_ppot.inp
+nai-2.inp
+nai-4.inp
+nai-5.inp
+# CODATA 2006
+nai-1.inp

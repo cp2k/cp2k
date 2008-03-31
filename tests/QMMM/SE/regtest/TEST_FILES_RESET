@@ -62,3 +62,20 @@ zwitt.inp
 water_3_full.inp
 # new integral module - numerics
 water_3_full.inp
+# CODATA 2006
+h2_dbg_0.inp
+h2_dbg_1.inp
+h2_dbg_-2_2.inp
+h2_dbg_-2.inp
+mol_CSVR_gen1.inp
+mol_CSVR_gen2.inp
+mol_CSVR_gen3.inp
+mol.inp
+water_3_fdbg.inp
+water_3_fdbg_inv.inp
+water_3_full.inp
+water_3.inp
+water_3_NOwalls.inp
+water_3_walls.inp
+water_3_walls_q.inp
+zwitt.inp

@@ -94,3 +94,25 @@ h2o-4.inp
 h2o-5.inp
 # Merging behavior of all optimizer. one more step of energy evaluation after convergence.
 ch2o-5.inp
+# CODATA 2006
+ch2o-2.inp
+ch2o-3.inp
+ch2o-4.inp
+ch2o-5.inp
+ch2o.inp
+ch2o-ot1.inp
+ch2o-ot2.inp
+ch2o-ot3.inp
+ch2o-ot4.inp
+ch2o-ot5.inp
+ch2o-ot6.inp
+ch2o-p.inp
+ch2o-r.inp
+co.inp
+h2o-1.inp
+h2o-2.inp
+h2o-3.inp
+h2o-4.inp
+h2o-5.inp
+h2o.inp
+test-lsd.inp

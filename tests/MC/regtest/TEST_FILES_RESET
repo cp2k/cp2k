@@ -28,3 +28,6 @@ virial.inp
 MC_QS.inp
 #  
 GEMC_swap_box1.inp
+# CODATA 2006
+GEMC_swap_box1.inp
+MC_QS.inp

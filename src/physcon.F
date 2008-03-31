@@ -42,9 +42,16 @@
 !>      Literature: - B. J. Mohr and B. N. Taylor,
 !>                    "CODATA recommended values of the fundamental physical
 !>                     constants: 1998", Rev. Mod. Phys. 72(2), 351 (2000).
+!>                  - B. J. Mohr and B. N. Taylor,
+!>                    "CODATA recommended values of the fundamental physical
+!>                     constants: 2002", Rev. Mod. Phys. 77(2), 1 (2005).
+!>                  - B. J. Mohr and B. N. Taylor,
+!>                    "CODATA recommended values of the fundamental physical
+!>                     constants: 2006", http://physics.nist.gov/constants
 !> \par History
 !>      - Adapted for use in CP2K (JGH)
 !>      - Updated to CODATA 1998 and cleaned (05.09.2003,MK)
+!>      - Updated to CODATA 2006. (26.03.2008,AK)
 !> \author Matthias Krack
 ! *****************************************************************************
 MODULE physcon
@@ -90,7 +97,8 @@ CONTAINS
 !> \date    14.11.2000
 !> \par History
 !>       - Updated to CODATA 1998 and cleaned (05.09.2003,MK)
-!> \version 1.0
+!>       - Updated to CODATA 2006. (26.03.2008,AK)
+!> \version 1.1
 ! *****************************************************************************
   SUBROUTINE init_physcon()
     INTEGER                                  :: i
@@ -98,134 +106,147 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 !   *** Exact constants ***
 !   *** Speed of light in vacuum [m/s] ***
-
     c_light = 299792458.0_dp
 
 !   *** Magnetic constant or permeability of vacuum [N/A**2] ***
-
     mu_perm = 4.0_dp*pi*1.0E-7_dp
 
 !   *** Electric constant or permittivity of vacuum [F/m] ***
-
     permittivity = 1.0_dp/(mu_perm*c_light**2)
 
 !   ---------------------------------------------------------------------------
+#if !defined CODATA_VERSION
+#define CODATA_VERSION 2006
+#endif
 
+#if CODATA_VERSION == 1998
 !   *** Recommended fundamental constants of physics ***
 !   *** and chemistry based on the 1998 adjustment   ***
 
 !   *** Planck constant [J*s] ***
-
     h_planck = 6.62606876E-34_dp
     h_bar = h_planck/(2.0_dp*pi)
 
 !   *** Elementary charge [C] ***
-
     e_charge = 1.602176462E-19_dp
 
 !   *** Electron mass [kg] ***
-
     e_mass = 9.10938188E-31_dp
 
 !   *** Electron g factor [ ] ***
-
     e_gfactor = -2.0023193043718_dp
 
 !   *** Fine-structure constant ***
-
 !MK  a_fine = 0.5_dp*mu_perm*c_light*e_charge**2/h_planck
      a_fine = 7.297352533E-3_dp
 
 !   *** Rydberg constant [1/m] ***
-
 !MK rydberg = 0.5_dp*e_mass*c_light*a_fine**2/h_planck
     rydberg = 10973731.568549_dp
 
 !   *** Avogradro constant [1/mol] ***
-
     n_avogadro = 6.02214199E+23_dp
 
 !   *** Boltzmann constant [J/K] ***
-
     boltzmann = 1.3806503E-23_dp
 
 !   *** Atomic mass unit [kg]; conversion factor [u] -> [kg] ***
-
     a_mass = 1.66053873E-27_dp
 
 !   *** Bohr radius [m];  ***
-
 !MK a_bohr = a_fine/(4.0_dp*pi*rydberg)
     a_bohr = 0.5291772083E-10_dp
+#endif
 
+#if CODATA_VERSION == 2006
+!   *** Recommended fundamental constants of physics ***
+!   *** and chemistry based on the 2006 adjustment   ***
+
+!   *** Planck constant [J*s] ***
+    h_planck = 6.62606896E-34_dp
+    h_bar = h_planck/(2.0_dp*pi)
+
+!   *** Elementary charge [C] ***
+    e_charge = 1.602176487E-19_dp
+
+!   *** Electron mass [kg] ***
+    e_mass = 9.10938215E-31_dp
+
+!   *** Electron g factor [ ] ***
+    e_gfactor = -2.0023193043622_dp
+
+!   *** Fine-structure constant ***
+!MK  a_fine = 0.5_dp*mu_perm*c_light*e_charge**2/h_planck
+     a_fine = 7.2973525376E-3_dp
+
+!   *** Rydberg constant [1/m] ***
+!MK rydberg = 0.5_dp*e_mass*c_light*a_fine**2/h_planck
+    rydberg = 10973731.568527_dp
+
+!   *** Avogradro constant [1/mol] ***
+    n_avogadro = 6.02214179E+23_dp
+
+!   *** Boltzmann constant [J/K] ***
+    boltzmann = 1.3806504E-23_dp
+
+!   *** Atomic mass unit [kg]; conversion factor [u] -> [kg] ***
+    a_mass = 1.660538782E-27_dp
+
+!   *** Bohr radius [m];  ***
+!MK a_bohr = a_fine/(4.0_dp*pi*rydberg)
+    a_bohr = 0.52917720859E-10_dp
+#endif
 !   ---------------------------------------------------------------------------
 
 !   *** Conversion factors ***
 
 !   *** [u] -> [a.u.] ***
-
     massunit = a_mass/e_mass
 
 !   *** [Bohr] -> [Angstrom] ***
-
     angstrom = 1.0E+10_dp*a_bohr
 
 !   *** [Angstrom] -> [Bohr] ***
-
     bohr = 1.0_dp/angstrom
 
 !   *** [a.u.] -> [s] ***
-
     seconds = 1.0_dp/(4.0_dp*pi*rydberg*c_light)
 
 !   *** [a.u.] -> [fs] ***
-
     femtoseconds = 1.0E+15_dp*seconds
 
 !   *** [a.u.] -> [ps] ***
-
     picoseconds = 1.0E+12_dp*seconds
 
 !   *** [a.u.] -> [J] ***
-
     joule = 2.0_dp*rydberg*h_planck*c_light
 
 !   *** [a.u.] -> [K] ***
-
     kelvin = joule/boltzmann
 
 !   *** [a.u.] -> [kJ/mol] ***
-
     kjmol = 0.001_dp*joule*n_avogadro
 
 !   *** [a.u.] -> [kcal/mol] ***
-
     kcalmol = kjmol/4.184_dp
 
 !   *** [a.u.] -> [eV] ***
-
     evolt = joule/e_charge
 
 !   *** [a.u.] -> [Hz] ***
-
     hz = joule/h_planck
 
 !   *** [a.u.] -> [MHz] ***
-
     mhz = 1.0E-6_dp*hz
 
 !   *** [a.u./Bohr**2] -> [1/cm] (wave numbers) ***
-
     vibfac = 5.0_dp*SQRT(kjmol)/(pi*a_bohr*c_light)
 
 !   *** [a.u.] -> [1/cm] (wave numbers) ***
-
     wavenum = 0.02_dp*rydberg
 
 !   *** [a.u.] -> [esu] (electrostatic units) ***
-
     esu(1) = 1.0E+21_dp*a_bohr*c_light*e_charge
-
     DO i=2,maxmom
       esu(i) = esu(i-1)/bohr
     END DO
@@ -234,7 +255,6 @@ CONTAINS
     Debye = esu(1)
 
 !   *** Initialize the periodic table ***
-
     CALL init_periodic_table()
 
   END SUBROUTINE init_physcon
@@ -246,18 +266,29 @@ CONTAINS
 !> \date    14.11.2000
 !> \par History
 !>       - Updated to CODATA 1998 and cleaned (05.09.2003,MK)
-!> \version 1.0
+!>       - Updated to CODATA 2006. (26.03.2008,AK)
+!> \version 1.1
 ! *****************************************************************************
   SUBROUTINE write_physcon(output_unit)
     INTEGER, INTENT(IN)                      :: output_unit
 
 !   ---------------------------------------------------------------------------
-
+#if CODATA_VERSION == 1998
     WRITE (UNIT=output_unit,FMT="(T2,/,T2,A,/,/,(T2,A))")&
       "*** Fundamental physical constants (SI units) ***",&
       "*** Literature: B. J. Mohr and B. N. Taylor,",&
       "***             CODATA recommended values of the fundamental physical",&
       "***             constants: 1998, Rev. Mod. Phys. 72(2), 351 (2000)."
+#endif
+
+#if CODATA_VERSION == 2006
+    WRITE (UNIT=output_unit,FMT="(T2,/,T2,A,/,/,(T2,A))")&
+      "*** Fundamental physical constants (SI units) ***",&
+      "*** Literature: B. J. Mohr and B. N. Taylor,",&
+      "***             CODATA recommended values of the fundamental physical",&
+      "***             constants: 2006, Web Version 5.1, "//&
+      "http://physics.nist.gov/constants."
+#endif
 
     WRITE (UNIT=output_unit,FMT="(/,T2,A,T61,ES20.14)")&
       "Speed of light in vacuum [m/s]",c_light

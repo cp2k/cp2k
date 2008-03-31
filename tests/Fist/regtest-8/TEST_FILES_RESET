@@ -12,3 +12,11 @@ water.inp
 water.inp
 # numerics after cleaning md and md_util
 water.inp
+# CODATA 2006
+G87_2.inp
+G87.inp
+G96_ei_scale.inp
+G96.inp
+water_2.inp
+water.inp
+water_vel.inp

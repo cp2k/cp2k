@@ -67,3 +67,37 @@ H2O-2-ovwr.inp
 H2O-32_SPME_fp.inp
 # bug fix in writing restart for BFGS
 nh3_wat-restraint-fixd-4.inp
+# CODATA 2006
+acn.inp
+acn_respa.inp
+cycbut.inp
+cyhex.inp
+ethene-ck-restraint.inp
+ethene_colv0.inp
+ethene_colv1_growth.inp
+ethene_colv1.inp
+ethene_colv1_npt.inp
+ethene_colv2.inp
+ethene_colv2_npt.inp
+ethene-no-restraint.inp
+ethene-restraint2.inp
+ethene-restraint.inp
+gly_amber.inp
+H2O-1.inp
+h2o2_amber.inp
+H2O-2-mul0.inp
+H2O-2-multi.inp
+H2O-2-multi-pw.inp
+H2O-2-ovwr.inp
+H2O-32_SPME_fp.inp
+H2O-restraint_2.inp
+H2O-restraint_2r.inp
+H2O-restraint_3x3.inp
+H2O-restraint.inp
+loop.inp
+mol_amber.inp
+nh3-meta-1.inp
+nh3-meta-2.inp
+nh3-restraint4x6.inp
+nh3-restraint-fixd.inp
+pentadiene.inp

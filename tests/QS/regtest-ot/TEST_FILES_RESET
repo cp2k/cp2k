@@ -275,3 +275,26 @@ H2-BECKE-MD.inp
 H2-diffBECKE-ET_coupling.inp
 #  
 sic_energy.inp
+# CODATA 2006
+C2H4-init.inp
+C2H4-init.inp
+C2H4.inp
+H2-BECKE-MD.inp
+H2-diffBECKE-ET_coupling.inp
+H2O-geo-ot-evals.inp
+H2O-geo-ot-mols.inp
+H2O-geo-ot-pdos.inp
+H2O-geo-ot-pdos-lumo-comp.inp
+H2O-geo-pdos_comp.inp
+H2O-geo-pdos.inp
+He2_ddapc_constraint-2.inp
+He2_ddapc_constraint-3.inp
+He2_ddapc_constraint-4.inp
+He2_ddapc_constraint.inp
+He2_none_full_all.inp
+He2_none_full_inverse.inp
+He2_none_full_single.inp
+He2_none.inp
+# CODATA 2006
+sic_ddapc_rt.inp
+sic_energy.inp

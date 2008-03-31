@@ -390,3 +390,23 @@ H2O-meta_coord_2.inp
 # more numerics
 hcn_ts.inp
 hcn_ts_r.inp
+# CODATA 2006
+Ar-12.inp
+Ar-13.inp
+H2O-2.inp
+H2O-3.inp
+H2O-4.inp
+H2O-meta_coord_2.inp
+H2O-meta_coord.inp
+H2O-meta.inp
+H2O-meta_kinds.inp
+H2O-meta_res0.inp
+H2O-meta_res1.inp
+H2O-meta_res2.inp
+H2O-meta_res3.inp
+H2O-tpss.inp
+H2O-tpss_new.inp
+H2-vib.inp
+hcn_ts.inp
+hcn_ts_r.inp
+ZrO.inp

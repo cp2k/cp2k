@@ -16,3 +16,8 @@
 2gly_CI-NEB.inp
 # reset due to the new neighbor list for FIST. Numerics.
 2gly_B-NEB.inp
+# CODATA 2006
+2gly_B-NEB.inp
+2gly_CI-NEB.inp
+2gly_EB-NEB.inp
+2gly_IT-NEB.inp
