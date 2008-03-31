@@ -106,6 +106,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 !   *** Exact constants ***
 !   *** Speed of light in vacuum [m/s] ***
+
     c_light = 299792458.0_dp
 
 !   *** Magnetic constant or permeability of vacuum [N/A**2] ***
