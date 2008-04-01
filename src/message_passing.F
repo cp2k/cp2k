@@ -1163,7 +1163,7 @@ END SUBROUTINE mp_cart_rank
 SUBROUTINE mp_alltoall_i11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
     INTEGER, DIMENSION(:), INTENT(IN)        :: sb, scount, sdispl
-    INTEGER, DIMENSION(:), INTENT(OUT)       :: rb
+    INTEGER, DIMENSION(:), INTENT(INOUT)       :: rb
     INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
     INTEGER, INTENT(IN)                      :: group
 
@@ -1198,7 +1198,7 @@ SUBROUTINE mp_alltoall_i8v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
     INTEGER(kind=int_8), DIMENSION(:), INTENT(IN)        :: sb 
     INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
-    INTEGER(kind=int_8), DIMENSION(:), INTENT(OUT)       :: rb
+    INTEGER(kind=int_8), DIMENSION(:), INTENT(INOUT)       :: rb
     INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
     INTEGER, INTENT(IN)                      :: group
     INTEGER(kind=int_8)                      :: int_8_size, dummy
@@ -1239,7 +1239,7 @@ SUBROUTINE mp_alltoall_z11v ( sb, scount, sdispl, rb, rcount, rdispl,len_string,
     INTEGER,INTENT(IN)                       :: len_string
     CHARACTER(LEN=len_string),DIMENSION(:), INTENT(IN)    :: sb
     INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
-    CHARACTER(LEN=len_string), DIMENSION(:), INTENT(OUT)  :: rb
+    CHARACTER(LEN=len_string), DIMENSION(:), INTENT(INOUT)  :: rb
     INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
     INTEGER, INTENT(IN)                      :: group
 
@@ -1277,7 +1277,7 @@ SUBROUTINE mp_alltoall_r11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: sb
     INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: rb
+    REAL(KIND=dp), DIMENSION(:), INTENT(INOUT) :: rb
     INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
     INTEGER, INTENT(IN)                      :: group
 
@@ -1315,7 +1315,7 @@ SUBROUTINE mp_alltoall_c22v ( sb, scount, sdispl, rb, rcount, rdispl, group )
       INTENT(IN)                             :: sb
     INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
     COMPLEX(KIND=dp), DIMENSION(:, :), &
-      INTENT(OUT)                            :: rb
+      INTENT(INOUT)                            :: rb
     INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
     INTEGER, INTENT(IN)                      :: group
 
@@ -1371,7 +1371,7 @@ SUBROUTINE mp_alltoall_c22v_sgl ( sb, scount, sdispl, rb, rcount, rdispl, group 
       INTENT(IN)                             :: sb
     INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
     COMPLEX(KIND=sp), DIMENSION(:, :), &
-      INTENT(OUT)                            :: rb
+      INTENT(INOUT)                            :: rb
     INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
     INTEGER, INTENT(IN)                      :: group
 

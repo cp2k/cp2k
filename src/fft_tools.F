@@ -1504,7 +1504,7 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb, fft_scratch, err
     INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
     COMPLEX(KIND=lp), DIMENSION(:, :), &
-      INTENT(OUT)                            :: sb
+      INTENT(INOUT)                            :: sb
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
@@ -1603,7 +1603,7 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
     INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
     COMPLEX(KIND=lp), DIMENSION(:, :), &
-      INTENT(OUT)                            :: tb
+      INTENT(INOUT)                            :: tb
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
@@ -1759,7 +1759,7 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
     INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
     COMPLEX(KIND=lp), DIMENSION(:, :), &
-      INTENT(OUT)                            :: tb
+      INTENT(INOUT)                            :: tb
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
