@@ -48,7 +48,8 @@ MODULE bibliography
              VandeVondele2007,Ortiz1994,Becke1988,Perdew1996,Zhang1998,Lee1988, &
              Heyd2006,Vydrov2006,Heyd2003,Heyd2004,Vosko1980, Aguado2003,&
              Essmann1995,Ewald1921,Darden1993, Tersoff1988, Tosi1964a, Tosi1964b,&
-             Yamada2000,Dudarev1997,Dudarev1998
+             Yamada2000,Dudarev1997,Dudarev1998,Dewar1977,Dewar1985,Rocha2006,&
+             Stewart1989,Thiel1992,Repasky2002,Stewart2007
 
 CONTAINS
 
@@ -63,6 +64,125 @@ CONTAINS
 !>      08.2007 created [Joost VandeVondele]
 ! *****************************************************************************
   SUBROUTINE add_all_references()
+
+
+    CALL add_reference(key=Stewart2007, ISI_record=s2a(&
+         "AU Stewart, JJP",&
+         "AF Stewart, James J. P.",&
+         "TI Optimization of parameters for semiempirical methods V: Modification of",&
+         "   NDDO approximations and application to 70 elements",&
+         "SO JOURNAL OF MOLECULAR MODELING",&
+         "SN 1610-2940",&
+         "PD DEC",&
+         "PY 2007",&
+         "VL 13",&
+         "IS 12",&
+         "BP 1173",&
+         "EP 1213",&
+         "UT ISI:000250308000001",&
+         "ER"),&
+         DOI="http://dx.doi.org/10.1007/s00894-007-0233-4")
+
+    CALL add_reference(key=Repasky2002, ISI_record=s2a(&
+         "AU Repasky, MP",&
+         "   Chandrasekhar, J",&
+         "   Jorgensen, WL",&
+         "TI PDDG/PM3 and PDDG/MNDO: Improved semiempirical methods",&
+         "SO JOURNAL OF COMPUTATIONAL CHEMISTRY",&
+         "SN 0192-8651",&
+         "PD DEC",&
+         "PY 2002",&
+         "VL 23",&
+         "IS 16",&
+         "BP 1601",&
+         "EP 1622",&
+         "UT ISI:000179022700011",&
+         "ER"),&
+         DOI="http://dx.doi.org/10.1002/jcc.10162")
+    
+    CALL add_reference(key=Thiel1992, ISI_record=s2a(&
+         "AU THIEL, W",&
+         "   VOITYUK, AA",&
+         "TI EXTENSION OF THE MNDO FORMALISM TO D-ORBITALS - INTEGRAL APPROXIMATIONS",&
+         "   AND PRELIMINARY NUMERICAL RESULTS",&
+         "SO THEORETICA CHIMICA ACTA",&
+         "SN 0040-5744",&
+         "PD FEB",&
+         "PY 1992",&
+         "VL 81",&
+         "IS 6",&
+         "BP 391",&
+         "EP 404",&
+         "UT ISI:A1992HF04700004",&
+         "ER"),&
+         DOI="http://dx.doi.org/10.1007/BF01134863")
+
+    CALL add_reference(key=Stewart1989, ISI_record=s2a(&
+         "AU STEWART, JJP",&
+         "TI OPTIMIZATION OF PARAMETERS FOR SEMIEMPIRICAL METHODS .1. METHOD",&
+         "SO JOURNAL OF COMPUTATIONAL CHEMISTRY",&
+         "SN 0192-8651",&
+         "PD MAR",&
+         "PY 1989",&
+         "VL 10",&
+         "IS 2",&
+         "BP 209",&
+         "EP 220",&
+         "UT ISI:A1989T690100007",&
+         "ER"),&
+         DOI="http://dx.doi.org/10.1002/jcc.540100208")
+
+    CALL add_reference(key=Rocha2006, ISI_record=s2a(&
+         "AU Rocha, GB",&
+         "   Freire, RO",&
+         "   Simas, AM",&
+         "   Stewart, JJP",&
+         "TI RMI: A reparameterization of AM1 for H, C, N, O, P, S, F, Cl, Br, and I",&
+         "SO JOURNAL OF COMPUTATIONAL CHEMISTRY",&
+         "SN 0192-8651",&
+         "PD JUL 30",&
+         "PY 2006",&
+         "VL 27",&
+         "IS 10",&
+         "BP 1101",&
+         "EP 1111",&
+         "UT ISI:000238158900007",&
+         "ER"),&
+         DOI="http://dx.doi.org/10.1002/jcc.20425")
+
+    CALL add_reference(key=Dewar1985, ISI_record=s2a(&
+         "AU DEWAR, MJS",&
+         "   ZOEBISCH, EG",&
+         "   HEALY, EF",&
+         "   STEWART, JJP",&
+         "TI THE DEVELOPMENT AND USE OF QUANTUM-MECHANICAL MOLECULAR-MODELS .76. AM1",&
+         "   - A NEW GENERAL-PURPOSE QUANTUM-MECHANICAL MOLECULAR-MODEL",&
+         "SO JOURNAL OF THE AMERICAN CHEMICAL SOCIETY",&
+         "SN 0002-7863",&
+         "PY 1985",&
+         "VL 107",&
+         "IS 13",&
+         "BP 3902",&
+         "EP 3909",&
+         "UT ISI:A1985ALC3500024",&
+         "ER"),&
+         DOI="http://dx.doi.org/10.1021/ja00299a024")
+
+    CALL add_reference(key=Dewar1977, ISI_record=s2a(&
+         "AU DEWAR, MJS",&
+         "   THIEL, W",&
+         "TI GROUND-STATES OF MOLECULES .38. MNDO METHOD - APPROXIMATIONS AND",&
+         "   PARAMETERS",&
+         "SO JOURNAL OF THE AMERICAN CHEMICAL SOCIETY",&
+         "SN 0002-7863",&
+         "PY 1977",&
+         "VL 99",&
+         "IS 15",&
+         "BP 4899",&
+         "EP 4907",&
+         "UT ISI:A1977DN51700004",&
+         "ER"),&
+         DOI="http://dx.doi.org/10.1021/ja00457a004")
 
     CALL add_reference(key=Henkelman1999, ISI_record=s2a(&
          "PT J",&

@@ -15,8 +15,6 @@
 !> \author Matthias Krack (03.04.2001)
 ! *****************************************************************************
 MODULE qs_main
-  USE bibliography,                    ONLY: VandeVondele2005a,&
-                                             cite_reference
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
@@ -81,7 +79,6 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
 
     CALL timeset(routineN,"I","",handle)
-    CALL cite_reference(VandeVondele2005a)
     failure = .FALSE.
     NULLIFY(qs_env, sub_force_env)
     !Reference qs_env

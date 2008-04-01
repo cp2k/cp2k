@@ -38,7 +38,6 @@
 MODULE semi_empirical_parameters
   USE f77_blas
   USE input_constants,                 ONLY: do_method_am1,&
-                                             do_method_mndo,&
                                              do_method_mndod,&
                                              do_method_pchg,&
                                              do_method_pdg,&
@@ -63,12 +62,11 @@ MODULE semi_empirical_parameters
 ! *** Global parameters ***
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_parameters'
 
-  REAL(KIND=dp),DIMENSION(0:nelem,0:nelem) :: xab_pm6, aab_pm6
+  REAL(KIND=dp), DIMENSION(0:nelem,0:nelem) :: xab_pm6, aab_pm6
 
 ! *** Public subroutines ***
   PUBLIC :: mndo_default_parameter,&
             am1_default_parameter, &
-            mndod_default_parameter,&
             rm1_default_parameter,&
             pdg_default_parameter,&
             pm3_default_parameter,&
@@ -100,383 +98,20 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Default parameter sets for semi empirical models: MNDO
 ! *****************************************************************************
-  SUBROUTINE mndo_default_parameter ( sep, z )
+  SUBROUTINE mndo_default_parameter ( sep, z, itype )
     TYPE(semi_empirical_type), POINTER       :: sep
-    INTEGER                                  :: z
+    INTEGER, INTENT(IN)                      :: z, itype
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mndo_default_parameter', &
       routineP = moduleN//':'//routineN
 
-    sep%typ    = do_method_mndo
+    sep%typ    = itype
     sep%name   = ptable(z)%name
     sep%eheat  = ptable(z)%heat_of_formation / kcalmol
     sep%z      = z
     sep%ngauss = 6
     CALL valence_electrons(z, sep%zeff, sep%natorb)
 
-    SELECT CASE (z)
-    CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "invalid atomic number")
-    CASE (0)
-       sep%defined          = .TRUE.
-    CASE (1)
-       !Hydrogen
-       sep%defined          = .TRUE.
-       sep%alp              =   2.5441341_dp
-       sep%beta(0)          =  -6.9890640_dp
-       sep%sto_exponents(0) =   1.3319670_dp
-       sep%uss              = -11.9062760_dp
-       sep%gss              =  12.8480000_dp
-    CASE (2)
-    CASE (3)
-       !Lithium
-       sep%defined          = .TRUE.
-       sep%alp              =   1.2501400_dp
-       sep%beta(0)          =  -1.3500400_dp
-       sep%beta(1)          =  -1.3500400_dp
-       sep%sto_exponents(0) =   0.7023800_dp 
-       sep%sto_exponents(1) =   0.7023800_dp
-       sep%uss              =  -5.1280000_dp 
-       sep%upp              =  -2.7212000_dp
-       sep%gss              =   7.3000000_dp 
-       sep%gsp              =   5.4200000_dp 
-       sep%gpp              =   5.0000000_dp
-       sep%gp2              =   4.5200000_dp
-       sep%hsp              =   0.8300000_dp
-    CASE (4)
-       !Beryllium
-       sep%defined          = .TRUE.
-       sep%alp              =   1.6694340_dp
-       sep%beta(0)          =  -4.0170960_dp
-       sep%beta(1)          =  -4.0170960_dp
-       sep%sto_exponents(0) =   1.0042100_dp 
-       sep%sto_exponents(1) =   1.0042100_dp
-       sep%uss              = -16.6023780_dp 
-       sep%upp              = -10.7037710_dp 
-       sep%gss              =   9.0000000_dp 
-       sep%gsp              =   7.4300000_dp 
-       sep%gpp              =   6.9700000_dp 
-       sep%gp2              =   6.2200000_dp
-       sep%hsp              =   1.2800000_dp
-    CASE (5)
-       !Boron
-       sep%defined          = .TRUE.
-       sep%alp              =   2.1349930_dp
-       sep%beta(0)          =  -8.2520540_dp
-       sep%beta(1)          =  -8.2520540_dp
-       sep%sto_exponents(0) =   1.5068010_dp
-       sep%sto_exponents(1) =   1.5068010_dp
-       sep%uss              = -34.5471300_dp
-       sep%upp              = -23.1216900_dp
-       sep%gss              =  10.5900000_dp
-       sep%gsp              =   9.5600000_dp
-       sep%gpp              =   8.8600000_dp
-       sep%gp2              =   7.8600000_dp
-       sep%hsp              =   1.8100000_dp
-    CASE (6)
-       !Carbon
-       sep%defined          = .TRUE.
-       sep%alp              =   2.5463800_dp
-       sep%beta(0)          = -18.9850440_dp
-       sep%beta(1)          =  -7.9341220_dp
-       sep%sto_exponents(0) =   1.7875370_dp
-       sep%sto_exponents(1) =   1.7875370_dp
-       sep%uss              = -52.2797450_dp
-       sep%upp              = -39.2055580_dp
-       sep%gss              =  12.2300000_dp
-       sep%gsp              =  11.4700000_dp
-       sep%gpp              =  11.0800000_dp
-       sep%gp2              =   9.8400000_dp
-       sep%hsp              =   2.4300000_dp
-    CASE (7)
-       !Nitrogen
-       sep%defined          = .TRUE.
-       sep%alp              =   2.8613420_dp
-       sep%beta(0)          = -20.4957580_dp
-       sep%beta(1)          = -20.4957580_dp
-       sep%sto_exponents(0) =   2.2556140_dp
-       sep%sto_exponents(1) =   2.2556140_dp
-       sep%uss              = -71.9321220_dp
-       sep%upp              = -57.1723190_dp
-       sep%gss              =  13.5900000_dp
-       sep%gsp              =  12.6600000_dp
-       sep%gpp              =  12.9800000_dp
-       sep%gp2              =  11.5900000_dp
-       sep%hsp              =   3.1400000_dp
-    CASE (8)
-       !Oxygen
-       sep%defined          = .TRUE.
-       sep%alp              =   3.1606040_dp
-       sep%beta(0)          = -32.6880820_dp
-       sep%beta(1)          = -32.6880820_dp
-       sep%sto_exponents(0) =   2.6999050_dp
-       sep%sto_exponents(1) =   2.6999050_dp
-       sep%uss              = -99.6443090_dp
-       sep%upp              = -77.7974720_dp
-       sep%gss              =  15.4200000_dp
-       sep%gsp              =  14.4800000_dp
-       sep%gpp              =  14.5200000_dp
-       sep%gp2              =  12.9800000_dp
-       sep%hsp              =   3.9400000_dp
-    CASE (9)
-       !Fluorine
-       sep%defined          = .TRUE.
-       sep%alp              =   3.4196606_dp
-       sep%beta(0)          = -48.2904660_dp
-       sep%beta(1)          = -36.5085400_dp
-       sep%sto_exponents(0) =   2.8484870_dp
-       sep%sto_exponents(1) =   2.8484870_dp
-       sep%uss              =-131.0715480_dp
-       sep%upp              =-105.7821370_dp
-       sep%gss              =  16.9200000_dp
-       sep%gsp              =  17.2500000_dp
-       sep%gpp              =  16.7100000_dp
-       sep%gp2              =  14.9100000_dp
-       sep%hsp              =   4.8300000_dp
-    CASE (10:12)
-    CASE (13)
-       !Aluminium
-       sep%defined          = .TRUE.
-       sep%alp              =   1.8688394_dp
-       sep%beta(0)          =  -2.6702840_dp
-       sep%beta(1)          =  -2.6702840_dp
-       sep%sto_exponents(0) =   1.4441610_dp
-       sep%sto_exponents(1) =   1.4441610_dp
-       sep%sto_exponents(2) =   1.0000000_dp
-       sep%uss              = -23.8070970_dp
-       sep%upp              = -17.5198780_dp
-       sep%gss              =   8.0900000_dp
-       sep%gsp              =   6.6300000_dp
-       sep%gpp              =   5.9800000_dp
-       sep%gp2              =   5.4000000_dp
-       sep%hsp              =   0.7000000_dp
-    CASE (14)
-       !Silicon
-       sep%defined          = .TRUE.
-       sep%alp              =   2.2053160_dp
-       sep%beta(0)          =  -9.0868040_dp
-       sep%beta(1)          =  -1.0758270_dp
-       sep%sto_exponents(0) =   1.3159860_dp
-       sep%sto_exponents(1) =   1.7099430_dp
-       sep%sto_exponents(2) =   1.0000000_dp
-       sep%uss              = -37.0375330_dp
-       sep%upp              = -27.7696780_dp
-       sep%gss              =   9.8200000_dp
-       sep%gsp              =   8.3600000_dp
-       sep%gpp              =   7.3100000_dp
-       sep%gp2              =   6.5400000_dp
-       sep%hsp              =   1.3200000_dp
-    CASE (15)
-       !Phosphorus
-       sep%defined          = .TRUE.
-       sep%alp              =   2.4152800_dp
-       sep%beta(0)          =  -6.7916000_dp
-       sep%beta(1)          =  -6.7916000_dp
-       sep%sto_exponents(0) =   2.1087200_dp
-       sep%sto_exponents(1) =   1.7858100_dp
-       sep%sto_exponents(2) =   1.0000000_dp
-       sep%uss              = -56.1433600_dp
-       sep%upp              = -42.8510800_dp
-       sep%gss              =  11.5600000_dp
-       sep%gsp              =  10.0800000_dp
-       sep%gpp              =   8.6400000_dp
-       sep%gp2              =   7.6800000_dp
-       sep%hsp              =   1.9200000_dp
-    CASE (16)
-       !Sulphur
-       sep%defined          = .TRUE.
-       sep%alp              =   2.4780260_dp
-       sep%beta(0)          = -10.7616700_dp
-       sep%beta(1)          = -10.1084330_dp
-       sep%sto_exponents(0) =   2.3129620_dp
-       sep%sto_exponents(1) =   2.0091460_dp
-       sep%sto_exponents(2) =   1.0000000_dp
-       sep%uss              = -72.2422810_dp
-       sep%upp              = -56.9732070_dp
-       sep%gss              =  12.8800000_dp
-       sep%gsp              =  11.2600000_dp
-       sep%gpp              =   9.9000000_dp
-       sep%gp2              =   8.8300000_dp
-       sep%hsp              =   2.2600000_dp
-    CASE (17)
-       !Chlorine
-       sep%defined          = .TRUE.
-       sep%alp              =   2.5422010_dp
-       sep%beta(0)          = -14.2623200_dp
-       sep%beta(1)          = -14.2623200_dp
-       sep%sto_exponents(0) =   3.7846450_dp
-       sep%sto_exponents(1) =   2.0362630_dp
-       sep%sto_exponents(2) =   1.0000000_dp
-       sep%uss              =-100.2271660_dp
-       sep%upp              = -77.3786670_dp
-       sep%gss              =  15.0300000_dp
-       sep%gsp              =  13.1600000_dp
-       sep%gpp              =  11.3000000_dp
-       sep%gp2              =   9.9700000_dp
-       sep%hsp              =   2.4200000_dp
-    CASE (18:23)
-    CASE (24)
-       !Chromium.
-       sep%defined          = .TRUE.
-       sep%alp              =   3.0683070_dp
-       sep%beta(0)          =  -0.1000000_dp
-       sep%beta(1)          =  -0.1000000_dp
-       sep%beta(2)          =  -8.7766360_dp
-       sep%sto_exponents(0) =   1.5000000_dp
-       sep%sto_exponents(1) =   1.5000000_dp
-       sep%sto_exponents(2) =   2.8845490_dp
-       sep%uss              = -17.5170270_dp
-       sep%upp              = -12.5337290_dp
-       sep%udd              = -44.1249280_dp
-       sep%gss              =   6.0000000_dp
-       sep%gsp              =   4.1500000_dp
-       sep%gpp              =   5.0000000_dp
-       sep%gp2              =   3.5000000_dp
-       sep%hsp              =   1.0000000_dp
-       sep%gsd              =   2.8746410_dp
-       sep%gpd              =   3.0000000_dp
-       sep%gdd              =   8.8949670_dp
-    CASE (25:29)
-    CASE (30)
-       !Zinc
-       sep%defined          = .TRUE.
-       sep%alp              =   1.5064570_dp
-       sep%beta(0)          =  -1.0000000_dp
-       sep%beta(1)          =  -2.0000000_dp
-       sep%sto_exponents(0) =   2.0473590_dp
-       sep%sto_exponents(1) =   1.4609460_dp
-       sep%sto_exponents(2) =   1.0000000_dp
-       sep%uss              = -20.8397160_dp
-       sep%upp              = -19.6252240_dp
-       sep%gss              =  11.8000000_dp
-       sep%gsp              =  11.1820180_dp
-       sep%gpp              =  13.3000000_dp
-       sep%gp2              =  12.9305200_dp
-       sep%hsp              =   0.4846060_dp
-    CASE (31)
-    CASE (32)
-       !Germanium
-       sep%defined          = .TRUE.
-       sep%alp              =   1.9784980_dp
-       sep%beta(0)          =  -4.5164790_dp
-       sep%beta(1)          =  -1.7555170_dp
-       sep%sto_exponents(0) =   1.2931800_dp
-       sep%sto_exponents(1) =   2.0205640_dp
-       sep%uss              = -33.9493670_dp
-       sep%upp              = -27.4251050_dp
-       sep%gss              =   9.8000000_dp
-       sep%gsp              =   8.3000000_dp
-       sep%gpp              =   7.3000000_dp
-       sep%gp2              =   6.5000000_dp
-       sep%hsp              =   1.3000000_dp
-    CASE (33:34)
-    CASE (35)
-       !Bromine
-       sep%defined          = .TRUE.
-       sep%alp              =   2.44570510_dp
-       sep%beta(0)          =  -8.91710700_dp
-       sep%beta(1)          =  -9.94374000_dp
-       sep%sto_exponents(0) =   3.85430190_dp
-       sep%sto_exponents(1) =   2.19920910_dp
-       sep%sto_exponents(2) =   1.00000000_dp
-       sep%uss              = -99.98644050_dp
-       sep%upp              = -75.67130750_dp
-       sep%gss              =  15.03643948_dp
-       sep%gsp              =  13.03468242_dp
-       sep%gpp              =  11.27632539_dp
-       sep%gp2              =   9.85442552_dp
-       sep%hsp              =   2.45586832_dp
-    CASE (36:49)
-    CASE (50)
-       !Tin
-       sep%defined          = .TRUE.
-       sep%alp              =   1.8008140_dp
-       sep%beta(0)          =  -3.2351470_dp
-       sep%beta(1)          =  -4.2904160_dp
-       sep%sto_exponents(0) =   2.0803800_dp
-       sep%sto_exponents(1) =   1.9371060_dp
-       sep%uss              = -40.8518020_dp
-       sep%upp              = -28.5602490_dp
-       sep%gss              =   9.8000000_dp
-       sep%gsp              =   8.3000000_dp
-       sep%gpp              =   7.3000000_dp
-       sep%gp2              =   6.5000000_dp
-       sep%hsp              =   1.3000000_dp
-    CASE (51:52)
-    CASE (53)
-       !Iodine
-       sep%defined          = .TRUE.
-       sep%uss              =-100.00305380_dp
-       sep%upp              = -74.61146920_dp
-       sep%beta(0)          =  -7.41445100_dp
-       sep%beta(1)          =  -6.19678100_dp
-       sep%sto_exponents(0) =   2.27296100_dp
-       sep%sto_exponents(1) =   2.16949800_dp
-       sep%sto_exponents(2) =   1.00000000_dp
-       sep%alp              =   2.20732000_dp
-       sep%gss              =  15.04044855_dp
-       sep%gsp              =  13.05655798_dp
-       sep%gpp              =  11.14778369_dp
-       sep%gp2              =   9.91409071_dp
-       sep%hsp              =   2.45638202_dp
-    CASE (54:79)
-    CASE (80)
-       !Mercury
-       sep%defined          = .TRUE.
-       sep%alp              =   1.3356410_dp
-       sep%beta(0)          =  -0.4045250_dp
-       sep%beta(1)          =  -6.2066830_dp
-       sep%sto_exponents(0) =   2.2181840_dp
-       sep%sto_exponents(1) =   2.0650380_dp
-       sep%uss              = -19.8095740_dp
-       sep%upp              = -13.1025300_dp
-       sep%gss              =  10.8000000_dp
-       sep%gsp              =   9.3000000_dp
-       sep%gpp              =  14.3000000_dp
-       sep%gp2              =  13.5000000_dp
-       sep%hsp              =   1.3000000_dp
-    CASE (81)
-    CASE (82)
-       !Lead
-       sep%defined          = .TRUE.
-       sep%alp              =   1.7283330_dp
-       sep%beta(0)          =  -8.0423870_dp
-       sep%beta(1)          =  -3.0000000_dp
-       sep%sto_exponents(0) =   2.4982860_dp
-       sep%sto_exponents(1) =   2.0820710_dp
-       sep%uss              = -47.3196920_dp
-       sep%upp              = -28.8475600_dp
-       sep%gss              =   9.8000000_dp
-       sep%gsp              =   8.3000000_dp
-       sep%gpp              =   7.3000000_dp
-       sep%gp2              =   6.5000000_dp
-       sep%hsp              =   1.3000000_dp
-    CASE (83:106)
-    END SELECT
-    CALL calpar(z,sep)
-    CALL convert_param_to_cp2k(sep)
-    
-  END SUBROUTINE mndo_default_parameter
-
-! *****************************************************************************
-!> \brief Default parameter sets for semi empirical models: MNDO-d
-! *****************************************************************************
-  SUBROUTINE mndod_default_parameter ( sep, z )
-    TYPE(semi_empirical_type), POINTER       :: sep
-    INTEGER                                  :: z
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'mndod_default_parameter', &
-      routineP = moduleN//':'//routineN
-
-    sep%typ    = do_method_mndod
-    sep%name   = ptable(z)%name
-    sep%eheat  = ptable(z)%heat_of_formation / kcalmol
-    sep%z      = z
-    sep%ngauss = 6
-    CALL valence_electrons(z, sep%zeff, sep%natorb)
-    CALL stop_program(routineN,moduleN,__LINE__,&
-         "not yet tested")
     SELECT CASE (z)
     CASE DEFAULT
        CALL stop_program(routineN,moduleN,__LINE__,&
@@ -598,6 +233,467 @@ CONTAINS
        sep%gp2              =  14.9100000_dp
        sep%hsp              =   4.8300000_dp
     CASE (10)
+    CASE (11)
+       !Sodium
+       sep%defined          = .TRUE.
+       sep%uss              = -5.1235942_dp
+       sep%upp              = -3.0124713_dp
+       sep%beta(0)          = -1.4916657_dp
+       sep%beta(1)          = -0.2208233_dp
+       sep%sto_exponents(0) =  0.8213124_dp
+       sep%sto_exponents(1) =  1.0303270_dp
+       sep%alp              =  5.9940638_dp
+       sep%gss              =  6.9934520_dp
+       sep%gsp              =  5.4380530_dp
+       sep%gpp              =  6.9285408_dp
+       sep%gp2              =  2.4299952_dp
+       sep%hsp              =  3.1374231_dp
+    CASE (12)
+       !Magnesium
+       sep%defined          = .TRUE.
+       sep%uss              = -14.8057921_dp
+       sep%upp              = -12.7545494_dp
+       sep%beta(0)          =  -0.0999626_dp
+       sep%beta(1)          =  -7.6952692_dp
+       sep%sto_exponents(0) =   0.9394811_dp
+       sep%sto_exponents(1) =   1.3103428_dp
+       sep%alp              =   0.5354201_dp
+       sep%gss              =   6.9632774_dp
+       sep%gsp              =   8.2410934_dp
+       sep%gpp              =  10.0000349_dp
+       sep%gp2              =   9.0593304_dp
+       sep%hsp              =   0.7165063_dp
+    CASE (13)
+       !Aluminium
+       sep%defined          = .TRUE.
+       sep%uss              = -23.8070970_dp
+       sep%upp              = -17.5198780_dp
+       sep%beta(0)          =  -2.6702840_dp
+       sep%beta(1)          =  -2.6702840_dp
+       sep%sto_exponents(0) =   1.4441610_dp
+       sep%sto_exponents(1) =   1.4441610_dp
+       sep%alp              =   1.8688394_dp
+       sep%gss              =   8.0900000_dp
+       sep%gsp              =   6.6300000_dp
+       sep%gpp              =   5.9800000_dp
+       sep%gp2              =   5.4000000_dp
+       sep%hsp              =   0.7000000_dp
+    CASE (14)
+       !Silicon
+       sep%defined          = .TRUE.
+       sep%uss              = -37.0375330_dp
+       sep%upp              = -27.7696780_dp
+       sep%beta(0)          =  -9.0868040_dp
+       sep%beta(1)          =  -1.0758270_dp
+       sep%sto_exponents(0) =   1.3159860_dp
+       sep%sto_exponents(1) =   1.7099430_dp
+       sep%alp              =   2.2053160_dp
+       sep%gss              =   9.8200000_dp
+       sep%gsp              =   8.3600000_dp
+       sep%gpp              =   7.3100000_dp
+       sep%gp2              =   6.5400000_dp
+       sep%hsp              =   1.3200000_dp
+    CASE (15)
+       !Phosphorus
+       sep%defined          = .TRUE.
+       sep%uss              = -56.1433600_dp
+       sep%upp              = -42.8510800_dp
+       sep%beta(0)          =  -6.7916000_dp
+       sep%beta(1)          =  -6.7916000_dp
+       sep%sto_exponents(0) =   2.1087200_dp
+       sep%sto_exponents(1) =   1.7858100_dp
+       sep%alp              =   2.4152800_dp
+       sep%gss              =  11.5600000_dp
+       sep%gsp              =  10.0800000_dp
+       sep%gpp              =   8.6400000_dp
+       sep%gp2              =   7.6800000_dp
+       sep%hsp              =   1.9200000_dp
+    CASE (16)
+       !Sulphur
+       sep%defined          = .TRUE.
+       sep%uss              = -72.2422810_dp
+       sep%upp              = -56.9732070_dp
+       sep%beta(0)          = -10.7616700_dp
+       sep%beta(1)          = -10.1084330_dp
+       sep%sto_exponents(0) =   2.3129620_dp
+       sep%sto_exponents(1) =   2.0091460_dp
+       sep%alp              =   2.4780260_dp
+       sep%gss              =  12.8800000_dp
+       sep%gsp              =  11.2600000_dp
+       sep%gpp              =   9.9000000_dp
+       sep%gp2              =   8.8300000_dp
+       sep%hsp              =   2.2600000_dp
+    CASE (17)
+       !Chlorine
+       sep%defined          = .TRUE.
+       sep%uss              =-100.2271660_dp
+       sep%upp              = -77.3786670_dp
+       sep%beta(0)          = -14.2623200_dp
+       sep%beta(1)          = -14.2623200_dp
+       sep%sto_exponents(0) =   3.7846450_dp
+       sep%sto_exponents(1) =   2.0362630_dp
+       sep%alp              =   2.5422010_dp
+       sep%gss              =  15.0300000_dp
+       sep%gsp              =  13.1600000_dp
+       sep%gpp              =  11.3000000_dp
+       sep%gp2              =   9.9700000_dp
+       sep%hsp              =   2.4200000_dp
+    CASE (18)
+    CASE (19)
+       !Potassium
+       sep%defined          = .TRUE.
+       sep%uss              =  -3.6401731_dp
+       sep%upp              =  -2.0249253_dp
+       sep%beta(0)          =  -0.1361851_dp
+       sep%beta(1)          =  -2.8142350_dp
+       sep%sto_exponents(0) =   0.7276039_dp
+       sep%sto_exponents(1) =   0.9871174_dp
+       sep%alp              =   0.5616422_dp
+       sep%gss              =   3.7939792_dp
+       sep%gsp              =   6.4170233_dp
+       sep%gpp              =   5.0972823_dp
+       sep%gp2              =   2.1945567_dp
+       sep%hsp              =   1.5788130_dp
+    CASE (20)
+       !Calcium
+       sep%defined          = .TRUE.
+       sep%uss              = -12.3919094_dp
+       sep%upp              =  -9.9348289_dp
+       sep%beta(0)          =  -8.6404687_dp
+       sep%beta(1)          =  -9.9515712_dp
+       sep%sto_exponents(0) =   1.0034161_dp
+       sep%sto_exponents(1) =   1.3102564_dp
+       sep%alp              =   0.4999997_dp
+       sep%gss              =   6.5321649_dp
+       sep%gsp              =   6.5424442_dp
+       sep%gpp              =   6.4627059_dp
+       sep%gp2              =   6.3842472_dp
+       sep%hsp              =   0.5789676_dp
+    CASE (21:29)
+    CASE (30)
+       !Zinc
+       sep%defined          = .TRUE.
+       sep%uss              = -20.8397160_dp
+       sep%upp              = -19.6252240_dp
+       sep%beta(0)          =  -1.0000000_dp
+       sep%beta(1)          =  -2.0000000_dp
+       sep%sto_exponents(0) =   2.0473590_dp
+       sep%sto_exponents(1) =   1.4609460_dp
+       sep%alp              =   1.5064570_dp
+       sep%gss              =  11.8000000_dp
+       sep%gsp              =  11.1820180_dp
+       sep%gpp              =  13.3000000_dp
+       sep%gp2              =  12.9305200_dp
+       sep%hsp              =   0.4846060_dp
+    CASE (31)
+       !Gallium
+       sep%defined          = .TRUE.
+       sep%uss              = -28.3044924_dp
+       sep%upp              = -27.2063910_dp
+       sep%beta(0)          =  -3.9987435_dp
+       sep%beta(1)          =  -4.3146711_dp
+       sep%sto_exponents(0) =   0.6986316_dp
+       sep%sto_exponents(1) =   1.8386933_dp
+       sep%alp              =   2.7577991_dp
+       sep%gss              =   7.5468114_dp
+       sep%gsp              =  10.4697612_dp
+       sep%gpp              =   8.4599454_dp
+       sep%gp2              =  10.4251148_dp
+       sep%hsp              =   1.0628013_dp
+    CASE (32)
+       !Germanium
+       sep%defined          = .TRUE.
+       sep%uss              = -33.9493670_dp
+       sep%upp              = -27.4251050_dp
+       sep%beta(0)          =  -4.5164790_dp
+       sep%beta(1)          =  -1.7555170_dp
+       sep%sto_exponents(0) =   1.2931800_dp
+       sep%sto_exponents(1) =   2.0205640_dp
+       sep%alp              =   1.9784980_dp
+       sep%gss              =   9.8000000_dp
+       sep%gsp              =   8.3000000_dp
+       sep%gpp              =   7.3000000_dp
+       sep%gp2              =   6.5000000_dp
+       sep%hsp              =   1.3000000_dp
+    CASE (33)
+       !Arsenic
+       sep%defined          = .TRUE.
+       sep%uss              = -38.6240790_dp
+       sep%upp              = -33.4995395_dp
+       sep%beta(0)          =  -3.9998231_dp
+       sep%beta(1)          =  -4.9056176_dp
+       sep%sto_exponents(0) =   2.5614338_dp
+       sep%sto_exponents(1) =   1.6117315_dp
+       sep%alp              =   1.9381219_dp
+       sep%gss              =   6.7464011_dp
+       sep%gsp              =   5.6174985_dp
+       sep%gpp              =   6.9333925_dp
+       sep%gp2              =   6.3054798_dp
+       sep%hsp              =   0.5994346_dp
+    CASE (34)
+       !Selenium
+       sep%defined          = .TRUE.
+       sep%uss              = -49.8117347_dp
+       sep%upp              = -38.0475911_dp
+       sep%beta(0)          = -12.4685178_dp
+       sep%beta(1)          =  -5.1744376_dp
+       sep%sto_exponents(0) =   0.7242956_dp
+       sep%sto_exponents(1) =   1.9267288_dp
+       sep%alp              =   2.3513155_dp
+       sep%gss              =  10.3549483_dp
+       sep%gsp              =   5.2801360_dp
+       sep%gpp              =   7.3611317_dp
+       sep%gp2              =   6.1897284_dp
+       sep%hsp              =   0.5996560_dp
+    CASE (35)
+       !Bromine
+       sep%defined          = .TRUE.
+       sep%uss              = -99.98644050_dp
+       sep%upp              = -75.67130750_dp
+       sep%beta(0)          =  -8.91710700_dp
+       sep%beta(1)          =  -9.94374000_dp
+       sep%sto_exponents(0) =   3.85430190_dp
+       sep%sto_exponents(1) =   2.19920910_dp
+       sep%alp              =   2.44570510_dp
+       sep%gss              =  15.03643948_dp
+       sep%gsp              =  13.03468242_dp
+       sep%gpp              =  11.27632539_dp
+       sep%gp2              =   9.85442552_dp
+       sep%hsp              =   2.45586832_dp
+    CASE (36)
+    CASE (37)
+       !Rubidium
+       sep%defined          = .TRUE.
+       sep%uss              =  -4.3098071_dp
+       sep%upp              =  -2.7381921_dp
+       sep%beta(0)          =  -2.2062173_dp
+       sep%beta(1)          =  -6.2176392_dp
+       sep%sto_exponents(0) =   4.0001632_dp
+       sep%sto_exponents(1) =   0.9187408_dp
+       sep%alp              =   0.9976197_dp
+       sep%gss              =  10.7409462_dp
+       sep%gsp              =  11.4853623_dp
+       sep%gpp              =   8.9878480_dp
+       sep%gp2              =   7.7258368_dp
+       sep%hsp              =   0.1999294_dp
+    CASE (38)
+       !Strontium
+       sep%defined          = .TRUE.
+       sep%uss              =  -10.8451287_dp
+       sep%upp              =   -8.3129821_dp
+       sep%beta(0)          =   -9.9683427_dp
+       sep%beta(1)          =   -9.9946390_dp
+       sep%sto_exponents(0) =    1.3729266_dp
+       sep%sto_exponents(1) =    1.1118128_dp
+       sep%alp              =    0.5082703_dp
+       sep%gss              =    4.9305520_dp
+       sep%gsp              =    4.4249843_dp
+       sep%gpp              =    4.0178045_dp
+       sep%gp2              =    4.0335640_dp
+       sep%hsp              =    0.6272993_dp
+    CASE (39:47)
+    CASE(48)
+       !Cadmium
+       sep%defined          = .TRUE.
+       sep%uss              =  -26.1908325_dp
+       sep%upp              =  -22.4523736_dp
+       sep%beta(0)          =  -11.9610608_dp
+       sep%beta(1)          =   -3.9999848_dp
+       sep%sto_exponents(0) =    1.4192491_dp
+       sep%sto_exponents(1) =    1.0480637_dp
+       sep%alp              =    1.1507745_dp
+       sep%gss              =   17.2196544_dp
+       sep%gsp              =   17.9900180_dp
+       sep%gpp              =   19.2007795_dp
+       sep%gp2              =   19.0000212_dp
+       sep%hsp              =    0.7384511_dp
+    CASE (49)
+       !Indium
+       sep%defined          = .TRUE.
+       sep%uss              =  -28.0980892_dp
+       sep%upp              =  -19.2780588_dp
+       sep%beta(0)          =   -6.3107479_dp
+       sep%beta(1)          =   -2.7025837_dp
+       sep%sto_exponents(0) =    1.7625740_dp
+       sep%sto_exponents(1) =    1.8648962_dp
+       sep%alp              =    2.3438756_dp
+       sep%gss              =    9.4928794_dp
+       sep%gsp              =    7.0094241_dp
+       sep%gpp              =    9.6640986_dp
+       sep%gp2              =    7.0100315_dp
+       sep%hsp              =    0.5995894_dp
+    CASE (50)
+       !Tin
+       sep%defined          = .TRUE.
+       sep%uss              = -40.8518020_dp
+       sep%upp              = -28.5602490_dp
+       sep%beta(0)          =  -3.2351470_dp
+       sep%beta(1)          =  -4.2904160_dp
+       sep%sto_exponents(0) =   2.0803800_dp
+       sep%sto_exponents(1) =   1.9371060_dp
+       sep%alp              =   1.8008140_dp
+       sep%gss              =   9.8000000_dp
+       sep%gsp              =   8.3000000_dp
+       sep%gpp              =   7.3000000_dp
+       sep%gp2              =   6.5000000_dp
+       sep%hsp              =   1.3000000_dp
+    CASE (51)
+       !Antimony
+       sep%defined          = .TRUE.
+       sep%uss              = -42.0643435_dp
+       sep%upp              = -35.0626031_dp
+       sep%beta(0)          =  -0.9999715_dp
+       sep%beta(1)          =  -4.0920176_dp
+       sep%sto_exponents(0) =   3.6458835_dp
+       sep%sto_exponents(1) =   1.9733156_dp
+       sep%alp              =   1.9763403_dp
+       sep%gss              =  10.6739308_dp
+       sep%gsp              =   7.0477648_dp
+       sep%gpp              =   6.7446162_dp
+       sep%gp2              =   6.3408531_dp
+       sep%hsp              =   0.5997512_dp
+    CASE (52)
+       !Tellurium
+       sep%defined          = .TRUE.
+       sep%uss              = -84.2274722_dp
+       sep%upp              = -46.5332871_dp
+       sep%beta(0)          =  -8.5622652_dp
+       sep%beta(1)          =  -2.6942963_dp
+       sep%sto_exponents(0) =   2.7461609_dp
+       sep%sto_exponents(1) =   1.6160376_dp
+       sep%alp              =   2.2924145_dp
+       sep%gss              =   5.1367706_dp
+       sep%gsp              =  11.0720752_dp
+       sep%gpp              =   5.8447934_dp
+       sep%gp2              =   5.0720495_dp
+       sep%hsp              =   0.5997994_dp
+    CASE (53)
+       !Iodine
+       sep%defined          = .TRUE.
+       sep%uss              =-100.00305380_dp
+       sep%upp              = -74.61146920_dp
+       sep%beta(0)          =  -7.41445100_dp
+       sep%beta(1)          =  -6.19678100_dp
+       sep%sto_exponents(0) =   2.27296100_dp
+       sep%sto_exponents(1) =   2.16949800_dp
+       sep%alp              =   2.20732000_dp
+       sep%gss              =  15.04044855_dp
+       sep%gsp              =  13.05655798_dp
+       sep%gpp              =  11.14778369_dp
+       sep%gp2              =   9.91409071_dp
+       sep%hsp              =   2.45638202_dp
+    CASE (54)
+    CASE (55)
+       !Cesium
+       sep%defined          = .TRUE.
+       sep%uss              = -3.2184078_dp
+       sep%upp              = -1.7699113_dp
+       sep%beta(0)          = -1.6043600_dp
+       sep%beta(1)          = -4.2698040_dp
+       sep%sto_exponents(0) =  6.0004170_dp
+       sep%sto_exponents(1) =  0.8986916_dp
+       sep%alp              =  0.4981646_dp
+       sep%gss              =  7.6447851_dp
+       sep%gsp              =  3.0454989_dp
+       sep%gpp              = 10.0000745_dp
+       sep%gp2              =  6.1761092_dp
+       sep%hsp              =  0.4647853_dp
+    CASE (56)
+       !Barium
+       sep%defined          = .TRUE.
+       sep%uss              = -10.1125345_dp
+       sep%upp              =  -8.2347224_dp
+       sep%beta(0)          =  -9.9994459_dp
+       sep%beta(1)          =  -9.6197255_dp
+       sep%sto_exponents(0) =   1.9765973_dp
+       sep%sto_exponents(1) =   1.3157348_dp
+       sep%alp              =   0.8594840_dp
+       sep%gss              =   4.8486178_dp
+       sep%gsp              =   4.5659982_dp
+       sep%gpp              =   5.0937708_dp
+       sep%gp2              =   5.2125824_dp
+       sep%hsp              =   0.5237082_dp
+    CASE (57:79)
+    CASE (80)
+       !Mercury
+       sep%defined          = .TRUE.
+       sep%uss              = -19.8095740_dp
+       sep%upp              = -13.1025300_dp
+       sep%beta(0)          =  -0.4045250_dp
+       sep%beta(1)          =  -6.2066830_dp
+       sep%sto_exponents(0) =   2.2181840_dp
+       sep%sto_exponents(1) =   2.0650380_dp
+       sep%alp              =   1.3356410_dp
+       sep%gss              =  10.8000000_dp
+       sep%gsp              =   9.3000000_dp
+       sep%gpp              =  14.3000000_dp
+       sep%gp2              =  13.5000000_dp
+       sep%hsp              =   1.3000000_dp
+    CASE (81)
+       !Thallium
+       sep%defined          = .TRUE.
+       sep%uss              = -29.7009655_dp
+       sep%upp              = -29.5937539_dp
+       sep%beta(0)          =  -4.9667442_dp
+       sep%beta(1)          =  -7.7616060_dp
+       sep%sto_exponents(0) =   4.0000447_dp
+       sep%sto_exponents(1) =   1.8076332_dp
+       sep%alp              =   1.3116968_dp
+       sep%gss              =   8.8675337_dp
+       sep%gsp              =  12.1148290_dp
+       sep%gpp              =  10.6532769_dp
+       sep%gp2              =  13.5333191_dp
+       sep%hsp              =   0.5997565_dp
+    CASE (82)
+       !Lead
+       sep%defined          = .TRUE.
+       sep%uss              = -47.3196920_dp
+       sep%upp              = -28.8475600_dp
+       sep%beta(0)          =  -8.0423870_dp
+       sep%beta(1)          =  -3.0000000_dp
+       sep%sto_exponents(0) =   2.4982860_dp
+       sep%sto_exponents(1) =   2.0820710_dp
+       sep%alp              =   1.7283330_dp
+       sep%gss              =   9.8000000_dp
+       sep%gsp              =   8.3000000_dp
+       sep%gpp              =   7.3000000_dp
+       sep%gp2              =   6.5000000_dp
+       sep%hsp              =   1.3000000_dp
+    CASE (83)
+       !Bismuth
+       sep%defined          = .TRUE.
+       sep%uss              = -53.5827147_dp
+       sep%upp              = -39.4572213_dp
+       sep%beta(0)          =  -9.0000249_dp
+       sep%beta(1)          =  -1.9830269_dp
+       sep%sto_exponents(0) =   2.6772255_dp
+       sep%sto_exponents(1) =   0.6936864_dp
+       sep%alp              =   5.7660628_dp
+       sep%gss              =   8.3702778_dp
+       sep%gsp              =   7.7974668_dp
+       sep%gpp              =   9.8303165_dp
+       sep%gp2              =   8.9291355_dp
+       sep%hsp              =   0.5999908_dp
+    CASE (84:106)
+    END SELECT
+    ! In case overwrite with MNDO-d parameters
+    IF (itype==do_method_mndod) CALL  mndod_default_parameter(sep, z)
+    CALL calpar(z,sep)
+    CALL convert_param_to_cp2k(sep)
+    
+  END SUBROUTINE mndo_default_parameter
+
+! *****************************************************************************
+!> \brief Additional default parameter sets for semi empirical models: MNDO-d
+! *****************************************************************************
+  SUBROUTINE mndod_default_parameter ( sep, z )
+    TYPE(semi_empirical_type), POINTER       :: sep
+    INTEGER                                  :: z
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mndod_default_parameter', &
+      routineP = moduleN//':'//routineN
+
+    SELECT CASE (z)
     CASE (11)
        ! Sodium
        sep%defined          = .TRUE.
@@ -737,38 +833,6 @@ CONTAINS
        sep%gpp              =   8.99620033_dp
        sep%gp2              =   7.94524745_dp
        sep%hsp              =   3.08149862_dp
-    CASE (18)
-    CASE (19)
-       ! Potassium
-       sep%defined          = .TRUE.
-       sep%uss              =  -3.6401731_dp
-       sep%upp              =  -2.0249253_dp
-       sep%beta(0)          =  -0.1361851_dp
-       sep%beta(1)          =  -2.8142350_dp
-       sep%sto_exponents(0) =   0.7276039_dp
-       sep%sto_exponents(1) =   0.9871174_dp
-       sep%alp              =   0.5616422_dp
-       sep%gss              =   3.7939792_dp
-       sep%gsp              =   6.4170233_dp
-       sep%gpp              =   5.0972823_dp
-       sep%gp2              =   2.1945567_dp
-       sep%hsp              =   1.5788130_dp
-    CASE (20)
-       ! Calcium
-       sep%defined          = .TRUE.
-       sep%uss              = -12.3919094_dp
-       sep%upp              =  -9.9348289_dp
-       sep%beta(0)          =  -8.6404687_dp
-       sep%beta(1)          =  -9.9515712_dp
-       sep%sto_exponents(0) =   1.0034161_dp
-       sep%sto_exponents(1) =   1.3102564_dp
-       sep%alp              =   0.4999997_dp
-       sep%gss              =   6.5321649_dp
-       sep%gsp              =   6.5424442_dp
-       sep%gpp              =   6.4627059_dp
-       sep%gp2              =   6.3842472_dp
-       sep%hsp              =   0.5789676_dp
-    CASE (21:29)
     CASE (30)
        !Zinc
        sep%defined          = .TRUE.
@@ -786,66 +850,6 @@ CONTAINS
        sep%gpp              =   5.13964830_dp
        sep%gp2              =   4.50540309_dp
        sep%hsp              =   0.53294610_dp
-    CASE (31)
-       ! Gallium
-       sep%defined          = .TRUE.
-       sep%uss              = -28.3044924_dp
-       sep%upp              = -27.2063910_dp
-       sep%beta(0)          =  -3.9987435_dp
-       sep%beta(1)          =  -4.3146711_dp
-       sep%sto_exponents(0) =   0.6986316_dp
-       sep%sto_exponents(1) =   1.8386933_dp
-       sep%alp              =   2.7577991_dp
-       sep%gss              =   7.5468114_dp
-       sep%gsp              =  10.4697612_dp
-       sep%gpp              =   8.4599454_dp
-       sep%gp2              =  10.4251148_dp
-       sep%hsp              =   1.0628013_dp
-    CASE (32)
-       !Germanium
-       sep%defined          = .TRUE.
-       sep%uss              = -33.9493670_dp
-       sep%upp              = -27.4251050_dp
-       sep%beta(0)          =  -4.5164790_dp
-       sep%beta(1)          =  -1.7555170_dp
-       sep%sto_exponents(0) =   1.2931800_dp
-       sep%sto_exponents(1) =   2.0205640_dp
-       sep%alp              =   1.9784980_dp
-       sep%gss              =   9.8000000_dp
-       sep%gsp              =   8.3000000_dp
-       sep%gpp              =   7.3000000_dp
-       sep%gp2              =   6.5000000_dp
-       sep%hsp              =   1.3000000_dp
-    CASE (33)
-       ! Arsenic
-       sep%defined          = .TRUE.
-       sep%uss              = -38.6240790_dp
-       sep%upp              = -33.4995395_dp
-       sep%beta(0)          =  -3.9998231_dp
-       sep%beta(1)          =  -4.9056176_dp
-       sep%sto_exponents(0) =   2.5614338_dp
-       sep%sto_exponents(1) =   1.6117315_dp
-       sep%alp              =   1.9381219_dp
-       sep%gss              =   6.7464011_dp
-       sep%gsp              =   5.6174985_dp
-       sep%gpp              =   6.9333925_dp
-       sep%gp2              =   6.3054798_dp
-       sep%hsp              =   0.5994346_dp
-    CASE (34)
-       ! Selenium
-       sep%defined          = .TRUE.
-       sep%uss              = -49.8117347_dp
-       sep%upp              = -38.0475911_dp
-       sep%beta(0)          = -12.4685178_dp
-       sep%beta(1)          =  -5.1744376_dp
-       sep%sto_exponents(0) =   0.7242956_dp
-       sep%sto_exponents(1) =   1.9267288_dp
-       sep%alp              =   2.3513155_dp
-       sep%gss              =  10.3549483_dp
-       sep%gsp              =   5.2801360_dp
-       sep%gpp              =   7.3611317_dp
-       sep%gp2              =   6.1897284_dp
-       sep%hsp              =   0.5996560_dp
     CASE (35)
        !Bromine
        sep%defined          = .TRUE.
@@ -867,38 +871,6 @@ CONTAINS
        sep%gpp              =   8.53546437_dp
        sep%gp2              =   7.48216712_dp
        sep%hsp              =   2.74952230_dp
-    CASE (36)
-    CASE (37)
-       ! Rubidium
-       sep%defined          = .TRUE.
-       sep%uss              =  -4.3098071_dp
-       sep%upp              =  -2.7381921_dp
-       sep%beta(0)          =  -2.2062173_dp
-       sep%beta(1)          =  -6.2176392_dp
-       sep%sto_exponents(0) =   4.0001632_dp
-       sep%sto_exponents(1) =   0.9187408_dp
-       sep%alp              =   0.9976197_dp
-       sep%gss              =  10.7409462_dp
-       sep%gsp              =  11.4853623_dp
-       sep%gpp              =   8.9878480_dp
-       sep%gp2              =   7.7258368_dp
-       sep%hsp              =   0.1999294_dp
-    CASE (38)
-       ! Strontium
-       sep%defined          = .TRUE.
-       sep%uss              =  -10.8451287_dp
-       sep%upp              =   -8.3129821_dp
-       sep%beta(0)          =   -9.9683427_dp
-       sep%beta(1)          =   -9.9946390_dp
-       sep%sto_exponents(0) =    1.3729266_dp
-       sep%sto_exponents(1) =    1.1118128_dp
-       sep%alp              =    0.5082703_dp
-       sep%gss              =    4.9305520_dp
-       sep%gsp              =    4.4249843_dp
-       sep%gpp              =    4.0178045_dp
-       sep%gp2              =    4.0335640_dp
-       sep%hsp              =    0.6272993_dp
-    CASE (39:47)
     CASE (48)
        ! Cadmium
        sep%defined          = .TRUE.
@@ -916,66 +888,6 @@ CONTAINS
        sep%gpp              =   7.47999993_dp
        sep%gp2              =   6.51866416_dp
        sep%hsp              =   0.63674441_dp
-    CASE (49)      
-       ! Indium
-       sep%defined          = .TRUE.
-       sep%uss              = -28.0980892_dp
-       sep%upp              = -19.2780588_dp
-       sep%beta(0)          =  -6.3107479_dp
-       sep%beta(1)          =  -2.7025837_dp
-       sep%sto_exponents(0) =   1.7625740_dp
-       sep%sto_exponents(1) =   1.8648962_dp
-       sep%alp              =   2.3438756_dp
-       sep%gss              =   9.4928794_dp
-       sep%gsp              =   7.0094241_dp
-       sep%gpp              =   9.6640986_dp
-       sep%gp2              =   7.0100315_dp
-       sep%hsp              =   0.5995894_dp
-    CASE (50)
-       !Tin
-       sep%defined          = .TRUE.
-       sep%uss              = -40.8518020_dp
-       sep%upp              = -28.5602490_dp
-       sep%beta(0)          =  -3.2351470_dp
-       sep%beta(1)          =  -4.2904160_dp
-       sep%sto_exponents(0) =   2.0803800_dp
-       sep%sto_exponents(1) =   1.9371060_dp
-       sep%alp              =   1.8008140_dp
-       sep%gss              =   9.8000000_dp
-       sep%gsp              =   8.3000000_dp
-       sep%gpp              =   7.3000000_dp
-       sep%gp2              =   6.5000000_dp
-       sep%hsp              =   1.3000000_dp
-    CASE (51)
-       ! Antimony
-       sep%defined          = .TRUE.
-       sep%uss              = -42.0643435_dp
-       sep%upp              = -35.0626031_dp
-       sep%beta(0)          =  -0.9999715_dp
-       sep%beta(1)          =  -4.0920176_dp
-       sep%sto_exponents(0) =   3.6458835_dp
-       sep%sto_exponents(1) =   1.9733156_dp
-       sep%alp              =   1.9763403_dp
-       sep%gss              =  10.6739308_dp
-       sep%gsp              =   7.0477648_dp
-       sep%gpp              =   6.7446162_dp
-       sep%gp2              =   6.3408531_dp
-       sep%hsp              =   0.5997512_dp
-    CASE (52)
-       ! Tellurium
-       sep%defined          = .TRUE.
-       sep%uss              = -84.2274722_dp
-       sep%upp              = -46.5332871_dp
-       sep%beta(0)          =  -8.5622652_dp
-       sep%beta(1)          =  -2.6942963_dp
-       sep%sto_exponents(0) =   2.7461609_dp
-       sep%sto_exponents(1) =   1.6160376_dp
-       sep%alp              =   2.2924145_dp
-       sep%gss              =   5.1367706_dp
-       sep%gsp              =  11.0720752_dp
-       sep%gpp              =   5.8447934_dp
-       sep%gp2              =   5.0720495_dp
-       sep%hsp              =   0.5997994_dp
     CASE (53)
        !Iodine
        sep%defined          = .TRUE.
@@ -997,37 +909,6 @@ CONTAINS
        sep%gpp              =   7.70937227_dp
        sep%gp2              =   6.71855729_dp
        sep%hsp              =   2.07147462_dp
-    CASE (55)
-       ! Cesium
-       sep%defined          = .TRUE.
-       sep%uss              =  -3.2184078_dp
-       sep%upp              =  -1.7699113_dp
-       sep%beta(0)          =  -1.6043600_dp
-       sep%beta(1)          =  -4.2698040_dp
-       sep%sto_exponents(0) =   6.0004170_dp
-       sep%sto_exponents(1) =   0.8986916_dp
-       sep%alp              =   0.4981646_dp
-       sep%gss              =   7.6447851_dp
-       sep%gsp              =   3.0454989_dp
-       sep%gpp              =  10.0000745_dp
-       sep%gp2              =   6.1761092_dp
-       sep%hsp              =   0.4647853_dp
-   CASE (56)
-      ! Barium
-       sep%defined          = .TRUE.
-       sep%uss              = -10.1125345_dp
-       sep%upp              =  -8.2347224_dp
-       sep%beta(0)          =  -9.9994459_dp
-       sep%beta(1)          =  -9.6197255_dp
-       sep%sto_exponents(0) =   1.9765973_dp
-       sep%sto_exponents(1) =   1.3157348_dp
-       sep%alp              =   0.8594840_dp
-       sep%gss              =   4.8486178_dp
-       sep%gsp              =   4.5659982_dp
-       sep%gpp              =   5.0937708_dp
-       sep%gp2              =   5.2125824_dp
-       sep%hsp              =   0.5237082_dp
-    CASE (57:79)
     CASE (80)
        !Mercury
        sep%defined          = .TRUE.
@@ -1045,55 +926,7 @@ CONTAINS
        sep%gpp              =   7.11525878_dp
        sep%gp2              =   6.17124983_dp
        sep%hsp              =   0.83594100_dp
-    CASE (81)
-       ! Tallium
-       sep%defined          = .TRUE.
-       sep%uss              = -29.7009655_dp
-       sep%upp              = -29.5937539_dp
-       sep%beta(0)          =  -4.9667442_dp
-       sep%beta(1)          =  -7.7616060_dp
-       sep%sto_exponents(0) =   4.0000447_dp
-       sep%sto_exponents(1) =   1.8076332_dp
-       sep%alp              =   1.3116968_dp
-       sep%gss              =   8.8675337_dp
-       sep%gsp              =  12.1148290_dp
-       sep%gpp              =  10.6532769_dp
-       sep%gp2              =  13.5333191_dp
-       sep%hsp              =   0.5997565_dp
-    CASE (82)
-       !Lead
-       sep%defined          = .TRUE.
-       sep%uss              = -47.3196920_dp
-       sep%upp              = -28.8475600_dp
-       sep%beta(0)          =  -8.0423870_dp
-       sep%beta(1)          =  -3.0000000_dp
-       sep%sto_exponents(0) =   2.4982860_dp
-       sep%sto_exponents(1) =   2.0820710_dp
-       sep%alp              =   1.7283330_dp
-       sep%gss              =   9.8000000_dp
-       sep%gsp              =   8.3000000_dp
-       sep%gpp              =   7.3000000_dp
-       sep%gp2              =   6.5000000_dp
-       sep%hsp              =   1.3000000_dp
-    CASE (83)
-       ! Bismuth
-       sep%defined          = .TRUE.
-       sep%uss              = -53.5827147_dp
-       sep%upp              = -39.4572213_dp
-       sep%beta(0)          =  -9.0000249_dp
-       sep%beta(1)          =  -1.9830269_dp
-       sep%sto_exponents(0) =   2.6772255_dp
-       sep%sto_exponents(1) =   0.6936864_dp
-       sep%alp              =   5.7660628_dp
-       sep%gss              =   8.3702778_dp
-       sep%gsp              =   7.7974668_dp
-       sep%gpp              =   9.8303165_dp
-       sep%gp2              =   8.9291355_dp
-       sep%hsp              =   0.5999908_dp
-    CASE (84:106)
     END SELECT
-    CALL calpar(z,sep)
-    CALL convert_param_to_cp2k(sep)
     
   END SUBROUTINE mndod_default_parameter
 
@@ -4303,6 +4136,10 @@ CONTAINS
 !> \brief Default pair parameter for: PM6
 ! *****************************************************************************
   SUBROUTINE init_pm6_pair_params
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_pm6_pair_params', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: i, j
     INTEGER, SAVE                            :: init = 0
     REAL(dp)                                 :: aab, xab

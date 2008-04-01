@@ -54,8 +54,26 @@ MODULE semi_empirical_int_arrays
   ! Symmetry index for <ij|kl>
   INTEGER, DIMENSION (491), PUBLIC                :: ijkl_sym
 
+  PUBLIC :: init_se_intd_array
 
 CONTAINS
+! *****************************************************************************
+!> \brief  Initialize all arrays used for the evaluation of the integrals
+!>
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date   04.2008 [tlaino]
+! *****************************************************************************  
+  SUBROUTINE init_se_intd_array(error)
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_se_intd_array', &
+      routineP = moduleN//':'//routineN
+
+    CALL setup_index_array(error)
+    CALL setup_clm_array(error)
+    CALL setup_ijkl_array(error)
+
+  END SUBROUTINE init_se_intd_array
 
 ! *****************************************************************************
 !> \brief Fills in array for the diagonal storage of the ij and kl multipoles term

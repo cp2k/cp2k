@@ -7,14 +7,11 @@
 !> \brief Utilities to set up the control types
 ! *****************************************************************************
 MODULE cp_control_utils
-  USE bibliography,                    ONLY: Elstner1998,&
-                                             Lippert1997,&
-                                             Lippert1999,&
-                                             Porezag1995,&
-                                             Seifert1996,&
-                                             VandeVondele2005b,&
-                                             Zhechkov2005,&
-                                             cite_reference
+  USE bibliography,                    ONLY: &
+       Dewar1977, Dewar1985, Elstner1998, Krack2000, Lippert1997, &
+       Lippert1999, Porezag1995, Repasky2002, Rocha2006, Seifert1996, &
+       Stewart1989, Stewart2007, Thiel1992, VandeVondele2005a, &
+       VandeVondele2005b, Zhechkov2005, cite_reference
   USE cp_control_types,                ONLY: dft_control_create,&
                                              dft_control_type,&
                                              qs_control_type,&
@@ -37,6 +34,7 @@ MODULE cp_control_utils
                                              default_string_length,&
                                              dp,&
                                              dp_size
+  USE semi_empirical_int_arrays,       ONLY: init_se_intd_array
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE xas_control,                     ONLY: read_xas_control
@@ -457,31 +455,54 @@ CPSourceFileRef,&
     CALL keyword_get(keyword,enum=enum,error=error)
     qs_control%method = enum_i2c(enum,qs_control%method_id,error=error)
     CALL section_release(section,error=error)
-    qs_control%gapw = .FALSE.
-    qs_control%gapw_xc = .FALSE.
-    qs_control%gpw = .FALSE.
-    qs_control%pao = .FALSE.
-    qs_control%polarization = .FALSE.
-    qs_control%dftb = .FALSE.
+    qs_control%gapw           = .FALSE.
+    qs_control%gapw_xc        = .FALSE.
+    qs_control%gpw            = .FALSE.
+    qs_control%pao            = .FALSE.
+    qs_control%polarization   = .FALSE.
+    qs_control%dftb           = .FALSE.
     qs_control%semi_empirical = .FALSE.
     SELECT CASE (qs_control%method_id)
     CASE (do_method_gapw)
        CALL cite_reference(Lippert1999)
+       CALL cite_reference(Krack2000)
        qs_control%gapw = .TRUE.
     CASE (do_method_gapw_xc)
        qs_control%gapw_xc = .TRUE.
     CASE (do_method_gpw)
        CALL cite_reference(Lippert1997)
+       CALL cite_reference(VandeVondele2005a)
        qs_control%gpw = .TRUE.
     CASE (do_method_dftb)
        qs_control%dftb = .TRUE.
        CALL cite_reference(Porezag1995)
        CALL cite_reference(Seifert1996)
-    CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pm6,&
-          do_method_pdg,do_method_rm1, do_method_mndod)
+    CASE (do_method_mndo)
+       CALL cite_reference(Dewar1977)
        qs_control%semi_empirical = .TRUE.
+    CASE (do_method_am1)
+       CALL cite_reference(Dewar1985)
+       qs_control%semi_empirical = .TRUE.
+    CASE (do_method_pm3)
+       CALL cite_reference(Stewart1989)
+       qs_control%semi_empirical = .TRUE.
+    CASE (do_method_pm6)
+       CALL cite_reference(Stewart2007)
+       qs_control%semi_empirical = .TRUE.
+       CALL init_se_intd_array(error)
+    CASE (do_method_pdg)
+       CALL cite_reference(Repasky2002)
+       qs_control%semi_empirical = .TRUE.
+    CASE (do_method_rm1)
+       CALL cite_reference(Rocha2006)
+       qs_control%semi_empirical = .TRUE.
+    CASE (do_method_mndod)
+       CALL cite_reference(Dewar1977)
+       CALL cite_reference(Thiel1992)
+       qs_control%semi_empirical = .TRUE.
+       CALL init_se_intd_array(error)
     END SELECT
-
+    
     IF(qs_control %method_id == do_method_kg_pol) qs_control%polarization = .TRUE.
 
     CALL section_vals_get(mull_section,explicit=qs_control%mulliken_restraint,error=error)

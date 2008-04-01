@@ -25,7 +25,6 @@ MODULE semi_empirical_utils
   USE semi_empirical_par_utils,        ONLY: get_se_basis
   USE semi_empirical_parameters,       ONLY: am1_default_parameter,&
                                              mndo_default_parameter,&
-                                             mndod_default_parameter,&
                                              pcharge_default_parameter,&
                                              pdg_default_parameter,&
                                              pm3_default_parameter,&
@@ -140,9 +139,9 @@ CONTAINS
        CASE (do_method_pdg)
           CALL pdg_default_parameter(se_parameter,z)
        CASE (do_method_mndo)
-          CALL mndo_default_parameter(se_parameter,z)
+          CALL mndo_default_parameter(se_parameter,z,do_method_mndo)
        CASE (do_method_mndod)
-          CALL mndod_default_parameter(se_parameter,z)
+          CALL mndo_default_parameter(se_parameter,z,do_method_mndod)
        CASE (do_method_pchg)
           CALL pcharge_default_parameter(se_parameter,z)
        CASE DEFAULT
