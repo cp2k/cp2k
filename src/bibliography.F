@@ -81,7 +81,7 @@ CONTAINS
          "EP 1213",&
          "UT ISI:000250308000001",&
          "ER"),&
-         DOI="http://dx.doi.org/10.1007/s00894-007-0233-4")
+         DOI="10.1007/s00894-007-0233-4")
 
     CALL add_reference(key=Repasky2002, ISI_record=s2a(&
          "AU Repasky, MP",&
@@ -98,7 +98,7 @@ CONTAINS
          "EP 1622",&
          "UT ISI:000179022700011",&
          "ER"),&
-         DOI="http://dx.doi.org/10.1002/jcc.10162")
+         DOI="10.1002/jcc.10162")
     
     CALL add_reference(key=Thiel1992, ISI_record=s2a(&
          "AU THIEL, W",&
@@ -115,7 +115,7 @@ CONTAINS
          "EP 404",&
          "UT ISI:A1992HF04700004",&
          "ER"),&
-         DOI="http://dx.doi.org/10.1007/BF01134863")
+         DOI="10.1007/BF01134863")
 
     CALL add_reference(key=Stewart1989, ISI_record=s2a(&
          "AU STEWART, JJP",&
@@ -130,7 +130,7 @@ CONTAINS
          "EP 220",&
          "UT ISI:A1989T690100007",&
          "ER"),&
-         DOI="http://dx.doi.org/10.1002/jcc.540100208")
+         DOI="10.1002/jcc.540100208")
 
     CALL add_reference(key=Rocha2006, ISI_record=s2a(&
          "AU Rocha, GB",&
@@ -148,7 +148,7 @@ CONTAINS
          "EP 1111",&
          "UT ISI:000238158900007",&
          "ER"),&
-         DOI="http://dx.doi.org/10.1002/jcc.20425")
+         DOI="10.1002/jcc.20425")
 
     CALL add_reference(key=Dewar1985, ISI_record=s2a(&
          "AU DEWAR, MJS",&
@@ -166,7 +166,7 @@ CONTAINS
          "EP 3909",&
          "UT ISI:A1985ALC3500024",&
          "ER"),&
-         DOI="http://dx.doi.org/10.1021/ja00299a024")
+         DOI="10.1021/ja00299a024")
 
     CALL add_reference(key=Dewar1977, ISI_record=s2a(&
          "AU DEWAR, MJS",&
@@ -182,7 +182,7 @@ CONTAINS
          "EP 4907",&
          "UT ISI:A1977DN51700004",&
          "ER"),&
-         DOI="http://dx.doi.org/10.1021/ja00457a004")
+         DOI="10.1021/ja00457a004")
 
     CALL add_reference(key=Henkelman1999, ISI_record=s2a(&
          "PT J",&
