@@ -132,7 +132,7 @@ CONTAINS
     CASE(do_qmmm_coulomb,do_qmmm_gauss,do_qmmm_swave)
        ! Create a fake semi-empirical type to handle the classical atom
        CALL allocate_se_param(se_kind_mm,error)
-       CALL se_param_set_default(se_kind_mm,0,do_method_pchg)
+       CALL se_param_set_default(se_kind_mm,0,do_method_pchg,error)
        itype    = get_se_type(se_kind_mm%typ)
        nkind    = SIZE(atomic_kind_set)
        enuclear = 0.0_dp

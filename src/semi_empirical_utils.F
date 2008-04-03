@@ -46,9 +46,9 @@ MODULE semi_empirical_utils
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE init_se_param(se_parameter,orb_basis_set,error)
+  SUBROUTINE init_se_param(sep,orb_basis_set,error)
 
-    TYPE(semi_empirical_type), POINTER       :: se_parameter
+    TYPE(semi_empirical_type), POINTER       :: sep
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -62,14 +62,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
 
     failure = .FALSE.
-    IF (ASSOCIATED(se_parameter)) THEN
+    IF (ASSOCIATED(sep)) THEN
 
-       CALL allocate_sto_basis_set (se_parameter%basis,error)
+       CALL allocate_sto_basis_set (sep%basis,error)
        nshell = 0
-       IF (se_parameter%natorb ==  1) nshell=1
-       IF (se_parameter%natorb ==  4) nshell=2
-       IF (se_parameter%natorb ==  9) nshell=3
-       IF (se_parameter%natorb == 16) nshell=4
+       IF (sep%natorb ==  1) nshell=1
+       IF (sep%natorb ==  4) nshell=2
+       IF (sep%natorb ==  9) nshell=3
+       IF (sep%natorb == 16) nshell=4
        ALLOCATE (nq(0:3),lq(0:3),zet(0:3),STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -81,9 +81,9 @@ CONTAINS
        lq=0
        zet=0._dp
        DO l=0,nshell-1
-          nq(l)=get_se_basis(se_parameter%z,l)
+          nq(l)=get_se_basis(sep%z,l,error)
           lq(l)=l
-          zet(l)=se_parameter%sto_exponents(l)
+          zet(l)=sep%sto_exponents(l)
           IF(l==0) WRITE(symbol(0),'(I1,A1)') nq(l),"S"
           IF(l==1) WRITE(symbol(1),'(I1,A1)') nq(l),"P"
           IF(l==2) WRITE(symbol(2),'(I1,A1)') nq(l),"D"
@@ -91,11 +91,11 @@ CONTAINS
        END DO
 
        IF (nshell > 0) THEN
-          CALL set_sto_basis_set(se_parameter%basis,name=se_parameter%name,&
+          CALL set_sto_basis_set(sep%basis,name=sep%name,&
                nshell=nshell,symbol=symbol,&
                nq=nq,lq=lq,zet=zet)
-          CALL create_gto_from_sto_basis(se_parameter%basis,orb_basis_set,&
-               se_parameter%ngauss,error=error)
+          CALL create_gto_from_sto_basis(sep%basis,orb_basis_set,&
+               sep%ngauss,error=error)
        END IF
 
        DEALLOCATE (nq,lq,zet,STAT=stat)
@@ -107,49 +107,50 @@ CONTAINS
     ELSE
 
        CALL stop_program(routineN,moduleN,__LINE__,&
-            "The pointer se_parameter is not associated")
+            "The pointer sep is not associated")
 
     END IF
 
   END SUBROUTINE init_se_param
 
 ! *****************************************************************************
-  SUBROUTINE se_param_set_default(se_parameter,z,method)
+  SUBROUTINE se_param_set_default(sep,z,method,error)
 
-    TYPE(semi_empirical_type), POINTER       :: se_parameter
+    TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER, INTENT(IN)                      :: z, method
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'se_param_set_default', &
       routineP = moduleN//':'//routineN
 
-    IF (ASSOCIATED(se_parameter)) THEN
+    IF (ASSOCIATED(sep)) THEN
        IF ( z < 0 ) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
                "Atomic number < 0")
        END IF
        SELECT CASE (method)
        CASE (do_method_am1)
-          CALL am1_default_parameter(se_parameter,z)
+          CALL am1_default_parameter(sep,z,error)
        CASE (do_method_rm1)
-          CALL rm1_default_parameter(se_parameter,z)
+          CALL rm1_default_parameter(sep,z,error)
        CASE (do_method_pm3)
-          CALL pm3_default_parameter(se_parameter,z)
+          CALL pm3_default_parameter(sep,z,error)
        CASE (do_method_pm6)
-          CALL pm6_default_parameter(se_parameter,z)
+          CALL pm6_default_parameter(sep,z,error)
        CASE (do_method_pdg)
-          CALL pdg_default_parameter(se_parameter,z)
+          CALL pdg_default_parameter(sep,z,error)
        CASE (do_method_mndo)
-          CALL mndo_default_parameter(se_parameter,z,do_method_mndo)
+          CALL mndo_default_parameter(sep,z,do_method_mndo, error)
        CASE (do_method_mndod)
-          CALL mndo_default_parameter(se_parameter,z,do_method_mndod)
+          CALL mndo_default_parameter(sep,z,do_method_mndod,error)
        CASE (do_method_pchg)
-          CALL pcharge_default_parameter(se_parameter,z)
+          CALL pcharge_default_parameter(sep,z,error)
        CASE DEFAULT
           CALL stop_program(routineN,moduleN,__LINE__,"Semiempirical method unknown")
        END SELECT
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
-            "The pointer se_parameter is not associated")
+            "The pointer sep is not associated")
     END IF
 
   END SUBROUTINE se_param_set_default

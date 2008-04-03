@@ -78,9 +78,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Default parameter sets for semi empirical models: POINT_CHARGE
 ! *****************************************************************************
-  SUBROUTINE pcharge_default_parameter(sep, z)
+  SUBROUTINE pcharge_default_parameter(sep, z, error)
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pcharge_default_parameter', &
       routineP = moduleN//':'//routineN
@@ -91,16 +92,17 @@ CONTAINS
     sep%z       = z
     sep%ngauss  = 0
     sep%defined = .TRUE.
-    CALL valence_electrons ( z, sep%zeff, sep%natorb )
+    CALL valence_electrons (z, sep, extended_basis_set=.FALSE., error=error)
 
   END SUBROUTINE pcharge_default_parameter
 
 ! *****************************************************************************
 !> \brief Default parameter sets for semi empirical models: MNDO
 ! *****************************************************************************
-  SUBROUTINE mndo_default_parameter ( sep, z, itype )
+  SUBROUTINE mndo_default_parameter ( sep, z, itype, error)
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER, INTENT(IN)                      :: z, itype
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mndo_default_parameter', &
       routineP = moduleN//':'//routineN
@@ -110,7 +112,8 @@ CONTAINS
     sep%eheat  = ptable(z)%heat_of_formation / kcalmol
     sep%z      = z
     sep%ngauss = 6
-    CALL valence_electrons(z, sep%zeff, sep%natorb)
+    CALL valence_electrons(z, sep, extended_basis_set=(itype==do_method_mndod),&
+         error=error)
 
     SELECT CASE (z)
     CASE DEFAULT
@@ -677,18 +680,19 @@ CONTAINS
     CASE (84:106)
     END SELECT
     ! In case overwrite with MNDO-d parameters
-    IF (itype==do_method_mndod) CALL  mndod_default_parameter(sep, z)
-    CALL calpar(z,sep)
-    CALL convert_param_to_cp2k(sep)
+    IF (itype==do_method_mndod) CALL  mndod_default_parameter(sep, z, error)
+    CALL calpar(z,sep,error)
+    CALL convert_param_to_cp2k(sep,error)
     
   END SUBROUTINE mndo_default_parameter
 
 ! *****************************************************************************
 !> \brief Additional default parameter sets for semi empirical models: MNDO-d
 ! *****************************************************************************
-  SUBROUTINE mndod_default_parameter ( sep, z )
+  SUBROUTINE mndod_default_parameter ( sep, z, error)
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mndod_default_parameter', &
       routineP = moduleN//':'//routineN
@@ -736,13 +740,13 @@ CONTAINS
        sep%udd              =  -5.22082737_dp
        sep%beta(0)          =  -7.10185851_dp
        sep%beta(1)          =  -2.31809618_dp
-       sep%beta(3)          =  -3.35638545_dp
+       sep%beta(2)          =  -3.35638545_dp
        sep%sto_exponents(0) =   1.79402273_dp
        sep%sto_exponents(1) =   1.37130919_dp
-       sep%sto_exponents(3) =   0.80591133_dp
+       sep%sto_exponents(2) =   0.80591133_dp
        sep%zn(0)            =   1.22249269_dp
        sep%zn(1)            =   1.09291990_dp
-       sep%zn(3)            =   0.80038285_dp
+       sep%zn(2)            =   0.80038285_dp
        sep%alp              =   1.44301676_dp
        sep%gss              =   8.58671016_dp
        sep%gsp              =   7.66469306_dp
@@ -757,13 +761,13 @@ CONTAINS
        sep%udd              = -14.67743900_dp
        sep%beta(0)          =  -2.60801150_dp
        sep%beta(1)          =  -4.88462030_dp
-       sep%beta(3)          =  -8.21073420_dp
+       sep%beta(2)          =  -8.21073420_dp
        sep%sto_exponents(0) =   1.91565460_dp
        sep%sto_exponents(1) =   1.68161130_dp
-       sep%sto_exponents(3) =   0.96677166_dp
+       sep%sto_exponents(2) =   0.96677166_dp
        sep%zn(0)            =   1.52929180_dp
        sep%zn(1)            =   0.97628075_dp
-       sep%zn(3)            =   0.93816441_dp
+       sep%zn(2)            =   0.93816441_dp
        sep%alp              =   1.66006930_dp
        sep%gss              =  10.74164700_dp
        sep%gsp              =   7.56066640_dp
@@ -778,13 +782,13 @@ CONTAINS
        sep%udd              = -23.69159700_dp
        sep%beta(0)          =  -2.09170080_dp
        sep%beta(1)          =  -9.38611080_dp
-       sep%beta(3)          =  -8.90210430_dp
+       sep%beta(2)          =  -8.90210430_dp
        sep%sto_exponents(0) =   2.26646290_dp
        sep%sto_exponents(1) =   1.94001490_dp
-       sep%sto_exponents(3) =   1.10010900_dp
+       sep%sto_exponents(2) =   1.10010900_dp
        sep%zn(0)            =   1.63437610_dp
        sep%zn(1)            =   1.08291170_dp
-       sep%zn(3)            =   1.00651470_dp
+       sep%zn(2)            =   1.00651470_dp
        sep%alp              =   1.85255120_dp
        sep%gss              =   11.4797530_dp
        sep%gsp              =   8.55756910_dp
@@ -799,13 +803,13 @@ CONTAINS
        sep%udd              = -25.09511800_dp
        sep%beta(0)          =  -1.88066950_dp
        sep%beta(1)          = -12.21543700_dp
-       sep%beta(3)          = -10.99954500_dp
+       sep%beta(2)          = -10.99954500_dp
        sep%sto_exponents(0) =   2.22585050_dp
        sep%sto_exponents(1) =   2.09970560_dp
-       sep%sto_exponents(3) =   1.23147250_dp
+       sep%sto_exponents(2) =   1.23147250_dp
        sep%zn(0)            =   1.73639140_dp
        sep%zn(1)            =   1.12118170_dp
-       sep%zn(3)            =   1.05084670_dp
+       sep%zn(2)            =   1.05084670_dp
        sep%alp              =   2.02305950_dp
        sep%gss              =  12.19630200_dp
        sep%gsp              =   8.85390090_dp
@@ -820,13 +824,13 @@ CONTAINS
        sep%udd              = -36.67457320_dp
        sep%beta(0)          =  -1.87778198_dp
        sep%beta(1)          = -19.18338497_dp
-       sep%beta(3)          =  -6.03729165_dp
+       sep%beta(2)          =  -6.03729165_dp
        sep%sto_exponents(0) =   2.56161065_dp
        sep%sto_exponents(1) =   2.38933800_dp
-       sep%sto_exponents(3) =   1.25139777_dp
+       sep%sto_exponents(2) =   1.25139777_dp
        sep%zn(0)            =   1.88087547_dp
        sep%zn(1)            =   1.18104227_dp
-       sep%zn(3)            =   1.14061555_dp
+       sep%zn(2)            =   1.14061555_dp
        sep%alp              =   2.18030019_dp
        sep%gss              =  13.21114854_dp
        sep%gsp              =   9.41949513_dp
@@ -858,13 +862,13 @@ CONTAINS
        sep%udd              = -13.72809929_dp
        sep%beta(0)          =  -8.31497607_dp
        sep%beta(1)          = -10.50704145_dp
-       sep%beta(3)          =  -0.96259930_dp
+       sep%beta(2)          =  -0.96259930_dp
        sep%sto_exponents(0) =   2.59054101_dp
        sep%sto_exponents(1) =   2.33085649_dp
-       sep%sto_exponents(3) =   1.35736115_dp
+       sep%sto_exponents(2) =   1.35736115_dp
        sep%zn(0)            =   2.23581544_dp
        sep%zn(1)            =   1.43292654_dp
-       sep%zn(3)            =   1.24257826_dp
+       sep%zn(2)            =   1.24257826_dp
        sep%alp              =   2.09105000_dp
        sep%gss              =  12.22235546_dp
        sep%gsp              =   8.26372010_dp
@@ -896,13 +900,13 @@ CONTAINS
        sep%udd              = -12.24830501_dp
        sep%beta(0)          = -10.69948666_dp
        sep%beta(1)          =  -4.94117776_dp
-       sep%beta(3)          =  -2.35046098_dp
+       sep%beta(2)          =  -2.35046098_dp
        sep%sto_exponents(0) =   2.75654324_dp
        sep%sto_exponents(1) =   2.25307954_dp
-       sep%sto_exponents(3) =   1.50233509_dp
+       sep%sto_exponents(2) =   1.50233509_dp
        sep%zn(0)            =   2.67241100_dp
        sep%zn(1)            =   1.57229871_dp
-       sep%zn(3)            =   1.25884802_dp
+       sep%zn(2)            =   1.25884802_dp
        sep%alp              =   1.90617441_dp
        sep%gss              =  11.98078196_dp
        sep%gsp              =   7.85590192_dp
@@ -933,9 +937,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Default parameter sets for semi empirical models: AM1
 ! *****************************************************************************
-  SUBROUTINE am1_default_parameter ( sep, z )
+  SUBROUTINE am1_default_parameter ( sep, z, error )
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'am1_default_parameter', &
       routineP = moduleN//':'//routineN
@@ -945,7 +950,7 @@ CONTAINS
     sep%eheat  = ptable(z)%heat_of_formation / kcalmol
     sep%z      = z
     sep%ngauss = 6
-    CALL valence_electrons ( z, sep%zeff, sep%natorb )
+    CALL valence_electrons(z, sep, extended_basis_set=.FALSE., error=error)
 
     SELECT CASE (z)
     CASE DEFAULT
@@ -1406,17 +1411,18 @@ CONTAINS
        sep%hsp   =    1.3000000_dp
     CASE (83:106)
     END SELECT
-    CALL calpar(z,sep)
-    CALL convert_param_to_cp2k(sep)
+    CALL calpar(z,sep,error)
+    CALL convert_param_to_cp2k(sep,error)
 
   END SUBROUTINE am1_default_parameter
 
 ! *****************************************************************************
 !> \brief Default parameter sets for semi empirical models: RM1
 ! *****************************************************************************
-  SUBROUTINE rm1_default_parameter ( sep, z )
+  SUBROUTINE rm1_default_parameter ( sep, z, error)
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rm1_default_parameter', &
       routineP = moduleN//':'//routineN
@@ -1426,7 +1432,7 @@ CONTAINS
     sep%eheat  = ptable(z)%heat_of_formation / kcalmol
     sep%z      = z
     sep%ngauss = 6
-    CALL valence_electrons ( z, sep%zeff, sep%natorb )
+    CALL valence_electrons(z, sep, extended_basis_set=.FALSE., error=error)
 
     SELECT CASE (z)
       CASE DEFAULT
@@ -1616,17 +1622,18 @@ CONTAINS
          sep%fn1(2) =  0.05914991_dp; sep%fn2(2) = 5.76111270_dp; sep%fn3(2) = 2.20488800_dp
       CASE (80:106)
     END SELECT
-    CALL calpar(z,sep)
-    CALL convert_param_to_cp2k(sep)
+    CALL calpar(z,sep,error)
+    CALL convert_param_to_cp2k(sep,error)
 
   END SUBROUTINE rm1_default_parameter
 
 ! *****************************************************************************
 !> \brief Default parameter sets for semi empirical models: PM3
 ! *****************************************************************************
-  SUBROUTINE pm3_default_parameter ( sep, z )
+  SUBROUTINE pm3_default_parameter ( sep, z, error)
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pm3_default_parameter', &
       routineP = moduleN//':'//routineN
@@ -1636,7 +1643,7 @@ CONTAINS
     sep%eheat  = ptable(z)%heat_of_formation / kcalmol
     sep%z      = z
     sep%ngauss = 6
-    CALL valence_electrons ( z, sep%zeff, sep%natorb )
+    CALL valence_electrons(z, sep, extended_basis_set=.FALSE., error=error)
 
     SELECT CASE (z)
     CASE DEFAULT
@@ -2403,17 +2410,18 @@ CONTAINS
        !     Data (GuesP3(91,J),J=1,10)/10*0.0e0_dp/
     CASE (92:106)
     END SELECT
-    CALL calpar(z,sep)
-    CALL convert_param_to_cp2k(sep)
+    CALL calpar(z,sep,error)
+    CALL convert_param_to_cp2k(sep,error)
 
   END SUBROUTINE pm3_default_parameter
 
 ! *****************************************************************************
 !> \brief Default parameter sets for semi empirical models: PM6
 ! *****************************************************************************
-  SUBROUTINE pm6_default_parameter ( sep, z )
+  SUBROUTINE pm6_default_parameter ( sep, z, error)
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pm6_default_parameter', &
       routineP = moduleN//':'//routineN
@@ -2423,7 +2431,7 @@ CONTAINS
     sep%eheat  = ptable(z)%heat_of_formation / kcalmol
     sep%z      = z
     sep%ngauss = 6
-    CALL valence_electrons ( -z, sep%zeff, sep%natorb )
+    CALL valence_electrons(z, sep, extended_basis_set=.TRUE., error=error)
 
     SELECT CASE (z)
     CASE DEFAULT
@@ -3748,9 +3756,9 @@ CONTAINS
        sep%hsp         =    0.295606_dp
     CASE(84:106)
     END SELECT
-    CALL calpar(z,sep)
-    CALL convert_param_to_cp2k(sep)
-    CALL init_pm6_pair_params()
+    CALL calpar(z,sep,error)
+    CALL convert_param_to_cp2k(sep, error)
+    CALL init_pm6_pair_params(error)
 
     sep%aab(0:nelem) = aab_pm6(z,0:nelem)
     sep%xab(0:nelem) = xab_pm6(z,0:nelem)
@@ -3767,9 +3775,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Default parameter sets for semi empirical models: PDDG
 ! *****************************************************************************
-  SUBROUTINE pdg_default_parameter ( sep, z )
+  SUBROUTINE pdg_default_parameter ( sep, z, error)
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pdg_default_parameter', &
       routineP = moduleN//':'//routineN
@@ -3779,7 +3788,7 @@ CONTAINS
     sep%eheat  = ptable(z)%heat_of_formation / kcalmol
     sep%z      = z
     sep%ngauss = 6
-    CALL valence_electrons ( z, sep%zeff, sep%natorb )
+    CALL valence_electrons(z, sep, extended_basis_set=.FALSE., error=error)
 
     SELECT CASE (z)
     CASE DEFAULT
@@ -4128,14 +4137,16 @@ CONTAINS
        sep%d(2)             =    2.263417_dp
     CASE (54:106)
     END SELECT
-    CALL convert_param_to_cp2k(sep)
+    CALL calpar(z,sep, error)
+    CALL convert_param_to_cp2k(sep, error)
 
   END SUBROUTINE pdg_default_parameter
 
 ! *****************************************************************************
 !> \brief Default pair parameter for: PM6
 ! *****************************************************************************
-  SUBROUTINE init_pm6_pair_params
+  SUBROUTINE init_pm6_pair_params(error)
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_pm6_pair_params', &
       routineP = moduleN//':'//routineN

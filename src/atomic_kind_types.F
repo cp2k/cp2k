@@ -1474,7 +1474,7 @@ CONTAINS
           CPPostcondition(check, cp_failure_level, routineP, error, failure)
           CALL allocate_se_param(atomic_kind%se_parameter,error)
           ! Set default parameters
-          CALL se_param_set_default(atomic_kind%se_parameter,z,method_id)
+          CALL se_param_set_default(atomic_kind%se_parameter,z,method_id,error)
           CALL init_se_param(atomic_kind%se_parameter,atomic_kind%orb_basis_set,error=error)
           CALL init_potential ( atomic_kind%all_potential, itype="BARE", &
                zeff=atomic_kind%se_parameter%zeff,zeff_correction=zeff_correction,error=error)

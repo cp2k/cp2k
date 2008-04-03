@@ -786,15 +786,15 @@ CONTAINS
        ELSE
           enuc = 0._dp
           rija = rij*angstrom
-          IF ( sepi%rho > 0._dp ) THEN
+          IF ( ABS(sepi%rho) > EPSILON(0.0_dp) ) THEN
              poi = sepi%rho
           ELSE
-             poi = 0.5_dp/sepi%am
+             poi = sepi%ko(1)
           END IF
-          IF ( sepj%rho > 0._dp ) THEN
+          IF ( ABS(sepj%rho) > EPSILON(0._dp) ) THEN
              poj = sepj%rho
           ELSE
-             poj = 0.5_dp/sepj%am
+             poj = sepj%ko(1)
           END IF
           scale = sepi%zeff*sepj%zeff/SQRT(rij*rij+(poi+poj)**2)
           IF(shortrange) scale = scale -  sepi%zeff*sepj%zeff/rij
@@ -854,15 +854,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'terep', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: di, dj, failure
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
-    di = (sepi%natorb > 4)
-    dj = (sepj%natorb > 4)
     ri = 0.0_dp
 
     CALL terep_sp ( sepi, sepj, rij, ri, shortrange, error=error)
-    IF (di.OR.dj) THEN
+    IF (sepi%dorb.OR.sepj%dorb) THEN
        ! compute the contribution from d-orbitals
        STOP "D-ORBITALS: terep"
     END IF
@@ -918,15 +916,15 @@ CONTAINS
     sj  = (sepj%natorb > 1)
     zi  = sepi%zeff
     zj  = sepj%zeff
-    ddi = sepi%dd
-    ddj = sepj%dd
-    qqi = sepi%qq
-    qqj = sepj%qq
+    ddi = sepi%cs(2)
+    ddj = sepj%cs(2)
+    qqi = sepi%cs(3)
+    qqj = sepj%cs(3)
     rsq = r*r
 
     !  hydrogen - hydrogen  (SS/SS)
-    ami = 0.5_dp/sepi%am
-    amj = 0.5_dp/sepj%am
+    ami = sepi%ko(1)
+    amj = sepj%ko(1)
     aee = ami + amj
     aee = aee * aee
     IF (longrange) aee = 0.0_dp
@@ -939,13 +937,13 @@ CONTAINS
        ! In case (i) is an heavy atom
        IF (si) THEN
           da  = ddi
-          qa  = qqi * 2.0_dp
+          qa  = qqi
           IF (longrange) THEN
              ade = 0.0_dp
              aqe = 0.0_dp
           ELSE
-             adi = 0.5_dp/sepi%ad
-             aqi = 0.5_dp/sepi%aq
+             adi = sepi%ko(2)
+             aqi = sepi%ko(3)
              ade = adi + amj
              ade = ade * ade
              aqe = aqi + amj
@@ -973,13 +971,13 @@ CONTAINS
        ! In case (j) is an heavy atom
        IF (sj) THEN
           db  = ddj
-          qb  = qqj * 2.0_dp
+          qb  = qqj
           IF (longrange) THEN
              aed = 0.0_dp
              aeq = 0.0_dp
           ELSE
-             adj = 0.5_dp/sepj%ad
-             aqj = 0.5_dp/sepj%aq
+             adj = sepj%ko(2)
+             aqj = sepj%ko(3)
              aed = ami + adj
              aed = aed * aed
              aeq = ami + aqj
@@ -1089,8 +1087,8 @@ CONTAINS
           arg(52) = xxx*xxx + aqq
           xxx = r - qa + qb
           arg(53) = xxx*xxx + aqq
-          qa=sepi%qq
-          qb=sepj%qq
+          qa = qa/2.0_dp
+          qb = qb/2.0_dp
           xxx = da - qb
           xxx = xxx*xxx
           yyy = r - qb
@@ -1234,15 +1232,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'nucint', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: di, dj, failure
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
-    di = (sepi%natorb > 4)
-    dj = (sepj%natorb > 4)
     core  = 0.0_dp
 
     CALL nucint_spcore(sepi, sepj, rij, ssss, core, itype, shortrange, error=error)
-    IF (di.OR.dj) THEN
+    IF (sepi%dorb.OR.sepj%dorb) THEN
        ! Compute the contribution from d-orbitals
        CALL nucint_d(sepi, sepj, rij, core, itype, shortrange, error=error)
     END IF
@@ -1301,16 +1297,16 @@ CONTAINS
     sj   = (sepj%natorb > 1)
     zi   = sepi%zeff
     zj   = sepj%zeff
-    ddi  = sepi%dd
-    ddj  = sepj%dd
-    qqi  = sepi%qq
-    qqj  = sepj%qq
+    ddi  = sepi%cs(2)
+    ddj  = sepj%cs(2)
+    qqi  = sepi%cs(3)
+    qqj  = sepj%cs(3)
 
     !  hydrogen - hydrogen  (SS/SS)
     aee = 0.0_dp
     IF (itype/=do_method_pchg) THEN
-       ami = 0.5_dp/sepi%am
-       amj = 0.5_dp/sepj%am
+       ami = sepi%ko(1)
+       amj = sepj%ko(1)
        aee = ami + amj
        aee = aee * aee
     END IF
@@ -1326,12 +1322,12 @@ CONTAINS
        ! In case (i) is an heavy atom
        IF (si) THEN
           da  = ddi
-          qa  = qqi * 2.0_dp
+          qa  = qqi
           ade = 0.0_dp
           aqe = 0.0_dp
           IF (itype /=do_method_pchg) THEN
-             adi = 0.5_dp/sepi%ad
-             aqi = 0.5_dp/sepi%aq
+             adi = sepi%ko(2)
+             aqi = sepi%ko(3)
              ade = adi + amj
              aqe = aqi + amj
              ade = ade * ade
@@ -1363,12 +1359,12 @@ CONTAINS
        ! In case (j) is an heavy atom
        IF (sj) THEN
           db  = ddj
-          qb  = qqj * 2.0_dp
+          qb  = qqj
           ade = 0.0_dp
           aqe = 0.0_dp
           IF (itype /=do_method_pchg) THEN
-             adj = 0.5_dp/sepj%ad
-             aqj = 0.5_dp/sepj%aq
+             adj = sepj%ko(2)
+             aqj = sepj%ko(3)
              aed = ami + adj
              aeq = ami + aqj
              aed = aed * aed

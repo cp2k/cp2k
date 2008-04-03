@@ -46,7 +46,7 @@ MODULE semi_empirical_types
   TYPE semi_empirical_type
     INTEGER                                :: typ
     CHARACTER(LEN=default_string_length)   :: name
-    LOGICAL                                :: defined, dorb
+    LOGICAL                                :: defined, dorb, extended_basis_set
     INTEGER                                :: z
     REAL(KIND=dp)                          :: zeff
     INTEGER                                :: natorb
@@ -129,8 +129,9 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(sep),cp_failure_level,routineP,error,failure)
-    sep%defined = .FALSE.
-    sep%dorb    = .FALSE.
+    sep%defined            = .FALSE.
+    sep%dorb               = .FALSE.
+    sep%extended_basis_set = .FALSE.
     sep%name    = ""
     sep%typ     = HUGE(0)
     sep%z       = HUGE(0)
