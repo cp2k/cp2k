@@ -47,8 +47,6 @@ MODULE nddo_methods
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE semi_empirical_int_ana,          ONLY: rotint_ana,&
-                                             rotnuc_ana
   USE semi_empirical_integrals,        ONLY: drotint,&
                                              drotnuc,&
                                              rotint,&
@@ -455,22 +453,12 @@ CONTAINS
                    SELECT CASE (dft_control%qs_control%method_id)
                      CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pm6,do_method_pdg,&
                            do_method_rm1,do_method_mndod)
-                       IF (anag) THEN
-                         IF ( .NOT. switch ) THEN
-                           CALL rotnuc_ana (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype,&
-                                shortrange=do_ewald, taper=taper, error=error)
-                         ELSE
-                           CALL rotnuc_ana (se_kind_b,se_kind_a,-rij,e1b=e2a,e2a=e1b,enuc=enuc,itype=itype,&
-                                shortrange=do_ewald, taper=taper, error=error)
-                         END IF
-                       ELSE 
-                         IF ( .NOT. switch ) THEN
-                           CALL rotnuc (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype,&
-                                shortrange=do_ewald, taper=taper, error=error)
-                         ELSE
-                           CALL rotnuc (se_kind_b,se_kind_a,-rij,e1b=e2a,e2a=e1b,enuc=enuc,itype=itype,&
-                                shortrange=do_ewald, taper=taper, error=error)
-                         END IF
+                       IF ( .NOT. switch ) THEN
+                          CALL rotnuc (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype,&
+                               anag=anag, shortrange=do_ewald, taper=taper, error=error)
+                       ELSE
+                          CALL rotnuc (se_kind_b,se_kind_a,-rij,e1b=e2a,e2a=e1b,enuc=enuc,itype=itype,&
+                               anag=anag, shortrange=do_ewald, taper=taper, error=error)
                        END IF
                        enuclear = enuclear + enuc
                        ! one-centre one-electron terms
@@ -514,24 +502,13 @@ CONTAINS
                        IF(calculate_forces) THEN
                          atom_a = atom_of_kind(iatom)
                          atom_b = atom_of_kind(jatom)
-                         IF (anag) THEN
-                           IF ( .NOT. switch ) THEN
-                             CALL rotnuc_ana (se_kind_a,se_kind_b,rij,de1b=de1b,de2a=de2a,&
-                                denuc=denuc,itype=itype,shortrange=do_ewald,taper=taper,error=error)
-                           ELSE
-                             CALL rotnuc_ana (se_kind_b,se_kind_a,-rij,de1b=de2a,de2a=de1b,&
-                                denuc=denuc,itype=itype,shortrange=do_ewald,taper=taper,error=error)
-                           END IF
+
+                         IF ( .NOT. switch ) THEN
+                            CALL drotnuc (se_kind_a,se_kind_b,rij,de1b=de1b,de2a=de2a,denuc=denuc,&
+                                 itype=itype,delta=delta,anag=anag,shortrange=do_ewald,taper=taper,error=error)
                          ELSE
-                           IF ( .NOT. switch ) THEN
-                             CALL drotnuc (se_kind_a,se_kind_b,rij,de1b=de1b,de2a=de2a,&
-                                denuc=denuc,itype=itype,delta=delta,shortrange=do_ewald,&
-                                taper=taper,error=error)
-                           ELSE
-                             CALL drotnuc (se_kind_b,se_kind_a,-rij,de1b=de2a,de2a=de1b,&
-                                denuc=denuc,itype=itype,delta=delta,shortrange=do_ewald,&
-                                taper=taper,error=error)
-                           END IF
+                            CALL drotnuc (se_kind_b,se_kind_a,-rij,de1b=de2a,de2a=de1b,denuc=denuc,&
+                                 itype=itype,delta=delta,anag=anag,shortrange=do_ewald,taper=taper,error=error)
                          END IF
                          force_ab(1:3)=-denuc(1:3)
                          CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
@@ -1076,11 +1053,7 @@ CONTAINS
     na = SIZE ( pa, 1 )
     nb = SIZE ( pb, 1 )
 
-    IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,wint,shortrange=shortrange,taper=taper,error=error)
-    ELSE
-       CALL rotint (sepa,sepb,rij,wint,shortrange=shortrange,taper=taper,error=error)
-    END IF
+    CALL rotint (sepa,sepb,rij,wint,anag=anag,shortrange=shortrange,taper=taper,error=error)
     IF ( na==1 .AND. nb==1 ) THEN
       fa(1,1) = fa(1,1) + pb(1,1)*wint(1)
       fb(1,1) = fb(1,1) + pa(1,1)*wint(1)
@@ -1137,12 +1110,7 @@ CONTAINS
     na = SIZE ( pa_a, 1 )
     nb = SIZE ( pb_a, 1 )
 
-    IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,wint,shortrange=shortrange,taper=taper,error=error)
-    ELSE
-       CALL rotint (sepa,sepb,rij,wint,shortrange=shortrange,taper=taper,error=error)
-    END IF
-
+    CALL rotint (sepa,sepb,rij,wint,anag=anag,shortrange=shortrange,taper=taper,error=error)
     IF ( na==1 .AND. nb==1 ) THEN
       fa_a(1,1) = fa_a(1,1) + (pb_a(1,1)+pb_b(1,1))*wint(1)
       fb_a(1,1) = fb_a(1,1) + (pa_a(1,1)+pa_b(1,1))*wint(1)
@@ -1209,12 +1177,7 @@ CONTAINS
     na = SIZE ( pa, 1 )
     nb = SIZE ( pb, 1 )
 
-    IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,dw=dwint,shortrange=shortrange,taper=taper,error=error)
-    ELSE
-       CALL drotint (sepa,sepb,rij,dwint,delta,shortrange=shortrange,taper=taper,error=error)
-    END IF
-
+    CALL drotint (sepa,sepb,rij,dwint,delta,anag=anag,shortrange=shortrange,taper=taper,error=error)
     IF ( na==1 .AND. nb==1 ) THEN
       force(:) = force(:) + pa(1,1)*pb(1,1)*dwint(1,:)
     ELSE IF ( na==1 .AND. nb==4 ) THEN
@@ -1268,12 +1231,7 @@ CONTAINS
     na = SIZE ( pa_a, 1 )
     nb = SIZE ( pb_a, 1 )
 
-    IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,dw=dwint,shortrange=shortrange,taper=taper,error=error)
-    ELSE
-       CALL drotint (sepa,sepb,rij,dwint,delta,shortrange=shortrange,taper=taper,error=error)
-    END IF
-
+    CALL drotint (sepa,sepb,rij,dwint,delta,anag=anag,shortrange=shortrange,taper=taper,error=error)
     IF ( na==1 .AND. nb==1 ) THEN
       pta = pa_a(1,1)+pa_b(1,1)
       ptb = pb_a(1,1)+pb_b(1,1)
@@ -1332,12 +1290,7 @@ CONTAINS
     na = SIZE ( pab, 1 )
     nb = SIZE ( pab, 2 )
 
-    IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,wint,shortrange=.FALSE.,taper=taper,error=error)
-    ELSE
-       CALL rotint (sepa,sepb,rij,wint,shortrange=.FALSE.,taper=taper,error=error)
-    END IF
-
+    CALL rotint (sepa,sepb,rij,wint,anag=anag,shortrange=.FALSE.,taper=taper,error=error)
     IF ( na==1 .AND. nb==1 ) THEN
       fab(1,1) = fab(1,1) - 0.5_dp * pab(1,1)*wint(1)
     ELSE IF ( na==1 .AND. nb==4 ) THEN
@@ -1391,12 +1344,7 @@ CONTAINS
     na = SIZE ( pab_a, 1 )
     nb = SIZE ( pab_a, 2 )
 
-    IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,wint,shortrange=.FALSE.,taper=taper,error=error)
-    ELSE
-       CALL rotint (sepa,sepb,rij,wint,shortrange=.FALSE.,taper=taper,error=error)
-    END IF
-
+    CALL rotint (sepa,sepb,rij,wint,anag=anag,shortrange=.FALSE.,taper=taper,error=error)
     IF ( na==1 .AND. nb==1 ) THEN
       fab_a(1,1) = fab_a(1,1) - pab_a(1,1)*wint(1)
       fab_b(1,1) = fab_b(1,1) - pab_b(1,1)*wint(1)
@@ -1468,12 +1416,7 @@ CONTAINS
     na = SIZE ( pab, 1 )
     nb = SIZE ( pab, 2 )
 
-    IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,dw=dwint,shortrange=.FALSE.,taper=taper,error=error)
-    ELSE
-       CALL drotint (sepa,sepb,rij,dwint,delta,shortrange=.FALSE.,taper=taper,error=error)
-    END IF
-
+    CALL drotint (sepa,sepb,rij,dwint,delta,anag=anag,shortrange=.FALSE.,taper=taper,error=error)
     IF ( na==1 .AND. nb==1 ) THEN
       force(:) = force(:) - 0.5_dp*pab(1,1)*pab(1,1)*dwint(1,:)
     ELSE IF ( na==1 .AND. nb==4 ) THEN
@@ -1528,12 +1471,7 @@ CONTAINS
     na = SIZE ( pab_a, 1 )
     nb = SIZE ( pab_a, 2 )
 
-    IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,dw=dwint,shortrange=.FALSE.,taper=taper,error=error)
-    ELSE
-       CALL drotint (sepa,sepb,rij,dwint,delta,shortrange=.FALSE.,taper=taper,error=error)
-    END IF
-
+    CALL drotint (sepa,sepb,rij,dwint,delta,anag=anag,shortrange=.FALSE.,taper=taper,error=error)
     IF ( na==1 .AND. nb==1 ) THEN
       force(:) = force(:) - pab_a(1,1)*pab_a(1,1)*dwint(1,:)
       force(:) = force(:) - pab_b(1,1)*pab_b(1,1)*dwint(1,:)

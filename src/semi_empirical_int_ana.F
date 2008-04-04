@@ -26,14 +26,14 @@ MODULE semi_empirical_int_ana
   USE semi_empirical_int_arrays,       ONLY: map_full_sp,&
                                              pxy,&
                                              rij_threshold
+  USE semi_empirical_int_num,          ONLY: drotint_num,&
+                                             drotnuc_num,&
+                                             nucint_num,&
+                                             rotint_num,&
+                                             rotnuc_num,&
+                                             terep_num
   USE semi_empirical_int_utils,        ONLY: dtaper_eval,&
                                              taper_eval
-  USE semi_empirical_integrals,        ONLY: drotint,&
-                                             drotnuc,&
-                                             nucint,&
-                                             rotint,&
-                                             rotnuc,&
-                                             terep
   USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                              taper_type
 #include "cp_common_uses.h"
@@ -120,22 +120,22 @@ CONTAINS
     lgrad  = l_de1b.OR.l_de2a
     ! Zeros all arrays
     IF (l_e1b) THEN
-       e1b =0._dp
+       e1b =   0._dp
     END IF
     IF (l_e2a) THEN
-       e2a =0._dp
+       e2a =   0._dp
     END IF
     IF (l_enuc) THEN
-       enuc=0._dp
+       enuc =  0._dp
     END IF
     IF (l_de1b) THEN
-       de1b =0._dp
+       de1b =  0._dp
     END IF
     IF (l_de2a) THEN
-       de2a =0._dp
+       de2a =  0._dp
     END IF
     IF (l_denuc) THEN
-       denuc=0._dp
+       denuc = 0._dp
     END IF
     IF (rij > rij_threshold) THEN
        ! Compute Integrals in diatomic frame opportunely inverted
@@ -149,7 +149,7 @@ CONTAINS
                CALL check_dnucint_ana(sepi,sepj,rij,dssss,dccore,itype,shortrange,taper=taper,&
                error=error)
        ELSE
-          CALL nucint(sepi,sepj,rij,ssss,ccore,itype,shortrange,taper=taper,error=error)
+          CALL nucint_num(sepi,sepj,rij,ssss,ccore,itype,shortrange,taper=taper,error=error)
        END IF
        x(1) = x(1)*a
        x(2) = x(2)*a
@@ -554,7 +554,7 @@ CONTAINS
        !
        IF (debug_this_module) THEN
           ! Check value of integrals
-          CALL rotnuc (sepi,sepj,rijv,e1b2,e2a2,enuc2,itype,shortrange,taper=taper,error=error)
+          CALL rotnuc_num(sepi,sepj,rijv,e1b2,e2a2,enuc2,itype,shortrange,taper=taper,error=error)
           IF (l_e1b) THEN
              DO J = 1, 10
                 IF (ABS(e1b(j))>1.0E-6_dp) THEN
@@ -595,7 +595,7 @@ CONTAINS
              ! with a reasonable value of the integral.. (compatible if the value of the
              ! integral is greater than 1.0E-6)
              delta = 1.0E-5_dp
-             CALL drotnuc(sepi,sepj,rijv,de1b2,de2a2,denuc2,itype,delta=delta,&
+             CALL drotnuc_num(sepi,sepj,rijv,de1b2,de2a2,denuc2,itype,delta=delta,&
                   shortrange=shortrange,taper=taper,error=error)
              CALL rotnuc_ana(sepi,sepj,rijv,itype,e1b=e1b2,e2a=e2a2,shortrange=shortrange,&
                   taper=taper,error=error)
@@ -747,9 +747,9 @@ CONTAINS
     delta = 1.0E-8_dp
     od = 0.5_dp/delta
     rn = r + delta
-    CALL nucint(sepi,sepj,rn,ssssp,ccorep,itype,shortrange,taper=taper,error=error)
+    CALL nucint_num(sepi,sepj,rn,ssssp,ccorep,itype,shortrange,taper=taper,error=error)
     rn = r - delta
-    CALL nucint(sepi,sepj,rn,ssssm,ccorem,itype,shortrange,taper=taper,error=error)
+    CALL nucint_num(sepi,sepj,rn,ssssm,ccorem,itype,shortrange,taper=taper,error=error)
     nccore = od * (ccorep - ccorem)
     nssss  = od * (ssssp - ssssm)
     ! check
@@ -1128,7 +1128,7 @@ CONTAINS
                   error=error)
           END IF
        ELSE
-          CALL terep(sepi,sepj,rij,ri,shortrange,taper=taper,error=error)
+          CALL terep_num(sepi,sepj,rij,ri,shortrange,taper=taper,error=error)
        END IF
        a=1._dp/rij
        x(1) = x(1)*a
@@ -1669,7 +1669,7 @@ CONTAINS
           IF (debug_this_module) THEN
              ! Check value of integrals
              w2=0.0_dp
-             CALL rotint (sepi,sepj,rijv,w2,shortrange,taper=taper,error=error)
+             CALL rotint_num(sepi,sepj,rijv,w2,shortrange,taper=taper,error=error)
              DO J = 1, 100
                 IF (ABS(w(j))>1.0E-6_dp) THEN
                    IF (ABS(w2(j)-w(j))>1.0E-7) THEN
@@ -2224,7 +2224,7 @@ CONTAINS
              ! with a reasonable value of the integral.. (compatible if the value of the
              ! integral is greater than 1.0E-6)
              delta = 1.0E-5_dp
-             CALL drotint(sepi,sepj,rijv,dw2,delta=delta,shortrange=shortrange,taper=taper,error=error)
+             CALL drotint_num(sepi,sepj,rijv,dw2,delta=delta,shortrange=shortrange,taper=taper,error=error)
              CALL rotint_ana(sepi,sepj,rijv,w2,shortrange=shortrange,taper=taper,error=error)
              DO i = 1, 3
                 DO j = 1, 100
@@ -2820,11 +2820,11 @@ CONTAINS
     delta = 1.0E-8_dp
     od = 0.5_dp/delta
     rn = r
-    CALL terep(sepi,sepj,rn,ri0,shortrange,taper=taper,error=error)
+    CALL terep_num(sepi,sepj,rn,ri0,shortrange,taper=taper,error=error)
     rn = r + delta
-    CALL terep(sepi,sepj,rn,rip,shortrange,taper=taper,error=error)
+    CALL terep_num(sepi,sepj,rn,rip,shortrange,taper=taper,error=error)
     rn = r - delta
-    CALL terep(sepi,sepj,rn,rim,shortrange,taper=taper,error=error)
+    CALL terep_num(sepi,sepj,rn,rim,shortrange,taper=taper,error=error)
     nri = od * (rip - rim)
     ! check
     DO j = 1, 22
