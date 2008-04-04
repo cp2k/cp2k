@@ -21,73 +21,38 @@ MODULE qs_linres_nmr_epr_common_utils
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_scale_and_add
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                             cp_fm_struct_release,&
-                                             cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_submatrix,&
-                                             cp_fm_p_type,&
-                                             cp_fm_release,&
-                                             cp_fm_set_all,&
-                                             cp_fm_set_submatrix,&
-                                             cp_fm_to_fm,&
-                                             cp_fm_type
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
-                                             cp_rs_pool_type,&
-                                             rs_pool_create_rs,&
-                                             rs_pool_give_back_rs,&
                                              rs_pools_create_rs_vect
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_plus_fm_fm_t
   USE cube_utils,                      ONLY: cube_info_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
-  USE input_section_types,             ONLY: section_get_ivals,&
-                                             section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
-  USE kinds,                           ONLY: default_path_length,&
-                                             dp,&
+  USE kinds,                           ONLY: dp,&
                                              int_8
-  USE mathconstants,                   ONLY: twopi,&
-                                             gaussi
+  USE mathconstants,                   ONLY: gaussi
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_methods,                      ONLY: pw_axpy,&
-                                             pw_copy,&
-                                             pw_integrate_function,&
-                                             pw_scale,&
-                                             pw_transfer,&
-                                             pw_zero
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_methods,                      ONLY: pw_transfer
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
-                                             pw_pool_p_type,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_type
-  USE pw_grid_types,                   ONLY: pw_grid_type
   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace,&
                                              density_rs2pw,&
                                              lgrid_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_linres_epr_op,                ONLY: fac_vecp,&
-                                             set_vecp,&
-                                             set_vecp_rev
+  USE qs_linres_epr_op,                ONLY: set_vecp
   USE qs_modify_pab_block,             ONLY: FUNC_ADBmDAB,&
                                              FUNC_ARDBmDARB
   USE qs_neighbor_list_types,          ONLY: &
@@ -95,7 +60,6 @@ MODULE qs_linres_nmr_epr_common_utils
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
-                                             realspace_grid_type,&
                                              rs_find_node,&
                                              rs_grid_zero
   USE realspace_task_selection,        ONLY: distribute_matrix,&
@@ -106,9 +70,7 @@ MODULE qs_linres_nmr_epr_common_utils
                                              allocate_matrix,&
                                              deallocate_matrix,&
                                              get_block_node,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type,&
-                                             set_matrix
+                                             real_matrix_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&

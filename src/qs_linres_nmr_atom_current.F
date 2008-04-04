@@ -1503,7 +1503,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, new_atom_b
     REAL(dp)                                 :: rab(3)
-    REAL(dp), DIMENSION(:, :), POINTER       :: C_coeff_hh, C_coeff_ss
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind

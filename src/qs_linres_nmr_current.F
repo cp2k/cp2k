@@ -80,16 +80,17 @@ MODULE qs_linres_nmr_current
                                              density_rs2pw
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_linres_nmr_epr_common_utils,  ONLY: calculate_jrho_resp,&
-                                             mult_G_ov_G2_grid
   USE qs_linres_nmr_atom_current,      ONLY: calculate_jrho_atom_coeff,&
                                              calculate_jrho_atom_rad,&
                                              shift_atom
+  USE qs_linres_nmr_epr_common_utils,  ONLY: calculate_jrho_resp,&
+                                             mult_G_ov_G2_grid
   USE qs_linres_nmr_op,                ONLY: fac_vecp,&
                                              set_vecp,&
                                              set_vecp_rev
   USE qs_linres_nmr_shift,             ONLY: chi_analytic,&
-                                             gsum_shift_pwgrid!,&
+                                             gsum_shift_pwgrid
+!,&
 !                                             mult_G_ov_G2_grid
   USE qs_linres_types,                 ONLY: nmr_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -666,7 +667,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_resp', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_resp__', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: add_tasks = 1000, &
                                                 max_tasks = 2000

@@ -744,9 +744,10 @@ CONTAINS
                                                 unit_nics
     INTEGER, DIMENSION(:), POINTER           :: cs_atom_list
     LOGICAL                                  :: failure, gapw, ionode
-    REAL(dp) :: chi_aniso, chi_iso, shift_iso, shift_aniso, chi_sym(3,3), chi_sym_tot(3,3), &
-      chi_tensor(3,3), chi_tensor_loc(3,3), chi_tmp(3,3), eig(3), &
-      eig_tmp(3), rpos(3), shift_nosym(3,3), shift_sym(3,3), shift_tmp(3,3)
+    REAL(dp) :: chi_aniso, chi_iso, chi_sym(3,3), chi_sym_tot(3,3), &
+      chi_tensor(3,3), chi_tensor_loc(3,3), chi_tmp(3,3), eig(3), eig_tmp(3), &
+      rpos(3), shift_aniso, shift_iso, shift_nosym(3,3), shift_sym(3,3), &
+      shift_tmp(3,3)
     REAL(dp), DIMENSION(:, :), POINTER       :: r_nics
     REAL(dp), DIMENSION(:, :, :), POINTER :: chemical_shift, &
       chemical_shift_loc, chemical_shift_loc_nics, chemical_shift_nics, &
