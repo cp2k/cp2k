@@ -80,6 +80,8 @@ MODULE qs_linres_nmr_current
                                              density_rs2pw
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_linres_nmr_epr_common_utils,  ONLY: calculate_jrho_resp,&
+                                             mult_G_ov_G2_grid
   USE qs_linres_nmr_atom_current,      ONLY: calculate_jrho_atom_coeff,&
                                              calculate_jrho_atom_rad,&
                                              shift_atom
@@ -87,8 +89,8 @@ MODULE qs_linres_nmr_current
                                              set_vecp,&
                                              set_vecp_rev
   USE qs_linres_nmr_shift,             ONLY: chi_analytic,&
-                                             gsum_shift_pwgrid,&
-                                             mult_G_ov_G2_grid
+                                             gsum_shift_pwgrid!,&
+!                                             mult_G_ov_G2_grid
   USE qs_linres_types,                 ONLY: nmr_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
@@ -653,7 +655,7 @@ CONTAINS
 !> 
 !>       All the terms sum up to the same grid
 ! *****************************************************************************
-  SUBROUTINE calculate_jrho_resp(mat_jp,mat_jp_rii,mat_jp_riii,iB,idir,&
+  SUBROUTINE calculate_jrho_resp__(mat_jp,mat_jp_rii,mat_jp_riii,iB,idir,&
              rho_rs, rho_gs, qs_env, soft_valid, error)
 
     TYPE(real_matrix_type), POINTER          :: mat_jp, mat_jp_rii, &
@@ -1299,7 +1301,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE calculate_jrho_resp
+  END SUBROUTINE calculate_jrho_resp__
 
 END MODULE qs_linres_nmr_current
 

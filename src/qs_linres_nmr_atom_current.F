@@ -1335,7 +1335,7 @@ CONTAINS
     ENDIF
     !
     CALL mp_sum(chemical_shift_loc_tmp,para_env%group)
-    chemical_shift_loc(:,iB,:) = chemical_shift_loc(:,iB,:) + chemical_shift_loc_tmp(:,:)
+    chemical_shift_loc(:,iB,:) = chemical_shift_loc(:,iB,:) + chemical_shift_loc_tmp(:,:)/2.0_dp
     IF(nmr_env%do_nics) THEN
        !here need a chemical_shift_loc_nics_tmp... also for chi_loc
        CALL stop_program(routineP,"local nics needs some more work")
@@ -1648,26 +1648,6 @@ CONTAINS
        ENDDO  ! jkind
 
     ENDDO  ! ikind
-    !
-    ! Scale the off diagonal projector by two. 
-    ! This leads to the factor half in nmr_print_shift... NEED TO FIX THAT
-    DO iatom=1,natom
-       DO jatom=1,natom
-          NULLIFY(C_coeff_hh,C_coeff_ss)
-          CALL get_block_node(matrix=oce%hardo(1)%matrix,&
-               &              block_row=iatom,&
-               &              block_col=jatom,&
-               &              BLOCK=C_coeff_hh)
-          CALL get_block_node(matrix=oce%softo(1)%matrix,&
-               &              block_row=iatom,&
-               &              block_col=jatom,&
-               &              BLOCK=C_coeff_ss)
-          IF(iatom.NE.jatom) THEN
-             IF(ASSOCIATED(C_coeff_hh))C_coeff_hh=2.0_dp*C_coeff_hh
-             IF(ASSOCIATED(C_coeff_ss))C_coeff_ss=2.0_dp*C_coeff_ss
-          ENDIF
-       ENDDO
-    ENDDO
     !
     ! put the oce back to the env
     CALL set_qs_env(qs_env=qs_env,oce=oce,error=error)

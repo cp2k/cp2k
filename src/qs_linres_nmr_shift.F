@@ -744,10 +744,10 @@ CONTAINS
                                                 unit_nics
     INTEGER, DIMENSION(:), POINTER           :: cs_atom_list
     LOGICAL                                  :: failure, gapw, ionode
-    REAL(dp) :: chi_aniso, chi_iso, chi_sym(3,3), chi_sym_tot(3,3), &
-      chi_tensor(3,3), chi_tensor_loc(3,3), chi_tmp(3,3), eigenv(3), &
-      eigenv_tmp(3), rpos(3), shift_nosym(3,3), shift_sym(3,3), shift_tmp(3,3)
-    REAL(dp), DIMENSION(:, :), POINTER       :: eigenv_chi, r_nics
+    REAL(dp) :: chi_aniso, chi_iso, shift_iso, shift_aniso, chi_sym(3,3), chi_sym_tot(3,3), &
+      chi_tensor(3,3), chi_tensor_loc(3,3), chi_tmp(3,3), eig(3), &
+      eig_tmp(3), rpos(3), shift_nosym(3,3), shift_sym(3,3), shift_tmp(3,3)
+    REAL(dp), DIMENSION(:, :), POINTER       :: r_nics
     REAL(dp), DIMENSION(:, :, :), POINTER :: chemical_shift, &
       chemical_shift_loc, chemical_shift_loc_nics, chemical_shift_nics, &
       chemical_shift_nics_tot, chemical_shift_tot
@@ -763,7 +763,6 @@ CONTAINS
     NULLIFY (chemical_shift, chemical_shift_nics, r_nics)
     NULLIFY (chemical_shift_loc, chemical_shift_loc_nics)
     NULLIFY (logger, particle_set,atom_kind,dft_control)
-    NULLIFY (eigenv_chi)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     output_unit = -1
@@ -783,8 +782,6 @@ CONTAINS
     gapw = dft_control%qs_control%gapw
     nat_print=SIZE(cs_atom_list,1)
 
-    ALLOCATE(eigenv_chi(3,natom), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(chemical_shift_tot(3,3,nat_print),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     IF(nmr_env%do_nics) THEN
@@ -812,9 +809,9 @@ CONTAINS
        CALL  dcopy(9,chi_sym,1,chi_sym_tot,1)
     END IF
     CALL  dcopy(9,chi_sym_tot,1,chi_tmp,1)
-    CALL  diamat_all(chi_tmp,eigenv)
-    chi_iso   = (eigenv(1)+ eigenv(2)+eigenv(3))/3.e0_dp
-    chi_aniso =  eigenv(3)-(eigenv(2)+eigenv(1))/2.e0_dp
+    CALL  diamat_all(chi_tmp,eig)
+    chi_iso   = (eig(1)+ eig(2)+eig(3))/3.e0_dp
+    chi_aniso =  eig(3)-(eig(2)+eig(1))/2.e0_dp
     !
     IF(output_unit > 0) THEN
        WRITE(output_unit,'(T2,A,E24.16)') 'CheckSum Chi =',&
@@ -861,9 +858,9 @@ CONTAINS
                   &                          ' ZY=',chi_tensor(3,2),&
                   &                          ' ZZ=',chi_tensor(3,3)
           ENDIF
-          WRITE(unit_atoms,'(/T2,3(A,F15.5))')' PV1=',eigenv(1),&
-               &                              ' PV2=',eigenv(2),&
-               &                              ' PV3=',eigenv(3)
+          WRITE(unit_atoms,'(/T2,3(A,F15.5))')' PV1=',eig(1),&
+               &                              ' PV2=',eig(2),&
+               &                              ' PV3=',eig(3)
           WRITE (unit_atoms,'(T2,A,F15.5,10X,A,F15.5)')&
                '  iso=',chi_iso,  'aniso=',chi_aniso
           WRITE(unit_atoms,'(T30,A)') " Total CHI in atomic units"
@@ -888,9 +885,9 @@ CONTAINS
                &                          ' ZY=',chi_sym_tot(3,2),&
                &                          ' ZZ=',chi_sym_tot(3,3)
           WRITE(unit_atoms, '(/T2,3(A,F15.5))') &
-               ' PV1=',nmr_env%chi_SI2ppmcgs*eigenv(1),&
-               ' PV2=',nmr_env%chi_SI2ppmcgs*eigenv(2),&
-               ' PV3=',nmr_env%chi_SI2ppmcgs*eigenv(3)
+               ' PV1=',nmr_env%chi_SI2ppmcgs*eig(1),&
+               ' PV2=',nmr_env%chi_SI2ppmcgs*eig(2),&
+               ' PV3=',nmr_env%chi_SI2ppmcgs*eig(3)
           WRITE(unit_atoms,'(T2,A,F15.5,10X,A,F15.5)')&
                '  iso=',nmr_env%chi_SI2ppmcgs*chi_iso, &
                'aniso=',nmr_env%chi_SI2ppmcgs*chi_aniso
@@ -946,22 +943,16 @@ CONTAINS
              CALL get_atomic_kind(atom_kind,name=name,element_symbol=element_symbol)
              DO i = 1,3
                 DO j = 1,3
-                   ! here we need to multiply chi and the shift by some factors
                    shift_nosym(i,j) = chi_tensor(i,j) * nmr_env%chi_SI2shiftppm &
                         &           + chemical_shift(i,j,iatom) * twopi**2
-                   shift_sym(i,j) = chi_sym(i,j)+(chemical_shift(i,j,iatom)+&
-                        &                         chemical_shift(j,i,iatom))/2.0_dp
-                   IF(gapw) THEN
-                      !vw there is a sign problem here wv!
-                      shift_nosym(i,j) = shift_nosym(i,j)-chemical_shift_loc(i,j,iatom) / 2.0_dp
-                      shift_sym(i,j) = shift_sym(i,j)-(chemical_shift_loc(i,j,iatom)+&
-                                       chemical_shift_loc(j,i,iatom)) / 4.0_dp
-                   ENDIF
+                   IF(gapw) shift_nosym(i,j) = shift_nosym(i,j)-chemical_shift_loc(i,j,iatom)
                 ENDDO
              ENDDO
-             CALL  dcopy(9,shift_sym,1,shift_tmp,1)
-             CALL  diamat_all(shift_tmp,eigenv_tmp)
-             eigenv_chi(1:3, iatom) = eigenv_tmp(1:3)
+             shift_sym = 0.5_dp*(shift_nosym+TRANSPOSE(shift_nosym))
+             CALL  dcopy(9,shift_sym(1,1),1,shift_tmp(1,1),1)
+             CALL  diamat_all(shift_tmp,eig_tmp)
+             shift_iso   = (shift_nosym(1,1)+shift_nosym(2,2)+shift_nosym(3,3))/3.0_dp
+             shift_aniso = eig_tmp(3)-0.5_dp*(eig_tmp(1)+eig_tmp(2))
              WRITE(unit_atoms,'(T2,I5,A,2X,A2,2X,3f15.6)') iatom,TRIM(name),element_symbol,rpos(1:3)
              !
              IF(gapw) THEN
@@ -970,18 +961,20 @@ CONTAINS
                 WRITE(unit_atoms,'(A,3f15.6)') 'S_y = ',chemical_shift(2,:,iatom) * twopi**2
                 WRITE(unit_atoms,'(A,3f15.6)') 'S_z = ',chemical_shift(3,:,iatom) * twopi**2
                 WRITE(unit_atoms,'(T1,A)') " SIGMA from LOCAL J"
-                WRITE(unit_atoms,'(A,3f15.6)') 'S_x = ',-chemical_shift_loc(1,:,iatom) / 2.0_dp
-                WRITE(unit_atoms,'(A,3f15.6)') 'S_y = ',-chemical_shift_loc(2,:,iatom) / 2.0_dp
-                WRITE(unit_atoms,'(A,3f15.6)') 'S_z = ',-chemical_shift_loc(3,:,iatom) / 2.0_dp
-                WRITE(unit_atoms,'(T1,A,f15.6)') " SIGMA TOTAL",&
-                     & (shift_nosym(1,1)+shift_nosym(2,2)+shift_nosym(3,3))/3.0_dp
-                WRITE(unit_atoms,'(A,3f15.6)') 'S_x = ',shift_nosym(1, 1:3)!eigenv_tmp(1)
-                WRITE(unit_atoms,'(A,3f15.6)') 'S_y = ',shift_nosym(2, 1:3)!eigenv_tmp(2)
-                WRITE(unit_atoms,'(A,3f15.6)') 'S_z = ',shift_nosym(3, 1:3)!eigenv_tmp(3)
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_x = ',-chemical_shift_loc(1,:,iatom)
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_y = ',-chemical_shift_loc(2,:,iatom)
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_z = ',-chemical_shift_loc(3,:,iatom)
+                WRITE(unit_atoms,'(T1,2(A,F13.4))') " SIGMA TOTAL ISO = ",shift_iso,&
+                     & "   ANISO = ",shift_aniso
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_x = ',shift_nosym(1, 1:3)
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_y = ',shift_nosym(2, 1:3)
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_z = ',shift_nosym(3, 1:3)
              ELSE
-                WRITE(unit_atoms,'(A,3f15.6)') 'S_x = ',shift_nosym(1, 1:3)!eigenv_tmp(1)
-                WRITE(unit_atoms,'(A,3f15.6)') 'S_y = ',shift_nosym(2, 1:3)!eigenv_tmp(2)
-                WRITE(unit_atoms,'(A,3f15.6)') 'S_z = ',shift_nosym(3, 1:3)!eigenv_tmp(3)
+                WRITE(unit_atoms,'(T1,2(A,F13.4))') " SIGMA TOTAL ISO = ",shift_iso,&
+                     & "   ANISO = ",shift_aniso
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_x = ',shift_nosym(1, 1:3)
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_y = ',shift_nosym(2, 1:3)
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_z = ',shift_nosym(3, 1:3)
              ENDIF
           ENDDO  ! ir
        ENDIF
@@ -1039,8 +1032,6 @@ CONTAINS
     ENDIF  ! print shift
     !
     ! clean up
-    DEALLOCATE(eigenv_chi,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(chemical_shift_tot, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     IF(nmr_env%do_nics) THEN
