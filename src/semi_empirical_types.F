@@ -77,9 +77,19 @@ MODULE semi_empirical_types
     REAL(KIND = dp)                        :: a, b, c, rho
   END TYPE semi_empirical_type
 
+! *****************************************************************************
+!> \brief Taper type
+! *****************************************************************************
+  TYPE taper_type
+     REAL(KIND=dp)                         :: r0, al
+  END TYPE taper_type
+
   PUBLIC :: semi_empirical_type,&
             allocate_se_param,&
             deallocate_se_param,&
+            taper_type,&
+            taper_create,&
+            taper_release,&
             get_se_param,&
             set_se_param,&
             write_se_param
@@ -346,6 +356,50 @@ CONTAINS
     END IF
 
   END SUBROUTINE set_se_param
+
+! *****************************************************************************
+!> \brief Creates taper type
+! ***************************************************************************** 
+  SUBROUTINE taper_create(taper, rc, range, error)
+    TYPE(taper_type), POINTER                :: taper
+    REAL(KIND=dp), INTENT(IN)                :: rc, range
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'taper_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(taper),cp_failure_level,routineP,error,failure)
+    ALLOCATE (taper,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    taper%r0 = rc - 0.5_dp * range
+    taper%al = 24._dp/range
+    
+  END SUBROUTINE taper_create
+
+! *****************************************************************************
+!> \brief Releases taper type
+! ***************************************************************************** 
+  SUBROUTINE taper_release(taper, error)
+    TYPE(taper_type), POINTER                :: taper
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'taper_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (ASSOCIATED(taper)) THEN
+       DEALLOCATE (taper,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+   
+  END SUBROUTINE taper_release
 
 ! *****************************************************************************
 !> \brief Writes the semi-empirical type

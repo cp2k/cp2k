@@ -145,6 +145,8 @@ MODULE qs_environment_types
   USE scp_environment_types,           ONLY: scp_env_release,&
                                              scp_env_retain,&
                                              scp_environment_type
+  USE semi_empirical_types,            ONLY: taper_release,&
+                                             taper_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
   USE task_list_types,                 ONLY: deallocate_task_list,&
@@ -304,12 +306,10 @@ MODULE qs_environment_types
                                                              rho_buffer,&
                                                              rho_xc
     TYPE(scf_control_type), POINTER                       :: scf_control
-!! ******  SCP
     TYPE ( scp_environment_type ), POINTER                :: scp_env
-!! ******  SCP
     TYPE(pw_env_type), POINTER                            :: pw_env
-    TYPE (ewald_environment_type),POINTER                 :: ewald_env
-    TYPE (ewald_pw_type),POINTER                          :: ewald_pw
+    TYPE(ewald_environment_type),POINTER                  :: ewald_env
+    TYPE(ewald_pw_type),POINTER                           :: ewald_pw
     TYPE(cp_para_env_type), POINTER                       :: para_env
     TYPE(cp_blacs_env_type), POINTER                      :: blacs_env
     TYPE(pw_p_type), POINTER                              :: rho_core
@@ -340,6 +340,7 @@ MODULE qs_environment_types
     TYPE(cp_result_type) ,POINTER                         :: results
     TYPE(task_list_type), POINTER                         :: task_list
     TYPE(task_list_type), POINTER                         :: task_list_soft
+    TYPE(taper_type), POINTER                             :: taper
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -380,7 +381,7 @@ CONTAINS
                         neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,&
                         virial,cp_ddapc_env,cp_ddapc_ewald,outer_scf_history, &
                         outer_scf_ihistory,ep_qs_env,x_data,et_coupling,&
-                        dftb_potential,results,scp_env,error)
+                        dftb_potential,results,scp_env,taper,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
@@ -488,6 +489,7 @@ CONTAINS
     TYPE(cp_result_type), OPTIONAL, POINTER  :: results
     TYPE(scp_environment_type), OPTIONAL, &
       POINTER                                :: scp_env
+    TYPE(taper_type), OPTIONAL, POINTER      :: taper
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
@@ -564,6 +566,7 @@ CONTAINS
     IF (PRESENT(tddfpt_control)) tddfpt_control => qs_env%dft_control%tddfpt_control
     IF (PRESENT(linres_control)) linres_control => qs_env%linres_control
     IF (PRESENT(virial)) virial => qs_env%virial
+    IF (PRESENT(taper)) taper => qs_env%taper
 
     IF (PRESENT(rho_atom_set)) &
        CALL get_local_rho(qs_env%local_rho_set, rho_atom_set=rho_atom_set)
@@ -633,8 +636,6 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-!   ---------------------------------------------------------------------------
-
     NULLIFY (qs_env%blacs_env)
     NULLIFY (qs_env%cell)
     NULLIFY (qs_env%super_cell)
@@ -694,13 +695,12 @@ CONTAINS
     NULLIFY (qs_env%ep_qs_env)
     NULLIFY (qs_env%x_data)
     NULLIFY (qs_env%et_coupling)
-    NULLIFY ( qs_env%dftb_potential )
+    NULLIFY (qs_env%dftb_potential)
     NULLIFY (qs_env%results)
     NULLIFY (qs_env%task_list)
     NULLIFY (qs_env%task_list_soft)
-! **SCP
-    NULLIFY ( qs_env%scp_env )
-! **SCP
+    NULLIFY (qs_env%scp_env)
+    NULLIFY (qs_env%taper)
     qs_env%outer_scf_ihistory=0
     qs_env%neighbor_list_id=-1
 
@@ -746,7 +746,7 @@ CONTAINS
                         kg_sub_pw_env,linres_control,xas_env,virial,&
                         cp_ddapc_env,cp_ddapc_ewald,outer_scf_history,&
                         outer_scf_ihistory,ep_qs_env,x_data,et_coupling,&
-                        dftb_potential,scp_env,error)
+                        dftb_potential,scp_env,taper,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, super_cell, cell_ref
@@ -832,6 +832,7 @@ CONTAINS
       DIMENSION(:, :), OPTIONAL, POINTER     :: dftb_potential
     TYPE(scp_environment_type), OPTIONAL, &
       POINTER                                :: scp_env
+    TYPE(taper_type), OPTIONAL, POINTER      :: taper
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_env', &
@@ -1042,13 +1043,15 @@ CONTAINS
     IF (PRESENT(x_data)) qs_env%x_data => x_data
     IF (PRESENT(et_coupling))qs_env%et_coupling => et_coupling
     IF (PRESENT(dftb_potential))qs_env%dftb_potential => dftb_potential
-! **SCP
-    IF (PRESENT(scp_env)) THEN ! accept also null pointers?
+    IF (PRESENT(scp_env)) THEN
       CALL scp_env_retain(scp_env,error=error)
       CALL scp_env_release(qs_env%scp_env,error=error)
       qs_env%scp_env => scp_env
     END IF
-! **SCP
+    IF (PRESENT(taper)) THEN
+       CALL taper_release(qs_env%taper,error=error)
+       qs_env%taper => taper
+    END IF
 
   END SUBROUTINE set_qs_env
 
@@ -1064,7 +1067,7 @@ CONTAINS
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE qs_env_create(qs_env,para_env,error)
+  SUBROUTINE qs_env_create(qs_env,para_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1075,15 +1078,15 @@ SUBROUTINE qs_env_create(qs_env,para_env,error)
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  ALLOCATE(qs_env, stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CALL init_qs_env(qs_env,para_env=para_env,&
-          error=error)
-  END IF
-END SUBROUTINE qs_env_create
+    ALLOCATE(qs_env, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL init_qs_env(qs_env,para_env=para_env,&
+            error=error)
+    END IF
+  END SUBROUTINE qs_env_create
 
 ! *****************************************************************************
 !> \brief retains the given qs_env (see doc/ReferenceCounting.html)
@@ -1094,7 +1097,7 @@ END SUBROUTINE qs_env_create
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE qs_env_retain(qs_env,error)
+  SUBROUTINE qs_env_retain(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1103,14 +1106,14 @@ SUBROUTINE qs_env_retain(qs_env,error)
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
-     qs_env%ref_count=qs_env%ref_count+1
-  END IF
-END SUBROUTINE qs_env_retain
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       qs_env%ref_count=qs_env%ref_count+1
+    END IF
+  END SUBROUTINE qs_env_retain
 
 ! *****************************************************************************
 !> \brief releases the given qs_env (see doc/ReferenceCounting.html)
@@ -1121,7 +1124,7 @@ END SUBROUTINE qs_env_retain
 !>      12.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE qs_env_release(qs_env,error)
+  SUBROUTINE qs_env_release(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1133,235 +1136,237 @@ SUBROUTINE qs_env_release(qs_env,error)
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
 
-  NULLIFY(S_sm_pools)
-  failure=.FALSE.
+    NULLIFY(S_sm_pools)
+    failure=.FALSE.
 
-  IF (ASSOCIATED(qs_env)) THEN
-     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
-     qs_env%ref_count=qs_env%ref_count-1
-     IF (qs_env%ref_count<1) THEN
-        CALL cell_release(qs_env%cell,error=error)
-        CALL cell_release(qs_env%super_cell,error=error)
-        CALL cell_release(qs_env%cell_ref,error=error)
-        CALL dft_control_release(qs_env%dft_control, error=error)
-        IF (ASSOCIATED(qs_env%mos)) THEN
-           DO i=1,SIZE(qs_env%mos)
-              CALL deallocate_mo_set(qs_env%mos(i)%mo_set,error=error)
-           END DO
-           DEALLOCATE(qs_env%mos, stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(qs_env%mo_derivs)) THEN
-           DO I=1,SIZE(qs_env%mo_derivs)
-              CALL cp_fm_release(qs_env%mo_derivs(I)%matrix,error=error)
-           ENDDO
-           DEALLOCATE(qs_env%mo_derivs, stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        ENDIF
-        IF (ASSOCIATED(qs_env%sab_scp)) THEN
-           DO i=1,SIZE(qs_env%sab_scp)
-              CALL deallocate_neighbor_list_set(&
-                   qs_env%sab_scp(i)%neighbor_list_set)
-           END DO
-           DEALLOCATE(qs_env%sab_scp,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(qs_env%sab_orb)) THEN
-           DO i=1,SIZE(qs_env%sab_orb)
-              CALL deallocate_neighbor_list_set(&
-                   qs_env%sab_orb(i)%neighbor_list_set)
-           END DO
-           DEALLOCATE(qs_env%sab_orb,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(qs_env%sab_all)) THEN
-           DO i=1,SIZE(qs_env%sab_all)
-              CALL deallocate_neighbor_list_set(&
-                   qs_env%sab_all(i)%neighbor_list_set)
-           END DO
-           DEALLOCATE(qs_env%sab_all,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(qs_env%sac_erfc)) THEN
-           DO i=1,SIZE(qs_env%sac_erfc)
-              CALL deallocate_neighbor_list_set(&
-                   qs_env%sac_erfc(i)%neighbor_list_set)
-           END DO
-           DEALLOCATE(qs_env%sac_erfc,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(qs_env%sac_ppl)) THEN
-           DO i=1,SIZE(qs_env%sac_ppl)
-              CALL deallocate_neighbor_list_set(&
-                   qs_env%sac_ppl(i)%neighbor_list_set)
-           END DO
-           DEALLOCATE(qs_env%sac_ppl,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(qs_env%sac_ppnl)) THEN
-           DO i=1,SIZE(qs_env%sac_ppnl)
-              CALL deallocate_neighbor_list_set(&
-                   qs_env%sac_ppnl(i)%neighbor_list_set)
-           END DO
-           DEALLOCATE(qs_env%sac_ppnl,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(qs_env%outer_scf_history)) THEN
-           DEALLOCATE(qs_env%outer_scf_history,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-           qs_env%outer_scf_ihistory=0
-        ENDIF
-        IF (ASSOCIATED(qs_env%sbc_ppnl)) THEN
-           DO i=1,SIZE(qs_env%sbc_ppnl)
-              CALL deallocate_neighbor_list_set(&
-                   qs_env%sbc_ppnl(i)%neighbor_list_set)
-           END DO
-           DEALLOCATE(qs_env%sbc_ppnl,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(qs_env%sac_oce)) THEN
-           DO i=1,SIZE(qs_env%sac_oce)
-              CALL deallocate_neighbor_list_set(&
-                   qs_env%sac_oce(i)%neighbor_list_set)
-           END DO
-           DEALLOCATE(qs_env%sac_oce,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(qs_env%sbc_oce)) THEN
-           DO i=1,SIZE(qs_env%sbc_oce)
-              CALL deallocate_neighbor_list_set(&
-                   qs_env%sbc_oce(i)%neighbor_list_set)
-           END DO
-           DEALLOCATE(qs_env%sbc_oce,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(qs_env%sab_2c)) THEN
-           DO i=1,SIZE(qs_env%sab_2c)
-              CALL deallocate_neighbor_list_set(&
-                   qs_env%sab_2c(i)%neighbor_list_set)
-           END DO
-           DEALLOCATE(qs_env%sab_2c,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(qs_env%sac_3c)) THEN
-           DO i=1,SIZE(qs_env%sac_3c)
-              CALL deallocate_neighbor_list_set(&
-                   qs_env%sac_3c(i)%neighbor_list_set)
-           END DO
-           DEALLOCATE(qs_env%sac_3c,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(qs_env%sbc_3c)) THEN
-           DO i=1,SIZE(qs_env%sbc_3c)
-              CALL deallocate_neighbor_list_set(&
-                   qs_env%sbc_3c(i)%neighbor_list_set)
-           END DO
-           DEALLOCATE(qs_env%sbc_3c,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-        IF (ASSOCIATED(qs_env%energy)) &
-             CALL deallocate_qs_energy(qs_env%energy)
-        IF (ASSOCIATED(qs_env%force))&
-             CALL deallocate_qs_force(qs_env%force)
-        IF (ASSOCIATED(qs_env%harris_env)) THEN
-            CALL harris_env_release(qs_env%harris_env, error=error)
-        END IF
-        IF (ASSOCIATED(qs_env%matrix_h)) CALL deallocate_matrix_set(qs_env%matrix_h,error)
+    IF (ASSOCIATED(qs_env)) THEN
+       CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       qs_env%ref_count=qs_env%ref_count-1
+       IF (qs_env%ref_count<1) THEN
+          CALL cell_release(qs_env%cell,error=error)
+          CALL cell_release(qs_env%super_cell,error=error)
+          CALL cell_release(qs_env%cell_ref,error=error)
+          CALL dft_control_release(qs_env%dft_control, error=error)
+          IF (ASSOCIATED(qs_env%mos)) THEN
+             DO i=1,SIZE(qs_env%mos)
+                CALL deallocate_mo_set(qs_env%mos(i)%mo_set,error=error)
+             END DO
+             DEALLOCATE(qs_env%mos, stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF (ASSOCIATED(qs_env%mo_derivs)) THEN
+             DO I=1,SIZE(qs_env%mo_derivs)
+                CALL cp_fm_release(qs_env%mo_derivs(I)%matrix,error=error)
+             ENDDO
+             DEALLOCATE(qs_env%mo_derivs, stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          ENDIF
+          IF (ASSOCIATED(qs_env%sab_scp)) THEN
+             DO i=1,SIZE(qs_env%sab_scp)
+                CALL deallocate_neighbor_list_set(&
+                     qs_env%sab_scp(i)%neighbor_list_set)
+             END DO
+             DEALLOCATE(qs_env%sab_scp,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF (ASSOCIATED(qs_env%sab_orb)) THEN
+             DO i=1,SIZE(qs_env%sab_orb)
+                CALL deallocate_neighbor_list_set(&
+                     qs_env%sab_orb(i)%neighbor_list_set)
+             END DO
+             DEALLOCATE(qs_env%sab_orb,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF (ASSOCIATED(qs_env%sab_all)) THEN
+             DO i=1,SIZE(qs_env%sab_all)
+                CALL deallocate_neighbor_list_set(&
+                     qs_env%sab_all(i)%neighbor_list_set)
+             END DO
+             DEALLOCATE(qs_env%sab_all,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF (ASSOCIATED(qs_env%sac_erfc)) THEN
+             DO i=1,SIZE(qs_env%sac_erfc)
+                CALL deallocate_neighbor_list_set(&
+                     qs_env%sac_erfc(i)%neighbor_list_set)
+             END DO
+             DEALLOCATE(qs_env%sac_erfc,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF (ASSOCIATED(qs_env%sac_ppl)) THEN
+             DO i=1,SIZE(qs_env%sac_ppl)
+                CALL deallocate_neighbor_list_set(&
+                     qs_env%sac_ppl(i)%neighbor_list_set)
+             END DO
+             DEALLOCATE(qs_env%sac_ppl,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF (ASSOCIATED(qs_env%sac_ppnl)) THEN
+             DO i=1,SIZE(qs_env%sac_ppnl)
+                CALL deallocate_neighbor_list_set(&
+                     qs_env%sac_ppnl(i)%neighbor_list_set)
+             END DO
+             DEALLOCATE(qs_env%sac_ppnl,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF (ASSOCIATED(qs_env%outer_scf_history)) THEN
+             DEALLOCATE(qs_env%outer_scf_history,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             qs_env%outer_scf_ihistory=0
+          ENDIF
+          IF (ASSOCIATED(qs_env%sbc_ppnl)) THEN
+             DO i=1,SIZE(qs_env%sbc_ppnl)
+                CALL deallocate_neighbor_list_set(&
+                     qs_env%sbc_ppnl(i)%neighbor_list_set)
+             END DO
+             DEALLOCATE(qs_env%sbc_ppnl,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF (ASSOCIATED(qs_env%sac_oce)) THEN
+             DO i=1,SIZE(qs_env%sac_oce)
+                CALL deallocate_neighbor_list_set(&
+                     qs_env%sac_oce(i)%neighbor_list_set)
+             END DO
+             DEALLOCATE(qs_env%sac_oce,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF (ASSOCIATED(qs_env%sbc_oce)) THEN
+             DO i=1,SIZE(qs_env%sbc_oce)
+                CALL deallocate_neighbor_list_set(&
+                     qs_env%sbc_oce(i)%neighbor_list_set)
+             END DO
+             DEALLOCATE(qs_env%sbc_oce,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF (ASSOCIATED(qs_env%sab_2c)) THEN
+             DO i=1,SIZE(qs_env%sab_2c)
+                CALL deallocate_neighbor_list_set(&
+                     qs_env%sab_2c(i)%neighbor_list_set)
+             END DO
+             DEALLOCATE(qs_env%sab_2c,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF (ASSOCIATED(qs_env%sac_3c)) THEN
+             DO i=1,SIZE(qs_env%sac_3c)
+                CALL deallocate_neighbor_list_set(&
+                     qs_env%sac_3c(i)%neighbor_list_set)
+             END DO
+             DEALLOCATE(qs_env%sac_3c,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF (ASSOCIATED(qs_env%sbc_3c)) THEN
+             DO i=1,SIZE(qs_env%sbc_3c)
+                CALL deallocate_neighbor_list_set(&
+                     qs_env%sbc_3c(i)%neighbor_list_set)
+             END DO
+             DEALLOCATE(qs_env%sbc_3c,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF (ASSOCIATED(qs_env%energy)) &
+               CALL deallocate_qs_energy(qs_env%energy)
+          IF (ASSOCIATED(qs_env%force))&
+               CALL deallocate_qs_force(qs_env%force)
+          IF (ASSOCIATED(qs_env%harris_env)) THEN
+             CALL harris_env_release(qs_env%harris_env, error=error)
+          END IF
+          IF (ASSOCIATED(qs_env%matrix_h)) CALL deallocate_matrix_set(qs_env%matrix_h,error)
 
-        IF (ASSOCIATED(qs_env%matrix_ks)) THEN
-            CALL mpools_get(qs_env%mpools, S_sm_pools=S_sm_pools, error=error)
-            CALL sm_pools_give_back_matrix_vect(S_sm_pools,qs_env % matrix_ks,error=error)
-        ENDIF
-        IF (ASSOCIATED(qs_env%matrix_s)) CALL deallocate_matrix_set(qs_env%matrix_s,error)
-        IF (ASSOCIATED(qs_env%matrix_w)) CALL deallocate_matrix_set(qs_env%matrix_w,error)
-        IF (ASSOCIATED(qs_env%matrix_dv)) CALL deallocate_matrix_set(qs_env%matrix_dv,error)
-        IF (ASSOCIATED(qs_env%gamma_matrix)) CALL deallocate_matrix_set(qs_env%gamma_matrix,error)
-        IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce,error)
+          IF (ASSOCIATED(qs_env%matrix_ks)) THEN
+             CALL mpools_get(qs_env%mpools, S_sm_pools=S_sm_pools, error=error)
+             CALL sm_pools_give_back_matrix_vect(S_sm_pools,qs_env % matrix_ks,error=error)
+          ENDIF
+          IF (ASSOCIATED(qs_env%matrix_s)) CALL deallocate_matrix_set(qs_env%matrix_s,error)
+          IF (ASSOCIATED(qs_env%matrix_w)) CALL deallocate_matrix_set(qs_env%matrix_w,error)
+          IF (ASSOCIATED(qs_env%matrix_dv)) CALL deallocate_matrix_set(qs_env%matrix_dv,error)
+          IF (ASSOCIATED(qs_env%gamma_matrix)) CALL deallocate_matrix_set(qs_env%gamma_matrix,error)
+          IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce,error)
 
-        IF (ASSOCIATED(qs_env%local_rho_set)) THEN
-           CALL local_rho_set_release(qs_env%local_rho_set,error=error)
-        END IF
-        IF (ASSOCIATED(qs_env%hartree_local)) THEN
-           CALL hartree_local_release(qs_env%hartree_local,error=error)
-        END IF
-        IF (ASSOCIATED(qs_env%kinetic))&
-             CALL deallocate_matrix_set(qs_env%kinetic,error=error)
+          IF (ASSOCIATED(qs_env%local_rho_set)) THEN
+             CALL local_rho_set_release(qs_env%local_rho_set,error=error)
+          END IF
+          IF (ASSOCIATED(qs_env%hartree_local)) THEN
+             CALL hartree_local_release(qs_env%hartree_local,error=error)
+          END IF
+          IF (ASSOCIATED(qs_env%kinetic))&
+               CALL deallocate_matrix_set(qs_env%kinetic,error=error)
 
-        IF(ASSOCIATED(qs_env%rho_xc)) THEN
-          NULLIFY(qs_env%rho_xc%rho_ao)
-          CALL qs_rho_release(qs_env%rho_xc, error=error)
-        END IF
-        CALL qs_rho_release(qs_env%rho, error=error)
-        CALL qs_rho_release(qs_env%rho_buffer,error=error)
-        CALL scf_c_release(qs_env%scf_control, error=error)
+          IF(ASSOCIATED(qs_env%rho_xc)) THEN
+             NULLIFY(qs_env%rho_xc%rho_ao)
+             CALL qs_rho_release(qs_env%rho_xc, error=error)
+          END IF
+          CALL qs_rho_release(qs_env%rho, error=error)
+          CALL qs_rho_release(qs_env%rho_buffer,error=error)
+          CALL scf_c_release(qs_env%scf_control, error=error)
 
-        IF(ASSOCIATED(qs_env%linres_control)) THEN
-          CALL linres_control_release(qs_env%linres_control, error=error)
-        END IF
+          IF(ASSOCIATED(qs_env%linres_control)) THEN
+             CALL linres_control_release(qs_env%linres_control, error=error)
+          END IF
 
-        IF(ASSOCIATED(qs_env%kg_sub_pw_env)) THEN
-          CALL kg_sub_pw_env_release(qs_env%kg_sub_pw_env,error=error)
-        END IF
+          IF(ASSOCIATED(qs_env%kg_sub_pw_env)) THEN
+             CALL kg_sub_pw_env_release(qs_env%kg_sub_pw_env,error=error)
+          END IF
 
-        IF(ASSOCIATED(qs_env%task_list)) THEN
-          CALL deallocate_task_list(qs_env%task_list,error)
-        ENDIF
-        IF(ASSOCIATED(qs_env%task_list_soft)) THEN
-          CALL deallocate_task_list(qs_env%task_list_soft,error)
-        ENDIF
+          IF(ASSOCIATED(qs_env%task_list)) THEN
+             CALL deallocate_task_list(qs_env%task_list,error)
+          ENDIF
+          IF(ASSOCIATED(qs_env%task_list_soft)) THEN
+             CALL deallocate_task_list(qs_env%task_list_soft,error)
+          ENDIF
 
-        !Only if do_xas_calculation
-        IF(ASSOCIATED(qs_env%xas_env)) THEN
-          CALL xas_env_release(qs_env%xas_env,error=error)
-        END IF
-        IF(ASSOCIATED(qs_env%virial)) THEN
-          CALL virial_release(qs_env%virial,error=error)
-        END IF
-        CALL pw_env_release(qs_env%pw_env, error=error)
-        CALL ewald_env_release(qs_env%ewald_env, error=error)
-        CALL ewald_pw_release(qs_env%ewald_pw, error=error)
-        CALL cp_para_env_release(qs_env%para_env,error=error)
-        CALL cp_blacs_env_release(qs_env%blacs_env, error=error)
-        IF (ASSOCIATED(qs_env%rho_core)) THEN
+          !Only if do_xas_calculation
+          IF(ASSOCIATED(qs_env%xas_env)) THEN
+             CALL xas_env_release(qs_env%xas_env,error=error)
+          END IF
+          IF(ASSOCIATED(qs_env%virial)) THEN
+             CALL virial_release(qs_env%virial,error=error)
+          END IF
+          CALL pw_env_release(qs_env%pw_env, error=error)
+          CALL ewald_env_release(qs_env%ewald_env, error=error)
+          CALL ewald_pw_release(qs_env%ewald_pw, error=error)
+          CALL cp_para_env_release(qs_env%para_env,error=error)
+          CALL cp_blacs_env_release(qs_env%blacs_env, error=error)
+          IF (ASSOCIATED(qs_env%rho_core)) THEN
              CALL pw_release(qs_env%rho_core%pw,error=error)
              DEALLOCATE(qs_env%rho_core)
-        ENDIF
-        CALL qs_charges_release(qs_env%qs_charges, error=error)
-        CALL qs_ks_release(qs_env%ks_env, error=error)
-        CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env, error=error)
-        CALL wfi_release(qs_env%wf_history,error=error)
-        CALL scf_env_release(qs_env%scf_env, error=error)
-        CALL mpools_release(qs_env%mpools,error=error)
-        IF (ASSOCIATED(qs_env%distribution_2d)) THEN
-           CALL distribution_2d_release(qs_env%distribution_2d,error=error)
-        ENDIF
-        CALL cp_subsys_release(qs_env%subsys,error=error)
-        CALL section_vals_release(qs_env%input,error=error)
-        CALL cp_ddapc_release(qs_env%cp_ddapc_env, error=error)
-        CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald, error=error)
-        CALL ep_qs_release(qs_env%ep_qs_env,error=error)
-        CALL cp_result_release(qs_env%results,error=error)
-        IF(ASSOCIATED(qs_env%x_data)) THEN
-          CALL x_hf_release(qs_env%x_data, error=error)
-        END IF
-        IF(ASSOCIATED(qs_env%et_coupling)) THEN
-          CALL et_coupling_release(qs_env%et_coupling,error)
-        END IF
-        IF (ASSOCIATED(qs_env%dftb_potential)) THEN
-          CALL qs_dftb_pairpot_release(qs_env%dftb_potential,error)
-        END IF
-        IF (ASSOCIATED(qs_env%scp_env)) THEN
-          CALL scp_env_release ( qs_env % scp_env, error )
-        END IF
+          ENDIF
+          CALL qs_charges_release(qs_env%qs_charges, error=error)
+          CALL qs_ks_release(qs_env%ks_env, error=error)
+          CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env, error=error)
+          CALL wfi_release(qs_env%wf_history,error=error)
+          CALL scf_env_release(qs_env%scf_env, error=error)
+          CALL mpools_release(qs_env%mpools,error=error)
+          IF (ASSOCIATED(qs_env%distribution_2d)) THEN
+             CALL distribution_2d_release(qs_env%distribution_2d,error=error)
+          ENDIF
+          CALL cp_subsys_release(qs_env%subsys,error=error)
+          CALL section_vals_release(qs_env%input,error=error)
+          CALL cp_ddapc_release(qs_env%cp_ddapc_env, error=error)
+          CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald, error=error)
+          CALL ep_qs_release(qs_env%ep_qs_env,error=error)
+          CALL cp_result_release(qs_env%results,error=error)
+          IF(ASSOCIATED(qs_env%x_data)) THEN
+             CALL x_hf_release(qs_env%x_data, error=error)
+          END IF
+          IF(ASSOCIATED(qs_env%et_coupling)) THEN
+             CALL et_coupling_release(qs_env%et_coupling,error)
+          END IF
+          IF (ASSOCIATED(qs_env%dftb_potential)) THEN
+             CALL qs_dftb_pairpot_release(qs_env%dftb_potential,error)
+          END IF
+          IF (ASSOCIATED(qs_env%scp_env)) THEN
+             CALL scp_env_release ( qs_env % scp_env, error )
+          END IF
+          IF (ASSOCIATED(qs_env%taper)) THEN
+             CALL taper_release(qs_env%taper, error)
+          END IF
+          ! no we are ready to deallocate the full structure
+          DEALLOCATE(qs_env, stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
-        ! no we are ready to deallocate the full structure
-        DEALLOCATE(qs_env, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-
-     END IF
-  END IF
-  NULLIFY(qs_env)
-END SUBROUTINE qs_env_release
+       END IF
+    END IF
+    NULLIFY(qs_env)
+  END SUBROUTINE qs_env_release
 
 ! *****************************************************************************
 !> \brief reorthogonalizes the mos
@@ -1374,8 +1379,8 @@ END SUBROUTINE qs_env_release
 !>      04.2003 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, n_col,&
-     error)
+  SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, n_col,&
+       error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_type), POINTER                :: v_matrix
     INTEGER, INTENT(in), OPTIONAL            :: n_col
@@ -1395,52 +1400,52 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, n_col,&
       POINTER                                :: matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
 
-  failure=.FALSE.
-  NULLIFY(scf_env, scf_control, maxao_maxmo_fm_pool, matrix_s, mpools)
-  CALL timeset(routineN,'I',' ',handle)
+    failure=.FALSE.
+    NULLIFY(scf_env, scf_control, maxao_maxmo_fm_pool, matrix_s, mpools)
+    CALL timeset(routineN,'I',' ',handle)
 
-  CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(v_matrix),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(v_matrix),cp_failure_level,routineP,error,failure)
 
-  IF (.NOT. failure) THEN
+    IF (.NOT. failure) THEN
 
-     CALL cp_fm_get_info(v_matrix,ncol_global=my_n_col,error=error)
-     IF (PRESENT(n_col)) my_n_col=n_col
-     CALL get_qs_env(qs_env,mpools=mpools,&
-          scf_env=scf_env,&
-          scf_control=scf_control,&
-          matrix_s=matrix_s,&
-          error=error)
-     CALL mpools_get(mpools,maxao_maxmo_fm_pool=maxao_maxmo_fm_pool,&
-          error=error)
-     IF (ASSOCIATED(scf_env)) THEN
-        ortho_contains_cholesky=(scf_env%method /= ot_method_nr).AND.&
-             (scf_control%use_cholesky ).AND.&
-             ASSOCIATED(scf_env%ortho)
-     ELSE
-        ortho_contains_cholesky=.FALSE.
-     END IF
+       CALL cp_fm_get_info(v_matrix,ncol_global=my_n_col,error=error)
+       IF (PRESENT(n_col)) my_n_col=n_col
+       CALL get_qs_env(qs_env,mpools=mpools,&
+            scf_env=scf_env,&
+            scf_control=scf_control,&
+            matrix_s=matrix_s,&
+            error=error)
+       CALL mpools_get(mpools,maxao_maxmo_fm_pool=maxao_maxmo_fm_pool,&
+            error=error)
+       IF (ASSOCIATED(scf_env)) THEN
+          ortho_contains_cholesky=(scf_env%method /= ot_method_nr).AND.&
+               (scf_control%use_cholesky ).AND.&
+               ASSOCIATED(scf_env%ortho)
+       ELSE
+          ortho_contains_cholesky=.FALSE.
+       END IF
 
-     ortho_basis = .FALSE.
-     IF (qs_env%dft_control%qs_control%semi_empirical) THEN
-       IF (qs_env%dft_control%qs_control%se_control%orthogonal_basis) &
-          ortho_basis = .TRUE.
-     END IF
-     IF (qs_env%dft_control%qs_control%dftb) THEN
-       IF (qs_env%dft_control%qs_control%dftb_control%orthogonal_basis) &
-          ortho_basis = .TRUE.
-     END IF
+       ortho_basis = .FALSE.
+       IF (qs_env%dft_control%qs_control%semi_empirical) THEN
+          IF (qs_env%dft_control%qs_control%se_control%orthogonal_basis) &
+               ortho_basis = .TRUE.
+       END IF
+       IF (qs_env%dft_control%qs_control%dftb) THEN
+          IF (qs_env%dft_control%qs_control%dftb_control%orthogonal_basis) &
+               ortho_basis = .TRUE.
+       END IF
 
-     IF (ortho_basis) THEN
-        CALL make_basis_simple(v_matrix,my_n_col,error=error)
-     ELSE IF (ortho_contains_cholesky) THEN
-        CALL make_basis_cholesky(vmatrix=v_matrix,ncol=my_n_col,&
-             ortho=scf_env%ortho,error=error)
-     ELSE
-        CALL make_basis_sm(v_matrix,my_n_col, matrix_s(1)%matrix ,error=error)
-     END IF
-  END IF
-  CALL timestop(0.0_dp,handle)
-END SUBROUTINE qs_env_reorthogonalize_vectors
+       IF (ortho_basis) THEN
+          CALL make_basis_simple(v_matrix,my_n_col,error=error)
+       ELSE IF (ortho_contains_cholesky) THEN
+          CALL make_basis_cholesky(vmatrix=v_matrix,ncol=my_n_col,&
+               ortho=scf_env%ortho,error=error)
+       ELSE
+          CALL make_basis_sm(v_matrix,my_n_col, matrix_s(1)%matrix ,error=error)
+       END IF
+    END IF
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE qs_env_reorthogonalize_vectors
 
 END MODULE qs_environment_types

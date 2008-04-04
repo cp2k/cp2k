@@ -49,13 +49,13 @@ MODULE nddo_methods
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE semi_empirical_int_ana,          ONLY: rotint_ana,&
                                              rotnuc_ana
-  USE semi_empirical_int_utils,        ONLY: set_taper_fn
   USE semi_empirical_integrals,        ONLY: drotint,&
                                              drotnuc,&
                                              rotint,&
                                              rotnuc
   USE semi_empirical_types,            ONLY: get_se_param,&
-                                             semi_empirical_type
+                                             semi_empirical_type,&
+                                             taper_type
   USE semi_empirical_utils,            ONLY: contract,&
                                              expand,&
                                              get_se_type,&
@@ -255,7 +255,7 @@ CONTAINS
     LOGICAL                                  :: anag, defined, do_ewald, &
                                                 failure, switch
     REAL(KIND=dp)                            :: delta, dr1, ecore2, ecoul, &
-                                                enuc, enuclear, range, rc
+                                                enuc, enuclear
     REAL(KIND=dp), DIMENSION(10)             :: e1b, e2a, pvec
     REAL(KIND=dp), DIMENSION(10, 3)          :: de1b, de2a
     REAL(KIND=dp), DIMENSION(3)              :: denuc, force_ab, rij
@@ -282,12 +282,11 @@ CONTAINS
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
-
-!   ----------------------------------------------------------------------------
+    TYPE(taper_type), POINTER                :: taper
 
     failure=.FALSE.
     NULLIFY(matrix_h,matrix_p,dft_control,cell,force,particle_set)
-    NULLIFY(diagmat_ks,diagmat_p, se_control)
+    NULLIFY(diagmat_ks,diagmat_p, se_control,taper)
 
     CALL timeset(routineN,"I","",handle)
 
@@ -295,15 +294,12 @@ CONTAINS
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, matrix_h=matrix_h,&
-         cell=cell,  para_env=para_env, error=error)
+         cell=cell, taper=taper,  para_env=para_env, error=error)
 
     ! set values for tapering function
     se_control => dft_control%qs_control%se_control
     do_ewald   =  se_control%do_ewald
     anag       =  se_control%analytical_gradients
-    rc         =  se_control%rc_coulomb
-    range      =  se_control%rc_range
-    CALL set_taper_fn (2._dp*rc,range,error)
 
     nspins=dft_control%nspins
     CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
@@ -462,18 +458,18 @@ CONTAINS
                        IF (anag) THEN
                          IF ( .NOT. switch ) THEN
                            CALL rotnuc_ana (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype,&
-                                shortrange=do_ewald, error=error)
+                                shortrange=do_ewald, taper=taper, error=error)
                          ELSE
                            CALL rotnuc_ana (se_kind_b,se_kind_a,-rij,e1b=e2a,e2a=e1b,enuc=enuc,itype=itype,&
-                                shortrange=do_ewald, error=error)
+                                shortrange=do_ewald, taper=taper, error=error)
                          END IF
                        ELSE 
                          IF ( .NOT. switch ) THEN
                            CALL rotnuc (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype,&
-                                shortrange=do_ewald, error=error)
+                                shortrange=do_ewald, taper=taper, error=error)
                          ELSE
                            CALL rotnuc (se_kind_b,se_kind_a,-rij,e1b=e2a,e2a=e1b,enuc=enuc,itype=itype,&
-                                shortrange=do_ewald, error=error)
+                                shortrange=do_ewald, taper=taper, error=error)
                          END IF
                        END IF
                        enuclear = enuclear + enuc
@@ -521,18 +517,20 @@ CONTAINS
                          IF (anag) THEN
                            IF ( .NOT. switch ) THEN
                              CALL rotnuc_ana (se_kind_a,se_kind_b,rij,de1b=de1b,de2a=de2a,&
-                                denuc=denuc,itype=itype,shortrange=do_ewald,error=error)
+                                denuc=denuc,itype=itype,shortrange=do_ewald,taper=taper,error=error)
                            ELSE
                              CALL rotnuc_ana (se_kind_b,se_kind_a,-rij,de1b=de2a,de2a=de1b,&
-                                denuc=denuc,itype=itype,shortrange=do_ewald,error=error)
+                                denuc=denuc,itype=itype,shortrange=do_ewald,taper=taper,error=error)
                            END IF
                          ELSE
                            IF ( .NOT. switch ) THEN
                              CALL drotnuc (se_kind_a,se_kind_b,rij,de1b=de1b,de2a=de2a,&
-                                denuc=denuc,itype=itype,delta=delta,shortrange=do_ewald, error=error)
+                                denuc=denuc,itype=itype,delta=delta,shortrange=do_ewald,&
+                                taper=taper,error=error)
                            ELSE
                              CALL drotnuc (se_kind_b,se_kind_a,-rij,de1b=de2a,de2a=de1b,&
-                                denuc=denuc,itype=itype,delta=delta,shortrange=do_ewald,error=error)
+                                denuc=denuc,itype=itype,delta=delta,shortrange=do_ewald,&
+                                taper=taper,error=error)
                            END IF
                          END IF
                          force_ab(1:3)=-denuc(1:3)
@@ -588,22 +586,20 @@ CONTAINS
                        IF ( nspins == 1 ) THEN
                          IF ( .NOT. switch ) THEN
                            CALL fock2c(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,&
-                                      ksa_block_a,ksb_block_a,anag,do_ewald,error)
+                                      ksa_block_a,ksb_block_a,anag,do_ewald,taper,error)
                          ELSE
                            CALL fock2c(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,&
-                                      ksb_block_a,ksa_block_a,anag,do_ewald,error)
+                                      ksb_block_a,ksa_block_a,anag,do_ewald,taper,error)
                          ENDIF
                        ELSE IF ( nspins == 2 ) THEN
                          IF ( .NOT. switch ) THEN
                            CALL fock2c(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,&
-                                      ksa_block_a,ksb_block_a,&
-                                      pa_block_b,pb_block_b,&
-                                      ksa_block_b,ksb_block_b,anag,do_ewald,error)
+                                      ksa_block_a,ksb_block_a,pa_block_b,pb_block_b,&
+                                      ksa_block_b,ksb_block_b,anag,do_ewald,taper,error)
                          ELSE
                            CALL fock2c(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,&
-                                      ksb_block_a,ksa_block_a,&
-                                      pb_block_b,pa_block_b,&
-                                      ksb_block_b,ksa_block_b,anag,do_ewald,error)
+                                      ksb_block_a,ksa_block_a,pb_block_b,pa_block_b,&
+                                      ksb_block_b,ksa_block_b,anag,do_ewald,taper,error)
                          ENDIF
                        END IF
 
@@ -612,19 +608,19 @@ CONTAINS
                          CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
                          IF ( nspins == 1 ) THEN
                            IF ( .NOT. switch ) THEN
-                             CALL dfock2c(se_kind_a,se_kind_b,rij,pa_block_a,&
-                                  pb_block_a,force_ab,delta,anag,do_ewald,error)
+                             CALL dfock2c(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,&
+                                  force_ab,delta,anag,do_ewald,taper,error)
                            ELSE
-                             CALL dfock2c(se_kind_b,se_kind_a,-rij,pb_block_a,&
-                                  pa_block_a,force_ab,delta,anag,do_ewald,error)
+                             CALL dfock2c(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,&
+                                  force_ab,delta,anag,do_ewald,taper,error)
                            ENDIF
                          ELSE IF ( nspins == 2 ) THEN
                          IF ( .NOT. switch ) THEN
-                           CALL dfock2c(se_kind_a,se_kind_b,rij,pa_block_a,&
-                                pb_block_a,pa_block_b,pb_block_b,force_ab,delta,anag,do_ewald,error)
+                           CALL dfock2c(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,&
+                                pa_block_b,pb_block_b,force_ab,delta,anag,do_ewald,taper,error)
                          ELSE
-                           CALL dfock2c(se_kind_b,se_kind_a,-rij,pb_block_a,&
-                                pa_block_a,pb_block_b,pa_block_b,force_ab,delta,anag,do_ewald,error)
+                           CALL dfock2c(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,&
+                                pb_block_b,pa_block_b,force_ab,delta,anag,do_ewald,taper,error)
                          ENDIF
                        END IF
                        IF ( switch ) force_ab = -force_ab
@@ -703,7 +699,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, defined, failure
     REAL(KIND=dp)                            :: delta, dr, gp2, gpp, gsp, &
-                                                gss, hsp, range, rc
+                                                gss, hsp
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ks_block_a, ks_block_b, &
                                                 p_block_a, p_block_b
@@ -727,29 +723,22 @@ CONTAINS
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
-
-!   ----------------------------------------------------------------------------
+    TYPE(taper_type), POINTER                :: taper
 
     failure=.FALSE.
     NULLIFY(matrix_h,matrix_p,dft_control,cell,force,particle_set,se_control)
-
+    NULLIFY(taper)
     CALL timeset(routineN,"I","",handle)
 
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    CALL get_qs_env(qs_env=qs_env,&
-         dft_control=dft_control,&
-         matrix_h=matrix_h,&
-         cell=cell,&
-         para_env=para_env,error=error)
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,matrix_h=matrix_h,&
+         cell=cell,taper=taper,para_env=para_env,error=error)
 
     ! set values for tapering function
     se_control => dft_control%qs_control%se_control
     anag       =  se_control%analytical_gradients
-    rc         =  se_control%rc_interaction
-    range      =  se_control%rc_range
-    CALL set_taper_fn (2._dp*rc,range,error)
 
     nspins=dft_control%nspins
     CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
@@ -872,17 +861,17 @@ CONTAINS
                    CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
                    IF ( nspins == 1 ) THEN
                      IF ( irow == iatom ) THEN
-                       CALL fock2e(se_kind_a,se_kind_b,rij,p_block_a,ks_block_a,anag,error)
+                       CALL fock2e(se_kind_a,se_kind_b,rij,p_block_a,ks_block_a,anag,taper,error)
                      ELSE
-                       CALL fock2e(se_kind_b,se_kind_a,-rij,p_block_a,ks_block_a,anag,error)
+                       CALL fock2e(se_kind_b,se_kind_a,-rij,p_block_a,ks_block_a,anag,taper,error)
                      ENDIF
                    ELSE IF ( nspins == 2 ) THEN
                      IF ( irow == iatom ) THEN
                        CALL fock2e(se_kind_a,se_kind_b,rij,p_block_a,ks_block_a,&
-                                   p_block_b,ks_block_b,anag,error)
+                                   p_block_b,ks_block_b,anag,taper,error)
                      ELSE
                        CALL fock2e(se_kind_b,se_kind_a,-rij,p_block_a,ks_block_a,&
-                                   p_block_b,ks_block_b,anag,error)
+                                   p_block_b,ks_block_b,anag,taper,error)
                      ENDIF
                    END IF
 
@@ -891,17 +880,17 @@ CONTAINS
                      CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
                      IF ( nspins == 1 ) THEN
                        IF ( irow == iatom ) THEN
-                         CALL dfock2e(se_kind_a,se_kind_b,rij,p_block_a,force_ab,delta,anag,error)
+                         CALL dfock2e(se_kind_a,se_kind_b,rij,p_block_a,force_ab,delta,anag,taper,error)
                        ELSE
-                         CALL dfock2e(se_kind_b,se_kind_a,-rij,p_block_a,force_ab,delta,anag,error)
+                         CALL dfock2e(se_kind_b,se_kind_a,-rij,p_block_a,force_ab,delta,anag,taper,error)
                        ENDIF
                      ELSE IF ( nspins == 2 ) THEN
                        IF ( irow == iatom ) THEN
                          CALL dfock2e(se_kind_a,se_kind_b,rij,&
-                              p_block_a,p_block_b,force_ab,delta,anag,error)
+                              p_block_a,p_block_b,force_ab,delta,anag,taper,error)
                        ELSE
                          CALL dfock2e(se_kind_b,se_kind_a,-rij,&
-                              p_block_a,p_block_b,force_ab,delta,anag,error)
+                              p_block_a,p_block_b,force_ab,delta,anag,taper,error)
                        ENDIF
                      END IF
                      atom_a = atom_of_kind(iatom)
@@ -1067,12 +1056,13 @@ CONTAINS
   END SUBROUTINE ufock1
 
 ! *****************************************************************************
-  SUBROUTINE rfock2c(sepa,sepb,rij,pa,pb,fa,fb,anag,shortrange,error)
+  SUBROUTINE rfock2c(sepa,sepb,rij,pa,pb,fa,fb,anag,shortrange,taper,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa, pb
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fa, fb
     LOGICAL, INTENT(IN)                      :: anag, shortrange
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rfock2c', &
@@ -1087,9 +1077,9 @@ CONTAINS
     nb = SIZE ( pb, 1 )
 
     IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,wint,shortrange=shortrange,error=error)
+       CALL rotint_ana (sepa,sepb,rij,wint,shortrange=shortrange,taper=taper,error=error)
     ELSE
-       CALL rotint (sepa,sepb,rij,wint,shortrange=shortrange,error=error)
+       CALL rotint (sepa,sepb,rij,wint,shortrange=shortrange,taper=taper,error=error)
     END IF
     IF ( na==1 .AND. nb==1 ) THEN
       fa(1,1) = fa(1,1) + pb(1,1)*wint(1)
@@ -1122,8 +1112,8 @@ CONTAINS
   END SUBROUTINE rfock2c
 
 ! *****************************************************************************
-  SUBROUTINE ufock2c(sepa,sepb,rij,pa_a,pb_a,fa_a,fb_a,&
-                    pa_b,pb_b,fa_b,fb_b,anag,shortrange,error)
+  SUBROUTINE ufock2c(sepa,sepb,rij,pa_a,pb_a,fa_a,fb_a,pa_b,pb_b,fa_b,fb_b,anag,&
+       shortrange,taper,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa_a, pb_a
@@ -1131,6 +1121,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa_b, pb_b
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fa_b, fb_b
     LOGICAL, INTENT(IN)                      :: anag, shortrange
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ufock2c', &
@@ -1147,9 +1138,9 @@ CONTAINS
     nb = SIZE ( pb_a, 1 )
 
     IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,wint,shortrange=shortrange,error=error)
+       CALL rotint_ana (sepa,sepb,rij,wint,shortrange=shortrange,taper=taper,error=error)
     ELSE
-       CALL rotint (sepa,sepb,rij,wint,shortrange=shortrange,error=error)
+       CALL rotint (sepa,sepb,rij,wint,shortrange=shortrange,taper=taper,error=error)
     END IF
 
     IF ( na==1 .AND. nb==1 ) THEN
@@ -1197,13 +1188,14 @@ CONTAINS
   END SUBROUTINE ufock2c
 
 ! *****************************************************************************
-  SUBROUTINE rdfock2c(sepa,sepb,rij,pa,pb,force,delta,anag,shortrange,error)
+  SUBROUTINE rdfock2c(sepa,sepb,rij,pa,pb,force,delta,anag,shortrange,taper,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa, pb
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
     REAL(dp), INTENT(IN)                     :: delta
     LOGICAL, INTENT(IN)                      :: anag, shortrange
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rdfock2c', &
@@ -1218,9 +1210,9 @@ CONTAINS
     nb = SIZE ( pb, 1 )
 
     IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,dw=dwint,shortrange=shortrange,error=error)
+       CALL rotint_ana (sepa,sepb,rij,dw=dwint,shortrange=shortrange,taper=taper,error=error)
     ELSE
-       CALL drotint (sepa,sepb,rij,dwint,delta,shortrange=shortrange,error=error)
+       CALL drotint (sepa,sepb,rij,dwint,delta,shortrange=shortrange,taper=taper,error=error)
     END IF
 
     IF ( na==1 .AND. nb==1 ) THEN
@@ -1253,14 +1245,15 @@ CONTAINS
   END SUBROUTINE rdfock2c
 
 ! *****************************************************************************
-  SUBROUTINE udfock2c(sepa,sepb,rij,pa_a,pb_a,pa_b,pb_b,&
-             force,delta,anag,shortrange,error)
+  SUBROUTINE udfock2c(sepa,sepb,rij,pa_a,pb_a,pa_b,pb_b,force,delta,anag,shortrange,&
+       taper,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa_a, pb_a, pa_b, pb_b
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
     REAL(dp), INTENT(IN)                     :: delta
     LOGICAL, INTENT(IN)                      :: anag, shortrange
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'udfock2c', &
@@ -1276,9 +1269,9 @@ CONTAINS
     nb = SIZE ( pb_a, 1 )
 
     IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,dw=dwint,shortrange=shortrange,error=error)
+       CALL rotint_ana (sepa,sepb,rij,dw=dwint,shortrange=shortrange,taper=taper,error=error)
     ELSE
-       CALL drotint (sepa,sepb,rij,dwint,delta,shortrange=shortrange,error=error)
+       CALL drotint (sepa,sepb,rij,dwint,delta,shortrange=shortrange,taper=taper,error=error)
     END IF
 
     IF ( na==1 .AND. nb==1 ) THEN
@@ -1319,12 +1312,13 @@ CONTAINS
   END SUBROUTINE udfock2c
 
 ! *****************************************************************************
-  SUBROUTINE rfock2e(sepa,sepb,rij,pab,fab,anag,error)
+  SUBROUTINE rfock2e(sepa,sepb,rij,pab,fab,anag,taper,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fab
     LOGICAL, INTENT(IN)                      :: anag
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rfock2e', &
@@ -1339,9 +1333,9 @@ CONTAINS
     nb = SIZE ( pab, 2 )
 
     IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,wint,shortrange=.FALSE.,error=error)
+       CALL rotint_ana (sepa,sepb,rij,wint,shortrange=.FALSE.,taper=taper,error=error)
     ELSE
-       CALL rotint (sepa,sepb,rij,wint,shortrange=.FALSE.,error=error)
+       CALL rotint (sepa,sepb,rij,wint,shortrange=.FALSE.,taper=taper,error=error)
     END IF
 
     IF ( na==1 .AND. nb==1 ) THEN
@@ -1375,7 +1369,7 @@ CONTAINS
   END SUBROUTINE rfock2e
 
 ! *****************************************************************************
-  SUBROUTINE ufock2e(sepa,sepb,rij,pab_a,fab_a,pab_b,fab_b,anag,error)
+  SUBROUTINE ufock2e(sepa,sepb,rij,pab_a,fab_a,pab_b,fab_b,anag,taper,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab_a
@@ -1383,6 +1377,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab_b
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fab_b
     LOGICAL, INTENT(IN)                      :: anag
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ufock2e', &
@@ -1397,9 +1392,9 @@ CONTAINS
     nb = SIZE ( pab_a, 2 )
 
     IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,wint,shortrange=.FALSE.,error=error)
+       CALL rotint_ana (sepa,sepb,rij,wint,shortrange=.FALSE.,taper=taper,error=error)
     ELSE
-       CALL rotint (sepa,sepb,rij,wint,shortrange=.FALSE.,error=error)
+       CALL rotint (sepa,sepb,rij,wint,shortrange=.FALSE.,taper=taper,error=error)
     END IF
 
     IF ( na==1 .AND. nb==1 ) THEN
@@ -1452,13 +1447,14 @@ CONTAINS
   END SUBROUTINE ufock2e
 
 ! *****************************************************************************
-  SUBROUTINE rdfock2e(sepa,sepb,rij,pab,force,delta,anag,error)
+  SUBROUTINE rdfock2e(sepa,sepb,rij,pab,force,delta,anag,taper,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
     REAL(dp), INTENT(IN)                     :: delta
     LOGICAL, INTENT(IN)                      :: anag
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rdfock2e', &
@@ -1473,9 +1469,9 @@ CONTAINS
     nb = SIZE ( pab, 2 )
 
     IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,dw=dwint,shortrange=.FALSE.,error=error)
+       CALL rotint_ana (sepa,sepb,rij,dw=dwint,shortrange=.FALSE.,taper=taper,error=error)
     ELSE
-       CALL drotint (sepa,sepb,rij,dwint,delta,shortrange=.FALSE.,error=error)
+       CALL drotint (sepa,sepb,rij,dwint,delta,shortrange=.FALSE.,taper=taper,error=error)
     END IF
 
     IF ( na==1 .AND. nb==1 ) THEN
@@ -1511,13 +1507,14 @@ CONTAINS
   END SUBROUTINE rdfock2e
 
 ! *****************************************************************************
-  SUBROUTINE udfock2e(sepa,sepb,rij,pab_a,pab_b,force,delta,anag,error)
+  SUBROUTINE udfock2e(sepa,sepb,rij,pab_a,pab_b,force,delta,anag,taper,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab_a, pab_b
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
     REAL(dp), INTENT(IN)                     :: delta
     LOGICAL, INTENT(IN)                      :: anag
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'udfock2e', &
@@ -1532,9 +1529,9 @@ CONTAINS
     nb = SIZE ( pab_a, 2 )
 
     IF (anag) THEN
-       CALL rotint_ana (sepa,sepb,rij,dw=dwint,shortrange=.FALSE.,error=error)
+       CALL rotint_ana (sepa,sepb,rij,dw=dwint,shortrange=.FALSE.,taper=taper,error=error)
     ELSE
-       CALL drotint (sepa,sepb,rij,dwint,delta,shortrange=.FALSE.,error=error)
+       CALL drotint (sepa,sepb,rij,dwint,delta,shortrange=.FALSE.,taper=taper,error=error)
     END IF
 
     IF ( na==1 .AND. nb==1 ) THEN

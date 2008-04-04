@@ -39,7 +39,8 @@ MODULE qmmm_se_energy
   USE semi_empirical_types,            ONLY: allocate_se_param,&
                                              deallocate_se_param,&
                                              get_se_param,&
-                                             semi_empirical_type
+                                             semi_empirical_type,&
+                                             taper_type
   USE semi_empirical_utils,            ONLY: expand,&
                                              get_se_type,&
                                              se_param_set_default
@@ -97,18 +98,20 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
+    TYPE(taper_type), POINTER                :: taper
 
     CALL timeset(routineN,"I","",handle)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
     NULLIFY (matrix_s, atomic_kind_set)
-    NULLIFY (se_kind_a, se_kind_mm)
+    NULLIFY (se_kind_a, se_kind_mm, taper)
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
     CALL build_overlap_matrix(qs_env=qs_env,para_env=para_env,error=error)
 
     CALL get_qs_env(qs_env=qs_env,&
                     matrix_s=matrix_s,&
+                    taper=taper,&
                     atomic_kind_set=atomic_kind_set,&
                     ks_qmmm_env=ks_qmmm_env_loc,&
                     dft_control=dft_control,error=error)
@@ -171,6 +174,7 @@ CONTAINS
                                               qmmm_env%qm_atom_index(iatom),&
                                               enuclear,&
                                               itype,&
+                                              taper,&
                                               error)
                 ! Possibly added charges
                 IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
@@ -187,6 +191,7 @@ CONTAINS
                                                  qmmm_env%qm_atom_index(iatom),&
                                                  enuclear,&
                                                  itype,&
+                                                 taper,&
                                                  error)       
                 END IF
              END IF
@@ -218,7 +223,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE build_se_qmmm_matrix_low(h_block_a, se_kind_a, se_kind_mm, potentials,&
        mm_particles, mm_charges, mm_el_pot_radius, mm_atom_index, &
-       num_mm_atoms, mm_cell, IndQM, enuclear, itype, error)
+       num_mm_atoms, mm_cell, IndQM, enuclear, itype, taper, error)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block_a
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
@@ -233,6 +238,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: IndQM
     REAL(KIND=dp), INTENT(INOUT)             :: enuclear
     INTEGER, INTENT(IN)                      :: itype
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_se_qmmm_matrix_low', &
@@ -261,7 +267,7 @@ CONTAINS
           rij = (/rt1,rt2,rt3/)
           se_kind_mm%zeff = mm_charges(Imm)
           CALL rotnuc_ana (se_kind_a,se_kind_mm,rij,itype,enuc,e1b,shortrange=.FALSE.,&
-               error=error)
+               taper=taper, error=error)
           enuclear = enuclear + enuc
           ! Contribution to the iatom block
           ! Computation of the QMMM core matrix

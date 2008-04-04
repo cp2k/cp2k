@@ -26,15 +26,16 @@ MODULE semi_empirical_int_ana
   USE semi_empirical_int_arrays,       ONLY: map_full_sp,&
                                              pxy,&
                                              rij_threshold
-  USE semi_empirical_int_utils,        ONLY: dtaper_ana,&
-                                             taper
+  USE semi_empirical_int_utils,        ONLY: dtaper_eval,&
+                                             taper_eval
   USE semi_empirical_integrals,        ONLY: drotint,&
                                              drotnuc,&
                                              nucint,&
                                              rotint,&
                                              rotnuc,&
                                              terep
-  USE semi_empirical_types,            ONLY: semi_empirical_type
+  USE semi_empirical_types,            ONLY: semi_empirical_type,&
+                                             taper_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -69,7 +70,7 @@ CONTAINS
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
   RECURSIVE SUBROUTINE rotnuc_ana (sepi,sepj,rijv,itype,enuc,e1b,e2a,denuc,de1b,de2a,&
-       shortrange,error)
+       shortrange,taper,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rijv
     INTEGER, INTENT(IN)                      :: itype
@@ -79,6 +80,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(OUT), &
       OPTIONAL                               :: de1b, de2a
     LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotnuc_ana', &
@@ -140,12 +142,14 @@ CONTAINS
        rij  = SQRT(rij)
        a    = 1._dp/rij
        IF (lgrad.OR.l_denuc) THEN
-          CALL dnucint_ana(sepi,sepj,rij,ssss,ccore,dssss,dccore,itype,shortrange,error=error)
+          CALL dnucint_ana(sepi,sepj,rij,ssss,ccore,dssss,dccore,itype,shortrange,taper=taper,&
+               error=error)
           ! Debug Procedure.. Check valifity of analytical gradients of nucint
           IF (debug_this_module) &
-               CALL check_dnucint_ana(sepi,sepj,rij,dssss,dccore,itype,shortrange,error=error)
+               CALL check_dnucint_ana(sepi,sepj,rij,dssss,dccore,itype,shortrange,taper=taper,&
+               error=error)
        ELSE
-          CALL nucint(sepi,sepj,rij,ssss,ccore,itype,shortrange,error=error)
+          CALL nucint(sepi,sepj,rij,ssss,ccore,itype,shortrange,taper=taper,error=error)
        END IF
        x(1) = x(1)*a
        x(2) = x(2)*a
@@ -550,7 +554,7 @@ CONTAINS
        !
        IF (debug_this_module) THEN
           ! Check value of integrals
-          CALL rotnuc (sepi,sepj,rijv,e1b2,e2a2,enuc2,itype,shortrange,error=error)
+          CALL rotnuc (sepi,sepj,rijv,e1b2,e2a2,enuc2,itype,shortrange,taper=taper,error=error)
           IF (l_e1b) THEN
              DO J = 1, 10
                 IF (ABS(e1b(j))>1.0E-6_dp) THEN
@@ -592,9 +596,9 @@ CONTAINS
              ! integral is greater than 1.0E-6)
              delta = 1.0E-5_dp
              CALL drotnuc(sepi,sepj,rijv,de1b2,de2a2,denuc2,itype,delta=delta,&
-                  shortrange=shortrange,error=error)
+                  shortrange=shortrange,taper=taper,error=error)
              CALL rotnuc_ana(sepi,sepj,rijv,itype,e1b=e1b2,e2a=e2a2,shortrange=shortrange,&
-                  error=error)
+                  taper=taper,error=error)
              IF (l_de1b) THEN
                 DO i = 1, 3
                    DO j = 1, 10
@@ -722,13 +726,14 @@ CONTAINS
 !>      04.2007 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  SUBROUTINE check_dnucint_ana (sepi,sepj,r,dssss,dccore,itype,shortrange,error)
+  SUBROUTINE check_dnucint_ana (sepi,sepj,r,dssss,dccore,itype,shortrange,taper,error)
 
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: r, dssss
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: dccore
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'check_dnucint_ana', &
@@ -742,9 +747,9 @@ CONTAINS
     delta = 1.0E-8_dp
     od = 0.5_dp/delta
     rn = r + delta
-    CALL nucint(sepi,sepj,rn,ssssp,ccorep,itype,shortrange,error=error)
+    CALL nucint(sepi,sepj,rn,ssssp,ccorep,itype,shortrange,taper=taper,error=error)
     rn = r - delta
-    CALL nucint(sepi,sepj,rn,ssssm,ccorem,itype,shortrange,error=error)
+    CALL nucint(sepi,sepj,rn,ssssm,ccorem,itype,shortrange,taper=taper,error=error)
     nccore = od * (ccorep - ccorem)
     nssss  = od * (ssssp - ssssm)
     ! check
@@ -793,7 +798,8 @@ CONTAINS
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  SUBROUTINE dnucint_ana ( sepi, sepj, rij, ssss, core, dssss, dcore, itype, shortrange, error)
+  SUBROUTINE dnucint_ana ( sepi, sepj, rij, ssss, core, dssss, dcore, itype, shortrange,&
+       taper, error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), INTENT(OUT)                    :: ssss
@@ -802,6 +808,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: dcore
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dnucint_ana', &
@@ -816,7 +823,7 @@ CONTAINS
     dcore = 0.0_dp
 
     CALL dnucint_ana_spcore(sepi, sepj, rij, ssss, core, dssss, dcore, itype,&
-         shortrange,error=error)
+         shortrange,taper=taper,error=error)
     IF (di.OR.dj) THEN
        ! compute the contribution from d-orbitals
        STOP "D-ORBITALS: dnucint_ana"
@@ -849,7 +856,7 @@ CONTAINS
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
   RECURSIVE SUBROUTINE dnucint_ana_spcore ( sepi, sepj, rij, ssss, core, dssss, dcore, itype,&
-       shortrange, do_longrange, error)
+       shortrange, do_longrange, taper, error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), INTENT(INOUT)                  :: ssss
@@ -859,6 +866,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: shortrange
     LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dnucint_ana_spcore', &
@@ -1014,7 +1022,7 @@ CONTAINS
     ! Modify integrals in case of short-range request
     IF ( shortrange ) THEN
        CALL dnucint_ana_spcore ( sepi, sepj, rij, ssss_lr, core_lr, dssss_lr, dcore_lr, itype,&
-            shortrange=.FALSE., do_longrange=.TRUE., error=error )
+            shortrange=.FALSE., do_longrange=.TRUE., taper=taper, error=error )
        ! Function Values
        core = core - core_lr
        ssss = ssss - ssss_lr
@@ -1036,8 +1044,8 @@ CONTAINS
        ft = 1.0_dp
        dft= 0.0_dp
        IF (itype/=do_method_pchg) THEN
-          ft = taper ( rij, error )
-          dft= dtaper_ana ( rij, error )
+          ft = taper_eval (taper, rij, error)
+          dft= dtaper_eval (taper, rij, error)
        END IF
        
        ! First derivatives..
@@ -1066,7 +1074,7 @@ CONTAINS
 !>      04.2007 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE rotint_ana (sepi,sepj,rijv,w,dw,shortrange,error)
+  RECURSIVE SUBROUTINE rotint_ana (sepi,sepj,rijv,w,dw,shortrange,taper,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rijv
     REAL(dp), DIMENSION(:), INTENT(OUT), &
@@ -1074,6 +1082,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(OUT), &
       OPTIONAL                               :: dw
     LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotint_ana', &
@@ -1113,12 +1122,13 @@ CONTAINS
        rij = SQRT(rij)
        ! Compute integrals in diatomic frame as well their derivatives (if requested)
        IF (lgrad) THEN
-          CALL dterep_ana(sepi,sepj,rij,ri,dri1,shortrange,error=error)
+          CALL dterep_ana(sepi,sepj,rij,ri,dri1,shortrange,taper=taper,error=error)
           IF (debug_this_module) THEN
-             CALL check_dterep_ana(sepi, sepj, rij, ri, dri1, shortrange,error=error)
+             CALL check_dterep_ana(sepi, sepj, rij, ri, dri1, shortrange,taper=taper,&
+                  error=error)
           END IF
        ELSE
-          CALL terep(sepi,sepj,rij,ri,shortrange,error=error)
+          CALL terep(sepi,sepj,rij,ri,shortrange,taper=taper,error=error)
        END IF
        a=1._dp/rij
        x(1) = x(1)*a
@@ -1659,7 +1669,7 @@ CONTAINS
           IF (debug_this_module) THEN
              ! Check value of integrals
              w2=0.0_dp
-             CALL rotint (sepi,sepj,rijv,w2,shortrange,error)
+             CALL rotint (sepi,sepj,rijv,w2,shortrange,taper=taper,error=error)
              DO J = 1, 100
                 IF (ABS(w(j))>1.0E-6_dp) THEN
                    IF (ABS(w2(j)-w(j))>1.0E-7) THEN
@@ -2214,8 +2224,8 @@ CONTAINS
              ! with a reasonable value of the integral.. (compatible if the value of the
              ! integral is greater than 1.0E-6)
              delta = 1.0E-5_dp
-             CALL drotint(sepi,sepj,rijv,dw2,delta=delta,shortrange=shortrange,error=error)
-             CALL rotint_ana(sepi,sepj,rijv,w2,shortrange=shortrange,error=error)
+             CALL drotint(sepi,sepj,rijv,dw2,delta=delta,shortrange=shortrange,taper=taper,error=error)
+             CALL rotint_ana(sepi,sepj,rijv,w2,shortrange=shortrange,taper=taper,error=error)
              DO i = 1, 3
                 DO j = 1, 100
                    IF ((ABS(w2(j))>1.0E-6_dp).AND.(ABS(dw2(j,i))>delta*10)) THEN
@@ -2253,11 +2263,12 @@ CONTAINS
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino [tlaino] - Zurich University
 ! *****************************************************************************
-  SUBROUTINE dterep_ana ( sepi, sepj, rij, ri, dri, shortrange, error)
+  SUBROUTINE dterep_ana ( sepi, sepj, rij, ri, dri, shortrange, taper, error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(:), INTENT(OUT)      :: ri, dri
     LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dterep_ana', &
@@ -2271,7 +2282,7 @@ CONTAINS
     ri  = 0.0_dp
     dri = 0.0_dp
 
-    CALL dterep_sp_ana ( sepi, sepj, rij, ri, dri, shortrange, error=error)
+    CALL dterep_sp_ana ( sepi, sepj, rij, ri, dri, shortrange, taper=taper, error=error)
     IF (di.OR.dj) THEN
        ! compute the contribution from d-orbitals
        STOP "D-ORBITALS: dterep_ana"
@@ -2305,12 +2316,13 @@ CONTAINS
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
   RECURSIVE SUBROUTINE dterep_sp_ana ( sepi, sepj, rij, ri, dri, shortrange, do_longrange,&
-       error)
+       taper, error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: ri, dri
     LOGICAL, INTENT(IN)                      :: shortrange
     LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dterep_sp_ana', &
@@ -2721,7 +2733,7 @@ CONTAINS
 
     IF ( shortrange ) THEN
        CALL dterep_sp_ana ( sepi, sepj, rij, ri_lr, dri_lr, shortrange=.FALSE., do_longrange=.TRUE.,&
-            error=error)
+            taper=taper,error=error)
        ! Integral values
        ri(1)   =   ri(1) - ri_lr(1) 
        ri(2)   =   ri(2) - ri_lr(2)
@@ -2772,8 +2784,8 @@ CONTAINS
 
     ! Tapering function
     IF (.NOT.longrange) THEN
-       ft = taper  (rij, error)
-       dft= dtaper_ana (rij, error)
+       ft = taper_eval(taper,rij,error)
+       dft= dtaper_eval(taper,rij,error)
        dri(:) = dft*ri(:)+ft*dri(:)
        ri(:) = ft*ri(:)
     END IF
@@ -2788,12 +2800,13 @@ CONTAINS
 !>      04.2007 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,shortrange,error)
+  SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,shortrange,taper,error)
 
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: r
     REAL(dp), DIMENSION(:), INTENT(IN)       :: ri, dri
     LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'check_dterep_ana', &
@@ -2807,11 +2820,11 @@ CONTAINS
     delta = 1.0E-8_dp
     od = 0.5_dp/delta
     rn = r
-    CALL terep(sepi,sepj,rn,ri0,shortrange,error=error)
+    CALL terep(sepi,sepj,rn,ri0,shortrange,taper=taper,error=error)
     rn = r + delta
-    CALL terep(sepi,sepj,rn,rip,shortrange,error=error)
+    CALL terep(sepi,sepj,rn,rip,shortrange,taper=taper,error=error)
     rn = r - delta
-    CALL terep(sepi,sepj,rn,rim,shortrange,error=error)
+    CALL terep(sepi,sepj,rn,rim,shortrange,taper=taper,error=error)
     nri = od * (rip - rim)
     ! check
     DO j = 1, 22

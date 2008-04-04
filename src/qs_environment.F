@@ -143,6 +143,8 @@ MODULE qs_environment
                                              scf_c_release,&
                                              scf_c_write_parameters,&
                                              scf_control_type
+  USE semi_empirical_types,            ONLY: taper_create,&
+                                             taper_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -380,6 +382,7 @@ CONTAINS
       print_section, qs_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
+    TYPE(taper_type), POINTER                :: taper
 
     CALL timeset(routineN,"I",'',handle)
     NULLIFY(logger)
@@ -398,7 +401,7 @@ CONTAINS
     END IF
 
     ! Initialise the Quickstep environment
-    NULLIFY (mos)
+    NULLIFY (mos, taper)
     NULLIFY (dft_control)
     NULLIFY (energy)
     NULLIFY (force)
@@ -679,6 +682,9 @@ CONTAINS
           CALL ewald_env_release(ewald_env,error=error)
           CALL ewald_pw_release(ewald_pw,error=error)
        END IF
+       ! Taper function
+       CALL taper_create(taper, 2._dp*se_control%rc_coulomb, se_control%rc_range, error)
+       CALL set_qs_env(qs_env, taper=taper, error=error)
     ENDIF
 
     !   *** Allocate the MO data types ***

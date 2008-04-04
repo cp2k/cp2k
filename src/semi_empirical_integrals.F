@@ -25,8 +25,9 @@ MODULE semi_empirical_integrals
                                              evolt
   USE semi_empirical_int_arrays,       ONLY: pxy,&
                                              rij_threshold
-  USE semi_empirical_int_utils,        ONLY: taper
-  USE semi_empirical_types,            ONLY: semi_empirical_type
+  USE semi_empirical_int_utils,        ONLY: taper_eval
+  USE semi_empirical_types,            ONLY: semi_empirical_type,&
+                                             taper_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -50,11 +51,12 @@ CONTAINS
 !> \note routine adapted from mopac7 (rotate)
 !>       written by Ernest R. Davidson, Indiana University.
 ! *****************************************************************************
-  SUBROUTINE rotint (sepi,sepj,rijv,w,shortrange,error)
+  SUBROUTINE rotint (sepi,sepj,rijv,w,shortrange,taper,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rijv
     REAL(dp), DIMENSION(:), INTENT(OUT)      :: w
     LOGICAL                                  :: shortrange
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotint', &
@@ -79,7 +81,7 @@ CONTAINS
        rij = SQRT(rij)
 
        ! Compute Integrals in Diatomic Frame
-       CALL terep(sepi,sepj,rij,ri,shortrange,error=error)
+       CALL terep(sepi,sepj,rij,ri,shortrange,taper=taper,error=error)
  
        a=1._dp/rij
        x(1) = x(1)*a
@@ -572,13 +574,14 @@ CONTAINS
 !> \note routine adapted from mopac7 (rotate)
 !>       written by Ernest R. Davidson, Indiana University.
 ! *****************************************************************************
-  SUBROUTINE rotnuc (sepi,sepj,rijv,e1b,e2a,enuc,itype,shortrange,error)
+  SUBROUTINE rotnuc (sepi,sepj,rijv,e1b,e2a,enuc,itype,shortrange,taper,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rijv
     REAL(dp), DIMENSION(:), INTENT(OUT)      :: e1b, e2a
     REAL(dp), INTENT(OUT)                    :: enuc
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotnuc', &
@@ -604,7 +607,7 @@ CONTAINS
     IF (rij > rij_threshold) THEN
        rij = SQRT(rij)
        ! Compute Integrals in Diatamic Frame
-       CALL nucint(sepi,sepj,rij,ssss,ccore,itype,shortrange,error=error)
+       CALL nucint(sepi,sepj,rij,ssss,ccore,itype,shortrange,taper=taper,error=error)
 
        a=1._dp/rij
        x(1) = x(1)*a
@@ -844,11 +847,12 @@ CONTAINS
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino [tlaino] - Zurich University
 ! *****************************************************************************
-  SUBROUTINE terep ( sepi, sepj, rij, ri, shortrange, error )
+  SUBROUTINE terep ( sepi, sepj, rij, ri, shortrange, taper, error )
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(:), INTENT(OUT)      :: ri
     LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'terep', &
@@ -859,7 +863,7 @@ CONTAINS
     failure = .FALSE.
     ri = 0.0_dp
 
-    CALL terep_sp ( sepi, sepj, rij, ri, shortrange, error=error)
+    CALL terep_sp ( sepi, sepj, rij, ri, shortrange, taper=taper, error=error)
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ! compute the contribution from d-orbitals
        STOP "D-ORBITALS: terep"
@@ -890,12 +894,13 @@ CONTAINS
 !>      Teodoro Laino (03.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE terep_sp ( sepi, sepj, rij, ri, shortrange, do_longrange, error )
+  RECURSIVE SUBROUTINE terep_sp ( sepi, sepj, rij, ri, shortrange, do_longrange, taper, error )
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: ri
     LOGICAL, INTENT(IN)                      :: shortrange
     LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'terep_sp', &
@@ -1173,7 +1178,7 @@ CONTAINS
 
     IF ( shortrange ) THEN
        CALL terep_sp ( sepi, sepj, rij, ri_lr, shortrange=.FALSE., do_longrange=.TRUE.,&
-            error=error)
+            taper=taper, error=error)
        ri(1)  =  ri(1) - ri_lr(1) 
        ri(2)  =  ri(2) - ri_lr(2)
        ri(3)  =  ri(3) - ri_lr(3)
@@ -1200,7 +1205,7 @@ CONTAINS
 
     ! Tapering function
     IF (.NOT.longrange) THEN
-       ft = taper ( rij, error )
+       ft = taper_eval(taper, rij, error)
        ri(:) = ft*ri(:)
     END IF
 
@@ -1220,13 +1225,14 @@ CONTAINS
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  SUBROUTINE nucint ( sepi, sepj, rij, ssss, core, itype, shortrange, error )
+  SUBROUTINE nucint ( sepi, sepj, rij, ssss, core, itype, shortrange, taper, error )
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), INTENT(OUT)                    :: ssss
     REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: core
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nucint', &
@@ -1237,10 +1243,12 @@ CONTAINS
     failure = .FALSE.
     core  = 0.0_dp
 
-    CALL nucint_spcore(sepi, sepj, rij, ssss, core, itype, shortrange, error=error)
+    CALL nucint_spcore(sepi, sepj, rij, ssss, core, itype, shortrange, &
+         taper=taper, error=error)
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ! Compute the contribution from d-orbitals
-       CALL nucint_d(sepi, sepj, rij, core, itype, shortrange, error=error)
+       CALL nucint_d(sepi, sepj, rij, core, itype, shortrange, taper=taper,&
+            error=error)
     END IF
 
   END SUBROUTINE nucint
@@ -1267,7 +1275,7 @@ CONTAINS
 !>                 for computing integrals
 ! *****************************************************************************
   RECURSIVE SUBROUTINE nucint_spcore ( sepi, sepj, rij, ssss, core, itype, shortrange,&
-       do_longrange, error)
+       do_longrange, taper, error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), INTENT(INOUT)                  :: ssss
@@ -1275,6 +1283,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: shortrange
     LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nucint_spcore', &
@@ -1400,7 +1409,7 @@ CONTAINS
     ! Modify integrals in case of short-range request
     IF ( shortrange ) THEN
        CALL nucint_spcore( sepi, sepj, rij, ssss_lr, core_lr, itype, shortrange=.FALSE.,&
-            do_longrange=.TRUE., error=error)
+            do_longrange=.TRUE., taper=taper, error=error)
        core = core - core_lr
        ssss = ssss - ssss_lr
     END IF
@@ -1412,7 +1421,7 @@ CONTAINS
     IF (.NOT.longrange) THEN
        ! Tapering function
        ft = 1.0_dp
-       IF (itype /=do_method_pchg) ft = taper ( rij, error )
+       IF (itype /=do_method_pchg) ft = taper_eval (taper, rij, error)
        core(:,:) = ft*core(:,:)
        ssss = ft*ssss
     END IF
@@ -1439,13 +1448,14 @@ CONTAINS
 !>      Teodoro Laino (03.2008) [tlaino] - University of Zurich 
 ! *****************************************************************************
   RECURSIVE SUBROUTINE nucint_d ( sepi, sepj, rij, core, itype, shortrange, do_longrange,&
-       error)
+       taper, error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: core
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: shortrange
     LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nucint_d', &
@@ -1462,13 +1472,14 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Numerical Derivatives for rotint
 ! *****************************************************************************
-  SUBROUTINE drotint (sepi,sepj,r,dw,delta,shortrange,error)
+  SUBROUTINE drotint (sepi,sepj,r,dw,delta,shortrange,taper, error)
 
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), DIMENSION(:), INTENT(IN)       :: r
     REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: dw
     REAL(dp), INTENT(IN)                     :: delta
     LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'drotint', &
@@ -1483,9 +1494,9 @@ CONTAINS
     DO i=1,3
        rr=r
        rr(i)=rr(i)+delta
-       CALL rotint (sepi,sepj,rr,wp,shortrange,error=error)
+       CALL rotint (sepi,sepj,rr,wp,shortrange,taper=taper,error=error)
        rr(i)=rr(i)-2._dp*delta
-       CALL rotint (sepi,sepj,rr,wm,shortrange,error=error)
+       CALL rotint (sepi,sepj,rr,wm,shortrange,taper=taper,error=error)
        dw(:,i) = od * (wp(:) - wm(:))
     END DO
 
@@ -1494,7 +1505,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Numerical Derivatives for rotnuc
 ! *****************************************************************************
-  SUBROUTINE drotnuc (sepi,sepj,r,de1b,de2a,denuc,itype,delta,shortrange,error)
+  SUBROUTINE drotnuc (sepi,sepj,r,de1b,de2a,denuc,itype,delta,shortrange,taper,error)
 
     TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
     REAL(dp), DIMENSION(:), INTENT(IN)       :: r
@@ -1503,6 +1514,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: itype
     REAL(dp), INTENT(IN)                     :: delta
     LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'drotnuc', &
@@ -1517,9 +1529,9 @@ CONTAINS
     DO i=1,3
        rr=r
        rr(i)=rr(i)+delta
-       CALL rotnuc (sepi,sepj,rr,e1p,e2p,enucp,itype,shortrange,error=error)
+       CALL rotnuc (sepi,sepj,rr,e1p,e2p,enucp,itype,shortrange,taper=taper,error=error)
        rr(i)=rr(i)-2._dp*delta
-       CALL rotnuc (sepi,sepj,rr,e1m,e2m,enucm,itype,shortrange,error=error)
+       CALL rotnuc (sepi,sepj,rr,e1m,e2m,enucm,itype,shortrange,taper=taper,error=error)
        denuc(i) = od * (enucp - enucm)
        de1b(:,i) = od * (e1p(:) - e1m(:))
        de2a(:,i) = od * (e2p(:) - e2m(:))

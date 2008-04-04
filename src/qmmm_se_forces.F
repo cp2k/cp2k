@@ -38,7 +38,8 @@ MODULE qmmm_se_forces
   USE semi_empirical_types,            ONLY: allocate_se_param,&
                                              deallocate_se_param,&
                                              get_se_param,&
-                                             semi_empirical_type
+                                             semi_empirical_type,&
+                                             taper_type
   USE semi_empirical_utils,            ONLY: contract,&
                                              get_se_type,&
                                              se_param_set_default
@@ -97,14 +98,16 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
+    TYPE(taper_type), POINTER                :: taper
 
     failure = .FALSE.
     CALL timeset(routineN,"I","",handle)
     IF (calc_force) THEN
-       NULLIFY (rho, atomic_kind_set)
+       NULLIFY (rho, atomic_kind_set, taper)
        NULLIFY (se_kind_a, se_kind_mm)
        CALL get_qs_env(qs_env=qs_env,&
                        rho=rho,&
+                       taper=taper,&
                        atomic_kind_set=atomic_kind_set,&
                        ks_qmmm_env=ks_qmmm_env_loc,&
                        dft_control=dft_control,error=error)
@@ -166,6 +169,7 @@ CONTAINS
                                                  para_env,&
                                                  Forces,&
                                                  Forces_QM(:,iqm),&
+                                                 taper,&
                                                  error)
                    ! Possibly added charges
                    IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
@@ -184,6 +188,7 @@ CONTAINS
                                                     para_env,&
                                                     Forces_added_charges,&
                                                     Forces_QM(:,iqm),&
+                                                    taper,&
                                                     error)
                    END IF
                 END IF
@@ -225,7 +230,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE deriv_se_qmmm_matrix_low(p_block_a, se_kind_a, se_kind_mm,&
        potentials, mm_particles, mm_charges, mm_el_pot_radius, mm_atom_index, &
-       num_mm_atoms, mm_cell, IndQM, itype, para_env, forces, forces_qm, error)
+       num_mm_atoms, mm_cell, IndQM, itype, para_env, forces, forces_qm, taper,&
+       error)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block_a
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
@@ -242,6 +248,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: forces
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: forces_qm
+    TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deriv_se_qmmm_matrix_low', &
@@ -272,7 +279,7 @@ CONTAINS
           se_kind_mm%zeff = mm_charges(Imm)
           ! Integrals derivatives involving QM - MM atoms
           CALL rotnuc_ana (se_kind_a,se_kind_mm,rij,itype,denuc=denuc,de1b=de1b,shortrange=.FALSE.,&
-               error=error)
+               taper=taper, error=error)
           ! Nucler - Nuclear term
           force_ab(1:3)=-denuc(1:3)
           IF ( SIZE(p_block_a,1) == 1 ) THEN

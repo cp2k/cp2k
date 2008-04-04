@@ -13,7 +13,8 @@ MODULE semi_empirical_int_utils
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_arrays,       ONLY: clm,&
                                              indexb
-  USE semi_empirical_types,            ONLY: semi_empirical_type
+  USE semi_empirical_types,            ONLY: semi_empirical_type,&
+                                             taper_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -22,75 +23,54 @@ MODULE semi_empirical_int_utils
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_utils'
 
-  PUBLIC :: set_taper_fn, taper, dtaper_ana
-
-  REAL(KIND=dp), SAVE, PUBLIC          :: r0, al
-  LOGICAL, SAVE, PUBLIC                :: taper_fn_init = .FALSE.
+  PUBLIC :: taper_eval, dtaper_eval
   
 CONTAINS
 
 ! *****************************************************************************
-!> \brief Initialization of taper functions
-! *****************************************************************************
-  SUBROUTINE set_taper_fn ( rc, range, error)
-    REAL(KIND=dp), INTENT(IN)                :: rc, range
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_taper_fn', &
-      routineP = moduleN//':'//routineN
-
-    taper_fn_init = .TRUE.
-    r0 = rc - 0.5_dp * range
-    al = 24._dp/range
-
-  END SUBROUTINE set_taper_fn
-
-! *****************************************************************************
 !> \brief Taper functions
 ! *****************************************************************************
-  FUNCTION taper (rij, error) RESULT(ft)
+  FUNCTION taper_eval (taper,rij, error) RESULT(ft)
+    TYPE(taper_type), POINTER                :: taper
     REAL(KIND=dp), INTENT(IN)                :: rij
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: ft
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'taper', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'taper_eval', &
       routineP = moduleN//':'//routineN
 
     REAL(KIND=dp)                            :: dr, ep
 
     ft = 1._dp
-    IF ( taper_fn_init ) THEN
-       dr = -al*(rij-r0)
-       IF ( dr < 20._dp ) THEN
-          ep = EXP(dr)
-          ft = ep/(1._dp+ep)
-       END IF
+    dr = -taper%al*(rij-taper%r0)
+    IF ( dr < 20._dp ) THEN
+       ep = EXP(dr)
+       ft = ep/(1._dp+ep)
     END IF
-  END FUNCTION taper
-
+  END FUNCTION taper_eval
+  
 ! *****************************************************************************
 !> \brief Analytical derivatives for taper function
 ! *****************************************************************************
-  FUNCTION dtaper_ana ( rij, error ) RESULT(dft)
+  FUNCTION dtaper_eval (taper, rij, error ) RESULT(dft)
+    TYPE(taper_type), POINTER                :: taper
     REAL(KIND=dp), INTENT(IN)                :: rij
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: dft
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dtaper_ana', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dtaper_eval', &
       routineP = moduleN//':'//routineN
 
     REAL(KIND=dp)                            :: dr, ep
 
     dft = 0.0_dp
-    IF ( taper_fn_init ) THEN
-       dr = -al*(rij-r0)
-       IF ( dr < 20._dp ) THEN
-          ep = EXP(dr)
-          dft = 1._dp/(1._dp+ep)**2 * ep * (-al)
-       END IF
+    dr = -taper%al*(rij-taper%r0)
+    IF ( dr < 20._dp ) THEN
+       ep = EXP(dr)
+       dft = 1._dp/(1._dp+ep)**2 * ep * (-taper%al)
     END IF
 
-  END FUNCTION dtaper_ana
+  END FUNCTION dtaper_eval
 
 ! *****************************************************************************
 !> \brief General driver for computing semi-empirical integrals <ij|kl>
