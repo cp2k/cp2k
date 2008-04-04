@@ -14,8 +14,12 @@ MODULE cp_control_utils
        VandeVondele2005b, Zhechkov2005, cite_reference
   USE cp_control_types,                ONLY: dft_control_create,&
                                              dft_control_type,&
+                                             finite_field_control_create,&
                                              qs_control_type,&
-                                             tddfpt_control_type
+                                             scp_control_create,&
+                                             tddfpt_control_create,&
+                                             tddfpt_control_type,&
+                                             xas_control_create
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE f77_blas
@@ -32,11 +36,9 @@ MODULE cp_control_utils
        section_vals_type, section_vals_val_get, section_vals_val_set
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
-                                             dp,&
-                                             dp_size
+                                             dp
   USE semi_empirical_int_arrays,       ONLY: init_se_intd_array
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE xas_control,                     ONLY: read_xas_control
   USE xc_derivatives,                  ONLY: xc_functional_get_info,&
                                              xc_functionals_get_needs
@@ -93,9 +95,9 @@ CONTAINS
     not_SE = .TRUE.
     CALL section_vals_val_get(dft_section,"QS%METHOD",i_val=method_id,error=error)
     SELECT CASE (method_id)
-      CASE (do_method_dftb,do_method_mndo,do_method_am1,do_method_pm3,&
-            do_method_pm6,do_method_pdg,do_method_rm1,do_method_mndod)
-         not_SE = .FALSE.
+    CASE (do_method_dftb,do_method_mndo,do_method_am1,do_method_pm3,&
+          do_method_pm6,do_method_pdg,do_method_rm1,do_method_mndod)
+       not_SE = .FALSE.
     END SELECT
     ! Check for XC section and XC_FUNCTIONAL section
     xc_section => section_vals_get_subs_vals(dft_section,"XC",error=error)
@@ -150,35 +152,30 @@ CPSourceFileRef,&
                                     add_basic_components=.TRUE.,&
                                     error=error)
     dft_control%use_kinetic_energy_density = (needs%tau_spin.OR.needs%tau)
-! SCP code
-    CALL section_vals_val_get(dft_section,"SCP%_SECTION_PARAMETERS_",l_val=l_param,&
-                              error=error)
-    dft_control % scp = l_param
-    scp_section => section_vals_get_subs_vals(dft_section,"SCP", error=error)
-    CALL section_vals_val_get(scp_section,"DISPERSION",&
-         l_val=l_param,error=error)
-    dft_control % scp_control % dispersion = l_param
+
+    CALL section_vals_val_get(dft_section,"SCP%_SECTION_PARAMETERS_",l_val=dft_control%scp,error=error)
+    IF (dft_control%scp) THEN
+       CALL scp_control_create(dft_control%scp_control, error=error)
+       scp_section => section_vals_get_subs_vals(dft_section,"SCP", error=error)
+       CALL section_vals_val_get(scp_section,"DISPERSION",l_val=l_param,error=error)
+       dft_control%scp_control%dispersion = l_param
+    END IF
 
     ! Set restricted to true, if both OT and ROKS are requested
     !MK in principle dft_control%restricted could be dropped completely like the
     !MK input key by using only dft_control%roks now
-
-    CALL section_vals_val_get(scf_section,"OT%_SECTION_PARAMETERS_",l_val=l_param,&
-                              error=error)
+    CALL section_vals_val_get(scf_section,"OT%_SECTION_PARAMETERS_",l_val=l_param,error=error)
     dft_control%restricted = (dft_control%roks.AND.l_param)
 
-    dft_control % do_tddfpt_calculation = .FALSE.
-    CALL section_vals_val_get(dft_section,"CHARGE",i_val=dft_control % charge,&
-         error=error)
-    CALL section_vals_val_get(dft_section,"MULTIPLICITY",&
-         i_val=dft_control % multiplicity,error=error)
+    CALL section_vals_val_get(dft_section,"CHARGE",i_val=dft_control%charge,error=error)
+    CALL section_vals_val_get(dft_section,"MULTIPLICITY",i_val=dft_control%multiplicity,error=error)
 
-    dft_control % sic_method_id = sic_none
-    dft_control % sic_scaling_a = 1.0_dp
-    dft_control % sic_scaling_b = 1.0_dp
+    dft_control%sic_method_id = sic_none
+    dft_control%sic_scaling_a = 1.0_dp
+    dft_control%sic_scaling_b = 1.0_dp
 
-    dft_control % xas_estate    = -1
-    dft_control%dft_plus_u = .FALSE.
+    dft_control%xas_estate    = -1
+    dft_control%dft_plus_u    = .FALSE.
 
     CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
          c_val=basis_set_file_name , error=error)
@@ -186,8 +183,7 @@ CPSourceFileRef,&
          c_val=potential_file_name , error=error)
 
 !   *** Read the input section ***
-    tmp_section => section_vals_get_subs_vals(dft_section,"sic",&
-         error=error)
+    tmp_section => section_vals_get_subs_vals(dft_section,"sic",error=error)
     CALL section_vals_val_get(tmp_section,"SIC_METHOD",&
          i_val=dft_control%sic_method_id,error=error)
     CALL section_vals_val_get(tmp_section,"ORBITAL_SET",&
@@ -197,28 +193,39 @@ CPSourceFileRef,&
     CALL section_vals_val_get(tmp_section,"SIC_SCALING_B",&
          r_val=dft_control%sic_scaling_b,error=error)
 
-    CALL section_vals_val_get(dft_section,"EXCITATIONS",&
-         i_val=excitations,error=error)
-    dft_control % do_tddfpt_calculation = (excitations==tddfpt_excitations)
+!   *** Determine if this is a  TDDFPT  run *** 
+    CALL section_vals_val_get(dft_section,"EXCITATIONS",i_val=excitations,error=error)
+    dft_control%do_tddfpt_calculation = (excitations==tddfpt_excitations)
+    IF (dft_control%do_tddfpt_calculation) THEN
+       CALL tddfpt_control_create(dft_control%tddfpt_control, error=error)
+    END IF
 
 !   *** Read the input section ***
-    CALL section_vals_val_get(dft_section,"XAS%_SECTION_PARAMETERS_",&
+    tmp_section => section_vals_get_subs_vals(dft_section,"XAS",error=error)
+    CALL section_vals_get(tmp_section,explicit=dft_control%do_xas_calculation,error=error)
+    IF (dft_control%do_xas_calculation) THEN
+       ! Override with section parameter
+       CALL section_vals_val_get(tmp_section,"_SECTION_PARAMETERS_",&
             l_val=dft_control%do_xas_calculation,error=error)
-    IF (dft_control % do_xas_calculation) THEN
-      CALL read_xas_control(dft_control%xas_control,dft_section,error=error)
+       IF (dft_control%do_xas_calculation) THEN
+          CALL xas_control_create(dft_control%xas_control,error=error)       
+          CALL read_xas_control(dft_control%xas_control,dft_section,error=error)
+       END IF
     END IF
 
 !   *** Read the finite field input section ***
-    tmp_section => section_vals_get_subs_vals(dft_section,"field",&
-         error=error)
-    CALL section_vals_val_get(tmp_section,"ELECTRICAL_FIELD_STRENGTH",&
-         r_val=dft_control%finite_field_control%efield_strength,error=error)
-    CALL section_vals_val_get(tmp_section,"ELECTRICAL_FIELD_POLARISATION",&
-         r_vals=rvec,error=error)
-    dft_control%finite_field_control%efield_polarisation(1:3)=rvec(1:3)
-    CALL section_vals_val_get(tmp_section,"BERRY_PHASE",&
-         l_val=dft_control%finite_field_control%berry_phase,error=error)
-
+    tmp_section => section_vals_get_subs_vals(dft_section,"FIELD",error=error)
+    CALL section_vals_get(tmp_section,explicit=dft_control%apply_finite_field,error=error)
+    IF (dft_control%apply_finite_field) THEN
+       CALL finite_field_control_create(dft_control%finite_field_control, error=error)
+       CALL section_vals_val_get(tmp_section,"ELECTRICAL_FIELD_STRENGTH",&
+            r_val=dft_control%finite_field_control%efield_strength,error=error)
+       CALL section_vals_val_get(tmp_section,"ELECTRICAL_FIELD_POLARISATION",&
+            r_vals=rvec,error=error)
+       dft_control%finite_field_control%efield_polarisation(1:3)=rvec(1:3)
+       CALL section_vals_val_get(tmp_section,"BERRY_PHASE",&
+            l_val=dft_control%finite_field_control%berry_phase,error=error)
+    END IF
   END SUBROUTINE read_dft_control
 
 ! *****************************************************************************
@@ -231,8 +238,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'read_mgrid_section', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: igrid_level, istat, &
-                                                ngrid_level
+    INTEGER                                  :: igrid_level, ngrid_level, stat
     LOGICAL                                  :: failure, multigrid_set
     REAL(dp)                                 :: cutoff
     REAL(dp), DIMENSION(:), POINTER          :: cutofflist
@@ -249,9 +255,8 @@ CPSourceFileRef,&
        multigrid_set = .FALSE.
     END IF
 
-    ALLOCATE(qs_control%e_cutoff(ngrid_level),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,"qs_control%e_cutoff",&
-                                             ngrid_level*dp_size)
+    ALLOCATE(qs_control%e_cutoff(ngrid_level),STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     CALL section_vals_val_get(mgrid_section,"CUTOFF",r_val=cutoff,error=error)
     qs_control%cutoff = MAX(0.01_dp,cutoff)
     CALL section_vals_val_get(mgrid_section,"PROGRESSION_FACTOR",&
@@ -326,8 +331,8 @@ CPSourceFileRef,&
 
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: clist
-    INTEGER                                  :: istat, itmp, j, jj, k, n_rep, &
-                                                n_var
+    INTEGER                                  :: itmp, j, jj, k, n_rep, n_var, &
+                                                stat
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: failure, was_present
     REAL(dp)                                 :: tmpsqrt, value
@@ -503,7 +508,7 @@ CPSourceFileRef,&
        CALL init_se_intd_array(error)
     END SELECT
     
-    IF(qs_control %method_id == do_method_kg_pol) qs_control%polarization = .TRUE.
+    IF(qs_control%method_id == do_method_kg_pol) qs_control%polarization = .TRUE.
 
     CALL section_vals_get(mull_section,explicit=qs_control%mulliken_restraint,error=error)
 
@@ -554,62 +559,65 @@ CPSourceFileRef,&
     ENDIF
 
     ! Semi-empirical code
-    CALL section_vals_val_get(se_section,"ANALYTICAL_GRADIENTS",&
-         l_val=qs_control%se_control%analytical_gradients,error=error)
-    CALL section_vals_val_get(se_section,"ORTHOGONAL_BASIS",&
-         l_val=qs_control%se_control%orthogonal_basis,error=error)
-    CALL section_vals_val_get(se_section,"DO_EWALD",&
-         l_val=qs_control%se_control%do_ewald,error=error)
-    CALL section_vals_val_get(se_section,"DELTA",&
-         r_val=qs_control%se_control%delta,error=error)
-    CALL section_vals_val_get(se_section,"RC_INTERACTION",&
-         r_val=qs_control%se_control%rc_interaction,error=error)
-    CALL section_vals_val_get(se_section,"RC_COULOMB",&
-         r_val=qs_control%se_control%rc_coulomb,error=error)
-    CALL section_vals_val_get(se_section,"RC_RANGE",&
-         r_val=qs_control%se_control%rc_range,error=error)
-    IF(  qs_control %method_id == do_method_mndo .OR. &
-         qs_control %method_id == do_method_am1  .OR. &
-         qs_control %method_id == do_method_mndod.OR. &
-         qs_control %method_id == do_method_pdg  .OR. &
-         qs_control %method_id == do_method_pm3  .OR. &
-         qs_control %method_id == do_method_pm6  .OR. &
-         qs_control %method_id == do_method_rm1  ) THEN
-       qs_control%se_control%orthogonal_basis=.TRUE.
+    IF (qs_control%semi_empirical) THEN
+       CALL section_vals_val_get(se_section,"ANALYTICAL_GRADIENTS",&
+            l_val=qs_control%se_control%analytical_gradients,error=error)
+       CALL section_vals_val_get(se_section,"ORTHOGONAL_BASIS",&
+            l_val=qs_control%se_control%orthogonal_basis,error=error)
+       CALL section_vals_val_get(se_section,"DO_EWALD",&
+            l_val=qs_control%se_control%do_ewald,error=error)
+       CALL section_vals_val_get(se_section,"DELTA",&
+            r_val=qs_control%se_control%delta,error=error)
+       CALL section_vals_val_get(se_section,"RC_INTERACTION",&
+            r_val=qs_control%se_control%rc_interaction,error=error)
+       CALL section_vals_val_get(se_section,"RC_COULOMB",&
+            r_val=qs_control%se_control%rc_coulomb,error=error)
+       CALL section_vals_val_get(se_section,"RC_RANGE",&
+            r_val=qs_control%se_control%rc_range,error=error)
+       IF(  qs_control %method_id == do_method_mndo .OR. &
+            qs_control %method_id == do_method_am1  .OR. &
+            qs_control %method_id == do_method_mndod.OR. &
+            qs_control %method_id == do_method_pdg  .OR. &
+            qs_control %method_id == do_method_pm3  .OR. &
+            qs_control %method_id == do_method_pm6  .OR. &
+            qs_control %method_id == do_method_rm1  ) THEN
+          qs_control%se_control%orthogonal_basis=.TRUE.
+       END IF
     END IF
 
     ! DFTB code
-    CALL section_vals_val_get(dftb_section,"ORTHOGONAL_BASIS",&
-         l_val=qs_control%dftb_control%orthogonal_basis,error=error)
-    CALL section_vals_val_get(dftb_section,"SELF_CONSISTENT",&
-         l_val=qs_control%dftb_control%self_consistent,error=error)
-    CALL section_vals_val_get(dftb_section,"DISPERSION",&
-         l_val=qs_control%dftb_control%dispersion,error=error)
-    CALL section_vals_val_get(dftb_section,"EPS_DISP",&
-         r_val=qs_control%dftb_control%eps_disp,error=error)
-    CALL section_vals_val_get(dftb_section,"DO_EWALD",&
-         l_val=qs_control%dftb_control%do_ewald,error=error)
-    CALL section_vals_val_get(dftb_parameter,"PARAM_FILE_PATH",&
-         c_val=qs_control%dftb_control%sk_file_path,error=error)
-    CALL section_vals_val_get(dftb_parameter,"PARAM_FILE_NAME",&
-         c_val=qs_control%dftb_control%sk_file_list,error=error)
-    CALL section_vals_val_get(dftb_parameter,"SK_FILE",n_rep_val=n_var,&
-         error=error)
-    ALLOCATE(qs_control%dftb_control%sk_pair_list(3,n_var),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN,"qs_control%dftb_control%sk_pair_list",3*n_var)
-    DO k = 1, n_var
-       CALL section_vals_val_get(dftb_parameter,"SK_FILE",i_rep_val=k,&
-            c_vals=clist,error=error)
-       qs_control%dftb_control%sk_pair_list(1:3,k) = clist(1:3)
-    END DO
-    CALL section_vals_val_get(dftb_parameter,"UFF_FORCE_FIELD",&
-         c_val=qs_control%dftb_control%uff_force_field,error=error)
-
     IF (qs_control%dftb) THEN
-       IF (qs_control%dftb_control%dispersion) CALL cite_reference(Zhechkov2005)
-       IF (qs_control%dftb_control%self_consistent) CALL cite_reference(Elstner1998)
-    ENDIF
-
+       CALL section_vals_val_get(dftb_section,"ORTHOGONAL_BASIS",&
+            l_val=qs_control%dftb_control%orthogonal_basis,error=error)
+       CALL section_vals_val_get(dftb_section,"SELF_CONSISTENT",&
+            l_val=qs_control%dftb_control%self_consistent,error=error)
+       CALL section_vals_val_get(dftb_section,"DISPERSION",&
+            l_val=qs_control%dftb_control%dispersion,error=error)
+       CALL section_vals_val_get(dftb_section,"EPS_DISP",&
+            r_val=qs_control%dftb_control%eps_disp,error=error)
+       CALL section_vals_val_get(dftb_section,"DO_EWALD",&
+            l_val=qs_control%dftb_control%do_ewald,error=error)
+       CALL section_vals_val_get(dftb_parameter,"PARAM_FILE_PATH",&
+            c_val=qs_control%dftb_control%sk_file_path,error=error)
+       CALL section_vals_val_get(dftb_parameter,"PARAM_FILE_NAME",&
+            c_val=qs_control%dftb_control%sk_file_list,error=error)
+       CALL section_vals_val_get(dftb_parameter,"SK_FILE",n_rep_val=n_var,&
+            error=error)
+       ALLOCATE(qs_control%dftb_control%sk_pair_list(3,n_var),STAT=stat)
+       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       DO k = 1, n_var
+          CALL section_vals_val_get(dftb_parameter,"SK_FILE",i_rep_val=k,&
+               c_vals=clist,error=error)
+          qs_control%dftb_control%sk_pair_list(1:3,k) = clist(1:3)
+       END DO
+       CALL section_vals_val_get(dftb_parameter,"UFF_FORCE_FIELD",&
+            c_val=qs_control%dftb_control%uff_force_field,error=error)
+       
+       IF (qs_control%dftb) THEN
+          IF (qs_control%dftb_control%dispersion)      CALL cite_reference(Zhechkov2005)
+          IF (qs_control%dftb_control%self_consistent) CALL cite_reference(Elstner1998)
+       ENDIF
+    END IF
   END SUBROUTINE read_qs_section
 
 ! *****************************************************************************
@@ -701,17 +709,17 @@ CPSourceFileRef,&
        WRITE (UNIT=output_unit,FMT="(T2,A,T76,I5)")&
             "DFT| Number of spin states",dft_control%nspins
 
-       IF ( dft_control % finite_field_control % efield_strength /= 0._dp ) THEN
-          IF (dft_control % finite_field_control % berry_phase) THEN
+       IF (dft_control%apply_finite_field) THEN
+          IF (dft_control%finite_field_control%berry_phase) THEN
              WRITE ( output_unit, '( A, T51, A )' ) " DFT| Finite electrical field ",&
                   "Polarisation type: Berry phase"
           ELSE
              WRITE ( output_unit, '( A )' ) " DFT| Finite electrical field "
           END IF
           WRITE ( output_unit, '( A, T61, F20.5 )' ) " DFT| Field strength [a.u.]",&
-               dft_control % finite_field_control % efield_strength
+               dft_control%finite_field_control%efield_strength
           WRITE ( output_unit, '( A, T51, 3F10.5 )' ) " DFT| Field polarisation",&
-               dft_control % finite_field_control % efield_polarisation
+               dft_control%finite_field_control%efield_polarisation
           CALL stop_program(routineN,moduleN,__LINE__,&
                "Finite field not operational")
        END IF
@@ -848,10 +856,10 @@ CPSourceFileRef,&
        ngrid_level = SIZE(qs_control%e_cutoff)
        WRITE (UNIT=output_unit,FMT="(/,T2,A,T71,A)")&
             "QS| Method:",ADJUSTR(qs_control%method)
-       IF ( qs_control% pw_grid_opt % spherical ) THEN
+       IF ( qs_control% pw_grid_opt%spherical ) THEN
           WRITE (UNIT=output_unit,FMT="(T2,A,T61,A)")&
                "QS| Density plane wave grid type"," SPHERICAL HALFSPACE"
-       ELSE IF ( qs_control% pw_grid_opt % fullspace ) THEN
+       ELSE IF ( qs_control% pw_grid_opt%fullspace ) THEN
           WRITE (UNIT=output_unit,FMT="(T2,A,T57,A)")&
                "QS| Density plane wave grid type"," NON-SPHERICAL FULLSPACE"
        ELSE

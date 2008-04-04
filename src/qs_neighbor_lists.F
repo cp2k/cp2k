@@ -130,8 +130,7 @@ CONTAINS
 !>          - Parallized version (16.06.2003,MK) 
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE build_qs_neighbor_lists(qs_env,para_env,molecular,&
-                                     force_env_section,error)
+  SUBROUTINE build_qs_neighbor_lists(qs_env,para_env,molecular,force_env_section,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, OPTIONAL                        :: molecular
@@ -186,9 +185,6 @@ CONTAINS
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
 
-!R 
-! -------------------------------------------------------------------------
-
     CALL timeset(routineN,"I"," ",handle)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -229,8 +225,7 @@ CONTAINS
     molecule_only = .FALSE.
     IF (PRESENT(molecular)) molecule_only = molecular
 
-    CALL section_vals_val_get(force_env_section,&
-            "DFT%XAS%_SECTION_PARAMETERS_", l_val=cls,error=error)
+    cls = qs_env%dft_control%do_xas_calculation
     CALL section_vals_val_get(qs_env%input,&
             "PROPERTIES%LINRES%NMR%_SECTION_PARAMETERS_",l_val=nmr,error=error)
     CALL section_vals_val_get(qs_env%input,&

@@ -168,44 +168,44 @@ MODULE cp_control_types
 !                     Gaussian-type functions (primitive basis functions).
 ! *****************************************************************************
   TYPE qs_control_type
-    CHARACTER(LEN=10)               :: method
-    INTEGER                         :: method_id
-    REAL(KIND = dp)                 :: eps_core_charge,&
-                                       eps_pgf_orb,&
-                                       eps_ppl,&
-                                       eps_ppnl,&
-                                       eps_rho_gspace,&
-                                       eps_rho_rspace,&
-                                       eps_kg_gpw,&
-                                       eps_gvg_rspace,&
-                                       progression_factor,&
-                                       relative_cutoff
-    LOGICAL                         :: commensurate_mgrids
-    LOGICAL                         :: realspace_mgrids
-    LOGICAL                         :: map_paa
-    LOGICAL                         :: map_consistent
-    LOGICAL                         :: gapw,gapw_xc,gpw,pao
-    LOGICAL                         :: dftb
-    LOGICAL                         :: scp
-    LOGICAL                         :: semi_empirical
-    LOGICAL                         :: polarization
-    LOGICAL                         :: mulliken_restraint
-    LOGICAL                         :: ddapc_restraint
-    LOGICAL                         :: becke_constraint
-    LOGICAL                         :: et_coupling_calc
-    LOGICAL                         :: s2_restraint
+    CHARACTER(LEN=10)                             :: method
+    INTEGER                                       :: method_id
+    REAL(KIND = dp)                               :: eps_core_charge,&
+                                                     eps_pgf_orb,&
+                                                     eps_ppl,&
+                                                     eps_ppnl,&
+                                                     eps_rho_gspace,&
+                                                     eps_rho_rspace,&
+                                                     eps_kg_gpw,&
+                                                     eps_gvg_rspace,&
+                                                     progression_factor,&
+                                                     relative_cutoff
+    LOGICAL                                       :: commensurate_mgrids
+    LOGICAL                                       :: realspace_mgrids
+    LOGICAL                                       :: map_paa
+    LOGICAL                                       :: map_consistent
+    LOGICAL                                       :: gapw,gapw_xc,gpw,pao
+    LOGICAL                                       :: dftb
+    LOGICAL                                       :: scp
+    LOGICAL                                       :: semi_empirical
+    LOGICAL                                       :: polarization
+    LOGICAL                                       :: mulliken_restraint
+    LOGICAL                                       :: ddapc_restraint
+    LOGICAL                                       :: becke_constraint
+    LOGICAL                                       :: et_coupling_calc
+    LOGICAL                                       :: s2_restraint
+    INTEGER                                       :: wf_interpolation_method_nr
+    INTEGER                                       :: wf_extrapolation_order
+    REAL(KIND = dp)                               :: cutoff
+    REAL(KIND = dp), DIMENSION(:), POINTER        :: e_cutoff
     TYPE (mulliken_restraint_type), POINTER       :: mulliken_restraint_control
     TYPE (ddapc_restraint_type), POINTER          :: ddapc_restraint_control
     TYPE (becke_constraint_type), POINTER         :: becke_control
     TYPE (s2_restraint_type), POINTER             :: s2_restraint_control
     TYPE (dftb_control_type),POINTER              :: dftb_control
     TYPE (semi_empirical_control_type),POINTER    :: se_control
-    REAL(KIND = dp)                         :: cutoff
-    REAL(KIND = dp), DIMENSION(:), POINTER  :: e_cutoff
-    TYPE (gapw_control_type), POINTER       :: gapw_control
-    TYPE ( pw_grid_option )         :: pw_grid_opt
-    INTEGER                         :: wf_interpolation_method_nr
-    INTEGER                         :: wf_extrapolation_order
+    TYPE (gapw_control_type), POINTER             :: gapw_control
+    TYPE (pw_grid_option)                         :: pw_grid_opt
   END TYPE qs_control_type
 
 ! *****************************************************************************
@@ -248,25 +248,31 @@ MODULE cp_control_types
 ! \brief Control parameters for a DFT calculation
 ! *****************************************************************************
   TYPE dft_control_type
-     TYPE(qs_control_type)           :: qs_control
-     TYPE(tddfpt_control_type)       :: tddfpt_control
-     TYPE(xas_control_type), POINTER :: xas_control
-     TYPE(scp_control_type),POINTER  :: scp_control
-     TYPE(finite_field_type)         :: finite_field_control
-     INTEGER                         :: nspins,&
-                                        charge,&
-                                        multiplicity,&
-                                        sic_method_id,&
-                                        ref_count,&
-                                        id_nr,&
-                                        xas_estate
-     INTEGER                         :: sic_list_id
-     REAL(KIND=dp)                   :: sic_scaling_a,&
-                                        sic_scaling_b
-     LOGICAL                         :: do_tddfpt_calculation, &
-                                        do_xas_calculation, &
-                                        use_kinetic_energy_density, &
-                                        restricted,roks,uks,lsd,dft_plus_u,scp
+     TYPE(qs_control_type), POINTER    :: qs_control
+     TYPE(tddfpt_control_type),POINTER :: tddfpt_control
+     TYPE(xas_control_type), POINTER   :: xas_control
+     TYPE(scp_control_type),POINTER    :: scp_control
+     TYPE(finite_field_type),POINTER   :: finite_field_control
+     INTEGER                           :: nspins,&
+                                          charge,&
+                                          multiplicity,&
+                                          sic_method_id,&
+                                          ref_count,&
+                                          id_nr,&
+                                          xas_estate
+     INTEGER                           :: sic_list_id
+     REAL(KIND=dp)                     :: sic_scaling_a,&
+                                          sic_scaling_b
+     LOGICAL                           :: do_tddfpt_calculation, &
+                                          do_xas_calculation, &
+                                          use_kinetic_energy_density, &
+                                          restricted,&
+                                          roks,&
+                                          uks,&
+                                          lsd,&
+                                          dft_plus_u,&
+                                          scp,&
+                                          apply_finite_field
   END TYPE dft_control_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_types'
@@ -292,7 +298,11 @@ MODULE cp_control_types
 
   PUBLIC :: dft_control_retain,&
             dft_control_release,&
-            dft_control_create
+            dft_control_create,&
+            scp_control_create,&
+            xas_control_create,&
+            tddfpt_control_create,&
+            finite_field_control_create
 
 CONTAINS
 
@@ -643,10 +653,10 @@ CONTAINS
        dft_control%id_nr=last_dft_control_id
        NULLIFY(dft_control%xas_control)
        NULLIFY(dft_control%scp_control)
-       CALL scp_control_create(dft_control%scp_control, error=error)
-       CALL qs_control_init(dft_control%qs_control, error=error)
-       CALL tddfpt_control_init(dft_control%tddfpt_control, error=error)
-       CALL xas_control_create(dft_control%xas_control,error=error)
+       NULLIFY(dft_control%qs_control)
+       NULLIFY(dft_control%tddfpt_control)
+       NULLIFY(dft_control%finite_field_control)
+       CALL qs_control_create(dft_control%qs_control, error=error)       
     END IF
   END SUBROUTINE dft_control_create
 
@@ -696,6 +706,7 @@ CONTAINS
           CALL tddfpt_control_release(dft_control%tddfpt_control, error=error)
           CALL xas_control_release(dft_control%xas_control, error=error)
           CALL scp_control_release(dft_control%scp_control, error=error)
+          CALL finite_field_control_release(dft_control%finite_field_control, error=error)
           DEALLOCATE(dft_control, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
@@ -714,101 +725,175 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-
     CPPrecondition(.NOT.ASSOCIATED(gapw_control),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        ALLOCATE (gapw_control,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE gapw_control_create
+
 ! *****************************************************************************
-  SUBROUTINE qs_control_init(qs_control, error)
-    TYPE(qs_control_type), INTENT(out)       :: qs_control
+  SUBROUTINE qs_control_create(qs_control, error)
+    TYPE(qs_control_type), POINTER           :: qs_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    NULLIFY(qs_control%e_cutoff)
-    NULLIFY(qs_control%gapw_control)
-    NULLIFY(qs_control%mulliken_restraint_control)
-    NULLIFY(qs_control%ddapc_restraint_control)
-    NULLIFY(qs_control%s2_restraint_control)
-    NULLIFY(qs_control%se_control)
-    NULLIFY(qs_control%dftb_control)
-    NULLIFY(qs_control%becke_control)  
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_control_create', &
+      routineP = moduleN//':'//routineN
 
-    CALL mulliken_control_create(qs_control%mulliken_restraint_control,error=error)
-    CALL ddapc_control_create(qs_control%ddapc_restraint_control,error=error)
-    CALL becke_control_create(qs_control%becke_control,error=error)
-    CALL s2_control_create(qs_control%s2_restraint_control,error=error)
-    CALL gapw_control_create(qs_control%gapw_control, error=error)
-    CALL se_control_create(qs_control%se_control,error=error)
-    CALL dftb_control_create(qs_control%dftb_control,error=error)
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
-  END SUBROUTINE qs_control_init
+    failure = .FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(qs_control),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       ALLOCATE (qs_control,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       NULLIFY(qs_control%e_cutoff)
+       NULLIFY(qs_control%gapw_control)
+       NULLIFY(qs_control%mulliken_restraint_control)
+       NULLIFY(qs_control%ddapc_restraint_control)
+       NULLIFY(qs_control%s2_restraint_control)
+       NULLIFY(qs_control%se_control)
+       NULLIFY(qs_control%dftb_control)
+       NULLIFY(qs_control%becke_control)  
+       
+       CALL mulliken_control_create(qs_control%mulliken_restraint_control,error=error)
+       CALL ddapc_control_create(qs_control%ddapc_restraint_control,error=error)
+       CALL becke_control_create(qs_control%becke_control,error=error)
+       CALL s2_control_create(qs_control%s2_restraint_control,error=error)
+       CALL gapw_control_create(qs_control%gapw_control, error=error)
+       CALL se_control_create(qs_control%se_control,error=error)
+       CALL dftb_control_create(qs_control%dftb_control,error=error)
+    END IF
+  END SUBROUTINE qs_control_create
 
 ! *****************************************************************************
   SUBROUTINE qs_control_release(qs_control, error)
-    TYPE(qs_control_type), INTENT(inout)     :: qs_control
+    TYPE(qs_control_type), POINTER           :: qs_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_control_release', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
-    CALL mulliken_control_release(qs_control%mulliken_restraint_control,error=error)
-    CALL ddapc_control_release(qs_control%ddapc_restraint_control,error=error)
-    CALL s2_control_release(qs_control%s2_restraint_control,error=error)
-    CALL se_control_release(qs_control%se_control,error=error)
-    CALL dftb_control_release(qs_control%dftb_control,error=error)
-    CALL becke_control_release(qs_control%becke_control,error=error)
-
-    IF (ASSOCIATED(qs_control%e_cutoff)) THEN
-       DEALLOCATE(qs_control%e_cutoff,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    failure = .FALSE.
+    IF (ASSOCIATED(qs_control)) THEN
+       CALL mulliken_control_release(qs_control%mulliken_restraint_control,error=error)
+       CALL ddapc_control_release(qs_control%ddapc_restraint_control,error=error)
+       CALL s2_control_release(qs_control%s2_restraint_control,error=error)
+       CALL se_control_release(qs_control%se_control,error=error)
+       CALL dftb_control_release(qs_control%dftb_control,error=error)
+       CALL becke_control_release(qs_control%becke_control,error=error)
+       
+       IF (ASSOCIATED(qs_control%e_cutoff)) THEN
+          DEALLOCATE(qs_control%e_cutoff,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(qs_control%gapw_control))THEN
+          DEALLOCATE(qs_control%gapw_control,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       DEALLOCATE(qs_control,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    IF (ASSOCIATED(qs_control%gapw_control))THEN
-       DEALLOCATE(qs_control%gapw_control,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    END IF
-
   END SUBROUTINE qs_control_release
 
 ! *****************************************************************************
-  SUBROUTINE tddfpt_control_init(tddfpt_control, error)
-    TYPE(tddfpt_control_type), INTENT(out)   :: tddfpt_control
+  SUBROUTINE tddfpt_control_create(tddfpt_control, error)
+    TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    NULLIFY(tddfpt_control%lumos,tddfpt_control%lumos_eigenvalues)
-  END SUBROUTINE tddfpt_control_init
+    CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_control_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(tddfpt_control),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       ALLOCATE (tddfpt_control,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       NULLIFY(tddfpt_control%lumos)
+       NULLIFY(tddfpt_control%lumos_eigenvalues)
+    END IF
+    
+  END SUBROUTINE tddfpt_control_create
 
 ! *****************************************************************************
   SUBROUTINE tddfpt_control_release(tddfpt_control, error)
-    TYPE(tddfpt_control_type), INTENT(inout) :: tddfpt_control
+    TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_control_release', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, stat
-    LOGICAL                                  :: dummy
+    LOGICAL                                  :: dummy, failure
 
-    IF (ASSOCIATED(tddfpt_control%lumos)) THEN
-       DO ispin=1, SIZE(tddfpt_control%lumos)
-          CALL cp_fm_release(tddfpt_control%lumos(ispin)%matrix,error=error)
-          !MK the following line just avoids a crash of TDDFT runs using
-          !MK the sdbg version compiled with the NAG compiler when
-          !MK tddfpt_control%lumos is deallocated. This is most likely a
-          !MK compiler bug and thus the line might become obsolete
-          dummy = ASSOCIATED(tddfpt_control%lumos(ispin)%matrix)
-       END DO
-       DEALLOCATE(tddfpt_control%lumos,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    END IF
-    IF (ASSOCIATED(tddfpt_control%lumos_eigenvalues)) THEN
-       DEALLOCATE(tddfpt_control%lumos_eigenvalues,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    failure = .FALSE.
+    IF (ASSOCIATED(tddfpt_control)) THEN
+       IF (ASSOCIATED(tddfpt_control%lumos)) THEN
+          DO ispin=1, SIZE(tddfpt_control%lumos)
+             CALL cp_fm_release(tddfpt_control%lumos(ispin)%matrix,error=error)
+             !MK the following line just avoids a crash of TDDFT runs using
+             !MK the sdbg version compiled with the NAG compiler when
+             !MK tddfpt_control%lumos is deallocated. This is most likely a
+             !MK compiler bug and thus the line might become obsolete
+             dummy = ASSOCIATED(tddfpt_control%lumos(ispin)%matrix)
+          END DO
+          DEALLOCATE(tddfpt_control%lumos,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(tddfpt_control%lumos_eigenvalues)) THEN
+          DEALLOCATE(tddfpt_control%lumos_eigenvalues,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       DEALLOCATE(tddfpt_control,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE tddfpt_control_release
+
+! *****************************************************************************
+  SUBROUTINE finite_field_control_create(finite_field_control, error)
+    TYPE(finite_field_type), POINTER         :: finite_field_control
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'finite_field_control_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(finite_field_control),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       ALLOCATE (finite_field_control,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    
+  END SUBROUTINE finite_field_control_create
+
+! *****************************************************************************
+  SUBROUTINE finite_field_control_release(finite_field_control, error)
+    TYPE(finite_field_type), POINTER         :: finite_field_control
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'finite_field_control_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (ASSOCIATED(finite_field_control)) THEN
+       DEALLOCATE(finite_field_control,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+  END SUBROUTINE finite_field_control_release
 
 ! *****************************************************************************
   SUBROUTINE scp_control_create(scp_control,error)

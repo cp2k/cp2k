@@ -315,30 +315,24 @@ CONTAINS
                                              calculate_forces=.TRUE.,&
                                              error=error)
       END IF
-
-!**** SCP
       IF ( dft_control%scp ) CALL qs_ks_scp_update ( qs_env, error = error )
-!**** SCP
 
       ! *** compute grid-based forces ***
       CALL qs_ks_update_qs_env(ks_env=ks_env,&
                                qs_env=qs_env,&
                                calculate_forces=.TRUE.,error=error)
 
-!**** SCP
       ! *** compute forces from SCP.  First get the scp_env
       IF ( dft_control%scp ) THEN
          CALL get_qs_env ( qs_env = qs_env, scp_env = scp_env, error = error )
-      END IF 
-
-      IF ( dft_control%scp_control%dispersion ) THEN
-         CALL scp_qs_dispersion ( qs_env, .TRUE., error )
-         CALL get_qs_env ( qs_env = qs_env, energy = energy, error = error )
-         CALL get_scp_env ( scp_env = scp_env, energy = scp_energy_loc, error = error )
-      ! Adding the post-processed dispersion energy to the total energy
-         energy % total = energy %total + scp_energy_loc % e_scp_disp
+         IF ( dft_control%scp_control%dispersion ) THEN
+            CALL scp_qs_dispersion ( qs_env, .TRUE., error )
+            CALL get_qs_env ( qs_env = qs_env, energy = energy, error = error )
+            CALL get_scp_env ( scp_env = scp_env, energy = scp_energy_loc, error = error )
+            ! Adding the post-processed dispersion energy to the total energy
+            energy % total = energy %total + scp_energy_loc % e_scp_disp
+         END IF
       END IF
-!**** SCP
 
       !  *** replicate forces ***
       DO ikind=1,SIZE(force)

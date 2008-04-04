@@ -1816,7 +1816,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"DFTB",&
             description="Parameters needed to set up the DFTB methods",&
-            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             citations=(/Porezag1995, Seifert1996, Elstner1998, Zhechkov2005/),&
             error=error)
 
@@ -1935,7 +1935,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"SE",&
             description="Parameters needed to set up the Semi-empirical methods",&
-            n_keywords=7, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        CALL keyword_create(keyword, name="orthogonal_basis",&
@@ -2891,8 +2891,7 @@ CONTAINS
        CALL section_create(section,"tddfpt",&
             description="parameters needed to set up the Time Dependent Density Functional PT",&
             n_keywords=5, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
-            citations=(/Iannuzzi2005/),&
-            error=error)
+            citations=(/Iannuzzi2005/),error=error)
 
        NULLIFY(subsection,keyword)
 
@@ -4315,7 +4314,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"field",&
             description="parameters for finite fields",&
-            n_keywords=6, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=6, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -4616,7 +4615,7 @@ CONTAINS
             "The occupied states from  which we calculate the "//&
             "excitation should be specified. "//&
             "Localization of the orbitals may be useful.",&
-            n_keywords=10, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=10, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             citations=(/Iannuzzi2007/),&
             error=error)
 

@@ -12,7 +12,8 @@ MODULE nddo_methods
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
-  USE cp_control_types,                ONLY: dft_control_type
+  USE cp_control_types,                ONLY: dft_control_type,&
+                                             semi_empirical_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_p_type,&
@@ -278,30 +279,30 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: diagmat_ks, diagmat_p, &
                                                 matrix_h, matrix_p
+    TYPE(semi_empirical_control_type), &
+      POINTER                                :: se_control
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
 
 !   ----------------------------------------------------------------------------
 
     failure=.FALSE.
     NULLIFY(matrix_h,matrix_p,dft_control,cell,force,particle_set)
-    NULLIFY(diagmat_ks,diagmat_p)
+    NULLIFY(diagmat_ks,diagmat_p, se_control)
 
     CALL timeset(routineN,"I","",handle)
 
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    CALL get_qs_env(qs_env=qs_env,&
-         dft_control=dft_control,&
-         matrix_h=matrix_h,&
-         cell=cell,&
-         para_env=para_env,error=error)
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, matrix_h=matrix_h,&
+         cell=cell,  para_env=para_env, error=error)
 
     ! set values for tapering function
-    do_ewald = dft_control%qs_control%se_control%do_ewald
-    anag = dft_control%qs_control%se_control%analytical_gradients
-    rc = dft_control%qs_control%se_control%rc_coulomb
-    range = dft_control%qs_control%se_control%rc_range
+    se_control => dft_control%qs_control%se_control
+    do_ewald   =  se_control%do_ewald
+    anag       =  se_control%analytical_gradients
+    rc         =  se_control%rc_coulomb
+    range      =  se_control%rc_range
     CALL set_taper_fn (2._dp*rc,range,error)
 
     nspins=dft_control%nspins
@@ -329,7 +330,7 @@ CONTAINS
          natom = SIZE (particle_set)
          ALLOCATE (atom_of_kind(natom),STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         delta = dft_control%qs_control%se_control%delta
+         delta = se_control%delta
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                   atom_of_kind=atom_of_kind)
        END IF
@@ -723,12 +724,14 @@ CONTAINS
       POINTER                                :: force
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p
+    TYPE(semi_empirical_control_type), &
+      POINTER                                :: se_control
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
 
 !   ----------------------------------------------------------------------------
 
     failure=.FALSE.
-    NULLIFY(matrix_h,matrix_p,dft_control,cell,force,particle_set)
+    NULLIFY(matrix_h,matrix_p,dft_control,cell,force,particle_set,se_control)
 
     CALL timeset(routineN,"I","",handle)
 
@@ -742,9 +745,10 @@ CONTAINS
          para_env=para_env,error=error)
 
     ! set values for tapering function
-    anag = dft_control%qs_control%se_control%analytical_gradients
-    rc = dft_control%qs_control%se_control%rc_interaction
-    range = dft_control%qs_control%se_control%rc_range
+    se_control => dft_control%qs_control%se_control
+    anag       =  se_control%analytical_gradients
+    rc         =  se_control%rc_interaction
+    range      =  se_control%rc_range
     CALL set_taper_fn (2._dp*rc,range,error)
 
     nspins=dft_control%nspins
@@ -769,7 +773,7 @@ CONTAINS
          natom = SIZE (particle_set)
          ALLOCATE (atom_of_kind(natom),STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         delta = dft_control%qs_control%se_control%delta
+         delta = se_control%delta
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                   atom_of_kind=atom_of_kind)
        END IF

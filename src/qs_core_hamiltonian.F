@@ -189,9 +189,9 @@ CONTAINS
 
     CHARACTER(LEN=12)                        :: cgfsym
     CHARACTER(LEN=80)                        :: name
-    INTEGER :: added_mos, atom_a, atom_b, atom_c, first_col, handle, i, iab, &
-      iac, iat, iatom, ibc, icell, ico, icol, idx, ikind, ilist, inode, irow, &
-      iset, ithread, j, jatom, jcell, jco, jkind, jset, katom, kcell, kkind, &
+    INTEGER :: atom_a, atom_b, atom_c, first_col, handle, i, iab, iac, iat, &
+      iatom, ibc, icell, ico, icol, idx, ikind, ilist, inode, irow, iset, &
+      ithread, j, jatom, jcell, jco, jkind, jset, katom, kcell, kkind, &
       kneighbor, knode, l, last_jatom, lc_max, lc_min, ldai, ldsab, lppnl, &
       lr_precond, maxblock, maxco, maxdco, maxder, maxl, maxlgto, maxlppl, &
       maxlppnl, maxppnl, maxsgf, n, nat, natom, ncoa, ncoa_sum, ncob, ncoc, &
@@ -268,7 +268,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: reduced_3c_oce, &
                                                 reduced_3c_rho0
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: input, lr_section, xas_section
+    TYPE(section_vals_type), POINTER         :: input, lr_section
     TYPE(vall_type), DIMENSION(:), POINTER   :: vall
     TYPE(vall_type), DIMENSION(:, :), &
       POINTER                                :: vallt
@@ -491,10 +491,7 @@ CONTAINS
    END IF
    
    ! The transition potential method may need the kinetic matrix
-   xas_section =>  section_vals_get_subs_vals(input,"DFT%XAS",error=error)
-   
-   CALL section_vals_val_get(xas_section,"ADDED_MOS",i_val=added_mos,error=error)
-   xas_calculation = (added_mos>0)
+   xas_calculation = qs_env%dft_control%do_xas_calculation
    
    ! The g tensor needs the kinetic matrix 
    CALL section_vals_val_get(qs_env%input,& 
