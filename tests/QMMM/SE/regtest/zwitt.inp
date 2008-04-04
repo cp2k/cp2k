@@ -4,6 +4,8 @@
   &DFT
     &QS
       METHOD AM1
+      &SE
+      &END SE
       EXTRAPOLATION USE_PREV_WF
     &END QS
     &SCF

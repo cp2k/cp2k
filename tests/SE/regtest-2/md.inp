@@ -3,6 +3,8 @@
   &DFT
     &QS
       METHOD PM3
+      &SE
+      &END SE
     &END QS
     &SCF
       EPS_SCF 1.0E-5

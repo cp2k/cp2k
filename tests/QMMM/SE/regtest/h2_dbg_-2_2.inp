@@ -5,6 +5,8 @@
     CHARGE -2
     &QS
       METHOD AM1
+      &SE
+      &END SE
     &END QS
     &SCF
       SCF_GUESS ATOMIC
