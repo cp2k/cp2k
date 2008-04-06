@@ -10,6 +10,8 @@
 !> \author Joost VandeVondele (25.08.2002)
 ! *****************************************************************************
 MODULE qs_ot_scf
+  USE bibliography,                    ONLY: Weber2008,&
+                                             cite_reference
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_p_type,&
@@ -97,6 +99,7 @@ CONTAINS
     CASE (ot_algo_taylor_or_diag)
        qs_ot_env(1)%settings%ot_algorithm="TOD"
     CASE (ot_algo_irac)
+       CALL cite_reference(Weber2008)
        qs_ot_env(1)%settings%ot_algorithm="REF"
     CASE DEFAULT
        CALL stop_program("READ OT ALGORITHM","VALUE UNKNOWN")

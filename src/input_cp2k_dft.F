@@ -16,7 +16,7 @@ MODULE input_cp2k_dft
        Krack2000, Krack2002, Lee1988, Lippert1997, Lippert1999, Ortiz1994, &
        Perdew1981, Perdew1996, Porezag1995, Repasky2002, Rocha2006, &
        Seifert1996, Stewart1989, Stewart2007, Thiel1992, VandeVondele2003, &
-       VandeVondele2005a, VandeVondele2005b, Vosko1980, Zhang1998, &
+       VandeVondele2005a, VandeVondele2005b, Vosko1980, Weber2008, Zhang1998, &
        Zhechkov2005
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE cp_units,                        ONLY: cp_unit_to_cp2k
@@ -4372,7 +4372,7 @@ CONTAINS
             "combined with a small value (0.001) of ENERGY_GAP."//&
             "Well-behaved systems might benefit from using a DIIS minimizer.",&
             n_keywords=21, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            citations=(/VandeVondele2003/), error=error)
+            citations=(/VandeVondele2003,Weber2008/), error=error)
 
        NULLIFY(keyword)
 
@@ -4393,7 +4393,8 @@ CONTAINS
             enum_desc=s2a("Strict orthogonality: Taylor or diagonalization based algorithm.",&
                           "Orbital Transformation based Iterative Refinement "//&
                           "of the Approximative Congruence transformation (OT/IRAC)."),&
-            enum_i_vals=(/ot_algo_taylor_or_diag,ot_algo_irac/),&
+            enum_i_vals=(/ot_algo_taylor_or_diag,ot_algo_irac/),& 
+            citations=(/VandeVondele2003,VandeVondele2005a,Weber2008/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

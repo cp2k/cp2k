@@ -49,7 +49,7 @@ MODULE bibliography
              Heyd2006,Vydrov2006,Heyd2003,Heyd2004,Vosko1980, Aguado2003,&
              Essmann1995,Ewald1921,Darden1993, Tersoff1988, Tosi1964a, Tosi1964b,&
              Yamada2000,Dudarev1997,Dudarev1998,Dewar1977,Dewar1985,Rocha2006,&
-             Stewart1989,Thiel1992,Repasky2002,Stewart2007
+             Stewart1989,Thiel1992,Repasky2002,Stewart2007,Weber2008
 
 CONTAINS
 
@@ -65,6 +65,27 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE add_all_references()
 
+    CALL add_reference(key=Weber2008, ISI_record=s2a(&
+         "AU Weber, V",&
+         "   VandeVondele, J",&
+         "   Hutter, J",&
+         "   Niklasson, AMN",&
+         "AF Weber, Valery",&
+         "   VandeVondele, Joost",&
+         "   Hutter, Juerg",&
+         "   Niklasson, Anders M. N.",&
+         "TI Direct energy functional minimization under orthogonality constraints",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "SN 0021-9606",&
+         "PD FEB 28",&
+         "PY 2008",&
+         "VL 128",&
+         "IS 8",&
+         "AR 084113",&
+         "DI ARTN 084113",&
+         "UT ISI:000254047200013",&
+         "ER"),&
+          DOI="10.1063/1.2841077")
 
     CALL add_reference(key=Stewart2007, ISI_record=s2a(&
          "AU Stewart, JJP",&
