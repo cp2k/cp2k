@@ -714,7 +714,7 @@ CONTAINS
                                rho%rho_r(ispin)%pw ) &
                                )
           END DO
-          temp_soo_soft = -1.0_dp * epr_env%g_soo_factor * temp_soo_soft
+          temp_soo_soft = 1.0_dp * epr_env%g_soo_factor * temp_soo_soft
           IF (output_unit>0) THEN
              WRITE (UNIT=output_unit,FMT="(T2,A,T18,i1,i1,T56,E24.16)")&
              "epr|SOO:soft",iB,idir1,temp_soo_soft
@@ -725,7 +725,7 @@ CONTAINS
 
     DO iB=1,3
        DO idir1=1,3
-          temp_soo_soft = -1.0_dp * epr_env%g_soo_chicorr_factor * bind0(idir1,iB) * &
+          temp_soo_soft = 1.0_dp * epr_env%g_soo_chicorr_factor * bind0(idir1,iB) * &
                           (REAL(dft_control%multiplicity,KIND=dp)-1.0_dp)
           IF (output_unit>0) THEN
              WRITE (UNIT=output_unit,FMT="(T2,A,T18,i1,i1,T56,E24.16)")&
@@ -835,7 +835,7 @@ CONTAINS
        END DO !ikind
 
        CALL mp_sum(temp_soo_gapw,para_env%group)
-       temp_soo_gapw(:,:) = -1.0_dp * epr_env%g_soo_factor * temp_soo_gapw(:,:)
+       temp_soo_gapw(:,:) = 1.0_dp * epr_env%g_soo_factor * temp_soo_gapw(:,:)
 
        IF (output_unit>0) THEN
           DO iB = 1,3

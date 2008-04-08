@@ -717,13 +717,12 @@ CONTAINS
     ! Magical constant twopi/cell%deth just like in NMR shift (basically undo scale_fac in qs_linres_nmr_current.F)
     epr_env%g_free_factor = -1.0_dp * e_gfactor
     epr_env%g_zke_factor = e_gfactor * ( a_fine )**2
-    epr_env%g_so_factor = ( a_fine )**2 * ( -1.0_dp * e_gfactor - 1.0_dp ) * twopi / cell%deth
-    epr_env%g_so_factor_gapw =  ( a_fine )**2 * ( -1.0_dp * e_gfactor - 1.0_dp )
+    epr_env%g_so_factor = ( a_fine )**2 * ( -1.0_dp * e_gfactor - 1.0_dp ) / 2.0_dp * twopi / cell%deth
+    epr_env%g_so_factor_gapw =  ( a_fine )**2 * ( -1.0_dp * e_gfactor - 1.0_dp ) / 2.0_dp
     ! * 2 because B_ind = 2 * B_beta
-    epr_env%g_soo_factor = 4.0_dp * fourpi * ( a_fine )**2 * twopi / cell%deth
+    epr_env%g_soo_factor = 2.0_dp * fourpi * ( a_fine )**2 * twopi / cell%deth
     ! 2 * 2 * 1/4 * e^2 / m * a_0^2 * 2/3 * mu_0 / (omega * 1e-30 )
-    epr_env%g_soo_chicorr_factor = 2.0_dp / 3.0_dp * e_charge**2 / e_mass * a_bohr**2 * &
-                                   mu_perm / (cell%deth /cell%unit_of_length**3*1.0E-30_dp)
+    epr_env%g_soo_chicorr_factor = 2.0 / 3.0_dp * fourpi * ( a_fine )**2 / cell%deth
 
     IF(output_unit>0) THEN
        WRITE(output_unit,"(T2,A,T60,A)") "  EPR|","Gauge used "//TRIM(epr_env%gauge_name)

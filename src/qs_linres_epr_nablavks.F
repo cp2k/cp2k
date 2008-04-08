@@ -337,26 +337,26 @@ CONTAINS
              ALLOCATE(vh1_rad_s(grid_atom%nr,harmonics%max_iso_not0),STAT=istat)
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
              
-             DO iat = 1, natom ! natom = # atoms for ikind
-
-                iatom = atom_list(iat)
-                ratom = particle_set(iatom)%r
-                
-                DO ig = v_hartree_gspace%pw%pw_grid%first_gne0,v_hartree_gspace%pw%pw_grid%ngpts_cut_local
-
-                   gtemp = fourpi * charge / cell%deth * &
-                           EXP ( - v_hartree_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha_core) ) &
-                           / v_hartree_gspace%pw%pw_grid%gsq(ig)
-                
-                   arg = DOT_PRODUCT(v_hartree_gspace%pw%pw_grid%g(:,ig),ratom)
-                
-                   gtemp = gtemp * CMPLX(COS(arg),-SIN(arg),KIND=dp)
-                
-                   v_hartree_gspace%pw%cc(ig) = v_hartree_gspace%pw%cc(ig) + gtemp 
-                END DO
-                IF ( v_hartree_gspace%pw%pw_grid%have_g0 ) v_hartree_gspace%pw%cc(1) = 0.0_dp
-
-             END DO
+             ! DO iat = 1, natom ! natom = # atoms for ikind
+             !
+             !    iatom = atom_list(iat)
+             !    ratom = particle_set(iatom)%r
+             !
+             !    DO ig = v_hartree_gspace%pw%pw_grid%first_gne0,v_hartree_gspace%pw%pw_grid%ngpts_cut_local
+             !
+             !       gtemp = fourpi * charge / cell%deth * &
+             !               EXP ( - v_hartree_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha_core) ) &
+             !               / v_hartree_gspace%pw%pw_grid%gsq(ig)
+             !
+             !       arg = DOT_PRODUCT(v_hartree_gspace%pw%pw_grid%g(:,ig),ratom)
+             !
+             !       gtemp = gtemp * CMPLX(COS(arg),-SIN(arg),KIND=dp)
+             !
+             !       v_hartree_gspace%pw%cc(ig) = v_hartree_gspace%pw%cc(ig) + gtemp 
+             !    END DO
+             !    IF ( v_hartree_gspace%pw%pw_grid%have_g0 ) v_hartree_gspace%pw%cc(1) = 0.0_dp
+             !
+             ! END DO
 
              bo_atom = get_limit(natom, para_env%num_pe, para_env%mepos)
 
@@ -550,9 +550,9 @@ CONTAINS
 
                 DO ig = v_coulomb_gspace%pw%pw_grid%first_gne0,v_coulomb_gspace%pw%pw_grid%ngpts_cut_local
                    gtemp = 0.0_dp
-                   gtemp = - fourpi * charge / cell%deth * &
-                           EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) &
-                           / v_coulomb_gspace%pw%pw_grid%gsq(ig)
+                   ! gtemp = - fourpi * charge / cell%deth * &
+                   !         EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) &
+                   !         / v_coulomb_gspace%pw%pw_grid%gsq(ig)
 
                    IF (.NOT. make_soft) THEN
 
@@ -768,6 +768,8 @@ CONTAINS
 
                 DO ir = 1,grid_atom%nr
 
+                   IF (grid_atom%rad(ir) >= atomic_kind%hard_radius) CYCLE
+
                    exp_rap = EXP( - alpha * grid_atom%rad(ir)**2 )
 
                    DO ia = 1,grid_atom%ng_sphere
@@ -829,77 +831,77 @@ CONTAINS
           !   -------------------------------------
           !   PW grid part
           !   -------------------------------------
-
-          ALLOCATE(v_coulomb_gspace,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                  "v_coulomb_gspace",0)
-          ALLOCATE(v_coulomb_gtemp,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                  "v_coulomb_gtemp",0)
-          ALLOCATE(v_coulomb_rtemp,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                  "v_coulomb_rtemp",0)
-             
-          CALL pw_pool_create_pw(auxbas_pw_pool,v_coulomb_gspace%pw, &
-                                 use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                                 error=error)
-          CALL pw_pool_create_pw(auxbas_pw_pool,v_coulomb_gtemp%pw, &
-                                 use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-                                 error=error)
-          CALL pw_pool_create_pw(auxbas_pw_pool,v_coulomb_rtemp%pw,&
-                                 use_data=REALDATA3D,in_space=REALSPACE,&
-                                 error=error)
-             
-          CALL pw_zero(v_coulomb_gspace%pw)
-
-          DO iat = 1, natom ! natom = # atoms for ikind
-
-             iatom = atom_list(iat)
-             ratom = particle_set(iatom)%r
-             
-             DO ig = v_coulomb_gspace%pw%pw_grid%first_gne0,v_coulomb_gspace%pw%pw_grid%ngpts_cut_local
-                gtemp = 0.0_dp
-                gtemp = - fourpi * charge / cell%deth * &
-                        EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) &
-                        / v_coulomb_gspace%pw%pw_grid%gsq(ig)
-             
-                arg = DOT_PRODUCT(v_coulomb_gspace%pw%pw_grid%g(:,ig),ratom)
-             
-                gtemp = gtemp * CMPLX(COS(arg),-SIN(arg),KIND=dp)
-                v_coulomb_gspace%pw%cc(ig) = v_coulomb_gspace%pw%cc(ig) + gtemp 
-             END DO
-             IF ( v_coulomb_gspace%pw%pw_grid%have_g0 ) v_coulomb_gspace%pw%cc(1) = 0.0_dp
-
-          END DO
-
-          CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
-          CALL pw_derive(v_coulomb_gtemp%pw, (/1,0,0/) )
-          CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
-          CALL pw_axpy(v_coulomb_rtemp%pw, pwx)
-
-          CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
-          CALL pw_derive(v_coulomb_gtemp%pw, (/0,1,0/) )
-          CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
-          CALL pw_axpy(v_coulomb_rtemp%pw, pwy)
-
-          CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
-          CALL pw_derive(v_coulomb_gtemp%pw, (/0,0,1/) )
-          CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
-          CALL pw_axpy(v_coulomb_rtemp%pw, pwz)
-
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_gspace%pw,error=error)
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_gtemp%pw,error=error)
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_rtemp%pw,error=error)
-
-          DEALLOCATE(v_coulomb_gspace,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                  "v_coulomb_gspace",0)
-          DEALLOCATE(v_coulomb_gtemp,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                  "v_coulomb_gtemp",0)
-          DEALLOCATE(v_coulomb_rtemp,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                  "v_coulomb_rtemp",0)
+          !
+          ! ALLOCATE(v_coulomb_gspace,STAT=istat)
+          ! IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+          !                                         "v_coulomb_gspace",0)
+          ! ALLOCATE(v_coulomb_gtemp,STAT=istat)
+          ! IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+          !                                         "v_coulomb_gtemp",0)
+          ! ALLOCATE(v_coulomb_rtemp,STAT=istat)
+          ! IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+          !                                         "v_coulomb_rtemp",0)
+          !    
+          ! CALL pw_pool_create_pw(auxbas_pw_pool,v_coulomb_gspace%pw, &
+          !                        use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+          !                        error=error)
+          ! CALL pw_pool_create_pw(auxbas_pw_pool,v_coulomb_gtemp%pw, &
+          !                        use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+          !                        error=error)
+          ! CALL pw_pool_create_pw(auxbas_pw_pool,v_coulomb_rtemp%pw,&
+          !                        use_data=REALDATA3D,in_space=REALSPACE,&
+          !                        error=error)
+          !
+          ! CALL pw_zero(v_coulomb_gspace%pw)
+          !
+          ! DO iat = 1, natom ! natom = # atoms for ikind
+          !
+          !    iatom = atom_list(iat)
+          !    ratom = particle_set(iatom)%r
+          !
+          !    DO ig = v_coulomb_gspace%pw%pw_grid%first_gne0,v_coulomb_gspace%pw%pw_grid%ngpts_cut_local
+          !       gtemp = 0.0_dp
+          !       gtemp = - fourpi * charge / cell%deth * &
+          !               EXP ( - v_coulomb_gspace%pw%pw_grid%gsq(ig) / (4.0_dp * alpha) ) &
+          !               / v_coulomb_gspace%pw%pw_grid%gsq(ig)
+          !
+          !       arg = DOT_PRODUCT(v_coulomb_gspace%pw%pw_grid%g(:,ig),ratom)
+          !
+          !       gtemp = gtemp * CMPLX(COS(arg),-SIN(arg),KIND=dp)
+          !       v_coulomb_gspace%pw%cc(ig) = v_coulomb_gspace%pw%cc(ig) + gtemp 
+          !    END DO
+          !    IF ( v_coulomb_gspace%pw%pw_grid%have_g0 ) v_coulomb_gspace%pw%cc(1) = 0.0_dp
+          !
+          ! END DO
+          !
+          ! CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
+          ! CALL pw_derive(v_coulomb_gtemp%pw, (/1,0,0/) )
+          ! CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
+          ! CALL pw_axpy(v_coulomb_rtemp%pw, pwx)
+          !
+          ! CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
+          ! CALL pw_derive(v_coulomb_gtemp%pw, (/0,1,0/) )
+          ! CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
+          ! CALL pw_axpy(v_coulomb_rtemp%pw, pwy)
+          !
+          ! CALL pw_copy(v_coulomb_gspace%pw, v_coulomb_gtemp%pw)
+          ! CALL pw_derive(v_coulomb_gtemp%pw, (/0,0,1/) )
+          ! CALL pw_transfer(v_coulomb_gtemp%pw, v_coulomb_rtemp%pw)
+          ! CALL pw_axpy(v_coulomb_rtemp%pw, pwz)
+          !
+          ! CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_gspace%pw,error=error)
+          ! CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_gtemp%pw,error=error)
+          ! CALL pw_pool_give_back_pw(auxbas_pw_pool,v_coulomb_rtemp%pw,error=error)
+          !
+          ! DEALLOCATE(v_coulomb_gspace,STAT=istat)
+          ! IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+          !                                         "v_coulomb_gspace",0)
+          ! DEALLOCATE(v_coulomb_gtemp,STAT=istat)
+          ! IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+          !                                         "v_coulomb_gtemp",0)
+          ! DEALLOCATE(v_coulomb_rtemp,STAT=istat)
+          ! IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+          !                                         "v_coulomb_rtemp",0)
 
           !   -------------------------------------
           !   Atomic grids part
@@ -915,6 +917,8 @@ CONTAINS
 
              DO ir = 1,grid_atom%nr
              
+                IF (grid_atom%rad(ir) >= atomic_kind%hard_radius) CYCLE
+
                 DO ia = 1,grid_atom%ng_sphere
 
                    DO idir = 1,3
