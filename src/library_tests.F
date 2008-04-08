@@ -150,7 +150,7 @@ CONTAINS
     !
     ! runtest 7 has been deleted and can be recycled
     !
-    IF ( runtest ( 8 ) /= 0 ) CALL mpi_test ( para_env%group )
+    IF ( runtest ( 8 ) /= 0 ) CALL mpi_perf_test ( para_env%group )
     !
     IF ( runtest ( 9 ) /= 0 ) CALL rng_test( para_env, iw, error)
     !
@@ -1074,11 +1074,11 @@ CONTAINS
 !>      JGH  6-Feb-2001 : Test and performance code
 !> \author JGH  1-JAN-2001
 ! *****************************************************************************
-  SUBROUTINE mpi_test(comm)
+  SUBROUTINE mpi_perf_test(comm)
 
     INTEGER                                  :: comm
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'mpi_test', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mpi_perf_test', &
       routineP = moduleN//':'//routineN
 
 #if defined(__parallel)
@@ -1438,7 +1438,7 @@ CONTAINS
 #else
     WRITE(6,*) "No MPI tests for a serial program"
 #endif
-  END SUBROUTINE mpi_test
+  END SUBROUTINE mpi_perf_test
 
 ! *****************************************************************************
 !> \brief just a trivial copy routine
