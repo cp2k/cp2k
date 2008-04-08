@@ -790,7 +790,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
 
       ! FFT along y and z
 #if defined(__FFTSGL)
-      CALL copy_zc(nx*ny*nz,cin,tbuf)
+      CALL copy_cz(nx*ny*nz,cin,tbuf)
       CALL fft_1dm ( fft_type, sign, .TRUE., nz, nx*ny, tbuf, sbuf, 1._lp )
       CALL fft_1dm ( fft_type, sign, .TRUE., ny, nx*nz, sbuf, tbuf, 1._lp )
 #else
