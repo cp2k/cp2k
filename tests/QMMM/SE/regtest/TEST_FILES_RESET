@@ -79,3 +79,5 @@ water_3_NOwalls.inp
 water_3_walls.inp
 water_3_walls_q.inp
 zwitt.inp
+#numerics
+water_3_full.inp
