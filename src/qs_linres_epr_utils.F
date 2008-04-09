@@ -59,12 +59,8 @@ MODULE qs_linres_epr_utils
                                              twopi
   USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: particle_type
-  USE physcon,                         ONLY: a_bohr,&
-                                             a_fine,&
-                                             e_charge,&
-                                             e_gfactor,&
-                                             e_mass,&
-                                             mu_perm
+  USE physcon,                         ONLY: a_fine,&
+                                             e_gfactor
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_methods,                      ONLY: pw_zero
