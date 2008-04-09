@@ -153,8 +153,8 @@ CONTAINS
           END IF
        END IF
        
-       CALL dnucint_ana(sepi,sepj,rij,ssss,core,dssss,dcore,itype,shortrange,taper=taper,&
-            error=error)
+       CALL dnucint_ana(sepi,sepj,rij,core=core,dcore=dcore,itype=itype,shortrange=shortrange,&
+            taper=taper,error=error)
       
        ! Copy parameters over to arrays for do loop.
        last_orbital(1)  = sepi%natorb
@@ -277,6 +277,9 @@ CONTAINS
        ! Specifically for nuclear interaction
        ! ------------------------------------ 
        IF (l_enuc.OR.l_denuc) THEN
+          CALL dnucint_ana(sepi,sepj,rij,ssss=ssss,dssss=dssss,itype=itype,shortrange=shortrange,&
+               taper=taper,error=error)
+
           ! Zeroing local method dependent core-core corrections
           qcorr = 0.0_dp
           scale = 0.0_dp
@@ -597,10 +600,12 @@ CONTAINS
        taper, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
-    REAL(dp), INTENT(OUT)                    :: ssss
-    REAL(dp), DIMENSION(10, 2), INTENT(OUT)  :: core
-    REAL(dp), INTENT(OUT)                    :: dssss
-    REAL(dp), DIMENSION(10, 2), INTENT(OUT)  :: dcore
+    REAL(dp), INTENT(OUT), OPTIONAL          :: ssss
+    REAL(dp), DIMENSION(10, 2), &
+      INTENT(OUT), OPTIONAL                  :: core
+    REAL(dp), INTENT(OUT), OPTIONAL          :: dssss
+    REAL(dp), DIMENSION(10, 2), &
+      INTENT(OUT), OPTIONAL                  :: dcore
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: shortrange
     TYPE(taper_type), POINTER                :: taper
@@ -609,11 +614,21 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dnucint_ana', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, l_core, l_ssss
 
     failure = .FALSE.
-    core  = 0.0_dp
-    dcore = 0.0_dp
+    CPPrecondition(PRESENT(core).EQV.PRESENT(dcore),cp_failure_level,routineP,error,failure)
+    CPPrecondition(PRESENT(ssss).EQV.PRESENT(dssss),cp_failure_level,routineP,error,failure)
+    l_core  = PRESENT(core)
+    l_ssss  = PRESENT(ssss)
+    IF (l_core) THEN
+       core  = 0.0_dp
+       dcore = 0.0_dp
+    END IF
+    IF (l_ssss) THEN
+       ssss  = 0.0_dp
+       dssss = 0.0_dp
+    END IF
 
     CALL dnucint_ana_spcore(sepi, sepj, rij, ssss, core, dssss, dcore, itype,&
          shortrange,taper=taper,error=error)
@@ -659,12 +674,12 @@ CONTAINS
        shortrange, do_longrange, taper, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
-    REAL(dp), INTENT(INOUT)                  :: ssss
+    REAL(dp), INTENT(INOUT), OPTIONAL        :: ssss
     REAL(dp), DIMENSION(10, 2), &
-      INTENT(INOUT)                          :: core
-    REAL(dp), INTENT(INOUT)                  :: dssss
+      INTENT(INOUT), OPTIONAL                :: core
+    REAL(dp), INTENT(INOUT), OPTIONAL        :: dssss
     REAL(dp), DIMENSION(10, 2), &
-      INTENT(INOUT)                          :: dcore
+      INTENT(INOUT), OPTIONAL                :: dcore
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: shortrange
     LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
@@ -674,15 +689,23 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dnucint_ana_spcore', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: longrange, si, sj
+    LOGICAL                                  :: failure, l_core, l_ssss, &
+                                                longrange, si, sj
     REAL(dp) :: ade, adi, adj, aed, aee, aeq, ami, amj, aqe, aqi, aqj, da, &
       db, ddi, ddj, dft, dssss_lr, ft, qa, qb, qqi, qqj, r, rsq, ssss_lr, &
       xxx, zi, zj
     REAL(dp), DIMENSION(7)                   :: arg, darg, dri, dsqr, ri, sqr
     REAL(KIND=dp), DIMENSION(10, 2)          :: core_lr, dcore_lr
 
+    failure   = .FALSE.
     longrange = .FALSE.
+    CPPrecondition(PRESENT(core).EQV.PRESENT(dcore),cp_failure_level,routineP,error,failure)
+    CPPrecondition(PRESENT(ssss).EQV.PRESENT(dssss),cp_failure_level,routineP,error,failure)
     IF (PRESENT(do_longrange))  longrange = do_longrange
+    l_core  = PRESENT(core)
+    l_ssss  = PRESENT(ssss)
+
+    IF (.NOT.(l_core.OR.l_ssss)) RETURN
     ri  = 0.0_dp
     dri = 0.0_dp
     r   = rij
@@ -710,136 +733,146 @@ CONTAINS
     darg(1) = 2.0_dp *r
     dsqr(1) = -(0.5_dp/arg(1))*darg(1)*sqr(1)
     ri(1)      = sqr(1)
-    core(1,1)  = zj*ri(1)
-    core(1,2)  = zi*ri(1)
     dri(1)     = dsqr(1)
-    dcore(1,1) = zj*dri(1)
-    dcore(1,2) = zi*dri(1)
+    ! Store the value for (SS|SS)
+    IF (l_ssss) THEN
+       ssss   =  ri(1)
+       dssss  = dri(1)
+    END IF
 
-    IF (si .OR.sj) THEN
-       ! In case (i) is an heavy atom
-       IF (si) THEN
-          da  = ddi
-          qa  = qqi
-          ade = 0.0_dp
-          aqe = 0.0_dp
-          IF (itype /=do_method_pchg) THEN
-             adi = sepi%ko(2)
-             aqi = sepi%ko(3)
-             ade = adi + amj
-             aqe = aqi + amj
-             ade = ade * ade
-             aqe = aqe * aqe
-          END IF
-          IF (longrange) THEN
+    IF (l_core) THEN
+       core(1,1)  = zj*ri(1)
+       core(1,2)  = zi*ri(1)
+       dcore(1,1) = zj*dri(1)
+       dcore(1,2) = zi*dri(1)
+       IF (si .OR.sj) THEN
+          ! In case (i) is an heavy atom
+          IF (si) THEN
+             da  = ddi
+             qa  = qqi
              ade = 0.0_dp
              aqe = 0.0_dp
+             IF (itype /=do_method_pchg) THEN
+                adi = sepi%ko(2)
+                aqi = sepi%ko(3)
+                ade = adi + amj
+                aqe = aqi + amj
+                ade = ade * ade
+                aqe = aqe * aqe
+             END IF
+             IF (longrange) THEN
+                ade = 0.0_dp
+                aqe = 0.0_dp
+             END IF
+             xxx = r+da
+             arg(2) = xxx*xxx + ade
+             darg(2)= 2.0_dp *xxx
+             xxx = r-da
+             arg(3) = xxx*xxx + ade
+             darg(3)= 2.0_dp *xxx
+             xxx = r+qa
+             arg(4) = xxx*xxx + aqe
+             darg(4)= 2.0_dp *xxx
+             xxx = r-qa
+             arg(5) = xxx*xxx + aqe
+             darg(5)= 2.0_dp *xxx
+             arg(6) = rsq + aqe
+             darg(6)= 2.0_dp *r
+             arg(7) = arg(6) + qa*qa
+             darg(7)= darg(6)
+             sqr(2:7) = pxy(2:7)/SQRT(arg(2:7))
+             dsqr     = -(0.5_dp/arg)*darg*sqr
+             ri(2)      = sqr(2) + sqr(3)
+             ri(3)      = sqr(1) + sqr(4) + sqr(5) + sqr(6)
+             ri(4)      = sqr(1) + sqr(6) + sqr(7)
+             core(2,1)  = zj*ri(2)
+             core(3,1)  = zj*ri(3)
+             core(4,1)  = zj*ri(4)
+             dri(2)     = dsqr(2) + dsqr(3)
+             dri(3)     = dsqr(1) + dsqr(4) + dsqr(5) + dsqr(6)
+             dri(4)     = dsqr(1) + dsqr(6) + dsqr(7)
+             dcore(2,1) = zj*dri(2)
+             dcore(3,1) = zj*dri(3)
+             dcore(4,1) = zj*dri(4)
           END IF
-          xxx = r+da
-          arg(2) = xxx*xxx + ade
-          darg(2)= 2.0_dp *xxx
-          xxx = r-da
-          arg(3) = xxx*xxx + ade
-          darg(3)= 2.0_dp *xxx
-          xxx = r+qa
-          arg(4) = xxx*xxx + aqe
-          darg(4)= 2.0_dp *xxx
-          xxx = r-qa
-          arg(5) = xxx*xxx + aqe
-          darg(5)= 2.0_dp *xxx
-          arg(6) = rsq + aqe
-          darg(6)= 2.0_dp *r
-          arg(7) = arg(6) + qa*qa
-          darg(7)= darg(6)
-          sqr(2:7) = pxy(2:7)/SQRT(arg(2:7))
-          dsqr     = -(0.5_dp/arg)*darg*sqr
-          ri(2)      = sqr(2) + sqr(3)
-          ri(3)      = sqr(1) + sqr(4) + sqr(5) + sqr(6)
-          ri(4)      = sqr(1) + sqr(6) + sqr(7)
-          core(2,1)  = zj*ri(2)
-          core(3,1)  = zj*ri(3)
-          core(4,1)  = zj*ri(4)
-          dri(2)     = dsqr(2) + dsqr(3)
-          dri(3)     = dsqr(1) + dsqr(4) + dsqr(5) + dsqr(6)
-          dri(4)     = dsqr(1) + dsqr(6) + dsqr(7)
-          dcore(2,1) = zj*dri(2)
-          dcore(3,1) = zj*dri(3)
-          dcore(4,1) = zj*dri(4)
-       END IF
-
-       ! In case (j) is an heavy atom
-       IF (sj) THEN
-          db  = ddj
-          qb  = qqj
-          aed = 0.0_dp
-          aeq = 0.0_dp
-          IF (itype /=do_method_pchg) THEN
-             adj = sepj%ko(2)
-             aqj = sepj%ko(3)
-             aed = ami + adj
-             aeq = ami + aqj
-             aed = aed * aed
-             aeq = aeq * aeq
+          
+          ! In case (j) is an heavy atom
+          IF (sj) THEN
+             db  = ddj
+             qb  = qqj
+             aed = 0.0_dp
+             aeq = 0.0_dp
+             IF (itype /=do_method_pchg) THEN
+                adj = sepj%ko(2)
+                aqj = sepj%ko(3)
+                aed = ami + adj
+                aeq = ami + aqj
+                aed = aed * aed
+                aeq = aeq * aeq
+             END IF
+             IF (longrange) THEN
+                ade = 0.0_dp
+                aqe = 0.0_dp
+             END IF
+             xxx = r-db
+             arg(2) = xxx*xxx + aed
+             darg(2)= 2.0_dp *xxx
+             xxx = r+db
+             arg(3) = xxx*xxx + aed
+             darg(3)= 2.0_dp *xxx
+             xxx = r-qb
+             arg(4) = xxx*xxx + aeq
+             darg(4)= 2.0_dp *xxx
+             xxx = r+qb
+             arg(5) = xxx*xxx + aeq
+             darg(5)= 2.0_dp *xxx
+             arg(6) = rsq + aeq
+             darg(6)= 2.0_dp *r
+             arg(7) = arg(6) + qb*qb
+             darg(7)= darg(6)
+             sqr(2:7) = pxy(2:7)/SQRT(arg(2:7))
+             dsqr     = -(0.5_dp/arg)*darg*sqr
+             ri(2)      = sqr(2) + sqr(3)
+             ri(3)      = sqr(1) + sqr(4) + sqr(5) + sqr(6)
+             ri(4)      = sqr(1) + sqr(6) + sqr(7)
+             core(2,2)  = zi*ri(2)
+             core(3,2)  = zi*ri(3)
+             core(4,2)  = zi*ri(4)
+             dri(2)     = dsqr(2) + dsqr(3)
+             dri(3)     = dsqr(1) + dsqr(4) + dsqr(5) + dsqr(6)
+             dri(4)     = dsqr(1) + dsqr(6) + dsqr(7)
+             dcore(2,2) = zi*dri(2)
+             dcore(3,2) = zi*dri(3)
+             dcore(4,2) = zi*dri(4)
           END IF
-          IF (longrange) THEN
-             ade = 0.0_dp
-             aqe = 0.0_dp
-          END IF
-          xxx = r-db
-          arg(2) = xxx*xxx + aed
-          darg(2)= 2.0_dp *xxx
-          xxx = r+db
-          arg(3) = xxx*xxx + aed
-          darg(3)= 2.0_dp *xxx
-          xxx = r-qb
-          arg(4) = xxx*xxx + aeq
-          darg(4)= 2.0_dp *xxx
-          xxx = r+qb
-          arg(5) = xxx*xxx + aeq
-          darg(5)= 2.0_dp *xxx
-          arg(6) = rsq + aeq
-          darg(6)= 2.0_dp *r
-          arg(7) = arg(6) + qb*qb
-          darg(7)= darg(6)
-          sqr(2:7) = pxy(2:7)/SQRT(arg(2:7))
-          dsqr     = -(0.5_dp/arg)*darg*sqr
-          ri(2)      = sqr(2) + sqr(3)
-          ri(3)      = sqr(1) + sqr(4) + sqr(5) + sqr(6)
-          ri(4)      = sqr(1) + sqr(6) + sqr(7)
-          core(2,2)  = zi*ri(2)
-          core(3,2)  = zi*ri(3)
-          core(4,2)  = zi*ri(4)
-          dri(2)     = dsqr(2) + dsqr(3)
-          dri(3)     = dsqr(1) + dsqr(4) + dsqr(5) + dsqr(6)
-          dri(4)     = dsqr(1) + dsqr(6) + dsqr(7)
-          dcore(2,2) = zi*dri(2)
-          dcore(3,2) = zi*dri(3)
-          dcore(4,2) = zi*dri(4)
        END IF
     END IF
 
-    ! Store the value for (SS|SS)
-    ssss   =  ri(1)
-    dssss  = dri(1)
     ! Modify integrals in case of short-range request
     IF ( shortrange ) THEN
-       CALL dnucint_ana_spcore ( sepi, sepj, rij, ssss_lr, core_lr, dssss_lr, dcore_lr, itype,&
-            shortrange=.FALSE., do_longrange=.TRUE., taper=taper, error=error )
-       ! Function Values
-       core = core - core_lr
-       ssss = ssss - ssss_lr
-       ! Derivatives
-       dcore = dcore - dcore_lr
-       dssss = dssss - dssss_lr
+       IF (l_ssss) THEN
+          CALL dnucint_ana_spcore ( sepi, sepj, rij, ssss=ssss_lr, dssss=dssss_lr, itype=itype,&
+               shortrange=.FALSE., do_longrange=.TRUE., taper=taper, error=error )
+          ssss = ssss - ssss_lr
+          dssss = dssss - dssss_lr
+       END IF
+       IF (l_core) THEN
+          CALL dnucint_ana_spcore ( sepi, sepj, rij, core=core_lr, dcore=dcore_lr, itype=itype,&
+               shortrange=.FALSE., do_longrange=.TRUE., taper=taper, error=error )
+          core = core - core_lr
+          dcore = dcore - dcore_lr
+       END IF
     END IF
 
-    ! If no orbitals are present on the atom let's zero the integral contribution
-    IF (sepi%natorb == -1) dcore(:,1) = 0.0_dp
-    IF (sepj%natorb == -1) dcore(:,2) = 0.0_dp
-
-    ! If no orbitals are present on the atom let's zero the integral contribution
-    IF (sepi%natorb == -1) core(:,1) = 0.0_dp
-    IF (sepj%natorb == -1) core(:,2) = 0.0_dp
+    IF (l_core) THEN
+       ! If no orbitals are present on the atom let's zero the integral contribution
+       IF (sepi%natorb == -1) dcore(:,1) = 0.0_dp
+       IF (sepj%natorb == -1) dcore(:,2) = 0.0_dp
+       
+       ! If no orbitals are present on the atom let's zero the integral contribution
+       IF (sepi%natorb == -1) core(:,1) = 0.0_dp
+       IF (sepj%natorb == -1) core(:,2) = 0.0_dp
+    END IF
 
     IF (.NOT.longrange) THEN
        ! Tapering function
@@ -849,13 +882,15 @@ CONTAINS
           ft = taper_eval (taper, rij, error)
           dft= dtaper_eval (taper, rij, error)
        END IF
-       
-       ! First derivatives..
-       dcore(:,:) = ft*dcore(:,:)+dft*core(:,:)
-       dssss      = ft*dssss+dft*ssss
-       ! Then values of functions
-       core(:,:)  = ft*core(:,:)
-       ssss       = ft*ssss
+
+       IF (l_core) THEN
+          dcore(:,:) = ft*dcore(:,:)+dft*core(:,:)
+          core(:,:)  = ft*core(:,:)
+       END IF
+       IF (l_ssss) THEN
+          dssss      = ft*dssss+dft*ssss
+          ssss       = ft*ssss
+       END IF
     END IF
 
   END SUBROUTINE dnucint_ana_spcore

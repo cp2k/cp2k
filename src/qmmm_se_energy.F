@@ -35,7 +35,7 @@ MODULE qmmm_se_energy
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_overlap,                      ONLY: build_overlap_matrix
-  USE semi_empirical_int_ana,          ONLY: rotnuc_ana
+  USE semi_empirical_integrals,        ONLY: rotnuc
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_create,&
                                              semi_empirical_release,&
@@ -86,7 +86,7 @@ CONTAINS
                                                 itype, iw, natom, natorb_a, &
                                                 nkind
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: defined
+    LOGICAL                                  :: anag, defined
     REAL(KIND=dp)                            :: enuclear
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block_a
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -125,7 +125,7 @@ CONTAINS
        CALL stop_program(routineN,moduleN,__LINE__,&
             "Method not available",para_env)
     END SELECT
-
+    anag = dft_control%qs_control%se_control%analytical_gradients
     ! Allocate the core Hamiltonian matrix
     CALL allocate_matrix_set(ks_qmmm_env_loc%matrix_h,1,error=error)
     CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
@@ -175,6 +175,7 @@ CONTAINS
                                               enuclear,&
                                               itype,&
                                               taper,&
+                                              anag,&
                                               error)
                 ! Possibly added charges
                 IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
@@ -192,6 +193,7 @@ CONTAINS
                                                  enuclear,&
                                                  itype,&
                                                  taper,&
+                                                 anag,&
                                                  error)       
                 END IF
              END IF
@@ -223,7 +225,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE build_se_qmmm_matrix_low(h_block_a, se_kind_a, se_kind_mm, potentials,&
        mm_particles, mm_charges, mm_el_pot_radius, mm_atom_index, &
-       num_mm_atoms, mm_cell, IndQM, enuclear, itype, taper, error)
+       num_mm_atoms, mm_cell, IndQM, enuclear, itype, taper, anag, error)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block_a
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
@@ -239,6 +241,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: enuclear
     INTEGER, INTENT(IN)                      :: itype
     TYPE(taper_type), POINTER                :: taper
+    LOGICAL, INTENT(IN)                      :: anag
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_se_qmmm_matrix_low', &
@@ -266,8 +269,8 @@ CONTAINS
           rt3= r_pbc(3) 
           rij = (/rt1,rt2,rt3/)
           se_kind_mm%zeff = mm_charges(Imm)
-          CALL rotnuc_ana (se_kind_a,se_kind_mm,rij,itype,enuc,e1b,shortrange=.FALSE.,&
-               taper=taper, error=error)
+          CALL rotnuc (se_kind_a,se_kind_mm,rij,itype=itype,enuc=enuc,e1b=e1b,anag=anag,&
+               shortrange=.FALSE.,taper=taper, error=error)
           enuclear = enuclear + enuc
           ! Contribution to the iatom block
           ! Computation of the QMMM core matrix

@@ -42,8 +42,10 @@ INTERFACE check_dnucint_ana
 #include "cp_common_uses.h"
 
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
-    REAL(dp), INTENT(IN)                     :: r, dssss
-    REAL(dp), DIMENSION(10, 2), INTENT(IN)   :: dcore
+    REAL(dp), INTENT(IN)                     :: r
+    REAL(dp), INTENT(IN), OPTIONAL           :: dssss
+    REAL(dp), DIMENSION(10, 2), INTENT(IN),&
+         OPTIONAL                            :: dcore
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: shortrange
     TYPE(taper_type), POINTER                :: taper

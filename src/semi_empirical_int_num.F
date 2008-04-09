@@ -608,8 +608,9 @@ CONTAINS
   SUBROUTINE rotnuc_num(sepi,sepj,rijv,e1b,e2a,enuc,itype,shortrange,taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
-    REAL(dp), DIMENSION(45), INTENT(OUT)     :: e1b, e2a
-    REAL(dp), INTENT(OUT)                    :: enuc
+    REAL(dp), DIMENSION(45), INTENT(OUT), &
+      OPTIONAL                               :: e1b, e2a
+    REAL(dp), INTENT(OUT), OPTIONAL          :: enuc
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: shortrange
     TYPE(taper_type), POINTER                :: taper
@@ -621,6 +622,7 @@ CONTAINS
     INTEGER                                  :: i, idd, idp, ig, ind1, ind2, &
                                                 ipp, j, last_orbital(2), m, &
                                                 n, nt
+    LOGICAL                                  :: l_e1b, l_e2a, l_enuc, task(2)
     REAL(dp) :: a, aab, alpi, alpj, apdg, ax, dai, daj, dbi, dbj, pai, paj, &
       pbi, pbj, poi, poj, qcorr, rij, rija, scale, ssss, xab, zaf, zbf, zz
     REAL(dp), DIMENSION(10, 2)               :: core
@@ -631,10 +633,19 @@ CONTAINS
     TYPE(rotmat_type), POINTER               :: ij_matrix
 
     NULLIFY(ij_matrix)
+    l_enuc = PRESENT(enuc)
+    l_e1b  = PRESENT(e1b)
+    l_e2a  = PRESENT(e2a)
     rij    =  DOT_PRODUCT(rijv,rijv)
-    e1b(:) =  0.0_dp
-    e2a(:) =  0.0_dp
-    enuc   =  0.0_dp
+    IF (l_e1b) THEN
+       e1b =  0.0_dp
+    END IF
+    IF (l_e2a) THEN
+       e2a =  0.0_dp
+    END IF
+    IF (l_enuc) THEN
+       enuc=  0.0_dp
+    END IF
     IF (rij > rij_threshold) THEN
        rij = SQRT(rij)
        ! Create the rotation matrix 
@@ -642,12 +653,15 @@ CONTAINS
        CALL rotmat (sepi, sepj, -rijv, rij, ij_matrix, do_derivatives=.FALSE., error=error)
 
        ! Compute Integrals in Diatomic Frame
-       CALL nucint_num(sepi,sepj,rij,ssss,core,itype,shortrange,taper=taper,error=error)
+       CALL nucint_num(sepi,sepj,rij,core=core,itype=itype,shortrange=shortrange,taper=taper,error=error)
 
        ! Copy parameters over to arrays for do loop.
        last_orbital(1)  = sepi%natorb
        last_orbital(2)  = sepj%natorb
+       task (1)         = l_e1b
+       task (2)         = l_e2a
        DO n = 1, 2
+          IF (.NOT.task(n)) CYCLE
           tmp = 0.0_dp
           DO i = 1, last_orbital(n)
              ind1 = i - 1
@@ -692,150 +706,152 @@ CONTAINS
        END DO
        CALL rotmat_release(ij_matrix, error)
 
-       ! Nuclear-Nuclear contribution
-       IF(itype /= do_method_pm6) THEN
-          alpi = sepi%alp
-          alpj = sepj%alp
-          scale = EXP(-alpi*rij)+EXP(-alpj*rij)
-
-          nt=sepi%z+sepj%z
-          IF(nt == 8 .OR. nt == 9) THEN
-             IF(sepi%z == 7.OR.sepi%z == 8) &
-                  scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpi*rij)
-             IF(sepj%z == 7.OR.sepj%z == 8) &
-                  scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpj*rij)
-          ENDIF
-          zz = sepi%zeff*sepj%zeff
-          enuc = zz*ssss
-          scale=ABS(scale*enuc)
-          zz=zz/rij
-          IF(itype == do_method_am1 .OR. itype == do_method_pm3 .OR. itype == do_method_pdg) THEN
-             IF(itype == do_method_am1 .AND. sepi%z == 5) THEN
-                !special case AM1 Boron
-                SELECT CASE (sepj%z)
-                CASE DEFAULT
-                   nt=1
-                CASE (1)
-                   nt=2
-                CASE (6)
-                   nt=3
-                CASE (9,17,35,53)
-                   nt=4
-                END SELECT
-                fni1(:) = sepi%bfn1(:,nt)
-                fni2(:) = sepi%bfn2(:,nt)
-                fni3(:) = sepi%bfn3(:,nt)
-             ELSE
-                fni1(:) = sepi%fn1(:)
-                fni2(:) = sepi%fn2(:)
-                fni3(:) = sepi%fn3(:)
-             END IF
-             IF(itype == do_method_am1 .AND. sepj%z == 5) THEN
-                !special case AM1 Boron
-                SELECT CASE (sepi%z)
-                CASE DEFAULT
-                   nt=1
-                CASE (1)
-                   nt=2
-                CASE (6)
-                   nt=3
-                CASE (9,17,35,53)
-                   nt=4
-                END SELECT
-                fnj1(:) = sepj%bfn1(:,nt)
-                fnj2(:) = sepj%bfn2(:,nt)
-                fnj3(:) = sepj%bfn3(:,nt)
-             ELSE
-                fnj1(:) = sepj%fn1(:)
-                fnj2(:) = sepj%fn2(:)
-                fnj3(:) = sepj%fn3(:)
-             END IF
-             ! AM1/PM3/PDG correction to nuclear repulsion
-             DO ig=1,SIZE(fni1)
-                IF(ABS(fni1(ig)) > 0._dp) THEN
-                   ax = fni2(ig)*(rij-fni3(ig))**2
-                   IF(ax <= 25._dp) THEN
-                      scale=scale +zz*fni1(ig)*EXP(-ax)
+       IF (l_enuc) THEN
+          CALL nucint_num(sepi,sepj,rij,ssss=ssss,itype=itype,shortrange=shortrange,taper=taper,error=error)
+          ! Nuclear-Nuclear contribution
+          IF(itype /= do_method_pm6) THEN
+             alpi = sepi%alp
+             alpj = sepj%alp
+             scale = EXP(-alpi*rij)+EXP(-alpj*rij)
+             
+             nt=sepi%z+sepj%z
+             IF(nt == 8 .OR. nt == 9) THEN
+                IF(sepi%z == 7.OR.sepi%z == 8) &
+                     scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpi*rij)
+                IF(sepj%z == 7.OR.sepj%z == 8) &
+                     scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpj*rij)
+             ENDIF
+             zz = sepi%zeff*sepj%zeff
+             enuc = zz*ssss
+             scale=ABS(scale*enuc)
+             zz=zz/rij
+             IF(itype == do_method_am1 .OR. itype == do_method_pm3 .OR. itype == do_method_pdg) THEN
+                IF(itype == do_method_am1 .AND. sepi%z == 5) THEN
+                   !special case AM1 Boron
+                   SELECT CASE (sepj%z)
+                   CASE DEFAULT
+                      nt=1
+                   CASE (1)
+                      nt=2
+                   CASE (6)
+                      nt=3
+                   CASE (9,17,35,53)
+                      nt=4
+                   END SELECT
+                   fni1(:) = sepi%bfn1(:,nt)
+                   fni2(:) = sepi%bfn2(:,nt)
+                   fni3(:) = sepi%bfn3(:,nt)
+                ELSE
+                   fni1(:) = sepi%fn1(:)
+                   fni2(:) = sepi%fn2(:)
+                   fni3(:) = sepi%fn3(:)
+                END IF
+                IF(itype == do_method_am1 .AND. sepj%z == 5) THEN
+                   !special case AM1 Boron
+                   SELECT CASE (sepi%z)
+                   CASE DEFAULT
+                      nt=1
+                   CASE (1)
+                      nt=2
+                   CASE (6)
+                      nt=3
+                   CASE (9,17,35,53)
+                      nt=4
+                   END SELECT
+                   fnj1(:) = sepj%bfn1(:,nt)
+                   fnj2(:) = sepj%bfn2(:,nt)
+                   fnj3(:) = sepj%bfn3(:,nt)
+                ELSE
+                   fnj1(:) = sepj%fn1(:)
+                   fnj2(:) = sepj%fn2(:)
+                   fnj3(:) = sepj%fn3(:)
+                END IF
+                ! AM1/PM3/PDG correction to nuclear repulsion
+                DO ig=1,SIZE(fni1)
+                   IF(ABS(fni1(ig)) > 0._dp) THEN
+                      ax = fni2(ig)*(rij-fni3(ig))**2
+                      IF(ax <= 25._dp) THEN
+                         scale=scale +zz*fni1(ig)*EXP(-ax)
+                      ENDIF
                    ENDIF
-                ENDIF
-                IF(ABS(fnj1(ig)) > 0._dp) THEN
-                   ax = fnj2(ig)*(rij-fnj3(ig))**2
-                   IF(ax <= 25._dp) THEN
-                      scale=scale +zz*fnj1(ig)*EXP(-ax)
+                   IF(ABS(fnj1(ig)) > 0._dp) THEN
+                      ax = fnj2(ig)*(rij-fnj3(ig))**2
+                      IF(ax <= 25._dp) THEN
+                         scale=scale +zz*fnj1(ig)*EXP(-ax)
+                      ENDIF
                    ENDIF
-                ENDIF
-             END DO
-          ENDIF
-          IF(itype == do_method_pdg) THEN
-             ! PDDG function 
-             zaf=sepi%zeff/nt
-             zbf=sepj%zeff/nt
-             pai=sepi%pre(1)
-             pbi=sepi%pre(2)
-             paj=sepj%pre(1)
-             pbj=sepj%pre(2)
-             dai=sepi%d(1)
-             dbi=sepi%d(2)
-             daj=sepj%d(1)
-             dbj=sepj%d(2)
-             apdg=10._dp*0.5291772083_dp*0.5291772083_dp
-             qcorr = (zaf*pai+zbf*paj)*EXP(-apdg*(rij-dai-daj)**2)+ &
-                  (zaf*pai+zbf*pbj)*EXP(-apdg*(rij-dai-dbj)**2)+ &
-                  (zaf*pbi+zbf*paj)*EXP(-apdg*(rij-dbi-daj)**2)+ &
-                  (zaf*pbi+zbf*pbj)*EXP(-apdg*(rij-dbi-dbj)**2)
-          ELSEIF (itype==do_method_pchg) THEN
-             qcorr = 0.0_dp
-             scale = 0.0_dp
+                END DO
+             ENDIF
+             IF(itype == do_method_pdg) THEN
+                ! PDDG function 
+                zaf=sepi%zeff/nt
+                zbf=sepj%zeff/nt
+                pai=sepi%pre(1)
+                pbi=sepi%pre(2)
+                paj=sepj%pre(1)
+                pbj=sepj%pre(2)
+                dai=sepi%d(1)
+                dbi=sepi%d(2)
+                daj=sepj%d(1)
+                dbj=sepj%d(2)
+                apdg=10._dp*0.5291772083_dp*0.5291772083_dp
+                qcorr = &
+                     (zaf*pai+zbf*paj)*EXP(-apdg*(rij-dai-daj)**2)+ &
+                     (zaf*pai+zbf*pbj)*EXP(-apdg*(rij-dai-dbj)**2)+ &
+                     (zaf*pbi+zbf*paj)*EXP(-apdg*(rij-dbi-daj)**2)+ &
+                     (zaf*pbi+zbf*pbj)*EXP(-apdg*(rij-dbi-dbj)**2)
+             ELSEIF (itype==do_method_pchg) THEN
+                qcorr = 0.0_dp
+                scale = 0.0_dp
+             ELSE
+                qcorr = 0.0_dp
+             END IF
+             enuc=enuc+scale+qcorr
           ELSE
-             qcorr = 0.0_dp
+             enuc = 0._dp
+             rija = rij*angstrom
+             IF ( ABS(sepi%rho) > EPSILON(0.0_dp) ) THEN
+                poi = sepi%rho
+             ELSE
+                poi = sepi%ko(1)
+             END IF
+             IF ( ABS(sepj%rho) > EPSILON(0._dp) ) THEN
+                poj = sepj%rho
+             ELSE
+                poj = sepj%ko(1)
+             END IF
+             scale = sepi%zeff*sepj%zeff/SQRT(rij*rij+(poi+poj)**2)
+             IF(shortrange) scale = scale -  sepi%zeff*sepj%zeff/rij
+             ! PM6 core-core terms
+             xab = sepi%xab(sepj%z)
+             aab = sepi%aab(sepj%z)
+             IF ( (sepi%z == 1 .AND. (sepj%z == 6 .OR. sepj%z == 7 .OR. sepj%z == 8)) .OR. &
+                  (sepj%z == 1 .AND. (sepi%z == 6 .OR. sepi%z == 7 .OR. sepi%z == 8)) ) THEN
+                ! Special Case O-H or N-H or C-H
+                enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*rija*rija))
+             ELSEIF ( sepi%z == 6 .AND. sepj%z == 6 ) THEN
+                ! Special Case C-C
+                enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)) &
+                     +9.28_dp*EXP(-5.98*rija))
+             ELSEIF ( (sepi%z == 8 .AND. sepj%z == 14) .OR. &
+                  (sepj%z == 8 .AND. sepi%z == 14) ) THEN
+                ! Special Case Si-O
+                enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)) &
+                     -0.0007_dp*EXP(-(rija-2.9_dp)**2) )
+             ELSE
+                ! General Case
+                ! Factor of 2 found by experiment 
+                enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)))
+             END IF
+             ! General correction term a*exp(-b*(rij-c)^2)
+             enuc=enuc+(sepi%a*EXP(-sepi%b*(rij-sepi%c)**2))*sepi%zeff*sepj%zeff/rij
+             enuc=enuc+(sepj%a*EXP(-sepj%b*(rij-sepj%c)**2))*sepi%zeff*sepj%zeff/rij
+             ! Hard core repulsion
+             enuc=enuc+1.e-8_dp/evolt &
+                  * ( (REAL(sepi%z,dp)**(1._dp/3._dp) + REAL(sepj%z,dp)**(1._dp/3._dp))/rija )**12
           END IF
-          enuc=enuc+scale+qcorr
-
-       ELSE
-          enuc = 0._dp
-          rija = rij*angstrom
-          IF ( ABS(sepi%rho) > EPSILON(0.0_dp) ) THEN
-             poi = sepi%rho
-          ELSE
-             poi = sepi%ko(1)
-          END IF
-          IF ( ABS(sepj%rho) > EPSILON(0._dp) ) THEN
-             poj = sepj%rho
-          ELSE
-             poj = sepj%ko(1)
-          END IF
-          scale = sepi%zeff*sepj%zeff/SQRT(rij*rij+(poi+poj)**2)
-          IF(shortrange) scale = scale -  sepi%zeff*sepj%zeff/rij
-          ! PM6 core-core terms
-          xab = sepi%xab(sepj%z)
-          aab = sepi%aab(sepj%z)
-          IF ( (sepi%z == 1 .AND. (sepj%z == 6 .OR. sepj%z == 7 .OR. sepj%z == 8)) .OR. &
-               (sepj%z == 1 .AND. (sepi%z == 6 .OR. sepi%z == 7 .OR. sepi%z == 8)) ) THEN
-             ! Special Case O-H or N-H or C-H
-             enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*rija*rija))
-          ELSEIF ( sepi%z == 6 .AND. sepj%z == 6 ) THEN
-             ! Special Case C-C
-             enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)) &
-                  +9.28_dp*EXP(-5.98*rija))
-          ELSEIF ( (sepi%z == 8 .AND. sepj%z == 14) .OR. &
-               (sepj%z == 8 .AND. sepi%z == 14) ) THEN
-             ! Special Case Si-O
-             enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)) &
-                  -0.0007_dp*EXP(-(rija-2.9_dp)**2) )
-          ELSE
-             ! General Case
-             ! Factor of 2 found by experiment 
-             enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)))
-          END IF
-          ! General correction term a*exp(-b*(rij-c)^2)
-          enuc=enuc+(sepi%a*EXP(-sepi%b*(rij-sepi%c)**2))*sepi%zeff*sepj%zeff/rij
-          enuc=enuc+(sepj%a*EXP(-sepj%b*(rij-sepj%c)**2))*sepi%zeff*sepj%zeff/rij
-          ! Hard core repulsion
-          enuc=enuc+1.e-8_dp/evolt &
-               * ( (REAL(sepi%z,dp)**(1._dp/3._dp) + REAL(sepj%z,dp)**(1._dp/3._dp))/rija )**12
        END IF
     END IF
-
   END SUBROUTINE rotnuc_num
 
 ! *****************************************************************************
@@ -852,11 +868,12 @@ CONTAINS
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  SUBROUTINE nucint_num ( sepi, sepj, rij, ssss, core, itype, shortrange, taper, error )
+  SUBROUTINE nucint_num(sepi, sepj, rij, ssss, core, itype, shortrange, taper, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
-    REAL(dp), INTENT(OUT)                    :: ssss
-    REAL(dp), DIMENSION(10, 2), INTENT(OUT)  :: core
+    REAL(dp), INTENT(OUT), OPTIONAL          :: ssss
+    REAL(dp), DIMENSION(10, 2), &
+      INTENT(OUT), OPTIONAL                  :: core
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: shortrange
     TYPE(taper_type), POINTER                :: taper
@@ -865,14 +882,21 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'nucint_num', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, l_core, l_ssss
 
     failure = .FALSE.
-    core  = 0.0_dp
+    l_core  = PRESENT(core)
+    l_ssss  = PRESENT(ssss)
+    IF (l_core) THEN
+       core  = 0.0_dp
+    END IF
+    IF (l_ssss) THEN
+       ssss  = 0.0_dp
+    END IF
 
     CALL nucint_spcore_num(sepi, sepj, rij, ssss, core, itype, shortrange, &
          taper=taper, error=error)
-    IF (sepi%dorb.OR.sepj%dorb) THEN
+    IF ((sepi%dorb.OR.sepj%dorb).AND.l_core) THEN
        ! Compute the contribution from d-orbitals
        CALL nucint_d_num(sepi, sepj, rij, core, itype, shortrange, taper=taper,&
             error=error)
@@ -905,9 +929,9 @@ CONTAINS
        do_longrange, taper, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
-    REAL(dp), INTENT(INOUT)                  :: ssss
+    REAL(dp), INTENT(INOUT), OPTIONAL        :: ssss
     REAL(dp), DIMENSION(10, 2), &
-      INTENT(INOUT)                          :: core
+      INTENT(INOUT), OPTIONAL                :: core
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: shortrange
     LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
@@ -917,7 +941,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'nucint_spcore_num', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: longrange, si, sj
+    LOGICAL                                  :: failure, l_core, l_ssss, &
+                                                longrange, si, sj
     REAL(dp)                                 :: ade, adi, adj, aed, aee, aeq, &
                                                 ami, amj, aqe, aqi, aqj, da, &
                                                 db, ddi, ddj, ft, qa, qb, &
@@ -925,6 +950,11 @@ CONTAINS
                                                 xxx, zi, zj
     REAL(dp), DIMENSION(7)                   :: arg, ri, sqr
     REAL(KIND=dp), DIMENSION(10, 2)          :: core_lr
+
+    failure = .FALSE.
+    l_core  = PRESENT(core)
+    l_ssss  = PRESENT(ssss)
+    IF (.NOT.(l_core.OR.l_ssss)) RETURN
 
     longrange = .FALSE.
     IF (PRESENT(do_longrange))  longrange = do_longrange
@@ -952,105 +982,121 @@ CONTAINS
     arg(1)    = rsq + aee
     sqr(1)    = pxy(1)/SQRT(arg(1))
     ri(1)     = 1.0_dp/SQRT(rsq+aee)
-    core(1,1) = zj*ri(1)
-    core(1,2) = zi*ri(1)
-    IF (si.OR.sj) THEN
-       ! In case (i) is an heavy atom
-       IF (si) THEN
-          da  = ddi
-          qa  = qqi
-          ade = 0.0_dp
-          aqe = 0.0_dp
-          IF (itype /=do_method_pchg) THEN
-             adi = sepi%ko(2)
-             aqi = sepi%ko(3)
-             ade = adi + amj
-             aqe = aqi + amj
-             ade = ade * ade
-             aqe = aqe * aqe
-          END IF
-          IF (longrange) THEN
-             ade = 0.0_dp
-             aqe = 0.0_dp
-          END IF
-          xxx    = r+da
-          arg(2) = xxx*xxx + ade
-          xxx    = r-da
-          arg(3) = xxx*xxx + ade
-          xxx    = r+qa
-          arg(4) = xxx*xxx + aqe
-          xxx    = r-qa
-          arg(5) = xxx*xxx + aqe
-          arg(6) = rsq + aqe
-          arg(7) = arg(6) + qa*qa
-          sqr(2:7)  = pxy(2:7)/SQRT(arg(2:7))
-          ri(2)     = sqr(2) + sqr(3)
-          ri(3)     = sqr(1) + sqr(4) + sqr(5) + sqr(6)
-          ri(4)     = sqr(1) + sqr(6) + sqr(7)
-          core(2,1) = zj*ri(2)
-          core(3,1) = zj*ri(3)
-          core(4,1) = zj*ri(4)
-       END IF
 
-       ! In case (j) is an heavy atom
-       IF (sj) THEN
-          db  = ddj
-          qb  = qqj
-          ade = 0.0_dp
-          aqe = 0.0_dp
-          IF (itype /=do_method_pchg) THEN
-             adj = sepj%ko(2)
-             aqj = sepj%ko(3)
-             aed = ami + adj
-             aeq = ami + aqj
-             aed = aed * aed
-             aeq = aeq * aeq
-          END IF
-          IF (longrange) THEN
-             ade = 0.0_dp
-             aqe = 0.0_dp
-          END IF
-          xxx = r-db
-          arg(2) = xxx*xxx + aed
-          xxx = r+db
-          arg(3) = xxx*xxx + aed
-          xxx = r-qb
-          arg(4) = xxx*xxx + aeq
-          xxx = r+qb
-          arg(5) = xxx*xxx + aeq
-          arg(6) = rsq + aeq
-          arg(7) = arg(6) + qb*qb
-          sqr(2:7)  = pxy(2:7)/SQRT(arg(2:7))
-          ri(2)     = sqr(2) + sqr(3)
-          ri(3)     = sqr(1) + sqr(4) + sqr(5) + sqr(6)
-          ri(4)     = sqr(1) + sqr(6) + sqr(7)
-          core(2,2) = zi*ri(2)
-          core(3,2) = zi*ri(3)
-          core(4,2) = zi*ri(4)
-       END IF
+    IF (l_ssss) THEN
+       ! Store the value for (SS|SS)
+       ssss = ri(1)
     END IF
 
-    ! Store the value for (SS|SS)
-    ssss = ri(1)
-
+    IF (l_core) THEN
+       core(1,1) = zj*ri(1)
+       core(1,2) = zi*ri(1)
+       IF (si.OR.sj) THEN
+          ! In case (i) is an heavy atom
+          IF (si) THEN
+             da  = ddi
+             qa  = qqi
+             ade = 0.0_dp
+             aqe = 0.0_dp
+             IF (itype /=do_method_pchg) THEN
+                adi = sepi%ko(2)
+                aqi = sepi%ko(3)
+                ade = adi + amj
+                aqe = aqi + amj
+                ade = ade * ade
+                aqe = aqe * aqe
+             END IF
+             IF (longrange) THEN
+                ade = 0.0_dp
+                aqe = 0.0_dp
+             END IF
+             xxx    = r+da
+             arg(2) = xxx*xxx + ade
+             xxx    = r-da
+             arg(3) = xxx*xxx + ade
+             xxx    = r+qa
+             arg(4) = xxx*xxx + aqe
+             xxx    = r-qa
+             arg(5) = xxx*xxx + aqe
+             arg(6) = rsq + aqe
+             arg(7) = arg(6) + qa*qa
+             sqr(2:7)  = pxy(2:7)/SQRT(arg(2:7))
+             ri(2)     = sqr(2) + sqr(3)
+             ri(3)     = sqr(1) + sqr(4) + sqr(5) + sqr(6)
+             ri(4)     = sqr(1) + sqr(6) + sqr(7)
+             core(2,1) = zj*ri(2)
+             core(3,1) = zj*ri(3)
+             core(4,1) = zj*ri(4)
+          END IF
+          
+          ! In case (j) is an heavy atom
+          IF (sj) THEN
+             db  = ddj
+             qb  = qqj
+             ade = 0.0_dp
+             aqe = 0.0_dp
+             IF (itype /=do_method_pchg) THEN
+                adj = sepj%ko(2)
+                aqj = sepj%ko(3)
+                aed = ami + adj
+                aeq = ami + aqj
+                aed = aed * aed
+                aeq = aeq * aeq
+             END IF
+             IF (longrange) THEN
+                ade = 0.0_dp
+                aqe = 0.0_dp
+             END IF
+             xxx = r-db
+             arg(2) = xxx*xxx + aed
+             xxx = r+db
+             arg(3) = xxx*xxx + aed
+             xxx = r-qb
+             arg(4) = xxx*xxx + aeq
+             xxx = r+qb
+             arg(5) = xxx*xxx + aeq
+             arg(6) = rsq + aeq
+             arg(7) = arg(6) + qb*qb
+             sqr(2:7)  = pxy(2:7)/SQRT(arg(2:7))
+             ri(2)     = sqr(2) + sqr(3)
+             ri(3)     = sqr(1) + sqr(4) + sqr(5) + sqr(6)
+             ri(4)     = sqr(1) + sqr(6) + sqr(7)
+             core(2,2) = zi*ri(2)
+             core(3,2) = zi*ri(3)
+             core(4,2) = zi*ri(4)
+          END IF
+       END IF
+    END IF
     ! Modify integrals in case of short-range request
     IF ( shortrange ) THEN
-       CALL nucint_spcore_num( sepi, sepj, rij, ssss_lr, core_lr, itype, shortrange=.FALSE.,&
-            do_longrange=.TRUE., taper=taper, error=error)
-       core = core - core_lr
-       ssss = ssss - ssss_lr
+       IF (l_ssss) THEN
+          CALL nucint_spcore_num( sepi, sepj, rij, ssss=ssss_lr, itype=itype, shortrange=.FALSE.,&
+               do_longrange=.TRUE., taper=taper, error=error)
+          ssss = ssss - ssss_lr
+       END IF
+       IF (l_core) THEN
+          CALL nucint_spcore_num( sepi, sepj, rij, core=core_lr, itype=itype, shortrange=.FALSE.,&
+               do_longrange=.TRUE., taper=taper, error=error)
+          core = core - core_lr
+       END IF
     END IF
 
-    ! If no orbitals are present on the atom let's zero the integral contribution
-    IF (sepi%natorb == -1) core(:,1) = 0.0_dp
-    IF (sepj%natorb == -1) core(:,2) = 0.0_dp
+    IF (l_core) THEN
+       ! If no orbitals are present on the atom let's zero the integral contribution
+       IF (sepi%natorb == -1) core(:,1) = 0.0_dp
+       IF (sepj%natorb == -1) core(:,2) = 0.0_dp
+    END IF
 
     IF (.NOT.longrange) THEN
        ! Tapering function
        ft = 1.0_dp
        IF (itype /=do_method_pchg) ft = taper_eval (taper, rij, error)
-       core(:,:) = ft*core(:,:)
-       ssss = ft*ssss
+       IF (l_ssss) THEN
+          ssss = ft*ssss
+       END IF
+       IF (l_core) THEN
+          core(:,:) = ft*core(:,:)
+       END IF
     END IF
 
   END SUBROUTINE nucint_spcore_num
@@ -1200,8 +1246,10 @@ CONTAINS
   SUBROUTINE drotnuc_num(sepi,sepj,r,de1b,de2a,denuc,itype,delta,shortrange,taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: r
-    REAL(dp), DIMENSION(45, 3), INTENT(OUT)  :: de1b, de2a
-    REAL(dp), DIMENSION(3), INTENT(OUT)      :: denuc
+    REAL(dp), DIMENSION(45, 3), &
+      INTENT(OUT), OPTIONAL                  :: de1b, de2a
+    REAL(dp), DIMENSION(3), INTENT(OUT), &
+      OPTIONAL                               :: denuc
     INTEGER, INTENT(IN)                      :: itype
     REAL(dp), INTENT(IN)                     :: delta
     LOGICAL, INTENT(IN)                      :: shortrange
@@ -1212,10 +1260,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
+    LOGICAL                                  :: l_de1b, l_de2a, l_denuc
     REAL(dp)                                 :: enucm, enucp, od
     REAL(dp), DIMENSION(3)                   :: rr
     REAL(dp), DIMENSION(45)                  :: e1m, e1p, e2m, e2p
 
+    l_de1b  = PRESENT(de1b)
+    l_de2a  = PRESENT(de2a)
+    l_denuc = PRESENT(denuc)
+    IF (.NOT.(l_de1b.OR.l_de2a.OR.l_denuc)) RETURN
     od = 0.5_dp/delta
     DO i=1,3
        rr=r
@@ -1223,11 +1276,16 @@ CONTAINS
        CALL rotnuc_num(sepi,sepj,rr,e1p,e2p,enucp,itype,shortrange,taper=taper,error=error)
        rr(i)=rr(i)-2._dp*delta
        CALL rotnuc_num(sepi,sepj,rr,e1m,e2m,enucm,itype,shortrange,taper=taper,error=error)
-       denuc(i)  = od * ( enucp - enucm )
-       de1b(:,i) = od * (e1p(:) - e1m(:))
-       de2a(:,i) = od * (e2p(:) - e2m(:))
+       IF (l_denuc) THEN 
+          denuc(i)  = od * ( enucp - enucm )
+       END IF
+       IF (l_de1b) THEN
+          de1b(:,i) = od * (e1p(:) - e1m(:))
+       END IF
+       IF (l_de2a) THEN
+          de2a(:,i) = od * (e2p(:) - e2m(:))
+       END IF
     END DO
-
   END SUBROUTINE drotnuc_num
 
 END MODULE semi_empirical_int_num

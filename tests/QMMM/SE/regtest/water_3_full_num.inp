@@ -1,0 +1,96 @@
+
+&FORCE_EVAL
+  METHOD QMMM
+  &DFT
+    &QS
+      METHOD AM1
+      &SE
+        ANALYTICAL_GRADIENTS F
+      &END SE
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF 1.0E-7
+    &END SCF
+    #&PRINT
+    #  &AO_MATRICES
+    #     DENSITY
+    #  &END
+    #&END
+  &END DFT
+  &MM
+    &FORCEFIELD
+      parm_file_name ../../../Fist/sample_pot/water.pot
+      parmtype CHM
+      &CHARGE
+        ATOM OT
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM HT
+        CHARGE 0.4238
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 30
+      &END EWALD
+    &END POISSON
+  &END MM
+  &QMMM
+    &CELL
+      ABC 6.0 6.0 6.0
+      UNIT ANGSTROM
+    &END CELL
+    NOCENTER
+    USE_GEEP_LIB 12
+    ECOUPL COULOMB
+    &QM_KIND H
+      MM_INDEX 2 3
+    &END QM_KIND
+    &QM_KIND O
+      MM_INDEX 1
+    &END QM_KIND
+    #&PRINT
+    # &QMMM_MATRIX
+    # &END
+    #&END
+  &END
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME ../../../Fist/sample_pdb/water_2.pdb
+      COORDINATE pdb
+      &DUMP_PSF
+      &END
+      &DUMP_PDB
+      &END
+    &END TOPOLOGY
+    &COORD
+ OT     3.000000     0.8     4.357097  MOL1
+ HT     2.255192     0.8     4.925644  MOL1
+ HT     3.808208     0.8     4.875930  MOL1
+ OT     3.000000     0.8     0.909036  MOL2
+ HT     3.000000     0.8     1.858503  MOL2
+ HT     3.783202     0.8     0.562903  MOL2
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT water_1
+  #RUN_TYPE MD
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 2000
+    TIMESTEP 0.5
+    TEMPERATURE 298
+  &END MD
+&END MOTION

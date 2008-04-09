@@ -34,7 +34,7 @@ MODULE qmmm_se_forces
                                              qs_environment_type
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE semi_empirical_int_ana,          ONLY: rotnuc_ana
+  USE semi_empirical_integrals,        ONLY: drotnuc
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_create,&
                                              semi_empirical_release,&
@@ -86,8 +86,8 @@ CONTAINS
                                                 natorb_a, nkind, &
                                                 number_qm_atoms, stat
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: defined, failure
-    REAL(KIND=dp)                            :: enuclear
+    LOGICAL                                  :: anag, defined, failure
+    REAL(KIND=dp)                            :: delta, enuclear
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces_QM, p_block_a
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -120,6 +120,8 @@ CONTAINS
           ! Otherwise stop..
           CALL stop_program(routineN,moduleN,__LINE__,"Method not available",para_env)
        END SELECT
+       anag = dft_control%qs_control%se_control%analytical_gradients
+       delta= dft_control%qs_control%se_control%delta
        ! Create a fake semi-empirical type to handle the classical atom
        ALLOCATE(Forces_QM(3,number_qm_atoms),stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -170,6 +172,8 @@ CONTAINS
                                                  Forces,&
                                                  Forces_QM(:,iqm),&
                                                  taper,&
+                                                 anag,&
+                                                 delta,&
                                                  error)
                    ! Possibly added charges
                    IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
@@ -189,6 +193,8 @@ CONTAINS
                                                     Forces_added_charges,&
                                                     Forces_QM(:,iqm),&
                                                     taper,&
+                                                    anag,&
+                                                    delta,&
                                                     error)
                    END IF
                 END IF
@@ -231,7 +237,7 @@ CONTAINS
   SUBROUTINE deriv_se_qmmm_matrix_low(p_block_a, se_kind_a, se_kind_mm,&
        potentials, mm_particles, mm_charges, mm_el_pot_radius, mm_atom_index, &
        num_mm_atoms, mm_cell, IndQM, itype, para_env, forces, forces_qm, taper,&
-       error)
+       anag, delta, error)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block_a
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_mm
@@ -249,6 +255,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(INOUT)                          :: forces_qm
     TYPE(taper_type), POINTER                :: taper
+    LOGICAL, INTENT(IN)                      :: anag
+    REAL(KIND=dp), INTENT(IN)                :: delta
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deriv_se_qmmm_matrix_low', &
@@ -278,8 +286,8 @@ CONTAINS
           rij = (/rt1,rt2,rt3/)
           se_kind_mm%zeff = mm_charges(Imm)
           ! Integrals derivatives involving QM - MM atoms
-          CALL rotnuc_ana (se_kind_a,se_kind_mm,rij,itype,denuc=denuc,de1b=de1b,shortrange=.FALSE.,&
-               taper=taper, error=error)
+          CALL drotnuc(se_kind_a,se_kind_mm,rij,itype=itype,denuc=denuc,de1b=de1b,&
+               shortrange=.FALSE.,anag=anag,delta=delta,taper=taper,error=error)
           ! Nucler - Nuclear term
           force_ab(1:3)=-denuc(1:3)
           IF ( SIZE(p_block_a,1) == 1 ) THEN

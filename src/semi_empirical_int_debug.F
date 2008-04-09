@@ -240,8 +240,10 @@ SUBROUTINE check_dnucint_ana (sepi,sepj,r,dssss,dcore,itype,shortrange,taper,err
 #include "cp_common_uses.h"
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
-  REAL(dp), INTENT(IN)                     :: r, dssss
-  REAL(dp), DIMENSION(10, 2), INTENT(IN)   :: dcore
+  REAL(dp), INTENT(IN)                     :: r
+  REAL(dp), INTENT(IN), OPTIONAL           :: dssss
+  REAL(dp), DIMENSION(10, 2), INTENT(IN),&
+       OPTIONAL                            :: dcore
   INTEGER, INTENT(IN)                      :: itype
   LOGICAL, INTENT(IN)                      :: shortrange
   TYPE(taper_type), POINTER                :: taper
@@ -266,17 +268,21 @@ SUBROUTINE check_dnucint_ana (sepi,sepj,r,dssss,dcore,itype,shortrange,taper,err
   nssss = od * (ssssp - ssssm)
   ! check
   WRITE(*,*)"DEBUG::"//routineP
-  DO i = 1, 2
-     DO j = 1, 10
-        IF (.NOT.check_value(ncore(j,i), dcore(j,i), delta, 0.1_dp)) THEN
-           WRITE(*,*)"ERROR for CORE derivative CORE(j,i), j,i::",j,i
-           STOP
-        END IF
+  IF (PRESENT(dcore)) THEN
+     DO i = 1, 2
+        DO j = 1, 10
+           IF (.NOT.check_value(ncore(j,i), dcore(j,i), delta, 0.1_dp)) THEN
+              WRITE(*,*)"ERROR for CORE derivative CORE(j,i), j,i::",j,i
+              STOP
+           END IF
+        END DO
      END DO
-  END DO
-  IF (.NOT.check_value(nssss, dssss, delta, 0.1_dp)) THEN
-     WRITE(*,*)"ERROR for SSSS derivative SSSS"
-     STOP
+  END IF
+  IF (PRESENT(dssss)) THEN
+     IF (.NOT.check_value(nssss, dssss, delta, 0.1_dp)) THEN
+        WRITE(*,*)"ERROR for SSSS derivative SSSS"
+        STOP
+     END IF
   END IF
 END SUBROUTINE check_dnucint_ana
 
