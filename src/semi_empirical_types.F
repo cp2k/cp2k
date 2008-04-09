@@ -84,12 +84,33 @@ MODULE semi_empirical_types
      REAL(KIND=dp)                         :: r0, al
   END TYPE taper_type
 
+! *****************************************************************************
+!> \brief Rotation Matrix Type
+! *****************************************************************************
+  TYPE rotmat_type
+     ! Value of Rotation Matrices
+     REAL(KIND=dp), DIMENSION (    3, 3)      :: sp
+     REAL(KIND=dp), DIMENSION (    5, 5)      :: sd
+     REAL(KIND=dp), DIMENSION ( 6, 3, 3)      :: pp
+     REAL(KIND=dp), DIMENSION (15, 5, 3)      :: dp
+     REAL(KIND=dp), DIMENSION (15, 5, 5)      :: dd
+     ! Derivatives of Rotation Matrices
+     REAL(KIND=dp), DIMENSION (    3, 3, 3)   :: sp_d
+     REAL(KIND=dp), DIMENSION (    5, 5, 3)   :: sd_d
+     REAL(KIND=dp), DIMENSION ( 6, 3, 3, 3)   :: pp_d
+     REAL(KIND=dp), DIMENSION (15, 5, 3, 3)   :: dp_d
+     REAL(KIND=dp), DIMENSION (15, 5, 5, 3)   :: dd_d
+  END TYPE rotmat_type
+
   PUBLIC :: semi_empirical_type,&
-            allocate_se_param,&
-            deallocate_se_param,&
+            semi_empirical_create,&
+            semi_empirical_release,&
             taper_type,&
             taper_create,&
             taper_release,&
+            rotmat_type,&
+            rotmat_create,&
+            rotmat_release,&
             get_se_param,&
             set_se_param,&
             write_se_param
@@ -99,19 +120,18 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Allocate semi-empirical type
 ! *****************************************************************************
-  SUBROUTINE allocate_se_param(sep, error)
+  SUBROUTINE semi_empirical_create(sep, error)
     TYPE(semi_empirical_type), POINTER       :: sep
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_se_param', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_create', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CALL deallocate_se_param(sep, error)
-
+    CPPrecondition(.NOT.ASSOCIATED(sep),cp_failure_level,routineP,error,failure)
     ALLOCATE (sep,STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (sep%beta(0:3),STAT=stat)
@@ -122,8 +142,8 @@ CONTAINS
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     NULLIFY(sep%basis)
     CALL zero_se_param(sep,error)
-
-  END SUBROUTINE allocate_se_param
+    
+  END SUBROUTINE semi_empirical_create
 
 ! *****************************************************************************
 !> \brief Zero the whole semi-empirical type
@@ -209,12 +229,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Deallocate the semi-empirical type
 ! ***************************************************************************** 
-  SUBROUTINE deallocate_se_param(sep, error)
+  SUBROUTINE semi_empirical_release(sep, error)
 
     TYPE(semi_empirical_type), POINTER       :: sep
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_se_param', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_release', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
@@ -233,7 +253,7 @@ CONTAINS
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
-  END SUBROUTINE deallocate_se_param
+  END SUBROUTINE semi_empirical_release
 
 ! *****************************************************************************
 !> \brief Get info from the semi-empirical type
@@ -400,6 +420,57 @@ CONTAINS
     END IF
    
   END SUBROUTINE taper_release
+
+! *****************************************************************************
+!> \brief Creates rotmat type
+! ***************************************************************************** 
+  SUBROUTINE rotmat_create(rotmat, error)
+    TYPE(rotmat_type), POINTER               :: rotmat
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rotmat_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(rotmat),cp_failure_level,routineP,error,failure)
+    ALLOCATE (rotmat,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    rotmat%sp   = 0.0_dp
+    rotmat%pp   = 0.0_dp
+    rotmat%sd   = 0.0_dp
+    rotmat%dp   = 0.0_dp
+    rotmat%dd   = 0.0_dp
+    rotmat%sp_d = 0.0_dp
+    rotmat%pp_d = 0.0_dp
+    rotmat%sd_d = 0.0_dp
+    rotmat%dp_d = 0.0_dp
+    rotmat%dd_d = 0.0_dp
+
+  END SUBROUTINE rotmat_create
+
+! *****************************************************************************
+!> \brief Releases rotmat type
+! ***************************************************************************** 
+  SUBROUTINE rotmat_release(rotmat, error)
+    TYPE(rotmat_type), POINTER               :: rotmat
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rotmat_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    IF (ASSOCIATED(rotmat)) THEN
+       DEALLOCATE (rotmat,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+   
+  END SUBROUTINE rotmat_release
 
 ! *****************************************************************************
 !> \brief Writes the semi-empirical type

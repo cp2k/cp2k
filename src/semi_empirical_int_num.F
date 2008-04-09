@@ -23,17 +23,25 @@ MODULE semi_empirical_int_num
   USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: angstrom,&
                                              evolt
-  USE semi_empirical_int_arrays,       ONLY: pxy,&
-                                             rij_threshold
-  USE semi_empirical_int_utils,        ONLY: taper_eval
-  USE semi_empirical_types,            ONLY: semi_empirical_type,&
+  USE semi_empirical_int_arrays,       ONLY: &
+       inddd, inddp, indexa, indexb, indpp, int2c_type, map_22_to_491, pxy, &
+       rij_threshold
+  USE semi_empirical_int_utils,        ONLY: ijkl,&
+                                             rot_2el_2c_first,&
+                                             rotmat,&
+                                             store_2el_2c_diag,&
+                                             taper_eval
+  USE semi_empirical_types,            ONLY: rotmat_create,&
+                                             rotmat_release,&
+                                             rotmat_type,&
+                                             semi_empirical_type,&
                                              taper_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
-
+  LOGICAL, PARAMETER, PRIVATE          :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_num'
   PUBLIC :: rotint_num, rotnuc_num, drotint_num, drotnuc_num, nucint_num, terep_num
 
@@ -50,11 +58,12 @@ CONTAINS
 !> 
 !> \note routine adapted from mopac7 (rotate)
 !>       written by Ernest R. Davidson, Indiana University.
+!>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : major rewriting
 ! *****************************************************************************
   SUBROUTINE rotint_num (sepi,sepj,rijv,w,shortrange,taper,error)
-    TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: rijv
-    REAL(dp), DIMENSION(:), INTENT(OUT)      :: w
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
+    REAL(dp), DIMENSION(2025), INTENT(OUT)   :: w
     LOGICAL                                  :: shortrange
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -62,17 +71,20 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rotint_num', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: si, sj
-    REAL(dp) :: a, rij, xx11, xx21, xx22, xx31, xx32, xx33, xy11, xy21, xy22, &
-      xy31, xy32, xz11, xz21, xz22, xz31, xz32, xz33, yy11, yy21, yy22, &
-      yyzz11, yyzz21, yyzz22, yz11, yz21, yz22, yz31, yz32, zz11, zz21, zz22, &
-      zz31, zz32, zz33
-    REAL(dp), DIMENSION(22)                  :: ri
-    REAL(dp), DIMENSION(3)                   :: x, y, z
+    INTEGER                                  :: i, i1, ii, ij, ij1, iminus, &
+                                                istep, iw_loc, j, j1, jj, k, &
+                                                kk, kl, l, limij, limkl, mm
+    LOGICAL, DIMENSION(45, 45)               :: logv
+    REAL(dp)                                 :: rij
+    REAL(KIND=dp)                            :: cc, wrepp
+    REAL(KIND=dp), DIMENSION(2025)           :: ww
+    REAL(KIND=dp), DIMENSION(45, 45)         :: v
+    REAL(KIND=dp), DIMENSION(491)            :: rep
+    TYPE(rotmat_type), POINTER               :: ij_matrix
 
-    x(:)=-rijv(:)
-    rij=x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
-    w(:)=0._dp
+    NULLIFY(ij_matrix)
+    rij  =  DOT_PRODUCT(rijv,rijv)
+    w    = 0.0_dp
     IF (rij > rij_threshold) THEN
        ! The repulsion integrals over molecular frame (w) are stored in the
        ! order in which they will later be used.  ie.  (i,j/k,l) where
@@ -80,758 +92,114 @@ CONTAINS
        ! rapidly.  (anti-normal computer storage)
        rij = SQRT(rij)
 
+       ! Create the rotation matrix 
+       CALL rotmat_create(ij_matrix, error)
+       CALL rotmat (sepi, sepj, -rijv, rij, ij_matrix,  do_derivatives=.FALSE., error=error)
+       
        ! Compute Integrals in Diatomic Frame
-       CALL terep_num(sepi,sepj,rij,ri,shortrange,taper=taper,error=error)
- 
-       a=1._dp/rij
-       x(1) = x(1)*a
-       x(2) = x(2)*a
-       x(3) = x(3)*a
-       IF (ABS(x(3)) > 0.99999999_dp) THEN
-          x(3) = SIGN(1._dp,x(3))
-          y(1) = 0._dp
-          y(2) = 1._dp
-          y(3) = 0._dp
-          z(1) = 1._dp
-          z(2) = 0._dp
-          z(3) = 0._dp
-       ELSE
-          z(3)=SQRT(1._dp-x(3)*x(3))
-          a=1._dp/z(3)
-          y(1)=-a*x(2)*SIGN(1._dp,x(1))
-          y(2)=ABS(a*x(1))
-          y(3)=0._dp
-          z(1)=-a*x(1)*x(3)
-          z(2)=-a*x(2)*x(3)
-       ENDIF
-       si = (sepi%natorb > 1)
-       sJ = (sepj%natorb > 1)
-       IF ( si .OR. sj ) THEN
-          xx11 = x(1)*x(1)
-          xx21 = x(2)*x(1)
-          xx22 = x(2)*x(2)
-          xx31 = x(3)*x(1)
-          xx32 = x(3)*x(2)
-          xx33 = x(3)*x(3)
-          yy11 = y(1)*y(1)
-          YY21 = Y(2)*Y(1)
-          yy22 = y(2)*y(2)
-          zz11 = z(1)*z(1)
-          zz21 = z(2)*z(1)
-          zz22 = z(2)*z(2)
-          zz31 = z(3)*z(1)
-          zz32 = z(3)*z(2)
-          zz33 = z(3)*z(3)
-          yyzz11 = yy11+zz11
-          yyzz21 = yy21+zz21
-          yyzz22 = yy22+zz22
-          xy11 = 2._dp*x(1)*y(1)
-          xy21 =      x(1)*y(2)+x(2)*y(1)
-          xy22 = 2._dp*x(2)*y(2)
-          xy31 =      x(3)*y(1)
-          xy32 =      x(3)*y(2)
-          xz11 = 2._dp*x(1)*z(1)
-          xz21 =      x(1)*z(2)+x(2)*z(1)
-          xz22 = 2._dp*x(2)*z(2)
-          xz31 =      x(1)*z(3)+x(3)*z(1)
-          xz32 =      x(2)*z(3)+x(3)*z(2)
-          xz33 = 2._dp*x(3)*z(3)
-          yz11 = 2._dp*y(1)*z(1)
-          yz21 =      y(1)*z(2)+y(2)*z(1)
-          yz22 = 2._dp*y(2)*z(2)
-          yz31 =      y(1)*z(3)
-          yz32 =      y(2)*z(3)
-       ENDIF
- 
-!   (s s/s s)
-       w(1)=ri(1)
-       IF (sj) THEN
-!   (s s/px s)
-          w(2)=ri(5)*x(1)
-!   (s s/px px)
-          w(3)=ri(11)*xx11+ri(12)*yyzz11
-!   (s s/py s)
-          w(4)=ri(5)*x(2)
-!   (s s/py px)
-          w(5)=ri(11)*xx21+ri(12)*yyzz21
-!   (s s/py py)
-          w(6)=ri(11)*xx22+ri(12)*yyzz22
-!   (s s/pz s)
-          w(7)=ri(5)*x(3)
-!   (s s/pz px)
-          w(8)=ri(11)*xx31+ri(12)*zz31
-!   (s s/pz py)
-          w(9)=ri(11)*xx32+ri(12)*zz32
-!   (s s/pz pz)
-          w(10)=ri(11)*xx33+ri(12)*zz33
+       CALL terep_num(sepi,sepj,rij,rep,shortrange,taper=taper,error=error)
+
+       ! Rotate Integrals
+       ii = sepi%natorb
+       kk = sepj%natorb
+       IF (ii*kk > 0) THEN
+          limij = indexb(ii, ii)
+          limkl = indexb(kk, kk)
+          istep = limkl * limij
+          ww(1:istep) = 0.0_dp
+
+          ! First step in rotation of integrals
+          CALL rot_2el_2c_first(sepi, sepj, rijv, shortrange, taper, .FALSE., ii, kk, rep, &
+               logv, ij_matrix, v, lgrad=.FALSE.,error=error)
+
+          ! Second step in rotation of integrals
+          DO i1 = 1, ii
+             DO j1 = 1, i1
+                ij = indexa(i1, j1)
+                jj = indexb(i1, j1)
+                mm = int2c_type(jj)
+                DO k = 1, kk
+                   DO l = 1, k
+                      kl = indexb(k, l)
+                      IF (logv(ij, kl)) THEN
+                         wrepp = v(ij, kl)
+                         SELECT CASE (mm)
+                         CASE(1)
+                            ! (SS/)
+                            i = 1
+                            j = 1
+                            iw_loc = (indexb(i,j)-1) * limkl + kl
+                            ww(iw_loc) = wrepp
+                         CASE(2)
+                            ! (SP/)
+                            j = 1
+                            DO i = 1, 3
+                               iw_loc = (indexb(i+1,j)-1) * limkl + kl
+                               ww(iw_loc) = ww(iw_loc) + ij_matrix%sp(i1-1, i) * wrepp
+                            END DO
+                         CASE(3)
+                            ! (PP/)
+                            DO i = 1, 3
+                               cc = ij_matrix%pp(i, i1-1, j1-1)
+                               iw_loc = (indexb(i+1,i+1)-1) * limkl + kl
+                               ww(iw_loc) = ww(iw_loc) + cc * wrepp
+                               iminus = i - 1
+                               IF (iminus /= 0) THEN
+                                  DO j = 1, iminus
+                                     cc = ij_matrix%pp(1+i+j, i1-1, j1-1)
+                                     iw_loc = (indexb(i+1,j+1)-1) * limkl + kl
+                                     ww(iw_loc) = ww(iw_loc) + cc * wrepp
+                                  END DO
+                               END IF
+                            END DO
+                         CASE(4)
+                            ! (SD/)
+                            j = 1
+                            DO i = 1, 5
+                               iw_loc = (indexb(i+4,j)-1) * limkl + kl
+                               ww(iw_loc) = ww(iw_loc) + ij_matrix%sd(i1-4, i) * wrepp
+                            END DO
+                         CASE(5)
+                            ! (DP/)
+                            DO i = 1, 5
+                               DO j = 1, 3
+                                  iw_loc = (indexb(i+4,j+1)-1) * limkl + kl
+                                  ij1 = 3 * (i-1) + j
+                                  ww(iw_loc) = ww(iw_loc) + ij_matrix%dp(ij1, i1-4, j1-1) * wrepp
+                               END DO
+                            END DO
+                         CASE(6)
+                            ! (DD/)
+                            DO i = 1, 5
+                               cc = ij_matrix%dd(i, i1-4, j1-4)
+                               iw_loc = (indexb(i+4,i+4)-1) * limkl + kl
+                               ww(iw_loc) = ww(iw_loc) + cc * wrepp
+                               iminus = i - 1
+                               IF (iminus /= 0) THEN
+                                  DO j = 1, iminus
+                                     ij1 = inddd(i, j)
+                                     cc = ij_matrix%dd(ij1, i1-4, j1-4)
+                                     iw_loc = (indexb(i+4,j+4)-1) * limkl + kl
+                                     ww(iw_loc) = ww(iw_loc) + cc * wrepp
+                                  END DO
+                               END IF
+                            END DO
+                         END SELECT
+                      END IF
+                   END DO
+                END DO
+             END DO
+          END DO
        END IF
- 
-       IF (si) THEN
-!   (px s/s s)
-          w(11)=ri(2)*x(1)
-          IF (sj) THEN
-!   (px s/px s)
-             w(12)=ri(6)*xx11+ri(7)*yyzz11
-!   (px s/px px)
-             w(13)=x(1)*(ri(13)*xx11+ri(14)*yyzz11) &
-                  +ri(15)*(y(1)*xy11+z(1)*xz11)
-!   (px s/py s)
-             w(14)=ri(6)*xx21+ri(7)*yyzz21
-!   (px s/py px)
-             w(15)=x(1)*(ri(13)*xx21+ri(14)*yyzz21) &
-                  +ri(15)*(y(1)*xy21+z(1)*xz21)
-!   (px s/py py)
-             w(16)=x(1)*(ri(13)*xx22+ri(14)*yyzz22) &
-                  +ri(15)*(y(1)*xy22+z(1)*xz22)
-!   (px s/pz s)
-             w(17)=ri(6)*xx31+ri(7)*zz31
-!   (px s/pz px)
-             w(18)=x(1)*(ri(13)*xx31+ri(14)*zz31) &
-                  +ri(15)*(y(1)*xy31+z(1)*xz31)
-!   (px s/pz py)
-             w(19)=x(1)*(ri(13)*xx32+ri(14)*zz32) &
-                  +ri(15)*(y(1)*xy32+z(1)*xz32)
-!   (px s/pz pz)
-             w(20)=x(1)*(ri(13)*xx33+ri(14)*zz33) &
-                  +ri(15)*(          z(1)*xz33)
-!   (px px/s s)
-             w(21)=ri(3)*xx11+ri(4)*yyzz11
-!   (px px/px s)
-             w(22)=x(1)*(ri(8)*xx11+ri(9)*yyzz11) &
-                  +ri(10)*(y(1)*xy11+z(1)*xz11)
-!   (px px/px px)
-             w(23) = &
-                  (ri(16)*xx11+ri(17)*yyzz11)*xx11+ri(18)*xx11*yyzz11 &
-                  +ri(19)*(yy11*yy11+zz11*zz11) &
-                  +ri(20)*(xy11*xy11+xz11*xz11) &
-                  +ri(21)*(yy11*zz11+zz11*yy11) &
-                  +ri(22)*yz11*yz11
-!   (px px/py s)
-             w(24)=x(2)*(ri(8)*xx11+ri(9)*yyzz11) &
-                  +ri(10)*(y(2)*xy11+z(2)*xz11)
-!   (px px/py px)
-             w(25) = &
-                  (ri(16)*xx11+ri(17)*yyzz11)*xx21+ri(18)*xx11*yyzz21 &
-                  +ri(19)*(yy11*yy21+zz11*zz21) &
-                  +ri(20)*(xy11*xy21+xz11*xz21) &
-                  +ri(21)*(yy11*zz21+zz11*yy21) &
-                  +ri(22)*yz11*yz21
-!   (px px/py py)
-             w(26) = &
-                  (ri(16)*xx11+ri(17)*yyzz11)*xx22+ri(18)*xx11*yyzz22 &
-                  +ri(19)*(yy11*yy22+zz11*zz22) &
-                  +ri(20)*(xy11*xy22+xz11*xz22) &
-                  +ri(21)*(yy11*zz22+zz11*yy22) &
-                  +ri(22)*yz11*yz22
-!   (px px/pz s)
-             w(27)=x(3)*(ri(8)*xx11+ri(9)*yyzz11) &
-                  +ri(10)*(         +z(3)*xz11)
-!   (px px/pz px)
-             w(28) = &
-                  (ri(16)*xx11+ri(17)*yyzz11)*xx31 &
-                  +(ri(18)*xx11+ri(19)*zz11+ri(21)*yy11)*zz31 &
-                  +ri(20)*(xy11*xy31+xz11*xz31) &
-                  +ri(22)*yz11*yz31
-!   (px px/pz py)
-             w(29) = &
-                  (ri(16)*xx11+ri(17)*yyzz11)*xx32 &
-                  +(ri(18)*xx11+ri(19)*zz11+ri(21)*yy11)*zz32 &
-                  +ri(20)*(xy11*xy32+xz11*xz32) &
-                  +ri(22)*yz11*yz32
-!   (px px/pz pz)
-             w(30) = &
-                  (ri(16)*xx11+ri(17)*yyzz11)*xx33 &
-                  +(ri(18)*xx11+ri(19)*zz11+ri(21)*yy11)*zz33 &
-                  +ri(20)*xz11*xz33
-!   (py s/s s)
-             w(31)=ri(2)*x(2)
-!   (py s/px s)
-             w(32)=ri(6)*xx21+ri(7)*yyzz21
-!   (py s/px px)
-             w(33)=x(2)*(ri(13)*xx11+ri(14)*yyzz11) &
-                  +ri(15)*(y(2)*xy11+z(2)*xz11)
-!   (py s/py s)
-             w(34)=ri(6)*xx22+ri(7)*yyzz22
-!   (py s/py px)
-             w(35)=x(2)*(ri(13)*xx21+ri(14)*yyzz21) &
-                  +ri(15)*(y(2)*xy21+z(2)*xz21)
-!   (py s/py py)
-             w(36)=x(2)*(ri(13)*xx22+ri(14)*yyzz22) &
-                  +ri(15)*(y(2)*xy22+z(2)*xz22)
-!   (py s/pz s)
-             w(37)=ri(6)*xx32+ri(7)*zz32
-!   (py s/pz px)
-             w(38)=x(2)*(ri(13)*xx31+ri(14)*zz31) &
-                  +ri(15)*(y(2)*xy31+z(2)*xz31)
-!   (py s/pz py)
-             w(39)=x(2)*(ri(13)*xx32+ri(14)*zz32) &
-                  +ri(15)*(y(2)*xy32+z(2)*xz32)
-!   (py s/pz pz)
-             w(40)=x(2)*(ri(13)*xx33+ri(14)*zz33) &
-                  +ri(15)*(         +z(2)*xz33)
-!   (py px/s s)
-             w(41)=ri(3)*xx21+ri(4)*yyzz21
-!   (py px/px s)
-             w(42)=x(1)*(ri(8)*xx21+ri(9)*yyzz21) &
-                  +ri(10)*(y(1)*xy21+z(1)*xz21)
-!   (py px/px px)
-             w(43) = &
-                  (ri(16)*xx21+ri(17)*yyzz21)*xx11+ri(18)*xx21*yyzz11 &
-                  +ri(19)*(yy21*yy11+zz21*zz11) &
-                  +ri(20)*(xy21*xy11+xz21*xz11) &
-                  +ri(21)*(yy21*zz11+zz21*yy11) &
-                  +ri(22)*yz21*yz11
-!   (py px/py s)
-             w(44)=x(2)*(ri(8)*xx21+ri(9)*yyzz21) &
-                  +ri(10)*(y(2)*xy21+z(2)*xz21)
-!   (py px/py px)
-             w(45) = &
-                  (ri(16)*xx21+ri(17)*yyzz21)*xx21+ri(18)*xx21*yyzz21 &
-                  +ri(19)*(yy21*yy21+zz21*zz21) &
-                  +ri(20)*(xy21*xy21+xz21*xz21) &
-                  +ri(21)*(yy21*zz21+zz21*yy21) &
-                  +ri(22)*yz21*yz21
-!   (py px/py py)
-             w(46) = &
-                  (ri(16)*xx21+ri(17)*yyzz21)*xx22+ri(18)*xx21*yyzz22 &
-                  +ri(19)*(yy21*yy22+zz21*zz22) &
-                  +ri(20)*(xy21*xy22+xz21*xz22) &
-                  +ri(21)*(yy21*zz22+zz21*yy22) &
-                  +ri(22)*yz21*yz22
-!   (py px/pz s)
-             w(47)=x(3)*(ri(8)*xx21+ri(9)*yyzz21) &
-                  +ri(10)*(         +z(3)*xz21)
-!   (py px/pz px)
-             w(48) = &
-                  (ri(16)*xx21+ri(17)*yyzz21)*xx31 &
-                  +(ri(18)*xx21+ri(19)*zz21+ri(21)*yy21)*zz31 &
-                  +ri(20)*(xy21*xy31+xz21*xz31) &
-                  +ri(22)*yz21*yz31
-!   (py px/pz py)
-             w(49) = &
-                  (ri(16)*xx21+ri(17)*yyzz21)*xx32 &
-                  +(ri(18)*xx21+ri(19)*zz21+ri(21)*yy21)*zz32 &
-                  +ri(20)*(xy21*xy32+xz21*xz32) &
-                  +ri(22)*yz21*yz32
-!   (py px/pz pz)
-             w(50) = &
-                  (ri(16)*xx21+ri(17)*yyzz21)*xx33 &
-                  +(ri(18)*xx21+ri(19)*zz21+ri(21)*yy21)*zz33 &
-                  +ri(20)*xz21*xz33
-!   (py py/s s)
-             w(51)=ri(3)*xx22+ri(4)*yyzz22
-!   (py py/px s)
-             w(52)=x(1)*(ri(8)*xx22+ri(9)*yyzz22) &
-                  +ri(10)*(y(1)*xy22+z(1)*xz22)
-!   (py py/px px)
-             w(53) = &
-                  (ri(16)*xx22+ri(17)*yyzz22)*xx11+ri(18)*xx22*yyzz11 &
-                  +ri(19)*(yy22*yy11+zz22*zz11) &
-                  +ri(20)*(xy22*xy11+xz22*xz11) &
-                  +ri(21)*(yy22*zz11+zz22*yy11) &
-                  +ri(22)*yz22*yz11
-!   (py py/py s)
-             w(54)=x(2)*(ri(8)*xx22+ri(9)*yyzz22) &
-                  +ri(10)*(y(2)*xy22+z(2)*xz22)
-!   (py py/py px)
-             w(55) = &
-                  (ri(16)*xx22+ri(17)*yyzz22)*xx21+ri(18)*xx22*yyzz21 &
-                  +ri(19)*(yy22*yy21+zz22*zz21) &
-                  +ri(20)*(xy22*xy21+xz22*xz21) &
-                  +ri(21)*(yy22*zz21+zz22*yy21) &
-                  +ri(22)*yz22*yz21
-!   (py py/py py)
-             w(56) = &
-                  (ri(16)*xx22+ri(17)*yyzz22)*xx22+ri(18)*xx22*yyzz22 &
-                  +ri(19)*(yy22*yy22+zz22*zz22) &
-                  +ri(20)*(xy22*xy22+xz22*xz22) &
-                  +ri(21)*(yy22*zz22+zz22*yy22) &
-                  +ri(22)*yz22*yz22
-!   (py py/pz s)
-             w(57)=x(3)*(ri(8)*xx22+ri(9)*yyzz22) &
-                  +ri(10)*(         +z(3)*xz22)
-!   (py py/pz px)
-             w(58) = &
-                  (ri(16)*xx22+ri(17)*yyzz22)*xx31 &
-                  +(ri(18)*xx22+ri(19)*zz22+ri(21)*yy22)*zz31 &
-                  +ri(20)*(xy22*xy31+xz22*xz31) &
-                  +ri(22)*yz22*yz31
-!   (py py/pz py)
-             w(59) = &
-                  (ri(16)*xx22+ri(17)*yyzz22)*xx32 &
-                  +(ri(18)*xx22+ri(19)*zz22+ri(21)*yy22)*zz32 &
-                  +ri(20)*(xy22*xy32+xz22*xz32) &
-                  +ri(22)*yz22*yz32
-!   (py py/pz pz)
-             w(60) = &
-                  (ri(16)*xx22+ri(17)*yyzz22)*xx33 &
-                  +(ri(18)*xx22+ri(19)*zz22+ri(21)*yy22)*zz33 &
-                  +ri(20)*xz22*xz33
-!   (pz s/ss)
-             w(61)=ri(2)*x(3)
-!   (pz s/px s)
-             w(62)=ri(6)*xx31+ri(7)*zz31
-!   (pz s/px px)
-             w(63)=x(3)*(ri(13)*xx11+ri(14)*yyzz11) &
-                  +ri(15)*(         +z(3)*xz11)
-!   (pz s/py s)
-             w(64)=ri(6)*xx32+ri(7)*zz32
-!   (pz s/py px)
-             w(65)=x(3)*(ri(13)*xx21+ri(14)*yyzz21) &
-                  +ri(15)*(         +z(3)*xz21)
-!   (pz s/py py)
-             w(66)=x(3)*(ri(13)*xx22+ri(14)*yyzz22) &
-                  +ri(15)*(         +z(3)*xz22)
-!   (pz s/pz s)
-             w(67)=ri(6)*xx33+ri(7)*zz33
-!   (pz s/pz px)
-             w(68)=x(3)*(ri(13)*xx31+ri(14)*zz31) &
-                  +ri(15)*(         +z(3)*xz31)
-!   (pz s/pz py)
-             w(69)=x(3)*(ri(13)*xx32+ri(14)*zz32) &
-                  +ri(15)*(         +z(3)*xz32)
-!   (pz s/pz pz)
-             w(70)=x(3)*(ri(13)*xx33+ri(14)*zz33) &
-                  +ri(15)*(         +z(3)*xz33)
-!   (pz px/s s)
-             w(71)=ri(3)*xx31+ri(4)*zz31
-!   (pz px/px s)
-             w(72)=x(1)*(ri(8)*xx31+ri(9)*zz31) &
-                  +ri(10)*(y(1)*xy31+z(1)*xz31)
-!   (pz px/px px)
-             w(73) = &
-                  (ri(16)*xx31+ri(17)*zz31)*xx11+ri(18)*xx31*yyzz11 &
-                  +ri(19)*zz31*zz11 &
-                  +ri(20)*(xy31*xy11+xz31*xz11) &
-                  +ri(21)*zz31*yy11 &
-                  +ri(22)*yz31*yz11
-!   (pz px/py s)
-             w(74)=x(2)*(ri(8)*xx31+ri(9)*zz31) &
-                  +ri(10)*(y(2)*xy31+z(2)*xz31)
-!   (pz px/py px)
-             w(75) = &
-                  (ri(16)*xx31+ri(17)*zz31)*xx21+ri(18)*xx31*yyzz21 &
-                  +ri(19)*zz31*zz21 &
-                  +ri(20)*(xy31*xy21+xz31*xz21) &
-                  +ri(21)*zz31*yy21 &
-                  +ri(22)*yz31*yz21
-!   (pz px/py py)
-             w(76) = &
-                  (ri(16)*xx31+ri(17)*zz31)*xx22+ri(18)*xx31*yyzz22 &
-                  +ri(19)*zz31*zz22 &
-                  +ri(20)*(xy31*xy22+xz31*xz22) &
-                  +ri(21)*zz31*yy22 &
-                  +ri(22)*yz31*yz22
-!   (pz px/pz s)
-             w(77)=x(3)*(ri(8)*xx31+ri(9)*zz31) &
-                  +ri(10)*(         +z(3)*xz31)
-!   (pz px/pz px)
-             w(78) = &
-                  (ri(16)*xx31+ri(17)*zz31)*xx31 &
-                  +(ri(18)*xx31+ri(19)*zz31)*zz31 &
-                  +ri(20)*(xy31*xy31+xz31*xz31) &
-                  +ri(22)*yz31*yz31
-!   (pz px/pz py)
-             w(79) = &
-                  (ri(16)*xx31+ri(17)*zz31)*xx32 &
-                  +(ri(18)*xx31+ri(19)*zz31)*zz32 &
-                  +ri(20)*(xy31*xy32+xz31*xz32) &
-                  +ri(22)*yz31*yz32
-!   (pz px/pz pz)
-             w(80) = &
-                  (ri(16)*xx31+ri(17)*zz31)*xx33 &
-                  +(ri(18)*xx31+ri(19)*zz31)*zz33 &
-                  +ri(20)*xz31*xz33
-!   (pz py/s s)
-             w(81)=ri(3)*xx32+ri(4)*zz32
-!   (pz py/px s)
-             w(82)=x(1)*(ri(8)*xx32+ri(9)*zz32) &
-                  +ri(10)*(y(1)*xy32+z(1)*xz32)
-!   (pz py/px px)
-             w(83) = &
-                  (ri(16)*xx32+ri(17)*zz32)*xx11+ri(18)*xx32*yyzz11 &
-                  +ri(19)*zz32*zz11 &
-                  +ri(20)*(xy32*xy11+xz32*xz11) &
-                  +ri(21)*zz32*yy11 &
-                  +ri(22)*yz32*yz11
-!   (pz py/py s)
-             w(84)=x(2)*(ri(8)*xx32+ri(9)*zz32) &
-                  +ri(10)*(y(2)*xy32+z(2)*xz32)
-!   (pz py/py px)
-             w(85) = &
-                  (ri(16)*xx32+ri(17)*zz32)*xx21+ri(18)*xx32*yyzz21 &
-                  +ri(19)*zz32*zz21 &
-                  +ri(20)*(xy32*xy21+xz32*xz21) &
-                  +ri(21)*zz32*yy21 &
-                  +ri(22)*yz32*yz21
-!   (pz py/py py)
-             w(86) = &
-                  (ri(16)*xx32+ri(17)*zz32)*xx22+ri(18)*xx32*yyzz22 &
-                  +ri(19)*zz32*zz22 &
-                  +ri(20)*(xy32*xy22+xz32*xz22) &
-                  +ri(21)*zz32*yy22 &
-                  +ri(22)*yz32*yz22
-!   (pz py/pz s)
-             w(87)=x(3)*(ri(8)*xx32+ri(9)*zz32) &
-               +ri(10)*(         +z(3)*xz32)
-!   (pz py/pz px)
-             w(88) = &
-                  (ri(16)*xx32+ri(17)*zz32)*xx31 &
-                  +(ri(18)*xx32+ri(19)*zz32)*zz31 &
-                  +ri(20)*(xy32*xy31+xz32*xz31) &
-                  +ri(22)*yz32*yz31
-!   (pz py/pz py)
-             w(89) = &
-                  (ri(16)*xx32+ri(17)*zz32)*xx32 &
-                  +(ri(18)*xx32+ri(19)*zz32)*zz32 &
-                  +ri(20)*(xy32*xy32+xz32*xz32) &
-                  +ri(22)*yz32*yz32
-!   (pz py/pz pz)
-             w(90) = &
-                  (ri(16)*xx32+ri(17)*zz32)*xx33 &
-                  +(ri(18)*xx32+ri(19)*zz32)*zz33 &
-                  +ri(20)*xz32*xz33
-!   (pz pz/s s)
-             w(91)=ri(3)*xx33+ri(4)*zz33
-!   (pz pz/px s)
-             w(92)=x(1)*(ri(8)*xx33+ri(9)*zz33) &
-                  +ri(10)*(          z(1)*xz33)
-!   (pz pz/px px)
-             w(93) = &
-                  (ri(16)*xx33+ri(17)*zz33)*xx11+ri(18)*xx33*yyzz11 &
-                  +ri(19)*zz33*zz11 &
-                  +ri(20)*xz33*xz11 &
-                  +ri(21)*zz33*yy11
-!   (pz pz/py s)
-             w(94)=x(2)*(ri(8)*xx33+ri(9)*zz33) &
-                  +ri(10)*(         +z(2)*xz33)
-!   (pz pz/py px)
-             w(95) = &
-                  (ri(16)*xx33+ri(17)*zz33)*xx21+ri(18)*xx33*yyzz21 &
-                  +ri(19)*zz33*zz21 &
-                  +ri(20)*xz33*xz21 &
-                  +ri(21)*zz33*yy21
-!   (pz pz/py py)
-             w(96) = &
-                  (ri(16)*xx33+ri(17)*zz33)*xx22+ri(18)*xx33*yyzz22 &
-                  +ri(19)*zz33*zz22 &
-                  +ri(20)*xz33*xz22 &
-                  +ri(21)*zz33*yy22
-!   (pz pz/pz s)
-             w(97)=x(3)*(ri(8)*xx33+ri(9)*zz33) &
-                  +ri(10)*(         +z(3)*xz33)
-!   (pz pz/pz px)
-             w(98) = &
-                  (ri(16)*xx33+ri(17)*zz33)*xx31 &
-                  +(ri(18)*xx33+ri(19)*zz33)*zz31 &
-                  +ri(20)*xz33*xz31
-!   (pz pz/pz py)
-             w(99) = &
-                  (ri(16)*xx33+ri(17)*zz33)*xx32 &
-                  +(ri(18)*xx33+ri(19)*zz33)*zz32 &
-                  +ri(20)*xz33*xz32
-!   (pz pz/pz pz)
-             w(100) = &
-                  (ri(16)*xx33+ri(17)*zz33)*xx33 &
-                  +(ri(18)*xx33+ri(19)*zz33)*zz33 &
-                  +ri(20)*xz33*xz33
-          ELSE
-!   (px s/s s)
-             w(2)=ri(2)*x(1)
-!   (px px/s s)
-             w(3)=ri(3)*xx11+ri(4)*yyzz11
-!   (py s/s s)
-             w(4)=ri(2)*x(2)
-!   (py px/s s)
-             w(5)=ri(3)*xx21+ri(4)*yyzz21
-!   (py py/s s)
-             w(6)=ri(3)*xx22+ri(4)*yyzz22
-!   (pz s/ss)
-             w(7)=ri(2)*x(3)
-!   (pz px/s s)
-             w(8)=ri(3)*xx31+ri(4)*zz31
-!   (pz py/s s)
-             w(9)=ri(3)*xx32+ri(4)*zz32
-!   (pz pz/s s)
-             w(10)=ri(3)*xx33+ri(4)*zz33
-          END IF
-       END IF
+       CALL rotmat_release(ij_matrix, error)
+    
+       ! Store two electron integrals in the triangular format
+       limij = (ii*(ii+1))/2
+       limkl = (kk*(kk+1))/2
+       CALL store_2el_2c_diag(limij, limkl, ww, w)
     ENDIF
     
   END SUBROUTINE rotint_num
-
-! *****************************************************************************
-!> \brief Computes the two-particle interactions.
-!> \param on input  sepi   = Atomic parameters of first atom
-!>                  sepj   = Atomic parameters of second atom
-!>                  rijv   = Coordinate vector i -> j
-!>
-!>    on output e1b,e2a= Array of electron-nuclear attraction integrals,
-!>                       e1b = Electron on atom ni attracting nucleus of nj.
-!>                       e2a = Electron on atom nj attracting nucleus of ni.
-!>                       enuc= nuclear-nuclear repulsion term.
-!>
-!> \note routine adapted from mopac7 (rotate)
-!>       written by Ernest R. Davidson, Indiana University.
-! *****************************************************************************
-  SUBROUTINE rotnuc_num(sepi,sepj,rijv,e1b,e2a,enuc,itype,shortrange,taper,error)
-    TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: rijv
-    REAL(dp), DIMENSION(:), INTENT(OUT)      :: e1b, e2a
-    REAL(dp), INTENT(OUT)                    :: enuc
-    INTEGER, INTENT(IN)                      :: itype
-    LOGICAL, INTENT(IN)                      :: shortrange
-    TYPE(taper_type), POINTER                :: taper
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rotnuc_num', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: ig, nt
-    LOGICAL                                  :: si, sj
-    REAL(dp) :: a, aab, alpi, alpj, apdg, ax, cppp1, cppp2, cpps1, cpps2, &
-      csp1, csp2, css1, css2, dai, daj, dbi, dbj, pai, paj, pbi, pbj, poi, &
-      poj, qcorr, rij, rija, scale, ssss, xab, xx11, xx21, xx22, xx31, xx32, &
-      xx33, yy11, yy21, yy22, yyzz11, yyzz21, yyzz22, zaf, zbf, zz, zz11, &
-      zz21, zz22, zz31, zz32, zz33
-    REAL(dp), DIMENSION(3)                   :: x, y, z
-    REAL(dp), DIMENSION(4)                   :: fni1, fni2, fni3, fnj1, fnj2, &
-                                                fnj3
-    REAL(dp), DIMENSION(4, 2)                :: ccore
-
-    x(:)=-rijv(:)
-    rij=x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
-    e1b(:)=0._dp
-    e2a(:)=0._dp
-    enuc=0._dp
-    IF (rij > rij_threshold) THEN
-       rij = SQRT(rij)
-       ! Compute Integrals in Diatamic Frame
-       CALL nucint_num(sepi,sepj,rij,ssss,ccore,itype,shortrange,taper=taper,error=error)
-
-       a=1._dp/rij
-       x(1) = x(1)*a
-       x(2) = x(2)*a
-       x(3) = x(3)*a
-       IF (ABS(x(3)) > 0.99999999_dp) THEN
-          x(3) = SIGN(1._dp,x(3))
-          y(1) = 0._dp
-          y(2) = 1._dp
-          y(3) = 0._dp
-          z(1) = 1._dp
-          z(2) = 0._dp
-          z(3) = 0._dp
-       ELSE
-          z(3)=SQRT(1._dp-x(3)*x(3))
-          a=1._dp/z(3)
-          y(1)=-a*x(2)*SIGN(1._dp,x(1))
-          y(2)=ABS(a*x(1))
-          y(3)=0._dp
-          z(1)=-a*x(1)*x(3)
-          z(2)=-a*x(2)*x(3)
-       ENDIF
-       si = (sepi%natorb > 1)
-       sJ = (sepj%natorb > 1)
-       IF ( si .OR. sj ) THEN
-          xx11 = x(1)*x(1)
-          xx21 = x(2)*x(1)
-          xx22 = x(2)*x(2)
-          xx31 = x(3)*x(1)
-          xx32 = x(3)*x(2)
-          xx33 = x(3)*x(3)
-          yy11 = y(1)*y(1)
-          YY21 = Y(2)*Y(1)
-          yy22 = y(2)*y(2)
-          zz11 = z(1)*z(1)
-          zz21 = z(2)*z(1)
-          zz22 = z(2)*z(2)
-          zz31 = z(3)*z(1)
-          zz32 = z(3)*z(2)
-          zz33 = z(3)*z(3)
-          yyzz11 = yy11+zz11
-          yyzz21 = yy21+zz21
-          yyzz22 = yy22+zz22
-       ENDIF
-
-       css1  = ccore(1,1)
-       csp1  = ccore(2,1)
-       cpps1 = ccore(3,1)
-       cppp1 = ccore(4,1)
-       css2  = ccore(1,2)
-       csp2  = ccore(2,2)
-       cpps2 = ccore(3,2)
-       cppp2 = ccore(4,2)
-
-       e1b(1)=-css1
-       IF(sepi%natorb == 4) THEN
-          e1b(2) = -csp1 *x(1)
-          e1b(3) = -cpps1*xx11-cppp1*yyzz11
-          e1b(4) = -csp1 *x(2)
-          e1b(5) = -cpps1*xx21-cppp1*yyzz21
-          e1b(6) = -cpps1*xx22-cppp1*yyzz22
-          e1b(7) = -csp1 *x(3)
-          e1b(8) = -cpps1*xx31-cppp1*zz31
-          e1b(9) = -cpps1*xx32-cppp1*zz32
-          e1b(10)= -cpps1*xx33-cppp1*zz33
-       END IF
-       e2a(1)=-css2
-       IF(sepj%natorb == 4) THEN
-          e2a(2) = -csp2 *x(1)
-          e2a(3) = -cpps2*xx11-cppp2*yyzz11
-          e2a(4) = -csp2 *x(2)
-          e2a(5) = -cpps2*xx21-cppp2*yyzz21
-          e2a(6) = -cpps2*xx22-cppp2*yyzz22
-          e2a(7) = -csp2 *x(3)
-          e2a(8) = -cpps2*xx31-cppp2*zz31
-          e2a(9) = -cpps2*xx32-cppp2*zz32
-          e2a(10)= -cpps2*xx33-cppp2*zz33
-       END IF
-
-       IF(itype /= do_method_pm6) THEN
-
-          alpi = sepi%alp
-          alpj = sepj%alp
-          scale = EXP(-alpi*rij)+EXP(-alpj*rij)
-
-          nt=sepi%z+sepj%z
-          IF(nt == 8 .OR. nt == 9) THEN
-             IF(sepi%z == 7.OR.sepi%z == 8) &
-                  scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpi*rij)
-             IF(sepj%z == 7.OR.sepj%z == 8) &
-                  scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpj*rij)
-          ENDIF
-          zz = sepi%zeff*sepj%zeff
-          enuc = zz*ssss
-          scale=ABS(scale*enuc)
-          zz=zz/rij
-          IF(itype == do_method_am1 .OR. itype == do_method_pm3 .OR. itype == do_method_pdg) THEN
-             IF(itype == do_method_am1 .AND. sepi%z == 5) THEN
-                !special case AM1 Boron
-                SELECT CASE (sepj%z)
-                CASE DEFAULT
-                   nt=1
-                CASE (1)
-                   nt=2
-                CASE (6)
-                   nt=3
-                CASE (9,17,35,53)
-                   nt=4
-                END SELECT
-                fni1(:) = sepi%bfn1(:,nt)
-                fni2(:) = sepi%bfn2(:,nt)
-                fni3(:) = sepi%bfn3(:,nt)
-             ELSE
-                fni1(:) = sepi%fn1(:)
-                fni2(:) = sepi%fn2(:)
-                fni3(:) = sepi%fn3(:)
-             END IF
-             IF(itype == do_method_am1 .AND. sepj%z == 5) THEN
-                !special case AM1 Boron
-                SELECT CASE (sepi%z)
-                CASE DEFAULT
-                   nt=1
-                CASE (1)
-                   nt=2
-                CASE (6)
-                   nt=3
-                CASE (9,17,35,53)
-                   nt=4
-                END SELECT
-                fnj1(:) = sepj%bfn1(:,nt)
-                fnj2(:) = sepj%bfn2(:,nt)
-                fnj3(:) = sepj%bfn3(:,nt)
-             ELSE
-                fnj1(:) = sepj%fn1(:)
-                fnj2(:) = sepj%fn2(:)
-                fnj3(:) = sepj%fn3(:)
-             END IF
-             ! AM1/PM3/PDG correction to nuclear repulsion
-             DO ig=1,SIZE(fni1)
-                IF(ABS(fni1(ig)) > 0._dp) THEN
-                   AX = fni2(ig)*(rij-fni3(ig))**2
-                   IF(ax <= 25._dp) THEN
-                      scale=scale +zz*fni1(ig)*EXP(-ax)
-                   ENDIF
-                ENDIF
-                IF(ABS(fnj1(ig)) > 0._dp) THEN
-                   ax = fnj2(ig)*(rij-fnj3(ig))**2
-                   IF(ax <= 25._dp) THEN
-                      scale=scale +zz*fnj1(ig)*EXP(-ax)
-                   ENDIF
-                ENDIF
-             END DO
-          ENDIF
-          IF(itype == do_method_pdg) THEN
-             ! PDDG function 
-             zaf=sepi%zeff/nt
-             zbf=sepj%zeff/nt
-             pai=sepi%pre(1)
-             pbi=sepi%pre(2)
-             paj=sepj%pre(1)
-             pbj=sepj%pre(2)
-             dai=sepi%d(1)
-             dbi=sepi%d(2)
-             daj=sepj%d(1)
-             dbj=sepj%d(2)
-             apdg=10._dp*0.5291772083_dp*0.5291772083_dp
-             qcorr = (zaf*pai+zbf*paj)*EXP(-apdg*(rij-dai-daj)**2)+ &
-                  (zaf*pai+zbf*pbj)*EXP(-apdg*(rij-dai-dbj)**2)+ &
-                  (zaf*pbi+zbf*paj)*EXP(-apdg*(rij-dbi-daj)**2)+ &
-                  (zaf*pbi+zbf*pbj)*EXP(-apdg*(rij-dbi-dbj)**2)
-          ELSEIF (itype==do_method_pchg) THEN
-             qcorr = 0.0_dp
-             scale = 0.0_dp
-          ELSE
-             qcorr = 0.0_dp
-          END IF
-          enuc=enuc+scale+qcorr
-
-       ELSE
-          enuc = 0._dp
-          rija = rij*angstrom
-          IF ( ABS(sepi%rho) > EPSILON(0.0_dp) ) THEN
-             poi = sepi%rho
-          ELSE
-             poi = sepi%ko(1)
-          END IF
-          IF ( ABS(sepj%rho) > EPSILON(0._dp) ) THEN
-             poj = sepj%rho
-          ELSE
-             poj = sepj%ko(1)
-          END IF
-          scale = sepi%zeff*sepj%zeff/SQRT(rij*rij+(poi+poj)**2)
-          IF(shortrange) scale = scale -  sepi%zeff*sepj%zeff/rij
-          ! PM6 core-core terms
-          xab = sepi%xab(sepj%z)
-          aab = sepi%aab(sepj%z)
-          IF ( (sepi%z == 1 .AND. (sepj%z == 6 .OR. sepj%z == 7 .OR. sepj%z == 8)) .OR. &
-               (sepj%z == 1 .AND. (sepi%z == 6 .OR. sepi%z == 7 .OR. sepi%z == 8)) ) THEN
-             ! Special Case O-H or N-H or C-H
-             enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*rija*rija))
-          ELSEIF ( sepi%z == 6 .AND. sepj%z == 6 ) THEN
-             ! Special Case C-C
-             enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)) &
-                  +9.28_dp*EXP(-5.98*rija))
-          ELSEIF ( (sepi%z == 8 .AND. sepj%z == 14) .OR. &
-               (sepj%z == 8 .AND. sepi%z == 14) ) THEN
-             ! Special Case Si-O
-             enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)) &
-                  -0.0007_dp*EXP(-(rija-2.9_dp)**2) )
-          ELSE
-             ! General Case
-             ! Factor of 2 found by experiment 
-             enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)))
-          END IF
-          ! General correction term a*exp(-b*(rij-c)^2)
-          enuc=enuc+(sepi%a*EXP(-sepi%b*(rij-sepi%c)**2))*sepi%zeff*sepj%zeff/rij
-          enuc=enuc+(sepj%a*EXP(-sepj%b*(rij-sepj%c)**2))*sepi%zeff*sepj%zeff/rij
-          ! Hard core repulsion
-          enuc=enuc+1.e-8_dp/evolt &
-               * ( (REAL(sepi%z,dp)**(1._dp/3._dp) + REAL(sepj%z,dp)**(1._dp/3._dp))/rija )**12
-       END IF
-    END IF
-
-  END SUBROUTINE rotnuc_num
 
 ! *****************************************************************************
 !> \brief Calculates the derivative pf two-electron repulsion integrals and the
@@ -847,10 +215,10 @@ CONTAINS
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino [tlaino] - Zurich University
 ! *****************************************************************************
-  SUBROUTINE terep_num( sepi, sepj, rij, ri, shortrange, taper, error )
-    TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
+  SUBROUTINE terep_num( sepi, sepj, rij, rep, shortrange, taper, error )
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
-    REAL(dp), DIMENSION(:), INTENT(OUT)      :: ri
+    REAL(dp), DIMENSION(491), INTENT(OUT)    :: rep
     LOGICAL, INTENT(IN)                      :: shortrange
     TYPE(taper_type), POINTER                :: taper
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -858,15 +226,26 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'terep_num', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i, ind
     LOGICAL                                  :: failure
+    REAL(dp), DIMENSION(22)                  :: ri
 
     failure = .FALSE.
-    ri = 0.0_dp
+    ri      = 0.0_dp
+    CALL terep_sp_num(sepi, sepj, rij, ri, shortrange, taper=taper, error=error)
 
-    CALL terep_sp_num( sepi, sepj, rij, ri, shortrange, taper=taper, error=error)
+    ! Preliminary storage of sp-integrals
+    rep = 0.0_dp
+    DO i = 1, 34
+       ind    = map_22_to_491(i)
+       rep(i) = ri(ind)
+    END DO
+
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ! compute the contribution from d-orbitals
        STOP "D-ORBITALS: terep"
+
+
     END IF
   END SUBROUTINE terep_num
 
@@ -895,9 +274,9 @@ CONTAINS
 !>                 for computing integrals
 ! *****************************************************************************
   RECURSIVE SUBROUTINE terep_sp_num ( sepi, sepj, rij, ri, shortrange, do_longrange, taper, error )
-    TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
-    REAL(dp), DIMENSION(:), INTENT(INOUT)    :: ri
+    REAL(dp), DIMENSION(22), INTENT(INOUT)   :: ri
     LOGICAL, INTENT(IN)                      :: shortrange
     LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
     TYPE(taper_type), POINTER                :: taper
@@ -1212,6 +591,254 @@ CONTAINS
   END SUBROUTINE terep_sp_num
 
 ! *****************************************************************************
+!> \brief Computes the two-particle interactions.
+!> \param on input  sepi   = Atomic parameters of first atom
+!>                  sepj   = Atomic parameters of second atom
+!>                  rijv   = Coordinate vector i -> j
+!>
+!>    on output e1b,e2a= Array of electron-nuclear attraction integrals,
+!>                       e1b = Electron on atom ni attracting nucleus of nj.
+!>                       e2a = Electron on atom nj attracting nucleus of ni.
+!>                       enuc= nuclear-nuclear repulsion term.
+!>
+!> \note routine adapted from mopac7 (rotate)
+!>       written by Ernest R. Davidson, Indiana University.
+!>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : major rewriting
+! *****************************************************************************
+  SUBROUTINE rotnuc_num(sepi,sepj,rijv,e1b,e2a,enuc,itype,shortrange,taper,error)
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
+    REAL(dp), DIMENSION(45), INTENT(OUT)     :: e1b, e2a
+    REAL(dp), INTENT(OUT)                    :: enuc
+    INTEGER, INTENT(IN)                      :: itype
+    LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(taper_type), POINTER                :: taper
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rotnuc_num', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, idd, idp, ig, ind1, ind2, &
+                                                ipp, j, last_orbital(2), m, &
+                                                n, nt
+    REAL(dp) :: a, aab, alpi, alpj, apdg, ax, dai, daj, dbi, dbj, pai, paj, &
+      pbi, pbj, poi, poj, qcorr, rij, rija, scale, ssss, xab, zaf, zbf, zz
+    REAL(dp), DIMENSION(10, 2)               :: core
+    REAL(dp), DIMENSION(3)                   :: z
+    REAL(dp), DIMENSION(4)                   :: fni1, fni2, fni3, fnj1, fnj2, &
+                                                fnj3
+    REAL(dp), DIMENSION(45)                  :: tmp
+    TYPE(rotmat_type), POINTER               :: ij_matrix
+
+    NULLIFY(ij_matrix)
+    rij    =  DOT_PRODUCT(rijv,rijv)
+    e1b(:) =  0.0_dp
+    e2a(:) =  0.0_dp
+    enuc   =  0.0_dp
+    IF (rij > rij_threshold) THEN
+       rij = SQRT(rij)
+       ! Create the rotation matrix 
+       CALL rotmat_create(ij_matrix, error)
+       CALL rotmat (sepi, sepj, -rijv, rij, ij_matrix, do_derivatives=.FALSE., error=error)
+
+       ! Compute Integrals in Diatomic Frame
+       CALL nucint_num(sepi,sepj,rij,ssss,core,itype,shortrange,taper=taper,error=error)
+
+       ! Copy parameters over to arrays for do loop.
+       last_orbital(1)  = sepi%natorb
+       last_orbital(2)  = sepj%natorb
+       DO n = 1, 2
+          tmp = 0.0_dp
+          DO i = 1, last_orbital(n)
+             ind1 = i - 1
+             DO j = 1, i
+                ind2 = j - 1
+                m = (i*(i-1))/2 + j
+                ! Perform Rotations ...
+                IF (ind2 == 0) THEN
+                   IF (ind1 == 0) THEN
+                      ! Type of Integral (SS/)
+                      tmp(m) = core(1, n)
+                   ELSE IF (ind1 < 4) THEN
+                      ! Type of Integral (SP/)
+                      tmp(m) = ij_matrix%sp(1,   ind1) * core(2, n)
+                   ELSE
+                      ! Type of Integral (SD/)
+                      tmp(m) = ij_matrix%sd(1, ind1-3) * core(5, n)
+                   END IF
+                ELSE IF (ind2 < 4) THEN
+                   IF (ind1 < 4) THEN
+                      ! Type of Integral (PP/)
+                      ipp = indpp(ind1, ind2)
+                      tmp(m) = core(3, n) *  ij_matrix%pp(ipp, 1, 1) + &
+                               core(4, n) * (ij_matrix%pp(ipp, 2, 2)+ij_matrix%pp(ipp, 3, 3))
+                   ELSE
+                      ! Type of Integral (PD/)
+                      idp = inddp(ind1-3, ind2)
+                      tmp(m) = core(6, n) *  ij_matrix%dp(idp, 1, 1) + &
+                               core(8, n) * (ij_matrix%dp(idp, 2, 2)+ij_matrix%dp(idp, 3, 3))
+                   END IF
+                ELSE
+                   ! Type of Integral (DD/)
+                   idd = inddd(ind1-3, ind2-3)
+                   tmp(m) = core( 7, n) *  ij_matrix%dd(idd, 1, 1) + &
+                            core( 9, n) * (ij_matrix%dd(idd, 2, 2)+ij_matrix%dd(idd, 3, 3)) + &
+                            core(10, n) * (ij_matrix%dd(idd, 4, 4)+ij_matrix%dd(idd, 5, 5))
+                END IF
+             END DO
+          END DO
+          IF (n==1) e1b = -tmp
+          IF (n==2) e2a = -tmp
+       END DO
+       CALL rotmat_release(ij_matrix, error)
+
+       ! Nuclear-Nuclear contribution
+       IF(itype /= do_method_pm6) THEN
+          alpi = sepi%alp
+          alpj = sepj%alp
+          scale = EXP(-alpi*rij)+EXP(-alpj*rij)
+
+          nt=sepi%z+sepj%z
+          IF(nt == 8 .OR. nt == 9) THEN
+             IF(sepi%z == 7.OR.sepi%z == 8) &
+                  scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpi*rij)
+             IF(sepj%z == 7.OR.sepj%z == 8) &
+                  scale=scale+(0.5291772083_dp*rij-1._dp)*EXP(-alpj*rij)
+          ENDIF
+          zz = sepi%zeff*sepj%zeff
+          enuc = zz*ssss
+          scale=ABS(scale*enuc)
+          zz=zz/rij
+          IF(itype == do_method_am1 .OR. itype == do_method_pm3 .OR. itype == do_method_pdg) THEN
+             IF(itype == do_method_am1 .AND. sepi%z == 5) THEN
+                !special case AM1 Boron
+                SELECT CASE (sepj%z)
+                CASE DEFAULT
+                   nt=1
+                CASE (1)
+                   nt=2
+                CASE (6)
+                   nt=3
+                CASE (9,17,35,53)
+                   nt=4
+                END SELECT
+                fni1(:) = sepi%bfn1(:,nt)
+                fni2(:) = sepi%bfn2(:,nt)
+                fni3(:) = sepi%bfn3(:,nt)
+             ELSE
+                fni1(:) = sepi%fn1(:)
+                fni2(:) = sepi%fn2(:)
+                fni3(:) = sepi%fn3(:)
+             END IF
+             IF(itype == do_method_am1 .AND. sepj%z == 5) THEN
+                !special case AM1 Boron
+                SELECT CASE (sepi%z)
+                CASE DEFAULT
+                   nt=1
+                CASE (1)
+                   nt=2
+                CASE (6)
+                   nt=3
+                CASE (9,17,35,53)
+                   nt=4
+                END SELECT
+                fnj1(:) = sepj%bfn1(:,nt)
+                fnj2(:) = sepj%bfn2(:,nt)
+                fnj3(:) = sepj%bfn3(:,nt)
+             ELSE
+                fnj1(:) = sepj%fn1(:)
+                fnj2(:) = sepj%fn2(:)
+                fnj3(:) = sepj%fn3(:)
+             END IF
+             ! AM1/PM3/PDG correction to nuclear repulsion
+             DO ig=1,SIZE(fni1)
+                IF(ABS(fni1(ig)) > 0._dp) THEN
+                   ax = fni2(ig)*(rij-fni3(ig))**2
+                   IF(ax <= 25._dp) THEN
+                      scale=scale +zz*fni1(ig)*EXP(-ax)
+                   ENDIF
+                ENDIF
+                IF(ABS(fnj1(ig)) > 0._dp) THEN
+                   ax = fnj2(ig)*(rij-fnj3(ig))**2
+                   IF(ax <= 25._dp) THEN
+                      scale=scale +zz*fnj1(ig)*EXP(-ax)
+                   ENDIF
+                ENDIF
+             END DO
+          ENDIF
+          IF(itype == do_method_pdg) THEN
+             ! PDDG function 
+             zaf=sepi%zeff/nt
+             zbf=sepj%zeff/nt
+             pai=sepi%pre(1)
+             pbi=sepi%pre(2)
+             paj=sepj%pre(1)
+             pbj=sepj%pre(2)
+             dai=sepi%d(1)
+             dbi=sepi%d(2)
+             daj=sepj%d(1)
+             dbj=sepj%d(2)
+             apdg=10._dp*0.5291772083_dp*0.5291772083_dp
+             qcorr = (zaf*pai+zbf*paj)*EXP(-apdg*(rij-dai-daj)**2)+ &
+                  (zaf*pai+zbf*pbj)*EXP(-apdg*(rij-dai-dbj)**2)+ &
+                  (zaf*pbi+zbf*paj)*EXP(-apdg*(rij-dbi-daj)**2)+ &
+                  (zaf*pbi+zbf*pbj)*EXP(-apdg*(rij-dbi-dbj)**2)
+          ELSEIF (itype==do_method_pchg) THEN
+             qcorr = 0.0_dp
+             scale = 0.0_dp
+          ELSE
+             qcorr = 0.0_dp
+          END IF
+          enuc=enuc+scale+qcorr
+
+       ELSE
+          enuc = 0._dp
+          rija = rij*angstrom
+          IF ( ABS(sepi%rho) > EPSILON(0.0_dp) ) THEN
+             poi = sepi%rho
+          ELSE
+             poi = sepi%ko(1)
+          END IF
+          IF ( ABS(sepj%rho) > EPSILON(0._dp) ) THEN
+             poj = sepj%rho
+          ELSE
+             poj = sepj%ko(1)
+          END IF
+          scale = sepi%zeff*sepj%zeff/SQRT(rij*rij+(poi+poj)**2)
+          IF(shortrange) scale = scale -  sepi%zeff*sepj%zeff/rij
+          ! PM6 core-core terms
+          xab = sepi%xab(sepj%z)
+          aab = sepi%aab(sepj%z)
+          IF ( (sepi%z == 1 .AND. (sepj%z == 6 .OR. sepj%z == 7 .OR. sepj%z == 8)) .OR. &
+               (sepj%z == 1 .AND. (sepi%z == 6 .OR. sepi%z == 7 .OR. sepi%z == 8)) ) THEN
+             ! Special Case O-H or N-H or C-H
+             enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*rija*rija))
+          ELSEIF ( sepi%z == 6 .AND. sepj%z == 6 ) THEN
+             ! Special Case C-C
+             enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)) &
+                  +9.28_dp*EXP(-5.98*rija))
+          ELSEIF ( (sepi%z == 8 .AND. sepj%z == 14) .OR. &
+               (sepj%z == 8 .AND. sepi%z == 14) ) THEN
+             ! Special Case Si-O
+             enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)) &
+                  -0.0007_dp*EXP(-(rija-2.9_dp)**2) )
+          ELSE
+             ! General Case
+             ! Factor of 2 found by experiment 
+             enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)))
+          END IF
+          ! General correction term a*exp(-b*(rij-c)^2)
+          enuc=enuc+(sepi%a*EXP(-sepi%b*(rij-sepi%c)**2))*sepi%zeff*sepj%zeff/rij
+          enuc=enuc+(sepj%a*EXP(-sepj%b*(rij-sepj%c)**2))*sepi%zeff*sepj%zeff/rij
+          ! Hard core repulsion
+          enuc=enuc+1.e-8_dp/evolt &
+               * ( (REAL(sepi%z,dp)**(1._dp/3._dp) + REAL(sepj%z,dp)**(1._dp/3._dp))/rija )**12
+       END IF
+    END IF
+
+  END SUBROUTINE rotnuc_num
+
+! *****************************************************************************
 !> \brief Calculates the nuclear attraction integrals (main driver)
 !> \param on input rij     = interatomic distance
 !>                sepi    = paramters of atom i
@@ -1226,10 +853,10 @@ CONTAINS
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
   SUBROUTINE nucint_num ( sepi, sepj, rij, ssss, core, itype, shortrange, taper, error )
-    TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), INTENT(OUT)                    :: ssss
-    REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: core
+    REAL(dp), DIMENSION(10, 2), INTENT(OUT)  :: core
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: shortrange
     TYPE(taper_type), POINTER                :: taper
@@ -1276,10 +903,11 @@ CONTAINS
 ! *****************************************************************************
   RECURSIVE SUBROUTINE nucint_spcore_num( sepi, sepj, rij, ssss, core, itype, shortrange,&
        do_longrange, taper, error)
-    TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), INTENT(INOUT)                  :: ssss
-    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: core
+    REAL(dp), DIMENSION(10, 2), &
+      INTENT(INOUT)                          :: core
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: shortrange
     LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
@@ -1296,7 +924,7 @@ CONTAINS
                                                 qqi, qqj, r, rsq, ssss_lr, &
                                                 xxx, zi, zj
     REAL(dp), DIMENSION(7)                   :: arg, ri, sqr
-    REAL(KIND=dp), DIMENSION(4, 2)           :: core_lr
+    REAL(KIND=dp), DIMENSION(10, 2)          :: core_lr
 
     longrange = .FALSE.
     IF (PRESENT(do_longrange))  longrange = do_longrange
@@ -1323,7 +951,6 @@ CONTAINS
     rsq       = r*r
     arg(1)    = rsq + aee
     sqr(1)    = pxy(1)/SQRT(arg(1))
-
     ri(1)     = 1.0_dp/SQRT(rsq+aee)
     core(1,1) = zj*ri(1)
     core(1,2) = zi*ri(1)
@@ -1449,9 +1076,10 @@ CONTAINS
 ! *****************************************************************************
   RECURSIVE SUBROUTINE nucint_d_num( sepi, sepj, rij, core, itype, shortrange, do_longrange,&
        taper, error)
-    TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
-    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: core
+    REAL(dp), DIMENSION(10, 2), &
+      INTENT(INOUT)                          :: core
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: shortrange
     LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
@@ -1461,22 +1089,86 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'nucint_d_num', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+    INTEGER                                  :: i, ij, kl
+    LOGICAL                                  :: failure, longrange
+    REAL(KIND=dp)                            :: ft
 
     failure = .FALSE.
-    CPPrecondition(SIZE(core,1)==10,cp_failure_level,routineP,error,failure)
-    CPPrecondition(SIZE(core,2)==2,cp_failure_level,routineP,error,failure)
-    STOP "d-orbitals"
+    longrange = .FALSE.
+    IF (PRESENT(do_longrange))  longrange = do_longrange
+    ! Check if d-orbitals are present
+    IF (sepi%dorb.OR.sepj%dorb) THEN
+       DO i = 5, 10
+          core(i, 1) = 0.0_dp
+          core(i, 2) = 0.0_dp
+       END DO
+       !
+       ij = indexa(1, 1)
+       IF (sepj%dorb) THEN
+          !  <S S | D S>
+          kl = indexa(5, 1)
+          core(5, 2) = -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 0, 1, rij, error) * sepi%zeff
+          !  <S S | D P >
+          kl = indexa(5, 2)
+          core(6, 2) = -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, error) * sepi%zeff
+          !  <S S | D D >
+          kl = indexa(5, 5)
+          core(7, 2) = -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, error) * sepi%zeff
+          !  <S S | D+P+>
+          kl = indexa(6, 3)
+          core(8, 2) = -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, error) * sepi%zeff
+          !  <S S | D+D+>
+          kl = indexa(6, 6)
+          core(9, 2) = -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, error) * sepi%zeff
+          !  <S S | D#D#>
+          kl = indexa(8, 8)
+          core(10, 2)= -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, error) * sepi%zeff
+       END IF
+       IF (sepi%dorb) THEN
+          !  <D S | S S>
+          kl = indexa(5, 1)
+          core(5, 1) = -ijkl (sepi, sepj, kl, ij, 2, 0, 0, 0, 2, rij, error) * sepj%zeff
+          !  <D P | S S >
+          kl = indexa(5, 2)
+          core(6, 1) = -ijkl (sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, error) * sepj%zeff
+          !  <D D | S S >
+          kl = indexa(5, 5)
+          core(7, 1) = -ijkl (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, error) * sepj%zeff
+          !  <D+P+| S S >
+          kl = indexa(6, 3)
+          core(8, 1) = -ijkl (sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, error) * sepj%zeff
+          !  <D+D+| S S >
+          kl = indexa(6, 6)
+          core(9, 1) = -ijkl (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, error) * sepj%zeff
+          !  <D#D#| S S >
+          kl = indexa(8, 8)
+          core(10, 1)= -ijkl (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, error) * sepj%zeff
+       END IF
 
+       IF (shortrange) THEN
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END IF
+
+       IF (.NOT.longrange) THEN
+          ! Tapering function
+          ft = 1.0_dp
+          IF (itype /=do_method_pchg) ft = taper_eval (taper, rij, error)
+          DO i = 5, 10
+             core(i, 1) = core(i, 1) * ft
+             core(i, 2) = core(i, 2) * ft
+          END DO
+       END IF
+    END IF
   END SUBROUTINE nucint_d_num
+
 ! *****************************************************************************
 !> \brief Numerical Derivatives for rotint
 ! *****************************************************************************
   SUBROUTINE drotint_num(sepi,sepj,r,dw,delta,shortrange,taper, error)
-
-    TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: r
-    REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: dw
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: r
+    REAL(dp), DIMENSION(2025, 3), &
+      INTENT(OUT)                            :: dw
     REAL(dp), INTENT(IN)                     :: delta
     LOGICAL, INTENT(IN)                      :: shortrange
     TYPE(taper_type), POINTER                :: taper
@@ -1487,7 +1179,7 @@ CONTAINS
 
     INTEGER                                  :: i
     REAL(dp)                                 :: od
-    REAL(dp), DIMENSION(100)                 :: wm, wp
+    REAL(dp), DIMENSION(2025)                :: wm, wp
     REAL(dp), DIMENSION(3)                   :: rr
 
     od = 0.5_dp/delta
@@ -1506,11 +1198,10 @@ CONTAINS
 !> \brief Numerical Derivatives for rotnuc
 ! *****************************************************************************
   SUBROUTINE drotnuc_num(sepi,sepj,r,de1b,de2a,denuc,itype,delta,shortrange,taper,error)
-
-    TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: r
-    REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: de1b, de2a
-    REAL(dp), DIMENSION(:), INTENT(OUT)      :: denuc
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: r
+    REAL(dp), DIMENSION(45, 3), INTENT(OUT)  :: de1b, de2a
+    REAL(dp), DIMENSION(3), INTENT(OUT)      :: denuc
     INTEGER, INTENT(IN)                      :: itype
     REAL(dp), INTENT(IN)                     :: delta
     LOGICAL, INTENT(IN)                      :: shortrange
@@ -1522,8 +1213,8 @@ CONTAINS
 
     INTEGER                                  :: i
     REAL(dp)                                 :: enucm, enucp, od
-    REAL(dp), DIMENSION(10)                  :: e1m, e1p, e2m, e2p
     REAL(dp), DIMENSION(3)                   :: rr
+    REAL(dp), DIMENSION(45)                  :: e1m, e1p, e2m, e2p
 
     od = 0.5_dp/delta
     DO i=1,3
@@ -1532,7 +1223,7 @@ CONTAINS
        CALL rotnuc_num(sepi,sepj,rr,e1p,e2p,enucp,itype,shortrange,taper=taper,error=error)
        rr(i)=rr(i)-2._dp*delta
        CALL rotnuc_num(sepi,sepj,rr,e1m,e2m,enucm,itype,shortrange,taper=taper,error=error)
-       denuc(i) = od * (enucp - enucm)
+       denuc(i)  = od * ( enucp - enucm )
        de1b(:,i) = od * (e1p(:) - e1m(:))
        de2a(:,i) = od * (e2p(:) - e2m(:))
     END DO

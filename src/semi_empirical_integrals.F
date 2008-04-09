@@ -38,7 +38,7 @@ CONTAINS
 !> \date   04.2008
 ! *****************************************************************************
   SUBROUTINE rotint (sepi,sepj,rij,w,anag,shortrange,taper,error)
-    TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:), INTENT(OUT)      :: w
     LOGICAL                                  :: anag, shortrange
@@ -61,7 +61,7 @@ CONTAINS
 !> \date   04.2008
 ! *****************************************************************************
   SUBROUTINE rotnuc (sepi,sepj,rij,e1b,e2a,enuc,itype,anag,shortrange,taper,error)
-    TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:), INTENT(OUT)      :: e1b, e2a
     REAL(dp), INTENT(OUT)                    :: enuc
@@ -89,7 +89,7 @@ CONTAINS
 !> \date   04.2008
 ! *****************************************************************************
   SUBROUTINE drotint (sepi,sepj,rij,dw,delta,anag,shortrange,taper, error)
-    TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: dw
     REAL(dp), INTENT(IN)                     :: delta
@@ -114,7 +114,7 @@ CONTAINS
 !> \date   04.2008
 ! *****************************************************************************
   SUBROUTINE drotnuc (sepi,sepj,rij,de1b,de2a,denuc,itype,delta,anag,shortrange,taper,error)
-    TYPE(semi_empirical_type), INTENT(IN)    :: sepi, sepj
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: de1b, de2a
     REAL(dp), DIMENSION(:), INTENT(OUT)      :: denuc

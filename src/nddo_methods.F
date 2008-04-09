@@ -79,11 +79,11 @@ MODULE nddo_methods
   PUBLIC :: build_nddo_fock_matrix
 
   INTERFACE fock1
-    MODULE PROCEDURE rfock1, ufock1
+    MODULE PROCEDURE rfock1,   ufock1
   END INTERFACE
 
   INTERFACE fock2c
-    MODULE PROCEDURE rfock2c, ufock2c
+    MODULE PROCEDURE rfock2c,  ufock2c
   END INTERFACE
 
   INTERFACE dfock2c
@@ -91,7 +91,7 @@ MODULE nddo_methods
   END INTERFACE
 
   INTERFACE fock2e
-    MODULE PROCEDURE rfock2e, ufock2e
+    MODULE PROCEDURE rfock2e,  ufock2e
   END INTERFACE
 
   INTERFACE dfock2e
@@ -102,7 +102,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE build_nddo_fock_matrix (ks_env,qs_env,ks_matrix,rho,energy,&
-               calculate_forces,just_energy,error)
+       calculate_forces,just_energy,error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -117,7 +117,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, ncol_global, &
-                                                nspins, output_unit
+                                                nspins, output_unit, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: qmmm_el
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, &
@@ -134,14 +134,9 @@ CONTAINS
       POINTER                                :: matrix_h, matrix_p
     TYPE(section_vals_type), POINTER         :: scf_section
 
-!   ----------------------------------------------------------------------------
-
     CALL timeset(routineN,"I","",handle)
-
     NULLIFY(matrix_h, dft_control, logger, scf_section)
-
     logger => cp_error_get_logger(error)
-
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -149,15 +144,16 @@ CONTAINS
     IF ( .NOT. failure ) THEN
 
        CALL get_qs_env(qs_env=qs_env,&
-            dft_control=dft_control,&
-            matrix_h=matrix_h,&
-            para_env=para_env,error=error)
-
+                      dft_control=dft_control,&
+                      matrix_h=matrix_h,&
+                      para_env=para_env,&
+                      error=error)
+       
        scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
-       nspins=dft_control%nspins
        CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
        CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
+       nspins   = dft_control%nspins
        matrix_p => rho%rho_ao
        energy%qmmm_el = 0.0_dp
        DO ispin=1,nspins
@@ -165,10 +161,10 @@ CONTAINS
           CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix,error=error)
        END DO
 
-       CALL build_nddo_fock_matrix_exchange (ks_env,qs_env,ks_matrix,rho,energy,&
-                calculate_forces,just_energy,error)
+       CALL build_nddo_fock_matrix_exchange(ks_env,qs_env,ks_matrix,rho,energy,&
+            calculate_forces,just_energy,error)
        CALL build_nddo_fock_matrix_coulomb (ks_env,qs_env,ks_matrix,rho,energy,&
-               calculate_forces,just_energy,error)
+            calculate_forces,just_energy,error)
 
        ! QM/MM
        IF (qs_env%qmmm) THEN
@@ -216,10 +212,12 @@ CONTAINS
              CALL cp_fm_get_info(mo_coeff,ncol_global=ncol_global,error=error)
              CALL cp_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
                                     mo_derivs(ispin)%matrix, ncol_global,error=error)
-             ALLOCATE(scaling_factor(SIZE(occupation_numbers)))
+             ALLOCATE(scaling_factor(SIZE(occupation_numbers)),stat=stat)
+             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
              scaling_factor=2.0_dp*occupation_numbers
              CALL cp_fm_column_scale(mo_derivs(ispin)%matrix,scaling_factor)
-             DEALLOCATE(scaling_factor)
+             DEALLOCATE(scaling_factor,stat=stat)
+             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDDO
        ENDIF
 
@@ -247,16 +245,16 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, iab, iatom, icor, ikind, ilist, inode, &
-      ispin, istat, itype, jatom, jkind, natom, natorb_a, natorb_b, nkind, &
-      nlist, nnode, nspins
+      ispin, itype, jatom, jkind, natom, natorb_a, natorb_b, nkind, nlist, &
+      nnode, nspins, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, defined, do_ewald, &
                                                 failure, switch
     REAL(KIND=dp)                            :: delta, dr1, ecore2, ecoul, &
                                                 enuc, enuclear
-    REAL(KIND=dp), DIMENSION(10)             :: e1b, e2a, pvec
-    REAL(KIND=dp), DIMENSION(10, 3)          :: de1b, de2a
     REAL(KIND=dp), DIMENSION(3)              :: denuc, force_ab, rij
+    REAL(KIND=dp), DIMENSION(45)             :: e1b, e2a, pvec
+    REAL(KIND=dp), DIMENSION(45, 3)          :: de1b, de2a
     REAL(KIND=dp), DIMENSION(:, :), POINTER :: ksa_block_a, ksa_block_b, &
       ksb_block_a, ksb_block_b, pa_block_a, pa_block_b, pb_block_a, pb_block_b
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -290,11 +288,11 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
-
+    
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, matrix_h=matrix_h,&
          cell=cell, taper=taper,  para_env=para_env, error=error)
 
-    ! set values for tapering function
+    ! Parameters
     se_control => dft_control%qs_control%se_control
     do_ewald   =  se_control%do_ewald
     anag       =  se_control%analytical_gradients
@@ -303,14 +301,13 @@ CONTAINS
     CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
     CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
-
+    
     IF ( .NOT. failure ) THEN
-
        CALL allocate_matrix_set(diagmat_ks,nspins,error=error)
        CALL allocate_matrix_set(diagmat_p,nspins,error=error)
-
+       
        matrix_p => rho%rho_ao
-
+       
        CALL get_qs_env(qs_env=qs_env,&
                        sab_2c=sab_2c,&
                        atomic_kind_set=atomic_kind_set,error=error)
@@ -318,32 +315,31 @@ CONTAINS
        nkind = SIZE(atomic_kind_set)
 
        IF(calculate_forces) THEN
-         CALL get_qs_env(qs_env=qs_env,&
-                         particle_set=particle_set,&
-                         force=force,error=error)
-         natom = SIZE (particle_set)
-         ALLOCATE (atom_of_kind(natom),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         delta = se_control%delta
-         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                                  atom_of_kind=atom_of_kind)
+          CALL get_qs_env(qs_env=qs_env,&
+                          particle_set=particle_set,&
+                          force=force,error=error)
+          natom = SIZE (particle_set)
+          ALLOCATE (atom_of_kind(natom),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          delta = se_control%delta
+          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
        END IF
 
        DO ispin=1,nspins
           ! Allocate diagonal block matrices
           CALL create_dbm_from_sm(diagmat_p(ispin)%matrix,matrix_p(ispin)%matrix,&
-                             "DIAGONAL BLOCK P MATRIX",.TRUE.,para_env,error=error)
+                                  "DIAGONAL BLOCK P MATRIX",.TRUE.,para_env,error=error)
           CALL create_dbm_from_sm(diagmat_ks(ispin)%matrix,ks_matrix(ispin)%matrix,&
-                             "DIAGONAL BLOCK KS MATRIX",.FALSE.,error=error)
+                                  "DIAGONAL BLOCK KS MATRIX",.FALSE.,error=error)
        END DO
-
-       ecore2 = 0._dp
-       enuclear = 0._dp
-       itype = get_se_type(dft_control%qs_control%method_id)
+       
+       ecore2   = 0.0_dp
+       enuclear = 0.0_dp
+       itype    = get_se_type(dft_control%qs_control%method_id)
 
        IF (do_ewald) THEN
-         !calculate 1/r contribution using Ewald type method
-!deb     CALL nddo_ewald
+          !calculate 1/r contribution using Ewald type method
+!deb      CALL nddo_ewald
        END IF
 
        DO ikind=1,nkind
@@ -374,10 +370,10 @@ CONTAINS
              NULLIFY(sab_2c_neighbor_list)
 
              DO ilist=1,nlist
-               IF ( .NOT. ASSOCIATED(sab_2c_neighbor_list) ) THEN
-                 sab_2c_neighbor_list => first_list(sab_2c(iab)%neighbor_list_set)
-               ELSE
-                 sab_2c_neighbor_list => next(sab_2c_neighbor_list)
+                IF ( .NOT. ASSOCIATED(sab_2c_neighbor_list) ) THEN
+                   sab_2c_neighbor_list => first_list(sab_2c(iab)%neighbor_list_set)
+                ELSE
+                   sab_2c_neighbor_list => next(sab_2c_neighbor_list)
                END IF
                sab_2c_neighbor_list_local => sab_2c_neighbor_list
                CALL get_neighbor_list(neighbor_list=sab_2c_neighbor_list_local,&
@@ -388,271 +384,267 @@ CONTAINS
 
                CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
                IF ( nspins >= 1 ) THEN
-                 CALL get_block_node(matrix=diagmat_p(1)%matrix,&
-                                     block_row=iatom,&
-                                     block_col=iatom,&
-                                     BLOCK=pa_block_a)
-                 CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
-                 CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
-                                     block_row=iatom,&
-                                     block_col=iatom,&
-                                     BLOCK=ksa_block_a)
-                 CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
+                  CALL get_block_node(matrix=diagmat_p(1)%matrix,&
+                                      block_row=iatom,&
+                                      block_col=iatom,&
+                                      BLOCK=pa_block_a)
+                  CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
+                  CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
+                                      block_row=iatom,&
+                                      block_col=iatom,&
+                                      BLOCK=ksa_block_a)
+                  CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
                END IF
                IF ( nspins >= 2 ) THEN
-                 CALL get_block_node(matrix=diagmat_p(2)%matrix,&
-                                     block_row=iatom,&
-                                     block_col=iatom,&
-                                     BLOCK=pa_block_b)
-                 CPPostcondition(ASSOCIATED(pa_block_b),cp_failure_level,routineP,error,failure)
-                 CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
-                                     block_row=iatom,&
-                                     block_col=iatom,&
-                                     BLOCK=ksa_block_b)
-                 CPPostcondition(ASSOCIATED(ksa_block_b),cp_failure_level,routineP,error,failure)
+                  CALL get_block_node(matrix=diagmat_p(2)%matrix,&
+                                      block_row=iatom,&
+                                      block_col=iatom,&
+                                      BLOCK=pa_block_b)
+                  CPPostcondition(ASSOCIATED(pa_block_b),cp_failure_level,routineP,error,failure)
+                  CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
+                                      block_row=iatom,&
+                                      block_col=iatom,&
+                                      BLOCK=ksa_block_b)
+                  CPPostcondition(ASSOCIATED(ksa_block_b),cp_failure_level,routineP,error,failure)
                END IF
 
                DO inode=1,nnode
-                 CALL get_neighbor_node(neighbor_node=sab_2c_neighbor_node,&
-                                        neighbor=jatom,r=rij)
+                  CALL get_neighbor_node(neighbor_node=sab_2c_neighbor_node,&
+                                         neighbor=jatom,r=rij)
 
-                 dr1 = SUM(rij(:)**2)
-                 IF ( dr1 > 0._dp ) THEN
+                  dr1 = SUM(rij(:)**2)
+                  IF ( dr1 > 0.0_dp ) THEN
 
-                   IF (iatom <= jatom) THEN
-                     switch = .FALSE.
-                   ELSE
-                     switch = .TRUE.
-                   END IF
-                   CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
-                   IF ( nspins >= 1 ) THEN
-                     CALL get_block_node(matrix=diagmat_p(1)%matrix,&
-                                         block_row=jatom,&
-                                         block_col=jatom,&
-                                         BLOCK=pb_block_a)
-                     CPPostcondition(ASSOCIATED(pb_block_a),cp_failure_level,routineP,error,failure)
-                     CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
-                                         block_row=jatom,&
-                                         block_col=jatom,&
-                                         BLOCK=ksb_block_a)
-                     CPPostcondition(ASSOCIATED(ksb_block_a),cp_failure_level,routineP,error,failure)
-                   END IF
-                   IF ( nspins >= 2 ) THEN
-                     CALL get_block_node(matrix=diagmat_p(2)%matrix,&
-                                         block_row=jatom,&
-                                         block_col=jatom,&
-                                         BLOCK=pb_block_b)
-                     CPPostcondition(ASSOCIATED(pb_block_b),cp_failure_level,routineP,error,failure)
-                     CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
-                                         block_row=jatom,&
-                                         block_col=jatom,&
-                                         BLOCK=ksb_block_b)
-                     CPPostcondition(ASSOCIATED(ksb_block_b),cp_failure_level,routineP,error,failure)
-                   END IF
+                     IF (iatom <= jatom) THEN
+                        switch = .FALSE.
+                     ELSE
+                        switch = .TRUE.
+                     END IF
+                     CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+                     IF ( nspins >= 1 ) THEN
+                        CALL get_block_node(matrix=diagmat_p(1)%matrix,&
+                                            block_row=jatom,&
+                                            block_col=jatom,&
+                                            BLOCK=pb_block_a)
+                        CPPostcondition(ASSOCIATED(pb_block_a),cp_failure_level,routineP,error,failure)
+                        CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
+                                            block_row=jatom,&
+                                            block_col=jatom,&
+                                            BLOCK=ksb_block_a)
+                        CPPostcondition(ASSOCIATED(ksb_block_a),cp_failure_level,routineP,error,failure)
+                     END IF
+                     IF ( nspins >= 2 ) THEN
+                        CALL get_block_node(matrix=diagmat_p(2)%matrix,&
+                                            block_row=jatom,&
+                                            block_col=jatom,&
+                                            BLOCK=pb_block_b)
+                        CPPostcondition(ASSOCIATED(pb_block_b),cp_failure_level,routineP,error,failure)
+                        CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
+                                            block_row=jatom,&
+                                            block_col=jatom,&
+                                            BLOCK=ksb_block_b)
+                        CPPostcondition(ASSOCIATED(ksb_block_b),cp_failure_level,routineP,error,failure)
+                     END IF
 
-                   SELECT CASE (dft_control%qs_control%method_id)
+                     SELECT CASE (dft_control%qs_control%method_id)
                      CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pm6,do_method_pdg,&
-                           do_method_rm1,do_method_mndod)
-                       IF ( .NOT. switch ) THEN
-                          CALL rotnuc (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype,&
-                               anag=anag, shortrange=do_ewald, taper=taper, error=error)
-                       ELSE
-                          CALL rotnuc (se_kind_b,se_kind_a,-rij,e1b=e2a,e2a=e1b,enuc=enuc,itype=itype,&
-                               anag=anag, shortrange=do_ewald, taper=taper, error=error)
-                       END IF
-                       enuclear = enuclear + enuc
-                       ! one-centre one-electron terms
-                       CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
-                       IF ( nspins >= 1 ) THEN
-                         ! contribution to iatom
-                         IF ( SIZE(ksa_block_a,1) == 1 ) THEN
-                           ksa_block_a(1,1)=ksa_block_a(1,1)+e1b(1)
-                           ecore2=ecore2+e1b(1)*pa_block_a(1,1)
-                         ELSE
-                           CALL expand ( ksa_block_a, e1b )
-                           ecore2=ecore2+traceb(pa_block_a,e1b)
-                         END IF
-                         ! contribution to jatom
-                         IF ( SIZE(ksb_block_a,1) == 1 ) THEN
-                           ksb_block_a(1,1)=ksb_block_a(1,1)+e2a(1)
-                           ecore2=ecore2+e2a(1)*pb_block_a(1,1)
-                         ELSE
-                           CALL expand ( ksb_block_a, e2a )
-                           ecore2=ecore2+traceb(pb_block_a,e2a)
-                         END IF
-                       END IF
-                       IF ( nspins >= 2 ) THEN
-                         ! contribution to iatom
-                         IF ( SIZE(ksa_block_b,1) == 1 ) THEN
-                           ksa_block_b(1,1)=ksa_block_b(1,1)+e1b(1)
-                           ecore2=ecore2+e1b(1)*pa_block_b(1,1)
-                         ELSE
-                           CALL expand ( ksa_block_b, e1b )
-                           ecore2=ecore2+traceb(pa_block_b,e1b)
-                         END IF
-                         ! contribution to jatom
-                         IF ( SIZE(ksb_block_b,1) == 1 ) THEN
-                           ksb_block_b(1,1)=ksb_block_b(1,1)+e2a(1)
-                           ecore2=ecore2+e2a(1)*pb_block_b(1,1)
-                         ELSE
-                           CALL expand ( ksb_block_b, e2a )
-                           ecore2=ecore2+traceb(pb_block_b,e2a)
-                         END IF
-                       END IF
-                       IF(calculate_forces) THEN
-                         atom_a = atom_of_kind(iatom)
-                         atom_b = atom_of_kind(jatom)
-
-                         IF ( .NOT. switch ) THEN
-                            CALL drotnuc (se_kind_a,se_kind_b,rij,de1b=de1b,de2a=de2a,denuc=denuc,&
-                                 itype=itype,delta=delta,anag=anag,shortrange=do_ewald,taper=taper,error=error)
-                         ELSE
-                            CALL drotnuc (se_kind_b,se_kind_a,-rij,de1b=de2a,de2a=de1b,denuc=denuc,&
-                                 itype=itype,delta=delta,anag=anag,shortrange=do_ewald,taper=taper,error=error)
-                         END IF
-                         force_ab(1:3)=-denuc(1:3)
-                         CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
-                         IF ( nspins >= 1 ) THEN
-                             IF ( SIZE(ksa_block_a,1) == 1 ) THEN
-                               force_ab(1:3)=force_ab(1:3)-de1b(1,1:3)*pa_block_a(1,1)
-                             ELSE
-                               CALL contract ( pa_block_a, pvec )
-                               DO icor=1,3
-                                 force_ab(icor)=force_ab(icor)-&
-                                              SUM(de1b(1:10,icor)*pvec(1:10))
-                               END DO
-                             END IF
-                             IF ( SIZE(ksb_block_a,1) == 1 ) THEN
-                               force_ab(1:3)=force_ab(1:3)-de2a(1,1:3)*pb_block_a(1,1)
-                             ELSE
-                               CALL contract ( pb_block_a, pvec )
-                               DO icor=1,3
-                                 force_ab(icor)=force_ab(icor)-&
-                                              SUM(de2a(1:10,icor)*pvec(1:10))
-                               END DO
-                             END IF
-                         END IF
-                         IF ( nspins >= 2 ) THEN
-                             IF ( SIZE(ksa_block_b,1) == 1 ) THEN
-                               force_ab(1:3)=force_ab(1:3)-de1b(1,1:3)*pa_block_b(1,1)
-                             ELSE
-                               CALL contract ( pa_block_b, pvec )
-                               DO icor=1,3
-                                 force_ab(icor)=force_ab(icor)-&
-                                                SUM(de1b(1:10,icor)*pvec(1:10))
-                               END DO
-                             END IF
-                             IF ( SIZE(ksb_block_b,1) == 1 ) THEN
-                               force_ab(1:3)=force_ab(1:3)-de2a(1,1:3)*pb_block_b(1,1)
-                             ELSE
-                               CALL contract ( pb_block_b, pvec )
-                               DO icor=1,3
-                                 force_ab(icor)=force_ab(icor)-&
-                                                SUM(de2a(1:10,icor)*pvec(1:10))
-                               END DO
-                             END IF
-                         END IF
-                         IF ( .NOT. switch ) force_ab = -force_ab
-                            force(ikind)%all_potential(:,atom_a) =&
-                                force(ikind)%all_potential(:,atom_a) - force_ab(:)
-                            force(jkind)%all_potential(:,atom_b) =&
-                            force(jkind)%all_potential(:,atom_b) + force_ab(:)
-                       END IF
-
-                       CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
-                       IF ( nspins == 1 ) THEN
-                         IF ( .NOT. switch ) THEN
-                           CALL fock2c(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,&
-                                      ksa_block_a,ksb_block_a,anag,do_ewald,taper,error)
-                         ELSE
-                           CALL fock2c(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,&
-                                      ksb_block_a,ksa_block_a,anag,do_ewald,taper,error)
-                         ENDIF
-                       ELSE IF ( nspins == 2 ) THEN
-                         IF ( .NOT. switch ) THEN
-                           CALL fock2c(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,&
-                                      ksa_block_a,ksb_block_a,pa_block_b,pb_block_b,&
-                                      ksa_block_b,ksb_block_b,anag,do_ewald,taper,error)
-                         ELSE
-                           CALL fock2c(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,&
-                                      ksb_block_a,ksa_block_a,pb_block_b,pa_block_b,&
-                                      ksb_block_b,ksa_block_b,anag,do_ewald,taper,error)
-                         ENDIF
-                       END IF
-
-                       IF(calculate_forces) THEN
-                         force_ab = 0._dp
-                         CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
-                         IF ( nspins == 1 ) THEN
-                           IF ( .NOT. switch ) THEN
-                             CALL dfock2c(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,&
-                                  force_ab,delta,anag,do_ewald,taper,error)
+                          do_method_rm1,do_method_mndod)
+                        IF ( .NOT. switch ) THEN
+                           CALL rotnuc (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype,&
+                                anag=anag, shortrange=do_ewald, taper=taper, error=error)
+                        ELSE
+                           CALL rotnuc (se_kind_b,se_kind_a,-rij,e1b=e2a,e2a=e1b,enuc=enuc,itype=itype,&
+                                anag=anag, shortrange=do_ewald, taper=taper, error=error)
+                        END IF
+                        enuclear = enuclear + enuc
+                        ! one-centre one-electron terms
+                        CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+                        IF ( nspins >= 1 ) THEN
+                           ! contribution to iatom
+                           IF ( SIZE(ksa_block_a,1) == 1 ) THEN
+                              ksa_block_a(1,1)=ksa_block_a(1,1)+e1b(1)
+                              ecore2=ecore2+e1b(1)*pa_block_a(1,1)
                            ELSE
-                             CALL dfock2c(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,&
-                                  force_ab,delta,anag,do_ewald,taper,error)
+                              CALL expand ( ksa_block_a, e1b )
+                              ecore2=ecore2+traceb(pa_block_a,e1b)
+                           END IF
+                           ! contribution to jatom
+                           IF ( SIZE(ksb_block_a,1) == 1 ) THEN
+                              ksb_block_a(1,1)=ksb_block_a(1,1)+e2a(1)
+                              ecore2=ecore2+e2a(1)*pb_block_a(1,1)
+                           ELSE
+                              CALL expand ( ksb_block_a, e2a )
+                              ecore2=ecore2+traceb(pb_block_a,e2a)
+                           END IF
+                        END IF
+                        IF ( nspins >= 2 ) THEN
+                           ! contribution to iatom
+                           IF ( SIZE(ksa_block_b,1) == 1 ) THEN
+                              ksa_block_b(1,1)=ksa_block_b(1,1)+e1b(1)
+                              ecore2=ecore2+e1b(1)*pa_block_b(1,1)
+                           ELSE
+                              CALL expand ( ksa_block_b, e1b )
+                              ecore2=ecore2+traceb(pa_block_b,e1b)
+                           END IF
+                           ! contribution to jatom
+                           IF ( SIZE(ksb_block_b,1) == 1 ) THEN
+                              ksb_block_b(1,1)=ksb_block_b(1,1)+e2a(1)
+                              ecore2=ecore2+e2a(1)*pb_block_b(1,1)
+                           ELSE
+                              CALL expand ( ksb_block_b, e2a )
+                              ecore2=ecore2+traceb(pb_block_b,e2a)
+                           END IF
+                        END IF
+                        IF(calculate_forces) THEN
+                           atom_a = atom_of_kind(iatom)
+                           atom_b = atom_of_kind(jatom)
+                           
+                           IF ( .NOT. switch ) THEN
+                              CALL drotnuc (se_kind_a,se_kind_b,rij,de1b=de1b,de2a=de2a,denuc=denuc,&
+                                   itype=itype,delta=delta,anag=anag,shortrange=do_ewald,taper=taper,&
+                                   error=error)
+                           ELSE
+                              CALL drotnuc (se_kind_b,se_kind_a,-rij,de1b=de2a,de2a=de1b,denuc=denuc,&
+                                   itype=itype,delta=delta,anag=anag,shortrange=do_ewald,taper=taper,&
+                                   error=error)
+                           END IF
+                           force_ab(1:3)=-denuc(1:3)
+                           CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+                           IF ( nspins >= 1 ) THEN
+                              IF ( SIZE(ksa_block_a,1) == 1 ) THEN
+                                 force_ab(1:3)=force_ab(1:3)-de1b(1,1:3)*pa_block_a(1,1)
+                              ELSE
+                                 CALL contract ( pa_block_a, pvec )
+                                 DO icor=1,3
+                                    force_ab(icor)=force_ab(icor)-SUM(de1b(1:10,icor)*pvec(1:10))
+                                 END DO
+                              END IF
+                              IF ( SIZE(ksb_block_a,1) == 1 ) THEN
+                                 force_ab(1:3)=force_ab(1:3)-de2a(1,1:3)*pb_block_a(1,1)
+                              ELSE
+                                 CALL contract ( pb_block_a, pvec )
+                                 DO icor=1,3
+                                    force_ab(icor)=force_ab(icor)-SUM(de2a(1:10,icor)*pvec(1:10))
+                                 END DO
+                              END IF
+                           END IF
+                           IF ( nspins >= 2 ) THEN
+                              IF ( SIZE(ksa_block_b,1) == 1 ) THEN
+                                 force_ab(1:3)=force_ab(1:3)-de1b(1,1:3)*pa_block_b(1,1)
+                              ELSE
+                                 CALL contract ( pa_block_b, pvec )
+                                 DO icor=1,3
+                                    force_ab(icor)=force_ab(icor)-SUM(de1b(1:10,icor)*pvec(1:10))
+                                 END DO
+                              END IF
+                              IF ( SIZE(ksb_block_b,1) == 1 ) THEN
+                                 force_ab(1:3)=force_ab(1:3)-de2a(1,1:3)*pb_block_b(1,1)
+                              ELSE
+                                 CALL contract ( pb_block_b, pvec )
+                                 DO icor=1,3
+                                    force_ab(icor)=force_ab(icor)-SUM(de2a(1:10,icor)*pvec(1:10))
+                                 END DO
+                              END IF
+                           END IF
+                           IF ( .NOT. switch ) force_ab = -force_ab
+                           force(ikind)%all_potential(:,atom_a) = force(ikind)%all_potential(:,atom_a) - force_ab(:)
+                           force(jkind)%all_potential(:,atom_b) = force(jkind)%all_potential(:,atom_b) + force_ab(:)
+                        END IF
+
+                        CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+                        IF ( nspins == 1 ) THEN
+                           IF ( .NOT. switch ) THEN
+                              CALL fock2c(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,&
+                                          ksa_block_a,ksb_block_a,anag,do_ewald,taper,error)
+                           ELSE
+                              CALL fock2c(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,&
+                                          ksb_block_a,ksa_block_a,anag,do_ewald,taper,error)
                            ENDIF
-                         ELSE IF ( nspins == 2 ) THEN
-                         IF ( .NOT. switch ) THEN
-                           CALL dfock2c(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,&
-                                pa_block_b,pb_block_b,force_ab,delta,anag,do_ewald,taper,error)
-                         ELSE
-                           CALL dfock2c(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,&
-                                pb_block_b,pa_block_b,force_ab,delta,anag,do_ewald,taper,error)
-                         ENDIF
-                       END IF
-                       IF ( switch ) force_ab = -force_ab
-                         force(ikind)%rho_elec(:,atom_a) =&
-                           force(ikind)%rho_elec(:,atom_a) - force_ab(:)
-                         force(jkind)%rho_elec(:,atom_b) =&
-                           force(jkind)%rho_elec(:,atom_b) + force_ab(:)
-                       END IF
+                        ELSE IF ( nspins == 2 ) THEN
+                           IF ( .NOT. switch ) THEN
+                              CALL fock2c(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,&
+                                          ksa_block_a,ksb_block_a,pa_block_b,pb_block_b,&
+                                          ksa_block_b,ksb_block_b,anag,do_ewald,taper,error)
+                           ELSE
+                              CALL fock2c(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,&
+                                          ksb_block_a,ksa_block_a,pb_block_b,pa_block_b,&
+                                          ksb_block_b,ksa_block_b,anag,do_ewald,taper,error)
+                           ENDIF
+                        END IF
+                        IF(calculate_forces) THEN
+                           force_ab = 0._dp
+                           CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+                           IF ( nspins == 1 ) THEN
+                              IF ( .NOT. switch ) THEN
+                                 CALL dfock2c(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,&
+                                              force_ab,delta,anag,do_ewald,taper,error)
+                              ELSE
+                                 CALL dfock2c(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,&
+                                              force_ab,delta,anag,do_ewald,taper,error)
+                              ENDIF
+                           ELSE IF ( nspins == 2 ) THEN
+                              IF ( .NOT. switch ) THEN
+                                 CALL dfock2c(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,&
+                                              pa_block_b,pb_block_b,force_ab,delta,anag,do_ewald,&
+                                              taper,error)
+                              ELSE
+                                 CALL dfock2c(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,&
+                                              pb_block_b,pa_block_b,force_ab,delta,anag,do_ewald,&
+                                              taper,error)
+                              ENDIF
+                           END IF
+                           IF ( switch ) force_ab = -force_ab
+                           force(ikind)%rho_elec(:,atom_a) = force(ikind)%rho_elec(:,atom_a) - force_ab(:)
+                           force(jkind)%rho_elec(:,atom_b) = force(jkind)%rho_elec(:,atom_b) + force_ab(:)
+                        END IF
 
                      CASE DEFAULT
-
-                       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-
-                   END SELECT
-
-                 END IF
-
-                 sab_2c_neighbor_node => next(sab_2c_neighbor_node)
-
+                        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                     END SELECT
+                  END IF
+                  sab_2c_neighbor_node => next(sab_2c_neighbor_node)
+                  
                END DO ! inode => jatom(atom B)
-
-             END DO ! ilist => iatom(atom A)
-
-          END DO ! jkind
-
-       END DO ! ikind
-
-       DO ispin = 1, nspins
-          CALL deallocate_dbm_from_sm(diagmat_p(ispin)%matrix,&
-                                      matrix_p(1)%matrix,.FALSE.,error=error)
-          CALL deallocate_dbm_from_sm(diagmat_ks(ispin)%matrix,&
-                                      ks_matrix(ispin)%matrix,.TRUE.,para_env,error=error)
-       END DO
-       DEALLOCATE(diagmat_ks,diagmat_p)
-
-       IF (calculate_forces) DEALLOCATE(atom_of_kind)
-
-       CALL mp_sum(enuclear,para_env%group)
-       CALL mp_sum(ecore2,para_env%group)
-
-       energy%core_overlap = enuclear
-       energy%hartree = ecore2 - energy%core
-       DO ispin=1,nspins
-          CALL cp_sm_sm_trace(ks_matrix(ispin)%matrix,&
-                              matrix_p(ispin)%matrix,trace=ecoul,&
-                              para_env=para_env,error=error)
-          energy%hartree=energy%hartree+ecoul
-       END DO
-
-    END IF
-
-    CALL timestop(0.0_dp,handle)
-
-  END SUBROUTINE build_nddo_fock_matrix_coulomb
-
+               
+            END DO ! ilist => iatom(atom A)
+            
+         END DO ! jkind
+         
+      END DO ! ikind
+      
+      DO ispin = 1, nspins
+         CALL deallocate_dbm_from_sm(diagmat_p(ispin)%matrix,&
+                                     matrix_p(1)%matrix,.FALSE.,error=error)
+         CALL deallocate_dbm_from_sm(diagmat_ks(ispin)%matrix,&
+                                     ks_matrix(ispin)%matrix,.TRUE.,para_env,error=error)
+      END DO
+      DEALLOCATE(diagmat_ks,stat=stat)
+      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(diagmat_p,stat=stat)
+      CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+      
+      IF (calculate_forces) THEN 
+         DEALLOCATE(atom_of_kind,stat=stat)
+         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+      END IF
+      
+      CALL mp_sum(enuclear,para_env%group)
+      CALL mp_sum(ecore2,para_env%group)
+      
+      energy%core_overlap = enuclear
+      energy%hartree = ecore2 - energy%core
+      DO ispin=1,nspins
+         CALL cp_sm_sm_trace(ks_matrix(ispin)%matrix,&
+                             matrix_p(ispin)%matrix,trace=ecoul,&
+                             para_env=para_env,error=error)
+         energy%hartree=energy%hartree+ecoul
+      END DO
+      
+   END IF
+   
+   CALL timestop(0.0_dp,handle)
+ END SUBROUTINE build_nddo_fock_matrix_coulomb
+ 
 ! *****************************************************************************
   SUBROUTINE build_nddo_fock_matrix_exchange (ks_env,qs_env,ks_matrix,rho,energy,&
                calculate_forces,just_energy,error)
@@ -671,8 +663,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, iab, iatom, icol, ikind, ilist, inode, &
-      irow, istat, jatom, jkind, natom, natorb_a, natorb_b, nkind, nlist, &
-      nnode, nspins
+      irow, jatom, jkind, natom, natorb_a, natorb_b, nkind, nlist, nnode, &
+      nspins, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, defined, failure
     REAL(KIND=dp)                            :: delta, dr, gp2, gpp, gsp, &
@@ -733,21 +725,19 @@ CONTAINS
        nkind = SIZE(atomic_kind_set)
 
        IF(calculate_forces) THEN
-         CALL get_qs_env(qs_env=qs_env,&
-                         particle_set=particle_set,&
-                         force=force,error=error)
-         natom = SIZE (particle_set)
-         ALLOCATE (atom_of_kind(natom),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         delta = se_control%delta
-         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                                  atom_of_kind=atom_of_kind)
+          CALL get_qs_env(qs_env=qs_env,&
+                          particle_set=particle_set,&
+                          force=force,error=error)
+          natom = SIZE (particle_set)
+          ALLOCATE (atom_of_kind(natom),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          delta = se_control%delta
+          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
        END IF
 
        DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               se_parameter=se_kind_a)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
           CALL get_se_param(se_kind_a,&
                             defined=defined,&
                             natorb=natorb_a,&
@@ -773,132 +763,127 @@ CONTAINS
              NULLIFY(sab_orb_neighbor_list)
 
              DO ilist=1,nlist
-               IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
-                 sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
-               ELSE
-                 sab_orb_neighbor_list => next(sab_orb_neighbor_list)
-               END IF
-               sab_orb_neighbor_list_local => sab_orb_neighbor_list
-               CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,&
-                                      atom=iatom,&
-                                      nnode=nnode)
+                IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
+                   sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
+                ELSE
+                   sab_orb_neighbor_list => next(sab_orb_neighbor_list)
+                END IF
+                sab_orb_neighbor_list_local => sab_orb_neighbor_list
+                CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,&
+                                       atom=iatom,&
+                                       nnode=nnode)
 
-               sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
+                sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
 
-               DO inode=1,nnode
-                 CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
-                                        neighbor=jatom,r=rij)
+                DO inode=1,nnode
+                   CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
+                                          neighbor=jatom,r=rij)
 
-                 IF (iatom <= jatom) THEN
-                   irow = iatom
-                   icol = jatom
-                 ELSE
-                   irow = jatom
-                   icol = iatom
-                 END IF
-                 CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
-                 IF ( nspins >= 1 ) THEN
-                   CALL get_block_node(matrix=ks_matrix(1)%matrix,&
-                                       block_row=irow,&
-                                       block_col=icol,&
-                                       BLOCK=ks_block_a)
-                   CPPostcondition(ASSOCIATED(ks_block_a),cp_failure_level,routineP,error,failure)
-                   CALL get_block_node(matrix=matrix_p(1)%matrix,&
-                                       block_row=irow,&
-                                       block_col=icol,&
-                                       BLOCK=p_block_a)
-                   CPPostcondition(ASSOCIATED(p_block_a),cp_failure_level,routineP,error,failure)
-                 END IF
-                 IF ( nspins >= 2 ) THEN
-                   CALL get_block_node(matrix=ks_matrix(2)%matrix,&
-                                       block_row=irow,&
-                                       block_col=icol,&
-                                       BLOCK=ks_block_b)
-                   CPPostcondition(ASSOCIATED(ks_block_b),cp_failure_level,routineP,error,failure)
-                   CALL get_block_node(matrix=matrix_p(2)%matrix,&
-                                       block_row=irow,&
-                                       block_col=icol,&
-                                       BLOCK=p_block_b)
-                   CPPostcondition(ASSOCIATED(p_block_b),cp_failure_level,routineP,error,failure)
-                 END IF
-
-                 dr = SUM(rij(:)**2)
-                 IF ( iatom == jatom .AND. dr < 0.001_dp ) THEN
-
+                   IF (iatom <= jatom) THEN
+                      irow = iatom
+                      icol = jatom
+                   ELSE
+                      irow = jatom
+                      icol = iatom
+                   END IF
                    CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
-                   IF ( nspins == 1 ) THEN
-                     CALL fock1(gss,gsp,gpp,gp2,hsp,p_block_a,ks_block_a,error)
-                   ELSE IF ( nspins == 2 ) THEN
-                     CALL fock1(gss,gsp,gpp,gp2,hsp,p_block_a,ks_block_a,&
-                                p_block_b,ks_block_b,error)
+                   IF ( nspins >= 1 ) THEN
+                      CALL get_block_node(matrix=ks_matrix(1)%matrix,&
+                                          block_row=irow,&
+                                          block_col=icol,&
+                                          BLOCK=ks_block_a)
+                      CPPostcondition(ASSOCIATED(ks_block_a),cp_failure_level,routineP,error,failure)
+                      CALL get_block_node(matrix=matrix_p(1)%matrix,&
+                                          block_row=irow,&
+                                          block_col=icol,&
+                                          BLOCK=p_block_a)
+                      CPPostcondition(ASSOCIATED(p_block_a),cp_failure_level,routineP,error,failure)
+                   END IF
+                   IF ( nspins >= 2 ) THEN
+                      CALL get_block_node(matrix=ks_matrix(2)%matrix,&
+                                          block_row=irow,&
+                                          block_col=icol,&
+                                          BLOCK=ks_block_b)
+                      CPPostcondition(ASSOCIATED(ks_block_b),cp_failure_level,routineP,error,failure)
+                      CALL get_block_node(matrix=matrix_p(2)%matrix,&
+                                          block_row=irow,&
+                                          block_col=icol,&
+                                          BLOCK=p_block_b)
+                      CPPostcondition(ASSOCIATED(p_block_b),cp_failure_level,routineP,error,failure)
                    END IF
 
-                 ELSE
+                   dr = SUM(rij(:)**2)
+                   IF ( iatom == jatom .AND. dr < 0.001_dp ) THEN
+                      CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+                      IF ( nspins == 1 ) THEN
+                         CALL fock1(gss,gsp,gpp,gp2,hsp,p_block_a,ks_block_a,error)
+                      ELSE IF ( nspins == 2 ) THEN
+                         CALL fock1(gss,gsp,gpp,gp2,hsp,p_block_a,ks_block_a,&
+                                    p_block_b,ks_block_b,error)
+                      END IF
+                   ELSE
+                      CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+                      IF ( nspins == 1 ) THEN
+                         IF ( irow == iatom ) THEN
+                            CALL fock2e(se_kind_a,se_kind_b,rij,p_block_a,ks_block_a,anag,taper,error)
+                         ELSE
+                            CALL fock2e(se_kind_b,se_kind_a,-rij,p_block_a,ks_block_a,anag,taper,error)
+                         ENDIF
+                      ELSE IF ( nspins == 2 ) THEN
+                         IF ( irow == iatom ) THEN
+                            CALL fock2e(se_kind_a,se_kind_b,rij,p_block_a,ks_block_a,&
+                                        p_block_b,ks_block_b,anag,taper,error)
+                         ELSE
+                            CALL fock2e(se_kind_b,se_kind_a,-rij,p_block_a,ks_block_a,&
+                                        p_block_b,ks_block_b,anag,taper,error)
+                         ENDIF
+                      END IF
 
-                   CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
-                   IF ( nspins == 1 ) THEN
-                     IF ( irow == iatom ) THEN
-                       CALL fock2e(se_kind_a,se_kind_b,rij,p_block_a,ks_block_a,anag,taper,error)
-                     ELSE
-                       CALL fock2e(se_kind_b,se_kind_a,-rij,p_block_a,ks_block_a,anag,taper,error)
-                     ENDIF
-                   ELSE IF ( nspins == 2 ) THEN
-                     IF ( irow == iatom ) THEN
-                       CALL fock2e(se_kind_a,se_kind_b,rij,p_block_a,ks_block_a,&
-                                   p_block_b,ks_block_b,anag,taper,error)
-                     ELSE
-                       CALL fock2e(se_kind_b,se_kind_a,-rij,p_block_a,ks_block_a,&
-                                   p_block_b,ks_block_b,anag,taper,error)
-                     ENDIF
+                      IF(calculate_forces) THEN
+                         force_ab(1:3) = 0._dp
+                         CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+                         IF ( nspins == 1 ) THEN
+                            IF ( irow == iatom ) THEN
+                               CALL dfock2e(se_kind_a,se_kind_b,rij,p_block_a,force_ab,delta,anag,taper,error)
+                            ELSE
+                               CALL dfock2e(se_kind_b,se_kind_a,-rij,p_block_a,force_ab,delta,anag,taper,error)
+                            ENDIF
+                         ELSE IF ( nspins == 2 ) THEN
+                            IF ( irow == iatom ) THEN
+                               CALL dfock2e(se_kind_a,se_kind_b,rij,p_block_a,p_block_b,force_ab,&
+                                    delta,anag,taper,error)
+                            ELSE
+                               CALL dfock2e(se_kind_b,se_kind_a,-rij,p_block_a,p_block_b,force_ab,&
+                                    delta,anag,taper,error)
+                            ENDIF
+                         END IF
+                         atom_a = atom_of_kind(iatom)
+                         atom_b = atom_of_kind(jatom)
+                         IF ( irow /= iatom ) force_ab = -force_ab
+                         force(ikind)%rho_elec(:,atom_a) = force(ikind)%rho_elec(:,atom_a) - force_ab(:)
+                         force(jkind)%rho_elec(:,atom_b) = force(jkind)%rho_elec(:,atom_b) + force_ab(:)
+                      END IF
                    END IF
+                   sab_orb_neighbor_node => next(sab_orb_neighbor_node)
 
-                   IF(calculate_forces) THEN
-                     force_ab(1:3) = 0._dp
-                     CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
-                     IF ( nspins == 1 ) THEN
-                       IF ( irow == iatom ) THEN
-                         CALL dfock2e(se_kind_a,se_kind_b,rij,p_block_a,force_ab,delta,anag,taper,error)
-                       ELSE
-                         CALL dfock2e(se_kind_b,se_kind_a,-rij,p_block_a,force_ab,delta,anag,taper,error)
-                       ENDIF
-                     ELSE IF ( nspins == 2 ) THEN
-                       IF ( irow == iatom ) THEN
-                         CALL dfock2e(se_kind_a,se_kind_b,rij,&
-                              p_block_a,p_block_b,force_ab,delta,anag,taper,error)
-                       ELSE
-                         CALL dfock2e(se_kind_b,se_kind_a,-rij,&
-                              p_block_a,p_block_b,force_ab,delta,anag,taper,error)
-                       ENDIF
-                     END IF
-                     atom_a = atom_of_kind(iatom)
-                     atom_b = atom_of_kind(jatom)
-                     IF ( irow /= iatom ) force_ab = -force_ab
-                     force(ikind)%rho_elec(:,atom_a) =&
-                       force(ikind)%rho_elec(:,atom_a) - force_ab(:)
-                     force(jkind)%rho_elec(:,atom_b) =&
-                       force(jkind)%rho_elec(:,atom_b) + force_ab(:)
-                   END IF
-
-                 END IF
-
-                 sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-
-               END DO ! inode => jatom(atom B)
-
+                END DO ! inode => jatom(atom B)
+                
              END DO ! ilist => iatom(atom A)
-
+             
           END DO ! jkind
-
+          
        END DO ! ikind
-
-       IF (calculate_forces) DEALLOCATE(atom_of_kind)
-
+       
+       IF (calculate_forces) THEN 
+          DEALLOCATE(atom_of_kind,stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
     END IF
-
+    
     CALL timestop(0.0_dp,handle)
-
+    
   END SUBROUTINE build_nddo_fock_matrix_exchange
-
+  
 ! *****************************************************************************
   SUBROUTINE rfock1 (gss,gsp,gpp,gp2,hsp,pmat,fmat,error)
     REAL(dp), INTENT(IN)                     :: gss, gsp, gpp, gp2, hsp
@@ -1034,7 +1019,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE rfock2c(sepa,sepb,rij,pa,pb,fa,fb,anag,shortrange,taper,error)
-    TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
+    TYPE(semi_empirical_type), POINTER       :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa, pb
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fa, fb
@@ -1047,8 +1032,8 @@ CONTAINS
 
     INTEGER                                  :: i, ii, na, nb
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(10)             :: ca, cb, ppa, ppb
-    REAL(KIND=dp), DIMENSION(100)            :: wint
+    REAL(KIND=dp), DIMENSION(2025)           :: wint
+    REAL(KIND=dp), DIMENSION(45)             :: ca, cb, ppa, ppb
 
     na = SIZE ( pa, 1 )
     nb = SIZE ( pb, 1 )
@@ -1087,7 +1072,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE ufock2c(sepa,sepb,rij,pa_a,pb_a,fa_a,fb_a,pa_b,pb_b,fa_b,fb_b,anag,&
        shortrange,taper,error)
-    TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
+    TYPE(semi_empirical_type), POINTER       :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa_a, pb_a
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fa_a, fb_a
@@ -1103,9 +1088,9 @@ CONTAINS
     INTEGER                                  :: i, ii, na, nb
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ess
-    REAL(KIND=dp), DIMENSION(10)             :: ca, cb, ppa_a, ppa_b, ppb_a, &
+    REAL(KIND=dp), DIMENSION(2025)           :: wint
+    REAL(KIND=dp), DIMENSION(45)             :: ca, cb, ppa_a, ppa_b, ppb_a, &
                                                 ppb_b
-    REAL(KIND=dp), DIMENSION(100)            :: wint
 
     na = SIZE ( pa_a, 1 )
     nb = SIZE ( pb_a, 1 )
@@ -1157,7 +1142,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE rdfock2c(sepa,sepb,rij,pa,pb,force,delta,anag,shortrange,taper,error)
-    TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
+    TYPE(semi_empirical_type), POINTER       :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa, pb
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
@@ -1171,8 +1156,8 @@ CONTAINS
 
     INTEGER                                  :: i, ii, j, na, nb
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(10)             :: ca, ppa, ppb
-    REAL(KIND=dp), DIMENSION(100, 3)         :: dwint
+    REAL(KIND=dp), DIMENSION(2025, 3)        :: dwint
+    REAL(KIND=dp), DIMENSION(45)             :: ca, ppa, ppb
 
     na = SIZE ( pa, 1 )
     nb = SIZE ( pb, 1 )
@@ -1210,7 +1195,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE udfock2c(sepa,sepb,rij,pa_a,pb_a,pa_b,pb_b,force,delta,anag,shortrange,&
        taper,error)
-    TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
+    TYPE(semi_empirical_type), POINTER       :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa_a, pb_a, pa_b, pb_b
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
@@ -1225,8 +1210,8 @@ CONTAINS
     INTEGER                                  :: i, ii, j, na, nb
     LOGICAL                                  :: failure
     REAL(dp)                                 :: ess, pta, ptb
-    REAL(KIND=dp), DIMENSION(10)             :: ca, ppa_a, ppa_b, ppb_a, ppb_b
-    REAL(KIND=dp), DIMENSION(100, 3)         :: dwint
+    REAL(KIND=dp), DIMENSION(2025, 3)        :: dwint
+    REAL(KIND=dp), DIMENSION(45)             :: ca, ppa_a, ppa_b, ppb_a, ppb_b
 
     na = SIZE ( pa_a, 1 )
     nb = SIZE ( pb_a, 1 )
@@ -1271,7 +1256,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE rfock2e(sepa,sepb,rij,pab,fab,anag,taper,error)
-    TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
+    TYPE(semi_empirical_type), POINTER       :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fab
@@ -1284,8 +1269,8 @@ CONTAINS
 
     INTEGER                                  :: na, nb
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(100)            :: wint
-    REAL(KIND=dp), DIMENSION(4, 4)           :: kab
+    REAL(KIND=dp), DIMENSION(2025)           :: wint
+    REAL(KIND=dp), DIMENSION(9, 9)           :: kab
 
     na = SIZE ( pab, 1 )
     nb = SIZE ( pab, 2 )
@@ -1323,7 +1308,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE ufock2e(sepa,sepb,rij,pab_a,fab_a,pab_b,fab_b,anag,taper,error)
-    TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
+    TYPE(semi_empirical_type), POINTER       :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab_a
     REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fab_a
@@ -1338,8 +1323,8 @@ CONTAINS
 
     INTEGER                                  :: na, nb
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(100)            :: wint
-    REAL(KIND=dp), DIMENSION(4, 4)           :: kab
+    REAL(KIND=dp), DIMENSION(2025)           :: wint
+    REAL(KIND=dp), DIMENSION(9, 9)           :: kab
 
     na = SIZE ( pab_a, 1 )
     nb = SIZE ( pab_a, 2 )
@@ -1396,7 +1381,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE rdfock2e(sepa,sepb,rij,pab,force,delta,anag,taper,error)
-    TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
+    TYPE(semi_empirical_type), POINTER       :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
@@ -1410,8 +1395,8 @@ CONTAINS
 
     INTEGER                                  :: j, na, nb
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(100, 3)         :: dwint
-    REAL(KIND=dp), DIMENSION(4, 4)           :: kab
+    REAL(KIND=dp), DIMENSION(2025, 3)        :: dwint
+    REAL(KIND=dp), DIMENSION(45, 45)         :: kab
 
     na = SIZE ( pab, 1 )
     nb = SIZE ( pab, 2 )
@@ -1440,7 +1425,7 @@ CONTAINS
     ELSE IF ( na==4 .AND. nb==4 ) THEN
       DO j=1,3
         CALL exchange_sp ( kab, pab, dwint(:,j) )
-        force(j) = force(j) - 0.5_dp * SUM(pab*kab)
+        force(j) = force(j) - 0.5_dp * SUM(pab*kab(1:4,1:4))
       END DO
     ELSE
       CPPrecondition(na<=4,cp_failure_level,routineP,error,failure)
@@ -1451,7 +1436,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE udfock2e(sepa,sepb,rij,pab_a,pab_b,force,delta,anag,taper,error)
-    TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
+    TYPE(semi_empirical_type), POINTER       :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab_a, pab_b
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
@@ -1465,8 +1450,8 @@ CONTAINS
 
     INTEGER                                  :: j, na, nb
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(100, 3)         :: dwint
-    REAL(KIND=dp), DIMENSION(4, 4)           :: kab
+    REAL(KIND=dp), DIMENSION(2025, 3)        :: dwint
+    REAL(KIND=dp), DIMENSION(45, 45)         :: kab
 
     na = SIZE ( pab_a, 1 )
     nb = SIZE ( pab_a, 2 )
@@ -1512,9 +1497,9 @@ CONTAINS
     ELSE IF ( na==4 .AND. nb==4 ) THEN
       DO j=1,3
         CALL exchange_sp ( kab, pab_a, dwint(:,j) )
-        force(j) = force(j) - SUM(pab_a*kab)
+        force(j) = force(j) - SUM(pab_a*kab(1:4,1:4))
         CALL exchange_sp ( kab, pab_b, dwint(:,j) )
-        force(j) = force(j) - SUM(pab_b*kab)
+        force(j) = force(j) - SUM(pab_b*kab(1:4,1:4))
       END DO
     ELSE
       CPPrecondition(na<=4,cp_failure_level,routineP,error,failure)

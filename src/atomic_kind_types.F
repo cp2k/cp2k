@@ -66,9 +66,9 @@ MODULE atomic_kind_types
   USE qs_harmonics_atom,               ONLY: allocate_harmonics_atom,&
                                              deallocate_harmonics_atom,&
                                              harmonics_atom_type
-  USE semi_empirical_types,            ONLY: allocate_se_param,&
-                                             deallocate_se_param,&
-                                             get_se_param,&
+  USE semi_empirical_types,            ONLY: get_se_param,&
+                                             semi_empirical_create,&
+                                             semi_empirical_release,&
                                              semi_empirical_type,&
                                              write_se_param
   USE semi_empirical_utils,            ONLY: init_se_param,&
@@ -268,7 +268,7 @@ CONTAINS
              CALL deallocate_potential(atomic_kind_set(ikind)%gth_potential,error)
           END IF
           IF (ASSOCIATED(atomic_kind_set(ikind)%se_parameter)) THEN
-             CALL deallocate_se_param(atomic_kind_set(ikind)%se_parameter,error)
+             CALL semi_empirical_release(atomic_kind_set(ikind)%se_parameter,error)
           END IF
           IF (ASSOCIATED(atomic_kind_set(ikind)%dftb_parameter)) THEN
              CALL deallocate_dftb_atom_param(atomic_kind_set(ikind)%dftb_parameter,error)
@@ -1472,7 +1472,7 @@ CONTAINS
           ! Setup proper semiempirical parameters
           check = .NOT.ASSOCIATED(atomic_kind%se_parameter)
           CPPostcondition(check, cp_failure_level, routineP, error, failure)
-          CALL allocate_se_param(atomic_kind%se_parameter,error)
+          CALL semi_empirical_create(atomic_kind%se_parameter,error)
           ! Set default parameters
           CALL se_param_set_default(atomic_kind%se_parameter,z,method_id,error)
           CALL init_se_param(atomic_kind%se_parameter,atomic_kind%orb_basis_set,error=error)

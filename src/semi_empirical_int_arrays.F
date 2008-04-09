@@ -49,10 +49,27 @@ MODULE semi_empirical_int_arrays
   ! Indexes for diagonal storage of ij and kl multipoles
   INTEGER, DIMENSION(9,9), PUBLIC                 :: indexa, indexb
 
+  ! Type of integral for 2electron 2centers integrals
+  INTEGER, DIMENSION(45), PARAMETER, PUBLIC       :: int2c_type =(/&
+       1, 2, 3, 2, 3, 3, 2, 3, 3, 3, 4, 5, 5, 5, 6, 4, 5, 5, 5, &
+       6, 6, 4, 5, 5, 5, 6, 6, 6, 4, 5, 5, 5, 6, 6, 6, 6, 4, 5, &
+       5, 5, 6, 6, 6, 6, 6/)
+
+  ! Array to map ri(22) into rep(491) for 2electron 2center integrals
+  INTEGER, DIMENSION(34), PARAMETER, PUBLIC       :: map_22_to_491 =(/&
+       1,   5, 11, 12, 12,  2,  6, 13, 14, 14,  3,  8, 16, 18, 18,  7, 15, &
+       10, 20,  4,  9, 17, 19, 21,  7, 15, 10, 20, 22,  4,  9, 17, 21, 19 /)
+
   ! Index for <ij|kl> 
   INTEGER, DIMENSION (45, 45), PUBLIC             :: ijkl_ind
+
   ! Symmetry index for <ij|kl>
   INTEGER, DIMENSION (491), PUBLIC                :: ijkl_sym
+
+  ! Index for integral rotations
+  INTEGER, DIMENSION (3, 3), PUBLIC               :: indpp
+  INTEGER, DIMENSION (5, 3), PUBLIC               :: inddp
+  INTEGER, DIMENSION (5, 5), PUBLIC               :: inddd
 
   PUBLIC :: init_se_intd_array
 
@@ -70,6 +87,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CALL setup_index_array(error)
+    CALL setup_indrot_array(error)
     CALL setup_clm_array(error)
     CALL setup_ijkl_array(error)
 
@@ -122,6 +140,76 @@ CONTAINS
        END DO
     END DO
   END SUBROUTINE setup_index_array
+    
+! *****************************************************************************
+!> \brief Fills in array for the rotation of the integrals
+!>
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date   04.2008 [tlaino]
+! *****************************************************************************
+  SUBROUTINE setup_indrot_array(error)
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_indrot_array', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    ! Setup indexes for integral rotations
+    ! INDPP
+    indpp(1, 1) =  1
+    indpp(2, 1) =  4
+    indpp(3, 1) =  5
+    indpp(1, 2) =  4
+    indpp(2, 2) =  2
+    indpp(3, 2) =  6
+    indpp(1, 3) =  5
+    indpp(2, 3) =  6
+    indpp(3, 3) =  3
+    ! INDDP
+    inddp(1, 1) =  1
+    inddp(2, 1) =  4
+    inddp(3, 1) =  7
+    inddp(4, 1) = 10
+    inddp(5, 1) = 13
+    inddp(1, 2) =  2
+    inddp(2, 2) =  5
+    inddp(3, 2) =  8
+    inddp(4, 2) = 11
+    inddp(5, 2) = 14
+    inddp(1, 3) =  3
+    inddp(2, 3) =  6
+    inddp(3, 3) =  9
+    inddp(4, 3) = 12
+    inddp(5, 3) = 15
+    ! INDDD
+    inddd(1, 1) =  1
+    inddd(2, 1) =  6
+    inddd(3, 1) =  7
+    inddd(4, 1) =  9
+    inddd(5, 1) = 12
+    inddd(1, 2) =  6
+    inddd(2, 2) =  2
+    inddd(3, 2) =  8
+    inddd(4, 2) = 10
+    inddd(5, 2) = 13
+    inddd(1, 3) =  7
+    inddd(2, 3) =  8
+    inddd(3, 3) =  3
+    inddd(4, 3) = 11
+    inddd(5, 3) = 14
+    inddd(1, 4) =  9
+    inddd(2, 4) = 10
+    inddd(3, 4) = 11
+    inddd(4, 4) =  4
+    inddd(5, 4) = 15
+    inddd(1, 5) = 12
+    inddd(2, 5) = 13
+    inddd(3, 5) = 14
+    inddd(4, 5) = 15
+    inddd(5, 5) =  5
+  END SUBROUTINE setup_indrot_array
 
 ! *****************************************************************************
 !> \brief Fills in Clm coefficients (see Table [2] of TCA)

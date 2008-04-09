@@ -35,9 +35,9 @@ MODULE qmmm_se_forces
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE semi_empirical_int_ana,          ONLY: rotnuc_ana
-  USE semi_empirical_types,            ONLY: allocate_se_param,&
-                                             deallocate_se_param,&
-                                             get_se_param,&
+  USE semi_empirical_types,            ONLY: get_se_param,&
+                                             semi_empirical_create,&
+                                             semi_empirical_release,&
                                              semi_empirical_type,&
                                              taper_type
   USE semi_empirical_utils,            ONLY: contract,&
@@ -123,7 +123,7 @@ CONTAINS
        ! Create a fake semi-empirical type to handle the classical atom
        ALLOCATE(Forces_QM(3,number_qm_atoms),stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL allocate_se_param(se_kind_mm,error)
+       CALL semi_empirical_create(se_kind_mm,error)
        CALL se_param_set_default(se_kind_mm,0,do_method_pchg,error)
        itype    = get_se_type(se_kind_mm%typ)
        nkind    = SIZE(atomic_kind_set)
@@ -218,7 +218,7 @@ CONTAINS
        ! as for GPW/GAPW methods
        DEALLOCATE(Forces_QM,stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL deallocate_se_param(se_kind_mm,error)
+       CALL semi_empirical_release(se_kind_mm,error)
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE deriv_se_qmmm_matrix
@@ -257,9 +257,9 @@ CONTAINS
     INTEGER                                  :: handle, i, icor, Imm, Imp, &
                                                 IndMM, Ipot
     REAL(KIND=dp)                            :: r, rt1, rt2, rt3
-    REAL(KIND=dp), DIMENSION(10)             :: pvec
-    REAL(KIND=dp), DIMENSION(10, 3)          :: de1b
     REAL(KIND=dp), DIMENSION(3)              :: denuc, force_ab, r_pbc, rij
+    REAL(KIND=dp), DIMENSION(45)             :: pvec
+    REAL(KIND=dp), DIMENSION(45, 3)          :: de1b
     TYPE(qmmm_pot_type), POINTER             :: Pot
 
     CALL timeset(routineN,"I","",handle)

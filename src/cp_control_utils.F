@@ -494,7 +494,6 @@ CPSourceFileRef,&
     CASE (do_method_pm6)
        CALL cite_reference(Stewart2007)
        qs_control%semi_empirical = .TRUE.
-       CALL init_se_intd_array(error)
     CASE (do_method_pdg)
        CALL cite_reference(Repasky2002)
        qs_control%semi_empirical = .TRUE.
@@ -505,7 +504,6 @@ CPSourceFileRef,&
        CALL cite_reference(Dewar1977)
        CALL cite_reference(Thiel1992)
        qs_control%semi_empirical = .TRUE.
-       CALL init_se_intd_array(error)
     END SELECT
     
     IF(qs_control%method_id == do_method_kg_pol) qs_control%polarization = .TRUE.
@@ -560,6 +558,7 @@ CPSourceFileRef,&
 
     ! Semi-empirical code
     IF (qs_control%semi_empirical) THEN
+       CALL init_se_intd_array(error)
        CALL section_vals_val_get(se_section,"ANALYTICAL_GRADIENTS",&
             l_val=qs_control%se_control%analytical_gradients,error=error)
        CALL section_vals_val_get(se_section,"ORTHOGONAL_BASIS",&

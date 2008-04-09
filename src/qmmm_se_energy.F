@@ -36,9 +36,9 @@ MODULE qmmm_se_energy
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_overlap,                      ONLY: build_overlap_matrix
   USE semi_empirical_int_ana,          ONLY: rotnuc_ana
-  USE semi_empirical_types,            ONLY: allocate_se_param,&
-                                             deallocate_se_param,&
-                                             get_se_param,&
+  USE semi_empirical_types,            ONLY: get_se_param,&
+                                             semi_empirical_create,&
+                                             semi_empirical_release,&
                                              semi_empirical_type,&
                                              taper_type
   USE semi_empirical_utils,            ONLY: expand,&
@@ -134,7 +134,7 @@ CONTAINS
     SELECT CASE(qmmm_env%qmmm_coupl_type)
     CASE(do_qmmm_coulomb,do_qmmm_gauss,do_qmmm_swave)
        ! Create a fake semi-empirical type to handle the classical atom
-       CALL allocate_se_param(se_kind_mm,error)
+       CALL semi_empirical_create(se_kind_mm,error)
        CALL se_param_set_default(se_kind_mm,0,do_method_pchg,error)
        itype    = get_se_type(se_kind_mm%typ)
        nkind    = SIZE(atomic_kind_set)
@@ -199,7 +199,7 @@ CONTAINS
        END DO Kinds
        CALL mp_sum(enuclear,para_env%group)
        qs_env%energy%qmmm_nu = enuclear
-       CALL deallocate_se_param(se_kind_mm,error)
+       CALL semi_empirical_release(se_kind_mm,error)
     CASE(do_qmmm_none)
        ! Zero Matrix 
        CALL set_matrix(ks_qmmm_env_loc%matrix_h(1)%matrix,0.0_dp)
@@ -247,8 +247,8 @@ CONTAINS
     INTEGER                                  :: handle, i, Imm, Imp, IndMM, &
                                                 Ipot
     REAL(KIND=dp)                            :: enuc, r, rt1, rt2, rt3
-    REAL(KIND=dp), DIMENSION(10)             :: e1b
     REAL(KIND=dp), DIMENSION(3)              :: r_pbc, rij
+    REAL(KIND=dp), DIMENSION(45)             :: e1b
     TYPE(qmmm_pot_type), POINTER             :: Pot
 
     CALL timeset(routineN,"I","",handle)

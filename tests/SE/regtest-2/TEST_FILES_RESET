@@ -97,3 +97,5 @@ O2-ROKS.inp
 st.inp
 # fix dp in parameter
 H2O-PDDG.inp
+# new integral module
+NO2-ROKS.inp
