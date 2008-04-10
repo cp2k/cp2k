@@ -60,6 +60,10 @@ MODULE semi_empirical_int_arrays
        1,   5, 11, 12, 12,  2,  6, 13, 14, 14,  3,  8, 16, 18, 18,  7, 15, &
        10, 20,  4,  9, 17, 19, 21,  7, 15, 10, 20, 22,  4,  9, 17, 21, 19 /)
 
+  ! Mappinf of shell index
+  INTEGER, DIMENSION(9), PARAMETER, PUBLIC        :: l_index=(/&
+       0, 1, 1, 1, 2, 2, 2, 2, 2/)
+
   ! Index for <ij|kl> 
   INTEGER, DIMENSION (45, 45), PUBLIC             :: ijkl_ind
 

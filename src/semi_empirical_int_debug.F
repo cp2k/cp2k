@@ -139,8 +139,7 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, shortrange, taper, invert, i
   USE kinds,                           ONLY: dp
   USE semi_empirical_int_utils,        ONLY: rotmat
   USE semi_empirical_int_arrays,       ONLY: indexb
-  USE semi_empirical_int_num,          ONLY: nucint_num,&
-                                             terep_num
+  USE semi_empirical_int_num,          ONLY: terep_num
   USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                              taper_type,&
                                              rotmat_type,&
@@ -168,7 +167,7 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, shortrange, taper, invert, i
   LOGICAL                                  :: failure, check_value
   REAL(KIND=dp)                            :: dx, r, r0(3), x(3)
   TYPE(rotmat_type), POINTER               :: matrix
-  INTEGER                                  :: imap(3),i,j,k,l, limkl
+  INTEGER                                  :: imap(3),i,j,k, limkl
 
   NULLIFY(matrix)
   failure = .FALSE.
@@ -196,7 +195,7 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, shortrange, taper, invert, i
              error=error)
 
         ! Compute integrals in diatomic frame
-        CALL terep_num(sepi,sepj,r,rep,shortrange,taper=taper,error=error)  
+        CALL terep_num(sepi,sepj,r,rep,taper=taper,shortrange=shortrange,error=error)  
        
         IF (i==1) THEN
            CALL rot_2el_2c_first(sepi, sepj, r0, shortrange, taper, invert, ii, kk, rep, logv, matrix,&
@@ -233,7 +232,6 @@ END SUBROUTINE rot_2el_2c_first_debug
 SUBROUTINE check_dnucint_ana (sepi,sepj,r,dssss,dcore,itype,shortrange,taper,error)
   USE f77_blas
   USE kinds,                           ONLY: dp
-  USE semi_empirical_int_utils,        ONLY: rotmat
   USE semi_empirical_int_num,          ONLY: nucint_num
   USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                              taper_type
@@ -261,9 +259,9 @@ SUBROUTINE check_dnucint_ana (sepi,sepj,r,dssss,dcore,itype,shortrange,taper,err
   delta = 1.0E-8_dp
   od = 0.5_dp/delta
   rn = r + delta
-  CALL nucint_num(sepi,sepj,rn,ssssp,corep,itype,shortrange,taper=taper,error=error)
+  CALL nucint_num(sepi,sepj,rn,ssssp,corep,itype,taper,shortrange,error=error)
   rn = r - delta
-  CALL nucint_num(sepi,sepj,rn,ssssm,corem,itype,shortrange,taper=taper,error=error)
+  CALL nucint_num(sepi,sepj,rn,ssssm,corem,itype,taper,shortrange,error=error)
   ncore = od * (corep - corem)
   nssss = od * (ssssp - ssssm)
   ! check
@@ -352,8 +350,8 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, shortrange, taper, e1b, e2
     routineN = 'check_drotnuc_ana', routineP = moduleN//':'//routineN
 
   INTEGER                                  :: i, j
-  LOGICAL                                  :: invert, l_de1b, l_de2a, &
-                                              l_e1b, l_e2a, lgrad, check_value
+  LOGICAL                                  :: l_de1b, l_de2a, l_e1b, l_e2a,&
+                                              lgrad, check_value
   REAL(dp)                                 :: delta
   REAL(KIND=dp), DIMENSION(45)             :: e1b2, e2a2
   REAL(KIND=dp), DIMENSION(45, 3)          :: de1b2, de2a2
@@ -508,11 +506,11 @@ SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,shortrange,taper,error)
   delta = 1.0E-8_dp
   od = 0.5_dp/delta
   rn = r
-  CALL terep_num(sepi,sepj,rn,ri0,shortrange,taper=taper,error=error)
+  CALL terep_num(sepi,sepj,rn,ri0,taper,shortrange,error=error)
   rn = r + delta
-  CALL terep_num(sepi,sepj,rn,rip,shortrange,taper=taper,error=error)
+  CALL terep_num(sepi,sepj,rn,rip,taper,shortrange,error=error)
   rn = r - delta
-  CALL terep_num(sepi,sepj,rn,rim,shortrange,taper=taper,error=error)
+  CALL terep_num(sepi,sepj,rn,rim,taper,shortrange,error=error)
   nri = od * (rip - rim)
   ! check
   WRITE(*,*)"DEBUG::"//routineP

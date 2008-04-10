@@ -84,10 +84,11 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 03.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION ijkl (sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, error) RESULT(res)
+  FUNCTION ijkl (sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, longrange, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
     REAL(KIND=dp), INTENT(IN)                :: r
+    LOGICAL, INTENT(IN)                      :: longrange
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
 
@@ -145,8 +146,11 @@ CONTAINS
              dkl = sepj%cs(lkl)
              pkl = sepj%ko(lkl)
           END IF
-          !
-          add = (pij+pkl) ** 2
+          IF (longrange) THEN
+             add = 0.0_dp
+          ELSE
+             add = (pij+pkl) ** 2
+          END IF
           lmin = MIN(l1, l2)
           s1 = 0.0_dp
           DO m = -lmin, lmin
@@ -952,7 +956,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
-  SUBROUTINE store_2el_2c_diag (limij, limkl, ww, w, ww_dx, ww_dy, ww_dz, dw)
+  SUBROUTINE store_2el_2c_diag (limij, limkl, ww, w, ww_dx, ww_dy, ww_dz, dw, error)
 
     INTEGER, INTENT(IN)                      :: limij, limkl
     REAL(KIND=dp), DIMENSION(limkl, limij), &
@@ -963,12 +967,15 @@ CONTAINS
       INTENT(IN), OPTIONAL                   :: ww_dx, ww_dy, ww_dz
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: dw
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'store_2el_2c_diag', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ij, kl, l
+    LOGICAL                                  :: failure
 
+    failure = .FALSE.
     l = 0
     IF      (PRESENT(ww).AND.PRESENT(w)) THEN
        DO ij = 1, limij
@@ -987,7 +994,7 @@ CONTAINS
           END DO
        END DO
     ELSE
-       STOP "error"
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF
 
   END SUBROUTINE store_2el_2c_diag

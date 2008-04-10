@@ -24,8 +24,8 @@ MODULE semi_empirical_int_num
   USE physcon,                         ONLY: angstrom,&
                                              evolt
   USE semi_empirical_int_arrays,       ONLY: &
-       inddd, inddp, indexa, indexb, indpp, int2c_type, map_22_to_491, pxy, &
-       rij_threshold
+       ijkl_ind, ijkl_sym, inddd, inddp, indexa, indexb, indpp, int2c_type, &
+       l_index, map_22_to_491, pxy, rij_threshold
   USE semi_empirical_int_utils,        ONLY: ijkl,&
                                              rot_2el_2c_first,&
                                              rotmat,&
@@ -96,10 +96,10 @@ CONTAINS
 
        ! Create the rotation matrix 
        CALL rotmat_create(ij_matrix, error)
-       CALL rotmat (sepi, sepj, -rijv, rij, ij_matrix,  do_derivatives=.FALSE., error=error)
+       CALL rotmat (sepi, sepj, -rijv, rij, ij_matrix, do_derivatives=.FALSE., error=error)
        
        ! Compute Integrals in Diatomic Frame
-       CALL terep_num(sepi,sepj,rij,rep,shortrange,taper=taper,error=error)
+       CALL terep_num(sepi,sepj,rij,rep,taper=taper,shortrange=shortrange,error=error)
 
        ! Rotate Integrals
        ii = sepi%natorb
@@ -198,7 +198,7 @@ CONTAINS
        ! Store two electron integrals in the triangular format
        limij = (ii*(ii+1))/2
        limkl = (kk*(kk+1))/2
-       CALL store_2el_2c_diag(limij, limkl, ww, w)
+       CALL store_2el_2c_diag(limij, limkl, ww, w, error=error)
     ENDIF    
   END SUBROUTINE rotint_num
 
@@ -208,7 +208,8 @@ CONTAINS
 !> \param on input rij   = interatomic distance
 !>               sepi    = paramters of atom i
 !>               sepj    = paramters of atom j
-!>        short_range    = requests only the evaluation of the short range part
+!>         shortrange    = requests only the evaluation of the short range part
+!>        do_longrange   = requests only the evaluation of the long range part (recursive use only)
 !>
 !>     on output ri      = array of two-electron repulsion integrals
 !>
@@ -216,48 +217,64 @@ CONTAINS
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino [tlaino] - Zurich University
 ! *****************************************************************************
-  SUBROUTINE terep_num( sepi, sepj, rij, rep, shortrange, taper, error )
+  RECURSIVE SUBROUTINE terep_num(sepi, sepj, rij, rep, taper, shortrange, do_longrange, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(491), INTENT(OUT)    :: rep
-    LOGICAL, INTENT(IN)                      :: shortrange
     TYPE(taper_type), POINTER                :: taper
+    LOGICAL, INTENT(IN)                      :: shortrange
+    LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'terep_num', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ind
-    LOGICAL                                  :: failure
-    REAL(dp), DIMENSION(22)                  :: ri
+    LOGICAL                                  :: failure, longrange
+    REAL(KIND=dp)                            :: ft
+    REAL(KIND=dp), DIMENSION(22)             :: ri
+    REAL(KIND=dp), DIMENSION(491)            :: rep_lr
 
-    failure = .FALSE.
+    failure   = .FALSE.
+    longrange = .FALSE.
+    IF (PRESENT(do_longrange))  longrange = do_longrange
     ri      = 0.0_dp
-    CALL terep_sp_num(sepi, sepj, rij, ri, shortrange, taper=taper, error=error)
+    rep     = 0.0_dp
+    ! Contribution from sp shells
+    CALL terep_sp_num(sepi, sepj, rij, ri, longrange, error=error)
 
     ! Preliminary storage of sp-integrals
-    rep = 0.0_dp
     DO i = 1, 34
        ind    = map_22_to_491(i)
        rep(i) = ri(ind)
     END DO
 
     IF (sepi%dorb.OR.sepj%dorb) THEN
-       ! compute the contribution from d-orbitals
-       STOP "D-ORBITALS: terep"
-
-
+       ! Compute the contribution from d shells
+       CALL terep_d_num (sepi, sepj, rij, rep, longrange, error=error )
     END IF
+
+    ! Tapering function
+    IF (.NOT.longrange) THEN
+       ft = taper_eval(taper, rij, error)
+       rep(:) = ft*rep(:)
+    END IF
+
+    ! Evaluate only the shortrange part of the integral if requested
+    IF ( shortrange ) THEN
+       CALL terep_num(sepi, sepj, rij, rep_lr, taper, shortrange=.FALSE.,&
+                      do_longrange=.TRUE., error=error)
+       rep = rep - rep_lr
+    END IF
+
   END SUBROUTINE terep_num
 
 ! *****************************************************************************
-!> \brief Calculates the  two-electron repulsion integrals and the
-!>      nuclear attraction integrals w.r.t. |r| - sp core only
+!> \brief Calculates the  two-electron repulsion integrals w.r.t. |r| - sp shell only
 !> \param on input rij   = interatomic distance
 !>               sepi    = paramters of atom i
 !>               sepj    = paramters of atom j
-!>        short_range    = requests only the evaluation of the short range part
-!>        do_longrange   = requests only the evaluation of the long range part (recursive use only)
+!>           longrange   = requests only the evaluation of the long range part
 !>
 !>     on output ri      = array of two-electron repulsion integrals
 !>
@@ -274,28 +291,24 @@ CONTAINS
 !>      Teodoro Laino (03.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE terep_sp_num ( sepi, sepj, rij, ri, shortrange, do_longrange, taper, error )
+ SUBROUTINE terep_sp_num ( sepi, sepj, rij, ri, longrange, error )
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(22), INTENT(INOUT)   :: ri
-    LOGICAL, INTENT(IN)                      :: shortrange
-    LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
-    TYPE(taper_type), POINTER                :: taper
+    LOGICAL, INTENT(IN)                      :: longrange
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'terep_sp_num', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: longrange, si, sj
+    LOGICAL                                  :: si, sj
     REAL(dp) :: ade, adi, adj, adq, aed, aee, aeq, ami, amj, aqd, aqe, aqi, &
       aqj, aqq, axx, da, db, ddi, ddj, dxdx, dxqxz, dzdz, dze, dzqxx, dzqzz, &
-      edz, ee, eqxx, eqzz, ft, qa, qb, qqi, qqj, qxxdz, qxxe, qxxqxx, qxxqyy, &
+      edz, ee, eqxx, eqzz, qa, qb, qqi, qqj, qxxdz, qxxe, qxxqxx, qxxqyy, &
       qxxqzz, qxzdx, qxzqxz, qzzdz, qzze, qzzqxx, qzzqzz, r, rsq, www, xxx, &
       yyy, zi, zj, zzz
-    REAL(dp), DIMENSION(72)                  :: arg, ri_lr, sqr
+    REAL(dp), DIMENSION(72)                  :: arg, sqr
 
-    longrange = .FALSE.
-    IF (PRESENT(do_longrange))  longrange = do_longrange
     r   = rij
     si  = (sepi%natorb > 1)
     sj  = (sepj%natorb > 1)
@@ -556,40 +569,68 @@ CONTAINS
        END IF
     END IF
 
-    IF ( shortrange ) THEN
-       CALL terep_sp_num ( sepi, sepj, rij, ri_lr, shortrange=.FALSE., do_longrange=.TRUE.,&
-            taper=taper, error=error)
-       ri(1)  =  ri(1) - ri_lr(1) 
-       ri(2)  =  ri(2) - ri_lr(2)
-       ri(3)  =  ri(3) - ri_lr(3)
-       ri(4)  =  ri(4) - ri_lr(4)
-       ri(5)  =  ri(5) - ri_lr(5)
-       ri(6)  =  ri(6) - ri_lr(6)
-       ri(7)  =  ri(7) - ri_lr(7)
-       ri(8)  =  ri(8) - ri_lr(8)
-       ri(9)  =  ri(9) - ri_lr(9)
-       ri(10) = ri(10) - ri_lr(10) 
-       ri(11) = ri(11) - ri_lr(11)
-       ri(12) = ri(12) - ri_lr(12)
-       ri(13) = ri(13) - ri_lr(13)
-       ri(14) = ri(14) - ri_lr(14)
-       ri(15) = ri(15) - ri_lr(15)
-       ri(16) = ri(16) - ri_lr(16)
-       ri(17) = ri(17) - ri_lr(17)
-       ri(18) = ri(18) - ri_lr(18)
-       ri(19) = ri(19) - ri_lr(19)
-       ri(20) = ri(20) - ri_lr(20)
-       ri(21) = ri(21) - ri_lr(21)
-       ri(22) = ri(22) - ri_lr(22)
-    END IF
-
-    ! Tapering function
-    IF (.NOT.longrange) THEN
-       ft = taper_eval(taper, rij, error)
-       ri(:) = ft*ri(:)
-    END IF
-
   END SUBROUTINE terep_sp_num
+
+! *****************************************************************************
+!> \brief Calculates the  two-electron repulsion integrals - d shell only
+!> \param on input rij   = interatomic distance
+!>               sepi    = paramters of atom i
+!>               sepj    = paramters of atom j
+!>           longrange   = requests only the evaluation of the long range part
+!>
+!>     on output rep     = array of two-electron repulsion integrals
+!>
+!> \par History
+!>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
+!>                 for computing integrals
+! *****************************************************************************
+  SUBROUTINE terep_d_num (sepi, sepj, rij, rep, longrange, error )
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    REAL(dp), INTENT(IN)                     :: rij
+    REAL(dp), DIMENSION(491), INTENT(INOUT)  :: rep
+    LOGICAL, INTENT(IN)                      :: longrange
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'terep_d_num', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ij, j, k, kl, l, lasti, &
+                                                lastj, li, lj, lk, ll, nold, &
+                                                numb
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    lasti = sepi%natorb
+    lastj = sepj%natorb
+    DO i = 1, lasti
+       li = l_index(i)
+       DO j = 1, i
+          lj = l_index(j)
+          ij = indexa(i, j)
+          DO k = 1, lastj
+             lk = l_index(k)
+             DO l = 1, k
+                ll = l_index(l)
+                kl = indexa(k, l)
+
+                numb = ijkl_ind(ij, kl)
+                ! From 1 to 34 we store integrals involving sp shells
+                IF (numb > 34) THEN
+                   nold = ijkl_sym(numb)
+                   IF (nold > 34) THEN
+                      rep(numb) =  rep( nold)
+                   ELSE IF (nold <-34) THEN
+                      rep(numb) = -rep(-nold)
+                   ELSE IF (nold == 0) THEN
+                      rep(numb) = ijkl (sepi, sepj, ij, kl, li, lj, lk, ll, 0, rij, longrange, error)
+                   END IF
+                END IF
+             END DO
+          END DO
+       END DO
+    END DO
+
+  END SUBROUTINE terep_d_num
 
 ! *****************************************************************************
 !> \brief Computes the two-particle interactions.
@@ -644,7 +685,8 @@ CONTAINS
        CALL rotmat (sepi, sepj, -rijv, rij, ij_matrix, do_derivatives=.FALSE., error=error)
 
        ! Compute Integrals in Diatomic Frame
-       CALL nucint_num(sepi,sepj,rij,core=core,itype=itype,shortrange=shortrange,taper=taper,error=error)
+       CALL nucint_num(sepi,sepj,rij,core=core,itype=itype,taper=taper,shortrange=shortrange,&
+            error=error)
 
        ! Copy parameters over to arrays for do loop.
        last_orbital(1)  = sepi%natorb
@@ -736,7 +778,8 @@ CONTAINS
     IF (rij > rij_threshold) THEN
        rij = SQRT(rij)
 
-       CALL nucint_num(sepi,sepj,rij,ssss=ssss,itype=itype,shortrange=shortrange,taper=taper,error=error)
+       CALL nucint_num(sepi,sepj,rij,ssss=ssss,itype=itype,taper=taper,shortrange=shortrange,&
+            error=error)
        ! Nuclear-Nuclear contribution
        IF(itype /= do_method_pm6) THEN
           alpi = sepi%alp
@@ -889,6 +932,8 @@ CONTAINS
 !>                sepj    = paramters of atom j
 !>                itype   = type of semi_empirical model
 !>                          extension to the original routine to compute qm/mm integrals
+!>         do_longrange   = requests only the evaluation of the long range part (recursive use only)
+!>
 !>      on output core    = derivative of 4 X 2 array of electron-core attraction integrals
 !>                ssss    = derivative of (ssss) integral
 !>                          derivatives are intended w.r.t. rij
@@ -896,23 +941,30 @@ CONTAINS
 !>      03.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-  SUBROUTINE nucint_num(sepi, sepj, rij, ssss, core, itype, shortrange, taper, error)
+  RECURSIVE SUBROUTINE nucint_num(sepi, sepj, rij, ssss, core, itype, taper, shortrange,&
+                                  do_longrange, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), INTENT(OUT), OPTIONAL          :: ssss
     REAL(dp), DIMENSION(10, 2), &
       INTENT(OUT), OPTIONAL                  :: core
     INTEGER, INTENT(IN)                      :: itype
-    LOGICAL, INTENT(IN)                      :: shortrange
     TYPE(taper_type), POINTER                :: taper
+    LOGICAL, INTENT(IN)                      :: shortrange
+    LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nucint_num', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, l_core, l_ssss
+    LOGICAL                                  :: failure, l_core, l_ssss, &
+                                                longrange
+    REAL(KIND=dp)                            :: ft, ssss_lr
+    REAL(KIND=dp), DIMENSION(10, 2)          :: core_lr
 
-    failure = .FALSE.
+    failure   = .FALSE.
+    longrange = .FALSE.
+    IF (PRESENT(do_longrange))  longrange = do_longrange
     l_core  = PRESENT(core)
     l_ssss  = PRESENT(ssss)
     IF (l_core) THEN
@@ -922,12 +974,44 @@ CONTAINS
        ssss  = 0.0_dp
     END IF
 
-    CALL nucint_spcore_num(sepi, sepj, rij, ssss, core, itype, shortrange, &
-         taper=taper, error=error)
+    ! Contribution from the sp shells
+    CALL nucint_spcore_num(sepi, sepj, rij, ssss, core, itype, longrange, error=error)
+
     IF ((sepi%dorb.OR.sepj%dorb).AND.l_core) THEN
-       ! Compute the contribution from d-orbitals
-       CALL nucint_d_num(sepi, sepj, rij, core, itype, shortrange, taper=taper,&
-            error=error)
+       ! Compute the contribution from d shells
+       CALL nucint_d_num(sepi, sepj, rij, core, itype, longrange, error=error)
+    END IF
+
+    ! Tapering function
+    IF (.NOT.longrange) THEN
+       ft = 1.0_dp
+       IF (itype /=do_method_pchg) ft = taper_eval (taper, rij, error)
+       IF (l_ssss) THEN
+          ssss = ft*ssss
+       END IF
+       IF (l_core) THEN
+          core(:,:) = ft*core(:,:)
+       END IF
+    END IF
+
+    ! Modify integrals in case of short-range request (compute the LR part and subtract from the integral)
+    IF (shortrange) THEN
+       IF (l_ssss) THEN
+          CALL nucint_num(sepi, sepj, rij, ssss=ssss_lr, itype=itype, taper=taper, shortrange=.FALSE.,&
+               do_longrange=.TRUE., error=error)
+          ssss = ssss - ssss_lr
+       END IF
+       IF (l_core) THEN
+          CALL nucint_num(sepi, sepj, rij, core=core_lr, itype=itype, taper=taper, shortrange=.FALSE., &
+               do_longrange=.TRUE., error=error)
+          core = core - core_lr
+       END IF
+    END IF
+
+    IF (l_core) THEN
+       ! If no orbitals are present on the atom let's zero the integral contribution
+       IF (sepi%natorb == -1) core(:,1) = 0.0_dp
+       IF (sepj%natorb == -1) core(:,2) = 0.0_dp
     END IF
 
   END SUBROUTINE nucint_num
@@ -940,7 +1024,7 @@ CONTAINS
 !>                itype  = type of semi_empirical model
 !>                         extension to the original routine to compute qm/mm integrals
 !>        short_range    = requests only the evaluation of the short range part
-!>        do_longrange   = requests only the evaluation of the long range part (recursive use only)
+!>           longrange   = requests only the evaluation of the long range part
 !>      on output core   = 4 X 2 array of electron-core attraction integrals
 !>                ssss   = (ssss) integral
 !>                          derivatives are intended w.r.t. rij
@@ -953,39 +1037,32 @@ CONTAINS
 !>      Teodoro Laino (03.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE nucint_spcore_num( sepi, sepj, rij, ssss, core, itype, shortrange,&
-       do_longrange, taper, error)
+  SUBROUTINE nucint_spcore_num( sepi, sepj, rij, ssss, core, itype, longrange, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), INTENT(INOUT), OPTIONAL        :: ssss
     REAL(dp), DIMENSION(10, 2), &
       INTENT(INOUT), OPTIONAL                :: core
     INTEGER, INTENT(IN)                      :: itype
-    LOGICAL, INTENT(IN)                      :: shortrange
-    LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
-    TYPE(taper_type), POINTER                :: taper
+    LOGICAL, INTENT(IN)                      :: longrange
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nucint_spcore_num', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, l_core, l_ssss, &
-                                                longrange, si, sj
+    LOGICAL                                  :: failure, l_core, l_ssss, si, &
+                                                sj
     REAL(dp)                                 :: ade, adi, adj, aed, aee, aeq, &
                                                 ami, amj, aqe, aqi, aqj, da, &
-                                                db, ddi, ddj, ft, qa, qb, &
-                                                qqi, qqj, r, rsq, ssss_lr, &
-                                                xxx, zi, zj
+                                                db, ddi, ddj, qa, qb, qqi, &
+                                                qqj, r, rsq, xxx, zi, zj
     REAL(dp), DIMENSION(7)                   :: arg, ri, sqr
-    REAL(KIND=dp), DIMENSION(10, 2)          :: core_lr
 
     failure = .FALSE.
     l_core  = PRESENT(core)
     l_ssss  = PRESENT(ssss)
     IF (.NOT.(l_core.OR.l_ssss)) RETURN
 
-    longrange = .FALSE.
-    IF (PRESENT(do_longrange))  longrange = do_longrange
     ri   = 0.0_dp
     r    = rij
     si   = (sepi%natorb > 1)
@@ -1095,37 +1172,6 @@ CONTAINS
           END IF
        END IF
     END IF
-    ! Modify integrals in case of short-range request
-    IF ( shortrange ) THEN
-       IF (l_ssss) THEN
-          CALL nucint_spcore_num( sepi, sepj, rij, ssss=ssss_lr, itype=itype, shortrange=.FALSE.,&
-               do_longrange=.TRUE., taper=taper, error=error)
-          ssss = ssss - ssss_lr
-       END IF
-       IF (l_core) THEN
-          CALL nucint_spcore_num( sepi, sepj, rij, core=core_lr, itype=itype, shortrange=.FALSE.,&
-               do_longrange=.TRUE., taper=taper, error=error)
-          core = core - core_lr
-       END IF
-    END IF
-
-    IF (l_core) THEN
-       ! If no orbitals are present on the atom let's zero the integral contribution
-       IF (sepi%natorb == -1) core(:,1) = 0.0_dp
-       IF (sepj%natorb == -1) core(:,2) = 0.0_dp
-    END IF
-
-    IF (.NOT.longrange) THEN
-       ! Tapering function
-       ft = 1.0_dp
-       IF (itype /=do_method_pchg) ft = taper_eval (taper, rij, error)
-       IF (l_ssss) THEN
-          ssss = ft*ssss
-       END IF
-       IF (l_core) THEN
-          core(:,:) = ft*core(:,:)
-       END IF
-    END IF
 
   END SUBROUTINE nucint_spcore_num
 
@@ -1137,7 +1183,7 @@ CONTAINS
 !>                itype  = type of semi_empirical model
 !>                         extension to the original routine to compute qm/mm integrals
 !>        short_range    = requests only the evaluation of the short range part
-!>        do_longrange   = requests only the evaluation of the long range part (recursive use only)
+!>          longrange    = requests only the evaluation of the long range part
 !>      on output core   = 4 X 2 array of electron-core attraction integrals
 !>                ssss   = (ssss) integral
 !>                          derivatives are intended w.r.t. rij
@@ -1148,28 +1194,22 @@ CONTAINS
 !> \author
 !>      Teodoro Laino (03.2008) [tlaino] - University of Zurich 
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE nucint_d_num( sepi, sepj, rij, core, itype, shortrange, do_longrange,&
-       taper, error)
+  SUBROUTINE nucint_d_num( sepi, sepj, rij, core, itype, longrange, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), DIMENSION(10, 2), &
       INTENT(INOUT)                          :: core
     INTEGER, INTENT(IN)                      :: itype
-    LOGICAL, INTENT(IN)                      :: shortrange
-    LOGICAL, INTENT(IN), OPTIONAL            :: do_longrange
-    TYPE(taper_type), POINTER                :: taper
+    LOGICAL, INTENT(IN)                      :: longrange
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nucint_d_num', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ij, kl
-    LOGICAL                                  :: failure, longrange
-    REAL(KIND=dp)                            :: ft
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
-    longrange = .FALSE.
-    IF (PRESENT(do_longrange))  longrange = do_longrange
     ! Check if d-orbitals are present
     IF (sepi%dorb.OR.sepj%dorb) THEN
        DO i = 5, 10
@@ -1181,57 +1221,44 @@ CONTAINS
        IF (sepj%dorb) THEN
           !  <S S | D S>
           kl = indexa(5, 1)
-          core(5, 2) = -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 0, 1, rij, error) * sepi%zeff
+          core(5, 2) = -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 0, 1, rij, longrange, error) * sepi%zeff
           !  <S S | D P >
           kl = indexa(5, 2)
-          core(6, 2) = -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, error) * sepi%zeff
+          core(6, 2) = -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, longrange, error) * sepi%zeff
           !  <S S | D D >
           kl = indexa(5, 5)
-          core(7, 2) = -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, error) * sepi%zeff
+          core(7, 2) = -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, longrange, error) * sepi%zeff
           !  <S S | D+P+>
           kl = indexa(6, 3)
-          core(8, 2) = -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, error) * sepi%zeff
+          core(8, 2) = -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, longrange, error) * sepi%zeff
           !  <S S | D+D+>
           kl = indexa(6, 6)
-          core(9, 2) = -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, error) * sepi%zeff
+          core(9, 2) = -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, longrange, error) * sepi%zeff
           !  <S S | D#D#>
           kl = indexa(8, 8)
-          core(10, 2)= -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, error) * sepi%zeff
+          core(10, 2)= -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, longrange, error) * sepi%zeff
        END IF
        IF (sepi%dorb) THEN
           !  <D S | S S>
           kl = indexa(5, 1)
-          core(5, 1) = -ijkl (sepi, sepj, kl, ij, 2, 0, 0, 0, 2, rij, error) * sepj%zeff
+          core(5, 1) = -ijkl (sepi, sepj, kl, ij, 2, 0, 0, 0, 2, rij, longrange, error) * sepj%zeff
           !  <D P | S S >
           kl = indexa(5, 2)
-          core(6, 1) = -ijkl (sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, error) * sepj%zeff
+          core(6, 1) = -ijkl (sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, longrange, error) * sepj%zeff
           !  <D D | S S >
           kl = indexa(5, 5)
-          core(7, 1) = -ijkl (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, error) * sepj%zeff
+          core(7, 1) = -ijkl (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, longrange, error) * sepj%zeff
           !  <D+P+| S S >
           kl = indexa(6, 3)
-          core(8, 1) = -ijkl (sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, error) * sepj%zeff
+          core(8, 1) = -ijkl (sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, longrange, error) * sepj%zeff
           !  <D+D+| S S >
           kl = indexa(6, 6)
-          core(9, 1) = -ijkl (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, error) * sepj%zeff
+          core(9, 1) = -ijkl (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, longrange, error) * sepj%zeff
           !  <D#D#| S S >
           kl = indexa(8, 8)
-          core(10, 1)= -ijkl (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, error) * sepj%zeff
+          core(10, 1)= -ijkl (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, longrange, error) * sepj%zeff
        END IF
 
-       IF (shortrange) THEN
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-       END IF
-
-       IF (.NOT.longrange) THEN
-          ! Tapering function
-          ft = 1.0_dp
-          IF (itype /=do_method_pchg) ft = taper_eval (taper, rij, error)
-          DO i = 5, 10
-             core(i, 1) = core(i, 1) * ft
-             core(i, 2) = core(i, 2) * ft
-          END DO
-       END IF
     END IF
   END SUBROUTINE nucint_d_num
 
