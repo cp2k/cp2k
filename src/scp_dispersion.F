@@ -94,7 +94,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER :: dabdx, dabdy, dabdz, I_ab, I_dabdx, &
       I_dabdy, I_dabdz, I_tmp, rpgfa, rpgfb, sphia, sphib, vab, vab_plus, &
       zeta, zetb
-    REAL(kind=dp)                            :: e_scp
+    REAL(kind=dp)                            :: e_scp!dbg, eloc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -253,7 +253,7 @@ CONTAINS
                                  atom=iatom,&
                                  nnode=nnode)
 
-          ra(:) = pbc(particle_set(iatom)%r(:),cell)
+        !  ra(:) = pbc(particle_set(iatom)%r(:),cell)
 
           neighbor_node => first_node(neighbor_list)
 
@@ -267,12 +267,12 @@ CONTAINS
 
             IF ( forces ) dab = SQRT ( rab2 )
 
-            rb(:) = pbc(particle_set(jatom)%r,cell)
+        !    rb(:) = pbc(particle_set(jatom)%r,cell)
 
-            IF ( .NOT. my_debug ) THEN
-             rab ( : ) = ra ( : ) - rb ( : )
-             rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-            END IF 
+        !    IF ( .NOT. my_debug ) THEN
+        !     rab ( : ) = ra ( : ) - rb ( : )
+        !     rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+        !    END IF 
 
             IF ( iatom == jatom ) THEN
               neighbor_node => next(neighbor_node)
@@ -379,15 +379,19 @@ CONTAINS
                          I_tmp(1,1),SIZE(I_tmp,1),&
                          0.0_dp,I_dabdz(1,1),SIZE(I_dabdz,1))
                    force_a = 0.0_dp
+                  ! eloc=0.0_dp  !dbg
                    DO ia = 1, nsgf_seta ( iseta )
                      DO ib = 1, nsgf_setb ( isetb )
              ! **** need to omit (s|s) ****
                        e_scp = e_scp + disp_factor * I_ab ( ia, ib )**2 
+                  !     eloc = eloc + disp_factor * I_ab ( ia, ib )**2 
                        force_a(1)=force_a(1)+2.0_dp*disp_factor*I_ab(ia,ib)*I_dabdx(ia,ib)
                        force_a(2)=force_a(2)+2.0_dp*disp_factor*I_ab(ia,ib)*I_dabdy(ia,ib)
                        force_a(3)=force_a(3)+2.0_dp*disp_factor*I_ab(ia,ib)*I_dabdz(ia,ib)
                      END DO
                    END DO
+                !  IF ( ionode ) &
+                !  WRITE ( 33, * ) iatom, jatom, dab, eloc
 !             ***  sum up in the force arrey  ***
               ! NOTE: This is the actual force, e.g. -d/dR
                    i_atom = atom_of_kind(iatom)
