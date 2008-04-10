@@ -165,7 +165,7 @@ CONTAINS
                                DO j = 1, 3
                                   iw_loc = (indexb(i+4,j+1)-1) * limkl + kl
                                   ij1 = 3 * (i-1) + j
-                                  ww(iw_loc) = ww(iw_loc) + ij_matrix%dp(ij1, i1-4, j1-1) * wrepp
+                                  ww(iw_loc) = ww(iw_loc) + ij_matrix%pd(ij1, i1-4, j1-1) * wrepp
                                END DO
                             END DO
                          CASE(6)
@@ -689,8 +689,8 @@ CONTAINS
                    ELSE
                       ! Type of Integral (PD/)
                       idp = inddp(ind1-3, ind2)
-                      tmp(m) = core(6, n) *  ij_matrix%dp(idp, 1, 1) + &
-                               core(8, n) * (ij_matrix%dp(idp, 2, 2)+ij_matrix%dp(idp, 3, 3))
+                      tmp(m) = core(6, n) *  ij_matrix%pd(idp, 1, 1) + &
+                               core(8, n) * (ij_matrix%pd(idp, 2, 2)+ij_matrix%pd(idp, 3, 3))
                    END IF
                 ELSE
                    ! Type of Integral (DD/)

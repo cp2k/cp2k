@@ -1,7 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2008  CP2K developers group                          !
-
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -190,8 +189,8 @@ CONTAINS
                    ELSE
                       ! Type of Integral (PD/)
                       idp = inddp(ind1-3, ind2)
-                      tmp(m) = core(6, n) *  ij_matrix%dp(idp, 1, 1) + &
-                               core(8, n) * (ij_matrix%dp(idp, 2, 2)+ij_matrix%dp(idp, 3, 3))
+                      tmp(m) = core(6, n) *  ij_matrix%pd(idp, 1, 1) + &
+                               core(8, n) * (ij_matrix%pd(idp, 2, 2)+ij_matrix%pd(idp, 3, 3))
                    END IF
                 ELSE
                    ! Type of Integral (DD/)
@@ -244,10 +243,10 @@ CONTAINS
                    ELSE
                       ! Type of Integral (PD/)
                       idp = inddp(ind1-3, ind2)
-                      tmp_d(m,:) = dcore(6, n) * drij *  ij_matrix%dp  (idp, 1, 1   ) + &
-                                    core(6, n) *         ij_matrix%dp_d(idp, 1, 1, :) + &
-                                   dcore(8, n) * drij * (ij_matrix%dp  (idp, 2, 2   )+ij_matrix%dp  (idp, 3, 3   )) + &
-                                    core(8, n) *        (ij_matrix%dp_d(idp, 2, 2, :)+ij_matrix%dp_d(idp, 3, 3, :)) 
+                      tmp_d(m,:) = dcore(6, n) * drij *  ij_matrix%pd  (idp, 1, 1   ) + &
+                                    core(6, n) *         ij_matrix%pd_d(idp, 1, 1, :) + &
+                                   dcore(8, n) * drij * (ij_matrix%pd  (idp, 2, 2   )+ij_matrix%pd  (idp, 3, 3   )) + &
+                                    core(8, n) *        (ij_matrix%pd_d(idp, 2, 2, :)+ij_matrix%pd_d(idp, 3, 3, :)) 
                    END IF
                 ELSE
                    ! Type of Integral (DD/)
@@ -1041,7 +1040,7 @@ CONTAINS
                                   DO j = 1, 3
                                      iw_loc = (indexb(i+4,j+1)-1) * limkl + kl
                                      ij1 = 3 * (i-1) + j
-                                     ww(iw_loc) = ww(iw_loc) + ij_matrix%dp(ij1, i1-4, j1-1) * wrepp
+                                     ww(iw_loc) = ww(iw_loc) + ij_matrix%pd(ij1, i1-4, j1-1) * wrepp
                                   END DO
                                END DO
                             CASE(6)
@@ -1147,8 +1146,8 @@ CONTAINS
                                   DO j = 1, 3
                                      iw_loc = (indexb(i+4,j+1)-1) * limkl + kl
                                      ij1 = 3 * (i-1) + j
-                                     ww_d(iw_loc, :) = ww_d(iw_loc, :) + ij_matrix%dp_d(ij1, i1-4, j1-1, :) * wrepp +&
-                                                                         ij_matrix%dp(ij1, i1-4, j1-1)      * wrepp_d
+                                     ww_d(iw_loc, :) = ww_d(iw_loc, :) + ij_matrix%pd_d(ij1, i1-4, j1-1, :) * wrepp +&
+                                                                         ij_matrix%pd(ij1, i1-4, j1-1)      * wrepp_d
                                   END DO
                                END DO
                             CASE(6)

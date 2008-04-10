@@ -92,13 +92,13 @@ MODULE semi_empirical_types
      REAL(KIND=dp), DIMENSION (    3, 3)      :: sp
      REAL(KIND=dp), DIMENSION (    5, 5)      :: sd
      REAL(KIND=dp), DIMENSION ( 6, 3, 3)      :: pp
-     REAL(KIND=dp), DIMENSION (15, 5, 3)      :: dp
+     REAL(KIND=dp), DIMENSION (15, 5, 3)      :: pd
      REAL(KIND=dp), DIMENSION (15, 5, 5)      :: dd
      ! Derivatives of Rotation Matrices
      REAL(KIND=dp), DIMENSION (    3, 3, 3)   :: sp_d
      REAL(KIND=dp), DIMENSION (    5, 5, 3)   :: sd_d
      REAL(KIND=dp), DIMENSION ( 6, 3, 3, 3)   :: pp_d
-     REAL(KIND=dp), DIMENSION (15, 5, 3, 3)   :: dp_d
+     REAL(KIND=dp), DIMENSION (15, 5, 3, 3)   :: pd_d
      REAL(KIND=dp), DIMENSION (15, 5, 5, 3)   :: dd_d
   END TYPE rotmat_type
 
@@ -441,12 +441,12 @@ CONTAINS
     rotmat%sp   = 0.0_dp
     rotmat%pp   = 0.0_dp
     rotmat%sd   = 0.0_dp
-    rotmat%dp   = 0.0_dp
+    rotmat%pd   = 0.0_dp
     rotmat%dd   = 0.0_dp
     rotmat%sp_d = 0.0_dp
     rotmat%pp_d = 0.0_dp
     rotmat%sd_d = 0.0_dp
-    rotmat%dp_d = 0.0_dp
+    rotmat%pd_d = 0.0_dp
     rotmat%dd_d = 0.0_dp
 
   END SUBROUTINE rotmat_create

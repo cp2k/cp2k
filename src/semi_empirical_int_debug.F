@@ -96,11 +96,11 @@ SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert, error)
            END DO
         END DO
         ! DP
-        matrix_n%dp_d(:, :, :, j) = (matrix_p%dp - matrix_m%dp)/(2.0_dp*dx)
+        matrix_n%pd_d(:, :, :, j) = (matrix_p%pd - matrix_m%pd)/(2.0_dp*dx)
         DO i = 1, 3
            DO k = 1, 5
               DO l = 1, 15
-                 IF (.NOT.check_value(matrix_n%dp_d(l,k,i,j), ij_matrix%dp_d(l,k,i,j), dx, 0.1_dp)) THEN
+                 IF (.NOT.check_value(matrix_n%pd_d(l,k,i,j), ij_matrix%pd_d(l,k,i,j), dx, 0.1_dp)) THEN
                     WRITE(*,*)"ERROR for DP rotation matrix derivative DP(l,k,i,j), l,k,i,j::",l,k,i,j
                     STOP
                  END IF
