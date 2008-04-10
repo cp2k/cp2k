@@ -16,7 +16,7 @@ INTERFACE check_rotmat_der
      USE semi_empirical_types,            ONLY: rotmat_type,&
                                                 semi_empirical_type
 #include "cp_common_uses.h"
-   
+     IMPLICIT NONE
      TYPE(semi_empirical_type), POINTER       :: sepi, sepj
      REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rjiv
      TYPE(rotmat_type), POINTER               :: ij_matrix
@@ -40,7 +40,7 @@ INTERFACE check_dnucint_ana
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                taper_type  
 #include "cp_common_uses.h"
-
+    IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: r
     REAL(dp), INTENT(IN), OPTIONAL           :: dssss
@@ -68,7 +68,7 @@ INTERFACE check_drotnuc_ana
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                taper_type
 #include "cp_common_uses.h"
-
+    IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
     INTEGER, INTENT(IN)                      :: itype
@@ -81,6 +81,35 @@ INTERFACE check_drotnuc_ana
     TYPE(cp_error_type), INTENT(inout)       :: error
    END SUBROUTINE check_drotnuc_ana
 END INTERFACE check_drotnuc_ana
+
+! *****************************************************************************
+!> \brief Check Numerical Vs Analytical CORECORE
+!> \note
+!>      Debug routine
+!> \par History
+!>      04.2008 created [tlaino]
+!> \author Teodoro Laino - Zurich University
+! *****************************************************************************
+INTERFACE check_dcorecore_ana
+  SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,shortrange, taper, enuc, denuc, error)
+    USE f77_blas
+    USE kinds,                           ONLY: dp
+    USE semi_empirical_types,            ONLY: semi_empirical_type,&
+                                               taper_type
+#include "cp_common_uses.h"
+    IMPLICIT NONE
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
+    INTEGER, INTENT(IN)                      :: itype
+    REAL(dp), INTENT(IN), OPTIONAL           :: enuc
+    REAL(dp), DIMENSION(3), INTENT(IN), &
+         OPTIONAL                            :: denuc
+    LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(taper_type), POINTER                :: taper
+    TYPE(cp_error_type), INTENT(inout)       :: error
+  END SUBROUTINE check_dcorecore_ana
+
+END INTERFACE check_dcorecore_ana
 
 ! *****************************************************************************
 !> \brief Check Numerical Vs Analytical rot_2el_2c_first
@@ -124,6 +153,7 @@ INTERFACE check_dterep_ana
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                taper_type
 #include "cp_common_uses.h"
+    IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: r
     REAL(dp), DIMENSION(491), INTENT(IN)     :: ri, dri
@@ -148,6 +178,7 @@ INTERFACE check_rotint_ana
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                taper_type
 #include "cp_common_uses.h"
+    IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
     REAL(dp), DIMENSION(2025), INTENT(IN), &

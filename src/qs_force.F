@@ -33,6 +33,7 @@ MODULE qs_force
                                              int_size
   USE message_passing,                 ONLY: mp_sum
   USE mulliken,                        ONLY: mulliken_restraint
+  USE nddo_methods,                    ONLY: se_core_core_interaction
   USE particle_types,                  ONLY: particle_type
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
@@ -301,6 +302,8 @@ CONTAINS
       IF (dft_control%qs_control%semi_empirical) THEN
         CALL build_se_core_matrix(qs_env=qs_env,para_env=para_env,&
                                   calculate_forces=.TRUE.,error=error)
+        CALL se_core_core_interaction(qs_env, para_env, calculate_forces=.TRUE.,&
+             error=error)
       ELSEIF (dft_control%qs_control%dftb) THEN
         CALL build_dftb_matrices(qs_env=qs_env,para_env=para_env,&
                                  calculate_forces=.TRUE.,error=error)

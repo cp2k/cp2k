@@ -43,7 +43,7 @@ MODULE semi_empirical_int_ana
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_ana'
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module=.FALSE.
-  PUBLIC :: rotnuc_ana, rotint_ana
+  PUBLIC :: rotnuc_ana, rotint_ana, corecore_ana
 
 CONTAINS
 
@@ -67,18 +67,15 @@ CONTAINS
 !>      04.2007 created [tlaino]
 !>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
 !>                 for computing integrals
-!> \author Teodoro Laino - Zurich University
+!>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : removed the core-core part
+!> \author Teodoro Laino [tlaino] - Zurich University
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE rotnuc_ana (sepi,sepj,rijv,itype,enuc,e1b,e2a,denuc,de1b,de2a,&
-       shortrange,taper,error)
+  RECURSIVE SUBROUTINE rotnuc_ana (sepi,sepj,rijv,itype,e1b,e2a,de1b,de2a,shortrange,taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
     INTEGER, INTENT(IN)                      :: itype
-    REAL(dp), INTENT(OUT), OPTIONAL          :: enuc
     REAL(dp), DIMENSION(45), INTENT(OUT), &
       OPTIONAL                               :: e1b, e2a
-    REAL(dp), DIMENSION(3), INTENT(OUT), &
-      OPTIONAL                               :: denuc
     REAL(dp), DIMENSION(45, 3), &
       INTENT(OUT), OPTIONAL                  :: de1b, de2a
     LOGICAL, INTENT(IN)                      :: shortrange
@@ -88,19 +85,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rotnuc_ana', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, idd, idp, ig, ind1, ind2, &
-                                                ipp, j, last_orbital(2), m, &
-                                                n, nt
+    INTEGER                                  :: i, idd, idp, ind1, ind2, ipp, &
+                                                j, last_orbital(2), m, n
     LOGICAL                                  :: invert, l_de1b, l_de2a, &
-                                                l_denuc, l_e1b, l_e2a, &
-                                                l_enuc, lgrad, task(2)
-    REAL(dp) :: a, aab, alpi, alpj, apdg, ax, dai, daj, dax, dbi, dbj, &
-      denuc_loc, dqcorr, drija, dscale, dssss, dzz, enuc_loc, pai, paj, pbi, &
-      pbj, poi, poj, qcorr, rij, rija, scale, ssss, xab, xtmp, zaf, zbf, zz
+                                                l_e1b, l_e2a, lgrad, task(2)
+    REAL(dp)                                 :: rij, xtmp
     REAL(dp), DIMENSION(10, 2)               :: core, dcore
-    REAL(dp), DIMENSION(3)                   :: drij, z
-    REAL(dp), DIMENSION(4)                   :: fni1, fni2, fni3, fnj1, fnj2, &
-                                                fnj3
+    REAL(dp), DIMENSION(3)                   :: drij
     REAL(dp), DIMENSION(45)                  :: tmp
     REAL(KIND=dp), DIMENSION(45, 3)          :: tmp_d
     TYPE(rotmat_type), POINTER               :: ij_matrix
@@ -108,12 +99,10 @@ CONTAINS
     NULLIFY(ij_matrix)
     rij=DOT_PRODUCT(rijv,rijv)
     ! Initialization
-    l_enuc = PRESENT(enuc)
     l_e1b  = PRESENT(e1b)
     l_e2a  = PRESENT(e2a)
     l_de1b = PRESENT(de1b)
     l_de2a = PRESENT(de2a)
-    l_denuc= PRESENT(denuc)
     lgrad  = l_de1b.OR.l_de2a
     ! Zeros all arrays
     IF (l_e1b) THEN
@@ -122,17 +111,11 @@ CONTAINS
     IF (l_e2a) THEN
        e2a =   0._dp
     END IF
-    IF (l_enuc) THEN
-       enuc =  0._dp
-    END IF
     IF (l_de1b) THEN
        de1b =  0._dp
     END IF
     IF (l_de2a) THEN
        de2a =  0._dp
-    END IF
-    IF (l_denuc) THEN
-       denuc = 0._dp
     END IF
     IF (rij > rij_threshold) THEN
        ! Compute Integrals in diatomic frame opportunely inverted
@@ -271,10 +254,70 @@ CONTAINS
        IF (debug_this_module) THEN
           CALL check_drotnuc_ana(sepi, sepj, rijv, itype,shortrange, taper, e1b, e2a, de1b, de2a, error)
        END IF
+    END IF
+  END SUBROUTINE rotnuc_ana
 
-       ! ------------------------------------
-       ! Specifically for nuclear interaction
-       ! ------------------------------------ 
+! *****************************************************************************
+!> \brief Computes analytical gradients for semiempirical integrals
+!> \param on input  sepi   = Atomic parameters of first atom
+!>                  sepj   = Atomic parameters of second atom
+!>                  rijv   = Coordinate vector i -> j 
+!> 
+!>    on output e1b,e2a= Array of electron-nuclear attraction integrals,
+!>                       e1b = Electron on atom ni attracting nucleus of nj.
+!>                       e2a = Electron on atom nj attracting nucleus of ni.
+!>                       enuc= nuclear-nuclear repulsion term.
+!> 
+!>                      de1b = derivative of e1b term
+!>                      de2a = derivative of e2a term
+!>                      denuc= derivative of nuclear-nuclear repulsion term. 
+!> \note
+!>      Analytical version of the MOPAC rotnuc routine
+!> \par History
+!>      04.2007 created [tlaino]
+!>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
+!>                 for computing integrals
+!>       Teodoro Laino [tlaino] - University of Zurich 04.2008 : removed the core-core part
+!> \author Teodoro Laino [tlaino] - Zurich University
+! *****************************************************************************
+  RECURSIVE SUBROUTINE corecore_ana (sepi,sepj,rijv,itype,enuc,denuc,shortrange,taper,error)
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
+    INTEGER, INTENT(IN)                      :: itype
+    REAL(dp), INTENT(OUT), OPTIONAL          :: enuc
+    REAL(dp), DIMENSION(3), INTENT(OUT), &
+      OPTIONAL                               :: denuc
+    LOGICAL, INTENT(IN)                      :: shortrange
+    TYPE(taper_type), POINTER                :: taper
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'corecore_ana', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ig, nt
+    LOGICAL                                  :: failure, l_denuc, l_enuc
+    REAL(dp) :: a, aab, alpi, alpj, apdg, ax, dai, daj, dax, dbi, dbj, &
+      denuc_loc, dqcorr, drija, dscale, dssss, dzz, enuc_loc, pai, paj, pbi, &
+      pbj, poi, poj, qcorr, rij, rija, scale, ssss, xab, xtmp, zaf, zbf, zz
+    REAL(dp), DIMENSION(3)                   :: drij, z
+    REAL(dp), DIMENSION(4)                   :: fni1, fni2, fni3, fnj1, fnj2, &
+                                                fnj3
+
+    failure = .FALSE.
+    rij=DOT_PRODUCT(rijv,rijv)
+    ! Initialization
+    l_enuc = PRESENT(enuc)
+    l_denuc= PRESENT(denuc)
+    IF (l_enuc) THEN
+       enuc =  0._dp
+    END IF
+    IF (l_denuc) THEN
+       denuc = 0._dp
+    END IF
+    IF (rij > rij_threshold) THEN
+       ! Compute Integrals in diatomic frame opportunely inverted
+       rij  = SQRT(rij)
+
        IF (l_enuc.OR.l_denuc) THEN
           CALL dnucint_ana(sepi,sepj,rij,ssss=ssss,dssss=dssss,itype=itype,shortrange=shortrange,&
                taper=taper,error=error)
@@ -501,9 +544,12 @@ CONTAINS
              drij(:) = rijv/rij
              denuc = (denuc_loc + dscale + dqcorr)*drij
           END IF
+          IF (debug_this_module) THEN
+             CALL check_dcorecore_ana(sepi, sepj, rijv, itype,shortrange, taper, enuc, denuc, error)
+          END IF
        ENDIF
     END IF
-  END SUBROUTINE rotnuc_ana
+  END SUBROUTINE corecore_ana
 
 ! *****************************************************************************
 !> \brief Exploits inversion symmetry to avoid divergence

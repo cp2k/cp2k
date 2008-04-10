@@ -47,7 +47,9 @@ MODULE nddo_methods
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE semi_empirical_integrals,        ONLY: drotint,&
+  USE semi_empirical_integrals,        ONLY: corecore,&
+                                             dcorecore,&
+                                             drotint,&
                                              drotnuc,&
                                              rotint,&
                                              rotnuc
@@ -76,7 +78,7 @@ MODULE nddo_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'nddo_methods'
 
-  PUBLIC :: build_nddo_fock_matrix
+  PUBLIC :: build_nddo_fock_matrix, se_core_core_interaction
 
   INTERFACE fock1
     MODULE PROCEDURE rfock1,   ufock1
@@ -100,6 +102,9 @@ MODULE nddo_methods
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief Construction of the Fock matrix for NDDO methods
+!> \author JGH
 ! *****************************************************************************
   SUBROUTINE build_nddo_fock_matrix (ks_env,qs_env,ks_matrix,rho,energy,&
        calculate_forces,just_energy,error)
@@ -228,6 +233,187 @@ CONTAINS
   END SUBROUTINE build_nddo_fock_matrix
 
 ! *****************************************************************************
+!> \brief Evaluates the core-core interactions for NDDO methods
+!> \author JGH
+! *****************************************************************************
+  SUBROUTINE se_core_core_interaction(qs_env, para_env, calculate_forces, error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    LOGICAL, INTENT(in)                      :: calculate_forces
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'se_core_core_interaction', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: atom_a, atom_b, handle, iab, iatom, ikind, ilist, inode, &
+      itype, jatom, jkind, natom, nkind, nlist, nnode, stat
+    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
+    LOGICAL                                  :: anag, defined, do_ewald, &
+                                                failure, switch
+    REAL(KIND=dp)                            :: delta, dr1, enuc, enuclear
+    REAL(KIND=dp), DIMENSION(3)              :: denuc, force_ab, rij
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_2c
+    TYPE(neighbor_list_type), POINTER        :: sab_2c_neighbor_list, &
+                                                sab_2c_neighbor_list_local
+    TYPE(neighbor_node_type), POINTER        :: sab_2c_neighbor_node
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    TYPE(semi_empirical_control_type), &
+      POINTER                                :: se_control
+    TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
+    TYPE(taper_type), POINTER                :: taper
+
+    failure=.FALSE.
+    NULLIFY(dft_control,cell,force,particle_set)
+    NULLIFY(se_control,taper,atomic_kind_set)
+
+    CALL timeset(routineN,"I","",handle)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, taper=taper,&
+         energy=energy, error=error)
+
+    ! Parameters
+    se_control => dft_control%qs_control%se_control
+    do_ewald   =  se_control%do_ewald
+    anag       =  se_control%analytical_gradients
+
+    IF ( .NOT. failure ) THEN
+       CALL get_qs_env(qs_env=qs_env,&
+                       sab_2c=sab_2c,&
+                       atomic_kind_set=atomic_kind_set,&
+                       error=error)
+
+       nkind = SIZE(atomic_kind_set)
+       ! Possibly compute forces
+       IF(calculate_forces) THEN
+          CALL get_qs_env(qs_env=qs_env,&
+                          particle_set=particle_set,&
+                          force=force,error=error)
+          natom = SIZE (particle_set)
+          ALLOCATE (atom_of_kind(natom),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          delta = se_control%delta
+          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
+       END IF
+
+       enuclear = 0.0_dp
+       itype    = get_se_type(dft_control%qs_control%method_id)
+
+       IF (do_ewald) THEN
+          !calculate 1/r contribution using Ewald type method
+!deb      CALL nddo_ewald
+       END IF
+
+       DO ikind=1,nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               se_parameter=se_kind_a)
+          CALL get_se_param(se_kind_a,defined=defined)
+
+          IF (.NOT.defined) CYCLE
+
+          DO jkind=1,nkind
+             atomic_kind => atomic_kind_set(jkind)
+             CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                  se_parameter=se_kind_b)
+             CALL get_se_param(se_kind_b,defined=defined)
+
+             IF (.NOT.defined) CYCLE
+
+             iab = ikind + nkind*(jkind - 1)
+             IF (.NOT.ASSOCIATED(sab_2c(iab)%neighbor_list_set)) CYCLE
+             CALL get_neighbor_list_set(neighbor_list_set=sab_2c(iab)%neighbor_list_set,&
+                                        nlist=nlist)
+             NULLIFY(sab_2c_neighbor_list)
+
+             DO ilist=1,nlist
+                IF ( .NOT. ASSOCIATED(sab_2c_neighbor_list) ) THEN
+                   sab_2c_neighbor_list => first_list(sab_2c(iab)%neighbor_list_set)
+                ELSE
+                   sab_2c_neighbor_list => next(sab_2c_neighbor_list)
+               END IF
+               sab_2c_neighbor_list_local => sab_2c_neighbor_list
+               CALL get_neighbor_list(neighbor_list=sab_2c_neighbor_list_local,&
+                                      atom=iatom,&
+                                      nnode=nnode)
+
+               sab_2c_neighbor_node => first_node(sab_2c_neighbor_list_local)
+
+               DO inode=1,nnode
+                  CALL get_neighbor_node(neighbor_node=sab_2c_neighbor_node,&
+                                         neighbor=jatom,r=rij)
+                  dr1 = SUM(rij(:)**2)
+                  IF ( dr1 > 0.0_dp ) THEN
+                     IF (iatom <= jatom) THEN
+                        switch = .FALSE.
+                     ELSE
+                        switch = .TRUE.
+                     END IF
+
+                     SELECT CASE (dft_control%qs_control%method_id)
+                     CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pm6,do_method_pdg,&
+                          do_method_rm1,do_method_mndod)
+                        IF ( .NOT. switch ) THEN
+                           CALL corecore (se_kind_a,se_kind_b,rij,enuc=enuc,itype=itype,anag=anag,&
+                                shortrange=do_ewald, taper=taper, error=error)
+                        ELSE
+                           CALL corecore (se_kind_b,se_kind_a,-rij,enuc=enuc,itype=itype,anag=anag,&
+                                shortrange=do_ewald, taper=taper, error=error)
+                        END IF
+                        enuclear = enuclear + enuc
+                        ! one-centre one-electron terms
+                        IF(calculate_forces) THEN
+                           atom_a = atom_of_kind(iatom)
+                           atom_b = atom_of_kind(jatom)
+                           
+                           IF ( .NOT. switch ) THEN
+                              CALL dcorecore (se_kind_a,se_kind_b,rij,denuc=denuc,itype=itype,delta=delta,&
+                                   anag=anag,shortrange=do_ewald,taper=taper,error=error)
+                           ELSE
+                              CALL dcorecore (se_kind_b,se_kind_a,-rij,denuc=denuc,itype=itype,delta=delta,&
+                                   anag=anag,shortrange=do_ewald,taper=taper,error=error)
+                           END IF
+                           force_ab(1:3)=-denuc(1:3)
+                           IF ( .NOT. switch ) force_ab = -force_ab
+                           force(ikind)%all_potential(:,atom_a) = force(ikind)%all_potential(:,atom_a) - force_ab(:)
+                           force(jkind)%all_potential(:,atom_b) = force(jkind)%all_potential(:,atom_b) + force_ab(:)
+                        END IF
+                     CASE DEFAULT
+                        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                     END SELECT
+                  END IF
+                  sab_2c_neighbor_node => next(sab_2c_neighbor_node)
+               END DO ! inode => jatom(atom B)               
+            END DO ! ilist => iatom(atom A)
+         END DO ! jkind
+      END DO ! ikind
+
+      IF (calculate_forces) THEN 
+         DEALLOCATE(atom_of_kind,stat=stat)
+         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+      END IF
+
+      CALL mp_sum(enuclear,para_env%group)
+      energy%core_overlap = enuclear      
+   END IF
+   
+   CALL timestop(0.0_dp,handle)
+ END SUBROUTINE se_core_core_interaction
+
+! *****************************************************************************
+!> \brief Construction of the Coulomb part of the Fock matrix
+!> \author JGH
+! *****************************************************************************
   SUBROUTINE build_nddo_fock_matrix_coulomb (ks_env,qs_env,ks_matrix,rho,energy,&
                calculate_forces,just_energy,error)
 
@@ -250,9 +436,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, defined, do_ewald, &
                                                 failure, switch
-    REAL(KIND=dp)                            :: delta, dr1, ecore2, ecoul, &
-                                                enuc, enuclear
-    REAL(KIND=dp), DIMENSION(3)              :: denuc, force_ab, rij
+    REAL(KIND=dp)                            :: delta, dr1, ecore2, ecoul
+    REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     REAL(KIND=dp), DIMENSION(45)             :: e1b, e2a, pvec
     REAL(KIND=dp), DIMENSION(45, 3)          :: de1b, de2a
     REAL(KIND=dp), DIMENSION(:, :), POINTER :: ksa_block_a, ksa_block_b, &
@@ -334,7 +519,6 @@ CONTAINS
        END DO
        
        ecore2   = 0.0_dp
-       enuclear = 0.0_dp
        itype    = get_se_type(dft_control%qs_control%method_id)
 
        IF (do_ewald) THEN
@@ -450,13 +634,12 @@ CONTAINS
                      CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pm6,do_method_pdg,&
                           do_method_rm1,do_method_mndod)
                         IF ( .NOT. switch ) THEN
-                           CALL rotnuc (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype,&
+                           CALL rotnuc (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,itype=itype,&
                                 anag=anag, shortrange=do_ewald, taper=taper, error=error)
                         ELSE
-                           CALL rotnuc (se_kind_b,se_kind_a,-rij,e1b=e2a,e2a=e1b,enuc=enuc,itype=itype,&
+                           CALL rotnuc (se_kind_b,se_kind_a,-rij,e1b=e2a,e2a=e1b,itype=itype,&
                                 anag=anag, shortrange=do_ewald, taper=taper, error=error)
                         END IF
-                        enuclear = enuclear + enuc
                         ! one-centre one-electron terms
                         CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
                         IF ( nspins >= 1 ) THEN
@@ -500,15 +683,15 @@ CONTAINS
                            atom_b = atom_of_kind(jatom)
                            
                            IF ( .NOT. switch ) THEN
-                              CALL drotnuc (se_kind_a,se_kind_b,rij,de1b=de1b,de2a=de2a,denuc=denuc,&
+                              CALL drotnuc (se_kind_a,se_kind_b,rij,de1b=de1b,de2a=de2a,&
                                    itype=itype,delta=delta,anag=anag,shortrange=do_ewald,taper=taper,&
                                    error=error)
                            ELSE
-                              CALL drotnuc (se_kind_b,se_kind_a,-rij,de1b=de2a,de2a=de1b,denuc=denuc,&
+                              CALL drotnuc (se_kind_b,se_kind_a,-rij,de1b=de2a,de2a=de1b,&
                                    itype=itype,delta=delta,anag=anag,shortrange=do_ewald,taper=taper,&
                                    error=error)
                            END IF
-                           force_ab(1:3)=-denuc(1:3)
+                           force_ab(1:3)=0.0_dp
                            CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
                            IF ( nspins >= 1 ) THEN
                               IF ( SIZE(ksa_block_a,1) == 1 ) THEN
@@ -628,10 +811,8 @@ CONTAINS
          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
       END IF
       
-      CALL mp_sum(enuclear,para_env%group)
       CALL mp_sum(ecore2,para_env%group)
       
-      energy%core_overlap = enuclear
       energy%hartree = ecore2 - energy%core
       DO ispin=1,nspins
          CALL cp_sm_sm_trace(ks_matrix(ispin)%matrix,&
@@ -645,6 +826,9 @@ CONTAINS
    CALL timestop(0.0_dp,handle)
  END SUBROUTINE build_nddo_fock_matrix_coulomb
  
+! *****************************************************************************
+!> \brief Construction of the Exchange part of the Fock matrix
+!> \author JGH
 ! *****************************************************************************
   SUBROUTINE build_nddo_fock_matrix_exchange (ks_env,qs_env,ks_matrix,rho,energy,&
                calculate_forces,just_energy,error)

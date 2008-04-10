@@ -13,9 +13,12 @@ MODULE semi_empirical_integrals
 
   USE f77_blas
   USE kinds,                           ONLY: dp
-  USE semi_empirical_int_ana,          ONLY: rotint_ana,&
+  USE semi_empirical_int_ana,          ONLY: corecore_ana,&
+                                             rotint_ana,&
                                              rotnuc_ana
-  USE semi_empirical_int_num,          ONLY: drotint_num,&
+  USE semi_empirical_int_num,          ONLY: corecore_num,&
+                                             dcorecore_num,&
+                                             drotint_num,&
                                              drotnuc_num,&
                                              rotint_num,&
                                              rotnuc_num
@@ -28,7 +31,7 @@ MODULE semi_empirical_integrals
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_integrals'
-  PUBLIC :: rotint, rotnuc, drotint, drotnuc
+  PUBLIC :: rotint, rotnuc, drotint, drotnuc, corecore, dcorecore
 
 CONTAINS
 
@@ -60,12 +63,11 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   04.2008
 ! *****************************************************************************
-  SUBROUTINE rotnuc (sepi,sepj,rij,e1b,e2a,enuc,itype,anag,shortrange,taper,error)
+  SUBROUTINE rotnuc (sepi,sepj,rij,e1b,e2a,itype,anag,shortrange,taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:), INTENT(OUT), &
       OPTIONAL                               :: e1b, e2a
-    REAL(dp), INTENT(OUT), OPTIONAL          :: enuc
     INTEGER, INTENT(IN)                      :: itype
     LOGICAL, INTENT(IN)                      :: anag, shortrange
     TYPE(taper_type), POINTER                :: taper
@@ -75,14 +77,41 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     IF (anag) THEN
-       CALL rotnuc_ana (sepi,sepj,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype,&
+       CALL rotnuc_ana (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
             shortrange=shortrange, taper=taper, error=error)
     ELSE
-       CALL rotnuc_num (sepi,sepj,rij,e1b=e1b,e2a=e2a,enuc=enuc,itype=itype,&
+       CALL rotnuc_num (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
             shortrange=shortrange, taper=taper, error=error)    
     END IF
 
   END SUBROUTINE rotnuc
+
+! *****************************************************************************
+!> \brief wrapper for numerical/analytical routines
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date   04.2008
+! *****************************************************************************
+  SUBROUTINE corecore (sepi,sepj,rij,enuc,itype,anag,shortrange,taper,error)
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
+    REAL(dp), INTENT(OUT)                    :: enuc
+    INTEGER, INTENT(IN)                      :: itype
+    LOGICAL, INTENT(IN)                      :: anag, shortrange
+    TYPE(taper_type), POINTER                :: taper
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'corecore', &
+      routineP = moduleN//':'//routineN
+
+    IF (anag) THEN
+       CALL corecore_ana (sepi,sepj,rij,enuc=enuc,itype=itype,shortrange=shortrange,&
+            taper=taper, error=error)
+    ELSE
+       CALL corecore_num (sepi,sepj,rij,enuc=enuc,itype=itype,shortrange=shortrange,&
+            taper=taper, error=error)    
+    END IF
+
+  END SUBROUTINE corecore
 
 ! *****************************************************************************
 !> \brief wrapper for numerical/analytical routines
@@ -114,13 +143,11 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   04.2008
 ! *****************************************************************************
-  SUBROUTINE drotnuc (sepi,sepj,rij,de1b,de2a,denuc,itype,delta,anag,shortrange,taper,error)
+  SUBROUTINE drotnuc (sepi,sepj,rij,de1b,de2a,itype,delta,anag,shortrange,taper,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(:, :), INTENT(OUT), &
       OPTIONAL                               :: de1b, de2a
-    REAL(dp), DIMENSION(:), INTENT(OUT), &
-      OPTIONAL                               :: denuc
     INTEGER, INTENT(IN)                      :: itype
     REAL(dp), INTENT(IN)                     :: delta
     LOGICAL, INTENT(IN)                      :: anag, shortrange
@@ -131,13 +158,41 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     IF (anag) THEN
-       CALL rotnuc_ana  (sepi,sepj,rij,de1b=de1b,de2a=de2a,denuc=denuc,itype=itype,&
+       CALL rotnuc_ana  (sepi, sepj, rij, de1b=de1b, de2a=de2a, itype=itype,&
             shortrange=shortrange,taper=taper,error=error)
     ELSE
-       CALL drotnuc_num (sepi,sepj,rij,de1b=de1b,de2a=de2a,denuc=denuc,itype=itype,&
+       CALL drotnuc_num (sepi, sepj, rij, de1b=de1b, de2a=de2a, itype=itype,&
             delta=delta,shortrange=shortrange,taper=taper,error=error)
     END IF
 
   END SUBROUTINE drotnuc
+
+! *****************************************************************************
+!> \brief wrapper for numerical/analytical routines
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date   04.2008
+! *****************************************************************************
+  SUBROUTINE dcorecore (sepi,sepj,rij,denuc,itype,delta,anag,shortrange,taper,error)
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
+    REAL(dp), DIMENSION(:), INTENT(OUT)      :: denuc
+    INTEGER, INTENT(IN)                      :: itype
+    REAL(dp), INTENT(IN)                     :: delta
+    LOGICAL, INTENT(IN)                      :: anag, shortrange
+    TYPE(taper_type), POINTER                :: taper
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dcorecore', &
+      routineP = moduleN//':'//routineN
+
+    IF (anag) THEN
+       CALL corecore_ana (sepi,sepj,rij,denuc=denuc,itype=itype,shortrange=shortrange,&
+            taper=taper, error=error)
+    ELSE
+       CALL dcorecore_num (sepi,sepj,rij,denuc=denuc,delta=delta,itype=itype,&
+            shortrange=shortrange,taper=taper, error=error)    
+    END IF
+
+  END SUBROUTINE dcorecore
 
 END MODULE semi_empirical_integrals

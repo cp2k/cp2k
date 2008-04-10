@@ -20,6 +20,7 @@ MODULE qs_energy
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
+  USE nddo_methods,                    ONLY: se_core_core_interaction
   USE pw_env_types,                    ONLY: pw_env_get
   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                              pw_pool_type
@@ -96,6 +97,7 @@ CONTAINS
        CALL build_se_core_matrix(qs_env=qs_env, para_env=para_env,&
                                  calculate_forces=.FALSE.,error=error)
        CALL qs_env_update_s_mstruct(qs_env,error=error)
+       CALL se_core_core_interaction(qs_env, para_env, calculate_forces=.FALSE., error=error)
     ELSEIF ( dft_control%qs_control%dftb ) THEN
        CALL build_dftb_matrices(qs_env=qs_env, para_env=para_env,&
                               calculate_forces=.FALSE.,error=error)

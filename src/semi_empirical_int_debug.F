@@ -354,8 +354,7 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, shortrange, taper, e1b, e2
   INTEGER                                  :: i, j
   LOGICAL                                  :: invert, l_de1b, l_de2a, &
                                               l_e1b, l_e2a, lgrad, check_value
-  REAL(dp)                                 :: delta,xdum
-  REAL(KIND=dp), DIMENSION(3)              :: vdum
+  REAL(dp)                                 :: delta
   REAL(KIND=dp), DIMENSION(45)             :: e1b2, e2a2
   REAL(KIND=dp), DIMENSION(45, 3)          :: de1b2, de2a2
 
@@ -367,7 +366,7 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, shortrange, taper, e1b, e2
   delta = 1.0E-5_dp
   ! Check value of integrals
   WRITE(*,*)"DEBUG::"//routineP
-  CALL rotnuc_num(sepi,sepj,rijv,e1b2,e2a2,xdum,itype,shortrange,taper=taper,error=error)
+  CALL rotnuc_num(sepi,sepj,rijv,e1b2,e2a2,itype,shortrange,taper=taper,error=error)
   IF (l_e1b) THEN
      DO j = 1, 45
         IF (.NOT.check_value(e1b2(j), e1b(j), delta, 0.1_dp)) THEN
@@ -387,7 +386,7 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, shortrange, taper, e1b, e2
 
   ! Check derivatives
   IF (lgrad) THEN
-     CALL drotnuc_num(sepi,sepj,rijv,de1b2,de2a2,vdum,itype,delta=delta,&
+     CALL drotnuc_num(sepi,sepj,rijv,de1b2,de2a2,itype,delta=delta,&
           shortrange=shortrange,taper=taper,error=error)
      IF (l_de1b) THEN
         DO i = 1, 3
@@ -419,6 +418,62 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, shortrange, taper, e1b, e2
 END SUBROUTINE check_drotnuc_ana
 
 ! *****************************************************************************
+!> \brief Check Numerical Vs Analytical CORE-CORE
+!> \note
+!>      Debug routine
+!> \par History
+!>      04.2007 created [tlaino]
+!> \author Teodoro Laino - Zurich University
+! *****************************************************************************
+SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,shortrange, taper, enuc, denuc, error)
+  USE f77_blas
+  USE kinds,                           ONLY: dp
+  USE semi_empirical_int_num,          ONLY: corecore_num,&
+                                             dcorecore_num
+  USE semi_empirical_types,            ONLY: semi_empirical_type,&
+                                             taper_type
+#include "cp_common_uses.h"
+  IMPLICIT NONE
+  TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+  REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
+  INTEGER, INTENT(IN)                      :: itype
+  REAL(dp), INTENT(IN), OPTIONAL           :: enuc
+  REAL(dp), DIMENSION(3), INTENT(IN), &
+       OPTIONAL                            :: denuc
+  LOGICAL, INTENT(IN)                      :: shortrange
+  TYPE(taper_type), POINTER                :: taper
+  TYPE(cp_error_type), INTENT(inout)       :: error
+  
+  CHARACTER(len=*), PARAMETER :: moduleN = 'semi_empirical_int_debug', &
+       routineN = 'check_dcorecore_ana', routineP = moduleN//':'//routineN
+
+  LOGICAL                                  :: check_value
+  INTEGER                                  :: j
+  REAL(dp)                                 :: enuc_num, delta
+  REAL(dp), DIMENSION(3)                   :: denuc_num
+
+  delta = 1.0E-5_dp
+  ! check
+  IF (PRESENT(enuc)) THEN
+     CALL  corecore_num(sepi,sepj,rijv, enuc_num,itype,shortrange,taper,error)
+     WRITE(*,*)"DEBUG::"//routineP
+     IF (.NOT.check_value(enuc, enuc_num, delta, 0.1_dp)) THEN
+        WRITE(*,*)"ERROR for CORE-CORE energy value (numerical different from analytical)!!"
+        STOP
+     END IF
+  END IF
+  IF (PRESENT(denuc)) THEN
+     CALL dcorecore_num(sepi,sepj,rijv,denuc_num,itype,delta,shortrange,taper,error)
+     DO j = 1, 3
+        IF (.NOT.check_value(denuc(j), denuc_num(j), delta, 0.1_dp)) THEN
+           WRITE(*,*)"ERROR for CORE-CORE energy derivative value (numerical different from analytical). DENUC(j), j::", j
+           STOP
+        END IF
+     END DO
+  END IF
+END SUBROUTINE check_dcorecore_ana
+
+! *****************************************************************************
 !> \brief Check Numerical Vs Analytical DTEREP_ANA
 !> \note
 !>      Debug routine
@@ -433,6 +488,7 @@ SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,shortrange,taper,error)
   USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                              taper_type
 #include "cp_common_uses.h"
+  IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(dp), INTENT(IN)                     :: r
   REAL(dp), DIMENSION(491), INTENT(IN)     :: ri, dri
@@ -488,6 +544,7 @@ SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,shortrange,taper,error)
   USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                              taper_type
 #include "cp_common_uses.h"
+  IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
   REAL(dp), DIMENSION(2025), INTENT(IN), &

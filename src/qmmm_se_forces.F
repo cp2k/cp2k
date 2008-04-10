@@ -34,7 +34,8 @@ MODULE qmmm_se_forces
                                              qs_environment_type
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE semi_empirical_integrals,        ONLY: drotnuc
+  USE semi_empirical_integrals,        ONLY: dcorecore,&
+                                             drotnuc
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_create,&
                                              semi_empirical_release,&
@@ -286,8 +287,10 @@ CONTAINS
           rij = (/rt1,rt2,rt3/)
           se_kind_mm%zeff = mm_charges(Imm)
           ! Integrals derivatives involving QM - MM atoms
-          CALL drotnuc(se_kind_a,se_kind_mm,rij,itype=itype,denuc=denuc,de1b=de1b,&
-               shortrange=.FALSE.,anag=anag,delta=delta,taper=taper,error=error)
+          CALL drotnuc(se_kind_a, se_kind_mm, rij, itype=itype, de1b=de1b,&
+               shortrange=.FALSE., anag=anag, delta=delta, taper=taper, error=error)
+          CALL dcorecore(se_kind_a, se_kind_mm, rij, itype=itype, denuc=denuc,&
+               shortrange=.FALSE., anag=anag, delta=delta, taper=taper, error=error)
           ! Nucler - Nuclear term
           force_ab(1:3)=-denuc(1:3)
           IF ( SIZE(p_block_a,1) == 1 ) THEN

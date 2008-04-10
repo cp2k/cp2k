@@ -35,7 +35,8 @@ MODULE qmmm_se_energy
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_overlap,                      ONLY: build_overlap_matrix
-  USE semi_empirical_integrals,        ONLY: rotnuc
+  USE semi_empirical_integrals,        ONLY: corecore,&
+                                             rotnuc
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_create,&
                                              semi_empirical_release,&
@@ -269,8 +270,10 @@ CONTAINS
           rt3= r_pbc(3) 
           rij = (/rt1,rt2,rt3/)
           se_kind_mm%zeff = mm_charges(Imm)
-          CALL rotnuc (se_kind_a,se_kind_mm,rij,itype=itype,enuc=enuc,e1b=e1b,anag=anag,&
-               shortrange=.FALSE.,taper=taper, error=error)
+          CALL rotnuc (se_kind_a, se_kind_mm, rij, itype=itype, e1b=e1b, anag=anag,&
+               shortrange=.FALSE., taper=taper, error=error)
+          CALL corecore(se_kind_a, se_kind_mm, rij, itype=itype, enuc=enuc, anag=anag,&
+               shortrange=.FALSE., taper=taper, error=error)
           enuclear = enuclear + enuc
           ! Contribution to the iatom block
           ! Computation of the QMMM core matrix
