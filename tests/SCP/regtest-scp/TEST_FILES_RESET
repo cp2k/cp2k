@@ -40,3 +40,10 @@ monomer-r3.inp
 monomer-r4.inp  
 w2.inp  
 w2-r2.inp
+# bug fix for screening in ai_coulomb
+monomer.inp
+monomer-r2.inp  
+monomer-r3.inp  
+monomer-r4.inp  
+w2.inp  
+w2-r2.inp
