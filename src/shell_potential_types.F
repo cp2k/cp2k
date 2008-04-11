@@ -38,8 +38,7 @@ MODULE shell_potential_types
 ! *****************************************************************************
   TYPE shell_p_type
     CHARACTER (LEN=default_string_length)   :: atm_name
-!    INTEGER                                 :: ref_count
-    TYPE(shell_kind_type), POINTER               :: shell
+    TYPE(shell_kind_type), POINTER          :: shell
   END TYPE shell_p_type
 
 ! *** Public subroutines ***
@@ -149,27 +148,6 @@ CONTAINS
 
   END SUBROUTINE shell_retain
 
-!  SUBROUTINE shell_p_retain(shell_list,error)
-!
-!    TYPE(shell_p_type), DIMENSION(:), &
-!      POINTER                                :: shell_list
-!    TYPE(cp_error_type), INTENT(inout)       :: error
-!
-!    CHARACTER(len=*), PARAMETER :: routineN = 'shell_p_retain', &
-!      routineP = moduleN//':'//routineN
-!
-!    LOGICAL                                  :: failure
-!
-!    failure = .FALSE.
-!
-!    CPPrecondition(ASSOCIATED(shell_list),cp_failure_level,routineP,error,failure)
-!    IF(.NOT. failure) THEN
-!      CPPrecondition(shell_list%ref_count>0,cp_failure_level,routineP,error,failure)
-!      shell_list%ref_count=shell_list%ref_count+1
-!    END IF
-!
-!  END SUBROUTINE shell_p_retain
-
 ! *****************************************************************************
   SUBROUTINE shell_release(shell,error)
 
@@ -210,15 +188,11 @@ CONTAINS
     failure = .FALSE.
 
     IF(ASSOCIATED(shell_list)) THEN
-!      CPPrecondition(shell_list%ref_count>0,cp_failure_level,routineP,error,failure)
-!      shell_list%ref_count=shell_list%ref_count-1
-!      IF (shell_list%ref_count==0) THEN
       DO i = 1,SIZE(shell_list) 
          CALL shell_release(shell_list(i)%shell,error=error)
       END DO
       DEALLOCATE(shell_list,stat=istat)
       CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-!      END IF
     END IF
     NULLIFY(shell_list)
 

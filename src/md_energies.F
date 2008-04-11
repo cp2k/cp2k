@@ -698,15 +698,15 @@ CPSourceFileRef,&
 
              ! Print Core Coordinates
              CALL write_trajectory (force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
-                  "CORE_TRAJECTORY", my_pos, my_act, "copos", shell_particles, extended_xmol_title=.TRUE., error=error)
+                  "CORE_TRAJECTORY", my_pos, my_act, "copos", core_particles, extended_xmol_title=.TRUE., error=error)
 
              ! Print Core Velocities
              CALL write_trajectory (force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
-                  "CORE_VELOCITIES", my_pos, my_act, "covel", shell_particles, extended_xmol_title=.TRUE., error=error)
+                  "CORE_VELOCITIES", my_pos, my_act, "covel", core_particles, extended_xmol_title=.TRUE., error=error)
 
              ! Print Core Forces
              CALL write_trajectory (force_env, root_section, itimes, simpar%dt*femtoseconds, md_ener%epot,&
-                  "CORE_FORCES", my_pos, my_act, "cofrc", shell_particles, extended_xmol_title=.TRUE., error=error)
+                  "CORE_FORCES", my_pos, my_act, "cofrc", core_particles, extended_xmol_title=.TRUE., error=error)
 
              ! Temperature per Kinds
              IF(simpar%temperature_per_kind) THEN
