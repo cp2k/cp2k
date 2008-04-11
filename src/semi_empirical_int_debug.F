@@ -300,16 +300,16 @@ FUNCTION check_value(num, ana, minval, thrs) RESULT(passed)
 
   passed = .TRUE.
   
-  IF ((ABS(num)>minval).AND.(ABS(ana)>minval)) THEN
-     IF ((num-ana)/num*100._dp>thrs) THEN
-        WRITE(*,*) ABS(num-ana)/num*100._dp, thrs
-        passed = .FALSE.
-     END IF
-  ELSEIF  ((ABS(num)<minval).AND.(ABS(ana)>minval)) THEN
-     WRITE(*,*) num, ana, thrs
-     passed = .FALSE.
-  ELSEIF  ((ABS(num)>minval).AND.(ABS(ana)<minval)) THEN
-     WRITE(*,*) num, ana, thrs
+  IF      ((ABS(num)<minval).AND.(ABS(ana)>minval)) THEN
+     WRITE(*,*)"WARNING ---> ",num, ana, thrs
+  ELSE IF ((ABS(num)>minval).AND.(ABS(ana)<minval)) THEN
+     WRITE(*,*)"WARNING ---> ",num, ana, thrs
+  ELSE IF ((ABS(num)<minval).AND.(ABS(ana)<minval)) THEN
+     ! skip..
+     RETURN
+  END IF
+  IF ((num-ana)/num*100._dp>thrs) THEN
+     WRITE(*,*) ABS(num-ana)/num*100._dp, thrs
      passed = .FALSE.
   END IF
   IF (.NOT.passed) THEN
@@ -496,7 +496,6 @@ SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,shortrange,taper,error)
 
   CHARACTER(len=*), PARAMETER :: moduleN = 'semi_empirical_int_debug', &
        routineN = 'check_dterep_ana', routineP = moduleN//':'//routineN
-  REAL(dp), PARAMETER                      :: thrs = 1.0E-7_dp
 
   LOGICAL                                  :: check_value
   INTEGER                                  :: j
