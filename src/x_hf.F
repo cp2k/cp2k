@@ -356,7 +356,7 @@ MODULE x_hf
 
         !! quickly check if we can write on storage_location
         CALL m_getcwd(orig_wd)
-        CALL m_chdir(filename,stat)
+        CALL m_chdir(TRIM(filename),stat)
         IF(stat/=0) THEN
           WRITE(error_msg,'(A,A,A)') "HFX_MODULE: Request for disk storage failed due to unknown error while writing to ",&
                                    TRIM(filename), ". Please check STORAGE_LOCATION"
