@@ -31,9 +31,11 @@
        LINESEARCH 2PNT
        PRECONDITIONER FULL_ALL
        MAX_SCF 10
-       &NMR
+       &CURRENT
           GAUGE R_AND_STEP_FUNCTION
-          FULL
+          FULL T
+       &END CURRENT
+       &NMR
           &PRINT
             &CHI_TENSOR
             &END CHI_TENSOR

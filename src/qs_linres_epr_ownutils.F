@@ -11,12 +11,24 @@
 MODULE qs_linres_epr_ownutils
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+
+  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
+                                             cp_rs_pool_type,&
+                                             rs_pool_create_rs,&
+                                             rs_pool_give_back_rs,&
+                                             rs_pools_create_rs_vect
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
+                                             pw_pool_p_type,&
+                                             pw_pool_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -27,7 +39,12 @@ MODULE qs_linres_epr_ownutils
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_methods,                      ONLY: pw_integral_ab
+  USE pw_methods,                      ONLY: pw_integral_ab,&
+                                             pw_axpy,&
+                                             pw_transfer,&
+                                             pw_scale,&
+                                             pw_zero,&
+                                             pw_integrate_function
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_type
@@ -41,31 +58,40 @@ MODULE qs_linres_epr_ownutils
                                              spl3_pbc
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
+                                             COMPLEXDATA1D,&
+                                             RECIPROCALSPACE,&
                                              pw_p_type
   USE qs_core_energies,                ONLY: calculate_ecore
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
-  USE qs_linres_epr_atom_current,      ONLY: calculate_jrho_atom_ang
-  USE qs_linres_epr_op,                ONLY: set_vecp
+  USE qs_linres_op,                    ONLY: set_vecp,&
+                                             fac_vecp,&
+                                             set_vecp_rev
+  USE qs_linres_epr_bind0,             ONLY: chicorr_analytic
   USE qs_linres_types,                 ONLY: epr_env_type,&
                                              get_epr_env,&
                                              jrho_atom_type,&
-                                             nablavks_atom_type
+                                             nablavks_atom_type,&
+                                             current_env_type,&
+                                             get_current_env
+  USE qs_linres_nmr_epr_common_utils,  ONLY: mult_G_ov_G2_grid
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
   USE qs_rho_types,                    ONLY: qs_rho_p_type,&
                                              qs_rho_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   USE util,                            ONLY: get_limit
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: epr_g_print, epr_g_zke, epr_g_so, epr_g_soo, calculate_jrho_atom
+  PUBLIC :: epr_g_print, epr_g_zke, epr_g_so, epr_g_soo, epr_ind_magnetic_field
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_epr_ownutils'
 
@@ -257,105 +283,15 @@ CONTAINS
   END SUBROUTINE epr_g_zke
 
 ! *****************************************************************************
-!> \brief Calculates atomic currents
-!> \par History
-!>      06.2006 created [RD]
-!> \author RD
-! *****************************************************************************
-  SUBROUTINE calculate_jrho_atom(epr_env,qs_env,iB,idir,error)
-
-    TYPE(epr_env_type)                       :: epr_env
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER, INTENT(IN)                      :: iB, idir
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_atom', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: iat, iatom, ikind, ispin, &
-                                                natom, nkind, nspins, &
-                                                output_unit
-    INTEGER, DIMENSION(2)                    :: bo
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: gapw, paw_atom
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(grid_atom_type), POINTER            :: grid_atom
-    TYPE(harmonics_atom_type), POINTER       :: harmonics
-    TYPE(jrho_atom_type), DIMENSION(:), &
-      POINTER                                :: jrho1_atom_set
-    TYPE(jrho_atom_type), POINTER            :: jrho1_atom
-    TYPE(section_vals_type), POINTER         :: lr_section
-
-    NULLIFY(logger, lr_section, para_env, dft_control)
-    NULLIFY(jrho1_atom_set, grid_atom, harmonics)
-    NULLIFY(atomic_kind_set, atom_kind, atom_list)
-
-    logger => cp_error_get_logger(error)
-    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
-
-    output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-         extension=".linresLog",error=error)
-
-    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
-                    atomic_kind_set=atomic_kind_set,&
-                    para_env=para_env,error=error) 
-
-    CALL get_epr_env(epr_env=epr_env,&
-                     jrho1_atom_set=jrho1_atom_set)
-
-    gapw = dft_control%qs_control%gapw
-    nkind = SIZE(atomic_kind_set,1)
-    nspins = dft_control%nspins
-
-    IF (gapw) THEN
-       DO ikind = 1,nkind
-          NULLIFY (atom_kind,atom_list,grid_atom,harmonics)
-          atom_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atom_kind,atom_list=atom_list,&
-                               harmonics=harmonics,grid_atom=grid_atom,&
-                               natom=natom, paw_atom=paw_atom)
-          IF (.NOT.paw_atom) CYCLE
-
-          ! Distribute the atoms of this kind
-    
-          bo = get_limit( natom, para_env%num_pe, para_env%mepos )
-
-          DO iat = bo(1),bo(2)
-             iatom = atom_list(iat)
-             NULLIFY (jrho1_atom)
-             jrho1_atom => jrho1_atom_set(iatom)
-             DO ispin = 1,nspins
-                jrho1_atom%jrho_vec_rad_h(idir,iB,ispin)%r_coef = 0.0_dp
-                jrho1_atom%jrho_vec_rad_s(idir,iB,ispin)%r_coef = 0.0_dp
-                CALL calculate_jrho_atom_ang(jrho1_atom,&
-                     jrho1_atom%jrho_vec_rad_h(idir,iB,ispin)%r_coef,&
-                     jrho1_atom%jrho_vec_rad_s(idir,iB,ispin)%r_coef,&
-                     grid_atom,harmonics,iB,idir,ispin,error=error)
-             END DO !ispin
-          END DO !iat
-       END DO !ikind
-    END IF
-
-    CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
-         "PRINT%PROGRAM_RUN_INFO",error=error)
-
-  END SUBROUTINE calculate_jrho_atom 
-
-! *****************************************************************************
 !> \brief Calculates g_so
 !> \par History
 !>      06.2006 created [RD]
 !> \author RD
 ! *****************************************************************************
-  SUBROUTINE epr_g_so(epr_env,qs_env,error)
+  SUBROUTINE epr_g_so(epr_env,current_env,qs_env,error)
 
     TYPE(epr_env_type)                       :: epr_env
+    TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -420,9 +356,13 @@ CONTAINS
                     error=error)
 
     CALL get_epr_env(epr_env=epr_env,&
-                     nablavks_set=nablavks_set,jrho1_set=jrho1_set,&
-                     nablavks_atom_set=nablavks_atom_set,jrho1_atom_set=jrho1_atom_set,&
+                     nablavks_set=nablavks_set,&!jrho1_set=jrho1_set,&
+                     nablavks_atom_set=nablavks_atom_set,&!jrho1_atom_set=jrho1_atom_set,&
                      g_total=g_total,g_so=g_so)
+
+    CALL get_current_env(current_env=current_env,&
+                         jrho1_set=jrho1_set,jrho1_atom_set=jrho1_atom_set,&
+                         error=error)
 
     gapw = dft_control%qs_control%gapw
     nkind = SIZE(atomic_kind_set,1)
@@ -866,6 +806,148 @@ CONTAINS
          "PRINT%PROGRAM_RUN_INFO",error=error)
 
   END SUBROUTINE epr_g_soo
+
+
+  SUBROUTINE epr_ind_magnetic_field(epr_env,current_env,qs_env,error)
+
+    TYPE(epr_env_type)                       :: epr_env
+    TYPE(current_env_type)                   :: current_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+
+    INTEGER                                  :: iB,iiB,iiiB,idir,idir2,idir3,nspins,&
+         &                                      ispin,natom,handle,istat
+    LOGICAL                                  :: gapw,failure
+    REAL(dp)                                 :: scale_fac
+    REAL(dp), DIMENSION(:,:,:), POINTER      :: chemical_shift,chemical_shift_loc,&
+         &                                      chemical_shift_nics,chemical_shift_nics_loc
+    REAL(dp), DIMENSION(3,3)                 :: chi_tensor,chi_tensor_loc
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_shift', &
+         routineP = moduleN//':'//routineN
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(pw_p_type), POINTER                 :: rho_gspace, rho_rspace
+    TYPE(pw_p_type)                          :: pw_gspace_work, &
+         &                                      shift_pw_rspace
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_p_type), DIMENSION(:, :), &
+      POINTER                                :: shift_pw_gspace
+
+    failure = .FALSE.
+    CALL timeset(routineN,"I"," ",handle)
+
+    NULLIFY(chemical_shift,chemical_shift_loc,chemical_shift_nics,chemical_shift_nics_loc,&
+         &  cell,dft_control,pw_env,auxbas_rs_pool,auxbas_pw_pool,rho_gspace,rho_rspace,&
+         &  pw_pools,particle_set)
+
+    CALL get_qs_env(qs_env=qs_env,cell=cell,dft_control=dft_control,&
+         &          particle_set=particle_set,error=error)
+
+    gapw = dft_control%qs_control%gapw
+    natom = SIZE(particle_set,1)
+    nspins = dft_control%nspins
+
+    CALL get_epr_env(epr_env=epr_env,&
+                     error=error)
+
+    CALL get_current_env(current_env=current_env,error=error)
+
+
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+    CALL pw_env_get(pw_env,auxbas_rs_pool=auxbas_rs_pool,&
+         &          auxbas_pw_pool=auxbas_pw_pool,pw_pools=pw_pools,&
+         &          error=error)
+    !
+    ! Initialize
+    ! Allocate grids for the calculation of jrho and the shift
+    ALLOCATE(shift_pw_gspace(3,nspins),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO ispin = 1,nspins
+       DO idir = 1,3
+          CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw,&
+               &                  use_data=COMPLEXDATA1D,&
+               &                  in_space=RECIPROCALSPACE,error=error)
+          CALL pw_zero(shift_pw_gspace(idir,ispin)%pw)
+       ENDDO
+    ENDDO
+    CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_rspace%pw,&
+         &                 use_data=REALDATA3D,in_space=REALSPACE,error=error)
+    CALL pw_zero(shift_pw_rspace%pw)
+    CALL pw_pool_create_pw(auxbas_pw_pool,pw_gspace_work%pw,&
+            &              use_data=COMPLEXDATA1D,&
+            &              in_space=RECIPROCALSPACE,error=error)
+
+    CALL pw_zero(pw_gspace_work%pw)
+    !
+    DO iB = 1,3
+       !
+       CALL set_vecp(iB,iiB,iiiB)
+       !
+       DO ispin = 1,nspins
+          !
+          DO idir3=1,3
+             ! set to zero for the calculation of the shift
+             CALL pw_zero(shift_pw_gspace(idir3,ispin)%pw)
+          ENDDO
+          !
+          ! First compute the contribution to the CHI tensor coming from the soft density
+          IF (ispin == 2) THEN
+             CALL chicorr_analytic(epr_env,current_env,qs_env,ispin,iB,error=error)
+          END IF
+          !
+          DO idir = 1,3
+             rho_rspace => current_env%jrho1_set(idir,iB)%rho%rho_r(ispin)
+             rho_gspace => current_env%jrho1_set(idir,iB)%rho%rho_g(ispin)
+             ! Field gradient
+             ! loop over the Gvec  components: x,y,z
+             DO idir2 = 1,3
+                IF(idir /= idir2) THEN
+                   ! in reciprocal space multiply (G_idir2(i)/G(i)^2)J_(idir)(G(i))
+                   CALL mult_G_ov_G2_grid(cell,auxbas_pw_pool,rho_gspace,&
+                        &                 pw_gspace_work,idir2,0.0_dp,error=error)
+                   !
+                   ! scale and add to the correct component of the shift column
+                   CALL set_vecp_rev(idir,idir2,idir3)
+                   scale_fac=fac_vecp(idir3,idir2,idir)
+                   CALL pw_scale(pw_gspace_work%pw,scale_fac)
+                   CALL pw_axpy(pw_gspace_work%pw,shift_pw_gspace(idir3,ispin)%pw)
+                ENDIF
+             ENDDO
+             !
+          ENDDO ! idir
+       ENDDO ! ispin
+
+       ! Store the total soft induced magnetic field (corrected for sic)
+       IF (dft_control%nspins == 2) THEN
+          DO idir = 1,3
+             CALL pw_transfer(shift_pw_gspace(idir,2)%pw,epr_env%bind_set(idir,iB)%rho%rho_r(1)%pw)
+          ENDDO
+       END IF
+
+    ENDDO
+    !
+    ! Dellocate grids for the calculation of jrho and the shift
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,pw_gspace_work%pw,error=error)
+    DO ispin = 1,dft_control%nspins
+       DO idir = 1,3
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw,error=error)
+       ENDDO
+    ENDDO
+    DEALLOCATE(shift_pw_gspace,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_rspace%pw,error=error)
+    !
+    ! Finalize
+    CALL timestop(0.0_dp,handle)
+    !
+  END SUBROUTINE epr_ind_magnetic_field
 
 END MODULE  qs_linres_epr_ownutils
 

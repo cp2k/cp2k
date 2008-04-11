@@ -5009,6 +5009,11 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        NULLIFY(subsection)
+       CALL create_current_section(subsection,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       NULLIFY(subsection)
        CALL create_nmr_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -5032,6 +5037,127 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_linres_section
+
+! *****************************************************************************
+  SUBROUTINE create_current_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_current_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, subsection
+
+    failure=.FALSE.
+    NULLIFY(keyword,print_key, subsection)
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="current",&
+            description="The induced current density is calculated by DFPT.",&
+            n_keywords=4, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="controls the activation of the induced current calculation",&
+            usage="&CURRENT T",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="GAUGE",&
+            description="The gauge used to compute the induced current within GAPW.",&
+            usage="GAUGE R",&
+            default_i_val=current_gauge_r_and_step_func,&
+            enum_c_vals=s2a("R", "R_AND_BADER", "R_AND_STEP_FUNCTION"),&
+            enum_desc=s2a("Position gauge (doesnt work well).",&
+                          "Position and Bader gauges for the soft and the local parts, respectively.",&
+                          "Position and step function for the soft and the local parts, respectively."),&
+            enum_i_vals=(/current_gauge_r,current_gauge_r_and_Bader,current_gauge_r_and_step_func/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="FULL",&
+            description="Calculate the orbital dependent correction "//&
+            " to get the induced current density", usage="FULL",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RESTART_CURRENT",&
+            description="Restart the induced current density calculation"//&
+            " from a previous run (not working yet).",&
+            usage="RESTART_CURRENT",default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       NULLIFY(subsection)
+       CALL section_create(subsection,name="PRINT",&
+            description="print results of induced current density calculation",&
+            error=error,repeats=.FALSE.,required=.FALSE.)
+
+       CALL cp_print_key_section_create(print_key,"CURRENT_CUBES",&
+            description="Controls the printing of the induced current density (not working yet).", &
+            print_level=high_print_level,add_last=add_last_numeric,filename="",&
+            error=error)
+       CALL keyword_create(keyword, name="stride",&
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components (not working yet).",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"RESPONSE_FUNCTION_CUBES",&
+            description="Controls the printing of the response functions (not working yet).", &
+            print_level=high_print_level,add_last=add_last_numeric,filename="",&
+            error=error)
+       CALL keyword_create(keyword, name="stride",&
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components (not working yet).",&
+            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="CUBES_LU_BOUNDS",&
+            variants=(/"CUBES_LU"/),&
+            description="The lower and upper index of the states to be printed as cube (not working yet).",&
+            usage="CUBES_LU_BOUNDS integer integer",&
+            n_var=2,default_i_vals=(/0,-2/), type_of_var=integer_t,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="CUBES_LIST",&
+            description="Indexes of the states to be printed as cube files"//&
+            "This keyword can be repeated several times"//&
+            "(useful if you have to specify many indexes) (not working yet).",&
+            usage="CUBES_LIST 1 2",&
+            n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       NULLIFY(subsection)
+       CALL create_interp_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+
+  END SUBROUTINE create_current_section
 
 ! *****************************************************************************
   SUBROUTINE create_nmr_section(section,error)
@@ -5064,25 +5190,25 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword,name="GAUGE",&
-            description="The gauge used to compute the chemical shifts within GAPW.",&
-            usage="GAUGE R",&
-            default_i_val=nmr_gauge_r_and_step_function,&
-            enum_c_vals=s2a("R", "R_AND_BADER", "R_AND_STEP_FUNCTION"),&
-            enum_desc=s2a("Position gauge (doesnt work well).",&
-                          "Position and Bader gauges for the soft and the local parts, respectively.",&
-                          "Position and step function for the soft and the local parts, respectively."),&
-            enum_i_vals=(/nmr_gauge_r,nmr_gauge_r_and_Bader,nmr_gauge_r_and_step_function/),&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       !CALL keyword_create(keyword,name="GAUGE",&
+       !     description="The gauge used to compute the chemical shifts within GAPW.",&
+       !     usage="GAUGE R",&
+       !     default_i_val=nmr_gauge_r_and_step_function,&
+       !     enum_c_vals=s2a("R", "R_AND_BADER", "R_AND_STEP_FUNCTION"),&
+       !     enum_desc=s2a("Position gauge (doesnt work well).",&
+       !                   "Position and Bader gauges for the soft and the local parts, respectively.",&
+       !                   "Position and step function for the soft and the local parts, respectively."),&
+       !     enum_i_vals=(/nmr_gauge_r,nmr_gauge_r_and_Bader,nmr_gauge_r_and_step_function/),&
+       !     error=error)
+       !CALL section_add_keyword(section,keyword,error=error)
+       !CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="FULL",&
-            description="Calculate the orbital dependent correction "//&
-            " to get the full current density", usage="FULL",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       !CALL keyword_create(keyword, name="FULL",&
+       !     description="Calculate the orbital dependent correction "//&
+       !     " to get the full current density", usage="FULL",&
+       !     default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       !CALL section_add_keyword(section,keyword,error=error)
+       !CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="NICS",&
             description="Calculate the chemical shift in a set of points  "//&
@@ -5099,7 +5225,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RESTART_NMR",&
-            description="Restart the NMR calculation from a previous run",&
+            description="Restart the NMR calculation from a previous run (NOT WORKING)",&
             usage="RESTART_NMR",default_l_val=.FALSE.,&
             lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -5110,19 +5236,19 @@ CONTAINS
             description="print results of nmr calculation",&
             error=error,repeats=.FALSE.,required=.FALSE.)
 
-       CALL cp_print_key_section_create(print_key,"CURRENT_CUBES",&
-            description="Controls the printing of the current density ", &
-            print_level=high_print_level,add_last=add_last_numeric,filename="",&
-            error=error)
-       CALL keyword_create(keyword, name="stride",&
-            description="The stride (X,Y,Z) used to write the cube file "//&
-            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
-            " 1 number valid for all components.",&
-            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)
+       !CALL cp_print_key_section_create(print_key,"CURRENT_CUBES",&
+       !     description="Controls the printing of the current density ", &
+       !     print_level=high_print_level,add_last=add_last_numeric,filename="",&
+       !     error=error)
+       !CALL keyword_create(keyword, name="stride",&
+       !     description="The stride (X,Y,Z) used to write the cube file "//&
+       !     "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+       !     " 1 number valid for all components.",&
+       !     usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
+       !CALL section_add_keyword(print_key,keyword,error=error)
+       !CALL keyword_release(keyword,error=error)
+       !CALL section_add_subsection(subsection,print_key,error=error)
+       !CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"RESPONSE_FUNCTION_CUBES",&
             description="Controls the printing of the response functions ", &
@@ -5230,28 +5356,28 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword,name="GAUGE",&
-            description="The gauge used to compute the g tensor within GAPW.",&
-            usage="GAUGE R",&
-            default_i_val=epr_gauge_r_and_step_function,&
-            enum_c_vals=s2a("R", "R_AND_BADER", "R_AND_STEP_FUNCTION"),&
-            enum_desc=s2a("Position gauge (doesnt work well).",&
-                          "Position and Bader gauges for the soft and the local parts, respectively.",&
-                          "Position and step function for the soft and the local parts, respectively."),&
-            enum_i_vals=(/epr_gauge_r,epr_gauge_r_and_Bader,epr_gauge_r_and_step_function/),&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       !CALL keyword_create(keyword,name="GAUGE",&
+       !     description="The gauge used to compute the g tensor within GAPW.",&
+       !     usage="GAUGE R",&
+       !     default_i_val=epr_gauge_r_and_step_function,&
+       !     enum_c_vals=s2a("R", "R_AND_BADER", "R_AND_STEP_FUNCTION"),&
+       !     enum_desc=s2a("Position gauge (doesnt work well).",&
+       !                   "Position and Bader gauges for the soft and the local parts, respectively.",&
+       !                   "Position and step function for the soft and the local parts, respectively."),&
+       !     enum_i_vals=(/epr_gauge_r,epr_gauge_r_and_Bader,epr_gauge_r_and_step_function/),&
+       !     error=error)
+       !CALL section_add_keyword(section,keyword,error=error)
+       !CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="FULL",&
-            description="Calculate the orbital dependent correction "//&
-            " to get the full current density", usage="FULL",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       !CALL keyword_create(keyword, name="FULL",&
+       !     description="Calculate the orbital dependent correction "//&
+       !     " to get the full current density", usage="FULL",&
+       !     default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       !CALL section_add_keyword(section,keyword,error=error)
+       !CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RESTART_EPR",&
-            description="Restart the EPR calculation from a previous run",&
+            description="Restart the EPR calculation from a previous run (NOT WORKING)",&
             usage="RESTART_EPR",default_l_val=.FALSE.,&
             lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -5262,20 +5388,20 @@ CONTAINS
             description="print results of epr calculation",&
             error=error,repeats=.FALSE.,required=.FALSE.)
 
-       CALL cp_print_key_section_create(print_key,"CURRENT_CUBES",&
-            description="Controls the printing of the current density ", &
-            print_level=high_print_level,add_last=add_last_numeric,filename="",&
-            error=error)
-       CALL keyword_create(keyword, name="stride",&
-            description="The stride (X,Y,Z) used to write the cube file "//&
-            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
-            " 1 number valid for all components.",&
-            usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       !CALL cp_print_key_section_create(print_key,"CURRENT_CUBES",&
+       !     description="Controls the printing of the current density ", &
+       !     print_level=high_print_level,add_last=add_last_numeric,filename="",&
+       !     error=error)
+       !CALL keyword_create(keyword, name="stride",&
+       !     description="The stride (X,Y,Z) used to write the cube file "//&
+       !     "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+       !     " 1 number valid for all components.",&
+       !     usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
+       !CALL section_add_keyword(print_key,keyword,error=error)
+       !CALL keyword_release(keyword,error=error)
 
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)
+       !CALL section_add_subsection(subsection,print_key,error=error)
+       !CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"NABLAVKS_CUBES",&
             description="Controls the printing of the components of nabla v_ks ", &

@@ -29,10 +29,13 @@
        MAX_SCF 100
        LINESEARCH 2PNT
        PRECONDITIONER FULL_ALL
+       &CURRENT
+          GAUGE R_AND_STEP_FUNCTION
+          FULL T
+       &END CURRENT
        &NMR
           NICS T
           NICS_FILE_NAME ./nics_ch2o
-          FULL
        &END
     &END
   &END

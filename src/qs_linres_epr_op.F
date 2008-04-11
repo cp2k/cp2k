@@ -39,7 +39,6 @@ MODULE qs_linres_epr_op
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE orbital_pointers,                ONLY: coset
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -61,7 +60,7 @@ MODULE qs_linres_epr_op
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: epr_operators, set_vecp, set_vecp_rev, fac_vecp, ind_m2
+  PUBLIC :: epr_operators
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_epr_op'
 
@@ -344,80 +343,5 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE epr_operators
-
-! *****************************************************************************
-  FUNCTION fac_vecp(a,b,c) RESULT(factor)
-
-    INTEGER                                  :: a, b, c
-    REAL(dp)                                 :: factor
-
-     factor = 0.0_dp
-
-     IF ((b.eq.a+1 .OR. b.eq.a-2) .AND. (c.eq.b+1 .OR. c.eq.b-2)) THEN
-       factor = 1.0_dp
-     ELSEIF ((b.eq.a-1 .OR. b.eq.a+2) .AND. (c.eq.b-1 .OR. c.eq.b+2)) THEN
-       factor = -1.0_dp
-     END IF
-
-  END FUNCTION fac_vecp
-
-! *****************************************************************************
-  FUNCTION ind_m2(ii,iii) RESULT(i)
-
-    INTEGER                                  :: ii, iii, i
-
-    INTEGER                                  :: l(3)
-
-     i = 0
-     l(1:3) = 0
-     IF(ii==0) THEN
-       l(iii) = 1
-     ELSEIF(iii==0) THEN
-       l(ii) = 1
-     ELSEIF(ii==iii) THEN
-       l(ii) = 2
-       i = coset(l(1),l(2),l(3)) - 1
-     ELSE
-       l(ii) = 1
-       l(iii) = 1
-     ENDIF
-     i = coset(l(1),l(2),l(3)) - 1
-  END FUNCTION ind_m2
-
-! *****************************************************************************
-  SUBROUTINE set_vecp(i1,i2,i3)
-
-    INTEGER, INTENT(IN)                      :: i1
-    INTEGER, INTENT(OUT)                     :: i2, i3
-
-    IF(i1==1) THEN
-      i2=2
-      i3=3
-    ELSEIF(i1==2) THEN
-      i2=3
-      i3=1
-    ELSEIF(i1==3) THEN
-      i2=1
-      i3=2
-    ELSE
-    END IF
-
-  END SUBROUTINE set_vecp
-! *****************************************************************************
-  SUBROUTINE set_vecp_rev(i1,i2,i3)
-
-    INTEGER, INTENT(IN)                      :: i1, i2
-    INTEGER, INTENT(OUT)                     :: i3
-
-    IF((i1+i2)==3) THEN
-      i3=3
-    ELSEIF((i1+i2)==4) THEN
-      i3=2
-    ELSEIF((i1+i2)==5) THEN
-      i3=1
-    ELSE
-    END IF
-
-  END SUBROUTINE set_vecp_rev
 
 END MODULE qs_linres_epr_op

@@ -30,8 +30,11 @@
        OPT_METHOD CG
        LINESEARCH 2PNT
        PRECONDITIONER FULL_ALL
+       &CURRENT
+          GAUGE R_AND_STEP_FUNCTION
+          FULL T
+       &END CURRENT
        &NMR
-         FULL
        &END
     &END
   &END

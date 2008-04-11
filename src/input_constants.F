@@ -404,13 +404,9 @@ MODULE input_constants
                                 use_mom_ref_zero=3,&
                                 use_mom_ref_nondef=4
 
-  INTEGER, PARAMETER, PUBLIC :: nmr_gauge_r=1,&
-                                nmr_gauge_r_and_Bader=2,&
-                                nmr_gauge_r_and_step_function=3
-
-  INTEGER, PARAMETER, PUBLIC :: epr_gauge_r=1,&
-                                epr_gauge_r_and_Bader=2,&
-                                epr_gauge_r_and_step_function=3
+  INTEGER, PARAMETER, PUBLIC :: current_gauge_r=1,&
+                                current_gauge_r_and_Bader=2,&
+                                current_gauge_r_and_step_func=3
 
   INTEGER, PARAMETER, PUBLIC :: ot_mini_sd=1,ot_mini_cg=2,ot_mini_diis=3
   INTEGER, PARAMETER, PUBLIC :: ot_algo_taylor_or_diag=1,ot_algo_irac=2
@@ -549,7 +545,7 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: xas_scf_default=0,xas_scf_general=1
 
   ! Linear Response for properties
-  INTEGER, PARAMETER, PUBLIC :: lr_none=0, lr_chemshift=1, lr_gtensor=2
+  INTEGER, PARAMETER, PUBLIC :: lr_none=0, lr_chemshift=1, lr_gtensor=2, lr_current=3
   INTEGER, PARAMETER, PUBLIC :: lr_cg=1, lr_diis=2, lr_sd=3
   INTEGER, PARAMETER, PUBLIC :: lr_precond_none=0, &
                                 lr_precond_single=1, &

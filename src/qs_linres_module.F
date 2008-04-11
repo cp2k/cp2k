@@ -19,9 +19,9 @@ MODULE qs_linres_module
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE input_constants,                 ONLY: &
-       lr_cg, lr_chemshift, lr_diis, lr_gtensor, lr_none, &
-       lr_precond_full_all, lr_precond_none, lr_precond_s_inverse, &
-       lr_precond_single, lr_sd, ls_2pnt, ls_3pnt, ls_gold, ls_none
+       lr_cg, lr_current, lr_diis, lr_none, lr_precond_full_all, &
+       lr_precond_none, lr_precond_s_inverse, lr_precond_single, lr_sd, &
+       ls_2pnt, ls_3pnt, ls_gold, ls_none
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -30,21 +30,25 @@ MODULE qs_linres_module
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_linres_current_utils,         ONLY: current_do_current,&
+                                             current_env_cleanup,&
+                                             current_env_init
   USE qs_linres_epr_nablavks,          ONLY: epr_nablavks
-  USE qs_linres_epr_op,                ONLY: epr_operators
   USE qs_linres_epr_ownutils,          ONLY: epr_g_print,&
                                              epr_g_so,&
                                              epr_g_soo,&
-                                             epr_g_zke
-  USE qs_linres_epr_utils,             ONLY: epr_do_epr,&
-                                             epr_env_cleanup,&
+                                             epr_g_zke,&
+                                             epr_ind_magnetic_field
+  USE qs_linres_epr_utils,             ONLY: epr_env_cleanup,&
                                              epr_env_init
   USE qs_linres_methods,               ONLY: linres_localize
-  USE qs_linres_nmr_op,                ONLY: nmr_operators
-  USE qs_linres_nmr_utils,             ONLY: nmr_do_nmr,&
-                                             nmr_env_cleanup,&
+  USE qs_linres_nmr_shift,             ONLY: nmr_shift,&
+                                             nmr_shift_print
+  USE qs_linres_nmr_utils,             ONLY: nmr_env_cleanup,&
                                              nmr_env_init
-  USE qs_linres_types,                 ONLY: epr_env_type,&
+  USE qs_linres_op,                    ONLY: current_operators
+  USE qs_linres_types,                 ONLY: current_env_type,&
+                                             epr_env_type,&
                                              linres_control_create,&
                                              linres_control_release,&
                                              linres_control_type,&
@@ -94,9 +98,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, output_unit
-    LOGICAL                                  :: failure, ionode, &
-                                                lr_calculation, was_present
+    LOGICAL                                  :: epr_present, failure, ionode, &
+                                                lr_calculation, nmr_present
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(current_env_type)                   :: current_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(epr_env_type)                       :: epr_env
     TYPE(linres_control_type), POINTER       :: linres_control
@@ -107,7 +112,8 @@ CONTAINS
     CALL timeset(routineN,"I"," ",handle)
     failure = .FALSE.
     lr_calculation = .FALSE.
-    was_present = .FALSE.
+    nmr_present = .FALSE.
+    epr_present = .FALSE.
 
     NULLIFY(dft_control,p_env,linres_control,logger,lr_section,prop_section)
 
@@ -130,64 +136,59 @@ CONTAINS
        !The type of perturbation has not been defined yet
        linres_control%property = lr_none
 
+       ! We do NMR or EPR, then compute the current response
        prop_section => section_vals_get_subs_vals(lr_section,"NMR",error=error)
-       CALL section_vals_get(prop_section,explicit=was_present,error=error)
-       IF(was_present)THEN
-         linres_control%property = lr_chemshift
-         linres_control%do_kernel = .FALSE.
-
-         IF(.NOT.linres_control%localized_psi0) THEN
-            CALL stop_program(routineP,&
-                "Are you sure that you want to calculate the chemical"//&
-                " shift without localized psi0??")
-
-           CALL linres_localize(linres_control%localized_wfn_control,qs_env,&
-                 dft_control%nspins,centers_only=.TRUE.,error=error)
-         END IF
-
-         !Initialize the nmr environment
-         nmr_env%ref_count=0
-         CALL nmr_env_init(nmr_env,qs_env,error=error)
-
-         CALL nmr_operators(nmr_env,qs_env,error=error)
-         CALL nmr_do_nmr(nmr_env,p_env,qs_env,error=error)
-         CALL nmr_env_cleanup(nmr_env,error=error)
-
-       END IF
-
+       CALL section_vals_get(prop_section,explicit=nmr_present,error=error)
        prop_section => section_vals_get_subs_vals(lr_section,"EPR",error=error)
-       CALL section_vals_get(prop_section,explicit=was_present,error=error)
-       IF(was_present)THEN
-         IF(dft_control%nspins/=2)THEN
-           CALL stop_program(routineP,&
-                             "LSD is needed to perform a g tensor calculation!")
-         ELSE
-           linres_control%property = lr_gtensor
-           linres_control%do_kernel = .FALSE.
-
-           IF(.NOT.linres_control%localized_psi0) THEN
+       CALL section_vals_get(prop_section,explicit=epr_present,error=error)
+       IF(nmr_present.OR.epr_present)THEN
+          linres_control%property = lr_current
+          linres_control%do_kernel = .FALSE.
+          IF(.NOT.linres_control%localized_psi0) THEN
              CALL stop_program(routineP,&
-                  "Are you sure that you want to calculate the g tensor without localized psi0??")
- 
+                  "Are you sure that you want to calculate the chemical"//&
+                  " shift without localized psi0??")
              CALL linres_localize(linres_control%localized_wfn_control,qs_env,&
-                                  dft_control%nspins,centers_only=.TRUE.,error=error)
-           END IF
+                  dft_control%nspins,centers_only=.TRUE.,error=error)
+          ENDIF
+          IF(dft_control%nspins/=2.AND.epr_present) THEN
+             CALL stop_program(routineP,&
+                  "LSD is needed to perform a g tensor calculation!")
+          ENDIF
 
-           !Initialize the epr environment
-           epr_env%ref_count=0
-           CALL epr_env_init(epr_env,qs_env,error=error)
-           CALL epr_operators(epr_env,qs_env,error=error)
-           CALL epr_do_epr(epr_env,p_env,qs_env,error=error)
-           CALL epr_g_zke(epr_env,qs_env,error=error)
-           CALL epr_nablavks(epr_env,qs_env,error=error)
-           CALL epr_g_so(epr_env,qs_env,error=error)
-           CALL epr_g_soo(epr_env,qs_env,error=error)
-           CALL epr_g_print(epr_env,qs_env,error=error)
-           CALL epr_env_cleanup(epr_env,error=error)
-         END IF
-       END IF
+          !Initialize the current environment
+          current_env%ref_count=0
+          CALL current_env_init(current_env,qs_env,error=error)
+          CALL current_operators(current_env,qs_env,error=error)
+          CALL current_do_current(current_env,p_env,qs_env,error=error)
+          !
+          ! Compute NMR shift
+          IF(nmr_present) THEN
+             nmr_env%ref_count=0
+             CALL nmr_env_init(nmr_env,qs_env,error=error)
+             CALL nmr_shift(nmr_env,current_env,qs_env,error=error)
+             CALL nmr_shift_print(nmr_env,qs_env,error=error)
+             CALL nmr_env_cleanup(nmr_env,error=error)
+          ENDIF
+          !
+          ! Compute EPR
+          IF(epr_present) THEN
+             epr_env%ref_count=0
+             CALL epr_env_init(epr_env,qs_env,error=error)
+             CALL epr_ind_magnetic_field(epr_env,current_env,qs_env,error=error)
+             CALL epr_g_zke(epr_env,qs_env,error=error)
+             CALL epr_nablavks(epr_env,qs_env,error=error)
+             CALL epr_g_so(epr_env,current_env,qs_env,error=error)
+             CALL epr_g_soo(epr_env,qs_env,error=error)
+             CALL epr_g_print(epr_env,qs_env,error=error)
+             CALL epr_env_cleanup(epr_env,error=error)
+          ENDIF
+          !
+          ! Finalized the current environment
+          CALL current_env_cleanup(current_env,error=error)
+       ENDIF
 
-      ! Other possible LR calculations can be introduced here
+       ! Other possible LR calculations can be introduced here
       
        CALL p_env_release(p_env,error=error)
 

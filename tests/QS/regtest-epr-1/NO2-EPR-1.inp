@@ -32,6 +32,10 @@
        &LOCALIZE
          MAX_ITER 10
        &END LOCALIZE
+       &CURRENT
+          GAUGE R_AND_STEP_FUNCTION
+          FULL F
+       &END CURRENT
        &EPR
          &PRINT
             &G_TENSOR

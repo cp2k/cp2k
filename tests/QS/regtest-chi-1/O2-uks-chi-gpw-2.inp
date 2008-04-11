@@ -30,8 +30,10 @@
        MAX_SCF 10
        LINESEARCH 2PNT
        PRECONDITIONER FULL_ALL
+       &CURRENT
+          FULL T
+       &END CURRENT
        &NMR
-          FULL
        &END
     &END
   &END

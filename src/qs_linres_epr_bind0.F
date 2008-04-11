@@ -40,9 +40,11 @@ MODULE qs_linres_epr_bind0
                                              pw_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_linres_epr_op,                ONLY: ind_m2,&
+  USE qs_linres_op,                    ONLY: ind_m2,&
                                              set_vecp
-  USE qs_linres_types,                 ONLY: epr_env_type,&
+  USE qs_linres_types,                 ONLY: current_env_type,&
+                                             epr_env_type,&
+                                             get_current_env,&
                                              get_epr_env
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
@@ -71,9 +73,10 @@ MODULE qs_linres_epr_bind0
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE chicorr_analytic(epr_env,qs_env,ispin,iB,error)
+  SUBROUTINE chicorr_analytic(epr_env,current_env,qs_env,ispin,iB,error)
     !
     TYPE(epr_env_type)                       :: epr_env
+    TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: ispin, iB
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -143,6 +146,9 @@ CONTAINS
     !gapw=.FALSE.
 
     CALL get_epr_env(epr_env=epr_env,&
+         &           error=error)
+
+    CALL get_current_env(current_env=current_env,&
          &           nao=nao,&
          &           nstates=nstates,&
          &           centers_set=centers_set,&
@@ -151,6 +157,7 @@ CONTAINS
          &           psi1_rxp=psi1_rxp,&
          &           psi1_D=psi1_D,&
          &           error=error)
+
     !
     ! Allocate sparse matrices for dipole, quadrupole and their derivatives => 9x3
     ! Remember the derivatives are antisymmetric
@@ -256,7 +263,7 @@ CONTAINS
        CALL cp_fm_get_submatrix(psi1_rxp(ispin,iB)%matrix,vecbuf_1_rxp,1,&
             &                   istate,nao,1,transpose=.TRUE.,error=error)
        
-       IF(epr_env%full_epr) THEN
+       IF(current_env%full) THEN
           ! psi1_d_iB_istate
           CALL cp_fm_get_submatrix(psi1_D(ispin,iB)%matrix,vecbuf_1_d,1,istate,&
                &                   nao,1,transpose=.TRUE.,error=error)

@@ -6,14 +6,14 @@
 ! *****************************************************************************
 !> \brief Calculate the operators p rxp and D needed in the optimization
 !>      of the different contribution of the firs order response orbitals
-!>      in a nmr calculation
+!>      in a epr calculation
 !> \note
 !>      The interactions are considered only within the minimum image convention
 !> \par History
 !>       created 07-2005 [MI]
 !> \author MI
 ! *****************************************************************************
-MODULE qs_linres_nmr_op
+MODULE qs_linres_op
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type,&
@@ -39,13 +39,14 @@ MODULE qs_linres_nmr_op
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
+  USE orbital_pointers,                ONLY: coset
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_linres_types,                 ONLY: get_nmr_env,&
-                                             linres_control_type,&
-                                             nmr_env_type
+  USE qs_linres_types,                 ONLY: current_env_type,&
+                                             get_current_env,&
+                                             linres_control_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_operators_ao,                 ONLY: p_xyz_ao,&
@@ -60,9 +61,9 @@ MODULE qs_linres_nmr_op
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: nmr_operators
+  PUBLIC :: current_operators,fac_vecp,ind_m2,set_vecp,set_vecp_rev !epr_operators,
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_op'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_op'
 
 CONTAINS
 
@@ -82,13 +83,13 @@ CONTAINS
 !>      07.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE nmr_operators(nmr_env,qs_env,error)
+  SUBROUTINE current_operators(current_env,qs_env,error)
 
-    TYPE(nmr_env_type)                       :: nmr_env
+    TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_operators', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'current_operators', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, homo, i, iao, iatom, &
@@ -126,9 +127,10 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(atomic_kind_set,cell,dft_control,linres_control)
-    NULLIFY(logger,mos,particle_set,lr_section,fm_work1)
-    NULLIFY(basisfun_center, centers_set, p_psi0, rxp_psi0, op_p_ao, op_rmd_ao)
+    NULLIFY(atomic_kind_set,cell,dft_control,linres_control,&
+         &  logger,mos,particle_set,lr_section,fm_work1,&
+         &  basisfun_center,centers_set,p_psi0,rxp_psi0,&
+         &  op_p_ao,op_rmd_ao,vecbuf_c0)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -138,8 +140,8 @@ CONTAINS
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
                   extension=".linresLog",error=error)
     IF (output_unit>0) THEN
-      WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
-         "Calculation of the p and (r-d)xp operators applied to psi0"
+       WRITE(UNIT=output_unit,FMT="(T2,A,/)")&
+            "CURRENT| Calculation of the p and (r-d)xp operators applied to psi0"
     END IF
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
@@ -147,18 +149,17 @@ CONTAINS
                     mos=mos, para_env=para_env, &
                     particle_set=particle_set,error=error)
 
-    CALL get_nmr_env(nmr_env=nmr_env, nao=nao, centers_set=centers_set,&
-                     basisfun_center=basisfun_center, &
-                     p_psi0=p_psi0, rxp_psi0=rxp_psi0,&
-                     op_p_ao=op_p_ao, op_rmd_ao=op_rmd_ao,error=error)
+    CALL get_current_env(current_env=current_env, nao=nao, centers_set=centers_set,&
+                         basisfun_center=basisfun_center, &
+                         p_psi0=p_psi0, rxp_psi0=rxp_psi0,&
+                         op_p_ao=op_p_ao, op_rmd_ao=op_rmd_ao,error=error)
 
-    NULLIFY(vecbuf_c0)
     ALLOCATE(vecbuf_c0(1,nao),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO idir = 1,3
-      NULLIFY(vecbuf_Rmdc0(idir)%array)
-      ALLOCATE(vecbuf_Rmdc0(idir)%array(1,nao),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       NULLIFY(vecbuf_Rmdc0(idir)%array)
+       ALLOCATE(vecbuf_Rmdc0(idir)%array(1,nao),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END DO
 
     ! Calculate the (r - dk)xp operator applied to psi0k
@@ -169,9 +170,9 @@ CONTAINS
     ! the second term can be added in a second moment as a correction
     ! notice: (r-c) and p are operators, whereas (c-d) is a multiplicative factor
 
-!!$    !First term: operator matrix elements
-!!$    CALL rmc_x_p_xyz_ao(op_rmd_ao,qs_env,minimum_image=.FALSE.,error=error)
-!************************************************************
+    !    !First term: operator matrix elements
+    !    CALL rmc_x_p_xyz_ao(op_rmd_ao,qs_env,minimum_image=.FALSE.,error=error)
+    !************************************************************
     IF(output_unit>0) THEN
        WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
        WRITE(output_unit,*) 'rmc_x_p_xyz_ao: L is computed for each states'
@@ -209,9 +210,9 @@ CONTAINS
     chk(2) = checksum_matrix(op_rmd_ao(2)%matrix,para_env)
     chk(3) = checksum_matrix(op_rmd_ao(3)%matrix,para_env)
     IF(output_unit>0) THEN
-       WRITE(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_x =',chk(1)
-       WRITE(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_y =',chk(2)
-       WRITE(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum L_z =',chk(3)
+       WRITE(output_unit,'(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum L_x =',chk(1)
+       WRITE(output_unit,'(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum L_y =',chk(2)
+       WRITE(output_unit,'(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum L_z =',chk(3)
     ENDIF
     !
     ! Calculate the px py pz operators
@@ -222,9 +223,9 @@ CONTAINS
     chk(2) = checksum_matrix(op_p_ao(2)%matrix,para_env)
     chk(3) = checksum_matrix(op_p_ao(3)%matrix,para_env)
     IF(output_unit>0) THEN
-       WRITE(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum P_x =',chk(1)
-       WRITE(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum P_y =',chk(2)
-       WRITE(output_unit,'(A,E23.16)') 'nmr_operators: CheckSum P_z =',chk(3)
+       WRITE(output_unit,'(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum P_x =',chk(1)
+       WRITE(output_unit,'(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum P_y =',chk(2)
+       WRITE(output_unit,'(T2,A,E23.16)') 'CURRENT| current_operators: CheckSum P_z =',chk(3)
     ENDIF
     ! Apply the p operator to the psi0
     DO idir = 1,3
@@ -264,20 +265,20 @@ CONTAINS
     !Build 3 arrays where for each contracted basis function
     !the x y and z coordinates of the center are given
     DO iatom = 1,natom
-      DO iao = first_sgf(iatom),last_sgf(iatom)
-        DO idir = 1,3
-          nmr_env%basisfun_center(idir,iao) = particle_set(iatom)%r(idir)
-        END DO
-      END DO
+       DO iao = first_sgf(iatom),last_sgf(iatom)
+          DO idir = 1,3
+             current_env%basisfun_center(idir,iao) = particle_set(iatom)%r(idir)
+          END DO
+       END DO
     END DO
 
     !Calculate the second term of the operator state by state
     DO ispin = 1, -1!dft_control%nspins
        CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo,homo=homo)
 
-      !   Allocate full matrices as working storage in the calculation
-      !   of the rxp operator matrix. 3 matrices for the 3 Cartesian direction
-      !   plus one to apply the momentum oprator to the modified mos fm
+       !   Allocate full matrices as working storage in the calculation
+       !   of the rxp operator matrix. 3 matrices for the 3 Cartesian direction
+       !   plus one to apply the momentum oprator to the modified mos fm
        NULLIFY(tmp_fm_struct)
        CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
             ncol_global=homo,para_env=para_env,context=mo_coeff%matrix_struct%context,error=error)
@@ -288,43 +289,43 @@ CONTAINS
        CALL cp_fm_create (fm_work1,tmp_fm_struct,error=error)
        CALL cp_fm_struct_release ( tmp_fm_struct ,error=error)
 
-   ! This part should be done better, using the full matrix distribution
+       ! This part should be done better, using the full matrix distribution
        DO istate = 1,homo
-         CALL cp_fm_get_submatrix(mo_coeff,vecbuf_c0,1,istate,nao,1,transpose=.TRUE.,error=error)
-!!         !center of the localized psi0 state istate
-         dk(1:3) = centers_set(ispin)%array(1:3,istate)
-         DO idir = 1,3
-!!!  This loop should be distributed over the processors
-           DO iao = 1,nao
-             ck(1:3) = basisfun_center(1:3,iao)
-             ckdk = pbc(dk,ck,cell)
-             vecbuf_Rmdc0(idir)%array(1,iao) = vecbuf_c0(1,iao)*ckdk(idir)
-           END DO ! iao
-           CALL cp_fm_set_submatrix(fm_Rmd_mos(idir)%matrix,vecbuf_Rmdc0(idir)%array,&
-                1,istate,nao,1,transpose=.TRUE.,error=error)
-         END DO  ! idir
+          CALL cp_fm_get_submatrix(mo_coeff,vecbuf_c0,1,istate,nao,1,transpose=.TRUE.,error=error)
+          !center of the localized psi0 state istate
+          dk(1:3) = centers_set(ispin)%array(1:3,istate)
+          DO idir = 1,3
+             !  This loop should be distributed over the processors
+             DO iao = 1,nao
+                ck(1:3) = basisfun_center(1:3,iao)
+                ckdk = pbc(dk,ck,cell)
+                vecbuf_Rmdc0(idir)%array(1,iao) = vecbuf_c0(1,iao)*ckdk(idir)
+             END DO ! iao
+             CALL cp_fm_set_submatrix(fm_Rmd_mos(idir)%matrix,vecbuf_Rmdc0(idir)%array,&
+                  1,istate,nao,1,transpose=.TRUE.,error=error)
+          END DO  ! idir
        END DO  ! istate
-
+       
        DO idir = 1,3
-           CALL set_vecp(idir,ii,iii)
+          CALL set_vecp(idir,ii,iii)
 
-           !Add the second term to the idir component
-           CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
-           CALL cp_sm_fm_multiply(op_p_ao(iii)%matrix,fm_Rmd_mos(ii)%matrix,&
-                fm_work1,ncol=homo,alpha=-1.0_dp,error=error)
-           CALL cp_fm_scale_and_add(1.0_dp,rxp_psi0(ispin,idir)%matrix,&
-                1.0_dp, fm_work1,error=error)
-
-           CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
-           CALL cp_sm_fm_multiply(op_p_ao(ii)%matrix,fm_Rmd_mos(iii)%matrix,&
-                fm_work1,ncol=homo,alpha=-1.0_dp,error=error)
-           CALL cp_fm_scale_and_add(1.0_dp,rxp_psi0(ispin,idir)%matrix,&
-                -1.0_dp, fm_work1,error=error)
+          !Add the second term to the idir component
+          CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
+          CALL cp_sm_fm_multiply(op_p_ao(iii)%matrix,fm_Rmd_mos(ii)%matrix,&
+               fm_work1,ncol=homo,alpha=-1.0_dp,error=error)
+          CALL cp_fm_scale_and_add(1.0_dp,rxp_psi0(ispin,idir)%matrix,&
+               1.0_dp, fm_work1,error=error)
+          
+          CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
+          CALL cp_sm_fm_multiply(op_p_ao(ii)%matrix,fm_Rmd_mos(iii)%matrix,&
+               fm_work1,ncol=homo,alpha=-1.0_dp,error=error)
+          CALL cp_fm_scale_and_add(1.0_dp,rxp_psi0(ispin,idir)%matrix,&
+               -1.0_dp, fm_work1,error=error)
 
        END DO ! idir
 
        DO idir = 1,3
-         CALL cp_fm_release (fm_Rmd_mos(idir)%matrix,error=error)
+          CALL cp_fm_release (fm_Rmd_mos(idir)%matrix,error=error)
        END DO
        CALL cp_fm_release (fm_work1,error=error)
 
@@ -336,12 +337,88 @@ CONTAINS
     DEALLOCATE(vecbuf_c0,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO idir = 1,3
-      DEALLOCATE(vecbuf_Rmdc0(idir)%array,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(vecbuf_Rmdc0(idir)%array,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END DO
 
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE nmr_operators
+  END SUBROUTINE current_operators
 
-END MODULE qs_linres_nmr_op
+! *****************************************************************************
+  FUNCTION fac_vecp(a,b,c) RESULT(factor)
+
+    INTEGER                                  :: a, b, c
+    REAL(dp)                                 :: factor
+
+     factor = 0.0_dp
+
+     IF ((b.eq.a+1 .OR. b.eq.a-2) .AND. (c.eq.b+1 .OR. c.eq.b-2)) THEN
+       factor = 1.0_dp
+     ELSEIF ((b.eq.a-1 .OR. b.eq.a+2) .AND. (c.eq.b-1 .OR. c.eq.b+2)) THEN
+       factor = -1.0_dp
+     END IF
+
+  END FUNCTION fac_vecp
+
+! *****************************************************************************
+  FUNCTION ind_m2(ii,iii) RESULT(i)
+
+    INTEGER                                  :: ii, iii, i
+
+    INTEGER                                  :: l(3)
+
+     i = 0
+     l(1:3) = 0
+     IF(ii==0) THEN
+       l(iii) = 1
+     ELSEIF(iii==0) THEN
+       l(ii) = 1
+     ELSEIF(ii==iii) THEN
+       l(ii) = 2
+       i = coset(l(1),l(2),l(3)) - 1
+     ELSE
+       l(ii) = 1
+       l(iii) = 1
+     ENDIF
+     i = coset(l(1),l(2),l(3)) - 1
+  END FUNCTION ind_m2
+
+! *****************************************************************************
+  SUBROUTINE set_vecp(i1,i2,i3)
+
+    INTEGER, INTENT(IN)                      :: i1
+    INTEGER, INTENT(OUT)                     :: i2, i3
+
+    IF(i1==1) THEN
+      i2=2
+      i3=3
+    ELSEIF(i1==2) THEN
+      i2=3
+      i3=1
+    ELSEIF(i1==3) THEN
+      i2=1
+      i3=2
+    ELSE
+    END IF
+
+  END SUBROUTINE set_vecp
+! *****************************************************************************
+  SUBROUTINE set_vecp_rev(i1,i2,i3)
+
+    INTEGER, INTENT(IN)                      :: i1, i2
+    INTEGER, INTENT(OUT)                     :: i3
+
+    IF((i1+i2)==3) THEN
+      i3=3
+    ELSEIF((i1+i2)==4) THEN
+      i3=2
+    ELSEIF((i1+i2)==5) THEN
+      i3=1
+    ELSE
+    END IF
+
+  END SUBROUTINE set_vecp_rev
+
+END MODULE qs_linres_op
+

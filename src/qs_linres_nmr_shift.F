@@ -33,6 +33,7 @@ MODULE qs_linres_nmr_shift
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_rs_pool_types,                ONLY: cp_rs_pool_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -47,9 +48,12 @@ MODULE qs_linres_nmr_shift
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_grid_types,                   ONLY: pw_grid_type
-  USE pw_methods,                      ONLY: pw_transfer
+  USE pw_methods,                      ONLY: pw_axpy,&
+                                             pw_scale,&
+                                             pw_zero
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
+                                             pw_pool_p_type,&
                                              pw_pool_type
   USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc,&
                                              find_coeffs,&
@@ -67,9 +71,17 @@ MODULE qs_linres_nmr_shift
                                              pw_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_linres_nmr_op,                ONLY: ind_m2,&
-                                             set_vecp
-  USE qs_linres_types,                 ONLY: get_nmr_env,&
+  USE qs_grid_atom,                    ONLY: grid_atom_type
+  USE qs_harmonics_atom,               ONLY: harmonics_atom_type
+  USE qs_linres_nmr_epr_common_utils,  ONLY: mult_G_ov_G2_grid
+  USE qs_linres_op,                    ONLY: fac_vecp,&
+                                             ind_m2,&
+                                             set_vecp,&
+                                             set_vecp_rev
+  USE qs_linres_types,                 ONLY: current_env_type,&
+                                             get_current_env,&
+                                             get_nmr_env,&
+                                             jrho_atom_type,&
                                              nmr_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
@@ -83,6 +95,7 @@ MODULE qs_linres_nmr_shift
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE util,                            ONLY: get_limit
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -90,8 +103,8 @@ MODULE qs_linres_nmr_shift
   PRIVATE
 
   ! *** Public subroutines ***
-  PUBLIC :: chi_analytic, interpolate_shift_pwgrid, &
-       &    gsum_shift_pwgrid, mult_G_ov_G2_grid, nmr_print_shift
+  PUBLIC :: interpolate_shift_pwgrid, gsum_shift_pwgrid, nmr_shift_print,&
+       &    nmr_shift
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_shift'
 
@@ -99,15 +112,442 @@ MODULE qs_linres_nmr_shift
 
 CONTAINS
 
+  SUBROUTINE nmr_shift(nmr_env,current_env,qs_env,error)
+
+    TYPE(nmr_env_type)                       :: nmr_env
+    TYPE(current_env_type)                   :: current_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_shift', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iB, idir, idir2, &
+                                                idir3, iiB, iiiB, ispin, &
+                                                istat, natom, nspins
+    LOGICAL                                  :: failure, gapw
+    REAL(dp)                                 :: scale_fac
+    REAL(dp), DIMENSION(3, 3)                :: chi_tensor, chi_tensor_loc
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift, &
+                                                chemical_shift_loc, &
+                                                chemical_shift_nics, &
+                                                chemical_shift_nics_loc
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: pw_gspace_work, &
+                                                shift_pw_rspace
+    TYPE(pw_p_type), DIMENSION(:, :), &
+      POINTER                                :: shift_pw_gspace
+    TYPE(pw_p_type), POINTER                 :: rho_gspace, rho_rspace
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+
+    failure = .FALSE.
+    CALL timeset(routineN,"I"," ",handle)
+
+    NULLIFY(chemical_shift,chemical_shift_loc,chemical_shift_nics,chemical_shift_nics_loc,&
+         &  cell,dft_control,pw_env,auxbas_rs_pool,auxbas_pw_pool,rho_gspace,rho_rspace,&
+         &  pw_pools,particle_set)
+
+    CALL get_qs_env(qs_env=qs_env,cell=cell,dft_control=dft_control,&
+         &          particle_set=particle_set,error=error)
+
+    gapw = dft_control%qs_control%gapw
+    natom = SIZE(particle_set,1)
+    nspins = dft_control%nspins
+
+    CALL get_nmr_env(nmr_env=nmr_env,chemical_shift=chemical_shift,&
+                     chemical_shift_loc=chemical_shift_loc,&
+                     chemical_shift_nics=chemical_shift_nics,&
+                     chemical_shift_nics_loc=chemical_shift_nics_loc,&
+                     chi_tensor=chi_tensor,chi_tensor_loc=chi_tensor_loc,&
+                     error=error)
+
+    CALL get_current_env(current_env=current_env,error=error)
+
+
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+    CALL pw_env_get(pw_env,auxbas_rs_pool=auxbas_rs_pool,&
+         &          auxbas_pw_pool=auxbas_pw_pool,pw_pools=pw_pools,&
+         &          error=error)
+    !
+    ! Initialize
+    ! Allocate grids for the calculation of jrho and the shift
+    ALLOCATE(shift_pw_gspace(3,nspins),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO ispin = 1,nspins
+       DO idir = 1,3
+          CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw,&
+               &                  use_data=COMPLEXDATA1D,&
+               &                  in_space=RECIPROCALSPACE,error=error)
+          CALL pw_zero(shift_pw_gspace(idir,ispin)%pw)
+       ENDDO
+    ENDDO
+    CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_rspace%pw,&
+         &                 use_data=REALDATA3D,in_space=REALSPACE,error=error)
+    CALL pw_zero(shift_pw_rspace%pw)
+    CALL pw_pool_create_pw(auxbas_pw_pool,pw_gspace_work%pw,&
+            &              use_data=COMPLEXDATA1D,&
+            &              in_space=RECIPROCALSPACE,error=error)
+
+    CALL pw_zero(pw_gspace_work%pw)
+    !
+    nmr_env%chi_tensor(:,:)     = 0.0_dp
+    nmr_env%chi_tensor_loc(:,:) = 0.0_dp
+    nmr_env%chemical_shift(:,:,:)     = 0.0_dp
+    nmr_env%chemical_shift_loc(:,:,:) = 0.0_dp
+    IF(nmr_env%do_nics) THEN
+       nmr_env%chemical_shift_nics(:,:,:)     = 0.0_dp
+       nmr_env%chemical_shift_nics_loc(:,:,:) = 0.0_dp
+    ENDIF
+    !
+    DO iB = 1,3
+       !
+       CALL set_vecp(iB,iiB,iiiB)
+       !
+       DO ispin = 1,nspins
+          !
+          CALL chi_analytic_new(nmr_env,current_env,qs_env,ispin,iB,error=error)
+          DO idir3=1,3
+             ! set to zero for the calculation of the shift
+             CALL pw_zero(shift_pw_gspace(idir3,ispin)%pw)
+          ENDDO
+          !
+          DO idir = 1,3
+             rho_rspace => current_env%jrho1_set(idir,iB)%rho%rho_r(ispin)
+             rho_gspace => current_env%jrho1_set(idir,iB)%rho%rho_g(ispin)
+             ! Field gradient
+             ! loop over the Gvec  components: x,y,z
+             DO idir2 = 1,3
+                IF(idir /= idir2) THEN
+                   ! in reciprocal space multiply (G_idir2(i)/G(i)^2)J_(idir)(G(i))
+                   CALL mult_G_ov_G2_grid(cell,auxbas_pw_pool,rho_gspace,&
+                        &                 pw_gspace_work,idir2,0.0_dp,error=error)
+                   !
+                   ! scale and add to the correct component of the shift column
+                   CALL set_vecp_rev(idir,idir2,idir3)
+                   scale_fac=fac_vecp(idir3,idir2,idir)
+                   CALL pw_scale(pw_gspace_work%pw,scale_fac)
+                   CALL pw_axpy(pw_gspace_work%pw,shift_pw_gspace(idir3,ispin)%pw)
+                ENDIF
+             ENDDO
+             !
+          ENDDO ! idir
+       ENDDO ! ispin
+       !
+       ! compute shildings
+       DO ispin = 1,nspins
+          DO idir = 1,3
+             ! Here the shifts are computed from summation of the coeff on the G-grip .
+             CALL gsum_shift_pwgrid(nmr_env,pw_env,particle_set,cell,&
+                  &                 shift_pw_gspace(idir,ispin),iB,idir,&
+                  &                 error=error)
+             ! Here first G->R and then interpolation to get the shifts.
+             ! The interpolation doesnt work in parallel yet.
+             ! The choice between both methods should be left to the user.
+             !CALL pw_transfer(shift_pw_gspace(idir)%pw,shift_pw_rspace%pw)
+             !CALL interpolate_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_rspace,&
+             !             i_B,idir,nmr_section,error=error)
+          ENDDO
+       ENDDO
+       !
+       IF(gapw) THEN
+          DO idir = 1,3
+             ! Finally the radial functions are multiplied by the YLM and properly summed
+             ! The resulting array is J on the local grid. One array per atom.
+             ! Local contributions by numerical integration over the spherical grids
+             CALL nmr_shift_gapw(nmr_env,current_env,qs_env,iB,idir,error=error)
+          ENDDO ! idir
+       ENDIF
+    ENDDO
+    !
+    ! Dellocate grids for the calculation of jrho and the shift
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,pw_gspace_work%pw,error=error)
+    DO ispin = 1,dft_control%nspins
+       DO idir = 1,3
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw,error=error)
+       ENDDO
+    ENDDO
+    DEALLOCATE(shift_pw_gspace,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_rspace%pw,error=error)
+    !
+    ! Finalize
+    CALL timestop(0.0_dp,handle)
+    !
+  END SUBROUTINE nmr_shift
+
+  SUBROUTINE nmr_shift_gapw(nmr_env,current_env,qs_env,iB,idir,error)
+
+    TYPE(nmr_env_type)                       :: nmr_env
+    TYPE(current_env_type)                   :: current_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: IB, idir
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'nmr_shift_gapw', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, ia, iat, iatom, idir2, idir3, ikind, ir, ispin, istat, &
+      jatom, mepos, n_nics, na, natom, natom_tot, nkind, nr, nspins, num_pe, &
+      output_unit
+    INTEGER, DIMENSION(2)                    :: bo
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: failure, jatomisneighbor, &
+                                                paw_atom
+    REAL(dp) :: ddiff, distance, itegrated_jrho, jrho1_tot, r_iatom(3), &
+      r_jatom(3), rdiff(3), rij(3), rvec(3), scale_fac, threshold
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: chemical_shift_loc_tmp
+    REAL(dp), DIMENSION(:, :), POINTER       :: jrho_h_grid, jrho_s_grid, &
+                                                r_nics
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift_loc, &
+                                                chemical_shift_nics_loc
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(grid_atom_type), POINTER            :: grid_atom
+    TYPE(harmonics_atom_type), POINTER       :: harmonics
+    TYPE(jrho_atom_type), DIMENSION(:), &
+      POINTER                                :: jrho1_atom_set
+    TYPE(jrho_atom_type), POINTER            :: jrho1_atom
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+
+!
+!
+
+    CALL timeset(routineN,"I"," ",handle)
+    !
+    failure =.FALSE.
+    NULLIFY(atomic_kind_set,cell,dft_control,para_env,particle_set,&
+         &  chemical_shift_loc,chemical_shift_nics_loc,jrho1_atom_set,&
+         &  jrho1_atom,r_nics,jrho_h_grid,jrho_s_grid,atom_kind,&
+         &  atom_list,grid_atom,harmonics,logger)
+    !
+    logger => cp_error_get_logger(error)
+    output_unit= cp_logger_get_default_unit_nr(logger)
+    !
+    CALL get_qs_env(qs_env=qs_env,&
+         &          atomic_kind_set=atomic_kind_set,&
+         &          cell=cell,&
+         &          dft_control=dft_control,&
+         &          para_env=para_env,&
+         &          particle_set=particle_set,&
+         &          error=error)
+
+    CALL get_nmr_env(nmr_env=nmr_env,&
+         &           chemical_shift_loc=chemical_shift_loc,&
+         &           chemical_shift_nics_loc=chemical_shift_nics_loc,&
+         &           n_nics=n_nics,&
+         &           r_nics=r_nics,&
+         &           error=error)
+
+    CALL get_current_env(current_env=current_env,&
+         &               jrho1_atom_set=jrho1_atom_set,&
+         &               error=error)
+
+    !
+    nkind = SIZE(atomic_kind_set,1)
+    natom_tot = SIZE(particle_set,1)
+    nspins = dft_control%nspins
+    itegrated_jrho = 0.0_dp
+    !
+    ALLOCATE(chemical_shift_loc_tmp(3,natom_tot),STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    chemical_shift_loc_tmp = 0.0_dp
+    !
+    ! Loop over atoms to collocate the current on each atomic grid, JA
+    ! Per each JA, loop over the points where the shift needs to be computed
+    DO ikind = 1,nkind
+
+       NULLIFY(atom_kind,atom_list,grid_atom,harmonics)
+       atom_kind => atomic_kind_set(ikind)
+       CALL get_atomic_kind(atomic_kind=atom_kind,&
+            &               atom_list=atom_list,&
+            &               natom=natom,&
+            &               paw_atom=paw_atom,&
+            &               harmonics=harmonics,&
+            &               grid_atom=grid_atom)
+       !
+       na = grid_atom%ng_sphere
+       nr = grid_atom%nr
+       !
+       ! Quick cycle if needed
+       IF(.NOT.paw_atom) CYCLE
+       !
+       ! Distribute the atoms of this kind
+       num_pe = para_env%num_pe
+       mepos  = para_env%mepos
+       bo = get_limit( natom, num_pe, mepos )
+       !
+       DO iat = bo(1),bo(2)
+          iatom = atom_list(iat)
+          r_iatom(1:3) = pbc(particle_set(iatom)%r,cell)
+          !
+          NULLIFY(jrho1_atom,jrho_h_grid,jrho_s_grid)
+          jrho1_atom => jrho1_atom_set(iatom)
+          !
+          DO ispin = 1,nspins
+             jrho_h_grid => jrho1_atom%jrho_vec_rad_h(idir,iB,ispin)%r_coef
+             jrho_s_grid => jrho1_atom%jrho_vec_rad_s(idir,iB,ispin)%r_coef
+             !
+             ! loop over the atoms neighbors of iatom in terms of the current density
+             ! for each compute the contribution to the shift coming from the
+             ! local current density at iatom
+             DO ia = 1,na
+                DO ir = 1,nr
+                   !
+                   rvec(1) = grid_atom%rad(ir)*harmonics%a(1,ia)
+                   rvec(2) = grid_atom%rad(ir)*harmonics%a(2,ia)
+                   rvec(3) = grid_atom%rad(ir)*harmonics%a(3,ia)
+                   !
+                   !vw Can we compute that in calculate_jrho_atom_ang? wv!
+                   jrho1_tot = (jrho_h_grid(ir,ia)-jrho_s_grid(ir,ia)) * grid_atom%weight(ia,ir)
+                   itegrated_jrho = itegrated_jrho+jrho1_tot
+                   !
+                   ! local contribution to chi (NEEDS SOME MODIFICATIONS FOR PBC)
+                   DO idir2 = 1,3
+                      IF(idir2/=idir) THEN
+                         CALL set_vecp_rev(idir,idir2,idir3)
+                         scale_fac=fac_vecp(idir3,idir2,idir)
+                         nmr_env%chi_tensor_loc(idir3,iB)=nmr_env%chi_tensor_loc(idir3,iB)+&
+                              & scale_fac*(jrho1_tot)*nmr_env%chi_factor*&
+                              & (rvec(idir2)+particle_set(iatom)%r(idir2))
+                      ENDIF
+                   ENDDO
+                   !
+                   !
+                   DO jatom = 1,natom_tot
+                      ! be sure you take the minimum image
+                      rij(1:3) = pbc(particle_set(iatom)%r,particle_set(jatom)%r,cell)
+                      distance = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
+                      ! the right thing to do is to build a list of neighbors, but for the time being
+                      ! let's simply use a cutoff here
+
+! my_minimum_image = .FALSE.
+! IF(PRESENT(minimum_image)) THEN
+!    my_minimum_image=minimum_image
+!    Lxo2 = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) )/2.0_dp
+!    Lyo2 = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) )/2.0_dp
+!    Lzo2 = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) )/2.0_dp
+! END IF
+!         IF(my_minimum_image) THEN
+!           IF(ABS(rab(1)) > Lxo2 .OR. ABS(rab(2)) > Lyo2 .OR. ABS(rab(3)) > Lzo2) THEN
+!             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+!             CYCLE
+!           END IF
+!         END IF
+
+                      threshold = 60.0_dp
+                      jatomisneighbor = (distance .LE. threshold)
+                      IF(jatomisneighbor) THEN
+
+                         rdiff(1) = rij(1) - rvec(1)
+                         rdiff(2) = rij(2) - rvec(2)
+                         rdiff(3) = rij(3) - rvec(3)
+                         ddiff = SQRT( rdiff(1)*rdiff(1)+ rdiff(2)*rdiff(2) + rdiff(3)*rdiff(3))
+                         ! the component idir of J contributes to the components idir2/=idir of the shift
+                         DO idir2 = 1,3
+
+                            IF(idir2/=idir) THEN
+                               CALL set_vecp_rev(idir,idir2,idir3)
+                               scale_fac=fac_vecp(idir3,idir2,idir)
+
+                               IF(ddiff.GT.1.0E-12_dp) THEN
+                                  chemical_shift_loc_tmp(idir3,jatom) = &
+                                       chemical_shift_loc_tmp(idir3,jatom) + &
+                                       scale_fac*rdiff(idir2) * jrho1_tot/(ddiff*ddiff*ddiff)
+                               ENDIF
+
+                            ENDIF
+                         ENDDO ! idir2
+                         
+                      ENDIF
+
+                   ENDDO ! jatom
+
+                   IF(nmr_env%do_nics) THEN
+
+                      DO jatom = 1,n_nics
+                         r_jatom(1:3) = r_nics(1:3,jatom)
+                         rij(1:3) = pbc(particle_set(iatom)%r,r_jatom,cell)
+
+                         distance = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
+                         jatomisneighbor = (distance .LE. threshold)
+
+                         IF(jatomisneighbor) THEN
+
+                            rdiff(1) = rij(1) - rvec(1)
+                            rdiff(2) = rij(2) - rvec(2)
+                            rdiff(3) = rij(3) - rvec(3)
+                            ddiff = SQRT( rdiff(1)*rdiff(1)+ rdiff(2)*rdiff(2) + rdiff(3)*rdiff(3))
+                            ! the component idir of J contributes to the components idir2/=idir of the shift
+                            DO idir2 = 1,3
+
+                               IF(idir2/=idir) THEN
+                                  CALL set_vecp_rev(idir,idir2,idir3)
+                                  scale_fac=fac_vecp(idir3,idir2,idir)
+
+                                  IF(ddiff .GT. EPSILON(0.0_dp)) THEN
+                                     chemical_shift_nics_loc(idir3,iB,jatom) = &
+                                          chemical_shift_nics_loc(idir3,iB,jatom) + &
+                                          scale_fac*rdiff(idir2)*jrho1_tot/(ddiff*ddiff*ddiff)
+                                  ENDIF
+
+                               ENDIF
+                            ENDDO ! idir2
+                            
+                         ENDIF
+
+                      ENDDO ! jatom
+
+                   ENDIF ! do_nics
+                ENDDO ! ir
+             ENDDO ! ia
+          ENDDO ! ispin
+       ENDDO ! iat
+    ENDDO ! ikind
+    !
+    IF(output_unit>0) THEN
+       WRITE(output_unit,'(T2,A,E24.16)') 'Integrated local j_'&
+            &//ACHAR(idir+119)//ACHAR(iB+119)//'(r)=',itegrated_jrho
+    ENDIF
+    !
+    CALL mp_sum(chemical_shift_loc_tmp,para_env%group)
+    chemical_shift_loc(:,iB,:) = chemical_shift_loc(:,iB,:) &
+         & - nmr_env%shift_factor_gapw * chemical_shift_loc_tmp(:,:) / 2.0_dp
+    IF(nmr_env%do_nics) THEN
+       !here need a chemical_shift_nics_loc_tmp... also for chi_loc
+       CALL stop_program(routineP,"local nics needs some more work")
+       CALL mp_sum(chemical_shift_nics_loc,para_env%group)
+    ENDIF
+    !
+    DEALLOCATE(chemical_shift_loc_tmp,STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    !
+    CALL timestop(0.0_dp,handle)
+    !
+  END SUBROUTINE nmr_shift_gapw
+
 ! *****************************************************************************
-  SUBROUTINE chi_analytic(nmr_env,qs_env,ispin,iB,error)
+  SUBROUTINE chi_analytic_new(nmr_env,current_env,qs_env,ispin,iB,error)
     !
     TYPE(nmr_env_type)                       :: nmr_env
+    TYPE(current_env_type)                   :: current_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: ispin, iB
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'chi_analytic', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'chi_analytic_new', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, idir, idir2, ii, &
@@ -140,10 +580,12 @@ CONTAINS
       DIMENSION(:, :), POINTER               :: op_mom_der_ao
 
 !
+!
 
-    CALL timeset(routineN,"I"," ",handle)
-    
     failure = .FALSE.
+    !
+    CALL timeset(routineN,"I"," ",handle)
+    !
     NULLIFY(dft_control,matrix_s,mos,para_env)
     NULLIFY(mo_coeff,occupation)
     NULLIFY(op_mom_ao,op_mom_der_ao,centers_set)
@@ -172,6 +614,9 @@ CONTAINS
     !gapw=.FALSE.
 
     CALL get_nmr_env(nmr_env=nmr_env,&
+         &           error=error)
+
+    CALL get_current_env(current_env=current_env,&
          &           nao=nao,&
          &           nstates=nstates,&
          &           centers_set=centers_set,&
@@ -285,7 +730,7 @@ CONTAINS
        CALL cp_fm_get_submatrix(psi1_rxp(ispin,iB)%matrix,vecbuf_1_rxp,1,&
             &                   istate,nao,1,transpose=.TRUE.,error=error)
        
-       IF(nmr_env%full_nmr) THEN
+       IF(current_env%full) THEN
           ! psi1_d_iB_istate
           CALL cp_fm_get_submatrix(psi1_D(ispin,iB)%matrix,vecbuf_1_d,1,istate,&
                &                   nao,1,transpose=.TRUE.,error=error)
@@ -465,7 +910,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE chi_analytic
+  END SUBROUTINE chi_analytic_new
 
 ! *****************************************************************************
 !> \brief interpolate the shift calculated on the PW grid in order to ger
@@ -562,7 +1007,7 @@ CONTAINS
          R_iatom = pbc(particle_set(iatom)%r,cell)
          shift_val = Eval_Interp_Spl3_pbc(R_iatom,shiftspl%pw,error=error)
          chemical_shift(idir,i_B,iatom)= chemical_shift(idir,i_B,iatom)+&
-                                         nmr_env%shift_factor*shift_val
+                                         nmr_env%shift_factor * twopi**2 * shift_val
       END DO
 
       IF(nmr_env%do_nics) THEN
@@ -571,7 +1016,7 @@ CONTAINS
           R_iatom = pbc(ra,cell)
           shift_val = Eval_Interp_Spl3_pbc(R_iatom,shiftspl%pw,error)
           chemical_shift_nics(idir,i_B,iatom)= chemical_shift_nics(idir,i_B,iatom)+&
-                                               nmr_env%shift_factor*shift_val
+                                               nmr_env%shift_factor * twopi**2 * shift_val
         END DO
       END IF
 
@@ -627,7 +1072,7 @@ CONTAINS
           iatom = cs_atom_list(iat)
           R_iatom = pbc(particle_set(iatom)%r,cell)
           chemical_shift(idir,i_B,iatom)= chemical_shift(idir,i_B,iatom)+&
-               & nmr_env%shift_factor*REAL(gsumr(R_iatom,shift_pw_gspace%pw),dp)
+               & nmr_env%shift_factor * twopi**2 * REAL(gsumr(R_iatom,shift_pw_gspace%pw),dp)
        ENDDO
        !
        ! compute nics
@@ -635,7 +1080,7 @@ CONTAINS
           DO iat = 1,n_nics
              ra = pbc(r_nics(:,iat),cell)
              chemical_shift_nics(idir,i_B,iat)= chemical_shift_nics(idir,i_B,iat)+&
-                  & nmr_env%shift_factor*REAL(gsumr(ra,shift_pw_gspace%pw),dp)
+                  & nmr_env%shift_factor * twopi**2 * REAL(gsumr(ra,shift_pw_gspace%pw),dp)
           ENDDO
        ENDIF
     ENDIF
@@ -662,78 +1107,18 @@ CONTAINS
   END FUNCTION gsumr
 
 ! *****************************************************************************
-!> \brief Given the current density on the PW grid in reciprcal space
-!>       (obtained by FFT), calculate the integral
-!>         \int_{r}[ ((r-r') x j(r))/|r-r'|^3 ] = Bind(r')
-!>       which in reciprcal space reads  (for G/=0)
-!>          i G/|G|^2 x J(G)
-!> \note
-!>      The G=0 component is not comnputed here, but can be evaluated
-!>      through the susceptibility and added to the shift in a second time
-!> 
-!>      This method would not work for a non periodic system
-!>      It should be generalized like the calculation of Hartree
-!> \author MI
-! *****************************************************************************
-  SUBROUTINE  mult_G_ov_G2_grid(cell,pw_pool,rho_gspace,funcG_times_rho,idir,my_chi,error)
-
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(pw_p_type), POINTER                 :: rho_gspace
-    TYPE(pw_p_type)                          :: funcG_times_rho
-    INTEGER, INTENT(IN)                      :: idir
-    REAL(dp), INTENT(IN)                     :: my_chi
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    INTEGER                                  :: ig, ng
-    LOGICAL                                  :: failure
-    REAL(dp)                                 :: g2
-    TYPE(pw_grid_type), POINTER              :: grid
-    CHARACTER(len=*), PARAMETER :: routineN = 'mult_G_ov_G2_grid', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(pw_type), POINTER                   :: frho, influence_fn
-
-    failure = .FALSE.
-
-    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
-
-    CALL pw_pool_create_pw ( pw_pool, influence_fn,&
-               use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE ,error=error)
-
-    grid => influence_fn % pw_grid
-    DO ig = grid % first_gne0, grid % ngpts_cut_local
-       g2 = grid % gsq ( ig )
-       influence_fn%cc(ig) = gaussi * grid % g(idir,ig)/g2
-    END DO  ! ig
-    IF ( grid % have_g0 )  influence_fn%cc ( 1 ) = 0.0_dp
-
-    frho => funcG_times_rho%pw
-    CALL pw_transfer (rho_gspace%pw,frho)
-
-    ng = SIZE(grid % gsq)
-    frho%cc(1:ng) = frho%cc(1:ng)*influence_fn % cc  ( 1 : ng )
-    IF ( grid % have_g0 ) frho%cc(1) = my_chi
-
-    CALL pw_pool_give_back_pw(pw_pool,influence_fn,&
-         accept_non_compatible=.TRUE.,error=error)
-
-  END SUBROUTINE  mult_G_ov_G2_grid
-
-! *****************************************************************************
 !> \brief Shielding tensor and Chi are printed into a file
 !>       if required from input
 !>       It is possible to print only for a subset of atoms or
 !>       or points in non-ionic positions
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE nmr_print_shift(nmr_env,qs_env,nmr_section,error)
+  SUBROUTINE nmr_shift_print(nmr_env,qs_env,error)
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(section_vals_type), POINTER         :: nmr_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'nmr_print_shift', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'nmr_shift_print', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: element_symbol
@@ -750,7 +1135,7 @@ CONTAINS
       shift_tmp(3,3)
     REAL(dp), DIMENSION(:, :), POINTER       :: r_nics
     REAL(dp), DIMENSION(:, :, :), POINTER :: chemical_shift, &
-      chemical_shift_loc, chemical_shift_loc_nics, chemical_shift_nics, &
+      chemical_shift_loc, chemical_shift_nics, chemical_shift_nics_loc, &
       chemical_shift_nics_tot, chemical_shift_tot
     REAL(dp), EXTERNAL                       :: DDOT
     TYPE(atomic_kind_type), POINTER          :: atom_kind
@@ -758,23 +1143,27 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: lr_section, nmr_section
 
     failure = .FALSE.
 
     NULLIFY (chemical_shift, chemical_shift_nics, r_nics)
-    NULLIFY (chemical_shift_loc, chemical_shift_loc_nics)
+    NULLIFY (chemical_shift_loc, chemical_shift_nics_loc)
     NULLIFY (logger, particle_set,atom_kind,dft_control)
+
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit = -1
-    IF (ionode) THEN
-      output_unit= cp_logger_get_default_unit_nr(logger)
-    END IF
+    output_unit= cp_logger_get_default_unit_nr(logger)
+
+    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
+    nmr_section => section_vals_get_subs_vals(qs_env%input, &
+                                                 "PROPERTIES%LINRES%NMR",error=error)
+
 
     CALL get_nmr_env(nmr_env, chemical_shift=chemical_shift, &
          chemical_shift_nics=chemical_shift_nics, &
          chemical_shift_loc=chemical_shift_loc, &
-         chemical_shift_loc_nics=chemical_shift_loc_nics, &
+         chemical_shift_nics_loc=chemical_shift_nics_loc, &
          chi_tensor=chi_tensor, chi_tensor_loc=chi_tensor_loc,&
          cs_atom_list=cs_atom_list, n_nics=n_nics, r_nics=r_nics,error=error)
 
@@ -907,12 +1296,10 @@ CONTAINS
        CALL get_atomic_kind(atom_kind,name=name,element_symbol=element_symbol)
        DO i = 1,3
           DO j = 1,3
-             ! here we need to multiply chi and the shift by some factors
              chemical_shift_tot(i,j,ir) = chi_tensor(i,j) * nmr_env%chi_SI2shiftppm &
-                  & + chemical_shift(i,j,iatom) * twopi**2
+                  & + chemical_shift(i,j,iatom)
              IF(gapw) THEN
-                !vw there is a sign problem here wv!
-                chemical_shift_tot(i,j,ir) = chemical_shift_tot(i,j,ir)-chemical_shift_loc(i,j,iatom) * 0.5_dp
+                chemical_shift_tot(i,j,ir) = chemical_shift_tot(i,j,ir)+chemical_shift_loc(i,j,iatom)
              ENDIF
           ENDDO
        ENDDO
@@ -934,8 +1321,6 @@ CONTAINS
        nat_print = SIZE(cs_atom_list,1)
        IF(unit_atoms > 0) THEN
           WRITE(title,'(A,1X,I5)') "Shielding atom at atomic positions. # tensors printed ", nat_print
-          WRITE(unit_atoms,'(T2,A)') "WARNING! SHIFTS ARE MULTIPLIED BY A MAGIC CONSTANT [4*Pi^2]!"
-          WRITE(unit_atoms,'(T2,A)') "WARNING! THE SHIFTS CONTAIN THE CHI CORRECTION!"
           WRITE(unit_atoms,'(T2,A)') title
           DO ir = 1,nat_print
              iatom = cs_atom_list(ir)
@@ -945,8 +1330,8 @@ CONTAINS
              DO i = 1,3
                 DO j = 1,3
                    shift_nosym(i,j) = chi_tensor(i,j) * nmr_env%chi_SI2shiftppm &
-                        &           + chemical_shift(i,j,iatom) * twopi**2
-                   IF(gapw) shift_nosym(i,j) = shift_nosym(i,j)-chemical_shift_loc(i,j,iatom)
+                        &           + chemical_shift(i,j,iatom)
+                   IF(gapw) shift_nosym(i,j) = shift_nosym(i,j)+chemical_shift_loc(i,j,iatom)
                 ENDDO
              ENDDO
              shift_sym = 0.5_dp*(shift_nosym+TRANSPOSE(shift_nosym))
@@ -958,13 +1343,13 @@ CONTAINS
              !
              IF(gapw) THEN
                 WRITE(unit_atoms,'(T1,A)') " SIGMA from SOFT J"
-                WRITE(unit_atoms,'(A,3f15.6)') 'S_x = ',chemical_shift(1,:,iatom) * twopi**2
-                WRITE(unit_atoms,'(A,3f15.6)') 'S_y = ',chemical_shift(2,:,iatom) * twopi**2
-                WRITE(unit_atoms,'(A,3f15.6)') 'S_z = ',chemical_shift(3,:,iatom) * twopi**2
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_x = ',chemical_shift(1,:,iatom)
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_y = ',chemical_shift(2,:,iatom)
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_z = ',chemical_shift(3,:,iatom)
                 WRITE(unit_atoms,'(T1,A)') " SIGMA from LOCAL J"
-                WRITE(unit_atoms,'(A,3f15.6)') 'S_x = ',-chemical_shift_loc(1,:,iatom)
-                WRITE(unit_atoms,'(A,3f15.6)') 'S_y = ',-chemical_shift_loc(2,:,iatom)
-                WRITE(unit_atoms,'(A,3f15.6)') 'S_z = ',-chemical_shift_loc(3,:,iatom)
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_x = ',chemical_shift_loc(1,:,iatom)
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_y = ',chemical_shift_loc(2,:,iatom)
+                WRITE(unit_atoms,'(A,3f15.6)') 'S_z = ',chemical_shift_loc(3,:,iatom)
                 WRITE(unit_atoms,'(T1,2(A,F13.4))') " SIGMA TOTAL ISO = ",shift_iso,&
                      & "   ANISO = ",shift_aniso
                 WRITE(unit_atoms,'(A,3f15.6)') 'S_x = ',shift_nosym(1, 1:3)
@@ -991,7 +1376,7 @@ CONTAINS
                 DO j = 1,3
                    ! here we need to multiply chi and the shift by some factors
                    chemical_shift_nics_tot(i,j,ir) = chi_tensor(i,j) * nmr_env%chi_SI2shiftppm &
-                        &                          + chemical_shift_nics(i,j,ir) * twopi**2
+                        &                          + chemical_shift_nics(i,j,ir)
                    IF(gapw) THEN
                       CALL stop_program(routineP,"GAPW and NICS doesnt work yet.")
                    ENDIF
@@ -1015,11 +1400,11 @@ CONTAINS
                 IF(gapw) THEN
                    CALL stop_program(routineP,"GAPW and NICS doesnt work yet.")
                    !WRITE(unit_nics,'(3f15.6,5x,3f15.6)') chemical_shift_nics(1, 1:3, iatom),&
-                   !     chemical_shift_loc_nics(1,1:3, iatom)
+                   !     chemical_shift_nics_loc(1,1:3, iatom)
                    !WRITE(unit_nics,'(3f15.6,5x,3f15.6)') chemical_shift_nics(2, 1:3, iatom),&
-                   !     chemical_shift_loc_nics(2,1:3, iatom)
+                   !     chemical_shift_nics_loc(2,1:3, iatom)
                    !WRITE(unit_nics,'(3f15.6,5x,3f15.6)') chemical_shift_nics(3, 1:3, iatom),&
-                   !     chemical_shift_loc_nics(3,1:3, iatom)
+                   !     chemical_shift_nics_loc(3,1:3, iatom)
                 ELSE
                    WRITE(unit_nics,'(3f15.6)') chemical_shift_nics_tot(1, 1:3, ir)
                    WRITE(unit_nics,'(3f15.6)') chemical_shift_nics_tot(2, 1:3, ir)
@@ -1040,7 +1425,7 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ENDIF
     !
-  END SUBROUTINE nmr_print_shift
+  END SUBROUTINE nmr_shift_print
 
 END MODULE qs_linres_nmr_shift
 

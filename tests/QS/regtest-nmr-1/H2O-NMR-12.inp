@@ -29,8 +29,11 @@
        MAX_SCF 100
        LINESEARCH 3PNT
        PRECONDITIONER FULL_H0
+       &CURRENT
+          GAUGE R_AND_STEP_FUNCTION
+          FULL T
+       &END CURRENT
        &NMR
-         FULL
        &END
     &END
   &END

@@ -12,7 +12,7 @@
 !>      created 02-2006 [MI]
 !> \author MI
 ! *****************************************************************************
-MODULE qs_linres_nmr_atom_current
+MODULE qs_linres_atom_current
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -23,9 +23,9 @@ MODULE qs_linres_nmr_atom_current
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
-  USE input_constants,                 ONLY: nmr_gauge_r,&
-                                             nmr_gauge_r_and_Bader,&
-                                             nmr_gauge_r_and_step_function
+  USE input_constants,                 ONLY: current_gauge_r,&
+                                             current_gauge_r_and_Bader,&
+                                             current_gauge_r_and_step_func
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: indso,&
@@ -76,7 +76,7 @@ MODULE qs_linres_nmr_atom_current
        &    calculate_jrho_atom
 
   ! *** Global parameters (only in this module)
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_atom_current'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_atom_current'
 
 CONTAINS
 
@@ -714,17 +714,17 @@ CONTAINS
        !
        ! Compute the gauge
        SELECT CASE(current_env%gauge)
-       CASE(nmr_gauge_r)
+       CASE(current_gauge_r)
           ! d(r)=r
           gauge_h(1:nr) = grid_atom%rad(1:nr)
           gauge_s(1:nr) = grid_atom%rad(1:nr)
-       CASE(nmr_gauge_r_and_bader)
+       CASE(current_gauge_r_and_bader)
           ! d_h(r)=r*(1-exp(-alpha*r**4)))
           ! d_s(r)=r*   exp(-alpha*r**4)
           alpha = LOG(2.0_dp*hard_radius)/hard_radius**4
           gauge_h(1:nr) = grid_atom%rad(1:nr)*(1.0_dp-EXP(-alpha*grid_atom%rad2(1:nr)*grid_atom%rad2(1:nr)))
           gauge_s(1:nr) = grid_atom%rad(1:nr)*        EXP(-alpha*grid_atom%rad2(1:nr)*grid_atom%rad2(1:nr))
-       CASE(nmr_gauge_r_and_step_function)
+       CASE(current_gauge_r_and_step_func)
           ! step function
           gauge_h(1:nr) = 0e0_dp
           DO ir=1,nr
@@ -1452,4 +1452,4 @@ CONTAINS
     !
   END SUBROUTINE list_3c_jrho_atom
 
-END MODULE qs_linres_nmr_atom_current
+END MODULE qs_linres_atom_current
