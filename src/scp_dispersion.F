@@ -17,8 +17,7 @@ MODULE  scp_dispersion
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cell_types,                      ONLY: cell_type,&
-                                             pbc
+  USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
@@ -84,8 +83,8 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: forces, ionode, my_debug
     REAL(dp)                                 :: alpha_a, alpha_b, dab, &
-                                                disp_factor, I_a, I_b, ra(3), &
-                                                rab(3), rab2, rb(3)
+                                                disp_factor, I_a, I_b, &
+                                                rab(3), rab2
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ff
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: vv
@@ -94,7 +93,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER :: dabdx, dabdy, dabdz, I_ab, I_dabdx, &
       I_dabdy, I_dabdz, I_tmp, rpgfa, rpgfb, sphia, sphib, vab, vab_plus, &
       zeta, zetb
-    REAL(kind=dp)                            :: e_scp!dbg, eloc
+    REAL(kind=dp)                            :: e_scp
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -113,6 +112,7 @@ CONTAINS
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(scp_force_type), POINTER            :: force(:)
 
+!dbg, eloc
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I"," ",handle)
