@@ -9,8 +9,7 @@
 !******************************************************************************
 
 MODULE  scp_dispersion
-  USE ai_coulomb,                      ONLY: coulomb2,&
-                                             coulomb2_new
+  USE ai_coulomb,                      ONLY: coulomb2_new
   USE ai_derivatives,                  ONLY: dabdr
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
