@@ -465,16 +465,15 @@ MODULE ai_coulomb
        DO jpgf=1,npgfc
 
           ! *** Screening ***
-
-          IF (rpgfa(ipgf) + rpgfc(jpgf) < dac) THEN
-             DO j=nc+ncoset(lc_min-1)+1,nc+ncoset(lc_max-maxder_local)
-                DO i=na+ncoset(la_min-1)+1,na+ncoset(la_max-maxder_local)
-                   vac(i,j) = 0.0_dp
-                END DO
-             END DO
-             nc = nc + ncoset(lc_max)
-             CYCLE
-          END IF
+         ! IF (rpgfa(ipgf) + rpgfc(jpgf) < dac) THEN
+         !    DO j=nc+ncoset(lc_min-1)+1,nc+ncoset(lc_max-maxder_local)
+         !       DO i=na+ncoset(la_min-1)+1,na+ncoset(la_max-maxder_local)
+         !          vac(i,j) = 0.0_dp
+         !       END DO
+         !    END DO
+         !    nc = nc + ncoset(lc_max)
+         !    CYCLE
+         ! END IF
 
           ! *** Calculate some prefactors ***
 

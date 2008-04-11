@@ -887,7 +887,7 @@ CONTAINS
         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "c_radius",nkind*dp_size)
         DO ikind = 1, nkind
-         c_radius(ikind) = 2.5_dp ! hard wired for now
+         c_radius(ikind) = 10.45_dp ! hard wired for now
         END DO
 
         CALL build_neighbor_lists(sab_scp,atom,cell,r_skin,maxatom_local,&
@@ -896,6 +896,27 @@ CONTAINS
 
         ! Put the generated neighbor lists into the QS environment
         CALL set_qs_env(qs_env=qs_env,sab_scp=sab_scp,error=error)
+        print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAB_SCP"
+        IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
+                   print_key_path,error=error),cp_p_file)) THEN
+          iw = cp_print_key_unit_nr(logger=logger,&
+                                    basis_section=force_env_section,&
+                                    print_key_path=print_key_path,&
+                                    extension=".out",&
+                                    middle_name="sab_scp",&
+                                    local=.TRUE.,&
+                                    log_filename=.FALSE.,&
+                                    file_position="REWIND",&
+                                    error=error)
+          CALL write_neighbor_lists(sab_scp,particle_set,cell,para_env,iw,&
+                                  "SCP DISPERSION PAIR POTENTIAL",error)
+          CALL cp_print_key_finished_output(unit_nr=iw,&
+                                            logger=logger,&
+                                            basis_section=force_env_section,&
+                                            print_key_path=print_key_path,&
+                                            local=.TRUE.,&
+                                            error=error)
+        END IF
         DEALLOCATE (c_radius,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"c_radius")
       END IF

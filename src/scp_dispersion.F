@@ -112,7 +112,6 @@ CONTAINS
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(scp_force_type), POINTER            :: force(:)
 
-!dbg, eloc
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I"," ",handle)
@@ -253,7 +252,7 @@ CONTAINS
                                  atom=iatom,&
                                  nnode=nnode)
 
-        !  ra(:) = pbc(particle_set(iatom)%r(:),cell)
+        !  ra(:) = pbc(particle_set(iatom)%r(:),cell) ! for debug only
 
           neighbor_node => first_node(neighbor_list)
 
@@ -267,9 +266,9 @@ CONTAINS
 
             IF ( forces ) dab = SQRT ( rab2 )
 
-        !    rb(:) = pbc(particle_set(jatom)%r,cell)
+        !    rb(:) = pbc(particle_set(jatom)%r,cell) ! for debug only
 
-        !    IF ( .NOT. my_debug ) THEN
+        !    IF ( .NOT. my_debug ) THEN  ! for debug only
         !     rab ( : ) = ra ( : ) - rb ( : )
         !     rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
         !    END IF 
@@ -379,19 +378,16 @@ CONTAINS
                          I_tmp(1,1),SIZE(I_tmp,1),&
                          0.0_dp,I_dabdz(1,1),SIZE(I_dabdz,1))
                    force_a = 0.0_dp
-                  ! eloc=0.0_dp  !dbg
                    DO ia = 1, nsgf_seta ( iseta )
                      DO ib = 1, nsgf_setb ( isetb )
              ! **** need to omit (s|s) ****
                        e_scp = e_scp + disp_factor * I_ab ( ia, ib )**2 
-                  !     eloc = eloc + disp_factor * I_ab ( ia, ib )**2 
                        force_a(1)=force_a(1)+2.0_dp*disp_factor*I_ab(ia,ib)*I_dabdx(ia,ib)
                        force_a(2)=force_a(2)+2.0_dp*disp_factor*I_ab(ia,ib)*I_dabdy(ia,ib)
                        force_a(3)=force_a(3)+2.0_dp*disp_factor*I_ab(ia,ib)*I_dabdz(ia,ib)
                      END DO
                    END DO
-                !  IF ( ionode ) &
-                !  WRITE ( 33, * ) iatom, jatom, dab, eloc
+                  IF ( ionode ) &
 !             ***  sum up in the force arrey  ***
               ! NOTE: This is the actual force, e.g. -d/dR
                    i_atom = atom_of_kind(iatom)
@@ -413,9 +409,12 @@ CONTAINS
                    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                    "I_dabdz.I_dabdy.I_dabdz")
                  ELSE
-                   CALL coulomb2( la_max ( iseta ), npgfa ( iseta ), z1, r1, la_min ( iseta ), &
-                                  lb_max ( isetb ), npgfb ( isetb ), z2, r2, lb_min ( isetb ), &
-                                  rab, rab2, vab, vv, ff ( 0: ) )
+                   CALL coulomb2_new( la_max ( iseta )+1, npgfa ( iseta ), z1, r1, 0, &
+                                      lb_max ( isetb )+1, npgfb ( isetb ), z2, r2, 0, &
+                                      rab, rab2, vab, vv, ff ( 0: ) )
+                !   CALL coulomb2( la_max ( iseta ), npgfa ( iseta ), z1, r1, la_min ( iseta ), &
+                !                  lb_max ( isetb ), npgfb ( isetb ), z2, r2, lb_min ( isetb ), &
+                !                  rab, rab2, vab, vv, ff ( 0: ) )
 ! Contract over the cartesian orbital index to obtain integral
 ! block labeled by molecular orbitals
 ! vab->I_ab
