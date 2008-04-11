@@ -446,7 +446,7 @@ CONTAINS
             keyword=keyword,&
             name="NUMBER_OF_SHELLS",&
             description="Number of shells taken into account for periodicity",&
-            usage="CUTOFF_RADIUS 2",&
+            usage="NUMBER_OF_SHELLS 2",&
             default_i_val=0,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -500,6 +500,7 @@ CONTAINS
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(&
             keyword=keyword,&
             name="MAX_MEMORY",&
@@ -510,6 +511,42 @@ CONTAINS
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       
+!       CALL keyword_create(&
+!            keyword=keyword,&
+!            name="USE_DISK_STORAGE",&
+!            description="Expects a logical flag. If TRUE CP2K starts writing compressed "//&
+!                        "integrals to disk as soon as MAX_MEMORY is reached. "//&
+!                        " You must provide a storage loaction ",&
+!            usage="USE_DISK_STORAGE TRUE",&
+!            default_l_val=.FALSE.,&
+!            error=error)
+!       CALL section_add_keyword(section,keyword,error=error)
+!       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="STORAGE_LOCATION",&
+            description="Loaction where ERI's are stored if MAX_DISK_SPACE /=0 "//&
+                        "Expects a path to a directory. ",&
+            usage="STORAGE_LOCATION /data/scratch",&
+            default_c_val=".",&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="MAX_DISK_SPACE",&
+            description="Defines the maximum amount of disk space [MB] used to store precomputed "//&
+                         "compressed four-center integrals. If 0, nothing is stored to disk",&
+            usage="MAX_DISK_SPACE 256",&
+            default_i_val=0,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+ 
     END IF
  
   END SUBROUTINE create_hf_memory_section

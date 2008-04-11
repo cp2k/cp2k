@@ -199,10 +199,7 @@ CONTAINS
 !     *** for the Taylor series expansion      ***
 
       IF (nmax > current_nmax) THEN
-        !Since this initializes a module variable, it is not thread-safe
-        !$OMP CRITICAL
         CALL init_md_ftable(nmax)
-        !$OMP END CRITICAL
       END IF
 
 
@@ -333,10 +330,7 @@ CONTAINS
 !       *** for the Taylor series expansion      ***
 
         IF (nmax > current_nmax) THEN
-         !Since this initializes a module variable, it is not thread-safe
-         !$OMP CRITICAL
          CALL init_md_ftable(nmax)
-         !$OMP END CRITICAL
         END IF
 
         itab = NINT(t(i)/tdelta)

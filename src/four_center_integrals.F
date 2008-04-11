@@ -17,6 +17,7 @@ MODULE four_center_integrals
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erfc
+  USE gamma,                           ONLY: init_md_ftable
   USE input_constants,                 ONLY: do_hf_potential_coulomb,&
                                              do_hf_potential_gaussian,&
                                              do_hf_potential_id,&
@@ -127,15 +128,16 @@ MODULE four_center_integrals
       i_thread, iatom, ikind, iset, iw, jatom, jkind, jset, katom, kkind, &
       kset, latom, lkind, lset, ma, max_am, max_set, maxsgf, mb, mc, md, &
       my_bin_size, my_istart, my_jstart, my_kstart, my_lstart, n_threads, &
-      natom, nbins, nbits, nco_max, ncoa, ncob, ncoc, ncod, nints, nseta, &
-      nsetb, nsetc, nsetd, nsgfa_total, nsgfb_total, nsgfc_total, &
-      nsgfd_total, nspins, p_index, pa, pa1, pa2, pb, pb1, pb2, pc, pc1, pc2, &
-      pd, pd1, pd2, pgf_radius_box, radius1, radius2, sgfa, sgfb, sgfc, sgfd, &
-      stat
+      natom, nbits, nco_max, ncoa, ncob, ncoc, ncod, nints, nseta, nsetb, &
+      nsetc, nsetd, nsgfa_total, nsgfb_total, nsgfc_total, nsgfd_total, &
+      nspins, p_index, pa, pa1, pa2, pb, pb1, pb2, pc, pc1, pc2, pd, pd1, &
+      pd2, pgf_radius_box, radius1, radius2, sgfa, sgfb, sgfc, sgfd, stat
     INTEGER(int_8) :: box_idx1, box_idx2, box_idx3, box_idx4, &
-      estimate_to_store_int, mem_compression_counter, mem_eris, mem_maxvals, &
-      my_current_counter, my_original_cpu_id, n_processes, ncpu, &
-      neris_incore, neris_onthefly, neris_total, storage_counter_integrals
+      estimate_to_store_int, mem_compression_counter, &
+      mem_compression_counter_disk, mem_eris, mem_eris_disk, mem_maxvals, &
+      my_current_counter, my_original_cpu_id, n_processes, ncpu, neris_disk, &
+      neris_incore, neris_onthefly, neris_total, stor_count_int_disk, &
+      storage_counter_integrals
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of, last_sgf_global
     INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, lc_max, &
       lc_min, ld_max, ld_min, npgfa, npgfb, npgfc, npgfd, nsgfa, nsgfb, &
@@ -146,10 +148,11 @@ MODULE four_center_integrals
       do_periodic, failure, first_j_loop, first_k_loop, first_l_loop
     REAL(dp) :: actual_pmax_entry, bintime_start, bintime_stop, box_size(3), &
       box_size_inv(3), cartesian_estimate, center1(3), center2(3), &
-      center2_folded(3), compression_factor, current_max_error, ene_x_aa, &
-      ene_x_bb, eps_box, eps_schwarz, eps_storage, fac, hf_fraction, Kbox, &
-      ks_bc, ks_bd, ks_beta_bc, ks_beta_bd, max_contraction_val, max_val1, &
-      max_val2, omega2Inv, omega_box, p_bc, p_bd, p_beta_bc, p_beta_bd, &
+      center2_folded(3), compression_factor, compression_factor_disk, &
+      current_max_error, ene_x_aa, ene_x_bb, eps_box, eps_schwarz, &
+      eps_storage, fac, hf_fraction, Kbox, ks_bc, ks_bd, ks_beta_bc, &
+      ks_beta_bd, max_contraction_val, max_val1, max_val2, omega2Inv, &
+      omega_box, p_bc, p_bd, p_beta_bc, p_beta_bd, &
       p_screening_correction_factor, pbc_center(3), pmax_entry, R1, R2, &
       ra(3), rb(3), Rbox, rc(3), rd(3), screen_max, spherical_estimate, &
       symm_fac, temp(3), tmp
@@ -169,19 +172,23 @@ MODULE four_center_integrals
     TYPE(x_hf_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(x_hf_cache_type), DIMENSION(:), &
-      POINTER                                :: integral_caches
-    TYPE(x_hf_cache_type), POINTER           :: maxval_cache
+      POINTER                                :: integral_caches, &
+                                                integral_caches_disk
+    TYPE(x_hf_cache_type), POINTER           :: maxval_cache, &
+                                                maxval_cache_disk
     TYPE(x_hf_container_type), &
-      DIMENSION(:), POINTER                  :: integral_containers
-    TYPE(x_hf_container_type), POINTER       :: maxval_container
+      DIMENSION(:), POINTER                  :: integral_containers, &
+                                                integral_containers_disk
+    TYPE(x_hf_container_type), POINTER       :: maxval_container, &
+                                                maxval_container_disk
     TYPE(x_hf_general_type)                  :: general_parameter
     TYPE(x_hf_load_balance_type)             :: load_balance_parameter
-    TYPE(x_hf_memory_type)                   :: memory_parameter
+    TYPE(x_hf_memory_type), POINTER          :: memory_parameter
     TYPE(x_hf_potential_type)                :: potential_parameter
     TYPE(x_hf_screening_type)                :: screening_parameter
     TYPE(x_hf_type), POINTER                 :: actual_x_data
 
-    !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
+!$  INTEGER :: omp_get_max_threads,omp_get_thread_num
     REAL(dp), DIMENSION(:, :, :, :), &
               POINTER, SAVE                  :: shm_initial_p
     REAL(dp), DIMENSION(:, :, :, :), &
@@ -191,15 +198,29 @@ MODULE four_center_integrals
     INTEGER, SAVE                            :: shm_number_of_p_entries
     INTEGER, DIMENSION(:,:), POINTER, SAVE   :: shm_is_assoc_atomic_block
     INTEGER(int_8)                           :: shm_neris_total, shm_neris_onthefly, &
-                                                shm_storage_counter_integrals, shm_neris_incore
+                                                shm_storage_counter_integrals, shm_neris_incore, &
+                                                shm_neris_disk, shm_stor_count_int_disk
+    LOGICAL                                  :: do_disk_storage, use_disk_storage
+    INTEGER(int_8)                           :: counter
+    INTEGER                                  :: nkind, l_max
 
-   
- 
+
+
     CALL mp_sync(para_env%group)
     CALL timeset(routineN,"I",'',handle)
 
-    ncpu = para_env%num_pe
-    nbins = qs_env%x_data(1,1)%load_balance_parameter%nbins 
+    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, error=error)
+
+    !! Calculate l_max used in fgamma , because init_md_ftable is definitely not thread safe
+    nkind = SIZE(atomic_kind_set,1)
+    l_max = 0
+    DO ikind=1,nkind
+      l_max = MAX(l_max,MAXVAL(qs_env%x_data(1,1)%basis_parameter(ikind)%lmax))
+    ENDDO
+    l_max = 4*l_max 
+    CALL init_md_ftable(l_max)
+
+
     n_threads = 1
 !$  n_threads = omp_get_max_threads()
     ALLOCATE(lib(n_threads), STAT=stat)
@@ -207,7 +228,9 @@ MODULE four_center_integrals
     shm_neris_total = 0 
     shm_neris_onthefly = 0
     shm_storage_counter_integrals = 0
+    shm_stor_count_int_disk = 0
     shm_neris_incore = 0
+    shm_neris_disk = 0
 
 !$OMP PARALLEL DEFAULT(PRIVATE) SHARED(qs_env,&
 !$OMP                                  ks_matrix,&
@@ -238,7 +261,9 @@ MODULE four_center_integrals
 !$OMP                                  shm_neris_total,&
 !$OMP                                  shm_neris_onthefly,&
 !$OMP                                  shm_storage_counter_integrals,&
+!$OMP                                  shm_stor_count_int_disk,&
 !$OMP                                  shm_neris_incore,&
+!$OMP                                  shm_neris_disk,&
 !$OMP                                  box_size,&
 !$OMP                                  box_size_inv)
 
@@ -260,7 +285,7 @@ MODULE four_center_integrals
 
     general_parameter      = actual_x_data%general_parameter
     load_balance_parameter = actual_x_data%load_balance_parameter
-    memory_parameter       = actual_x_data%memory_parameter
+    memory_parameter       => actual_x_data%memory_parameter
 
     maxval_container       => actual_x_data%maxval_container
     maxval_cache           => actual_x_data%maxval_cache
@@ -268,34 +293,76 @@ MODULE four_center_integrals
     integral_containers    => actual_x_data%integral_containers
     integral_caches        => actual_x_data%integral_caches
 
-    basis_parameter        => actual_x_data%basis_parameter
+    maxval_container_disk       => actual_x_data%maxval_container_disk
+    maxval_cache_disk           => actual_x_data%maxval_cache_disk
+
+    integral_containers_disk    => actual_x_data%integral_containers_disk
+    integral_caches_disk        => actual_x_data%integral_caches_disk
+
+
+    basis_parameter   => actual_x_data%basis_parameter
 
     !! initalize some counters
     neris_total = 0_int_8
     neris_incore = 0_int_8
+    neris_disk = 0_int_8
     neris_onthefly = 0_int_8
     mem_eris = 0_int_8
+    mem_eris_disk = 0_int_8
     mem_maxvals = 0_int_8
     compression_factor = 0.0_dp
+    compression_factor_disk = 0.0_dp
 
+
+    use_disk_storage = .FALSE.
+    counter = 0_int_8
+    do_disk_storage = memory_parameter%do_disk_storage
+    IF(geometry_did_change) THEN
+     memory_parameter%ram_counter = HUGE(memory_parameter%ram_counter) 
+    END IF
+   
     !! We do not need the containers if MAX_MEM = 0
     IF(.NOT. memory_parameter%do_all_on_the_fly) THEN 
       !! IF new md step -> reinitialize containers
       IF(geometry_did_change) THEN
-        CALL x_hf_init_container(maxval_container, memory_parameter%actual_memory_usage, error)
+        CALL x_hf_init_container(6, maxval_container, memory_parameter%actual_memory_usage, .FALSE., error)
         DO i=1,64
-          CALL x_hf_init_container(integral_containers(i),memory_parameter%actual_memory_usage, error)
+          CALL x_hf_init_container(6, integral_containers(i),memory_parameter%actual_memory_usage, .FALSE., error)
         END DO
       END IF
 
       !! Decompress the first cache for maxvals and integrals
       IF( .NOT. geometry_did_change) THEN
-        CALL x_hf_decompress_first_cache(6, maxval_cache, maxval_container, memory_parameter%actual_memory_usage)
+        CALL x_hf_decompress_first_cache(6, maxval_cache, maxval_container, memory_parameter%actual_memory_usage, .FALSE.)
         DO i=1,64
-          CALL x_hf_decompress_first_cache(i, integral_caches(i), integral_containers(i), memory_parameter%actual_memory_usage)
+          CALL x_hf_decompress_first_cache(i, integral_caches(i), integral_containers(i), &
+                                           memory_parameter%actual_memory_usage,.FALSE.)
         END DO
       END IF
     END IF
+    
+    !! Since the I/O routines are no thread-safe, i.e. the procedure to get the unit number, put a lock here
+!$OMP CRITICAL
+    !! If we do disk storage, we have to initialize the containers/caches
+    IF(do_disk_storage) THEN
+      !! IF new md step -> reinitialize containers
+      IF(geometry_did_change) THEN
+        CALL x_hf_init_container(6, maxval_container_disk, memory_parameter%actual_memory_usage_disk, do_disk_storage, error)
+        DO i=1,64
+          CALL x_hf_init_container(i, integral_containers_disk(i),memory_parameter%actual_memory_usage_disk, do_disk_storage, error)
+        END DO
+      END IF
+      !! Decompress the first cache for maxvals and integrals
+      IF( .NOT. geometry_did_change) THEN
+        CALL x_hf_decompress_first_cache(6, maxval_cache_disk, maxval_container_disk, &
+                                         memory_parameter%actual_memory_usage_disk, .TRUE.)
+        DO i=1,64
+          CALL x_hf_decompress_first_cache(i, integral_caches_disk(i), integral_containers_disk(i), &
+                                           memory_parameter%actual_memory_usage_disk, .TRUE.)
+        END DO
+      END IF
+    END IF
+!$OMP END CRITICAL
 
     !! Get screening parameter
     eps_schwarz = screening_parameter%eps_schwarz
@@ -323,7 +390,6 @@ MODULE four_center_integrals
     ELSE
       buffer_overflow = .TRUE.
     END IF
-
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
    
@@ -725,15 +791,44 @@ MODULE four_center_integrals
                   !! Loop over all sets of the current atomic quartet
     
                   !! At this stage, check for memory used in compression
-                  IF(.NOT.memory_parameter%do_all_on_the_fly) THEN
-                    mem_compression_counter = memory_parameter%actual_memory_usage *&
-                                              memory_parameter%cache_size
-                    IF(mem_compression_counter > memory_parameter%max_compression_counter) THEN
-                      buffer_overflow = .TRUE.
-                    ELSE
-                      buffer_overflow = .FALSE.
-                    END IF 
+
+                  IF(geometry_did_change ) THEN
+                    IF(.NOT.memory_parameter%do_all_on_the_fly) THEN
+                      mem_compression_counter = memory_parameter%actual_memory_usage *&
+                                                memory_parameter%cache_size
+                      IF(mem_compression_counter > memory_parameter%max_compression_counter) THEN
+                        buffer_overflow = .TRUE.
+                        memory_parameter%ram_counter = counter
+                      ELSE
+                        counter = counter + 1
+                        buffer_overflow = .FALSE.
+                      END IF 
+                    END IF
+                  ELSE
+                    IF(.NOT.memory_parameter%do_all_on_the_fly) THEN
+                      IF(memory_parameter%ram_counter == counter) THEN
+                        buffer_overflow = .TRUE.
+                      ELSE
+                        counter = counter + 1
+                       buffer_overflow = .FALSE.
+                      END IF
+                    END IF
                   END IF
+
+                  IF( buffer_overflow .AND. do_disk_storage ) THEN
+                    use_disk_storage = .TRUE.
+                    buffer_overflow = .FALSE.
+                  END IF
+                  
+                  IF( use_disk_storage ) THEN
+                    mem_compression_counter_disk = memory_parameter%actual_memory_usage_disk *&
+                                                   memory_parameter%cache_size
+                    IF(mem_compression_counter_disk > memory_parameter%max_compression_counter_disk) THEN
+                      buffer_overflow = .TRUE.
+                      use_disk_storage = .FALSE.
+                    END IF
+                  END IF
+                 
                   DO iset = 1, nseta
                     ncoa = npgfa(iset)*ncoset(la_max(iset))
                     sgfa = first_sgfa(1,iset)
@@ -861,16 +956,23 @@ MODULE four_center_integrals
   
                           !! store current number of integrals, update total number and number of integrals in buffer
                           current_counter = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
-  
                           IF(buffer_overflow) THEN
                             neris_onthefly = neris_onthefly + current_counter 
                           END IF
   
                           !! Get integrals from buffer and update Kohn-Sham matrix
-                          IF(.NOT.buffer_overflow .AND. .NOT.geometry_did_change) THEN 
-                            nints = current_counter 
-                            CALL x_hf_get_single_cache_element(estimate_to_store_int, 6,&
-                                                               maxval_cache, maxval_container, memory_parameter%actual_memory_usage)
+                          IF(.NOT.buffer_overflow .AND. .NOT.geometry_did_change) THEN
+                            nints = current_counter
+                            IF(.NOT. use_disk_storage) THEN
+                              CALL x_hf_get_single_cache_element(estimate_to_store_int, 6,&
+                                                       maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
+                                                       use_disk_storage)
+                            ELSE
+                               CALL x_hf_get_single_cache_element(estimate_to_store_int, 6,&
+                                                       maxval_cache_disk, maxval_container_disk, &
+                                                       memory_parameter%actual_memory_usage_disk, &
+                                                       use_disk_storage)
+                            END IF
                             spherical_estimate = SET_EXPONENT(1.0_dp,estimate_to_store_int+1)
                             IF(spherical_estimate*pmax_entry<eps_schwarz) CYCLE
                             nbits = EXPONENT(spherical_estimate*pmax_entry/eps_storage) + 1                         
@@ -878,12 +980,23 @@ MODULE four_center_integrals
                             buffer_start = 1
                             DO WHILE (buffer_left > 0 )
                               buffer_size = MIN(buffer_left, cache_size)
-                              CALL x_hf_get_mult_cache_elements(T1(buffer_start), &
-                                                                buffer_size, nbits, &
-                                                                integral_caches(nbits), &
-                                                                integral_containers(nbits), &
-                                                                eps_storage, pmax_entry, memory_parameter%actual_memory_usage,&
-                                                                error)
+                              IF(.NOT. use_disk_storage) THEN
+                                CALL x_hf_get_mult_cache_elements(T1(buffer_start), &
+                                                                  buffer_size, nbits, &
+                                                                  integral_caches(nbits), &
+                                                                  integral_containers(nbits), &
+                                                                  eps_storage, pmax_entry, &
+                                                                  memory_parameter%actual_memory_usage, &
+                                                                  use_disk_storage, error)
+                              ELSE
+                                CALL x_hf_get_mult_cache_elements(T1(buffer_start), &
+                                                                  buffer_size, nbits, &
+                                                                  integral_caches_disk(nbits), &
+                                                                  integral_containers_disk(nbits), &
+                                                                  eps_storage, pmax_entry, &
+                                                                  memory_parameter%actual_memory_usage_disk, &
+                                                                  use_disk_storage, error)
+                              END IF
                               buffer_left = buffer_left - buffer_size
                               buffer_start = buffer_start + buffer_size
                             END DO 
@@ -1013,10 +1126,19 @@ MODULE four_center_integrals
                             cartesian_estimate = SET_EXPONENT(1.0_dp,estimate_to_store_int+1)
                             IF(.NOT.buffer_overflow .AND. geometry_did_change) THEN
                               IF(cartesian_estimate < eps_schwarz ) THEN
-                                CALL x_hf_add_single_cache_element(estimate_to_store_int, 6,&
-                                                  maxval_cache, maxval_container, memory_parameter%actual_memory_usage, error)
+                                IF(.NOT. use_disk_storage) THEN
+                                  CALL x_hf_add_single_cache_element(estimate_to_store_int, 6,&
+                                                  maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
+                                                  use_disk_storage, error)
+                                ELSE
+                                  CALL x_hf_add_single_cache_element(estimate_to_store_int, 6,&
+                                                  maxval_cache_disk, maxval_container_disk, &
+                                                  memory_parameter%actual_memory_usage_disk, &
+                                                  use_disk_storage, error)
+                                END IF
                               END IF
                             END IF
+
                             IF(cartesian_estimate<eps_schwarz) CYCLE 
                             CALL dgemm("T","N",ncob*ncoc*ncod,nsgfa(iset),ncoa,&
                                        1.0_dp, primitive_integrals(1),ncoa,&
@@ -1047,25 +1169,45 @@ MODULE four_center_integrals
                             estimate_to_store_int = MAX(estimate_to_store_int, -15_int_8)
                             
                             IF(.NOT. buffer_overflow .AND. geometry_did_change) THEN
-                              CALL x_hf_add_single_cache_element(estimate_to_store_int, 6, &
-                                                                 maxval_cache, maxval_container, &
-                                                                 memory_parameter%actual_memory_usage, error)
+                              IF(.NOT.use_disk_storage) THEN
+                                CALL x_hf_add_single_cache_element(estimate_to_store_int, 6, &
+                                                                   maxval_cache, maxval_container, &
+                                                                   memory_parameter%actual_memory_usage, &
+                                                                   use_disk_storage, error)
+                              ELSE
+                                CALL x_hf_add_single_cache_element(estimate_to_store_int, 6, &
+                                                                   maxval_cache_disk, maxval_container_disk, &
+                                                                   memory_parameter%actual_memory_usage_disk, &
+                                                                   use_disk_storage, error)
+                              END IF
                             END IF
                             spherical_estimate = SET_EXPONENT(1.0_dp,estimate_to_store_int+1)
                             IF(spherical_estimate*pmax_entry<eps_schwarz) CYCLE 
                             IF(.NOT.buffer_overflow) THEN
-                              neris_incore = neris_incore + nints
                               nbits = EXPONENT(spherical_estimate*pmax_entry/eps_storage) + 1
                               buffer_left = nints
                               buffer_start = 1
                               DO WHILE (buffer_left > 0 )
                                 buffer_size = MIN(buffer_left, CACHE_SIZE)
-                                CALL x_hf_add_mult_cache_elements(primitive_integrals(buffer_start),&
-                                                                  buffer_size, nbits, &
-                                                                  integral_caches(nbits), &
-                                                                  integral_containers(nbits), &
-                                                                  eps_storage, pmax_entry, &
-                                                                  memory_parameter%actual_memory_usage, error)
+                                IF(.NOT. use_disk_storage) THEN
+                                  neris_incore = neris_incore + nints
+                                  CALL x_hf_add_mult_cache_elements(primitive_integrals(buffer_start),&
+                                                                    buffer_size, nbits, &
+                                                                    integral_caches(nbits), &
+                                                                    integral_containers(nbits), &
+                                                                    eps_storage, pmax_entry, &
+                                                                    memory_parameter%actual_memory_usage, &
+                                                                    use_disk_storage, error)
+                                ELSE
+                                  neris_disk = neris_disk + nints
+                                  CALL x_hf_add_mult_cache_elements(primitive_integrals(buffer_start),&
+                                                                    buffer_size, nbits, &
+                                                                    integral_caches_disk(nbits), &
+                                                                    integral_containers_disk(nbits), &
+                                                                    eps_storage, pmax_entry, &
+                                                                    memory_parameter%actual_memory_usage_disk, &
+                                                                    use_disk_storage, error)
+                                END IF
                                 buffer_left = buffer_left - buffer_size
                                 buffer_start = buffer_start + buffer_size
                               END DO
@@ -1073,7 +1215,7 @@ MODULE four_center_integrals
                              !! In order to be consistent with in-core part, round all the eris wrt. eps_schwarz
                              DO i=1,nints
                                primitive_integrals(i) = primitive_integrals(i)*pmax_entry
-                               IF(ABS(primitive_integrals(i)) > eps_schwarz) THEN
+                               IF(ABS(primitive_integrals(i)) > eps_storage) THEN
                                  primitive_integrals(i) = ANINT(primitive_integrals(i)/eps_storage, dp)*eps_storage/pmax_entry
                                ELSE
                                  primitive_integrals(i) = 0.0_dp
@@ -1168,6 +1310,9 @@ MODULE four_center_integrals
                       END DO !kset
                     END DO !jset
                   END DO !iset
+                  IF( do_disk_storage ) THEN
+                    buffer_overflow = .TRUE.
+                  END IF
                 END IF
               END IF !symmetry cycle 
             END DO !latom
@@ -1200,10 +1345,16 @@ MODULE four_center_integrals
     shm_neris_onthefly = shm_neris_onthefly + neris_onthefly
     storage_counter_integrals = memory_parameter%actual_memory_usage * &
                                 memory_parameter%cache_size
+    stor_count_int_disk = memory_parameter%actual_memory_usage_disk * &
+                          memory_parameter%cache_size
 !$OMP ATOMIC
     shm_storage_counter_integrals = shm_storage_counter_integrals + storage_counter_integrals
 !$OMP ATOMIC
+    shm_stor_count_int_disk =  shm_stor_count_int_disk + stor_count_int_disk
+!$OMP ATOMIC
     shm_neris_incore = shm_neris_incore + neris_incore
+!$OMP ATOMIC
+    shm_neris_disk = shm_neris_disk + neris_disk
 !$OMP BARRIER
 
 !$OMP MASTER   
@@ -1267,15 +1418,24 @@ MODULE four_center_integrals
 
     !! Print some memeory information if this is the first step
     IF( geometry_did_change ) THEN
-      IF(.NOT. memory_parameter%do_all_on_the_fly) THEN
-!        storage_counter_integrals = memory_parameter%actual_memory_usage * &
-!                                    memory_parameter%cache_size
-        CALL mp_sum_i8(shm_storage_counter_integrals, para_env%group)
-        CALL mp_sum_i8(shm_neris_onthefly, para_env%group)
-        CALL mp_sum_i8(shm_neris_incore, para_env%group)
-        CALL mp_sum_i8(shm_neris_total, para_env%group)
-        mem_eris = (shm_storage_counter_integrals+128*1024-1)/1024/128
-        compression_factor = REAL(shm_neris_incore,dp)/REAL(shm_storage_counter_integrals,dp)
+      CALL mp_sum_i8(shm_storage_counter_integrals, para_env%group)
+      CALL mp_sum_i8(shm_neris_onthefly, para_env%group)
+      CALL mp_sum_i8(shm_neris_incore, para_env%group)
+      CALL mp_sum_i8(shm_neris_disk, para_env%group)
+      CALL mp_sum_i8(shm_neris_total, para_env%group)
+      CALL mp_sum_i8(shm_stor_count_int_disk, para_env%group)
+      mem_eris = (shm_storage_counter_integrals+128*1024-1)/1024/128
+      compression_factor = REAL(shm_neris_incore,dp)/REAL(shm_storage_counter_integrals,dp)
+      mem_eris_disk = (shm_stor_count_int_disk+128*1024-1)/1024/128
+      compression_factor_disk = REAL(shm_neris_disk,dp)/REAL(shm_stor_count_int_disk,dp)
+     
+      IF( shm_neris_incore == 0 ) THEN 
+        mem_eris = 0
+        compression_factor = 0.0_dp
+      END IF
+      IF( shm_neris_disk == 0 ) THEN
+        mem_eris_disk = 0
+        compression_factor_disk = 0.0_dp
       END IF
       
       iw = cp_print_key_unit_nr(logger,hf_section,"HF_INFO",&
@@ -1286,15 +1446,25 @@ MODULE four_center_integrals
 
         WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                  "HF_MEM_INFO| Number of ERI's stored in-core:        ",shm_neris_incore
+
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
+                 "HF_MEM_INFO| Number of ERI's stored on disk:        ",shm_neris_disk
   
         WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
                  "HF_MEM_INFO| Number of ERI's calculated on the fly: ",shm_neris_onthefly
   
         WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
-                 "HF_MEM_INFO| Total memory consumption ERI's [MB's]            ",mem_eris
+                 "HF_MEM_INFO| Total memory consumption ERI's RAM [MB's]            ",mem_eris
       
+        WRITE (UNIT=iw,FMT="((T3,A,T60,F20.2))")&
+                 "HF_MEM_INFO| Total compression factor ERI's RAM:                  ",compression_factor
+             
+        WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
+                 "HF_MEM_INFO| Total memory consumption ERI's disk [MB's]       ",mem_eris_disk
+
         WRITE (UNIT=iw,FMT="((T3,A,T60,F20.2),/)")&
-                 "HF_MEM_INFO| Total compression factor ERI's:                  ",compression_factor
+                 "HF_MEM_INFO| Total compression factor ERI's disk:             ",compression_factor_disk
+
       END IF
   
       CALL cp_print_key_finished_output(iw,logger,hf_section,&
@@ -1304,21 +1474,42 @@ MODULE four_center_integrals
 
     !! flush caches if the geometry changed 
     IF(geometry_did_change ) THEN
-      CALL x_hf_flush_last_cache(6, maxval_cache, maxval_container, memory_parameter%actual_memory_usage, error)
+      CALL x_hf_flush_last_cache(6, maxval_cache, maxval_container, memory_parameter%actual_memory_usage, .FALSE., error)
       DO i=1,64
-        CALL x_hf_flush_last_cache(i, integral_caches(i), integral_containers(i), memory_parameter%actual_memory_usage, error)
+        CALL x_hf_flush_last_cache(i, integral_caches(i), integral_containers(i), &
+                                   memory_parameter%actual_memory_usage, .FALSE., error)
+      END DO
+    END IF
+    !! reset all caches except we calculate all on the fly
+    IF(.NOT.memory_parameter%do_all_on_the_fly) THEN
+      CALL x_hf_reset_cache_and_container(maxval_cache, maxval_container, memory_parameter%actual_memory_usage, .FALSE.)
+      DO i=1,64
+        CALL x_hf_reset_cache_and_container(integral_caches(i), integral_containers(i), memory_parameter%actual_memory_usage, &
+                                            .FALSE.)
       END DO
     END IF
 
-    !! reset all caches except we calculate all on the fly
-    IF(.NOT.memory_parameter%do_all_on_the_fly) THEN
-      CALL x_hf_reset_cache_and_container(maxval_cache, maxval_container, memory_parameter%actual_memory_usage)
+    !! Since the I/O routines are no thread-safe, i.e. the procedure to get the unit number, put a lock here
+!$OMP CRITICAL
+    IF(do_disk_storage ) THEN
+      !! flush caches if the geometry changed 
+      IF(geometry_did_change ) THEN
+        CALL x_hf_flush_last_cache(6, maxval_cache_disk, maxval_container_disk, &
+                                   memory_parameter%actual_memory_usage_disk, .TRUE., error)
+        DO i=1,64
+          CALL x_hf_flush_last_cache(i, integral_caches_disk(i), integral_containers_disk(i), &
+                                     memory_parameter%actual_memory_usage_disk, .TRUE., error)
+        END DO
+      END IF
+      !! reset all caches except we calculate all on the fly
+      CALL x_hf_reset_cache_and_container(maxval_cache_disk, maxval_container_disk, memory_parameter%actual_memory_usage_disk, &
+                                          do_disk_storage)
       DO i=1,64
-        CALL x_hf_reset_cache_and_container(integral_caches(i), integral_containers(i), memory_parameter%actual_memory_usage)
+        CALL x_hf_reset_cache_and_container(integral_caches_disk(i), integral_containers_disk(i),&
+                                            memory_parameter%actual_memory_usage_disk, do_disk_storage)
       END DO
-    END IF
-    
-    
+    END IF   
+!$OMP END CRITICAL
 !$OMP BARRIER
     !! Clean up
     DEALLOCATE(last_sgf_global,STAT=stat)
@@ -1434,40 +1625,6 @@ MODULE four_center_integrals
                                           offset_a,offset_b,offset_c,offset_d, &
                                           primitive_integrals, &
                                           potential_parameter, max_contraction_val, tmp_max, eps_schwarz)
-!                    SELECT CASE(i_thread)
-!                      CASE(0)
-!                        CALL evaluate_eri(lib0, ra, rb, rc, rd,&
-!                                          zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
-!                                          la, lb, lc ,ld,&
-!                                          ncoa,ncob,ncoc,ncod,&
-!                                          offset_a,offset_b,offset_c,offset_d, &
-!                                          primitive_integrals, &
-!                                          potential_parameter, max_contraction_val, tmp_max, eps_schwarz)
-!                      CASE(1)
-!                         CALL evaluate_eri(lib1, ra, rb, rc, rd,&
-!                                          zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
-!                                          la, lb, lc ,ld,&
-!                                          ncoa,ncob,ncoc,ncod,&
-!                                          offset_a,offset_b,offset_c,offset_d, &
-!                                          primitive_integrals, &
-!                                          potential_parameter, max_contraction_val, tmp_max, eps_schwarz)
-!                      CASE(2)
-!                         CALL evaluate_eri(lib2, ra, rb, rc, rd,&
-!                                          zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
-!                                          la, lb, lc ,ld,&
-!                                          ncoa,ncob,ncoc,ncod,&
-!                                          offset_a,offset_b,offset_c,offset_d, &
-!                                          primitive_integrals, &
-!                                          potential_parameter, max_contraction_val, tmp_max, eps_schwarz)
-!                      CASE(3)
-!                         CALL evaluate_eri(lib3, ra, rb, rc, rd,&
-!                                          zeta(ipgf), zetb(jpgf), zetc(kpgf), zetd(lpgf),&
-!                                          la, lb, lc ,ld,&
-!                                          ncoa,ncob,ncoc,ncod,&
-!                                          offset_a,offset_b,offset_c,offset_d, &
-!                                          primitive_integrals, &
-!                                          potential_parameter, max_contraction_val, tmp_max, eps_schwarz)
-!                    END SELECT
                     cartesian_estimate = MAX(cartesian_estimate, tmp_max)                                     
                   END DO !la
                 END DO !ipgf
@@ -1523,29 +1680,6 @@ MODULE four_center_integrals
                                          zeta(ipgf), zetb(jpgf), zeta(ipgf), zetb(jpgf),&
                                          la, lb, la ,lb,&
                                          max_val_temp, potential_parameter)
-
-!            SELECT CASE(i_thread)
-!              CASE(0)
-!                CALL evaluate_eri_screen(lib0, ra, rb, ra, rb,&
-!                                         zeta(ipgf), zetb(jpgf), zeta(ipgf), zetb(jpgf),&
-!                                         la, lb, la ,lb,&
-!                                         max_val_temp, potential_parameter)
-!              CASE(1)
-!                CALL evaluate_eri_screen(lib1, ra, rb, ra, rb,&
-!                                         zeta(ipgf), zetb(jpgf), zeta(ipgf), zetb(jpgf),&
-!                                         la, lb, la ,lb,&
-!                                         max_val_temp, potential_parameter)
-!              CASE(2)
-!                CALL evaluate_eri_screen(lib2, ra, rb, ra, rb,&
-!                                         zeta(ipgf), zetb(jpgf), zeta(ipgf), zetb(jpgf),&
-!                                         la, lb, la ,lb,&
-!                                         max_val_temp, potential_parameter)
-!              CASE(3)
-!                CALL evaluate_eri_screen(lib3, ra, rb, ra, rb,&
-!                                         zeta(ipgf), zetb(jpgf), zeta(ipgf), zetb(jpgf),&
-!                                         la, lb, la ,lb,&
-!                                         max_val_temp, potential_parameter)
-!            END SELECT
             max_val = MAX(max_val, max_val_temp)
           END DO !lb
         END DO !la
@@ -1925,10 +2059,10 @@ MODULE four_center_integrals
       iatom, ikind, iset, j_atom, jatom, jkind, jset, k_atom, katom, kkind, &
       kset, l_atom, latom, lkind, lset, ma, max_am, max_set, maxsgf, mb, mc, &
       md, my_bin_size, my_istart, my_jstart, my_kstart, my_lstart, n_threads, &
-      natom, nbins, nco_max, ncoa, ncob, ncoc, ncod, nseta, nsetb, nsetc, &
-      nsetd, nsgfa_total, nsgfb_total, nsgfc_total, nsgfd_total, nspins, &
-      p_index, pa, pa1, pa2, pb, pb1, pb2, pc, pc1, pc2, pd, pd1, pd2, &
-      pgf_radius_box, radius1, radius2, sgfa, sgfb, sgfc, sgfd, stat
+      natom, nco_max, ncoa, ncob, ncoc, ncod, nseta, nsetb, nsetc, nsetd, &
+      nsgfa_total, nsgfb_total, nsgfc_total, nsgfd_total, nspins, p_index, &
+      pa, pa1, pa2, pb, pb1, pb2, pc, pc1, pc2, pd, pd1, pd2, pgf_radius_box, &
+      radius1, radius2, sgfa, sgfb, sgfc, sgfd, stat
     INTEGER(int_8) :: box_idx1, box_idx2, box_idx3, box_idx4, &
       my_current_counter, my_original_cpu_id, n_processes, ncpu
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
@@ -1973,7 +2107,7 @@ MODULE four_center_integrals
     TYPE(x_hf_screening_type)                :: screening_parameter
     TYPE(x_hf_type), POINTER                 :: actual_x_data
 
-    !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
+!$  INTEGER :: omp_get_max_threads,omp_get_thread_num
     REAL(dp), DIMENSION(:, :, :, :), &
               POINTER, SAVE                  :: shm_initial_p
     TYPE(x_hf_box_scheme), DIMENSION(:,:), &
@@ -1982,9 +2116,10 @@ MODULE four_center_integrals
     INTEGER, DIMENSION(:,:), POINTER, SAVE   :: shm_is_assoc_atomic_block
     INTEGER(int_8)                           :: shm_neris_total, shm_neris_onthefly, &
                                                 shm_storage_counter_integrals, shm_neris_incore
+    INTEGER                                  :: nkind, l_max
 
 
-    CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, error=error)
+    CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, atomic_kind_set=atomic_kind_set, error=error)
     !! One atom systems have no contribution to forces
     IF( SIZE(particle_set,1) == 1) THEN
       RETURN
@@ -1993,8 +2128,16 @@ MODULE four_center_integrals
     CALL mp_sync(para_env%group)
     CALL timeset(routineN,"I",'',handle)
 
-    ncpu = para_env%num_pe
-    nbins = qs_env%x_data(1,1)%load_balance_parameter%nbins
+    !! Calculate l_max used in fgamma , because init_md_ftable is definitely not thread safe
+    nkind = SIZE(atomic_kind_set,1)
+    l_max = 0
+    DO ikind=1,nkind
+      l_max = MAX(l_max,MAXVAL(qs_env%x_data(1,1)%basis_parameter(ikind)%lmax))
+    ENDDO
+    l_max = 4*l_max + 1
+    CALL init_md_ftable(l_max)
+
+
     n_threads = 1
 !$  n_threads = omp_get_max_threads()
     ALLOCATE(deriv(n_threads), STAT=stat)
@@ -2213,7 +2356,7 @@ MODULE four_center_integrals
          nco_max = MAX(nco_max,npgfa(iset)*ncoset(la_max(iset)))
       ENDDO
     ENDDO
-    
+
     !! Allocate work arrays
     ALLOCATE(primitive_forces(12*nco_max**4),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -2418,6 +2561,7 @@ MODULE four_center_integrals
                         ncoc = npgfc(kset)*ncoset(lc_max(kset))
                         sgfc = first_sgfc(1,kset)
                         DO lset = 1,nsetd
+
                           ncod = npgfd(lset)*ncoset(ld_max(lset)) 
                           sgfd = first_sgfd(1,lset)
                           pmax_entry = 2.0_dp *MAX(pmax_set(kset,iset,katom,iatom) * pmax_set(lset,jset,latom,jatom),&
@@ -2471,7 +2615,6 @@ MODULE four_center_integrals
                                                    max_contraction(kset,katom) * &
                                                    max_contraction(lset,latom) * &
                                                    pmax_entry
-  
                             CALL forces4(ra, rb, rc, rd,&
                                          zeta(:,iset), zetb(:,jset), zetc(:,kset), zetd(:,lset),&
                                          la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
@@ -2546,6 +2689,7 @@ MODULE four_center_integrals
                                     IF( nspins == 2 ) temp3b = full_density_beta(pb,pd) * fac
                                     p_index = p_index + 1 
                                     temp2 = temp1 * full_density(pa,pd) + temp3 * full_density(pa,pc)
+
                                     !$OMP ATOMIC
                                     force(forces_map((coord-1)/3 + 1,1))%fock_4c(MOD(coord-1,3) + 1, &
                                           forces_map((coord-1)/3 + 1,2)) = &
@@ -2976,29 +3120,6 @@ MODULE four_center_integrals
                                             zeta(ipgf), zetb(jpgf), zeta(ipgf), zetb(jpgf),&
                                             la, lb, la ,lb,&
                                             max_val_temp, potential_parameter)
-
-!               SELECT CASE(i_thread)
-!                 CASE(0)
-!                   CALL evaluate_eri_screen(lib0, ra, im_B, ra, im_B,&
-!                                            zeta(ipgf), zetb(jpgf), zeta(ipgf), zetb(jpgf),&
-!                                            la, lb, la ,lb,&
-!                                            max_val_temp, potential_parameter)
-!                 CASE(1)
-!                   CALL evaluate_eri_screen(lib1, ra, im_B, ra, im_B,&
-!                                            zeta(ipgf), zetb(jpgf), zeta(ipgf), zetb(jpgf),&
-!                                            la, lb, la ,lb,&
-!                                            max_val_temp, potential_parameter)
-!                 CASE(2)
-!                   CALL evaluate_eri_screen(lib2, ra, im_B, ra, im_B,&
-!                                            zeta(ipgf), zetb(jpgf), zeta(ipgf), zetb(jpgf),&
-!                                            la, lb, la ,lb,&
-!                                            max_val_temp, potential_parameter)
-!                 CASE(3)
-!                   CALL evaluate_eri_screen(lib3, ra, im_B, ra, im_B,&
-!                                            zeta(ipgf), zetb(jpgf), zeta(ipgf), zetb(jpgf),&
-!                                            la, lb, la ,lb,&
-!                                            max_val_temp, potential_parameter)
-!               END SELECT
                max_val(i) = MAX(max_val(i), max_val_temp)
             END DO !lb
           END DO !la

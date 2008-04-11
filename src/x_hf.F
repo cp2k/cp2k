@@ -14,15 +14,22 @@ MODULE x_hf
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp,&
                                              int_8
   USE libint_wrapper,                  ONLY: lib_int
+  USE machine,                         ONLY: m_chdir,&
+                                             m_getcwd
   USE particle_types,                  ONLY: particle_type
+  USE string_utilities,                ONLY: compress
   USE x_hf_compression_methods,        ONLY: bits2ints_specific,&
                                              ints2bits_specific
 #include "cp_common_uses.h"
@@ -78,6 +85,11 @@ MODULE x_hf
     REAL(dp)                                 :: eps_storage_scaling
     INTEGER                                  :: cache_size
     INTEGER                                  :: actual_memory_usage
+    INTEGER                                  :: actual_memory_usage_disk
+    INTEGER(int_8)                           :: max_compression_counter_disk
+    LOGICAL                                  :: do_disk_storage
+    CHARACTER(len=default_path_length)       :: storage_location
+    INTEGER(int_8)                           :: ram_counter
   END TYPE
 
 ! *****************************************************************************
@@ -151,6 +163,10 @@ MODULE x_hf
   TYPE x_hf_container_type
     TYPE(x_hf_container_node), POINTER       :: first, current    
     INTEGER                                  :: element_counter
+    INTEGER(int_8)                           :: file_counter
+    CHARACTER(LEN=5)                         :: desc
+    INTEGER                                  :: unit
+    CHARACTER(default_path_length)           :: filename
   END TYPE
 
 ! *****************************************************************************
@@ -196,11 +212,11 @@ MODULE x_hf
     TYPE(x_hf_periodic_type)                 :: periodic_parameter
     TYPE(x_hf_load_balance_type)             :: load_balance_parameter
     TYPE(x_hf_general_type)                  :: general_parameter
-    TYPE(x_hf_container_type), POINTER       :: maxval_container
-    TYPE(x_hf_cache_type)                    :: maxval_cache
+    TYPE(x_hf_container_type), POINTER       :: maxval_container, maxval_container_disk
+    TYPE(x_hf_cache_type)                    :: maxval_cache, maxval_cache_disk
     TYPE(x_hf_container_type), POINTER, &
-                               DIMENSION(:)  :: integral_containers
-    TYPE(x_hf_cache_type)                    :: integral_caches(64)
+                               DIMENSION(:)  :: integral_containers, integral_containers_disk
+    TYPE(x_hf_cache_type)                    :: integral_caches(64), integral_caches_disk(64)
 
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: x_screening_buffer
     REAL(dp), DIMENSION(:, :, :, :, :), &
@@ -255,9 +271,10 @@ MODULE x_hf
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE x_hf_create(x_data,hf_section,natom,max_set,atomic_kind_set, particle_set, error)
+  SUBROUTINE x_hf_create(x_data,para_env, hf_section,natom,max_set,atomic_kind_set, particle_set, error)
     TYPE(x_hf_type), DIMENSION(:, :), &
       POINTER                                :: x_data
+    TYPE(cp_para_env_type)                   :: para_env
     TYPE(section_vals_type), POINTER         :: hf_section
     INTEGER, INTENT(IN)                      :: natom, max_set
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -269,10 +286,10 @@ MODULE x_hf
     CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, i_thread, ikind, int_val, &
-                                                irep, max_memory, n_rep_hf, &
-                                                n_threads, nkind, pbc_shells, &
-                                                stat
+    CHARACTER(LEN=512)                       :: error_msg
+    CHARACTER(LEN=default_path_length)       :: char_val, filename, orig_wd
+    INTEGER :: i, i_thread, ikind, int_val, irep, max_memory, n_rep_hf, &
+      n_threads, nkind, pbc_shells, stat, storage_id
     LOGICAL                                  :: do_periodic, failure, &
                                                 logic_val
     REAL(dp)                                 :: omega, real_val
@@ -316,7 +333,44 @@ MODULE x_hf
         END IF
         actual_x_data%memory_parameter%cache_size = CACHE_SIZE
         actual_x_data%memory_parameter%actual_memory_usage = 1
-    
+        actual_x_data%memory_parameter%actual_memory_usage_disk = 1
+        CALL section_vals_val_get(hf_sub_section, "MAX_DISK_SPACE", i_val=int_val, error=error)
+!!        actual_x_data%memory_parameter%max_memory = int_val
+        actual_x_data%memory_parameter%max_compression_counter_disk = int_val*1024_int_8*128_int_8
+        IF( int_val == 0 ) THEN
+          actual_x_data%memory_parameter%do_disk_storage = .FALSE.
+        ELSE
+          actual_x_data%memory_parameter%do_disk_storage = .TRUE.
+        END IF
+        CALL section_vals_val_get(hf_sub_section, "STORAGE_LOCATION", c_val=char_val, error=error)
+        CALL compress(char_val,.TRUE.)
+        !! Add ending / if necessary
+
+        IF( SCAN(char_val,"/",.TRUE.) /= LEN_TRIM(char_val)) THEN
+          WRITE(filename,'(A,A)') TRIM(char_val),"/"
+          CALL compress(filename)
+        ELSE
+          filename = TRIM(char_val)
+        END IF
+        CALL compress(filename,.TRUE.)
+
+        !! quickly check if we can write on storage_location
+        CALL m_getcwd(orig_wd)
+        CALL m_chdir(filename,stat)
+        IF(stat/=0) THEN
+          WRITE(error_msg,'(A,A,A)') "HFX_MODULE: Request for disk storage failed due to unknown error while writing to ",&
+                                   TRIM(filename), ". Please check STORAGE_LOCATION"
+          CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
+                          error_msg , &
+                          error,failure)
+        END IF
+        CALL m_chdir(orig_wd,stat)
+
+        actual_x_data%memory_parameter%storage_location = filename
+        
+        CALL compress(actual_x_data%memory_parameter%storage_location, .TRUE.)
+        storage_id = (irep-1)*para_env%num_pe*n_threads + para_env%mepos * n_threads + i_thread-1
+
         !! PERIODIC section
         hf_sub_section => section_vals_get_subs_vals(hf_section,"PERIODIC", i_rep_section=irep, error=error)
         CALL section_vals_get(hf_sub_section, explicit=logic_val, error=error)
@@ -449,6 +503,43 @@ MODULE x_hf
           actual_x_data%integral_containers(i)%current%data = 0
           actual_x_data%integral_containers(i)%element_counter = 1
         END DO
+
+        actual_x_data%maxval_cache_disk%element_counter = 1
+        ALLOCATE(actual_x_data%maxval_container_disk,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(actual_x_data%maxval_container_disk%first,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        actual_x_data%maxval_container_disk%first%prev => NULL()
+        actual_x_data%maxval_container_disk%first%next => NULL()
+        actual_x_data%maxval_container_disk%current => actual_x_data%maxval_container%first
+        actual_x_data%maxval_container_disk%current%data = 0
+        actual_x_data%maxval_container_disk%element_counter = 1
+        actual_x_data%maxval_container_disk%file_counter = 1
+        actual_x_data%maxval_container_disk%desc = 'Max_'
+        actual_x_data%maxval_container_disk%unit = -1
+        WRITE(actual_x_data%maxval_container_disk%filename,'(A,I0,A,A,A)') TRIM(actual_x_data%memory_parameter%storage_location), &
+                                                           storage_id,"_",actual_x_data%maxval_container_disk%desc, "6"
+        CALL compress(actual_x_data%maxval_container_disk%filename, .TRUE.)
+        ALLOCATE(actual_x_data%integral_containers_disk(64), STAT=stat)
+        DO i=1,64
+          actual_x_data%integral_caches_disk(i)%element_counter = 1
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(actual_x_data%integral_containers_disk(i)%first,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          actual_x_data%integral_containers_disk(i)%first%prev => NULL()
+          actual_x_data%integral_containers_disk(i)%first%next => NULL()
+          actual_x_data%integral_containers_disk(i)%current => actual_x_data%integral_containers(i)%first
+          actual_x_data%integral_containers_disk(i)%current%data = 0
+          actual_x_data%integral_containers_disk(i)%element_counter = 1
+          actual_x_data%integral_containers_disk(i)%file_counter = 1
+          actual_x_data%integral_containers_disk(i)%desc = 'Int_'
+          actual_x_data%integral_containers_disk(i)%unit = -1
+          WRITE(actual_x_data%integral_containers_disk(i)%filename,'(A,I0,A,A,I0)')&
+                                             TRIM(actual_x_data%memory_parameter%storage_location), &
+                                             storage_id,"_",actual_x_data%integral_containers_disk(i)%desc, i
+          CALL compress(actual_x_data%integral_containers_disk(i)%filename, .TRUE.)
+        END DO
+
         actual_x_data%b_first_load_balance_energy = .TRUE.
         actual_x_data%b_first_load_balance_forces = .TRUE.
       END DO
@@ -516,19 +607,47 @@ MODULE x_hf
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
         !! Deallocate containers
-        CALL x_hf_init_container(actual_x_data%maxval_container, actual_x_data%memory_parameter%actual_memory_usage, error)
+        CALL x_hf_init_container(6, actual_x_data%maxval_container, actual_x_data%memory_parameter%actual_memory_usage, &
+                                 .FALSE., error)
         DEALLOCATE(actual_x_data%maxval_container%first,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DEALLOCATE(actual_x_data%maxval_container,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
         DO i=1,64   
-          CALL x_hf_init_container(actual_x_data%integral_containers(i), actual_x_data%memory_parameter%actual_memory_usage, error)
+          CALL x_hf_init_container(i, actual_x_data%integral_containers(i), actual_x_data%memory_parameter%actual_memory_usage, &
+                                   .FALSE., error)
           DEALLOCATE(actual_x_data%integral_containers(i)%first,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END DO
         DEALLOCATE(actual_x_data%integral_containers,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+        !! Deallocate containers
+        CALL x_hf_init_container(6, actual_x_data%maxval_container_disk, &
+                                 actual_x_data%memory_parameter%actual_memory_usage_disk, &
+                                 .FALSE., error)
+        IF( actual_x_data%memory_parameter%do_disk_storage) THEN
+          CALL close_file(unit_number=actual_x_data%maxval_container_disk%unit,file_status="DELETE")
+        END IF
+        DEALLOCATE(actual_x_data%maxval_container_disk%first,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DEALLOCATE(actual_x_data%maxval_container_disk,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    
+        DO i=1,64   
+          CALL x_hf_init_container(i, actual_x_data%integral_containers_disk(i), &
+                                   actual_x_data%memory_parameter%actual_memory_usage_disk, &
+                                   .FALSE., error)
+          IF( actual_x_data%memory_parameter%do_disk_storage) THEN
+            CALL close_file(unit_number=actual_x_data%integral_containers_disk(i)%unit,file_status="DELETE")
+          END IF
+          DEALLOCATE(actual_x_data%integral_containers_disk(i)%first,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        END DO
+        DEALLOCATE(actual_x_data%integral_containers_disk,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
       END DO
     END DO
     DEALLOCATE(x_data,STAT=stat)
@@ -710,12 +829,13 @@ MODULE x_hf
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE x_hf_add_single_cache_element(value, nbits, cache, container, memory_usage, error)
+  SUBROUTINE x_hf_add_single_cache_element(value, nbits, cache, container, memory_usage, use_disk_storage, error)
     INTEGER(int_8)                           :: value
     INTEGER                                  :: nbits
     TYPE(x_hf_cache_type)                    :: cache
     TYPE(x_hf_container_type)                :: container
     INTEGER                                  :: memory_usage
+    LOGICAL                                  :: use_disk_storage
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER(int_8)                           :: int_val
@@ -727,7 +847,7 @@ MODULE x_hf
       cache%element_counter = cache%element_counter + 1
     ELSE
       cache%data(CACHE_SIZE) = int_val
-      CALL x_hf_compress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage, error)
+      CALL x_hf_compress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage, use_disk_storage, error)
       cache%element_counter = 1
     END IF
   END SUBROUTINE x_hf_add_single_cache_element
@@ -745,11 +865,12 @@ MODULE x_hf
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE x_hf_compress_cache(full_array, container, nints, nbits, memory_usage, error)
+  SUBROUTINE x_hf_compress_cache(full_array, container, nints, nbits, memory_usage, use_disk_storage, error)
     INTEGER(int_8)                           :: full_array(*)
     TYPE(x_hf_container_type)                :: container
     INTEGER, INTENT(IN)                      :: nints, nbits
     INTEGER                                  :: memory_usage
+    LOGICAL                                  :: use_disk_storage
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_compress_cache', &
@@ -757,7 +878,7 @@ MODULE x_hf
 
     INTEGER                                  :: end_idx, increment_counter, &
                                                 start_idx, stat, &
-                                                tmp_elements, tmp_nints
+                                                tmp_elements, tmp_nints, unit
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -773,16 +894,24 @@ MODULE x_hf
       tmp_elements = CACHE_SIZE - start_idx + 1
       tmp_nints = (tmp_elements*64)/nbits
       CALL ints2bits_specific(nbits,tmp_nints,container%current%data(start_idx),full_array(1))
-      !! Allocate new list entry
-      ALLOCATE(container%current%next, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      memory_usage = memory_usage + 1
-      container%current%next%next => NULL()
-      container%current => container%current%next
+      IF( use_disk_storage ) THEN
+        !! write to file
+        WRITE(container%unit) container%current%data
+        memory_usage = memory_usage + 1
+        container%file_counter = container%file_counter + 1
+      ELSE
+        !! Allocate new list entry
+        ALLOCATE(container%current%next, STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        memory_usage = memory_usage + 1
+        container%current%next%next => NULL()
+        container%current => container%current%next
+      END IF
       !! compress remaining ints
       CALL ints2bits_specific(nbits, CACHE_SIZE-tmp_nints, container%current%data(1), full_array(tmp_nints+1))
       container%element_counter = 1 + (nbits*(CACHE_SIZE-tmp_nints) + 63)/64 
-   END IF
+    END IF
+
   END SUBROUTINE x_hf_compress_cache
 
 ! *****************************************************************************
@@ -797,19 +926,20 @@ MODULE x_hf
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE x_hf_get_single_cache_element(value, nbits, cache, container, memory_usage)
+  SUBROUTINE x_hf_get_single_cache_element(value, nbits, cache, container, memory_usage, use_disk_storage)
     INTEGER(int_8)                           :: value
     INTEGER                                  :: nbits
     TYPE(x_hf_cache_type)                    :: cache
     TYPE(x_hf_container_type)                :: container
     INTEGER                                  :: memory_usage
+    LOGICAL                                  :: use_disk_storage
 
     IF(cache%element_counter /= CACHE_SIZE ) THEN
       value = cache%data(cache%element_counter) 
       cache%element_counter = cache%element_counter + 1
     ELSE
       value = cache%data(CACHE_SIZE)
-      CALL x_hf_decompress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage)
+      CALL x_hf_decompress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage, use_disk_storage)
       cache%element_counter = 1 
     END IF
 
@@ -828,15 +958,16 @@ MODULE x_hf
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE x_hf_decompress_cache(full_array, container, nints, nbits, memory_usage)
+  SUBROUTINE x_hf_decompress_cache(full_array, container, nints, nbits, memory_usage, use_disk_storage)
     INTEGER(int_8)                           :: full_array(*)
     TYPE(x_hf_container_type)                :: container
     INTEGER, INTENT(IN)                      :: nints, nbits
     INTEGER                                  :: memory_usage
+    LOGICAL                                  :: use_disk_storage
 
     INTEGER                                  :: end_idx, increment_counter, &
-                                                start_idx, tmp_elements, &
-                                                tmp_nints
+                                                start_idx, stat, &
+                                                tmp_elements, tmp_nints, unit
 
     start_idx = container%element_counter
     increment_counter = (nbits*CACHE_SIZE + 63)/64
@@ -849,8 +980,18 @@ MODULE x_hf
       tmp_elements = CACHE_SIZE - start_idx + 1
       tmp_nints = (tmp_elements*64)/nbits
       CALL bits2ints_specific(nbits,tmp_nints,container%current%data(start_idx),full_array(1))
-      container%current => container%current%next
-      memory_usage = memory_usage + 1
+      IF( use_disk_storage ) THEN
+          !! it could happen, that we are at the end of a file and we try to read
+          !! This happens in case a container has fully been filled in the compression step
+          !! but no other was needed for the current bit size
+          !! Therefore we can safely igonore an eof error
+          READ(container%unit, IOSTAT=stat) container%current%data
+          memory_usage = memory_usage + 1
+          container%file_counter = container%file_counter + 1
+      ELSE
+        container%current => container%current%next
+        memory_usage = memory_usage + 1
+      END IF
       !! decompress remaining ints
       CALL bits2ints_specific(nbits, CACHE_SIZE-tmp_nints, container%current%data(1), full_array(tmp_nints+1))
       container%element_counter = 1 + (nbits*(CACHE_SIZE-tmp_nints) + 63)/64 
@@ -866,15 +1007,23 @@ MODULE x_hf
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE x_hf_reset_cache_and_container(cache, container, memory_usage)
+  SUBROUTINE x_hf_reset_cache_and_container(cache, container, memory_usage, do_disk_storage)
     TYPE(x_hf_cache_type)                    :: cache
     TYPE(x_hf_container_type)                :: container
     INTEGER                                  :: memory_usage
+    LOGICAL                                  :: do_disk_storage
 
     cache%element_counter = 1
     container%current => container%first
     container%element_counter = 1
     memory_usage = 1
+    container%file_counter = 1
+    IF( do_disk_storage ) THEN
+      CALL close_file(container%unit)
+      CALL open_file(file_name=container%filename,file_status="OLD",file_form="UNFORMATTED",file_action="READ",&
+                     unit_number=container%unit)
+      READ(container%unit) container%current%data
+    END IF
   END SUBROUTINE x_hf_reset_cache_and_container
 
 ! *****************************************************************************
@@ -887,9 +1036,11 @@ MODULE x_hf
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE x_hf_init_container(container, memory_usage,  error)
+  SUBROUTINE x_hf_init_container(nbits, container, memory_usage, do_disk_storage, error)
+    INTEGER                                  :: nbits
     TYPE(x_hf_container_type)                :: container
     INTEGER                                  :: memory_usage
+    LOGICAL                                  :: do_disk_storage
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_init_container', &
@@ -920,6 +1071,15 @@ MODULE x_hf
     container%element_counter = 1
     memory_usage = 1
 
+    IF( do_disk_storage) THEN
+      !! close the file, if this is no the first time
+      IF(container%unit /= -1 ) THEN
+        CALL close_file(unit_number=container%unit)
+      END IF
+      CALL open_file(file_name=container%filename,file_status="UNKNOWN",file_form="UNFORMATTED",file_action="WRITE",&
+                     unit_number=container%unit)
+    END IF
+
   END SUBROUTINE x_hf_init_container
 
 ! *****************************************************************************
@@ -932,13 +1092,14 @@ MODULE x_hf
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE x_hf_decompress_first_cache(nbits, cache, container, memory_usage)
+  SUBROUTINE x_hf_decompress_first_cache(nbits, cache, container, memory_usage, use_disk_storage)
     INTEGER                                  :: nbits
     TYPE(x_hf_cache_type)                    :: cache
     TYPE(x_hf_container_type)                :: container
     INTEGER                                  :: memory_usage
+    LOGICAL                                  :: use_disk_storage
 
-    CALL x_hf_decompress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage)
+    CALL x_hf_decompress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage, use_disk_storage)
     cache%element_counter = 1
   END SUBROUTINE x_hf_decompress_first_cache
 
@@ -954,14 +1115,26 @@ MODULE x_hf
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE x_hf_flush_last_cache(nbits, cache, container, memory_usage, error)
+  SUBROUTINE x_hf_flush_last_cache(nbits, cache, container, memory_usage, use_disk_storage, error)
     INTEGER                                  :: nbits
     TYPE(x_hf_cache_type)                    :: cache
     TYPE(x_hf_container_type)                :: container
     INTEGER                                  :: memory_usage
+    LOGICAL                                  :: use_disk_storage
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CALL x_hf_compress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage, error)
+    INTEGER                                  :: unit
+
+    CALL x_hf_compress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage, use_disk_storage, error)
+
+    !!If we store to file, we have to make sure, that the last container is also written to disk
+    IF( use_disk_storage ) THEN
+      IF(container%element_counter /= 1) THEN
+        WRITE(container%unit) container%current%data
+        memory_usage = memory_usage + 1
+        container%file_counter = container%file_counter + 1
+      END IF
+    END IF  
   END SUBROUTINE x_hf_flush_last_cache
 
 ! *****************************************************************************
@@ -977,13 +1150,15 @@ MODULE x_hf
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE x_hf_add_mult_cache_elements(values, nints, nbits, cache, container, eps_schwarz, pmax_entry, memory_usage, error)
+  SUBROUTINE x_hf_add_mult_cache_elements(values, nints, nbits, cache, container, eps_schwarz, pmax_entry, memory_usage, &
+                                          use_disk_storage, error)
     REAL(dp)                                 :: values(*)
     INTEGER, INTENT(IN)                      :: nints, nbits
     TYPE(x_hf_cache_type)                    :: cache
     TYPE(x_hf_container_type)                :: container
     REAL(dp), INTENT(IN)                     :: eps_schwarz, pmax_entry
     INTEGER                                  :: memory_usage
+    LOGICAL                                  :: use_disk_storage
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: end_idx, i, start_idx, &
@@ -1022,7 +1197,7 @@ MODULE x_hf
           cache%data(i+start_idx-1) = shift
         END IF
       END DO
-      CALL x_hf_compress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage, error)
+      CALL x_hf_compress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage, use_disk_storage, error)
       DO i=tmp_elements+1, nints
         values(i) = values(i)*pmax_entry
         IF(ABS(values(i)) > eps_schwarz) THEN
@@ -1054,13 +1229,15 @@ MODULE x_hf
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE x_hf_get_mult_cache_elements(values, nints, nbits, cache, container, eps_schwarz, pmax_entry, memory_usage, error)
+  SUBROUTINE x_hf_get_mult_cache_elements(values, nints, nbits, cache, container, eps_schwarz, pmax_entry, memory_usage, &
+                                          use_disk_storage, error)
     REAL(dp)                                 :: values(*)
     INTEGER, INTENT(IN)                      :: nints, nbits
     TYPE(x_hf_cache_type)                    :: cache
     TYPE(x_hf_container_type)                :: container
     REAL(dp), INTENT(IN)                     :: eps_schwarz, pmax_entry
     INTEGER                                  :: memory_usage
+    LOGICAL                                  :: use_disk_storage
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: end_idx, i, start_idx, &
@@ -1086,7 +1263,7 @@ MODULE x_hf
       DO i=1,tmp_elements
         values(i) = factor*REAL(cache%data(i+start_idx-1)-shift,dp)
       END DO
-      CALL x_hf_decompress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage)
+      CALL x_hf_decompress_cache(cache%data(1), container, CACHE_SIZE, nbits, memory_usage, use_disk_storage)
       DO i=tmp_elements+1,nints
         values(i) = factor*REAL(cache%data(i-tmp_elements)-shift,dp)
       END DO
