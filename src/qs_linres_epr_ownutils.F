@@ -19,16 +19,7 @@ MODULE qs_linres_epr_ownutils
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
-                                             cp_rs_pool_type,&
-                                             rs_pool_create_rs,&
-                                             rs_pool_give_back_rs,&
-                                             rs_pools_create_rs_vect
-  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                             pw_pool_give_back_pw,&
-                                             pw_pool_p_type,&
-                                             pw_pool_type
+  USE cp_rs_pool_types,                ONLY: cp_rs_pool_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -39,14 +30,14 @@ MODULE qs_linres_epr_ownutils
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_methods,                      ONLY: pw_integral_ab,&
-                                             pw_axpy,&
-                                             pw_transfer,&
+  USE pw_methods,                      ONLY: pw_axpy,&
+                                             pw_integral_ab,&
                                              pw_scale,&
-                                             pw_zero,&
-                                             pw_integrate_function
+                                             pw_transfer,&
+                                             pw_zero
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
+                                             pw_pool_p_type,&
                                              pw_pool_type
   USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc,&
                                              find_coeffs,&
@@ -56,9 +47,9 @@ MODULE qs_linres_epr_ownutils
                                              pw_spline_precond_set_kind,&
                                              pw_spline_precond_type,&
                                              spl3_pbc
-  USE pw_types,                        ONLY: REALDATA3D,&
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
                                              REALSPACE,&
-                                             COMPLEXDATA1D,&
                                              RECIPROCALSPACE,&
                                              pw_p_type
   USE qs_core_energies,                ONLY: calculate_ecore
@@ -66,17 +57,17 @@ MODULE qs_linres_epr_ownutils
                                              qs_environment_type
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
-  USE qs_linres_op,                    ONLY: set_vecp,&
-                                             fac_vecp,&
-                                             set_vecp_rev
   USE qs_linres_epr_bind0,             ONLY: chicorr_analytic
-  USE qs_linres_types,                 ONLY: epr_env_type,&
+  USE qs_linres_nmr_epr_common_utils,  ONLY: mult_G_ov_G2_grid
+  USE qs_linres_op,                    ONLY: fac_vecp,&
+                                             set_vecp,&
+                                             set_vecp_rev
+  USE qs_linres_types,                 ONLY: current_env_type,&
+                                             epr_env_type,&
+                                             get_current_env,&
                                              get_epr_env,&
                                              jrho_atom_type,&
-                                             nablavks_atom_type,&
-                                             current_env_type,&
-                                             get_current_env
-  USE qs_linres_nmr_epr_common_utils,  ONLY: mult_G_ov_G2_grid
+                                             nablavks_atom_type
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
@@ -815,40 +806,37 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'epr_ind_magnetic_field', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iB,iiB,iiiB,idir,idir2,idir3,nspins,&
-         &                                      ispin,natom,handle,istat
-    LOGICAL                                  :: gapw,failure
+    INTEGER                                  :: handle, iB, idir, idir2, &
+                                                idir3, iiB, iiiB, ispin, &
+                                                istat, natom, nspins
+    LOGICAL                                  :: failure, gapw
     REAL(dp)                                 :: scale_fac
-    REAL(dp), DIMENSION(:,:,:), POINTER      :: chemical_shift,chemical_shift_loc,&
-         &                                      chemical_shift_nics,chemical_shift_nics_loc
-    REAL(dp), DIMENSION(3,3)                 :: chi_tensor,chi_tensor_loc
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_shift', &
-         routineP = moduleN//':'//routineN
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
-    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(pw_p_type), POINTER                 :: rho_gspace, rho_rspace
-    TYPE(pw_p_type)                          :: pw_gspace_work, &
-         &                                      shift_pw_rspace
-    TYPE(pw_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pw_pools
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: pw_gspace_work, &
+                                                shift_pw_rspace
     TYPE(pw_p_type), DIMENSION(:, :), &
       POINTER                                :: shift_pw_gspace
+    TYPE(pw_p_type), POINTER                 :: rho_gspace, rho_rspace
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
     failure = .FALSE.
     CALL timeset(routineN,"I"," ",handle)
 
-    NULLIFY(chemical_shift,chemical_shift_loc,chemical_shift_nics,chemical_shift_nics_loc,&
-         &  cell,dft_control,pw_env,auxbas_rs_pool,auxbas_pw_pool,rho_gspace,rho_rspace,&
-         &  pw_pools,particle_set)
+    NULLIFY(cell, dft_control, pw_env, auxbas_rs_pool, auxbas_pw_pool, &
+         rho_gspace, rho_rspace, pw_pools, particle_set)
 
     CALL get_qs_env(qs_env=qs_env,cell=cell,dft_control=dft_control,&
-         &          particle_set=particle_set,error=error)
+                    particle_set=particle_set,error=error)
 
     gapw = dft_control%qs_control%gapw
     natom = SIZE(particle_set,1)
@@ -862,8 +850,8 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
     CALL pw_env_get(pw_env,auxbas_rs_pool=auxbas_rs_pool,&
-         &          auxbas_pw_pool=auxbas_pw_pool,pw_pools=pw_pools,&
-         &          error=error)
+                    auxbas_pw_pool=auxbas_pw_pool,pw_pools=pw_pools,&
+                    error=error)
     !
     ! Initialize
     ! Allocate grids for the calculation of jrho and the shift
