@@ -19,7 +19,11 @@ MODULE semi_empirical_par_utils
   USE periodic_table,                  ONLY: nelem
   USE physcon,                         ONLY: bohr,&
                                              evolt
-  USE semi_empirical_types,            ONLY: semi_empirical_type
+  USE semi_empirical_int_arrays,       ONLY: int_ij,&
+                                             int_kl,&
+                                             int_onec2el
+  USE semi_empirical_types,            ONLY: get_se_param,&
+                                             semi_empirical_type
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
@@ -189,7 +193,8 @@ MODULE semi_empirical_par_utils
                                 1, 8,21,35,35,36,56,70, 0,    0, 0, 0, 0, 0, 0,&!   86
         0, 0, 0, 0, 0, 0,       0, 0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0 /) 
 
-  PUBLIC :: convert_param_to_cp2k, calpar, valence_electrons, get_se_basis
+  PUBLIC :: convert_param_to_cp2k, calpar, valence_electrons, get_se_basis,&
+            setup_1c_2el_int
 
 CONTAINS
 ! *****************************************************************************
@@ -556,20 +561,20 @@ CONTAINS
     failure = .FALSE.
     ! SS term
     fg = sep%gss
-    sep%ko(1) = ko_ij (0, 1.0_dp, fg)
+    sep%ko(1) = ko_ij (0, 1.0_dp, fg, error)
     IF (sep%natorb>= 4) THEN
        ! Other terms for SP basis
        ! SP
        d  = amn(2)/SQRT(12.0_dp)
        fg = sep%hsp
        sep%cs(2) = d
-       sep%ko(2) = ko_ij(1, d, fg)
+       sep%ko(2) = ko_ij(1, d, fg, error)
        ! PP
        sep%ko(7) = sep%ko(1)
        d  = SQRT(amn(3)*0.1_dp)
        fg = 0.5_dp*(sep%gpp-sep%gp2)
        sep%cs(3) = d
-       sep%ko(3) = ko_ij(2, d, fg)
+       sep%ko(3) = ko_ij(2, d, fg, error)
        ! Terms involving d-orbitals
        IF (sep%dorb) THEN
           ! SD
@@ -577,19 +582,19 @@ CONTAINS
           d  = SQRT(amn(4)*da)
           fg = sep%onec2el(19)
           sep%cs(4) = d
-          sep%ko(4) = ko_ij(2, d, fg)
+          sep%ko(4) = ko_ij(2, d, fg, error)
           ! PD
           d  = amn(5)/SQRT(20.0_dp)
           fg = sep%onec2el(23) - 1.8_dp * sep%onec2el(35)
           sep%cs(5) = d
-          sep%ko(5) = ko_ij(1, d, fg)
+          sep%ko(5) = ko_ij(1, d, fg, error)
           ! DD
           fg = 0.2_dp * (sep%onec2el(29)+2.0_dp*sep%onec2el(30)+2.0_dp*sep%onec2el(31))
-          sep%ko(8) = ko_ij (0, 1.0_dp, fg)
+          sep%ko(8) = ko_ij (0, 1.0_dp, fg, error)
           d  = SQRT(amn(6)/14.0_dp)
           fg = sep%onec2el(44) - (20.0_dp/35.0_dp) * sep%onec2el(52)
           sep%cs(6) = d
-          sep%ko(6) = ko_ij(2, d, fg)
+          sep%ko(6) = ko_ij(2, d, fg, error)
        END IF
     END IF
   END SUBROUTINE eval_cs_ko
@@ -618,7 +623,8 @@ CONTAINS
        s15 = SQRT(15.0_dp)
 
        ! We evaluate now the Slater-Condon parameters (Rlij)
-       CALL sc_param(sep, r066, r266, r466, r016, r244, r036, r236, r155, r355, r125, r234, r246)
+       CALL sc_param(sep, r066, r266, r466, r016, r244, r036, r236, r155, r355, r125,&
+            r234, r246, error)
 
        IF (ABS(sep%f0sd) > EPSILON(0.0_dp)) THEN
           r016 = sep%f0sd
@@ -626,7 +632,7 @@ CONTAINS
        IF (ABS(sep%g2sd) > EPSILON(0.0_dp)) THEN
           r244 = sep%g2sd
        END IF
-       CALL eisol_corr(sep, r016, r066, r244, r266, r466)
+       CALL eisol_corr(sep, r016, r066, r244, r266, r466, error)
        sep%onec2el(1)  =  r016
        sep%onec2el(2)  =  2.0_dp/(3.d0*s5)*r125
        sep%onec2el(3)  =  1.0_dp/s15*r125
@@ -697,11 +703,12 @@ CONTAINS
 !> \date   03.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE sc_param (sep, r066, r266, r466, r016, r244, r036, r236, r155, r355, &
-       r125, r234, r246)
+       r125, r234, r246, error)
     TYPE(semi_empirical_type), POINTER       :: sep
     REAL(KIND=dp), INTENT(out)               :: r066, r266, r466, r016, r244, &
                                                 r036, r236, r155, r355, r125, &
                                                 r234, r246
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sc_param', &
       routineP = moduleN//':'//routineN
@@ -716,18 +723,18 @@ CONTAINS
     es = sep%zn(0)
     ep = sep%zn(1)
     ed = sep%zn(2)
-    r016 = sc_param_low (0, ns, es, ns, es, nd, ed, nd, ed)
-    r036 = sc_param_low (0, ns, ep, ns, ep, nd, ed, nd, ed)
-    r066 = sc_param_low (0, nd, ed, nd, ed, nd, ed, nd, ed)
-    r155 = sc_param_low (1, ns, ep, nd, ed, ns, ep, nd, ed)
-    r125 = sc_param_low (1, ns, es, ns, ep, ns, ep, nd, ed)
-    r244 = sc_param_low (2, ns, es, nd, ed, ns, es, nd, ed)
-    r236 = sc_param_low (2, ns, ep, ns, ep, nd, ed, nd, ed)
-    r266 = sc_param_low (2, nd, ed, nd, ed, nd, ed, nd, ed)
-    r234 = sc_param_low (2, ns, ep, ns, ep, ns, es, nd, ed)
-    r246 = sc_param_low (2, ns, es, nd, ed, nd, ed, nd, ed)
-    r355 = sc_param_low (3, ns, ep, nd, ed, ns, ep, nd, ed)
-    r466 = sc_param_low (4, nd, ed, nd, ed, nd, ed, nd, ed)
+    r016 = sc_param_low (0, ns, es, ns, es, nd, ed, nd, ed, error)
+    r036 = sc_param_low (0, ns, ep, ns, ep, nd, ed, nd, ed, error)
+    r066 = sc_param_low (0, nd, ed, nd, ed, nd, ed, nd, ed, error)
+    r155 = sc_param_low (1, ns, ep, nd, ed, ns, ep, nd, ed, error)
+    r125 = sc_param_low (1, ns, es, ns, ep, ns, ep, nd, ed, error)
+    r244 = sc_param_low (2, ns, es, nd, ed, ns, es, nd, ed, error)
+    r236 = sc_param_low (2, ns, ep, ns, ep, nd, ed, nd, ed, error)
+    r266 = sc_param_low (2, nd, ed, nd, ed, nd, ed, nd, ed, error)
+    r234 = sc_param_low (2, ns, ep, ns, ep, ns, es, nd, ed, error)
+    r246 = sc_param_low (2, ns, es, nd, ed, nd, ed, nd, ed, error)
+    r355 = sc_param_low (3, ns, ep, nd, ed, ns, ep, nd, ed, error)
+    r466 = sc_param_low (4, nd, ed, nd, ed, nd, ed, nd, ed, error)
   END SUBROUTINE sc_param
 
 ! *****************************************************************************
@@ -741,7 +748,7 @@ CONTAINS
 !>         -) ec,ed:  Exponents of AO,corresponding to electron 2
 !> \date   03.2008 [tlaino]
 ! ***************************************************************************** 
-  FUNCTION sc_param_low (k, na, ea, nb, eb, nc, ec, nd, ed) RESULT(res)
+  FUNCTION sc_param_low (k, na, ea, nb, eb, nc, ec, nd, ed, error) RESULT(res)
     INTEGER, INTENT(in)                      :: k, na
     REAL(KIND=dp), INTENT(in)                :: ea
     INTEGER, INTENT(in)                      :: nb
@@ -750,6 +757,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(in)                :: ec
     INTEGER, INTENT(in)                      :: nd
     REAL(KIND=dp), INTENT(in)                :: ed
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sc_param_low', &
@@ -810,9 +818,10 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   03.2008 [tlaino]
 ! ***************************************************************************** 
-  SUBROUTINE eisol_corr (sep, r016, r066, r244, r266, r466)
+  SUBROUTINE eisol_corr (sep, r016, r066, r244, r266, r466, error)
     TYPE(semi_empirical_type), POINTER       :: sep
     REAL(KIND=dp), INTENT(in)                :: r016, r066, r244, r266, r466
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eisol_corr', &
       routineP = moduleN//':'//routineN
@@ -834,11 +843,14 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date   03.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION ko_ij(l, d, fg) RESULT(res)
+  FUNCTION ko_ij(l, d, fg, error) RESULT(res)
     INTEGER, INTENT(in)                      :: l
     REAL(KIND=dp), INTENT(in)                :: d, fg
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'ko_ij', &
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: niter = 100
     REAL(KIND=dp), PARAMETER                 :: epsil = 1.0E-08_dp, &
                                                 g1 = 0.382_dp, g2 = 0.618_dp
@@ -885,6 +897,77 @@ CONTAINS
        res = a1
     END IF
   END FUNCTION ko_ij
+
+! *****************************************************************************
+!> \brief  Fills the 1 center 2 electron integrals for the construction of the 
+!>         one-electron fock matrix
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date   04.2008 [tlaino]
+! *****************************************************************************
+  SUBROUTINE setup_1c_2el_int(sep, error)
+    TYPE(semi_empirical_type), POINTER       :: sep
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_1c_2el_int', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ij, ij0, ind, ip, ipx, &
+                                                ipy, ipz, isize, kl, natorb, &
+                                                stat
+    LOGICAL                                  :: defined, failure
+    REAL(KIND=dp)                            :: gp2, gpp, gsp, gss, hsp
+
+    failure = .FALSE.
+    CALL get_se_param(sep, defined=defined, natorb=natorb,&
+                      gss=gss, gsp=gsp, gpp=gpp, gp2=gp2, hsp=hsp)
+    CPPostcondition(defined, cp_failure_level, routineP, error, failure)
+
+    isize     = natorb*(natorb+1)/2
+    ALLOCATE(sep%w(isize,isize),stat=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    ! Initialize array
+    sep%w = 0.0_dp
+    ! Fill the array
+    IF (natorb>0) THEN
+       ip            = 1
+       sep%w(ip, ip) = gss
+       IF (natorb > 2) THEN
+          ipx = ip + 2
+          ipy = ip + 5
+          ipz = ip + 9
+          sep%w(ipx,   ip ) = gsp
+          sep%w(ipy,   ip ) = gsp
+          sep%w(ipz,   ip ) = gsp
+          sep%w(ip,   ipx ) = gsp
+          sep%w(ip,   ipy ) = gsp
+          sep%w(ip,   ipz ) = gsp
+          sep%w(ipx,  ipx ) = gpp
+          sep%w(ipy,  ipy ) = gpp
+          sep%w(ipz,  ipz ) = gpp
+          sep%w(ipy,  ipx ) = gp2
+          sep%w(ipz,  ipx ) = gp2
+          sep%w(ipz,  ipy ) = gp2
+          sep%w(ipx,  ipy ) = gp2
+          sep%w(ipx,  ipz ) = gp2
+          sep%w(ipy,  ipz ) = gp2
+          sep%w(ip+1, ip+1) = hsp
+          sep%w(ip+3, ip+3) = hsp
+          sep%w(ip+6, ip+6) = hsp
+          sep%w(ip+4, ip+4) = 0.5_dp*(gpp-gp2)
+          sep%w(ip+7, ip+7) = 0.5_dp*(gpp-gp2)
+          sep%w(ip+8, ip+8) = 0.5_dp*(gpp-gp2)
+          IF (sep%dorb) THEN
+             ij0 = ip - 1
+             DO i = 1, 243
+                ij  = int_ij(i)
+                kl  = int_kl(i)
+                ind = int_onec2el(i)
+                sep%w(ij+ij0, kl+ij0) = sep%onec2el(ind)
+             END DO
+          END IF
+       END IF
+    END IF
+  END SUBROUTINE setup_1c_2el_int
 
 END MODULE semi_empirical_par_utils
 

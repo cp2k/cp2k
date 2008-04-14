@@ -80,10 +80,6 @@ MODULE nddo_methods
 
   PUBLIC :: build_nddo_fock_matrix, se_core_core_interaction
 
-  INTERFACE fock1
-    MODULE PROCEDURE rfock1,   ufock1
-  END INTERFACE
-
   INTERFACE fock2c
     MODULE PROCEDURE rfock2c,  ufock2c
   END INTERFACE
@@ -234,7 +230,8 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Evaluates the core-core interactions for NDDO methods
-!> \author JGH
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date 04.2008 [tlaino]
 ! *****************************************************************************
   SUBROUTINE se_core_core_interaction(qs_env, para_env, calculate_forces, error)
 
@@ -561,8 +558,7 @@ CONTAINS
                END IF
                sab_2c_neighbor_list_local => sab_2c_neighbor_list
                CALL get_neighbor_list(neighbor_list=sab_2c_neighbor_list_local,&
-                                      atom=iatom,&
-                                      nnode=nnode)
+                                      atom=iatom, nnode=nnode)
 
                sab_2c_neighbor_node => first_node(sab_2c_neighbor_list_local)
 
@@ -631,8 +627,8 @@ CONTAINS
                      END IF
 
                      SELECT CASE (dft_control%qs_control%method_id)
-                     CASE (do_method_mndo,do_method_am1,do_method_pm3,do_method_pm6,do_method_pdg,&
-                          do_method_rm1,do_method_mndod)
+                     CASE (do_method_mndo, do_method_am1, do_method_pm3, do_method_pm6, do_method_pdg,&
+                           do_method_rm1, do_method_mndod)
                         IF ( .NOT. switch ) THEN
                            CALL rotnuc (se_kind_a,se_kind_b,rij,e1b=e1b,e2a=e2a,itype=itype,&
                                 anag=anag, shortrange=do_ewald, taper=taper, error=error)
@@ -851,9 +847,9 @@ CONTAINS
       nspins, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, defined, failure
-    REAL(KIND=dp)                            :: delta, dr, gp2, gpp, gsp, &
-                                                gss, hsp
+    REAL(KIND=dp)                            :: delta, dr
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
+    REAL(KIND=dp), DIMENSION(45, 45)         :: p_block_tot
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ks_block_a, ks_block_b, &
                                                 p_block_a, p_block_b
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -922,10 +918,7 @@ CONTAINS
        DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,se_parameter=se_kind_a)
-          CALL get_se_param(se_kind_a,&
-                            defined=defined,&
-                            natorb=natorb_a,&
-                            gss=gss,gsp=gsp,gpp=gpp,gp2=gp2,hsp=hsp)
+          CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
 
           IF (.NOT.defined .OR. natorb_a < 1) CYCLE
 
@@ -954,15 +947,12 @@ CONTAINS
                 END IF
                 sab_orb_neighbor_list_local => sab_orb_neighbor_list
                 CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,&
-                                       atom=iatom,&
-                                       nnode=nnode)
+                                       atom=iatom,nnode=nnode)
 
                 sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
 
                 DO inode=1,nnode
-                   CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
-                                          neighbor=jatom,r=rij)
-
+                   CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,neighbor=jatom,r=rij)
                    IF (iatom <= jatom) THEN
                       irow = iatom
                       icol = jatom
@@ -982,6 +972,7 @@ CONTAINS
                                           block_col=icol,&
                                           BLOCK=p_block_a)
                       CPPostcondition(ASSOCIATED(p_block_a),cp_failure_level,routineP,error,failure)
+                      p_block_tot(1:SIZE(p_block_a,1),1:SIZE(p_block_a,2)) = 2.0_dp * p_block_a
                    END IF
                    IF ( nspins >= 2 ) THEN
                       CALL get_block_node(matrix=ks_matrix(2)%matrix,&
@@ -994,16 +985,19 @@ CONTAINS
                                           block_col=icol,&
                                           BLOCK=p_block_b)
                       CPPostcondition(ASSOCIATED(p_block_b),cp_failure_level,routineP,error,failure)
+                      CPPostcondition(SIZE(p_block_a,1)==SIZE(p_block_b,1),cp_failure_level,routineP,error,failure)
+                      CPPostcondition(SIZE(p_block_a,2)==SIZE(p_block_b,2),cp_failure_level,routineP,error,failure)
+                      p_block_tot(1:SIZE(p_block_a,1),1:SIZE(p_block_a,2)) = p_block_a + p_block_b
                    END IF
 
                    dr = SUM(rij(:)**2)
                    IF ( iatom == jatom .AND. dr < 0.001_dp ) THEN
                       CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
                       IF ( nspins == 1 ) THEN
-                         CALL fock1(gss,gsp,gpp,gp2,hsp,p_block_a,ks_block_a,error)
+                         CALL fock1(se_kind_a,p_block_tot,p_block_a,ks_block_a,factor=0.5_dp,error=error)
                       ELSE IF ( nspins == 2 ) THEN
-                         CALL fock1(gss,gsp,gpp,gp2,hsp,p_block_a,ks_block_a,&
-                                    p_block_b,ks_block_b,error)
+                         CALL fock1(se_kind_a,p_block_tot,p_block_a,ks_block_a,factor=1.0_dp,error=error)
+                         CALL fock1(se_kind_a,p_block_tot,p_block_b,ks_block_b,factor=1.0_dp,error=error)
                       END IF
                    ELSE
                       CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
@@ -1049,13 +1043,9 @@ CONTAINS
                       END IF
                    END IF
                    sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-
                 END DO ! inode => jatom(atom B)
-                
-             END DO ! ilist => iatom(atom A)
-             
+             END DO ! ilist => iatom(atom A)             
           END DO ! jkind
-          
        END DO ! ikind
        
        IF (calculate_forces) THEN 
@@ -1067,139 +1057,73 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
     
   END SUBROUTINE build_nddo_fock_matrix_exchange
-  
-! *****************************************************************************
-  SUBROUTINE rfock1 (gss,gsp,gpp,gp2,hsp,pmat,fmat,error)
-    REAL(dp), INTENT(IN)                     :: gss, gsp, gpp, gp2, hsp
-    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pmat
-    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fmat
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rfock1', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: n
-    LOGICAL                                  :: failure
-
-    n = SIZE ( pmat,1 )
-
-    CPPrecondition(n<=4,cp_failure_level,routineP,error,failure)
-    IF ( n == 1 ) THEN
-      fmat(1,1) = fmat(1,1) + 0.5_dp * pmat(1,1)*gss
-    END IF
-    IF ( n == 4 ) THEN
-      fmat(1,1) = fmat(1,1) + 0.5_dp * pmat(1,1)*gss + &
-         (pmat(2,2)+pmat(3,3)+pmat(4,4))*(gsp-0.5_dp*hsp)
-      fmat(2,2) = fmat(2,2) + pmat(1,1)*(gsp-0.5_dp*hsp) + &
-                              0.5_dp * pmat(2,2)*gpp + &
-                              (pmat(3,3)+pmat(4,4))*gp2 - &
-                              0.25_dp * (pmat(3,3)+pmat(4,4))*(gpp-gp2)
-      fmat(3,3) = fmat(3,3) + pmat(1,1)*(gsp-0.5_dp*hsp) + &
-                              0.5_dp * pmat(3,3)*gpp + &
-                              (pmat(2,2)+pmat(4,4))*gp2 - &
-                              0.25_dp * (pmat(2,2)+pmat(4,4))*(gpp-gp2)
-      fmat(4,4) = fmat(4,4) + pmat(1,1)*(gsp-0.5_dp*hsp) + &
-                              0.5_dp * pmat(4,4)*gpp + &
-                              (pmat(2,2)+pmat(3,3))*gp2 - &
-                              0.25_dp * (pmat(2,2)+pmat(3,3))*(gpp-gp2)
-
-      fmat(1,2) = fmat(1,2) + 0.5_dp * pmat(1,2)*(3._dp*hsp-gsp)
-      fmat(2,1) = fmat(1,2)
-      fmat(1,3) = fmat(1,3) + 0.5_dp * pmat(1,3)*(3._dp*hsp-gsp)
-      fmat(3,1) = fmat(1,3)
-      fmat(1,4) = fmat(1,4) + 0.5_dp * pmat(1,4)*(3._dp*hsp-gsp)
-      fmat(4,1) = fmat(1,4)
-
-      fmat(2,3) = fmat(2,3) + pmat(2,3)*(gpp-gp2) - 0.25_dp * pmat(2,3)*(gpp+gp2)
-      fmat(3,2) = fmat(2,3)
-      fmat(2,4) = fmat(2,4) + pmat(2,4)*(gpp-gp2) - 0.25_dp * pmat(2,4)*(gpp+gp2)
-      fmat(4,2) = fmat(2,4)
-      fmat(3,4) = fmat(3,4) + pmat(3,4)*(gpp-gp2) - 0.25_dp * pmat(3,4)*(gpp+gp2)
-      fmat(4,3) = fmat(3,4)
-    END IF
-
-  END SUBROUTINE rfock1
 
 ! *****************************************************************************
-  SUBROUTINE ufock1 (gss,gsp,gpp,gp2,hsp,pmata,fmata,pmatb,fmatb,error)
-    REAL(dp), INTENT(IN)                     :: gss, gsp, gpp, gp2, hsp
-    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pmata
-    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fmata
-    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pmatb
-    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fmatb
+!> \brief Construction of 1-center Fock Matrix
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date 04.2008 [tlaino]
+! *****************************************************************************
+  SUBROUTINE fock1(sep, p_tot, p_mat, f_mat, factor, error)
+    TYPE(semi_empirical_type), POINTER       :: sep
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: p_tot, p_mat
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: f_mat
+    REAL(KIND=dp), INTENT(IN)                :: factor
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'ufock1', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'fock1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: n
+    INTEGER                                  :: i, ijw, ikw, im, ip, j, jlw, &
+                                                jm, jp, k, klw, l
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: pss, pxx, pyy, pzz
+    REAL(KIND=dp)                            :: sum
 
-    n = SIZE ( pmata,1 )
+    failure = .FALSE.
+    !   One-center coulomb and exchange terms for semiempirical_type sep
+    !
+    !  F(i,j)=F(i,j)+sum(k,l)((PA(k,l)+PB(k,l))*<i,j|k,l>
+    !                        -(PA(k,l)        )*<i,k|j,l>), k,l on type sep.
+    !
+    DO i = 1, sep%natorb
+       DO j = 1, i
+          !
+          !    `J' Address IJ in W
+          !
+          ijw = (i*(i-1))/2 + j
+          sum = 0.0_dp
+          DO k = 1, sep%natorb
+             DO l =  1, sep%natorb
+                ip = MAX(k,l)
+                jp = MIN(k,l)
+                !
+                !    `J' Address KL in W
+                !
+                im = MAX(k,l)
+                jm = MIN(k,l)
+                klw = (im*(im-1))/2 + jm
+                !
+                !    `K' Address IK in W
+                !
+                im = MAX(k,j)
+                jm = MIN(k,j)
+                ikw = (im*(im-1))/2 + jm
+                !
+                !    `K' Address JL in W
+                !
+                im = MAX(l,i)
+                jm = MIN(l,i)
+                jlw = (im*(im-1))/2 + jm
 
-    CPPrecondition(n<=4,cp_failure_level,routineP,error,failure)
-    IF ( n == 1 ) THEN
-      fmata(1,1) = fmata(1,1) + pmatb(1,1)*gss
-      fmatb(1,1) = fmatb(1,1) + pmata(1,1)*gss
-    END IF
-    IF ( n == 4 ) THEN
-      pss = pmata(1,1)+pmatb(1,1)
-      pxx = pmata(2,2)+pmatb(2,2)
-      pyy = pmata(3,3)+pmatb(3,3)
-      pzz = pmata(4,4)+pmatb(4,4)
-      fmata(1,1) = fmata(1,1) + pmatb(1,1)*gss + &
-         (pxx+pyy+pzz)*gsp - (pmata(2,2)+pmata(3,3)+pmata(4,4))*hsp
-      fmatb(1,1) = fmatb(1,1) + pmata(1,1)*gss + &
-         (pxx+pyy+pzz)*gsp - (pmatb(2,2)+pmatb(3,3)+pmatb(4,4))*hsp
-      fmata(2,2) = fmata(2,2) + pmatb(2,2)*gpp - pmata(1,1)*hsp + pss*gsp + (pyy+pzz)*gp2 -&
-                    0.5_dp*(pmata(3,3)+pmata(4,4))*(gpp-gp2)
-      fmata(3,3) = fmata(3,3) + pmatb(3,3)*gpp - pmata(1,1)*hsp + pss*gsp + (pxx+pzz)*gp2 -&
-                    0.5_dp*(pmata(2,2)+pmata(4,4))*(gpp-gp2)
-      fmata(4,4) = fmata(4,4) + pmatb(4,4)*gpp - pmata(1,1)*hsp + pss*gsp + (pxx+pyy)*gp2 -&
-                    0.5_dp*(pmata(2,2)+pmata(3,3))*(gpp-gp2)
-      fmatb(2,2) = fmatb(2,2) + pmata(2,2)*gpp - pmatb(1,1)*hsp + pss*gsp + (pyy+pzz)*gp2 -&
-                    0.5_dp*(pmatb(3,3)+pmatb(4,4))*(gpp-gp2)
-      fmatb(3,3) = fmatb(3,3) + pmata(3,3)*gpp - pmatb(1,1)*hsp + pss*gsp + (pxx+pzz)*gp2 -&
-                    0.5_dp*(pmatb(2,2)+pmatb(4,4))*(gpp-gp2)
-      fmatb(4,4) = fmatb(4,4) + pmata(4,4)*gpp - pmatb(1,1)*hsp + pss*gsp + (pxx+pyy)*gp2 -&
-                    0.5_dp*(pmatb(2,2)+pmatb(3,3))*(gpp-gp2)
-
-      fmata(1,2) = fmata(1,2) + pmata(1,2)*(hsp-gsp) + 2._dp*pmatb(1,2)*hsp
-      fmata(2,1) = fmata(1,2)
-      fmata(1,3) = fmata(1,3) + pmata(1,3)*(hsp-gsp) + 2._dp*pmatb(1,3)*hsp
-      fmata(3,1) = fmata(1,3)
-      fmata(1,4) = fmata(1,4) + pmata(1,4)*(hsp-gsp) + 2._dp*pmatb(1,4)*hsp
-      fmata(4,1) = fmata(1,4)
-      fmatb(1,2) = fmatb(1,2) + pmatb(1,2)*(hsp-gsp) + 2._dp*pmata(1,2)*hsp
-      fmatb(2,1) = fmatb(1,2)
-      fmatb(1,3) = fmatb(1,3) + pmatb(1,3)*(hsp-gsp) + 2._dp*pmata(1,3)*hsp
-      fmatb(3,1) = fmatb(1,3)
-      fmatb(1,4) = fmatb(1,4) + pmatb(1,4)*(hsp-gsp) + 2._dp*pmata(1,4)*hsp
-      fmatb(4,1) = fmatb(1,4)
-
-      fmata(2,3) = fmata(2,3) + (pmata(2,3)+pmatb(2,3))*(gpp-gp2) &
-                              - 0.5_dp * pmata(2,3)*(gpp+gp2)
-      fmata(3,2) = fmata(2,3)
-      fmata(2,4) = fmata(2,4) + (pmata(2,4)+pmatb(2,4))*(gpp-gp2) &
-                              - 0.5_dp * pmata(2,4)*(gpp+gp2)
-      fmata(4,2) = fmata(2,4)
-      fmata(3,4) = fmata(3,4) + (pmata(3,4)+pmatb(3,4))*(gpp-gp2) &
-                              - 0.5_dp * pmata(3,4)*(gpp+gp2)
-      fmata(4,3) = fmata(3,4)
-      fmatb(2,3) = fmatb(2,3) + (pmata(2,3)+pmatb(2,3))*(gpp-gp2) &
-                              - 0.5_dp * pmatb(2,3)*(gpp+gp2)
-      fmatb(3,2) = fmatb(2,3)
-      fmatb(2,4) = fmatb(2,4) + (pmata(2,4)+pmatb(2,4))*(gpp-gp2) &
-                              - 0.5_dp * pmatb(2,4)*(gpp+gp2)
-      fmatb(4,2) = fmatb(2,4)
-      fmatb(3,4) = fmatb(3,4) + (pmata(3,4)+pmatb(3,4))*(gpp-gp2) &
-                              - 0.5_dp * pmatb(3,4)*(gpp+gp2)
-      fmatb(4,3) = fmatb(3,4)
-
-    END IF
-
-  END SUBROUTINE ufock1
+                sum = sum + p_tot(ip, jp) * sep%w(ijw, klw) - p_mat(ip,jp) * sep%w(ikw, jlw)
+             END DO
+          END DO
+          f_mat(i,j) = f_mat(i,j) + factor*sum
+          f_mat(j,i) = f_mat(i,j)
+       END DO
+    END DO
+  END SUBROUTINE fock1
 
 ! *****************************************************************************
   SUBROUTINE rfock2c(sepa,sepb,rij,pa,pb,fa,fb,anag,shortrange,taper,error)

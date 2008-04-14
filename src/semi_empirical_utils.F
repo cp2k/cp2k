@@ -22,7 +22,8 @@ MODULE semi_empirical_utils
                                              do_method_pm6,&
                                              do_method_rm1
   USE kinds,                           ONLY: dp
-  USE semi_empirical_par_utils,        ONLY: get_se_basis
+  USE semi_empirical_par_utils,        ONLY: get_se_basis,&
+                                             setup_1c_2el_int
   USE semi_empirical_parameters,       ONLY: am1_default_parameter,&
                                              mndo_default_parameter,&
                                              pcharge_default_parameter,&
@@ -123,8 +124,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'se_param_set_default', &
       routineP = moduleN//':'//routineN
 
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
     IF (ASSOCIATED(sep)) THEN
-       IF ( z < 0 ) THEN
+       IF (z<0) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
                "Atomic number < 0")
        END IF
@@ -146,12 +150,23 @@ CONTAINS
        CASE (do_method_pchg)
           CALL pcharge_default_parameter(sep,z,error)
        CASE DEFAULT
-          CALL stop_program(routineN,moduleN,__LINE__,"Semiempirical method unknown")
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               "Semiempirical method unknown")
        END SELECT
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer sep is not associated")
     END IF
+
+    ! Check if the element has been defined.. 
+    CALL cp_assert(sep%defined,cp_fatal_level,cp_assertion_failed,routineP,&
+         "Semiempirical type ("//TRIM(sep%name)//") cannot be defined for "//&
+         "the requested parameterization."//&
+CPSourceFileRef,&
+         only_ionode=.TRUE.)
+   
+    ! Fill 1 center - 2 electron integrals 
+    CALL setup_1c_2el_int(sep, error)
 
   END SUBROUTINE se_param_set_default
 

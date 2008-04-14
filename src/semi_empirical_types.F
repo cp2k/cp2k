@@ -75,6 +75,9 @@ MODULE semi_empirical_types
     REAL(KIND = dp), DIMENSION(0:115)      :: xab
     REAL(KIND = dp), DIMENSION(0:115)      :: aab
     REAL(KIND = dp)                        :: a, b, c, rho
+    ! One center - two electron integrals
+    REAL(KIND = dp), DIMENSION(:,:),&
+         POINTER                           :: w
   END TYPE semi_empirical_type
 
 ! *****************************************************************************
@@ -141,6 +144,7 @@ CONTAINS
     ALLOCATE (sep%zn(0:3),STAT=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     NULLIFY(sep%basis)
+    NULLIFY(sep%w)
     CALL zero_se_param(sep,error)
     
   END SUBROUTINE semi_empirical_create
@@ -248,6 +252,8 @@ CONTAINS
        DEALLOCATE (sep%sto_exponents,STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (sep%zn,STAT=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE (sep%w,STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE (sep,STAT=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
