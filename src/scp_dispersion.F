@@ -386,7 +386,6 @@ CONTAINS
                        force_a(3)=force_a(3)+2.0_dp*disp_factor*I_ab(ia,ib)*I_dabdz(ia,ib)
                      END DO
                    END DO
-                  IF ( ionode ) &
 !             ***  sum up in the force arrey  ***
               ! NOTE: This is the actual force, e.g. -d/dR
                    i_atom = atom_of_kind(iatom)
