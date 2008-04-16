@@ -131,3 +131,7 @@ H2O_pw.inp
 CH-hfx-md-2.inp
 CH-hfx-md.inp
 CH-hfx-pbc-md.inp
+# change regtest-type
+CH-hfx-md-2.inp
+CH-hfx-md.inp
+CH-hfx-pbc-md.inp
