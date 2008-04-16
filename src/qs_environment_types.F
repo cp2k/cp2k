@@ -70,6 +70,8 @@ MODULE qs_environment_types
                                              hartree_local_release,&
                                              hartree_local_type,&
                                              set_hartree_local
+  USE hfx_types,                       ONLY: x_hf_release,&
+                                             x_hf_type
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_retain,&
                                              section_vals_type
@@ -156,8 +158,6 @@ MODULE qs_environment_types
   USE virial_types,                    ONLY: virial_release,&
                                              virial_retain,&
                                              virial_type
-  USE x_hf,                            ONLY: x_hf_release,&
-                                             x_hf_type
   USE xas_env_types,                   ONLY: xas_env_release,&
                                              xas_env_retain,&
                                              xas_environment_type

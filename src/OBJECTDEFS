@@ -172,7 +172,6 @@ OBJECTS_GENERIC =\
  force_fields_all.o\
  force_fields_input.o\
  force_fields_util.o\
- four_center_integrals.o\
  fparser.o\
  fp_types.o\
  fp_methods.o\
@@ -198,6 +197,18 @@ OBJECTS_GENERIC =\
  hartree_local_3centers.o\
  hartree_local_methods.o\
  hartree_local_types.o\
+ hfx_communication.o\
+ hfx_compression_core_methods.o\
+ hfx_compression_methods.o\
+ hfx_derivatives.o\
+ hfx_distribution_mc.o\
+ hfx_energy_potential.o\
+ hfx_helpers.o\
+ hfx_libint_interface.o\
+ hfx_libint_wrapper.o\
+ hfx_load_balance_methods.o\
+ hfx_screening_methods.o\
+ hfx_types.o\
  header.o\
  inpp_types.o\
  inpp_methods.o\
@@ -267,8 +278,6 @@ OBJECTS_GENERIC =\
  lapack.o\
  lazy.o\
  lebedev.o\
- libint_interface.o\
- libint_wrapper.o\
  library_tests.o\
  linear_systems.o\
  lowdin.o\
@@ -558,9 +567,6 @@ OBJECTS_GENERIC =\
  virial_types.o\
  whittaker.o\
  wiener_process.o\
- x_hf.o\
- x_hf_compression_methods.o\
- x_hf_distribution_mc.o\
  xas_control.o\
  xas_env_types.o\
  xas_methods.o\

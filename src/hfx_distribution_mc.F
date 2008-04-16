@@ -10,10 +10,11 @@
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-MODULE x_hf_distribution_mc
+MODULE hfx_distribution_mc
 
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
+  USE hfx_types,                       ONLY: x_hf_load_balance_type
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE parallel_rng_types,              ONLY: UNIFORM,&
@@ -22,7 +23,6 @@ MODULE x_hf_distribution_mc
                                              next_random_number,&
                                              reset_to_next_rng_substream,&
                                              rng_stream_type
-  USE x_hf,                            ONLY: x_hf_load_balance_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -30,25 +30,6 @@ MODULE x_hf_distribution_mc
 
   PUBLIC     x_hf_optimize_distribution
 
-  !! Module Variables
-!!  INTEGER                                    :: my_nbin
-!!  INTEGER                                    :: my_ncpu
-!!  INTEGER(int_8), ALLOCATABLE, DIMENSION(:)  :: my_bin_costs
-!!  INTEGER(int_8), ALLOCATABLE, DIMENSION(:)  :: my_cost_cpu
-!!  INTEGER(int_8)                             :: my_cost_optimal
-!!  INTEGER(int_8)                             :: my_cost_total
-!!  INTEGER, ALLOCATABLE, DIMENSION(:)         :: my_distribution
-!!  INTEGER, ALLOCATABLE, DIMENSION(:)         :: my_best_distribution
-!!  INTEGER(int_8)                             :: my_best_cost
-!!  TYPE(rng_stream_type), POINTER             :: my_rng_stream
-!!  INTEGER                                    :: my_moves
-!!  INTEGER                                    :: my_cycles
-!!  INTEGER                                    :: my_reduction_steps
-!!  REAL(dp)                                   :: my_reduction_factor
-!!  REAL(dp)                                   :: my_initial_temperature
-!!  REAL(dp)                                   :: my_tolerance
-!!  REAL(dp)                                   :: my_swap_probability
- 
   CONTAINS
 
 ! *****************************************************************************
@@ -375,4 +356,4 @@ MODULE x_hf_distribution_mc
                     my_tolerance, my_swap_probability, error)
   END SUBROUTINE x_hf_optimize_distribution
 
-END MODULE x_hf_distribution_mc
+END MODULE hfx_distribution_mc

@@ -12,10 +12,16 @@
 !>      11.2006 created [Manuel Guidon]
 !> \author Manuel Guidon 
 ! *****************************************************************************
-MODULE libint_interface
+MODULE hfx_libint_interface
 
   USE f77_blas
   USE gamma,                           ONLY: fgamma
+  USE hfx_libint_wrapper,              ONLY: get_derivs,&
+                                             get_eris,&
+                                             lib_deriv,&
+                                             lib_int,&
+                                             prim_data
+  USE hfx_types,                       ONLY: x_hf_potential_type
   USE input_constants,                 ONLY: do_hf_potential_coulomb,&
                                              do_hf_potential_gaussian,&
                                              do_hf_potential_id,&
@@ -24,14 +30,8 @@ MODULE libint_interface
                                              do_hf_potential_mix_lg,&
                                              do_hf_potential_short
   USE kinds,                           ONLY: dp
-  USE libint_wrapper,                  ONLY: get_derivs,&
-                                             get_eris,&
-                                             lib_deriv,&
-                                             lib_int,&
-                                             prim_data
   USE mathconstants
   USE orbital_pointers
-  USE x_hf,                            ONLY: x_hf_potential_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -40,7 +40,7 @@ MODULE libint_interface
          evaluate_deriv_eri,&
          evaluate_eri_screen, pbc
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'libint_interface'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_libint_interface'
 
   INTEGER, DIMENSION(12), PARAMETER :: full_perm1 = (/1,2,3,4,5,6,7,8,9,10,11,12/)
   INTEGER, DIMENSION(12), PARAMETER :: full_perm2 = (/4,5,6,1,2,3,7,8,9,10,11,12/)
@@ -1334,4 +1334,4 @@ MODULE libint_interface
     END IF
   END SUBROUTINE pbc
 
-END MODULE libint_interface
+END MODULE hfx_libint_interface

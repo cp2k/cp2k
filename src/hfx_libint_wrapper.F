@@ -12,7 +12,7 @@
 !>      11.2007 created [Manuel Guidon]
 !> \author Manuel Guidon 
 ! *****************************************************************************
-MODULE libint_wrapper
+MODULE hfx_libint_wrapper
 
 #if defined (__LIBINT)
 #if defined (__G95)
@@ -40,7 +40,7 @@ MODULE libint_wrapper
          initialize_libderiv, lib_deriv, prim_data,&
          get_eris, get_derivs
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'libint_wrapper'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_libint_wrapper'
 
   INTEGER, PARAMETER :: libint_max_am = 5
   INTEGER, PARAMETER :: build_eri_size = libint_max_am-1
@@ -749,8 +749,8 @@ MODULE libint_wrapper
 !***         - UGLY_BUT_FAST uses CRAY POINTERS. Its faster, because      ***!
 !***           no arrays have to be allocated twice in memory             ***!
 !***           If not defined, the array p_work has to be allocated       ***!
-!***           in the Module libint_interface::evaluate_eri and           ***!
-!***           libint_interface::evaluate_eri_screen                      ***!
+!***           in the Module hfx_libint_interface::evaluate_eri and       ***!
+!***           hfx_libint_interface::evaluate_eri_screen                  ***!
 !***                                                                      ***!
 !****************************************************************************!
 !****************************************************************************!
@@ -1197,4 +1197,4 @@ MODULE libint_wrapper
 !LIBINT
 #endif 
 
-END MODULE libint_wrapper
+END MODULE hfx_libint_wrapper

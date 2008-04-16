@@ -6,10 +6,10 @@
 ! *****************************************************************************
 !> \brief Contains routines for data compression. PLEASE DO NOT MODIFY. 
 !> \par History
-!>      10.2007 created [Manuel Guidon]
+!>      04.2008 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-MODULE x_hf_compression_methods
+MODULE hfx_compression_core_methods
   
   USE f77_blas
   USE kinds,                           ONLY: dp,&
@@ -53485,4 +53485,4 @@ MODULE x_hf_compression_methods
    END SELECT
   END SUBROUTINE bits2ints_specific
 
-END MODULE x_hf_compression_methods
+END MODULE hfx_compression_core_methods

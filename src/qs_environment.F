@@ -87,6 +87,7 @@ MODULE qs_environment
   USE header,                          ONLY: dftb_header,&
                                              qs_header,&
                                              se_header
+  USE hfx_types,                       ONLY: x_hf_create
   USE input_constants,                 ONLY: &
        do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, &
        do_method_gapw, do_method_gapw_xc, do_method_mndo, do_method_mndod, &
@@ -150,7 +151,6 @@ MODULE qs_environment
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
-  USE x_hf,                            ONLY: x_hf_create
   USE xas_control,                     ONLY: write_xas_control
 #include "cp_common_uses.h"
 

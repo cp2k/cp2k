@@ -55,13 +55,13 @@ MODULE qs_ks_methods
   USE ep_qs_types,                     ONLY: ep_qs_type
   USE et_coupling,                     ONLY: becke_constraint
   USE f77_blas
-  USE four_center_integrals,           ONLY: derivatives_four_center,&
-                                             integrate_four_center,&
-                                             scale_and_add_fock_to_ks_matrix
   USE harris_env_types,                ONLY: harris_env_type
   USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
   USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
+  USE hfx_communication,               ONLY: scale_and_add_fock_to_ks_matrix
+  USE hfx_derivatives,                 ONLY: derivatives_four_center
+  USE hfx_energy_potential,            ONLY: integrate_four_center
   USE input_constants,                 ONLY: &
        do_adiabatic_hybrid_mcy3, do_adiabatic_model_pade, do_spin_density, &
        sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
