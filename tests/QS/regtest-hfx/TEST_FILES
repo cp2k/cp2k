@@ -4,9 +4,9 @@
 H2O-hfx-1.inp         1
 H2O-hfx-2.inp         1
 H2O-hfx-3.inp         1
-CH-hfx-md.inp         1
-CH-hfx-md-2.inp       1
-CH-hfx-pbc-md.inp     1
+CH-hfx-md.inp         4
+CH-hfx-md-2.inp       4
+CH-hfx-pbc-md.inp     4
 H2O_pw.inp           22
 4H2O-disk.inp         1
 4H2O-mix-disk-ram.inp 1
