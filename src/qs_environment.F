@@ -87,7 +87,7 @@ MODULE qs_environment
   USE header,                          ONLY: dftb_header,&
                                              qs_header,&
                                              se_header
-  USE hfx_types,                       ONLY: x_hf_create
+  USE hfx_types,                       ONLY: hfx_create
   USE input_constants,                 ONLY: &
        do_et_becke, do_et_ddapc, do_method_am1, do_method_dftb, &
        do_method_gapw, do_method_gapw_xc, do_method_mndo, do_method_mndod, &
@@ -212,7 +212,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER :: cell_section, colvar_section, &
-      et_coupling_section, harris_section, hf_section, kind_section
+      et_coupling_section, harris_section, hfx_section, kind_section
 
     NULLIFY(my_subsys, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
@@ -303,14 +303,14 @@ CONTAINS
     IF (.NOT.PRESENT(subsys)) CALL cp_subsys_release(my_subsys,error=error)
 
     do_hf =.FALSE.
-    hf_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%HF",error=error)
-    CALL section_vals_get(hf_section,explicit=do_hf,error=error)
+    hfx_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%HF",error=error)
+    CALL section_vals_get(hfx_section,explicit=do_hf,error=error)
     IF (do_hf) THEN
       natom=SIZE(particle_set)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxnset=max_set)
 
-      CALL x_hf_create(qs_env%x_data, para_env, hf_section,natom,max_set,atomic_kind_set, &
-                       particle_set, error=error)
+      CALL hfx_create(qs_env%x_data, para_env, hfx_section,natom,max_set,atomic_kind_set, &
+                      particle_set, error=error)
     END IF
     et_coupling_section => section_vals_get_subs_vals(qs_env%input,&
                            "PROPERTIES%ET_COUPLING",error=error)

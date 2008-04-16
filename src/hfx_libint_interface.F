@@ -21,7 +21,7 @@ MODULE hfx_libint_interface
                                              lib_deriv,&
                                              lib_int,&
                                              prim_data
-  USE hfx_types,                       ONLY: x_hf_potential_type
+  USE hfx_types,                       ONLY: hfx_potential_type
   USE input_constants,                 ONLY: do_hf_potential_coulomb,&
                                              do_hf_potential_gaussian,&
                                              do_hf_potential_id,&
@@ -80,7 +80,7 @@ MODULE hfx_libint_interface
                                                 offset_b, offset_c, offset_d
     REAL(dp), &
       DIMENSION(ncoa, ncob, ncoc, ncod)      :: primitives
-    TYPE(x_hf_potential_type)                :: potential_parameter
+    TYPE(hfx_potential_type)                 :: potential_parameter
     REAL(dp)                                 :: max_contraction, tmp_max, &
                                                 eps_schwarz
 
@@ -489,7 +489,7 @@ MODULE hfx_libint_interface
     REAL(KIND=dp)                            :: A(3), B(3), C(3), D(3)
     REAL(KIND=dp), INTENT(IN)                :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER, INTENT(IN)                      :: m_max
-    TYPE(x_hf_potential_type)                :: potential_parameter
+    TYPE(hfx_potential_type)                 :: potential_parameter
     TYPE(prim_data)                          :: prim
 
     INTEGER                                  :: i
@@ -639,7 +639,7 @@ MODULE hfx_libint_interface
     REAL(KIND=dp)                            :: A(3), B(3), C(3), D(3)
     REAL(KIND=dp), INTENT(IN)                :: Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER, INTENT(IN)                      :: m_max
-    TYPE(x_hf_potential_type)                :: potential_parameter
+    TYPE(hfx_potential_type)                 :: potential_parameter
     TYPE(prim_data)                          :: prim
 
     INTEGER                                  :: i
@@ -807,7 +807,7 @@ MODULE hfx_libint_interface
       DIMENSION(ncoa, ncob, ncoc, ncod, 12)  :: primitive_forces
     INTEGER, INTENT(IN)                      :: offset_a, offset_b, offset_c, &
                                                 offset_d
-    TYPE(x_hf_potential_type)                :: potential_parameter
+    TYPE(hfx_potential_type)                 :: potential_parameter
     REAL(dp)                                 :: max_contraction, tmp_max_all, &
                                                 eps_schwarz
 
@@ -1159,7 +1159,7 @@ MODULE hfx_libint_interface
                                                 Zeta_A, Zeta_B, Zeta_C, Zeta_D
     INTEGER, INTENT(IN)                      :: n_a, n_b, n_c, n_d
     REAL(dp), INTENT(INOUT)                  :: max_val
-    TYPE(x_hf_potential_type)                :: potential_parameter
+    TYPE(hfx_potential_type)                 :: potential_parameter
 
     INTEGER                                  :: a_mysize(1), i, m_max, &
                                                 mysize, perm_case

@@ -23,7 +23,7 @@ MODULE input_cp2k_dft
   USE f77_blas
   USE input_constants
   USE input_cp2k_distribution,         ONLY: create_distribution_section
-  USE input_cp2k_hfx,                  ONLY: create_hf_section
+  USE input_cp2k_hfx,                  ONLY: create_hfx_section
   USE input_cp2k_poisson,              ONLY: create_poisson_section
   USE input_cp2k_resp,                 ONLY: create_resp_section
   USE input_cp2k_rsgrid,               ONLY: create_rsgrid_section
@@ -3134,7 +3134,7 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_hf_section(subsection,error)
+       CALL create_hfx_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 

@@ -15,17 +15,17 @@ MODULE hfx_load_balance_methods
                                              get_atomic_kind_set
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erfc
-  USE hfx_distribution_mc,             ONLY: x_hf_optimize_distribution
+  USE hfx_distribution_mc,             ONLY: optimize_distribution
   USE hfx_helpers,                     ONLY: FNV64
   USE hfx_libint_interface,            ONLY: pbc
-  USE hfx_types,                       ONLY: x_hf_basis_type,&
-                                             x_hf_box_scheme,&
-                                             x_hf_distribution,&
-                                             x_hf_load_balance_type,&
-                                             x_hf_potential_type,&
-                                             x_hf_set_distr_energy,&
-                                             x_hf_set_distr_forces,&
-                                             x_hf_type
+  USE hfx_types,                       ONLY: hfx_basis_type,&
+                                             hfx_box_scheme,&
+                                             hfx_distribution,&
+                                             hfx_load_balance_type,&
+                                             hfx_potential_type,&
+                                             hfx_set_distr_energy,&
+                                             hfx_set_distr_forces,&
+                                             hfx_type
   USE input_constants,                 ONLY: do_hf_potential_coulomb,&
                                              do_hf_potential_gaussian,&
                                              do_hf_potential_id,&
@@ -93,27 +93,27 @@ MODULE hfx_load_balance_methods
                                  is_assoc_atomic_block_global, do_periodic,&
                                  load_balance_parameter, box_size, box_size_inv, kind_of, basis_parameter, pmax_set, &
                                  i_thread, n_threads, shm_far_field_boxes, error)
-    TYPE(x_hf_type), POINTER                 :: x_data
+    TYPE(hfx_type), POINTER                  :: x_data
     REAL(dp), INTENT(IN)                     :: eps_schwarz, eps_box
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(x_hf_potential_type), INTENT(IN)    :: potential_parameter
+    TYPE(hfx_potential_type), INTENT(IN)     :: potential_parameter
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: screen_set
     REAL(dp), DIMENSION(:, :), POINTER       :: screen_atom
     REAL(dp), INTENT(IN)                     :: screen_max
     INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block_global
     LOGICAL                                  :: do_periodic
-    TYPE(x_hf_load_balance_type)             :: load_balance_parameter
+    TYPE(hfx_load_balance_type)              :: load_balance_parameter
     REAL(dp), INTENT(IN)                     :: box_size(3), box_size_inv(3)
     INTEGER                                  :: kind_of(*)
-    TYPE(x_hf_basis_type), DIMENSION(:), &
+    TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set
     INTEGER, INTENT(IN)                      :: i_thread, n_threads
-    TYPE(x_hf_box_scheme), DIMENSION(:, :), &
+    TYPE(hfx_box_scheme), DIMENSION(:, :), &
       POINTER                                :: shm_far_field_boxes
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -144,11 +144,11 @@ MODULE hfx_load_balance_methods
     REAL(dp) :: center1(3), center2(3), center2_folded(3), Kbox, max_val1, &
       max_val2, omega2Inv, omega_box, pbc_center(3), pmax_entry, R1, R2, &
       Rbox, temp(3)
-    TYPE(x_hf_distribution), DIMENSION(:), &
+    TYPE(hfx_distribution), DIMENSION(:), &
       POINTER                                :: ptr_to_tmp_dist
-    TYPE(x_hf_distribution), &
+    TYPE(hfx_distribution), &
       DIMENSION(:, :), POINTER               :: binned_dist, tmp_dist
-    TYPE(x_hf_distribution), &
+    TYPE(hfx_distribution), &
       DIMENSION(:, :), POINTER, SAVE         :: full_dist
 
     IF(potential_parameter%omega /= 0.0_dp) THEN
@@ -173,7 +173,7 @@ MODULE hfx_load_balance_methods
       tmp_dist(1,1)%lstart = 1
       tmp_dist(1,1)%original_cpu_id = 1
       ptr_to_tmp_dist => tmp_dist(1,:)
-      CALL x_hf_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
+      CALL hfx_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
       DEALLOCATE(tmp_dist,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
@@ -496,7 +496,7 @@ MODULE hfx_load_balance_methods
       ALLOCATE(local_cost_matrix(SIZE(cost_matrix,1)),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       local_cost_matrix = cost_matrix
-      CALL x_hf_optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, distribution_vector, &
+      CALL optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, distribution_vector, &
                                       load_balance_parameter, optimal_cost, my_process_id, i_thread, error)
       
       !! Find optimal load balance wrt the cost
@@ -634,7 +634,7 @@ MODULE hfx_load_balance_methods
           ptr_to_tmp_dist => tmp_dist(mepos,1:tmp_pos(mepos)-1)
         END IF
       END DO
-      CALL x_hf_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
+      CALL hfx_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
 !$OMP BARRIER
 !$OMP MASTER
       DEALLOCATE(full_dist,optimal_costs,cost_matrix,shm_distribution_vector, STAT=stat)
@@ -680,27 +680,27 @@ MODULE hfx_load_balance_methods
                                  pmax_set, is_assoc_atomic_block_global, do_periodic, &
                                  load_balance_parameter, box_size, box_size_inv, kind_of, basis_parameter,&
                                  i_thread, n_threads, shm_far_field_boxes, error)
-    TYPE(x_hf_type), POINTER                 :: x_data
+    TYPE(hfx_type), POINTER                  :: x_data
     REAL(dp), INTENT(IN)                     :: eps_schwarz, eps_box
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(x_hf_potential_type), INTENT(IN)    :: potential_parameter
+    TYPE(hfx_potential_type), INTENT(IN)     :: potential_parameter
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: screen_set
     REAL(dp), DIMENSION(:, :), POINTER       :: screen_atom
     REAL(dp), INTENT(IN)                     :: screen_max
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set
     INTEGER, DIMENSION(:, :)                 :: is_assoc_atomic_block_global
     LOGICAL                                  :: do_periodic
-    TYPE(x_hf_load_balance_type)             :: load_balance_parameter
+    TYPE(hfx_load_balance_type)              :: load_balance_parameter
     REAL(dp), INTENT(IN)                     :: box_size(3), box_size_inv(3)
     INTEGER                                  :: kind_of(*)
-    TYPE(x_hf_basis_type), DIMENSION(:), &
+    TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     INTEGER, INTENT(IN)                      :: i_thread, n_threads
-    TYPE(x_hf_box_scheme), DIMENSION(:, :), &
+    TYPE(hfx_box_scheme), DIMENSION(:, :), &
       POINTER                                :: shm_far_field_boxes
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -731,11 +731,11 @@ MODULE hfx_load_balance_methods
     REAL(dp) :: center1(3), center2(3), center2_folded(3), Kbox, max_val1, &
       max_val2, omega2Inv, omega_box, pbc_center(3), pmax_entry, R1, R2, &
       Rbox, temp(3)
-    TYPE(x_hf_distribution), DIMENSION(:), &
+    TYPE(hfx_distribution), DIMENSION(:), &
       POINTER                                :: ptr_to_tmp_dist
-    TYPE(x_hf_distribution), &
+    TYPE(hfx_distribution), &
       DIMENSION(:, :), POINTER               :: binned_dist, tmp_dist
-    TYPE(x_hf_distribution), &
+    TYPE(hfx_distribution), &
       DIMENSION(:, :), POINTER, SAVE         :: full_dist
 
     IF(potential_parameter%omega /= 0.0_dp) THEN
@@ -759,7 +759,7 @@ MODULE hfx_load_balance_methods
       tmp_dist(1,1)%lstart = 1
       tmp_dist(1,1)%original_cpu_id = 1
       ptr_to_tmp_dist => tmp_dist(1,:)
-      CALL x_hf_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
+      CALL hfx_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
       DEALLOCATE(tmp_dist,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
@@ -1068,8 +1068,8 @@ MODULE hfx_load_balance_methods
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       local_cost_matrix = cost_matrix
 
-      CALL x_hf_optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, distribution_vector, &
-                                      load_balance_parameter, optimal_cost, my_process_id, i_thread, error)
+      CALL optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, distribution_vector, &
+                                 load_balance_parameter, optimal_cost, my_process_id, i_thread, error)
       !! Find optimal load balance wrt the cost
       optimal_costs(my_process_id+1) = optimal_cost
 !$OMP BARRIER
@@ -1203,7 +1203,7 @@ MODULE hfx_load_balance_methods
           ptr_to_tmp_dist => tmp_dist(mepos,1:tmp_pos(mepos)-1)
         END IF
       END DO
-      CALL x_hf_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
+      CALL hfx_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
 !$OMP BARRIER
 !$OMP MASTER
       DEALLOCATE(full_dist,optimal_costs,cost_matrix,shm_distribution_vector, STAT=stat)
@@ -1238,9 +1238,9 @@ MODULE hfx_load_balance_methods
                                         load_balance_parameter, &
                                         i_thread, n_threads, error)
 
-    TYPE(x_hf_type), POINTER                 :: x_data
+    TYPE(hfx_type), POINTER                  :: x_data
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(x_hf_load_balance_type)             :: load_balance_parameter
+    TYPE(hfx_load_balance_type)              :: load_balance_parameter
     INTEGER, INTENT(IN)                      :: i_thread, n_threads
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1268,11 +1268,11 @@ MODULE hfx_load_balance_methods
                                                 rank_id_of_best_dist, &
                                                 thread_id_of_best_dist
     LOGICAL                                  :: failure
-    TYPE(x_hf_distribution), DIMENSION(:), &
+    TYPE(hfx_distribution), DIMENSION(:), &
       POINTER                                :: binned_dist, ptr_to_tmp_dist
-    TYPE(x_hf_distribution), &
+    TYPE(hfx_distribution), &
       DIMENSION(:, :), POINTER               :: tmp_dist
-    TYPE(x_hf_distribution), &
+    TYPE(hfx_distribution), &
       DIMENSION(:, :), POINTER, SAVE         :: full_dist
 
     failure=.FALSE.
@@ -1290,7 +1290,7 @@ MODULE hfx_load_balance_methods
       tmp_dist(1,1)%lstart = 1
       tmp_dist(1,1)%original_cpu_id = 1
       ptr_to_tmp_dist => tmp_dist(1,:)
-      CALL x_hf_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
+      CALL hfx_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
       DEALLOCATE(tmp_dist,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
@@ -1399,8 +1399,8 @@ MODULE hfx_load_balance_methods
       ALLOCATE(local_cost_matrix(SIZE(cost_matrix,1)),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       local_cost_matrix = cost_matrix
-      CALL x_hf_optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, distribution_vector, &
-                                      load_balance_parameter, optimal_cost, my_process_id, i_thread, error)
+      CALL optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, distribution_vector, &
+                                 load_balance_parameter, optimal_cost, my_process_id, i_thread, error)
       
       !! Find optimal load balance wrt the cost
       optimal_costs(my_process_id+1) = optimal_cost
@@ -1537,7 +1537,7 @@ MODULE hfx_load_balance_methods
         END IF
       END DO
 
-      CALL x_hf_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
+      CALL hfx_set_distr_energy(ptr_to_tmp_dist,x_data,error=error)
 
 !$OMP BARRIER
 !$OMP MASTER
@@ -1573,9 +1573,9 @@ MODULE hfx_load_balance_methods
   SUBROUTINE update_load_balance_forces(x_data, para_env,&
                                         load_balance_parameter,i_thread, n_threads, error)
 
-    TYPE(x_hf_type), POINTER                 :: x_data
+    TYPE(hfx_type), POINTER                  :: x_data
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(x_hf_load_balance_type)             :: load_balance_parameter
+    TYPE(hfx_load_balance_type)              :: load_balance_parameter
     INTEGER, INTENT(IN)                      :: i_thread, n_threads
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1603,11 +1603,11 @@ MODULE hfx_load_balance_methods
                                                 rank_id_of_best_dist, &
                                                 thread_id_of_best_dist
     LOGICAL                                  :: failure
-    TYPE(x_hf_distribution), DIMENSION(:), &
+    TYPE(hfx_distribution), DIMENSION(:), &
       POINTER                                :: binned_dist, ptr_to_tmp_dist
-    TYPE(x_hf_distribution), &
+    TYPE(hfx_distribution), &
       DIMENSION(:, :), POINTER               :: tmp_dist
-    TYPE(x_hf_distribution), &
+    TYPE(hfx_distribution), &
       DIMENSION(:, :), POINTER, SAVE         :: full_dist
 
     failure=.FALSE.
@@ -1625,7 +1625,7 @@ MODULE hfx_load_balance_methods
       tmp_dist(1,1)%lstart = 1
       tmp_dist(1,1)%original_cpu_id = 1
       ptr_to_tmp_dist => tmp_dist(1,:)
-      CALL x_hf_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
+      CALL hfx_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
       DEALLOCATE(tmp_dist,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ELSE
@@ -1733,8 +1733,8 @@ MODULE hfx_load_balance_methods
       ALLOCATE(local_cost_matrix(SIZE(cost_matrix,1)),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       local_cost_matrix = cost_matrix
-      CALL x_hf_optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, distribution_vector, &
-                                      load_balance_parameter, optimal_cost, my_process_id, i_thread, error)
+      CALL optimize_distribution(para_env, ncpu*nbins*n_threads, ncpu*n_threads, local_cost_matrix, distribution_vector, &
+                                 load_balance_parameter, optimal_cost, my_process_id, i_thread, error)
       
       !! Find optimal load balance wrt the cost
       optimal_costs(my_process_id+1) = optimal_cost
@@ -1871,7 +1871,7 @@ MODULE hfx_load_balance_methods
         END IF
       END DO
 
-      CALL x_hf_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
+      CALL hfx_set_distr_forces(ptr_to_tmp_dist,x_data,error=error)
 
 !$OMP BARRIER
 !$OMP MASTER

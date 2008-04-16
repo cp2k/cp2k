@@ -14,7 +14,7 @@ MODULE hfx_distribution_mc
 
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_blas
-  USE hfx_types,                       ONLY: x_hf_load_balance_type
+  USE hfx_types,                       ONLY: hfx_load_balance_type
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE parallel_rng_types,              ONLY: UNIFORM,&
@@ -28,7 +28,7 @@ MODULE hfx_distribution_mc
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC     x_hf_optimize_distribution
+  PUBLIC     optimize_distribution
 
   CONTAINS
 
@@ -51,7 +51,7 @@ MODULE hfx_distribution_mc
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER(int_8)                           :: nbin_in, ncpu_in
     INTEGER(int_8), DIMENSION(:), POINTER    :: bin_costs_in
-    TYPE(x_hf_load_balance_type)             :: load_balance_parameter
+    TYPE(hfx_load_balance_type)              :: load_balance_parameter
     INTEGER                                  :: my_nbin, my_ncpu
     INTEGER(int_8), DIMENSION(:), POINTER    :: my_bin_costs, my_cost_cpu
     INTEGER(int_8)                           :: my_cost_optimal, my_cost_total
@@ -313,13 +313,13 @@ MODULE hfx_distribution_mc
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE x_hf_optimize_distribution(para_env, nbin_in, ncpu_in, bin_costs_in, distribution_vector, &
+  SUBROUTINE optimize_distribution(para_env, nbin_in, ncpu_in, bin_costs_in, distribution_vector, &
                                         load_balance_parameter, optimal_cost, my_process_id, i_thread, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER(int_8)                           :: nbin_in, ncpu_in
     INTEGER(int_8), DIMENSION(:), POINTER    :: bin_costs_in
     INTEGER, DIMENSION(:), POINTER           :: distribution_vector
-    TYPE(x_hf_load_balance_type)             :: load_balance_parameter
+    TYPE(hfx_load_balance_type)              :: load_balance_parameter
     INTEGER(int_8), INTENT(INOUT)            :: optimal_cost
     INTEGER                                  :: my_process_id, i_thread
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -354,6 +354,6 @@ MODULE hfx_distribution_mc
                     my_best_cost, my_rng_stream, my_moves, my_cycles, &
                     my_reduction_steps, my_reduction_factor, my_initial_temperature, &
                     my_tolerance, my_swap_probability, error)
-  END SUBROUTINE x_hf_optimize_distribution
+  END SUBROUTINE optimize_distribution
 
 END MODULE hfx_distribution_mc

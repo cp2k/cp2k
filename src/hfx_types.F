@@ -37,16 +37,16 @@ MODULE hfx_types
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC  x_hf_type, x_hf_create, x_hf_release,& 
-          x_hf_set_distr_energy, &
-          x_hf_set_distr_forces, &
-          x_hf_cell_type, x_hf_distribution, x_hf_box_scheme,&
-          x_hf_potential_type, x_hf_screening_type, x_hf_periodic_type,&
-          x_hf_memory_type, x_hf_load_balance_type, x_hf_general_type,&
-          x_hf_compression_type,&
-          x_hf_container_type, x_hf_container_node, x_hf_cache_type, &
-          x_hf_basis_type, &
-          x_hf_p_type, x_hf_create_neighbor_cells, x_hf_init_container
+  PUBLIC  hfx_type, hfx_create, hfx_release,& 
+          hfx_set_distr_energy, &
+          hfx_set_distr_forces, &
+          hfx_cell_type, hfx_distribution, hfx_box_scheme,&
+          hfx_potential_type, hfx_screening_type, hfx_periodic_type,&
+          hfx_memory_type, hfx_load_balance_type, hfx_general_type,&
+          hfx_compression_type,&
+          hfx_container_type, hfx_container_node, hfx_cache_type, &
+          hfx_basis_type, &
+          hfx_p_type, hfx_create_neighbor_cells, hfx_init_container
 
 #define CACHE_SIZE 1024
 
@@ -55,7 +55,7 @@ MODULE hfx_types
 !***
 
 ! *****************************************************************************
-  TYPE x_hf_potential_type
+  TYPE hfx_potential_type
     INTEGER                                  :: potential_type     !! 1/r/ erfc(wr)/r ...
     REAL(dp)                                 :: omega              !! w 
     REAL(dp)                                 :: scale_coulomb      !! scaling factor for mixed potential
@@ -64,7 +64,7 @@ MODULE hfx_types
   END TYPE
 
 ! *****************************************************************************
-  TYPE x_hf_screening_type
+  TYPE hfx_screening_type
     REAL(dp)                                 :: eps_schwarz         !! threshold
     REAL(dp)                                 :: eps_schwarz_forces  !! threshold
     REAL(dp)                                 :: eps_box             !! threshold
@@ -76,7 +76,7 @@ MODULE hfx_types
   END TYPE
   
 ! *****************************************************************************
-  TYPE x_hf_memory_type
+  TYPE hfx_memory_type
     INTEGER                                  :: max_memory              !! user def max memory MB
     INTEGER(int_8)                           :: max_compression_counter !! corresponding number of reals 
     LOGICAL                                  :: do_all_on_the_fly       !! max mem == 0 ?
@@ -91,13 +91,13 @@ MODULE hfx_types
   END TYPE
 
 ! *****************************************************************************
-  TYPE x_hf_periodic_type
+  TYPE hfx_periodic_type
     INTEGER                                  :: number_of_shells        !! number of periodic image cells 
     LOGICAL                                  :: do_periodic             !! periodic ?
   END TYPE
 
 ! *****************************************************************************
-  TYPE x_hf_load_balance_type
+  TYPE hfx_load_balance_type
     INTEGER                                  :: nbins                   
     INTEGER                                  :: moves
     INTEGER                                  :: cycles
@@ -109,17 +109,17 @@ MODULE hfx_types
   END TYPE
 
 ! *****************************************************************************
-  TYPE x_hf_general_type
+  TYPE hfx_general_type
     REAL(dp)                                 :: fraction                 !! for hybrids
   END TYPE
 
 ! *****************************************************************************
-  TYPE x_hf_cell_type
+  TYPE hfx_cell_type
     INTEGER                                  :: cell(3)
   END TYPE
 
 ! *****************************************************************************
-  TYPE x_hf_distribution
+  TYPE hfx_distribution
     INTEGER                                  :: istart, jstart, kstart, lstart
     INTEGER(int_8)                           :: number_of_integrals
     INTEGER(int_8)                           :: cost
@@ -130,7 +130,7 @@ MODULE hfx_types
   END TYPE
   
 ! *****************************************************************************
-  TYPE x_hf_box_scheme
+  TYPE hfx_box_scheme
     REAL(dp)                                 :: center(3)
     REAL(dp)                                 :: K
     REAL(dp)                                 :: R
@@ -139,27 +139,27 @@ MODULE hfx_types
   END TYPE
   
 ! *****************************************************************************
-  TYPE x_hf_compression_type
+  TYPE hfx_compression_type
     INTEGER(int_8), DIMENSION(:), POINTER    :: compressed_data
     INTEGER(int_8)                           :: element_pointer
     INTEGER                                  :: bit_pointer
   END TYPE
  
 ! *****************************************************************************
-  TYPE x_hf_cache_type
+  TYPE hfx_cache_type
     INTEGER(int_8), DIMENSION(CACHE_SIZE)    :: DATA
     INTEGER                                  :: element_counter
   END TYPE
 
 ! *****************************************************************************
-  TYPE x_hf_container_node
-    TYPE(x_hf_container_node), POINTER       :: next, prev
+  TYPE hfx_container_node
+    TYPE(hfx_container_node), POINTER       :: next, prev
     INTEGER(int_8), DIMENSION(CACHE_SIZE)    :: DATA
   END TYPE
 
 ! *****************************************************************************
-  TYPE x_hf_container_type
-    TYPE(x_hf_container_node), POINTER       :: first, current    
+  TYPE hfx_container_type
+    TYPE(hfx_container_node), POINTER       :: first, current    
     INTEGER                                  :: element_counter
     INTEGER(int_8)                           :: file_counter
     CHARACTER(LEN=5)                         :: desc
@@ -168,7 +168,7 @@ MODULE hfx_types
   END TYPE
 
 ! *****************************************************************************
-  TYPE x_hf_basis_type
+  TYPE hfx_basis_type
     INTEGER, DIMENSION(:), POINTER           :: lmax
     INTEGER, DIMENSION(:), POINTER           :: lmin
     INTEGER, DIMENSION(:), POINTER           :: npgf
@@ -203,35 +203,35 @@ MODULE hfx_types
 !>      11.2006 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  TYPE x_hf_type
-    TYPE(x_hf_potential_type)                :: potential_parameter
-    TYPE(x_hf_screening_type)                :: screening_parameter
-    TYPE(x_hf_memory_type)                   :: memory_parameter
-    TYPE(x_hf_periodic_type)                 :: periodic_parameter
-    TYPE(x_hf_load_balance_type)             :: load_balance_parameter
-    TYPE(x_hf_general_type)                  :: general_parameter
-    TYPE(x_hf_container_type), POINTER       :: maxval_container, maxval_container_disk
-    TYPE(x_hf_cache_type)                    :: maxval_cache, maxval_cache_disk
-    TYPE(x_hf_container_type), POINTER, &
+  TYPE hfx_type
+    TYPE(hfx_potential_type)                :: potential_parameter
+    TYPE(hfx_screening_type)                :: screening_parameter
+    TYPE(hfx_memory_type)                   :: memory_parameter
+    TYPE(hfx_periodic_type)                 :: periodic_parameter
+    TYPE(hfx_load_balance_type)             :: load_balance_parameter
+    TYPE(hfx_general_type)                  :: general_parameter
+    TYPE(hfx_container_type), POINTER       :: maxval_container, maxval_container_disk
+    TYPE(hfx_cache_type)                    :: maxval_cache, maxval_cache_disk
+    TYPE(hfx_container_type), POINTER, &
                                DIMENSION(:)  :: integral_containers, integral_containers_disk
-    TYPE(x_hf_cache_type)                    :: integral_caches(64), integral_caches_disk(64)
+    TYPE(hfx_cache_type)                    :: integral_caches(64), integral_caches_disk(64)
 
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: x_screening_buffer
     REAL(dp), DIMENSION(:, :, :, :, :), &
               POINTER                        :: x_screening_buffer_periodic
-    TYPE(x_hf_box_scheme), DIMENSION(:,:),&
+    TYPE(hfx_box_scheme), DIMENSION(:,:),&
                            POINTER           :: far_field_boxes
-    TYPE(x_hf_cell_type), DIMENSION(:), &
+    TYPE(hfx_cell_type), DIMENSION(:), &
                POINTER                       :: neighbor_cells
-    TYPE(x_hf_distribution), DIMENSION(:),&
+    TYPE(hfx_distribution), DIMENSION(:),&
                              POINTER         :: distribution_energy
-    TYPE(x_hf_distribution), DIMENSION(:),&
+    TYPE(hfx_distribution), DIMENSION(:),&
                              POINTER         :: distribution_forces
     REAL(dp), DIMENSION(:,:,:,:), POINTER &
                                              :: initial_p
     INTEGER, DIMENSION(:,:), POINTER         :: is_assoc_atomic_block
     INTEGER                                  :: number_of_p_entries
-    TYPE(x_hf_basis_type), DIMENSION(:), &
+    TYPE(hfx_basis_type), DIMENSION(:), &
                            POINTER           :: basis_parameter
     INTEGER                                  :: n_rep_hf
     LOGICAL                                  :: b_first_load_balance_energy, &
@@ -243,22 +243,22 @@ MODULE hfx_types
 
 ! *****************************************************************************
 !> \brief to build arrays of pointers
-!> \param x_hf_data the pointer to the x_hf_type
+!> \param hfx_data the pointer to the hfx_type
 !> \par History
 !>      02.2008 created [mguidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  TYPE x_hf_p_type
-     TYPE(x_hf_type), POINTER :: x_hf_data
-  END TYPE x_hf_p_type
+  TYPE hfx_p_type
+     TYPE(hfx_type), POINTER :: hfx_data
+  END TYPE hfx_p_type
 
 
   CONTAINS
 
 ! *****************************************************************************
-!> \brief - This routine allocates and initializes all types in x_hf_data
+!> \brief - This routine allocates and initializes all types in hfx_data
 !> \param x_data contains all relevant data structures for hfx runs
-!> \param hf_section input section
+!> \param hfx_section input section
 !> \param natom , max_set: quantities that define some array sizes
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -269,11 +269,10 @@ MODULE hfx_types
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE x_hf_create(x_data,para_env, hf_section,natom,max_set,atomic_kind_set, particle_set, error)
-    TYPE(x_hf_type), DIMENSION(:, :), &
-      POINTER                                :: x_data
+  SUBROUTINE hfx_create(x_data,para_env, hfx_section,natom,max_set,atomic_kind_set, particle_set, error)
+    TYPE(hfx_type), DIMENSION(:, :), POINTER :: x_data
     TYPE(cp_para_env_type)                   :: para_env
-    TYPE(section_vals_type), POINTER         :: hf_section
+    TYPE(section_vals_type), POINTER         :: hfx_section
     INTEGER, INTENT(IN)                      :: natom, max_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -281,7 +280,7 @@ MODULE hfx_types
       POINTER                                :: particle_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_create', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=512)                       :: error_msg
@@ -293,14 +292,14 @@ MODULE hfx_types
     REAL(dp)                                 :: omega, real_val
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
+    TYPE(hfx_type), POINTER                  :: actual_x_data
     TYPE(section_vals_type), POINTER         :: hf_pbc_section, hf_sub_section
-    TYPE(x_hf_type), POINTER                 :: actual_x_data
 
 !$  INTEGER                                  :: omp_get_max_threads
 
     failure = .FALSE.
     !! There might be 2 hf sections
-    CALL section_vals_get(hf_section,n_repetition=n_rep_hf,error=error)
+    CALL section_vals_get(hfx_section,n_repetition=n_rep_hf,error=error)
   
     n_threads = 1
 !$  n_threads = omp_get_max_threads() 
@@ -313,12 +312,12 @@ MODULE hfx_types
         !! Get data from input file
         !!
         !! GENERAL params
-        CALL section_vals_val_get(hf_section, "FRACTION", r_val=real_val, i_rep_section=irep,error=error)
+        CALL section_vals_val_get(hfx_section, "FRACTION", r_val=real_val, i_rep_section=irep,error=error)
         actual_x_data%general_parameter%fraction = real_val
         actual_x_data%n_rep_hf = n_rep_hf  
   
         !! MEMORY section
-        hf_sub_section => section_vals_get_subs_vals(hf_section,"MEMORY",i_rep_section=irep, error=error)
+        hf_sub_section => section_vals_get_subs_vals(hfx_section,"MEMORY",i_rep_section=irep, error=error)
         CALL section_vals_val_get(hf_sub_section, "MAX_MEMORY", i_val=int_val, error=error)
         actual_x_data%memory_parameter%max_memory = int_val
         actual_x_data%memory_parameter%max_compression_counter = int_val*1024*128
@@ -370,14 +369,14 @@ MODULE hfx_types
         storage_id = (irep-1)*para_env%num_pe*n_threads + para_env%mepos * n_threads + i_thread-1
 
         !! PERIODIC section
-        hf_sub_section => section_vals_get_subs_vals(hf_section,"PERIODIC", i_rep_section=irep, error=error)
+        hf_sub_section => section_vals_get_subs_vals(hfx_section,"PERIODIC", i_rep_section=irep, error=error)
         CALL section_vals_get(hf_sub_section, explicit=logic_val, error=error)
         actual_x_data%periodic_parameter%do_periodic = logic_val
         CALL section_vals_val_get(hf_sub_section, "NUMBER_OF_SHELLS", i_val=int_val, error=error)
         actual_x_data%periodic_parameter%number_of_shells = int_val
         
         !! SCREENING section
-        hf_sub_section => section_vals_get_subs_vals(hf_section,"SCREENING",i_rep_section=irep, error=error)
+        hf_sub_section => section_vals_get_subs_vals(hfx_section,"SCREENING",i_rep_section=irep, error=error)
         CALL section_vals_val_get(hf_sub_section, "EPS_SCHWARZ", r_val=real_val, error=error)
         actual_x_data%screening_parameter%eps_schwarz = real_val
         CALL section_vals_val_get(hf_sub_section, "EPS_BOX", r_val=real_val, error=error)
@@ -399,7 +398,7 @@ MODULE hfx_types
         actual_x_data%screening_parameter%initial_p_screening_correction = real_val 
     
         !! INTERACTION_POTENTIAL section
-        hf_sub_section => section_vals_get_subs_vals(hf_section,"INTERACTION_POTENTIAL",i_rep_section=irep,error=error)
+        hf_sub_section => section_vals_get_subs_vals(hfx_section,"INTERACTION_POTENTIAL",i_rep_section=irep,error=error)
         CALL section_vals_val_get(hf_sub_section, "POTENTIAL_TYPE", i_val=int_val, error=error)
         actual_x_data%potential_parameter%potential_type = int_val
         CALL section_vals_val_get(hf_sub_section, "OMEGA", r_val=real_val, error=error)
@@ -412,7 +411,7 @@ MODULE hfx_types
         actual_x_data%potential_parameter%scale_gaussian = real_val
     
         !! LOAD_BALANCE section
-        hf_sub_section => section_vals_get_subs_vals(hf_section,"LOAD_BALANCE",i_rep_section=irep, error=error)
+        hf_sub_section => section_vals_get_subs_vals(hfx_section,"LOAD_BALANCE",i_rep_section=irep, error=error)
         CALL section_vals_val_get(hf_sub_section, "NBINS", i_val=int_val, error=error)
         actual_x_data%load_balance_parameter%nbins = int_val
         CALL section_vals_val_get(hf_sub_section, "MOVES", i_val=int_val, error=error)
@@ -452,11 +451,11 @@ MODULE hfx_types
         END DO
     
         IF(actual_x_data%periodic_parameter%do_periodic) THEN
-          hf_pbc_section => section_vals_get_subs_vals(hf_section,"PERIODIC",i_rep_section=irep, error=error)
+          hf_pbc_section => section_vals_get_subs_vals(hfx_section,"PERIODIC",i_rep_section=irep, error=error)
           CALL section_vals_val_get(hf_pbc_section,"NUMBER_OF_SHELLS",i_val=pbc_shells,error=error)
           ALLOCATE(actual_x_data%neighbor_cells(1),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL x_hf_create_neighbor_cells(actual_x_data,pbc_shells, error=error)
+          CALL hfx_create_neighbor_cells(actual_x_data,pbc_shells, error=error)
           ALLOCATE(actual_x_data%x_screening_buffer_periodic(SIZE(actual_x_data%neighbor_cells),&
                    max_set,max_set,natom,natom),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -542,7 +541,7 @@ MODULE hfx_types
         actual_x_data%b_first_load_balance_forces = .TRUE.
       END DO
     END DO
-  END SUBROUTINE x_hf_create 
+  END SUBROUTINE hfx_create 
 
 ! *****************************************************************************
 !> \brief - This routine deallocates all data structures
@@ -553,18 +552,17 @@ MODULE hfx_types
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE x_hf_release(x_data, error)
-    TYPE(x_hf_type), DIMENSION(:, :), &
-      POINTER                                :: x_data
+  SUBROUTINE hfx_release(x_data, error)
+    TYPE(hfx_type), DIMENSION(:, :), POINTER :: x_data
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_release', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_release', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, i_thread, irep, n_rep_hf, &
                                                 n_threads, stat
     LOGICAL                                  :: failure
-    TYPE(x_hf_type), POINTER                 :: actual_x_data
+    TYPE(hfx_type), POINTER                  :: actual_x_data
 
 !$  INTEGER                                  :: omp_get_max_threads
 
@@ -605,7 +603,7 @@ MODULE hfx_types
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
         !! Deallocate containers
-        CALL x_hf_init_container(6, actual_x_data%maxval_container, actual_x_data%memory_parameter%actual_memory_usage, &
+        CALL hfx_init_container(6, actual_x_data%maxval_container, actual_x_data%memory_parameter%actual_memory_usage, &
                                  .FALSE., error)
         DEALLOCATE(actual_x_data%maxval_container%first,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -613,7 +611,7 @@ MODULE hfx_types
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
         DO i=1,64   
-          CALL x_hf_init_container(i, actual_x_data%integral_containers(i), actual_x_data%memory_parameter%actual_memory_usage, &
+          CALL hfx_init_container(i, actual_x_data%integral_containers(i), actual_x_data%memory_parameter%actual_memory_usage, &
                                    .FALSE., error)
           DEALLOCATE(actual_x_data%integral_containers(i)%first,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -622,7 +620,7 @@ MODULE hfx_types
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
         !! Deallocate containers
-        CALL x_hf_init_container(6, actual_x_data%maxval_container_disk, &
+        CALL hfx_init_container(6, actual_x_data%maxval_container_disk, &
                                  actual_x_data%memory_parameter%actual_memory_usage_disk, &
                                  .FALSE., error)
         IF( actual_x_data%memory_parameter%do_disk_storage) THEN
@@ -634,7 +632,7 @@ MODULE hfx_types
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
         DO i=1,64   
-          CALL x_hf_init_container(i, actual_x_data%integral_containers_disk(i), &
+          CALL hfx_init_container(i, actual_x_data%integral_containers_disk(i), &
                                    actual_x_data%memory_parameter%actual_memory_usage_disk, &
                                    .FALSE., error)
           IF( actual_x_data%memory_parameter%do_disk_storage) THEN
@@ -650,7 +648,7 @@ MODULE hfx_types
     END DO
     DEALLOCATE(x_data,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END SUBROUTINE x_hf_release
+  END SUBROUTINE hfx_release
 
 ! *****************************************************************************
 !> \brief - This routine computes the neighbor cells that are taken into account
@@ -663,12 +661,12 @@ MODULE hfx_types
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE x_hf_create_neighbor_cells(x_data, pbc_shells, error)
-    TYPE(x_hf_type), POINTER                 :: x_data
+  SUBROUTINE hfx_create_neighbor_cells(x_data, pbc_shells, error)
+    TYPE(hfx_type), POINTER                  :: x_data
     INTEGER, INTENT(IN)                      :: pbc_shells
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_create_neighbor_cells', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create_neighbor_cells', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, m(3), stat, &
@@ -694,7 +692,7 @@ MODULE hfx_types
        CALL next_image_cell(m)
        i=i+1
     ENDDO
-  END SUBROUTINE x_hf_create_neighbor_cells
+  END SUBROUTINE hfx_create_neighbor_cells
 
 ! *****************************************************************************
 !> \brief - This routine deletes all list entries in a container in order to
@@ -706,19 +704,19 @@ MODULE hfx_types
 !>      10.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE x_hf_init_container(nbits, container, memory_usage, do_disk_storage, error)
+  SUBROUTINE hfx_init_container(nbits, container, memory_usage, do_disk_storage, error)
     INTEGER                                  :: nbits
-    TYPE(x_hf_container_type)                :: container
+    TYPE(hfx_container_type)                 :: container
     INTEGER                                  :: memory_usage
     LOGICAL                                  :: do_disk_storage
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_init_container', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_init_container', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
-    TYPE(x_hf_container_node), POINTER       :: current, next
+    TYPE(hfx_container_node), POINTER        :: current, next
 
     failure =.FALSE.
 
@@ -750,7 +748,7 @@ MODULE hfx_types
                      unit_number=container%unit)
     END IF
 
-  END SUBROUTINE x_hf_init_container
+  END SUBROUTINE hfx_init_container
 
 
 ! *****************************************************************************
@@ -764,13 +762,13 @@ MODULE hfx_types
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE x_hf_set_distr_energy(ptr_to_distr,x_data, error)
-    TYPE(x_hf_distribution), DIMENSION(:), &
+  SUBROUTINE hfx_set_distr_energy(ptr_to_distr,x_data, error)
+    TYPE(hfx_distribution), DIMENSION(:), &
       POINTER                                :: ptr_to_distr
-    TYPE(x_hf_type), POINTER                 :: x_data
+    TYPE(hfx_type), POINTER                  :: x_data
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_set_distr_energy', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_set_distr_energy', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
@@ -782,7 +780,7 @@ MODULE hfx_types
     ALLOCATE(x_data%distribution_energy(SIZE(ptr_to_distr)))
     x_data%distribution_energy = ptr_to_distr
 
-  END SUBROUTINE x_hf_set_distr_energy
+  END SUBROUTINE hfx_set_distr_energy
 
 ! *****************************************************************************
 !> \brief - This routine stores the data obtained from the load balance routine 
@@ -795,13 +793,13 @@ MODULE hfx_types
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE x_hf_set_distr_forces(ptr_to_distr, x_data, error)
-    TYPE(x_hf_distribution), DIMENSION(:), &
+  SUBROUTINE hfx_set_distr_forces(ptr_to_distr, x_data, error)
+    TYPE(hfx_distribution), DIMENSION(:), &
       POINTER                                :: ptr_to_distr
-    TYPE(x_hf_type), POINTER                 :: x_data
+    TYPE(hfx_type), POINTER                  :: x_data
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'x_hf_set_distr_forces', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_set_distr_forces', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
@@ -813,7 +811,7 @@ MODULE hfx_types
     ALLOCATE(x_data%distribution_forces(SIZE(ptr_to_distr)))
     x_data%distribution_forces = ptr_to_distr
 
-  END SUBROUTINE x_hf_set_distr_forces
+  END SUBROUTINE hfx_set_distr_forces
 
 END MODULE hfx_types
 

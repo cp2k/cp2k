@@ -339,7 +339,7 @@ CONTAINS
     TYPE(scp_energy_type), POINTER           :: scp_energy
     TYPE(scp_environment_type), POINTER      :: scp_env
     TYPE(section_vals_type), POINTER         :: adiabatic_rescaling_section, &
-                                                hf_section, hf_sections, &
+                                                hfx_section, hfx_sections, &
                                                 input, scf_section
     TYPE(virial_type), POINTER               :: virial
 
@@ -392,8 +392,8 @@ CONTAINS
     IF (do_ep) do_ep=ep_qs_env%ep_active.AND.calculate_forces.and.&
          ASSOCIATED(ep_qs_env%dH_coeffs)
 
-    hf_sections => section_vals_get_subs_vals(input,"DFT%XC%HF",error=error)
-    CALL section_vals_get(hf_sections,explicit=do_hf,error=error)
+    hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF",error=error)
+    CALL section_vals_get(hfx_sections,explicit=do_hf,error=error)
     adiabatic_rescaling_section => section_vals_get_subs_vals(input,"DFT%XC%ADIABATIC_RESCALING",error=error)
     CALL section_vals_get(adiabatic_rescaling_section,explicit=do_adiabatic_rescaling,error=error)
 
@@ -731,7 +731,7 @@ CONTAINS
          DO ispin = 1,nspins
            CALL set_matrix(ks_matrix(ispin)%matrix,0.0_dp)
          END DO
-         CALL section_vals_get(hf_sections,n_repetition=n_rep_hf,error=error)
+         CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
          !! set hf exchange energy to zero
          energy%ex = 0.0_dp
          IF( calculate_forces ) THEN
@@ -745,21 +745,21 @@ CONTAINS
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
          DO irep = 1,n_rep_hf
            IF( .NOT. do_adiabatic_rescaling) THEN
-             CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hf_sections,&
+             CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hfx_sections,&
                                         para_env,ks_env%s_mstruct_changed,irep,.TRUE.,error)
              IF( calculate_forces ) THEN
                CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
-               CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
+               CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hfx_section,&
                                             para_env, irep, error=error)
              END IF
            ELSE
              !! we calculate everything but we do not add the potential in a first step
-             CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hf_sections,&
+             CALL integrate_four_center(qs_env, ks_matrix,energy,rho,hfx_sections,&
                                         para_env,ks_env%s_mstruct_changed,irep,.FALSE.,error)
              hf_energy(irep) = energy%ex
              !! If required, the calculation of the forces will be done later
            END IF
-           CALL pw_hfx(qs_env,energy,hf_sections,poisson_env,auxbas_pw_pool,irep,error)
+           CALL pw_hfx(qs_env,energy,hfx_sections,poisson_env,auxbas_pw_pool,irep,error)
          END DO
 
          ! *** Add Core-Hamiltonian-Matrix ***
@@ -796,9 +796,9 @@ CONTAINS
              IF( calculate_forces ) THEN
                CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,error,failure)
                !! we also have to scale the forces!!!!
-               CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
+               CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hfx_section,&
                                             para_env, 1, adiabatic_rescale_factor=scale_dEx1, error=error)
-               CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hf_section,&
+               CALL derivatives_four_center(qs_env, ks_matrix,energy,rho,hfx_section,&
                                             para_env, 2, adiabatic_rescale_factor=scale_dEx2, error=error)
              END IF
 
@@ -1268,10 +1268,10 @@ CONTAINS
 !> \par History
 !>      12.2007 created [Joost VandeVondele]
 ! *****************************************************************************
-  SUBROUTINE pw_hfx(qs_env,energy,hf_section,poisson_env,auxbas_pw_pool,irep,error)
+  SUBROUTINE pw_hfx(qs_env,energy,hfx_section,poisson_env,auxbas_pw_pool,irep,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(section_vals_type), POINTER         :: hf_section
+    TYPE(section_vals_type), POINTER         :: hfx_section
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     INTEGER                                  :: irep
@@ -1305,11 +1305,11 @@ CONTAINS
     failure = .FALSE.
     logger => cp_error_get_logger(error)
 
-    CALL section_vals_val_get(hf_section, "PW_HFX", l_val=do_pw_hfx, i_rep_section=irep, error=error)
+    CALL section_vals_val_get(hfx_section, "PW_HFX", l_val=do_pw_hfx, i_rep_section=irep, error=error)
 
     IF (do_pw_hfx) THEN
-       CALL section_vals_val_get(hf_section, "FRACTION", r_val=fraction, error=error)
-       CALL section_vals_val_get(hf_section, "PW_HFX_BLOCKSIZE", i_val=blocksize, error=error)
+       CALL section_vals_val_get(hfx_section, "FRACTION", r_val=fraction, error=error)
+       CALL section_vals_val_get(hfx_section, "PW_HFX_BLOCKSIZE", i_val=blocksize, error=error)
    
        CALL get_qs_env(qs_env,mos=mo_array,pw_env=pw_env, dft_control=dft_control, &
                        cell=cell, particle_set=particle_set, &
@@ -1408,7 +1408,7 @@ CONTAINS
        CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_g%pw,error=error)
        CALL pw_pool_give_back_pw(auxbas_pw_pool,pot_g%pw,error=error)
    
-       iw = cp_print_key_unit_nr(logger,hf_section,"HF_INFO",&
+       iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
               extension=".scfLog",error=error)
    
        IF (iw>0) THEN
@@ -1418,7 +1418,7 @@ CONTAINS
                     "HF_PW_HFX| Gaussian exchange energy:",energy%ex
        ENDIF
    
-       CALL cp_print_key_finished_output(iw,logger,hf_section,&
+       CALL cp_print_key_finished_output(iw,logger,hfx_section,&
                                          "HF_INFO", error=error)
    
     ENDIF

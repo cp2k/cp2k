@@ -14,8 +14,8 @@ MODULE hfx_communication
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE hfx_types,                       ONLY: x_hf_basis_type,&
-                                             x_hf_type
+  USE hfx_types,                       ONLY: hfx_basis_type,&
+                                             hfx_type
   USE kinds,                           ONLY: dp
   USE mathconstants
   USE message_passing,                 ONLY: mp_isendrecv,&
@@ -73,7 +73,7 @@ MODULE hfx_communication
     INTEGER, INTENT(IN)                      :: natom
     INTEGER                                  :: last_sgf_global(0:natom), &
                                                 kind_of(*)
-    TYPE(x_hf_basis_type), DIMENSION(:), &
+    TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -186,7 +186,7 @@ MODULE hfx_communication
     INTEGER, INTENT(IN)                      :: natom
     INTEGER                                  :: last_sgf_global(0:natom), &
                                                 kind_of(*)
-    TYPE(x_hf_basis_type), DIMENSION(:), &
+    TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -318,9 +318,9 @@ MODULE hfx_communication
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(x_hf_basis_type), DIMENSION(:), &
+    TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
-    TYPE(x_hf_type), POINTER                 :: actual_x_data
+    TYPE(hfx_type), POINTER                 :: actual_x_data
 
 !! All shared data is saved in i_thread = 1!
 

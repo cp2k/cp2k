@@ -70,8 +70,8 @@ MODULE qs_environment_types
                                              hartree_local_release,&
                                              hartree_local_type,&
                                              set_hartree_local
-  USE hfx_types,                       ONLY: x_hf_release,&
-                                             x_hf_type
+  USE hfx_types,                       ONLY: hfx_release,&
+                                             hfx_type
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_retain,&
                                              section_vals_type
@@ -334,7 +334,7 @@ MODULE qs_environment_types
     REAL(KIND = dp), DIMENSION(:,:), POINTER              :: outer_scf_history
     INTEGER                                               :: outer_scf_ihistory
     TYPE(ep_qs_type), POINTER                             :: ep_qs_env
-    TYPE(x_hf_type),DIMENSION(:,:), POINTER               :: x_data
+    TYPE(hfx_type),DIMENSION(:,:), POINTER                :: x_data
     TYPE(et_coupling_type),POINTER                        :: et_coupling   
     TYPE(qs_dftb_pairpot_type), DIMENSION(:,:), POINTER   :: dftb_potential
     TYPE(cp_result_type) ,POINTER                         :: results
@@ -480,7 +480,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: outer_scf_history
     INTEGER, INTENT(out), OPTIONAL           :: outer_scf_ihistory
     TYPE(ep_qs_type), OPTIONAL, POINTER      :: ep_qs_env
-    TYPE(x_hf_type), DIMENSION(:, :), &
+    TYPE(hfx_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: x_data
     TYPE(et_coupling_type), OPTIONAL, &
       POINTER                                :: et_coupling
@@ -824,7 +824,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: outer_scf_history
     INTEGER, INTENT(IN), OPTIONAL            :: outer_scf_ihistory
     TYPE(ep_qs_type), OPTIONAL, POINTER      :: ep_qs_env
-    TYPE(x_hf_type), DIMENSION(:, :), &
+    TYPE(hfx_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: x_data
     TYPE(et_coupling_type), OPTIONAL, &
       POINTER                                :: et_coupling
@@ -1345,7 +1345,7 @@ CONTAINS
           CALL ep_qs_release(qs_env%ep_qs_env,error=error)
           CALL cp_result_release(qs_env%results,error=error)
           IF(ASSOCIATED(qs_env%x_data)) THEN
-             CALL x_hf_release(qs_env%x_data, error=error)
+             CALL hfx_release(qs_env%x_data, error=error)
           END IF
           IF(ASSOCIATED(qs_env%et_coupling)) THEN
              CALL et_coupling_release(qs_env%et_coupling,error)

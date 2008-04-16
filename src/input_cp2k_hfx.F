@@ -31,7 +31,7 @@ MODULE input_cp2k_hfx
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_hfx'
 
-  PUBLIC :: create_hf_section
+  PUBLIC :: create_hfx_section
 
 CONTAINS
 
@@ -42,11 +42,11 @@ CONTAINS
 !>        see module cp_error_handling 
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE create_hf_section(section,error)
+  SUBROUTINE create_hfx_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_hf_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_hfx_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -116,7 +116,7 @@ CONTAINS
 
     END IF
  
-  END SUBROUTINE create_hf_section
+  END SUBROUTINE create_hfx_section
 
 ! *****************************************************************************
 !> \brief !****f* input_cp2k_dft/create_hf_load_balance_section [1.0] *

@@ -26,17 +26,17 @@ MODULE hfx_derivatives
                                              lib_int
   USE hfx_load_balance_methods,        ONLY: load_balance_forces,&
                                              update_load_balance_forces
-  USE hfx_screening_methods,           ONLY: comp_screen_mat_per,&
-                                             compute_pmax_matrices,&
-                                             compute_screening_matrices
-  USE hfx_types,                       ONLY: x_hf_basis_type,&
-                                             x_hf_box_scheme,&
-                                             x_hf_cell_type,&
-                                             x_hf_general_type,&
-                                             x_hf_load_balance_type,&
-                                             x_hf_potential_type,&
-                                             x_hf_screening_type,&
-                                             x_hf_type
+  USE hfx_screening_methods,           ONLY: comp_pmax_mat,&
+                                             comp_screen_mat,&
+                                             comp_screen_mat_per
+  USE hfx_types,                       ONLY: hfx_basis_type,&
+                                             hfx_box_scheme,&
+                                             hfx_cell_type,&
+                                             hfx_general_type,&
+                                             hfx_load_balance_type,&
+                                             hfx_potential_type,&
+                                             hfx_screening_type,&
+                                             hfx_type
   USE input_constants,                 ONLY: do_hf_potential_coulomb,&
                                              do_hf_potential_gaussian,&
                                              do_hf_potential_id,&
@@ -107,7 +107,7 @@ MODULE hfx_derivatives
     REAL(dp), &
       DIMENSION(ncoa, ncob, ncoc, ncod, 12)  :: primitive_forces
     REAL(dp), DIMENSION(*)                   :: work_forces
-    TYPE(x_hf_potential_type)                :: potential_parameter
+    TYPE(hfx_potential_type)                 :: potential_parameter
     REAL(dp), INTENT(IN)                     :: eps_schwarz, &
                                                 max_contraction_val
     REAL(dp), INTENT(INOUT)                  :: cartesian_estimate
@@ -179,7 +179,7 @@ MODULE hfx_derivatives
 !>      08.2007 optimized load balance [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE derivatives_four_center(qs_env,ks_matrix,energy,rho,hf_section,para_env,& 
+  SUBROUTINE derivatives_four_center(qs_env,ks_matrix,energy,rho,hfx_section,para_env,& 
                                      irep, adiabatic_rescale_factor, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -187,7 +187,7 @@ MODULE hfx_derivatives
       POINTER                                :: ks_matrix
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(section_vals_type), POINTER         :: hf_section
+    TYPE(section_vals_type), POINTER         :: hfx_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: irep
     REAL(dp), INTENT(IN), OPTIONAL           :: adiabatic_rescale_factor
@@ -236,22 +236,22 @@ MODULE hfx_derivatives
       POINTER                                :: screen_periodic
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(hfx_basis_type), DIMENSION(:), &
+      POINTER                                :: basis_parameter
+    TYPE(hfx_general_type)                   :: general_parameter
+    TYPE(hfx_load_balance_type)              :: load_balance_parameter
+    TYPE(hfx_potential_type)                 :: potential_parameter
+    TYPE(hfx_screening_type)                 :: screening_parameter
+    TYPE(hfx_type), POINTER                  :: actual_x_data
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(x_hf_basis_type), DIMENSION(:), &
-      POINTER                                :: basis_parameter
-    TYPE(x_hf_general_type)                  :: general_parameter
-    TYPE(x_hf_load_balance_type)             :: load_balance_parameter
-    TYPE(x_hf_potential_type)                :: potential_parameter
-    TYPE(x_hf_screening_type)                :: screening_parameter
-    TYPE(x_hf_type), POINTER                 :: actual_x_data
 
 !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
     REAL(dp), DIMENSION(:, :, :, :), &
               POINTER, SAVE                  :: shm_initial_p
-    TYPE(x_hf_box_scheme), DIMENSION(:,:), &
+    TYPE(hfx_box_scheme), DIMENSION(:,:), &
                            POINTER, SAVE     :: shm_far_field_boxes
     INTEGER, SAVE                            :: shm_number_of_p_entries
     INTEGER, DIMENSION(:,:), POINTER, SAVE   :: shm_is_assoc_atomic_block
@@ -298,7 +298,7 @@ MODULE hfx_derivatives
 !$OMP                                  ks_matrix,&
 !$OMP                                  energy,&
 !$OMP                                  rho,&
-!$OMP                                  hf_section,&
+!$OMP                                  hfx_section,&
 !$OMP                                  para_env,&
 !$OMP                                  irep,&
 !$OMP                                  error,&
@@ -435,9 +435,9 @@ MODULE hfx_derivatives
 
     !! Calculate max entries for screening on actual density. If screen_p_mat_forces = FALSE, the
     !! matrix is initialized to 1.0
-    CALL compute_pmax_matrices(pmax_set,pmax_atom,pmax_max, &
-                               full_density,full_density_beta,screen_pmat_forces,particle_set,atomic_kind_set,&
-                               kind_of, basis_parameter, error)
+    CALL comp_pmax_mat(pmax_set,pmax_atom,pmax_max, &
+                       full_density,full_density_beta,screen_pmat_forces,particle_set,atomic_kind_set,&
+                       kind_of, basis_parameter, error)
     !! Calculatematrices for screening purpose taking into account periodicity. The farfield part is already
     !! in memory
     IF( do_periodic ) THEN
@@ -461,9 +461,9 @@ MODULE hfx_derivatives
       shm_far_field_boxes => actual_x_data%far_field_boxes
     ELSE
 
-      CALL compute_screening_matrices(lib(i_thread+1),screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,&
-                                      potential_parameter,.FALSE., kind_of, basis_parameter, i_thread, &
-                                      error=error)
+      CALL comp_screen_mat(lib(i_thread+1),screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,&
+                           potential_parameter,.FALSE., kind_of, basis_parameter, i_thread, &
+                           error=error)
       !! Farfield screening matrix already there
     
       shm_far_field_boxes => actual_x_data%far_field_boxes
@@ -938,9 +938,9 @@ MODULE hfx_derivatives
     REAL(dp), &
       DIMENSION(ncoa, ncob, ncoc, ncod, 12)  :: primitive_forces
     REAL(dp), DIMENSION(*)                   :: work_forces
-    TYPE(x_hf_potential_type)                :: potential_parameter
+    TYPE(hfx_potential_type)                 :: potential_parameter
     REAL(dp), INTENT(IN)                     :: box_size(3), box_size_inv(3)
-    TYPE(x_hf_cell_type), DIMENSION(:), &
+    TYPE(hfx_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
     REAL(dp), DIMENSION(:)                   :: screen1, screen2
     REAL(dp), INTENT(IN)                     :: eps_schwarz, &

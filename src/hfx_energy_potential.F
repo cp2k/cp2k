@@ -20,13 +20,13 @@ MODULE hfx_energy_potential
   USE gamma,                           ONLY: init_md_ftable
   USE hfx_communication,               ONLY: distribute_ks_matrix,&
                                              get_full_density
-  USE hfx_compression_methods,         ONLY: x_hf_add_mult_cache_elements,&
-                                             x_hf_add_single_cache_element,&
-                                             x_hf_decompress_first_cache,&
-                                             x_hf_flush_last_cache,&
-                                             x_hf_get_mult_cache_elements,&
-                                             x_hf_get_single_cache_element,&
-                                             x_hf_reset_cache_and_container
+  USE hfx_compression_methods,         ONLY: hfx_add_mult_cache_elements,&
+                                             hfx_add_single_cache_element,&
+                                             hfx_decompress_first_cache,&
+                                             hfx_flush_last_cache,&
+                                             hfx_get_mult_cache_elements,&
+                                             hfx_get_single_cache_element,&
+                                             hfx_reset_cache_and_container
   USE hfx_helpers,                     ONLY: FNV64
   USE hfx_libint_interface,            ONLY: evaluate_eri,&
                                              pbc
@@ -35,15 +35,15 @@ MODULE hfx_energy_potential
   USE hfx_load_balance_methods,        ONLY: load_balance_energy,&
                                              update_load_balance_energy
   USE hfx_screening_methods,           ONLY: comp_screen_mat_per,&
-                                             compute_screening_matrices,&
+                                             comp_screen_mat,&
                                              screen_farfield,&
                                              screen_farfield_per,&
-                                             update_pmax_matrix
+                                             update_pmax_mat
   USE hfx_types,                       ONLY: &
-       x_hf_basis_type, x_hf_box_scheme, x_hf_cache_type, x_hf_cell_type, &
-       x_hf_container_type, x_hf_general_type, x_hf_init_container, &
-       x_hf_load_balance_type, x_hf_memory_type, x_hf_potential_type, &
-       x_hf_screening_type, x_hf_type
+       hfx_basis_type, hfx_box_scheme, hfx_cache_type, hfx_cell_type, &
+       hfx_container_type, hfx_general_type, hfx_init_container, &
+       hfx_load_balance_type, hfx_memory_type, hfx_potential_type, &
+       hfx_screening_type, hfx_type
   USE input_constants,                 ONLY: do_hf_potential_coulomb,&
                                              do_hf_potential_gaussian,&
                                              do_hf_potential_id,&
@@ -103,7 +103,7 @@ MODULE hfx_energy_potential
 !>      09.2007 new parallelization [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE integrate_four_center(qs_env,ks_matrix,energy,rho,hf_section,para_env,& 
+  SUBROUTINE integrate_four_center(qs_env,ks_matrix,energy,rho,hfx_section,para_env,& 
                                    geometry_did_change,irep,distribute_fock_matrix,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -111,7 +111,7 @@ MODULE hfx_energy_potential
       POINTER                                :: ks_matrix
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(section_vals_type), POINTER         :: hf_section
+    TYPE(section_vals_type), POINTER         :: hfx_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL                                  :: geometry_did_change
     INTEGER                                  :: irep
@@ -167,31 +167,31 @@ MODULE hfx_energy_potential
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(real_block_node_type), POINTER      :: block_node
-    TYPE(x_hf_basis_type), DIMENSION(:), &
+    TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
-    TYPE(x_hf_cache_type), DIMENSION(:), &
+    TYPE(hfx_cache_type), DIMENSION(:), &
       POINTER                                :: integral_caches, &
                                                 integral_caches_disk
-    TYPE(x_hf_cache_type), POINTER           :: maxval_cache, &
+    TYPE(hfx_cache_type), POINTER           :: maxval_cache, &
                                                 maxval_cache_disk
-    TYPE(x_hf_container_type), &
+    TYPE(hfx_container_type), &
       DIMENSION(:), POINTER                  :: integral_containers, &
                                                 integral_containers_disk
-    TYPE(x_hf_container_type), POINTER       :: maxval_container, &
+    TYPE(hfx_container_type), POINTER       :: maxval_container, &
                                                 maxval_container_disk
-    TYPE(x_hf_general_type)                  :: general_parameter
-    TYPE(x_hf_load_balance_type)             :: load_balance_parameter
-    TYPE(x_hf_memory_type), POINTER          :: memory_parameter
-    TYPE(x_hf_potential_type)                :: potential_parameter
-    TYPE(x_hf_screening_type)                :: screening_parameter
-    TYPE(x_hf_type), POINTER                 :: actual_x_data
+    TYPE(hfx_general_type)                  :: general_parameter
+    TYPE(hfx_load_balance_type)             :: load_balance_parameter
+    TYPE(hfx_memory_type), POINTER          :: memory_parameter
+    TYPE(hfx_potential_type)                :: potential_parameter
+    TYPE(hfx_screening_type)                :: screening_parameter
+    TYPE(hfx_type), POINTER                 :: actual_x_data
 
 !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
     REAL(dp), DIMENSION(:, :, :, :), &
               POINTER, SAVE                  :: shm_initial_p
     REAL(dp), DIMENSION(:, :, :, :), &
               POINTER, SAVE                  :: shm_actual_pmax_set
-    TYPE(x_hf_box_scheme), DIMENSION(:,:), &
+    TYPE(hfx_box_scheme), DIMENSION(:,:), &
                            POINTER, SAVE     :: shm_far_field_boxes
     INTEGER, SAVE                            :: shm_number_of_p_entries
     INTEGER, DIMENSION(:,:), POINTER, SAVE   :: shm_is_assoc_atomic_block
@@ -234,7 +234,7 @@ MODULE hfx_energy_potential
 !$OMP                                  ks_matrix,&
 !$OMP                                  energy,&
 !$OMP                                  rho,&
-!$OMP                                  hf_section,&
+!$OMP                                  hfx_section,&
 !$OMP                                  para_env,&
 !$OMP                                  geometry_did_change,&
 !$OMP                                  irep,&
@@ -323,17 +323,17 @@ MODULE hfx_energy_potential
     IF(.NOT. memory_parameter%do_all_on_the_fly) THEN 
       !! IF new md step -> reinitialize containers
       IF(geometry_did_change) THEN
-        CALL x_hf_init_container(6, maxval_container, memory_parameter%actual_memory_usage, .FALSE., error)
+        CALL hfx_init_container(6, maxval_container, memory_parameter%actual_memory_usage, .FALSE., error)
         DO i=1,64
-          CALL x_hf_init_container(6, integral_containers(i),memory_parameter%actual_memory_usage, .FALSE., error)
+          CALL hfx_init_container(6, integral_containers(i),memory_parameter%actual_memory_usage, .FALSE., error)
         END DO
       END IF
 
       !! Decompress the first cache for maxvals and integrals
       IF( .NOT. geometry_did_change) THEN
-        CALL x_hf_decompress_first_cache(6, maxval_cache, maxval_container, memory_parameter%actual_memory_usage, .FALSE.)
+        CALL hfx_decompress_first_cache(6, maxval_cache, maxval_container, memory_parameter%actual_memory_usage, .FALSE.)
         DO i=1,64
-          CALL x_hf_decompress_first_cache(i, integral_caches(i), integral_containers(i), &
+          CALL hfx_decompress_first_cache(i, integral_caches(i), integral_containers(i), &
                                            memory_parameter%actual_memory_usage,.FALSE.)
         END DO
       END IF
@@ -345,17 +345,17 @@ MODULE hfx_energy_potential
     IF(do_disk_storage) THEN
       !! IF new md step -> reinitialize containers
       IF(geometry_did_change) THEN
-        CALL x_hf_init_container(6, maxval_container_disk, memory_parameter%actual_memory_usage_disk, do_disk_storage, error)
+        CALL hfx_init_container(6, maxval_container_disk, memory_parameter%actual_memory_usage_disk, do_disk_storage, error)
         DO i=1,64
-          CALL x_hf_init_container(i, integral_containers_disk(i),memory_parameter%actual_memory_usage_disk, do_disk_storage, error)
+          CALL hfx_init_container(i, integral_containers_disk(i),memory_parameter%actual_memory_usage_disk, do_disk_storage, error)
         END DO
       END IF
       !! Decompress the first cache for maxvals and integrals
       IF( .NOT. geometry_did_change) THEN
-        CALL x_hf_decompress_first_cache(6, maxval_cache_disk, maxval_container_disk, &
+        CALL hfx_decompress_first_cache(6, maxval_cache_disk, maxval_container_disk, &
                                          memory_parameter%actual_memory_usage_disk, .TRUE.)
         DO i=1,64
-          CALL x_hf_decompress_first_cache(i, integral_caches_disk(i), integral_containers_disk(i), &
+          CALL hfx_decompress_first_cache(i, integral_caches_disk(i), integral_containers_disk(i), &
                                            memory_parameter%actual_memory_usage_disk, .TRUE.)
         END DO
       END IF
@@ -478,13 +478,13 @@ MODULE hfx_energy_potential
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         NULLIFY(actual_pmax_set)
         shm_actual_pmax_set => actual_pmax_set
-        CALL update_pmax_matrix(actual_pmax_set, full_density, full_density_beta, &
-                                particle_set,atomic_kind_set, kind_of, basis_parameter, error)
+        CALL update_pmax_mat(actual_pmax_set, full_density, full_density_beta, &
+                             particle_set,atomic_kind_set, kind_of, basis_parameter, error)
       END IF
       IF(geometry_did_change ) THEN
-        CALL update_pmax_matrix(actual_x_data%initial_p, &
-                                full_density,full_density_beta,&
-                                particle_set,atomic_kind_set, kind_of, basis_parameter, error)
+        CALL update_pmax_mat(actual_x_data%initial_p, &
+                             full_density,full_density_beta,&
+                             particle_set,atomic_kind_set, kind_of, basis_parameter, error)
       END IF
     ELSE
       IF(geometry_did_change) THEN
@@ -556,9 +556,9 @@ MODULE hfx_energy_potential
        END IF
 
     ELSE
-      CALL compute_screening_matrices(lib(i_thread+1),screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,&
-                                    potential_parameter,.NOT.geometry_did_change,kind_of, basis_parameter, i_thread,&
-                                    actual_x_data%x_screening_buffer, error)
+      CALL comp_screen_mat(lib(i_thread+1),screen_set,screen_atom,screen_max,particle_set,atomic_kind_set,&
+                           potential_parameter,.NOT.geometry_did_change,kind_of, basis_parameter, i_thread,&
+                           actual_x_data%x_screening_buffer, error)
       IF(geometry_did_change) THEN
         NULLIFY(shm_far_field_boxes)
         CALL screen_farfield(actual_x_data%far_field_boxes,&
@@ -962,11 +962,11 @@ MODULE hfx_energy_potential
                           IF(.NOT.buffer_overflow .AND. .NOT.geometry_did_change) THEN
                             nints = current_counter
                             IF(.NOT. use_disk_storage) THEN
-                              CALL x_hf_get_single_cache_element(estimate_to_store_int, 6,&
+                              CALL hfx_get_single_cache_element(estimate_to_store_int, 6,&
                                                        maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
                                                        use_disk_storage)
                             ELSE
-                               CALL x_hf_get_single_cache_element(estimate_to_store_int, 6,&
+                               CALL hfx_get_single_cache_element(estimate_to_store_int, 6,&
                                                        maxval_cache_disk, maxval_container_disk, &
                                                        memory_parameter%actual_memory_usage_disk, &
                                                        use_disk_storage)
@@ -979,7 +979,7 @@ MODULE hfx_energy_potential
                             DO WHILE (buffer_left > 0 )
                               buffer_size = MIN(buffer_left, cache_size)
                               IF(.NOT. use_disk_storage) THEN
-                                CALL x_hf_get_mult_cache_elements(T1(buffer_start), &
+                                CALL hfx_get_mult_cache_elements(T1(buffer_start), &
                                                                   buffer_size, nbits, &
                                                                   integral_caches(nbits), &
                                                                   integral_containers(nbits), &
@@ -987,7 +987,7 @@ MODULE hfx_energy_potential
                                                                   memory_parameter%actual_memory_usage, &
                                                                   use_disk_storage, error)
                               ELSE
-                                CALL x_hf_get_mult_cache_elements(T1(buffer_start), &
+                                CALL hfx_get_mult_cache_elements(T1(buffer_start), &
                                                                   buffer_size, nbits, &
                                                                   integral_caches_disk(nbits), &
                                                                   integral_containers_disk(nbits), &
@@ -1101,18 +1101,18 @@ MODULE hfx_energy_potential
                                             potential_parameter, eps_schwarz, max_contraction_val, &
                                             cartesian_estimate, i_thread)
                             ELSE
-                              CALL coulomb4_periodic(ra, rb, rc, rd,&
-                                                     zeta(1:npgfa(iset),iset), zetb(1:npgfb(jset),jset), &
-                                                     zetc(1:npgfc(kset),kset), zetd(1:npgfd(lset),lset),&
-                                                     la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
-                                                     lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
-                                                     npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
-                                                     ncoa,ncob,ncoc,ncod,&
-                                                     primitive_integrals(1),&
-                                                     potential_parameter, box_size, box_size_inv, &
-                                                     actual_x_data%neighbor_cells, screen_periodic(:,iset,jset,iatom,jatom),&
-                                                     screen_periodic(:,kset,lset,katom,latom), eps_schwarz, &
-                                                     max_contraction_val, cartesian_estimate, i_thread, error)
+                              CALL coulomb4_per(ra, rb, rc, rd,&
+                                                zeta(1:npgfa(iset),iset), zetb(1:npgfb(jset),jset), &
+                                                zetc(1:npgfc(kset),kset), zetd(1:npgfd(lset),lset),&
+                                                la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
+                                                lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
+                                                npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
+                                                ncoa,ncob,ncoc,ncod,&
+                                                primitive_integrals(1),&
+                                                potential_parameter, box_size, box_size_inv, &
+                                                actual_x_data%neighbor_cells, screen_periodic(:,iset,jset,iatom,jatom),&
+                                                screen_periodic(:,kset,lset,katom,latom), eps_schwarz, &
+                                                max_contraction_val, cartesian_estimate, i_thread, error)
                            
                             END IF
                             
@@ -1125,11 +1125,11 @@ MODULE hfx_energy_potential
                             IF(.NOT.buffer_overflow .AND. geometry_did_change) THEN
                               IF(cartesian_estimate < eps_schwarz ) THEN
                                 IF(.NOT. use_disk_storage) THEN
-                                  CALL x_hf_add_single_cache_element(estimate_to_store_int, 6,&
+                                  CALL hfx_add_single_cache_element(estimate_to_store_int, 6,&
                                                   maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
                                                   use_disk_storage, error)
                                 ELSE
-                                  CALL x_hf_add_single_cache_element(estimate_to_store_int, 6,&
+                                  CALL hfx_add_single_cache_element(estimate_to_store_int, 6,&
                                                   maxval_cache_disk, maxval_container_disk, &
                                                   memory_parameter%actual_memory_usage_disk, &
                                                   use_disk_storage, error)
@@ -1168,12 +1168,12 @@ MODULE hfx_energy_potential
                             
                             IF(.NOT. buffer_overflow .AND. geometry_did_change) THEN
                               IF(.NOT.use_disk_storage) THEN
-                                CALL x_hf_add_single_cache_element(estimate_to_store_int, 6, &
+                                CALL hfx_add_single_cache_element(estimate_to_store_int, 6, &
                                                                    maxval_cache, maxval_container, &
                                                                    memory_parameter%actual_memory_usage, &
                                                                    use_disk_storage, error)
                               ELSE
-                                CALL x_hf_add_single_cache_element(estimate_to_store_int, 6, &
+                                CALL hfx_add_single_cache_element(estimate_to_store_int, 6, &
                                                                    maxval_cache_disk, maxval_container_disk, &
                                                                    memory_parameter%actual_memory_usage_disk, &
                                                                    use_disk_storage, error)
@@ -1189,7 +1189,7 @@ MODULE hfx_energy_potential
                                 buffer_size = MIN(buffer_left, CACHE_SIZE)
                                 IF(.NOT. use_disk_storage) THEN
                                   neris_incore = neris_incore + nints
-                                  CALL x_hf_add_mult_cache_elements(primitive_integrals(buffer_start),&
+                                  CALL hfx_add_mult_cache_elements(primitive_integrals(buffer_start),&
                                                                     buffer_size, nbits, &
                                                                     integral_caches(nbits), &
                                                                     integral_containers(nbits), &
@@ -1198,7 +1198,7 @@ MODULE hfx_energy_potential
                                                                     use_disk_storage, error)
                                 ELSE
                                   neris_disk = neris_disk + nints
-                                  CALL x_hf_add_mult_cache_elements(primitive_integrals(buffer_start),&
+                                  CALL hfx_add_mult_cache_elements(primitive_integrals(buffer_start),&
                                                                     buffer_size, nbits, &
                                                                     integral_caches_disk(nbits), &
                                                                     integral_containers_disk(nbits), &
@@ -1436,53 +1436,53 @@ MODULE hfx_energy_potential
         compression_factor_disk = 0.0_dp
       END IF
       
-      iw = cp_print_key_unit_nr(logger,hf_section,"HF_INFO",&
+      iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
            extension=".scfLog",error=error)
       IF (iw>0) THEN
         WRITE (UNIT=iw,FMT="(/,(T3,A,T60,I20))")&
-                 "HF_MEM_INFO| Total number of  ERI's calculated:      ",shm_neris_total
+                 "HFX_MEM_INFO| Total number of  ERI's calculated:      ",shm_neris_total
 
         WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
-                 "HF_MEM_INFO| Number of ERI's stored in-core:        ",shm_neris_incore
+                 "HFX_MEM_INFO| Number of ERI's stored in-core:        ",shm_neris_incore
 
         WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
-                 "HF_MEM_INFO| Number of ERI's stored on disk:        ",shm_neris_disk
+                 "HFX_MEM_INFO| Number of ERI's stored on disk:        ",shm_neris_disk
   
         WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
-                 "HF_MEM_INFO| Number of ERI's calculated on the fly: ",shm_neris_onthefly
+                 "HFX_MEM_INFO| Number of ERI's calculated on the fly: ",shm_neris_onthefly
   
         WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
-                 "HF_MEM_INFO| Total memory consumption ERI's RAM [MB's]            ",mem_eris
+                 "HFX_MEM_INFO| Total memory consumption ERI's RAM [MB's]            ",mem_eris
       
         WRITE (UNIT=iw,FMT="((T3,A,T60,F20.2))")&
-                 "HF_MEM_INFO| Total compression factor ERI's RAM:                  ",compression_factor
+                 "HFX_MEM_INFO| Total compression factor ERI's RAM:                  ",compression_factor
              
         WRITE (UNIT=iw,FMT="((T3,A,T60,I20))")&
-                 "HF_MEM_INFO| Total memory consumption ERI's disk [MB's]       ",mem_eris_disk
+                 "HFX_MEM_INFO| Total memory consumption ERI's disk [MB's]       ",mem_eris_disk
 
         WRITE (UNIT=iw,FMT="((T3,A,T60,F20.2),/)")&
-                 "HF_MEM_INFO| Total compression factor ERI's disk:             ",compression_factor_disk
+                 "HFX_MEM_INFO| Total compression factor ERI's disk:             ",compression_factor_disk
 
       END IF
   
-      CALL cp_print_key_finished_output(iw,logger,hf_section,&
+      CALL cp_print_key_finished_output(iw,logger,hfx_section,&
                                       "HF_INFO", error=error)
     END IF
 !$OMP END MASTER
 
     !! flush caches if the geometry changed 
     IF(geometry_did_change ) THEN
-      CALL x_hf_flush_last_cache(6, maxval_cache, maxval_container, memory_parameter%actual_memory_usage, .FALSE., error)
+      CALL hfx_flush_last_cache(6, maxval_cache, maxval_container, memory_parameter%actual_memory_usage, .FALSE., error)
       DO i=1,64
-        CALL x_hf_flush_last_cache(i, integral_caches(i), integral_containers(i), &
+        CALL hfx_flush_last_cache(i, integral_caches(i), integral_containers(i), &
                                    memory_parameter%actual_memory_usage, .FALSE., error)
       END DO
     END IF
     !! reset all caches except we calculate all on the fly
     IF(.NOT.memory_parameter%do_all_on_the_fly) THEN
-      CALL x_hf_reset_cache_and_container(maxval_cache, maxval_container, memory_parameter%actual_memory_usage, .FALSE.)
+      CALL hfx_reset_cache_and_container(maxval_cache, maxval_container, memory_parameter%actual_memory_usage, .FALSE.)
       DO i=1,64
-        CALL x_hf_reset_cache_and_container(integral_caches(i), integral_containers(i), memory_parameter%actual_memory_usage, &
+        CALL hfx_reset_cache_and_container(integral_caches(i), integral_containers(i), memory_parameter%actual_memory_usage, &
                                             .FALSE.)
       END DO
     END IF
@@ -1492,18 +1492,18 @@ MODULE hfx_energy_potential
     IF(do_disk_storage ) THEN
       !! flush caches if the geometry changed 
       IF(geometry_did_change ) THEN
-        CALL x_hf_flush_last_cache(6, maxval_cache_disk, maxval_container_disk, &
+        CALL hfx_flush_last_cache(6, maxval_cache_disk, maxval_container_disk, &
                                    memory_parameter%actual_memory_usage_disk, .TRUE., error)
         DO i=1,64
-          CALL x_hf_flush_last_cache(i, integral_caches_disk(i), integral_containers_disk(i), &
+          CALL hfx_flush_last_cache(i, integral_caches_disk(i), integral_containers_disk(i), &
                                      memory_parameter%actual_memory_usage_disk, .TRUE., error)
         END DO
       END IF
       !! reset all caches except we calculate all on the fly
-      CALL x_hf_reset_cache_and_container(maxval_cache_disk, maxval_container_disk, memory_parameter%actual_memory_usage_disk, &
+      CALL hfx_reset_cache_and_container(maxval_cache_disk, maxval_container_disk, memory_parameter%actual_memory_usage_disk, &
                                           do_disk_storage)
       DO i=1,64
-        CALL x_hf_reset_cache_and_container(integral_caches_disk(i), integral_containers_disk(i),&
+        CALL hfx_reset_cache_and_container(integral_caches_disk(i), integral_containers_disk(i),&
                                             memory_parameter%actual_memory_usage_disk, do_disk_storage)
       END DO
     END IF   
@@ -1586,7 +1586,7 @@ MODULE hfx_energy_potential
     INTEGER, INTENT(IN)                      :: ncoa, ncob, ncoc, ncod
     REAL(dp), &
       DIMENSION(ncoa, ncob, ncoc, ncod)      :: primitive_integrals
-    TYPE(x_hf_potential_type)                :: potential_parameter
+    TYPE(hfx_potential_type)                :: potential_parameter
     REAL(dp), INTENT(IN)                     :: eps_schwarz, &
                                                 max_contraction_val
     REAL(dp), INTENT(INOUT)                  :: cartesian_estimate
@@ -1656,15 +1656,15 @@ MODULE hfx_energy_potential
 !>      06.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE coulomb4_periodic(ra, rb, rc, rd, zeta, zetb, zetc, zetd,&
-                               la_min, la_max, lb_min, lb_max,&
-                               lc_min, lc_max, ld_min, ld_max,&
-                               npgfa, npgfb, npgfc, npgfd,&
-                               ncoa,ncob,ncoc,ncod,&
-                               primitive_integrals,&
-                               potential_parameter, box_size, box_size_inv, neighbor_cells, &
-                               screen1, screen2, eps_schwarz, max_contraction_val, &
-                               cart_estimate, i_thread, error)
+  SUBROUTINE coulomb4_per(ra, rb, rc, rd, zeta, zetb, zetc, zetd,&
+                          la_min, la_max, lb_min, lb_max,&
+                          lc_min, lc_max, ld_min, ld_max,&
+                          npgfa, npgfb, npgfc, npgfd,&
+                          ncoa,ncob,ncoc,ncod,&
+                          primitive_integrals,&
+                          potential_parameter, box_size, box_size_inv, neighbor_cells, &
+                          screen1, screen2, eps_schwarz, max_contraction_val, &
+                          cart_estimate, i_thread, error)
   
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
     INTEGER, INTENT(IN)                      :: npgfa, ld_max, ld_min, &
@@ -1678,9 +1678,9 @@ MODULE hfx_energy_potential
     INTEGER, INTENT(IN)                      :: ncoa, ncob, ncoc, ncod
     REAL(dp), &
       DIMENSION(ncoa, ncob, ncoc, ncod)      :: primitive_integrals
-    TYPE(x_hf_potential_type)                :: potential_parameter
+    TYPE(hfx_potential_type)                :: potential_parameter
     REAL(dp), INTENT(IN)                     :: box_size(3), box_size_inv(3)
-    TYPE(x_hf_cell_type), DIMENSION(:), &
+    TYPE(hfx_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
     REAL(dp), DIMENSION(:)                   :: screen1, screen2
     REAL(dp), INTENT(IN)                     :: eps_schwarz, &
@@ -1689,7 +1689,7 @@ MODULE hfx_energy_potential
     INTEGER, INTENT(IN)                      :: i_thread
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'coulomb4_periodic', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'coulomb4_per', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: i, ipgf, j, jpgf, kpgf, la, lb, lc, ld, lpgf, offset_a, &
@@ -1779,7 +1779,7 @@ MODULE hfx_energy_potential
 
     DEALLOCATE(tmp_cart_estimate, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END SUBROUTINE coulomb4_periodic
+  END SUBROUTINE coulomb4_per
 
 ! *****************************************************************************
 !> \brief This routine does the correction to the screening on an in inital
@@ -1810,7 +1810,7 @@ MODULE hfx_energy_potential
     INTEGER, DIMENSION(:), INTENT(IN)        :: nsgfa, nsgfb, nsgfc, nsgfd
     INTEGER, INTENT(IN)                      :: sgfa, sgfb, sgfc, sgfd
     REAL(dp), DIMENSION(:)                   :: primitive_integrals
-    TYPE(x_hf_potential_type)                :: potential_parameter
+    TYPE(hfx_potential_type)                :: potential_parameter
     REAL(dp)                                 :: box_size(3), box_size_inv(3)
     REAL(dp), DIMENSION(:, :, :, :, :), &
       POINTER                                :: screen_periodic
@@ -1825,7 +1825,7 @@ MODULE hfx_energy_potential
                                                 iatom, jatom, katom, latom, &
                                                 pa1, pb1, pc1, pd1, nspins
     REAL(dp), INTENT(IN)                     :: max_contraction_val
-    TYPE(x_hf_type), POINTER                 :: actual_x_data
+    TYPE(hfx_type), POINTER                 :: actual_x_data
     INTEGER                                  :: i_thread
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1845,18 +1845,18 @@ MODULE hfx_energy_potential
                     potential_parameter, eps_schwarz, max_contraction_val, &
                     cartesian_estimate, i_thread)
     ELSE
-      CALL coulomb4_periodic(ra, rb, rc, rd,&
-                             zeta(1:npgfa(iset),iset), zetb(1:npgfb(jset),jset), &
-                             zetc(1:npgfc(kset),kset), zetd(1:npgfd(lset),lset),&
-                             la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
-                             lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
-                             npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
-                             ncoa,ncob,ncoc,ncod,&
-                             primitive_integrals,&
-                             potential_parameter, box_size, box_size_inv, &
-                             actual_x_data%neighbor_cells, screen_periodic(:,iset,jset,iatom,jatom),&
-                             screen_periodic(:,kset,lset,katom,latom), eps_schwarz, &
-                             max_contraction_val, cartesian_estimate, i_thread, error)
+      CALL coulomb4_per(ra, rb, rc, rd,&
+                        zeta(1:npgfa(iset),iset), zetb(1:npgfb(jset),jset), &
+                        zetc(1:npgfc(kset),kset), zetd(1:npgfd(lset),lset),&
+                        la_min(iset), la_max(iset), lb_min(jset), lb_max(jset),&
+                        lc_min(kset), lc_max(kset), ld_min(lset), ld_max(lset),&
+                        npgfa(iset), npgfb(jset), npgfc(kset), npgfd(lset),&
+                        ncoa,ncob,ncoc,ncod,&
+                        primitive_integrals,&
+                        potential_parameter, box_size, box_size_inv, &
+                        actual_x_data%neighbor_cells, screen_periodic(:,iset,jset,iatom,jatom),&
+                        screen_periodic(:,kset,lset,katom,latom), eps_schwarz, &
+                        max_contraction_val, cartesian_estimate, i_thread, error)
     END IF
 
     IF(cartesian_estimate < eps_schwarz) RETURN

@@ -17,10 +17,10 @@ MODULE hfx_screening_methods
   USE hfx_libint_interface,            ONLY: evaluate_eri_screen,&
                                              pbc
   USE hfx_libint_wrapper,              ONLY: lib_int
-  USE hfx_types,                       ONLY: x_hf_basis_type,&
-                                             x_hf_box_scheme,&
-                                             x_hf_cell_type,&
-                                             x_hf_potential_type
+  USE hfx_types,                       ONLY: hfx_basis_type,&
+                                             hfx_box_scheme,&
+                                             hfx_cell_type,&
+                                             hfx_potential_type
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE mathconstants
@@ -33,8 +33,8 @@ MODULE hfx_screening_methods
   IMPLICIT NONE
   PRIVATE
    
-  PUBLIC screen4, compute_screening_matrices, compute_pmax_matrices, comp_screen_mat_per, &
-         screen4_periodic, screen_farfield, screen_farfield_per, update_pmax_matrix
+  PUBLIC screen4, comp_screen_mat, comp_pmax_mat, comp_screen_mat_per, &
+         screen4_per, screen_farfield, screen_farfield_per, update_pmax_mat
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_screening_methods'
   REAL(dp), PARAMETER      :: epsilon = 0.00001_dp
   REAL(dp), PARAMETER      :: erfc_epsilon = 0.99998871620832942100_dp !erfc(epsilon)
@@ -69,7 +69,7 @@ MODULE hfx_screening_methods
     INTEGER, INTENT(IN)                      :: la_min, la_max, lb_min, &
                                                 lb_max, npgfa, npgfb
     REAL(dp), INTENT(INOUT)                  :: max_val
-    TYPE(x_hf_potential_type)                :: potential_parameter
+    TYPE(hfx_potential_type)                 :: potential_parameter
     INTEGER, INTENT(IN)                      :: i_thread
 
     CHARACTER(len=*), PARAMETER :: routineN = 'screen4', &
@@ -106,9 +106,9 @@ MODULE hfx_screening_methods
 !>     05.2007 refactored [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE compute_screening_matrices(lib, screen_set,screen_atom,screen_max,particle_set,&
-                                        atomic_kind_set,potential_parameter,read_from_memory,&
-                                        kind_of, basis_parameter, i_thread, buffer, error)
+  SUBROUTINE comp_screen_mat(lib, screen_set,screen_atom,screen_max,particle_set,&
+                             atomic_kind_set,potential_parameter,read_from_memory,&
+                             kind_of, basis_parameter, i_thread, buffer, error)
     TYPE(lib_int)                            :: lib
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: screen_set
     REAL(dp), DIMENSION(:, :), POINTER       :: screen_atom
@@ -117,17 +117,17 @@ MODULE hfx_screening_methods
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(x_hf_potential_type)                :: potential_parameter
+    TYPE(hfx_potential_type)                 :: potential_parameter
     LOGICAL                                  :: read_from_memory
     INTEGER                                  :: kind_of(*)
-    TYPE(x_hf_basis_type), DIMENSION(:), &
+    TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     INTEGER, INTENT(IN)                      :: i_thread
     REAL(dp), DIMENSION(:, :, :, :), &
       OPTIONAL, POINTER                      :: buffer
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_screening_matrices', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'comp_screen_mat', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: jatom, jkind, jset, k, katom, &
@@ -230,7 +230,7 @@ MODULE hfx_screening_methods
     screen_max=MAXVAL(screen_atom)
     DEALLOCATE(contraction_max, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END SUBROUTINE compute_screening_matrices
+  END SUBROUTINE comp_screen_mat
 
 ! *****************************************************************************
 !> \brief calculates the maximum of the density matrix in compressed form for screening purposes 
@@ -241,9 +241,9 @@ MODULE hfx_screening_methods
 !>     05.2007 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE compute_pmax_matrices(pmax_set,pmax_atom,pmax_max, &
-              full_density,full_density_beta,screen_pmat_forces,particle_set,atomic_kind_set,&
-              kind_of, basis_parameter, error)
+  SUBROUTINE comp_pmax_mat(pmax_set,pmax_atom,pmax_max, &
+                           full_density,full_density_beta,screen_pmat_forces,particle_set,atomic_kind_set,&
+                           kind_of, basis_parameter, error)
 
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set
     REAL(dp), DIMENSION(:, :), POINTER       :: pmax_atom
@@ -256,11 +256,11 @@ MODULE hfx_screening_methods
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     INTEGER                                  :: kind_of(*)
-    TYPE(x_hf_basis_type), DIMENSION(:), &
+    TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_pmax_matrices', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'comp_pmax_mat', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: jatom, jkind, jset, katom, kkind, kset, max_set, mb, mc, &
@@ -341,7 +341,7 @@ MODULE hfx_screening_methods
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
 
-  END SUBROUTINE compute_pmax_matrices
+  END SUBROUTINE comp_pmax_mat
 
 ! *****************************************************************************
 !> \brief calculates the screening matrices in the case of periodic boundary
@@ -371,14 +371,14 @@ MODULE hfx_screening_methods
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(x_hf_potential_type)                :: potential_parameter
+    TYPE(hfx_potential_type)                 :: potential_parameter
     LOGICAL                                  :: read_from_memory
     INTEGER                                  :: kind_of(*)
-    TYPE(x_hf_basis_type), DIMENSION(:), &
+    TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     REAL(dp), DIMENSION(:, :, :, :, :), &
       OPTIONAL, POINTER                      :: buffer
-    TYPE(x_hf_cell_type), DIMENSION(:), &
+    TYPE(hfx_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
     REAL(dp)                                 :: box_size(3), box_size_inv(3)
     INTEGER, INTENT(IN)                      :: i_thread
@@ -461,11 +461,11 @@ MODULE hfx_screening_methods
               screen_periodic(:,jset,kset,jatom,katom) = buffer(:,jset,kset,jatom,katom)
             ELSE
               max_val = 0.0_dp
-              CALL screen4_periodic(lib, rb, rc, &
-                                    zetb(:,jset), zetc(:,kset), &
-                                    lb_min(jset), lb_max(jset), lc_min(kset), lc_max(kset),&
-                                    npgfb(jset), npgfc(kset), &
-                                    max_val, potential_parameter, neighbor_cells, box_size, box_size_inv, i_thread)
+              CALL screen4_per(lib, rb, rc, &
+                               zetb(:,jset), zetc(:,kset), &
+                               lb_min(jset), lb_max(jset), lc_min(kset), lc_max(kset),&
+                               npgfb(jset), npgfc(kset), &
+                               max_val, potential_parameter, neighbor_cells, box_size, box_size_inv, i_thread)
                 screen_periodic(:,jset,kset,jatom,katom) = SQRT(max_val)*p2s_b*p2s_c
                 IF( PRESENT(buffer) ) buffer(:,jset,kset,jatom,katom) = screen_periodic(:,jset,kset,jatom,katom)
               END IF
@@ -509,11 +509,11 @@ MODULE hfx_screening_methods
 !>     06.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE screen4_periodic(lib, ra, rb, zeta, zetb, &
-                             la_min, la_max, lb_min, lb_max,&
-                             npgfa, npgfb, &
-                             max_val, potential_parameter, neighbor_cells, &
-                             box_size, box_size_inv, i_thread)
+  SUBROUTINE screen4_per(lib, ra, rb, zeta, zetb, &
+                         la_min, la_max, lb_min, lb_max,&
+                         npgfa, npgfb, &
+                         max_val, potential_parameter, neighbor_cells, &
+                         box_size, box_size_inv, i_thread)
 
     TYPE(lib_int)                            :: lib
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3)
@@ -521,13 +521,13 @@ MODULE hfx_screening_methods
     INTEGER, INTENT(IN)                      :: la_min, la_max, lb_min, &
                                                 lb_max, npgfa, npgfb
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: max_val
-    TYPE(x_hf_potential_type)                :: potential_parameter
-    TYPE(x_hf_cell_type), DIMENSION(:), &
+    TYPE(hfx_potential_type)                 :: potential_parameter
+    TYPE(hfx_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
     REAL(dp), INTENT(IN)                     :: box_size(3), box_size_inv(3)
     INTEGER, INTENT(IN)                      :: i_thread
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'screen4_periodic', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'screen4_per', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ipgf, jpgf, la, lb
@@ -558,7 +558,7 @@ MODULE hfx_screening_methods
         END DO !jpgf
       END DO !ipgf
    END DO
-  END SUBROUTINE screen4_periodic
+  END SUBROUTINE screen4_per
 
 ! *****************************************************************************
 !> \brief Estimates the contribution of an ERI taking 1/R dependence into account.
@@ -571,14 +571,14 @@ MODULE hfx_screening_methods
 ! *****************************************************************************
   SUBROUTINE screen_farfield(boxes, particle_set, atomic_kind_set, &
                              kind_of, basis_parameter, error)
-    TYPE(x_hf_box_scheme), DIMENSION(:, :), &
+    TYPE(hfx_box_scheme), DIMENSION(:, :), &
       POINTER                                :: boxes
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     INTEGER                                  :: kind_of(*)
-    TYPE(x_hf_basis_type), DIMENSION(:), &
+    TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -748,17 +748,17 @@ MODULE hfx_screening_methods
 ! *****************************************************************************
   SUBROUTINE screen_farfield_per(boxes, particle_set, atomic_kind_set, &
                                  neighbor_cells, box_size, box_size_inv, kind_of, basis_parameter, error)
-    TYPE(x_hf_box_scheme), DIMENSION(:, :), &
+    TYPE(hfx_box_scheme), DIMENSION(:, :), &
       POINTER                                :: boxes
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(x_hf_cell_type), DIMENSION(:), &
+    TYPE(hfx_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
     REAL(dp), INTENT(IN)                     :: box_size(3), box_size_inv(3)
     INTEGER                                  :: kind_of(*)
-    TYPE(x_hf_basis_type), DIMENSION(:), &
+    TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -919,8 +919,8 @@ MODULE hfx_screening_methods
 !>     09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE update_pmax_matrix(pmax_set, &
-              full_density,full_density_beta,particle_set,atomic_kind_set,kind_of,basis_parameter,error)
+  SUBROUTINE update_pmax_mat(pmax_set, full_density, full_density_beta, particle_set, &
+                             atomic_kind_set,kind_of,basis_parameter,error)
 
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: pmax_set
     REAL(dp), DIMENSION(:, :), POINTER       :: full_density, &
@@ -930,11 +930,11 @@ MODULE hfx_screening_methods
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     INTEGER                                  :: kind_of(*)
-    TYPE(x_hf_basis_type), DIMENSION(:), &
+    TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_pmax_matrix', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_pmax_mat', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: jatom, jkind, jset, katom, kkind, kset, max_set, mb, mc, &
@@ -1011,6 +1011,6 @@ MODULE hfx_screening_methods
     DEALLOCATE(last_sgf_global,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-  END SUBROUTINE update_pmax_matrix
+  END SUBROUTINE update_pmax_mat
 
 END MODULE hfx_screening_methods 
