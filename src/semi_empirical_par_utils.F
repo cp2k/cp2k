@@ -634,7 +634,7 @@ CONTAINS
        END IF
        CALL eisol_corr(sep, r016, r066, r244, r266, r466, error)
        sep%onec2el(1)  =  r016
-       sep%onec2el(2)  =  2.0_dp/(3.d0*s5)*r125
+       sep%onec2el(2)  =  2.0_dp/(3.0_dp*s5)*r125
        sep%onec2el(3)  =  1.0_dp/s15*r125
        sep%onec2el(4)  =  2.0_dp/(5.0_dp*s5)*r234
        sep%onec2el(5)  =  r036 + 4.0_dp/35.0_dp*r236

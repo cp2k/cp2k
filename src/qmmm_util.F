@@ -235,7 +235,7 @@ CONTAINS
                      qm_cell%hmat(2,2),&
                      qm_cell%hmat(3,3)/)
     particles_mm => subsys_mm%particles%els
-    wallenergy=0.0d0
+    wallenergy=0.0_dp
     DO ip=1,SIZE(qm_atom_index)
        qm_index = qm_atom_index(ip)
        coord = particles_mm(qm_index)%r
@@ -247,43 +247,43 @@ CONTAINS
           is_z(1) = (coord(3)<skin)                  
           is_z(2) = (coord(3)>(qm_cell_diag(3)-skin))
           IF (is_x(1)) THEN
-            wallforce=2.0d0*k*(skin-coord(1))
+            wallforce=2.0_dp*k*(skin-coord(1))
             particles_mm(qm_index)%f(1)=particles_mm(qm_index)%f(1)+&
                   wallforce
-            wallenergy=wallenergy+wallforce*(skin-coord(1))*0.5d0
+            wallenergy=wallenergy+wallforce*(skin-coord(1))*0.5_dp
           ENDIF
           IF (is_x(2)) THEN
-            wallforce=2.0d0*k*((qm_cell_diag(1)-skin)-coord(1))
+            wallforce=2.0_dp*k*((qm_cell_diag(1)-skin)-coord(1))
             particles_mm(qm_index)%f(1)=particles_mm(qm_index)%f(1)+&
                   wallforce
             wallenergy=wallenergy+wallforce*((qm_cell_diag(1)-skin)-&
-                  coord(1))*0.5d0
+                  coord(1))*0.5_dp
           ENDIF
           IF (is_y(1)) THEN
-            wallforce=2.0d0*k*(skin-coord(2))
+            wallforce=2.0_dp*k*(skin-coord(2))
             particles_mm(qm_index)%f(2)=particles_mm(qm_index)%f(2)+&
                   wallforce
-            wallenergy=wallenergy+wallforce*(skin-coord(2))*0.5d0
+            wallenergy=wallenergy+wallforce*(skin-coord(2))*0.5_dp
           ENDIF
           IF (is_y(2)) THEN
-            wallforce=2.0d0*k*((qm_cell_diag(2)-skin)-coord(2))
+            wallforce=2.0_dp*k*((qm_cell_diag(2)-skin)-coord(2))
             particles_mm(qm_index)%f(2)=particles_mm(qm_index)%f(2)+&
                   wallforce
             wallenergy=wallenergy+wallforce*((qm_cell_diag(2)-skin)-&
-                  coord(2))*0.5d0
+                  coord(2))*0.5_dp
           ENDIF
           IF (is_z(1)) THEN
-            wallforce=2.0d0*k*(skin-coord(3))
+            wallforce=2.0_dp*k*(skin-coord(3))
             particles_mm(qm_index)%f(3)=particles_mm(qm_index)%f(3)+&
                   wallforce
-            wallenergy=wallenergy+wallforce*(skin-coord(3))*0.5d0
+            wallenergy=wallenergy+wallforce*(skin-coord(3))*0.5_dp
           ENDIF
           IF (is_z(2)) THEN
-            wallforce=2.0d0*k*((qm_cell_diag(3)-skin)-coord(3))
+            wallforce=2.0_dp*k*((qm_cell_diag(3)-skin)-coord(3))
             particles_mm(qm_index)%f(3)=particles_mm(qm_index)%f(3)+&
                   wallforce
             wallenergy=wallenergy+wallforce*((qm_cell_diag(3)-skin)-&
-                  coord(3))*0.5d0
+                  coord(3))*0.5_dp
           ENDIF
        ENDIF
     ENDDO
