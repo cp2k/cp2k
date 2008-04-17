@@ -81,3 +81,5 @@ water_3_walls_q.inp
 zwitt.inp
 #numerics
 water_3_full.inp
+#numerics after new FOCK matrix construction
+ch2o.inp

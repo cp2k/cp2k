@@ -101,3 +101,5 @@ H2O-PDDG.inp
 NO2-ROKS.inp
 # reset: new fock1
 md.inp
+# numerics after new FOCK matrix construction
+md.inp

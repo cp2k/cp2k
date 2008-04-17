@@ -41,11 +41,12 @@ MODULE semi_empirical_utils
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_utils'
 
-  PUBLIC :: init_se_param, se_param_set_default, get_se_type,&
-            expand, traceb, contract
+  PUBLIC :: init_se_param, se_param_set_default, get_se_type
 
 CONTAINS
 
+! *****************************************************************************
+!> \brief Initialize semi_empirical type
 ! *****************************************************************************
   SUBROUTINE init_se_param(sep,orb_basis_set,error)
 
@@ -115,6 +116,8 @@ CONTAINS
   END SUBROUTINE init_se_param
 
 ! *****************************************************************************
+!> \brief Initialize parameter for a semi_empirival type
+! *****************************************************************************
   SUBROUTINE se_param_set_default(sep,z,method,error)
 
     TYPE(semi_empirical_type), POINTER       :: sep
@@ -171,6 +174,8 @@ CPSourceFileRef,&
   END SUBROUTINE se_param_set_default
 
 ! *****************************************************************************
+!> \brief Gives back the unique semi_empirical METHOD type
+! *****************************************************************************
   FUNCTION get_se_type(se_method) RESULT(se_type)
 
     INTEGER, INTENT(IN)                      :: se_method
@@ -187,72 +192,6 @@ CPSourceFileRef,&
     END SELECT
 
   END FUNCTION get_se_type
-
-! *****************************************************************************
-  SUBROUTINE contract ( amat, avec )
-    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: amat
-    REAL(dp), DIMENSION(:), INTENT(OUT)      :: avec
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'contract', &
-      routineP = moduleN//':'//routineN
-
-    avec( 1) = amat(1,1)
-    avec( 2) = amat(4,1) + amat(1,4)
-    avec( 3) = amat(4,4)
-    avec( 4) = amat(2,1) + amat(1,2)
-    avec( 5) = amat(2,4) + amat(4,2)
-    avec( 6) = amat(2,2)
-    avec( 7) = amat(3,1) + amat(1,3)
-    avec( 8) = amat(3,4) + amat(4,3)
-    avec( 9) = amat(3,2) + amat(2,3)
-    avec(10) = amat(3,3)
-
-  END SUBROUTINE contract
-
-! *****************************************************************************
-  SUBROUTINE expand ( amat, avec )
-    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: amat
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: avec
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'expand', &
-      routineP = moduleN//':'//routineN
-
-    amat(1,1) = amat(1,1) + avec( 1)
-    amat(4,1) = amat(4,1) + avec( 2)
-    amat(1,4) = amat(1,4) + avec( 2)
-    amat(4,4) = amat(4,4) + avec( 3)
-    amat(2,1) = amat(2,1) + avec( 4)
-    amat(1,2) = amat(1,2) + avec( 4)
-    amat(2,4) = amat(2,4) + avec( 5)
-    amat(4,2) = amat(4,2) + avec( 5)
-    amat(2,2) = amat(2,2) + avec( 6)
-    amat(3,1) = amat(3,1) + avec( 7)
-    amat(1,3) = amat(1,3) + avec( 7)
-    amat(3,4) = amat(3,4) + avec( 8)
-    amat(4,3) = amat(4,3) + avec( 8)
-    amat(3,2) = amat(3,2) + avec( 9)
-    amat(2,3) = amat(2,3) + avec( 9)
-    amat(3,3) = amat(3,3) + avec(10)
-
-  END SUBROUTINE expand
-
-! *****************************************************************************
-  FUNCTION traceb ( pmat, avec ) RESULT(trace)
-    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pmat
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: avec
-    REAL(dp)                                 :: trace
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'traceb', &
-      routineP = moduleN//':'//routineN
-
-    trace = pmat(1,1) * avec( 1) + pmat(4,1) * avec( 2) + pmat(1,4) * avec( 2) &
-         + pmat(4,4) * avec( 3) + pmat(2,1) * avec( 4) + pmat(1,2) * avec( 4) &
-         + pmat(2,4) * avec( 5) + pmat(4,2) * avec( 5) + pmat(2,2) * avec( 6) &
-         + pmat(3,1) * avec( 7) + pmat(1,3) * avec( 7) + pmat(3,4) * avec( 8) &
-         + pmat(4,3) * avec( 8) + pmat(3,2) * avec( 9) + pmat(2,3) * avec( 9) &
-         + pmat(3,3) * avec(10)
-
-  END FUNCTION traceb
 
 END MODULE semi_empirical_utils
 

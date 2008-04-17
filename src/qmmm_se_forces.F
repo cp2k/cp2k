@@ -34,6 +34,7 @@ MODULE qmmm_se_forces
                                              qs_environment_type
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
   USE qs_rho_types,                    ONLY: qs_rho_type
+  USE semi_empirical_int_arrays,       ONLY: se_orbital_pointer
   USE semi_empirical_integrals,        ONLY: dcorecore,&
                                              drotnuc
   USE semi_empirical_types,            ONLY: get_se_param,&
@@ -41,8 +42,7 @@ MODULE qmmm_se_forces
                                              semi_empirical_release,&
                                              semi_empirical_type,&
                                              taper_type
-  USE semi_empirical_utils,            ONLY: contract,&
-                                             get_se_type,&
+  USE semi_empirical_utils,            ONLY: get_se_type,&
                                              se_param_set_default
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type
@@ -263,11 +263,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deriv_se_qmmm_matrix_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, icor, Imm, Imp, &
-                                                IndMM, Ipot
+    INTEGER                                  :: handle, i, i1, i1L, i2, Imm, &
+                                                Imp, IndMM, Ipot, j1, j1L
     REAL(KIND=dp)                            :: r, rt1, rt2, rt3
     REAL(KIND=dp), DIMENSION(3)              :: denuc, force_ab, r_pbc, rij
-    REAL(KIND=dp), DIMENSION(45)             :: pvec
     REAL(KIND=dp), DIMENSION(45, 3)          :: de1b
     TYPE(qmmm_pot_type), POINTER             :: Pot
 
@@ -293,14 +292,19 @@ CONTAINS
                shortrange=.FALSE., anag=anag, delta=delta, taper=taper, error=error)
           ! Nucler - Nuclear term
           force_ab(1:3)=-denuc(1:3)
-          IF ( SIZE(p_block_a,1) == 1 ) THEN
-             force_ab(1:3) = force_ab(1:3) - de1b(1,1:3)*p_block_a(1,1)
-          ELSE
-             CALL contract ( p_block_a, pvec )
-             DO icor=1,3
-                force_ab(icor) = force_ab(icor) - SUM(de1b(1:10,icor)*pvec(1:10))
+          ! Force contribution from the QMMM Hamiltonian
+          i2 = 0
+          DO i1L = 1, se_kind_a%natorb
+             i1 = se_orbital_pointer(i1L)
+             DO j1L = 1, i1L-1
+                j1 = se_orbital_pointer(j1L)
+                i2 = i2 + 1
+                force_ab = force_ab - 2.0_dp * de1b(i2,:)*p_block_a(i1,j1)
              END DO
-          END IF
+             j1 = se_orbital_pointer(j1L)
+             i2 = i2 + 1
+             force_ab = force_ab -  de1b(i2,:)*p_block_a(i1,j1)
+          END DO
           ! The array of QM forces are really the forces
           forces_qm(:)  = forces_qm(:)  - force_ab
           ! The one of MM atoms are instead gradients

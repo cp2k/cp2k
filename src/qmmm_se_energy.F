@@ -35,6 +35,7 @@ MODULE qmmm_se_energy
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_overlap,                      ONLY: build_overlap_matrix
+  USE semi_empirical_int_arrays,       ONLY: se_orbital_pointer
   USE semi_empirical_integrals,        ONLY: corecore,&
                                              rotnuc
   USE semi_empirical_types,            ONLY: get_se_param,&
@@ -42,8 +43,7 @@ MODULE qmmm_se_energy
                                              semi_empirical_release,&
                                              semi_empirical_type,&
                                              taper_type
-  USE semi_empirical_utils,            ONLY: expand,&
-                                             get_se_type,&
+  USE semi_empirical_utils,            ONLY: get_se_type,&
                                              se_param_set_default
   USE sparse_matrix_output,            ONLY: write_sparse_matrix
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
@@ -248,8 +248,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_se_qmmm_matrix_low', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, Imm, Imp, IndMM, &
-                                                Ipot
+    INTEGER                                  :: handle, i, i1, i1L, i2, Imm, &
+                                                Imp, IndMM, Ipot, j1, j1L
     REAL(KIND=dp)                            :: enuc, r, rt1, rt2, rt3
     REAL(KIND=dp), DIMENSION(3)              :: r_pbc, rij
     REAL(KIND=dp), DIMENSION(45)             :: e1b
@@ -277,11 +277,19 @@ CONTAINS
           enuclear = enuclear + enuc
           ! Contribution to the iatom block
           ! Computation of the QMMM core matrix
-          IF ( SIZE(h_block_a,1) == 1 ) THEN
-             h_block_a(1,1)=h_block_a(1,1)+e1b(1)
-          ELSE
-             CALL expand (h_block_a, e1b )
-          END IF
+          i2 = 0
+          DO i1L = 1, se_kind_a%natorb
+             i1 = se_orbital_pointer(i1L)
+             DO j1L = 1, i1L-1
+                j1 = se_orbital_pointer(j1L)
+                i2 = i2 + 1
+                h_block_a(i1,j1) = h_block_a(i1,j1) + e1b(i2)
+                h_block_a(j1,i1) = h_block_a(i1,j1)
+             END DO
+             j1 = se_orbital_pointer(j1L)
+             i2 = i2 + 1
+             h_block_a(i1,j1) = h_block_a(i1,j1) + e1b(i2)
+          END DO
        END DO LoopMM
     END DO MainLoopPot
     CALL timestop(0.0_dp,handle)
