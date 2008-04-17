@@ -34,8 +34,8 @@ MODULE hfx_energy_potential
                                              lib_int
   USE hfx_load_balance_methods,        ONLY: load_balance_energy,&
                                              update_load_balance_energy
-  USE hfx_screening_methods,           ONLY: comp_screen_mat_per,&
-                                             comp_screen_mat,&
+  USE hfx_screening_methods,           ONLY: comp_screen_mat,&
+                                             comp_screen_mat_per,&
                                              screen_farfield,&
                                              screen_farfield_per,&
                                              update_pmax_mat
@@ -164,27 +164,27 @@ MODULE hfx_energy_potential
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(real_block_node_type), POINTER      :: block_node
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
     TYPE(hfx_cache_type), DIMENSION(:), &
       POINTER                                :: integral_caches, &
                                                 integral_caches_disk
-    TYPE(hfx_cache_type), POINTER           :: maxval_cache, &
+    TYPE(hfx_cache_type), POINTER            :: maxval_cache, &
                                                 maxval_cache_disk
-    TYPE(hfx_container_type), &
-      DIMENSION(:), POINTER                  :: integral_containers, &
+    TYPE(hfx_container_type), DIMENSION(:), &
+      POINTER                                :: integral_containers, &
                                                 integral_containers_disk
-    TYPE(hfx_container_type), POINTER       :: maxval_container, &
+    TYPE(hfx_container_type), POINTER        :: maxval_container, &
                                                 maxval_container_disk
-    TYPE(hfx_general_type)                  :: general_parameter
-    TYPE(hfx_load_balance_type)             :: load_balance_parameter
-    TYPE(hfx_memory_type), POINTER          :: memory_parameter
-    TYPE(hfx_potential_type)                :: potential_parameter
-    TYPE(hfx_screening_type)                :: screening_parameter
-    TYPE(hfx_type), POINTER                 :: actual_x_data
+    TYPE(hfx_general_type)                   :: general_parameter
+    TYPE(hfx_load_balance_type)              :: load_balance_parameter
+    TYPE(hfx_memory_type), POINTER           :: memory_parameter
+    TYPE(hfx_potential_type)                 :: potential_parameter
+    TYPE(hfx_screening_type)                 :: screening_parameter
+    TYPE(hfx_type), POINTER                  :: actual_x_data
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(real_block_node_type), POINTER      :: block_node
 
 !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
     REAL(dp), DIMENSION(:, :, :, :), &
@@ -1586,7 +1586,7 @@ MODULE hfx_energy_potential
     INTEGER, INTENT(IN)                      :: ncoa, ncob, ncoc, ncod
     REAL(dp), &
       DIMENSION(ncoa, ncob, ncoc, ncod)      :: primitive_integrals
-    TYPE(hfx_potential_type)                :: potential_parameter
+    TYPE(hfx_potential_type)                 :: potential_parameter
     REAL(dp), INTENT(IN)                     :: eps_schwarz, &
                                                 max_contraction_val
     REAL(dp), INTENT(INOUT)                  :: cartesian_estimate
@@ -1678,7 +1678,7 @@ MODULE hfx_energy_potential
     INTEGER, INTENT(IN)                      :: ncoa, ncob, ncoc, ncod
     REAL(dp), &
       DIMENSION(ncoa, ncob, ncoc, ncod)      :: primitive_integrals
-    TYPE(hfx_potential_type)                :: potential_parameter
+    TYPE(hfx_potential_type)                 :: potential_parameter
     REAL(dp), INTENT(IN)                     :: box_size(3), box_size_inv(3)
     TYPE(hfx_cell_type), DIMENSION(:), &
       POINTER                                :: neighbor_cells
@@ -1810,7 +1810,7 @@ MODULE hfx_energy_potential
     INTEGER, DIMENSION(:), INTENT(IN)        :: nsgfa, nsgfb, nsgfc, nsgfd
     INTEGER, INTENT(IN)                      :: sgfa, sgfb, sgfc, sgfd
     REAL(dp), DIMENSION(:)                   :: primitive_integrals
-    TYPE(hfx_potential_type)                :: potential_parameter
+    TYPE(hfx_potential_type)                 :: potential_parameter
     REAL(dp)                                 :: box_size(3), box_size_inv(3)
     REAL(dp), DIMENSION(:, :, :, :, :), &
       POINTER                                :: screen_periodic
@@ -1825,7 +1825,7 @@ MODULE hfx_energy_potential
                                                 iatom, jatom, katom, latom, &
                                                 pa1, pb1, pc1, pd1, nspins
     REAL(dp), INTENT(IN)                     :: max_contraction_val
-    TYPE(hfx_type), POINTER                 :: actual_x_data
+    TYPE(hfx_type), POINTER                  :: actual_x_data
     INTEGER                                  :: i_thread
     TYPE(cp_error_type), INTENT(inout)       :: error
 

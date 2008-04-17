@@ -316,11 +316,11 @@ MODULE hfx_communication
     REAL(dp), DIMENSION(:, :), POINTER       :: full_ks
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
-    TYPE(hfx_type), POINTER                 :: actual_x_data
+    TYPE(hfx_type), POINTER                  :: actual_x_data
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
 !! All shared data is saved in i_thread = 1!
 
