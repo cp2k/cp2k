@@ -22,13 +22,13 @@ MODULE hfx_libint_interface
                                              lib_int,&
                                              prim_data
   USE hfx_types,                       ONLY: hfx_potential_type
-  USE input_constants,                 ONLY: do_hf_potential_coulomb,&
-                                             do_hf_potential_gaussian,&
-                                             do_hf_potential_id,&
-                                             do_hf_potential_long,&
-                                             do_hf_potential_mix_cl,&
-                                             do_hf_potential_mix_lg,&
-                                             do_hf_potential_short
+  USE input_constants,                 ONLY: do_hfx_potential_coulomb,&
+                                             do_hfx_potential_gaussian,&
+                                             do_hfx_potential_id,&
+                                             do_hfx_potential_long,&
+                                             do_hfx_potential_mix_cl,&
+                                             do_hfx_potential_mix_lg,&
+                                             do_hfx_potential_short
   USE kinds,                           ONLY: dp
   USE mathconstants
   USE orbital_pointers
@@ -524,10 +524,10 @@ MODULE hfx_libint_interface
     T = Rho*PQ2
 
     SELECT CASE(potential_parameter%potential_type)
-      CASE(do_hf_potential_coulomb)
+      CASE(do_hfx_potential_coulomb)
         CALL fgamma(m_max,T,prim%F)
         factor = 2.0_dp*Pi*RhoInv
-      CASE(do_hf_potential_short)
+      CASE(do_hfx_potential_short)
         CALL fgamma(m_max,T,prim%F)
         omega2 = potential_parameter%omega**2
         omega_corr2 = omega2/(omega2+Rho)
@@ -540,7 +540,7 @@ MODULE hfx_libint_interface
           tmp = tmp * omega_corr2 
         END DO
         factor = 2.0_dp*Pi*RhoInv
-      CASE(do_hf_potential_long)
+      CASE(do_hfx_potential_long)
         omega2 = potential_parameter%omega**2
         omega_corr2 = omega2/(omega2+Rho)
         omega_corr = SQRT(omega_corr2)
@@ -552,7 +552,7 @@ MODULE hfx_libint_interface
           tmp = tmp * omega_corr2
         END DO
         factor = 2.0_dp*Pi*RhoInv
-      CASE(do_hf_potential_mix_cl)
+      CASE(do_hfx_potential_mix_cl)
         CALL fgamma(m_max,T,prim%F)
         omega2 = potential_parameter%omega**2
         omega_corr2 = omega2/(omega2+Rho)
@@ -565,7 +565,7 @@ MODULE hfx_libint_interface
           tmp = tmp * omega_corr2
         END DO
         factor = 2.0_dp*Pi*RhoInv
-      CASE(do_hf_potential_gaussian)
+      CASE(do_hfx_potential_gaussian)
         omega2 = potential_parameter%omega**2
         T = -omega2*T/(Rho+omega2)
         tmp = 1.0_dp
@@ -574,7 +574,7 @@ MODULE hfx_libint_interface
           tmp = tmp * omega2/(Rho+omega2)
         END DO
         factor = (Pi/(Rho+omega2))**(1.5_dp)
-      CASE(do_hf_potential_mix_lg)
+      CASE(do_hfx_potential_mix_lg)
         omega2 = potential_parameter%omega**2
         omega_corr2 = omega2/(omega2+Rho)
         omega_corr = SQRT(omega_corr2)
@@ -593,7 +593,7 @@ MODULE hfx_libint_interface
           tmp = tmp * omega2/(Rho+omega2)
         END DO
         factor = 1.0_dp 
-      CASE(do_hf_potential_id)
+      CASE(do_hfx_potential_id)
         prim%F(1) = (Pi*RhoInv)**(1.5_dp)
         DO i=2,m_max+1
          prim%F(i)= 0.0_dp 
@@ -676,10 +676,10 @@ MODULE hfx_libint_interface
     T = Rho*PQ2
 
     SELECT CASE(potential_parameter%potential_type)
-      CASE(do_hf_potential_coulomb)
+      CASE(do_hfx_potential_coulomb)
         CALL fgamma(m_max,T,prim%F)
         factor = 2.0_dp*Pi*RhoInv
-      CASE(do_hf_potential_short)
+      CASE(do_hfx_potential_short)
         CALL fgamma(m_max,T,prim%F)
         omega2 = potential_parameter%omega**2
         omega_corr2 = omega2/(omega2+Rho)
@@ -692,7 +692,7 @@ MODULE hfx_libint_interface
           tmp = tmp * omega_corr2 
         END DO
         factor = 2.0_dp*Pi*RhoInv
-      CASE(do_hf_potential_long)
+      CASE(do_hfx_potential_long)
         omega2 = potential_parameter%omega**2
         omega_corr2 = omega2/(omega2+Rho)
         omega_corr = SQRT(omega_corr2)
@@ -704,7 +704,7 @@ MODULE hfx_libint_interface
           tmp = tmp * omega_corr2
         END DO
         factor = 2.0_dp*Pi*RhoInv
-      CASE(do_hf_potential_mix_cl)
+      CASE(do_hfx_potential_mix_cl)
         CALL fgamma(m_max,T,prim%F)
         omega2 = potential_parameter%omega**2
         omega_corr2 = omega2/(omega2+Rho)
@@ -717,7 +717,7 @@ MODULE hfx_libint_interface
           tmp = tmp * omega_corr2
         END DO
         factor = 2.0_dp*Pi*RhoInv
-      CASE(do_hf_potential_gaussian)
+      CASE(do_hfx_potential_gaussian)
         omega2 = potential_parameter%omega**2
         T = -omega2*T/(Rho+omega2)
         tmp = 1
@@ -726,7 +726,7 @@ MODULE hfx_libint_interface
           tmp = tmp * omega2/(Rho+omega2)
         END DO
         factor = (Pi/(Rho+omega2))**(1.5_dp)
-      CASE(do_hf_potential_mix_lg)
+      CASE(do_hfx_potential_mix_lg)
         omega2 = potential_parameter%omega**2
         omega_corr2 = omega2/(omega2+Rho)
         omega_corr = SQRT(omega_corr2)
@@ -745,7 +745,7 @@ MODULE hfx_libint_interface
           tmp = tmp * omega2/(Rho+omega2)
         END DO
         factor = 1.0_dp 
-      CASE(do_hf_potential_id)
+      CASE(do_hfx_potential_id)
         prim%F(1) = (Pi*RhoInv)**(1.5_dp)
         DO i=2,m_max+1
          prim%F(i)= 0.0_dp

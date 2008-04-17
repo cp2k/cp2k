@@ -600,13 +600,13 @@ MODULE input_constants
                                 model_block_lmax=455
 
   ! HFX potential type
-  INTEGER, PARAMETER, PUBLIC :: do_hf_potential_coulomb=1,&
-                                do_hf_potential_short=2,&
-                                do_hf_potential_long=3,&
-                                do_hf_potential_mix_cl=4,&
-                                do_hf_potential_gaussian=5,&
-                                do_hf_potential_mix_lg=6,&
-                                do_hf_potential_id=7
+  INTEGER, PARAMETER, PUBLIC :: do_hfx_potential_coulomb=1,&
+                                do_hfx_potential_short=2,&
+                                do_hfx_potential_long=3,&
+                                do_hfx_potential_mix_cl=4,&
+                                do_hfx_potential_gaussian=5,&
+                                do_hfx_potential_mix_lg=6,&
+                                do_hfx_potential_id=7
 
   ! adiabatic hybrid type
   INTEGER, PARAMETER, PUBLIC :: do_adiabatic_hybrid_mcy3=1

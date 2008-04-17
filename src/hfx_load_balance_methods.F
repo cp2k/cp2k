@@ -26,12 +26,12 @@ MODULE hfx_load_balance_methods
                                              hfx_set_distr_energy,&
                                              hfx_set_distr_forces,&
                                              hfx_type
-  USE input_constants,                 ONLY: do_hf_potential_coulomb,&
-                                             do_hf_potential_gaussian,&
-                                             do_hf_potential_id,&
-                                             do_hf_potential_mix_cl,&
-                                             do_hf_potential_mix_lg,&
-                                             do_hf_potential_short
+  USE input_constants,                 ONLY: do_hfx_potential_coulomb,&
+                                             do_hfx_potential_gaussian,&
+                                             do_hfx_potential_id,&
+                                             do_hfx_potential_mix_cl,&
+                                             do_hfx_potential_mix_lg,&
+                                             do_hfx_potential_short
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE mathconstants
@@ -249,12 +249,12 @@ MODULE hfx_load_balance_methods
 
                           max_val2 = 0.0_dp
                           SELECT CASE(potential_parameter%potential_type)
-                            CASE(do_hf_potential_coulomb)
+                            CASE(do_hfx_potential_coulomb)
                               Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
                                      shm_far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox
                               max_val2 = max_val2 * pmax_entry
-                            CASE(do_hf_potential_short)
+                            CASE(do_hfx_potential_short)
                               omega_box = shm_far_field_boxes(box_idx2, box_idx1)%alphaInv + &
                                           shm_far_field_boxes(box_idx4, box_idx3)%alphaInv + &
                                           omega2Inv 
@@ -263,12 +263,12 @@ MODULE hfx_load_balance_methods
                                      shm_far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox
                               max_val2 = max_val2 * pmax_entry
-                            CASE(do_hf_potential_mix_cl)
+                            CASE(do_hfx_potential_mix_cl)
                               Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
                                      shm_far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox
                               max_val2 = max_val2 * pmax_entry
-                            CASE(do_hf_potential_gaussian,do_hf_potential_mix_lg, do_hf_potential_id) 
+                            CASE(do_hfx_potential_gaussian,do_hfx_potential_mix_lg, do_hfx_potential_id) 
                               max_val2 = HUGE(max_val2)
                           END SELECT
                           IF(max_val2<eps_box) CYCLE
@@ -383,12 +383,12 @@ MODULE hfx_load_balance_methods
                         IF(Rbox>pgf_radius_box) THEN
                           max_val2 = 0.0_dp
                           SELECT CASE(potential_parameter%potential_type)
-                            CASE(do_hf_potential_coulomb)
+                            CASE(do_hfx_potential_coulomb)
                               Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
                                      shm_far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox
                               max_val2 = max_val2 * pmax_entry
-                            CASE(do_hf_potential_short)
+                            CASE(do_hfx_potential_short)
                               omega_box = shm_far_field_boxes(box_idx2, box_idx1)%alphaInv + &
                                           shm_far_field_boxes(box_idx4, box_idx3)%alphaInv + &
                                           omega2Inv 
@@ -397,12 +397,12 @@ MODULE hfx_load_balance_methods
                                      shm_far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox
                               max_val2 = max_val2 * pmax_entry
-                            CASE(do_hf_potential_mix_cl)
+                            CASE(do_hfx_potential_mix_cl)
                               Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
                                      shm_far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox
                               max_val2 = max_val2 * pmax_entry
-                            CASE(do_hf_potential_gaussian,do_hf_potential_mix_lg, do_hf_potential_id) 
+                            CASE(do_hfx_potential_gaussian,do_hfx_potential_mix_lg, do_hfx_potential_id) 
                               max_val2 = HUGE(max_val2)
                           END SELECT
                           IF(max_val2<eps_box) CYCLE
@@ -832,11 +832,11 @@ MODULE hfx_load_balance_methods
                         IF(Rbox>pgf_radius_box) THEN
                           max_val2 = 0.0_dp
                           SELECT CASE(potential_parameter%potential_type)
-                            CASE(do_hf_potential_coulomb)
+                            CASE(do_hfx_potential_coulomb)
                               Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
                                      shm_far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox * pmax_entry 
-                            CASE(do_hf_potential_short)
+                            CASE(do_hfx_potential_short)
                               omega_box = shm_far_field_boxes(box_idx2, box_idx1)%alphaInv + &
                                           shm_far_field_boxes(box_idx4, box_idx3)%alphaInv + &
                                           omega2Inv 
@@ -844,11 +844,11 @@ MODULE hfx_load_balance_methods
                               Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
                                      shm_far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox * pmax_entry 
-                            CASE(do_hf_potential_mix_cl)
+                            CASE(do_hfx_potential_mix_cl)
                               Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
                                      shm_far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox * pmax_entry
-                            CASE(do_hf_potential_gaussian,do_hf_potential_mix_lg, do_hf_potential_id) 
+                            CASE(do_hfx_potential_gaussian,do_hfx_potential_mix_lg, do_hfx_potential_id) 
                               max_val2 = HUGE(max_val2)
                           END SELECT
                           IF(max_val2<eps_box) CYCLE
@@ -957,11 +957,11 @@ MODULE hfx_load_balance_methods
                         IF(Rbox>pgf_radius_box) THEN
                           max_val2 = 0.0_dp
                           SELECT CASE(potential_parameter%potential_type)
-                            CASE(do_hf_potential_coulomb)
+                            CASE(do_hfx_potential_coulomb)
                               Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
                                      shm_far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox * pmax_entry
-                            CASE(do_hf_potential_short)
+                            CASE(do_hfx_potential_short)
                               omega_box = shm_far_field_boxes(box_idx2, box_idx1)%alphaInv + &
                                           shm_far_field_boxes(box_idx4, box_idx3)%alphaInv + &
                                           omega2Inv
@@ -969,11 +969,11 @@ MODULE hfx_load_balance_methods
                               Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
                                      shm_far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = erfc(omega_box*Rbox)/Rbox*Kbox * pmax_entry
-                            CASE(do_hf_potential_mix_cl)
+                            CASE(do_hfx_potential_mix_cl)
                               Kbox = shm_far_field_boxes(box_idx2, box_idx1)%K * &
                                      shm_far_field_boxes(box_idx4, box_idx3)%K
                               max_val2 = 1.0_dp/Rbox*Kbox * pmax_entry
-                            CASE(do_hf_potential_gaussian,do_hf_potential_mix_lg, do_hf_potential_id) 
+                            CASE(do_hfx_potential_gaussian,do_hfx_potential_mix_lg, do_hfx_potential_id) 
                               max_val2 = HUGE(max_val2)
                           END SELECT
                           IF(max_val2<eps_box) CYCLE

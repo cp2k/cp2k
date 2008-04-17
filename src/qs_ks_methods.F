@@ -296,9 +296,9 @@ CONTAINS
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: cc_new, cc_old
     INTEGER :: adiabatic_functional, adiabatic_model, handle, ig, ikind, &
       irep, ispin, k, k2, my_id, n, n_rep_hf, nspins, output_unit, stat
-    LOGICAL :: ddapc_restraint_is_spin, do_adiabatic_rescaling, do_ep, do_hf, &
-      et_coupling_calc, explicit_potential, failure, gapw, gapw_xc, ionode, &
-      my_diis_step, my_kg_gpw, use_virial
+    LOGICAL :: ddapc_restraint_is_spin, do_adiabatic_rescaling, do_ep, &
+      do_hfx, et_coupling_calc, explicit_potential, failure, gapw, gapw_xc, &
+      ionode, my_diis_step, my_kg_gpw, use_virial
     REAL(dp) :: a, adiabatic_lambda, adiabatic_omega, &
       adiabatic_rescale_factor, scale_dDFA, scale_ddW0, scale_dEx1, &
       scale_dEx2, total_energy_xc
@@ -393,7 +393,7 @@ CONTAINS
          ASSOCIATED(ep_qs_env%dH_coeffs)
 
     hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF",error=error)
-    CALL section_vals_get(hfx_sections,explicit=do_hf,error=error)
+    CALL section_vals_get(hfx_sections,explicit=do_hfx,error=error)
     adiabatic_rescaling_section => section_vals_get_subs_vals(input,"DFT%XC%ADIABATIC_RESCALING",error=error)
     CALL section_vals_get(adiabatic_rescaling_section,explicit=do_adiabatic_rescaling,error=error)
 
@@ -727,7 +727,7 @@ CONTAINS
        ENDIF
        
        ! *** Add Hartree-Fock contribution if required ***
-       IF ( do_hf ) THEN
+       IF ( do_hfx ) THEN
          DO ispin = 1,nspins
            CALL set_matrix(ks_matrix(ispin)%matrix,0.0_dp)
          END DO
@@ -787,7 +787,7 @@ CONTAINS
                                     scale_dEx2, total_energy_xc, error)
               
              !! Scale and add Fock matrix to KS matrix
-             IF(do_hf) THEN
+             IF(do_hfx) THEN
                CALL scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, 1 ,&
                                                     scale_dEx1, error)
                CALL scale_and_add_fock_to_ks_matrix(para_env, qs_env, ks_matrix, 2 ,&
@@ -857,7 +857,7 @@ CONTAINS
              END IF
           END IF
 
-          IF( .NOT.do_hf ) THEN
+          IF( .NOT.do_hfx ) THEN
             ! Initialize the Kohn-Sham matrix with the core Hamiltonian matrix
            
             DO ispin=1,nspins

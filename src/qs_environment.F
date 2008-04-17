@@ -192,7 +192,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: max_set, natom
-    LOGICAL                                  :: do_et, do_hf, harris_flag, &
+    LOGICAL                                  :: do_et, do_hfx, harris_flag, &
                                                 my_qmmm, my_qmmm_periodic, &
                                                 use_ref_cell
     REAL(kind=dp), DIMENSION(3)              :: abc
@@ -302,10 +302,10 @@ CONTAINS
     IF (.NOT.PRESENT(cell_ref))  CALL cell_release(my_cell_ref,error=error)
     IF (.NOT.PRESENT(subsys)) CALL cp_subsys_release(my_subsys,error=error)
 
-    do_hf =.FALSE.
+    do_hfx =.FALSE.
     hfx_section => section_vals_get_subs_vals(qs_env%input,"DFT%XC%HF",error=error)
-    CALL section_vals_get(hfx_section,explicit=do_hf,error=error)
-    IF (do_hf) THEN
+    CALL section_vals_get(hfx_section,explicit=do_hfx,error=error)
+    IF (do_hfx) THEN
       natom=SIZE(particle_set)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, maxnset=max_set)
 
