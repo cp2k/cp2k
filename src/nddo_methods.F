@@ -240,8 +240,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_2c
-    TYPE(neighbor_list_type), POINTER        :: sab_2c_neighbor_list, &
-                                                sab_2c_neighbor_list_local
+    TYPE(neighbor_list_type), POINTER        :: sab_2c_neighbor_list
     TYPE(neighbor_node_type), POINTER        :: sab_2c_neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -315,10 +314,8 @@ CONTAINS
                 ELSE
                    sab_2c_neighbor_list => next(sab_2c_neighbor_list)
                END IF
-               sab_2c_neighbor_list_local => sab_2c_neighbor_list
-               CALL get_neighbor_list(neighbor_list=sab_2c_neighbor_list_local,atom=iatom,nnode=nnode)
-
-               sab_2c_neighbor_node => first_node(sab_2c_neighbor_list_local)
+               CALL get_neighbor_list(neighbor_list=sab_2c_neighbor_list,atom=iatom,nnode=nnode)
+               sab_2c_neighbor_node => first_node(sab_2c_neighbor_list)
 
                DO inode=1,nnode
                   CALL get_neighbor_node(neighbor_node=sab_2c_neighbor_node,neighbor=jatom,r=rij)
@@ -404,8 +401,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_2c
-    TYPE(neighbor_list_type), POINTER        :: sab_2c_neighbor_list, &
-                                                sab_2c_neighbor_list_local
+    TYPE(neighbor_list_type), POINTER        :: sab_2c_neighbor_list
     TYPE(neighbor_node_type), POINTER        :: sab_2c_neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -504,10 +500,8 @@ CONTAINS
                 ELSE
                    sab_2c_neighbor_list => next(sab_2c_neighbor_list)
                END IF
-               sab_2c_neighbor_list_local => sab_2c_neighbor_list
-               CALL get_neighbor_list(neighbor_list=sab_2c_neighbor_list_local,atom=iatom, nnode=nnode)
-
-               sab_2c_neighbor_node => first_node(sab_2c_neighbor_list_local)
+               CALL get_neighbor_list(neighbor_list=sab_2c_neighbor_list,atom=iatom, nnode=nnode)
+               sab_2c_neighbor_node => first_node(sab_2c_neighbor_list)
 
                CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
                IF ( nspins >= 1 ) THEN
@@ -728,8 +722,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
-    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
-                                                sab_orb_neighbor_list_local
+    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list
     TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -802,10 +795,8 @@ CONTAINS
                 ELSE
                    sab_orb_neighbor_list => next(sab_orb_neighbor_list)
                 END IF
-                sab_orb_neighbor_list_local => sab_orb_neighbor_list
-                CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,atom=iatom,nnode=nnode)
-
-                sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
+                CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list,atom=iatom,nnode=nnode)
+                sab_orb_neighbor_node => first_node(sab_orb_neighbor_list)
 
                 DO inode=1,nnode
                    CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,neighbor=jatom,r=rij)
