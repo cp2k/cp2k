@@ -56,7 +56,7 @@ MODULE qmmm_se_forces
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_se_forces'
-  LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .TRUE.
+  LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
   PUBLIC :: deriv_se_qmmm_matrix
 
 CONTAINS

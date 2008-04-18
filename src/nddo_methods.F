@@ -76,7 +76,7 @@ MODULE nddo_methods
   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'nddo_methods'
-
+  LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
   PUBLIC :: build_nddo_fock_matrix, se_core_core_interaction
 
 CONTAINS
@@ -165,8 +165,8 @@ CONTAINS
           END DO
        END IF
 
-       energy%mulliken = 0._dp
-       energy%exc      = 0._dp
+       energy%mulliken = 0.0_dp
+       energy%exc      = 0.0_dp
 
        energy%total = energy%core +&
                       energy%core_overlap +&

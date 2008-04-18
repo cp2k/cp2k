@@ -697,10 +697,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: coor( 2 ), gmax, handle, i, &
-      i1, i2, ierr, ip, ipp, ipl, j, k, l, lby, lbz, lo( 2 ), m, n, &
-      np, ns, nx, ny, nz, rsd( 2 )
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_index
+                                                i1, i2, ierr, ip, ipl, ipp, &
+                                                j, k, l, lby, lbz, lo( 2 ), &
+                                                m, n, np, ns, nx, ny, nz, &
+                                                rsd( 2 )
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: pemap
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_index
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tfun, tt
 

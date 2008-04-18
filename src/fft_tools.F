@@ -24,9 +24,9 @@ MODULE fft_tools
   USE kinds,                           ONLY: dp,&
                                              sp
   USE message_passing,                 ONLY: &
-       mp_alltoall, mp_cart_coords, mp_cart_rank, mp_cart_sub, mp_sync,&
-       mp_comm_compare, mp_comm_free, mp_environ, mp_rank_compare, mp_sum,&
-       mp_waitall, mp_isend, mp_irecv, mp_wait, mp_recv
+       mp_alltoall, mp_cart_coords, mp_cart_rank, mp_cart_sub, &
+       mp_comm_compare, mp_comm_free, mp_environ, mp_irecv, mp_isend, &
+       mp_rank_compare, mp_sum, mp_sync, mp_waitall
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -452,9 +452,9 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       POINTER                                :: pbuf, qbuf, rbuf, sbuf
     COMPLEX(KIND=lp), DIMENSION(:, :, :), &
       POINTER                                :: tbuf
-    INTEGER :: g_pos, handle, ierr, iout, lg, lmax, mg, mmax, mx1, mx2, my1, &
-      mz2, n1, n2, nmax, numtask, numtask_g, numtask_r, nx, ny, nz, r_dim(2), &
-      r_pos(2), rp, sign, mcz1, mcz2
+    INTEGER :: g_pos, handle, ierr, iout, lg, lmax, mcz1, mcz2, mg, mmax, &
+      mx1, mx2, my1, mz2, n1, n2, nmax, numtask, numtask_g, numtask_r, nx, &
+      ny, nz, r_dim(2), r_pos(2), rp, sign
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: p2p
     LOGICAL                                  :: test
     REAL(KIND=dp)                            :: flops, nf, sum_data
@@ -948,8 +948,10 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
 
     COMPLEX(KIND=lp), DIMENSION(:, :), &
       POINTER                                :: abuf, bbuf
-    INTEGER                                  :: handle, lg(2), lz(3), mx1, &
-      mx2, mx3, my1, my2, my3, mcz1, mcz2, mcy3, my_pos, mz1, mz2, mz3, np, sign
+    INTEGER                                  :: handle, lg(2), lz(3), mcy3, &
+                                                mcz1, mcz2, mx1, mx2, mx3, &
+                                                my1, my2, my3, my_pos, mz1, &
+                                                mz2, mz3, np, sign
     INTEGER, DIMENSION(2)                    :: dim, pos
     LOGICAL                                  :: test
     REAL(KIND=dp)                            :: flops, nx, sum_data
@@ -1633,9 +1635,10 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
       POINTER                                :: rq, rs
     COMPLEX(KIND=sp), DIMENSION(:, :), &
       POINTER                                :: tq, ts
-    INTEGER                                  :: cpos( 2 ), handle, ip, ipr, &
-      ir, ix, iz, jj, jx, jy, jz, myx, myz, nmax, np, npx, npz, &
-      nx, ny, nz, rs_pos, icrs
+    INTEGER                                  :: cpos( 2 ), handle, icrs, ip, &
+                                                ipr, ir, ix, iz, jj, jx, jy, &
+                                                jz, myx, myz, nmax, np, npx, &
+                                                npz, nx, ny, nz, rs_pos
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, &
                                                 sdispl, xcor, zcor
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
@@ -1799,9 +1802,10 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
       POINTER                                :: rq, rs
     COMPLEX(KIND=sp), DIMENSION(:, :), &
       POINTER                                :: tq, ts
-    INTEGER                                  :: cpos( 2 ), handle, ip, ipl, &
-      ir, ix, ixx, iz, jj, jx, jy, jz, mp, myx, myz, nmax, np, &
-      npx, npz, nx, ny, nz, icrs
+    INTEGER                                  :: cpos( 2 ), handle, icrs, ip, &
+                                                ipl, ir, ix, ixx, iz, jj, jx, &
+                                                jy, jz, mp, myx, myz, nmax, &
+                                                np, npx, npz, nx, ny, nz
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, &
                                                 sdispl, xcor, zcor
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
@@ -1965,11 +1969,11 @@ SUBROUTINE cube_transpose_1 ( cin, group, boin, boout, sout, fft_scratch, error 
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
-    COMPLEX(KIND=lp), POINTER, &
-      DIMENSION(:, :)                        :: rbuf
-    INTEGER                                  :: handle, ierr, ip, ipl, ir, &
-                                                is, ixy, iz, mip, mz, n, np, &
-                                                nx, ny, nz, sub_group
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      POINTER                                :: rbuf
+    INTEGER                                  :: handle, ip, ipl, ir, is, ixy, &
+                                                iz, mip, mz, n, np, nx, ny, &
+                                                nz, sub_group
     INTEGER, DIMENSION(2)                    :: dim, pos, pp
     INTEGER, DIMENSION(:), POINTER           :: pgrid, rcount, rdispl, &
                                                 scount, sdispl
@@ -2049,11 +2053,11 @@ SUBROUTINE cube_transpose_2 ( cin, group, boin, boout, sout, fft_scratch, error 
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
-    COMPLEX(KIND=lp), POINTER, &
-      DIMENSION(:, :)                        :: rbuf
-    INTEGER                                  :: handle, ierr, ip, ipl, ir, &
-                                                ixy, iz, mip, mz, n, np, nx, &
-                                                ny, nz, sub_group
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      POINTER                                :: rbuf
+    INTEGER                                  :: handle, ip, ipl, ir, ixy, iz, &
+                                                mip, mz, n, np, nx, ny, nz, &
+                                                sub_group
     INTEGER, DIMENSION(2)                    :: dim, pos, pp
     INTEGER, DIMENSION(:), POINTER           :: pgrid, rcount, rdispl, &
                                                 scount, sdispl
@@ -2133,14 +2137,14 @@ SUBROUTINE cube_transpose_3 ( cin, group, boin, boout, sout, fft_scratch, error 
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
-    COMPLEX(KIND=lp), POINTER, &
-      DIMENSION(:, :)                        :: rbuf
-    INTEGER                                  :: handle, ierr, ip, ipl, ir, &
-                                                is, ixz, iy, mip, my, n, np, &
-                                                nx, ny, nz, sub_group
-    INTEGER, POINTER, DIMENSION(:)           :: pgrid
-    INTEGER, POINTER, DIMENSION(:)           :: rcount, rdispl, scount, sdispl
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      POINTER                                :: rbuf
+    INTEGER                                  :: handle, ip, ipl, ir, is, ixz, &
+                                                iy, mip, my, n, np, nx, ny, &
+                                                nz, sub_group
     INTEGER, DIMENSION(2)                    :: dim, pos, pp
+    INTEGER, DIMENSION(:), POINTER           :: pgrid, rcount, rdispl, &
+                                                scount, sdispl
     LOGICAL, DIMENSION(2)                    :: rdim
 
 !------------------------------------------------------------------------------
@@ -2218,14 +2222,14 @@ SUBROUTINE cube_transpose_4 ( cin, group, boin, boout, sout, fft_scratch, error 
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
-    COMPLEX(KIND=lp), POINTER, &
-      DIMENSION(:, :)                        :: rbuf
-    INTEGER                                  :: handle, ierr, ip, ipl, ir, &
-                                                iy, izx, mip, my, n, np, nx, &
-                                                ny, nz, sub_group
-    INTEGER, POINTER, DIMENSION(:)           :: pgrid
-    INTEGER, POINTER, DIMENSION(:)           :: rcount, rdispl, scount, sdispl
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      POINTER                                :: rbuf
+    INTEGER                                  :: handle, ip, ipl, ir, iy, izx, &
+                                                mip, my, n, np, nx, ny, nz, &
+                                                sub_group
     INTEGER, DIMENSION(2)                    :: dim, pos, pp
+    INTEGER, DIMENSION(:), POINTER           :: pgrid, rcount, rdispl, &
+                                                scount, sdispl
     LOGICAL, DIMENSION(2)                    :: rdim
 
 !------------------------------------------------------------------------------
@@ -2303,13 +2307,12 @@ SUBROUTINE cube_transpose_5 ( cin, group, boin, boout, sout, fft_scratch, error 
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
-    COMPLEX(KIND=lp), POINTER, &
-      DIMENSION(:, :)                        :: rbuf
-    INTEGER                                  :: handle, ierr, ip, ir, is, &
-                                                ixz, iy, mip, my, np, nx, ny, &
-                                                nz
-    INTEGER, POINTER, DIMENSION(:)           :: rcount, rdispl, scount, sdispl
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      POINTER                                :: rbuf
+    INTEGER                                  :: handle, ip, ir, is, ixz, iy, &
+                                                mip, my, np, nx, ny, nz
     INTEGER, DIMENSION(2)                    :: dim, pos
+    INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, sdispl
 
 !------------------------------------------------------------------------------
 
@@ -2370,12 +2373,12 @@ SUBROUTINE cube_transpose_6 ( cin, group, boin, boout, sout, fft_scratch, error 
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
-    COMPLEX(KIND=lp), POINTER, &
-      DIMENSION(:, :)                        :: rbuf
-    INTEGER                                  :: handle, ierr, ip, ir, iy, &
-                                                izx, mip, my, np, nx, ny, nz
-    INTEGER, POINTER, DIMENSION(:)           :: rcount, rdispl, scount, sdispl
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      POINTER                                :: rbuf
+    INTEGER                                  :: handle, ip, ir, iy, izx, mip, &
+                                                my, np, nx, ny, nz
     INTEGER, DIMENSION(2)                    :: dim, pos
+    INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, sdispl
 
 !------------------------------------------------------------------------------
 
@@ -2666,9 +2669,9 @@ SUBROUTINE get_fft_scratch(fft_scratch,fft_type,n,fft_sizes,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'get_fft_scratch', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, lg, lmax, m1, m2, mg, &
-      mmax, mx1, mx2, my1, my3, mz1, mz2, mz3, nbx, nbz, nm, &
-      nmax, nmray, np, nx, ny, nyzray, nz, nn, pos(2), dim(2), mcz1, mcz2, mcy3
+    INTEGER :: DIM(2), ierr, lg, lmax, m1, m2, mcy3, mcz1, mcz2, mg, mmax, &
+      mx1, mx2, my1, my3, mz1, mz2, mz3, nbx, nbz, nm, nmax, nmray, nn, np, &
+      nx, ny, nyzray, nz, pos(2)
     LOGICAL                                  :: failure
     TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch_current, &
                                                 fft_scratch_last, &
@@ -2773,13 +2776,13 @@ SUBROUTINE get_fft_scratch(fft_scratch,fft_type,n,fft_sizes,error)
           mcz1   = fft_sizes%mcz1
           mcz2   = fft_sizes%mcz2
           mcy3   = fft_sizes%mcy3
-          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf1(mx2*my1*mcz2,0:dim(2)-1),STAT=ierr)
+          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf1(mx2*my1*mcz2,0:DIM(2)-1),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf2(mx1*my1*mcz1,0:dim(2)-1),STAT=ierr)
+          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf2(mx1*my1*mcz1,0:DIM(2)-1),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf3(mx2*mz3*mcy3,0:dim(1)-1),STAT=ierr)
+          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf3(mx2*mz3*mcy3,0:DIM(1)-1),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf4(mx2*mz2*mcy3,0:dim(1)-1),STAT=ierr)
+          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf4(mx2*mz2*mcy3,0:DIM(1)-1),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
 
         CASE (101)    ! fft3d_pb: full cube distribution (dim 1)
@@ -2805,9 +2808,9 @@ SUBROUTINE get_fft_scratch(fft_scratch,fft_type,n,fft_sizes,error)
 
           CALL mp_environ ( nn, dim, pos, fft_sizes%rs_group )
           mcy3   = fft_sizes%mcy3
-          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf5(mx1*mz3*mcy3,0:dim(1)-1),STAT=ierr)
+          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf5(mx1*mz3*mcy3,0:DIM(1)-1),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf6(mx1*mz1*mcy3,0:dim(1)-1),STAT=ierr)
+          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf6(mx1*mz1*mcy3,0:DIM(1)-1),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
 
         CASE (200)    ! fft3d_ps: plane distribution
@@ -2900,9 +2903,9 @@ SUBROUTINE get_fft_scratch(fft_scratch,fft_type,n,fft_sizes,error)
           CALL mp_environ ( nn, dim, pos, fft_sizes%rs_group )
           mcz1   = fft_sizes%mcz1
           mcz2   = fft_sizes%mcz2
-          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf1(mx2*my1*mcz2,0:dim(2)-1),STAT=ierr)
+          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf1(mx2*my1*mcz2,0:DIM(2)-1),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf2(mx1*my1*mcz1,0:dim(2)-1),STAT=ierr)
+          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf2(mx1*my1*mcz1,0:DIM(2)-1),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
 
         CASE (400)    ! serial FFT_SGL 
@@ -2970,16 +2973,16 @@ END SUBROUTINE release_fft_scratch
 
 ! *****************************************************************************
 SUBROUTINE sparse_alltoall ( rs, scount, sreq, rq, rcount, rreq, group )
-    COMPLEX(KIND=dp), DIMENSION(:,:), POINTER        :: rs
-    INTEGER, DIMENSION(:), POINTER                   :: scount
-    INTEGER, DIMENSION(:), POINTER                   :: sreq
-    COMPLEX(KIND=dp), DIMENSION(:,:), POINTER        :: rq
-    INTEGER, DIMENSION(:), POINTER                   :: rcount
-    INTEGER, DIMENSION(:), POINTER                   :: rreq
-    INTEGER, INTENT(IN)                              :: group
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: rs
+    INTEGER, DIMENSION(:), POINTER           :: scount, sreq
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: rq
+    INTEGER, DIMENSION(:), POINTER           :: rcount, rreq
+    INTEGER, INTENT(IN)                      :: group
 
-    INTEGER                                          :: ip, ns, nr, sn, rn, n, pos
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER          :: msgin, msgout
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: msgin, msgout
+    INTEGER                                  :: ip, n, nr, ns, pos, rn, sn
 
     CALL mp_sync ( group )
     CALL mp_environ ( n, pos, group )
@@ -3002,7 +3005,7 @@ SUBROUTINE sparse_alltoall ( rs, scount, sreq, rq, rcount, rreq, group )
        sreq(ns-1) = sn
     END DO
     IF ( rcount(pos) /= 0 ) THEN
-      IF( rcount(pos) /= scount(pos) ) stop
+      IF( rcount(pos) /= scount(pos) ) STOP
       rq(1:rcount(pos),pos) = rs(1:rcount(pos),pos)
     END IF
     CALL mp_waitall(sreq(0:ns-1))

@@ -126,15 +126,15 @@ SUBROUTINE fftcu3d ( fft_in_place, fsign, scale, n, zin, zout )
 #if defined(__SGL) || defined(__FFTSGL)
 
   ifft_in_place=0
-  if (fft_in_place) ifft_in_place=1
+  IF (fft_in_place) ifft_in_place=1
 
   CALL fftcu3d_cu(ifft_in_place, fsign, scale, n, zin, zout)
 
 #else
 
-  write(*,*) 'FFTCU only works in single precision'
-  call flush(6)
-  stop
+  WRITE(*,*) 'FFTCU only works in single precision'
+  CALL flush(6)
+  STOP
 
 #endif
 #else
@@ -170,20 +170,20 @@ SUBROUTINE fftcu1dm ( fsign, trans, n, m, zin, zout, scale )
 
   itrans=0
 !  if (trans) itrans=1
-  if (trans) then
-    write(*,*) 'FFTCU 1D tranpose FFT has not been implimented'
-    call flush(6)
-    stop
-  endif
+  IF (trans) THEN
+    WRITE(*,*) 'FFTCU 1D tranpose FFT has not been implimented'
+    CALL flush(6)
+    STOP
+  ENDIF
 
-  write(*,*) 'WARNING: FFTCU 1D FFT has not been tested!'
+  WRITE(*,*) 'WARNING: FFTCU 1D FFT has not been tested!'
   CALL fftcu1dm_cu(fsign, itrans, n, m, zin, zout, scale)
 
 #else
 
-  write(*,*) 'FFTCU only works in single precision'
-  call flush(6)
-  stop
+  WRITE(*,*) 'FFTCU only works in single precision'
+  CALL flush(6)
+  STOP
 
 #endif
 #else
