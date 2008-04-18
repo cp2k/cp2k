@@ -697,10 +697,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: coor( 2 ), gmax, handle, i, &
-                                                i1, i2, ierr, ip, ipl, j, k, &
-                                                l, lby, lbz, lo( 2 ), m, n, &
-                                                np, ns, nx, ny, nz, rsd( 2 )
+      i1, i2, ierr, ip, ipp, ipl, j, k, l, lby, lbz, lo( 2 ), m, n, &
+      np, ns, nx, ny, nz, rsd( 2 )
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_index
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: pemap
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tfun, tt
 
@@ -967,6 +967,38 @@ CONTAINS
                 pw_grid % para % yzq ( m, n ) = j + i * ny
              END DO
           END DO
+
+          ! Allocate mapping array (y:z, nray, nproc)
+          ns = MAXVAL ( pw_grid % para % nyzray ( 0: np-1 ) )
+          ALLOCATE ( pw_grid % para % yzp ( 2, ns, 0: np-1 ), STAT = ierr )
+          CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+          pw_grid % para % yzp = 0
+
+          ALLOCATE ( pemap(0:np-1), STAT = ierr )
+          CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
+          pemap = 0
+          pemap(pw_grid % para % my_pos) = pw_grid % para % rs_mpo
+          CALL mp_sum(pemap,pw_grid % para % group)
+
+          DO ip = 0, np - 1
+             ipp = pemap(ip)
+             ns = 0
+             DO n = pw_grid % para % bo ( 1, 3, ipp, 3 ), &
+                  pw_grid % para % bo ( 2, 3, ipp, 3 )
+                i = n - pw_grid % bounds ( 1, 3 ) + 1
+                DO m = pw_grid % para % bo ( 1, 2, ipp, 3 ), &
+                     pw_grid % para % bo ( 2, 2, ipp, 3 )
+                   j = m - pw_grid % bounds ( 1, 2 ) + 1
+                   ns = ns + 1
+                   pw_grid % para % yzp ( 1, ns, ip ) = j
+                   pw_grid % para % yzp ( 2, ns, ip ) = i
+                END DO
+             END DO
+             CPPrecondition(ns == pw_grid%para%nyzray(ip),cp_failure_level,routineP,error,failure)
+          END DO
+
+          DEALLOCATE ( pemap, STAT = ierr )
+          CPPrecondition(ierr == 0,cp_failure_level,routineP,error,failure)
 
        END IF
 
@@ -1843,7 +1875,6 @@ CONTAINS
     failure = .FALSE.
 
     IF ( pw_grid % para % mode == PW_MODE_LOCAL ) RETURN
-    IF ( .NOT. pw_grid % para % ray_distribution ) RETURN
 
     CALL timeset(routineN,"I","",handle)
 

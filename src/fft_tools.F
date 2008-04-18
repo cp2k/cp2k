@@ -24,8 +24,9 @@ MODULE fft_tools
   USE kinds,                           ONLY: dp,&
                                              sp
   USE message_passing,                 ONLY: &
-       mp_alltoall, mp_cart_coords, mp_cart_rank, mp_cart_sub, &
-       mp_comm_compare, mp_comm_free, mp_environ, mp_rank_compare, mp_sum
+       mp_alltoall, mp_cart_coords, mp_cart_rank, mp_cart_sub, mp_sync,&
+       mp_comm_compare, mp_comm_free, mp_environ, mp_rank_compare, mp_sum,&
+       mp_waitall, mp_isend, mp_irecv, mp_wait, mp_recv
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -65,10 +66,14 @@ MODULE fft_tools
             :: a1buf, a2buf, a3buf, a4buf, a5buf, a6buf
      ! to be used in communication routines
      INTEGER, DIMENSION(:), POINTER       :: scount, rcount, sdispl, rdispl
+     INTEGER, DIMENSION(:), POINTER       :: pgcube
      INTEGER, DIMENSION(:), POINTER       :: strans, rtrans
      INTEGER                              :: ins, inr
+     REAL(KIND=dp)                        :: rsratio
      COMPLEX(KIND=lp), DIMENSION(:, :), POINTER &
                                           :: qq, rr
+     COMPLEX(KIND=lp), DIMENSION(:, :), POINTER &
+            :: rbuf1, rbuf2, rbuf3, rbuf4, rbuf5, rbuf6
      COMPLEX(KIND=sp), DIMENSION(:, :), POINTER &
                                           :: ss, tt
      INTEGER, DIMENSION(:,:), POINTER     :: pgrid
@@ -86,6 +91,7 @@ MODULE fft_tools
      INTEGER                              :: mx1, mx2, mx3
      INTEGER                              :: my1, my2, my3
      INTEGER                              :: mz1, mz2, mz3
+     INTEGER                              :: mcz1, mcz2, mcy3
      INTEGER                              :: lg, mg
      INTEGER                              :: nbx, nbz
      INTEGER                              :: nmray, nyzray
@@ -448,7 +454,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       POINTER                                :: tbuf
     INTEGER :: g_pos, handle, ierr, iout, lg, lmax, mg, mmax, mx1, mx2, my1, &
       mz2, n1, n2, nmax, numtask, numtask_g, numtask_r, nx, ny, nz, r_dim(2), &
-      r_pos(2), rp, sign
+      r_pos(2), rp, sign, mcz1, mcz2
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: p2p
     LOGICAL                                  :: test
     REAL(KIND=dp)                            :: flops, nf, sum_data
@@ -531,6 +537,10 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
   fft_scratch_size%mg  = mg 
   fft_scratch_size%nbx = n1
   fft_scratch_size%nbz = n2
+  mcz1 = MAXVAL ( bo(2,3,:,1) - bo(1,3,:,1) + 1 )
+  mcz2 = MAXVAL ( bo(2,3,:,2) - bo(1,3,:,2) + 1 )
+  fft_scratch_size%mcz1 = mcz1
+  fft_scratch_size%mcz2 = mcz2
   fft_scratch_size%nmax      = nmax
   fft_scratch_size%nmray     = MAXVAL(nyzray)
   fft_scratch_size%nyzray    = nyzray(g_pos)
@@ -594,8 +604,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       END IF
 
      ! Exchange data ( transpose of matrix )
-      CALL cube_transpose_2 ( qbuf, rs_group, bo ( :, :, :, 1 ), &
-                            bo ( :, :, :, 2 ), rbuf, fft_scratch, error )
+      CALL cube_transpose_2 ( qbuf, rs_group, bo(:,:,:,1), bo(:,:,:,2), rbuf, fft_scratch, error )
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( rbuf ) )
@@ -636,13 +645,11 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
 #if defined(__FFTSGL)
       pbuf => fft_scratch%p6buf
 
-      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), nyzray(g_pos), &
-                     qbuf, pbuf, 1.0_lp )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), nyzray(g_pos), qbuf, pbuf, 1.0_lp )
       gin(:,:) = pbuf(:,:)
 
 #else
-      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), nyzray(g_pos), &
-                     qbuf, gin, 1.0_lp )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), nyzray(g_pos), qbuf, gin, 1.0_lp )
 #endif
 
       IF ( test ) THEN
@@ -676,12 +683,10 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
 
       qbuf = gin
 
-      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), nyzray(g_pos), &
-                     qbuf, pbuf, norm )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), nyzray(g_pos), qbuf, pbuf, norm )
 
 #else
-      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), nyzray(g_pos), &
-                     gin, pbuf, norm )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), nyzray(g_pos), gin, pbuf, norm )
 #endif
 
       qbuf => fft_scratch%p4buf
@@ -722,8 +727,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       END IF
 
       ! Exchange data ( transpose of matrix )
-      CALL cube_transpose_1 ( rbuf, rs_group, bo ( :, :, :, 2 ), &
-                            bo ( :, :, :, 1 ), pbuf, fft_scratch, error )
+      CALL cube_transpose_1 ( rbuf, rs_group, bo(:,:,:,2), bo(:,:,:,1), pbuf, fft_scratch, error )
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( pbuf ) )
@@ -790,7 +794,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
 
       ! FFT along y and z
 #if defined(__FFTSGL)
-      CALL copy_cz(nx*ny*nz,cin,tbuf)
+      CALL copy_zc(nx*ny*nz,cin,tbuf)
       CALL fft_1dm ( fft_type, sign, .TRUE., nz, nx*ny, tbuf, sbuf, 1._lp )
       CALL fft_1dm ( fft_type, sign, .TRUE., ny, nx*nz, sbuf, tbuf, 1._lp )
 #else
@@ -945,9 +949,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
     COMPLEX(KIND=lp), DIMENSION(:, :), &
       POINTER                                :: abuf, bbuf
     INTEGER                                  :: handle, lg(2), lz(3), mx1, &
-                                                mx2, mx3, my1, my2, my3, &
-                                                my_pos, mz1, mz2, mz3, np, &
-                                                sign
+      mx2, mx3, my1, my2, my3, mcz1, mcz2, mcy3, my_pos, mz1, mz2, mz3, np, sign
     INTEGER, DIMENSION(2)                    :: dim, pos
     LOGICAL                                  :: test
     REAL(KIND=dp)                            :: flops, nx, sum_data
@@ -977,6 +979,9 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
 !------------------------------------------------------------------------------
 
   CALL timeset("fft3d_pb","I","Gflops",handle)
+#if defined(__FFTSGL)
+  CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+#endif
 
   CALL mp_environ ( np, dim, pos, group )
   CALL mp_cart_rank ( group, pos, my_pos )
@@ -1027,7 +1032,14 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
   fft_scratch_size%mz1 = mz1
   fft_scratch_size%mz2 = mz2
   fft_scratch_size%mz3 = mz3
+  mcz1 = MAXVAL ( bo ( 2, 3, :, 1 ) - bo ( 1, 3, :, 1 ) + 1 )
+  mcz2 = MAXVAL ( bo ( 2, 3, :, 2 ) - bo ( 1, 3, :, 2 ) + 1 )
+  mcy3 = MAXVAL ( bo ( 2, 2, :, 3 ) - bo ( 1, 2, :, 3 ) + 1 )
+  fft_scratch_size%mcz1 = mcz1
+  fft_scratch_size%mcz2 = mcz2
+  fft_scratch_size%mcy3 = mcy3
   fft_scratch_size%gs_group  = group
+  fft_scratch_size%rs_group  = group
   fft_scratch_size%g_pos     = my_pos
   fft_scratch_size%numtask   = DIM(1)*DIM(2)
 
@@ -1055,10 +1067,14 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
         END IF
       END IF
 
-      abuf = RESHAPE(zin,SHAPE(abuf))
-
+#if defined(__FFTSGL)
+      CALL copy_zc(n(3)*mx1*my1,zin,abuf)
       ! FFT along z
       CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx1*my1, abuf, bbuf, norm )
+#else
+      ! FFT along z
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx1*my1, zin, bbuf, norm )
+#endif
 
       abuf => fft_scratch%a3buf
 
@@ -1109,13 +1125,14 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
         END IF
       END IF
 
-      ! FFT along x
-      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), my3*mz3, abuf, bbuf, 1.0_lp )
 
 #if defined(__FFTSGL)
+      ! FFT along x
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), my3*mz3, abuf, bbuf, 1.0_lp )
       CALL copy_cz(n(1)*my3*mz3,bbuf,gin)
 #else
-      CALL copy_zz(n(1)*my3*mz3,bbuf,gin)
+      ! FFT along x
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), my3*mz3, abuf, gin, 1.0_lp )
 #endif
 
       IF ( test ) THEN
@@ -1142,10 +1159,14 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
         END IF
       END IF
 
-      abuf = RESHAPE(gin,SHAPE(abuf))
-
+#if defined(__FFTSGL)
+      CALL copy_zc(n(1)*my3*mz3,gin,abuf)
       ! FFT along x
       CALL fft_1dm ( fft_type, sign, .TRUE., n(1), my3*mz3, abuf, bbuf, 1.0_lp )
+#else
+      ! FFT along x
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), my3*mz3, gin, bbuf, 1.0_lp )
+#endif
 
       abuf => fft_scratch%a4buf
 
@@ -1196,13 +1217,13 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
         END IF
       END IF
 
+#if defined(__FFTSGL)
       ! FFT along z
       CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx1*my1, abuf, bbuf, norm )
-
-#if defined(__FFTSGL)
       CALL copy_cz(n(3)*mx1*my1,bbuf,zin)
 #else
-      CALL copy_zz(n(3)*mx1*my1,bbuf,zin)
+      ! FFT along z
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx1*my1, abuf, zin, norm )
 #endif
 
       IF ( test ) THEN
@@ -1230,9 +1251,6 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
     IF ( sign == FWFFT ) THEN
       ! Stage 1 -> 3
 
-      abuf => fft_scratch%a1buf
-      bbuf => fft_scratch%a2buf
-
       IF ( test ) THEN
         sum_data = ABS ( SUM ( zin ) )
         CALL mp_sum ( sum_data, group )
@@ -1244,18 +1262,22 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
         END IF
       END IF
 
-      abuf = RESHAPE(zin,SHAPE(abuf))
-
+#if defined(__FFTSGL)
+      bbuf => fft_scratch%a1buf
+      abuf => fft_scratch%a2buf
+      CALL copy_zc(n(3)*mx1*my1,zin,bbuf)
       ! FFT along z
-      CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx1*my1, abuf, bbuf, norm )
-
-      abuf => fft_scratch%a3buf
-      abuf = RESHAPE(bbuf,SHAPE(abuf))
-
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx1*my1, bbuf, abuf, norm )
       bbuf => fft_scratch%a4buf
-
       ! FFT along y
       CALL fft_1dm ( fft_type, sign, .TRUE., n(2), mx1*mz1, abuf, bbuf, 1.0_lp )
+#else
+      abuf => fft_scratch%a3buf
+      bbuf => fft_scratch%a4buf
+      ! FFT along z and y
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx1*my1, zin, abuf, norm )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(2), mx1*mz1, abuf, bbuf, 1.0_lp )
+#endif
 
       abuf => fft_scratch%a5buf
 
@@ -1280,13 +1302,13 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
         END IF
       END IF
 
+#if defined(__FFTSGL)
       ! FFT along x
       CALL fft_1dm ( fft_type, sign, .TRUE., n(1), my3*mz3, abuf, bbuf, 1.0_lp )
-
-#if defined(__FFTSGL)
       CALL copy_cz(n(1)*my3*mz3,bbuf,gin)
 #else
-      CALL copy_zz(n(1)*my3*mz3,bbuf,gin)
+      ! FFT along x
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), my3*mz3, abuf, gin, 1.0_lp )
 #endif
 
       IF ( test ) THEN
@@ -1300,9 +1322,6 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
     ELSEIF ( sign == BWFFT ) THEN
       ! Stage 3 -> 1
 
-      abuf => fft_scratch%a6buf
-      bbuf => fft_scratch%a5buf
-
       IF ( test ) THEN
         sum_data = ABS ( SUM ( gin ) )
         CALL mp_sum ( sum_data, group )
@@ -1313,10 +1332,17 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
         END IF
       END IF
 
-      abuf = RESHAPE(gin,SHAPE(abuf))
+      abuf => fft_scratch%a6buf
+      bbuf => fft_scratch%a5buf
 
+#if defined(__FFTSGL)
+      CALL copy_zc(n(1)*my3*mz3,gin,abuf)
       ! FFT along x
       CALL fft_1dm ( fft_type, sign, .TRUE., n(1), my3*mz3, abuf, bbuf, 1.0_lp )
+#else
+      ! FFT along x
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), my3*mz3, gin, bbuf, 1.0_lp )
+#endif
 
       abuf => fft_scratch%a4buf
 
@@ -1345,18 +1371,14 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       ! FFT along y
       CALL fft_1dm ( fft_type, sign, .TRUE., n(2), mx1*mz1, abuf, bbuf, 1.0_lp )
 
-      abuf => fft_scratch%a2buf
-      abuf = RESHAPE(bbuf,SHAPE(abuf))
-
-      bbuf => fft_scratch%a1buf
-
-      ! FFT along z
-      CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx1*my1, abuf, bbuf, norm )
-
 #if defined(__FFTSGL)
-      CALL copy_cz(n(3)*mx1*my1,bbuf,zin)
+      abuf => fft_scratch%a1buf
+      ! FFT along z
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx1*my1, bbuf, abuf, norm )
+      CALL copy_cz(n(3)*mx1*my1,abuf,zin)
 #else
-      CALL copy_zz(n(3)*mx1*my1,bbuf,zin)
+      ! FFT along z
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx1*my1, bbuf, zin, norm )
 #endif
 
       IF ( test ) THEN
@@ -1612,9 +1634,8 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
     COMPLEX(KIND=sp), DIMENSION(:, :), &
       POINTER                                :: tq, ts
     INTEGER                                  :: cpos( 2 ), handle, ip, ipr, &
-                                                ir, ix, iz, jj, jx, jy, jz, &
-                                                myx, myz, nmax, np, npx, npz, &
-                                                nx, ny, nz, rs_pos
+      ir, ix, iz, jj, jx, jy, jz, myx, myz, nmax, np, npx, npz, &
+      nx, ny, nz, rs_pos, icrs
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, &
                                                 sdispl, xcor, zcor
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
@@ -1697,6 +1718,13 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
     CALL mp_alltoall ( scount, rcount, 1, group )
     fft_scratch%rtrans = rcount
     fft_scratch%inr = 1
+    icrs = 0
+    DO ip = 0, np - 1
+      IF ( scount(ip) /= 0 ) icrs = icrs +1
+      IF ( rcount(ip) /= 0 ) icrs = icrs +1
+    END DO
+    CALL mp_sum(icrs,group)
+    fft_scratch%rsratio = REAL(icrs)/REAL(2*np*np)
   ELSE
     rcount = fft_scratch%rtrans
   END IF
@@ -1704,7 +1732,11 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
   IF ( alltoall_sgl ) THEN
     CALL mp_alltoall ( ts, scount, sdispl, tq, rcount, rdispl, group )
   ELSE
-    CALL mp_alltoall ( rs, scount, sdispl, rq, rcount, rdispl, group )
+    IF ( fft_scratch%rsratio < 0.0_dp ) THEN
+      CALL sparse_alltoall ( rs, scount, sdispl, rq, rcount, rdispl, group )
+    ELSE
+      CALL mp_alltoall ( rs, scount, sdispl, rq, rcount, rdispl, group )
+    END IF
   END IF
 
   CALL mp_cart_coords ( group, rs_pos, cpos )
@@ -1768,9 +1800,8 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
     COMPLEX(KIND=sp), DIMENSION(:, :), &
       POINTER                                :: tq, ts
     INTEGER                                  :: cpos( 2 ), handle, ip, ipl, &
-                                                ir, ix, ixx, iz, jj, jx, jy, &
-                                                jz, mp, myx, myz, nmax, np, &
-                                                npx, npz, nx, ny, nz
+      ir, ix, ixx, iz, jj, jx, jy, jz, mp, myx, myz, nmax, np, &
+      npx, npz, nx, ny, nz, icrs
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, &
                                                 sdispl, xcor, zcor
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
@@ -1834,6 +1865,13 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
     CALL mp_alltoall ( rcount, scount, 1, group )
     fft_scratch%strans = scount
     fft_scratch%ins = 1
+    icrs = 0
+    DO ip = 0, np - 1
+      IF ( scount(ip) /= 0 ) icrs = icrs +1
+      IF ( rcount(ip) /= 0 ) icrs = icrs +1
+    END DO
+    CALL mp_sum(icrs,group)
+    fft_scratch%rsratio = REAL(icrs)/REAL(2*np*np)
   ELSE
     scount = fft_scratch%strans
   END IF
@@ -1877,7 +1915,11 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scrat
   IF ( alltoall_sgl ) THEN
     CALL mp_alltoall ( tq, scount, sdispl, ts, rcount, rdispl, group )
   ELSE
-    CALL mp_alltoall ( rq, scount, sdispl, rs, rcount, rdispl, group )
+    IF ( fft_scratch%rsratio < 0.0_dp ) THEN
+      CALL sparse_alltoall ( rq, scount, sdispl, rs, rcount, rdispl, group )
+    ELSE
+      CALL mp_alltoall ( rq, scount, sdispl, rs, rcount, rdispl, group )
+    END IF
   END IF
 
   rcount = 0
@@ -1923,7 +1965,7 @@ SUBROUTINE cube_transpose_1 ( cin, group, boin, boout, sout, fft_scratch, error 
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
-    COMPLEX(KIND=lp), ALLOCATABLE, &
+    COMPLEX(KIND=lp), POINTER, &
       DIMENSION(:, :)                        :: rbuf
     INTEGER                                  :: handle, ierr, ip, ipl, ir, &
                                                 is, ixy, iz, mip, mz, n, np, &
@@ -1947,9 +1989,8 @@ SUBROUTINE cube_transpose_1 ( cin, group, boin, boout, sout, fft_scratch, error 
   rcount => fft_scratch%rcount
   sdispl => fft_scratch%sdispl
   rdispl => fft_scratch%rdispl
+  pgrid  => fft_scratch%pgcube
   np = DIM ( 2 )
-  ALLOCATE ( pgrid ( 0 : np - 1 ), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "pgrid", np )
 
   pp = pos
   DO ip = 0, np - 1
@@ -1974,8 +2015,7 @@ SUBROUTINE cube_transpose_1 ( cin, group, boin, boout, sout, fft_scratch, error 
     rdispl ( ip ) = nx * ny * mz * ip
   END DO
 
-  ALLOCATE ( rbuf ( mz*nx*ny, 0 : np - 1 ), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf", mz*nx*ny*np )
+  rbuf => fft_scratch%rbuf1
 
   CALL mp_alltoall ( cin, scount, sdispl, rbuf, rcount, rdispl, sub_group )
 
@@ -1990,11 +2030,6 @@ SUBROUTINE cube_transpose_1 ( cin, group, boin, boout, sout, fft_scratch, error 
       END DO
     END DO
   END DO
-
-  DEALLOCATE ( rbuf, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf" )
-  DEALLOCATE ( pgrid, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "pgrid" )
 
   CALL mp_comm_free ( sub_group )
 
@@ -2014,7 +2049,7 @@ SUBROUTINE cube_transpose_2 ( cin, group, boin, boout, sout, fft_scratch, error 
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
-    COMPLEX(KIND=lp), ALLOCATABLE, &
+    COMPLEX(KIND=lp), POINTER, &
       DIMENSION(:, :)                        :: rbuf
     INTEGER                                  :: handle, ierr, ip, ipl, ir, &
                                                 ixy, iz, mip, mz, n, np, nx, &
@@ -2038,9 +2073,8 @@ SUBROUTINE cube_transpose_2 ( cin, group, boin, boout, sout, fft_scratch, error 
   rcount => fft_scratch%rcount
   sdispl => fft_scratch%sdispl
   rdispl => fft_scratch%rdispl
+  pgrid  => fft_scratch%pgcube
   np = DIM ( 2 )
-  ALLOCATE ( pgrid ( 0 : np - 1 ), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "pgrid", np )
 
   pp = pos
   DO ip = 0, np - 1
@@ -2052,8 +2086,7 @@ SUBROUTINE cube_transpose_2 ( cin, group, boin, boout, sout, fft_scratch, error 
   ny = boin ( 2, 2, mip ) - boin ( 1, 2, mip ) + 1
   mz = MAXVAL ( boin ( 2, 3, : ) - boin ( 1, 3, : ) + 1 )
 
-  ALLOCATE ( rbuf ( mz*nx*ny, 0 : np - 1 ), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf", mz*nx*ny*np )
+  rbuf => fft_scratch%rbuf2
 
   DO ixy = 1, nx * ny
     DO ip = 0, np - 1
@@ -2082,11 +2115,6 @@ SUBROUTINE cube_transpose_2 ( cin, group, boin, boout, sout, fft_scratch, error 
 
   CALL mp_alltoall ( rbuf, scount, sdispl, sout, rcount, rdispl, sub_group )
 
-  DEALLOCATE ( rbuf, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf" )
-  DEALLOCATE ( pgrid, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "pgrid" )
-
   CALL mp_comm_free ( sub_group )
 
   CALL timestop(0.0_dp,handle)
@@ -2105,13 +2133,13 @@ SUBROUTINE cube_transpose_3 ( cin, group, boin, boout, sout, fft_scratch, error 
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
-    COMPLEX(KIND=lp), ALLOCATABLE, &
+    COMPLEX(KIND=lp), POINTER, &
       DIMENSION(:, :)                        :: rbuf
     INTEGER                                  :: handle, ierr, ip, ipl, ir, &
                                                 is, ixz, iy, mip, my, n, np, &
                                                 nx, ny, nz, sub_group
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: pgrid, rcount, rdispl, &
-                                                scount, sdispl
+    INTEGER, POINTER, DIMENSION(:)           :: pgrid
+    INTEGER, POINTER, DIMENSION(:)           :: rcount, rdispl, scount, sdispl
     INTEGER, DIMENSION(2)                    :: dim, pos, pp
     LOGICAL, DIMENSION(2)                    :: rdim
 
@@ -2126,11 +2154,11 @@ SUBROUTINE cube_transpose_3 ( cin, group, boin, boout, sout, fft_scratch, error 
   CALL mp_cart_sub ( group, rdim, sub_group )
 
   np = DIM ( 1 )
-  ALLOCATE ( scount ( 0 : np - 1 ), sdispl ( 0 : np - 1 ), &
-             rcount ( 0 : np - 1 ), rdispl ( 0 : np - 1 ), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "scount", 4*np )
-  ALLOCATE ( pgrid ( 0 : np - 1 ), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "pgrid", np )
+  scount => fft_scratch%scount
+  rcount => fft_scratch%rcount
+  sdispl => fft_scratch%sdispl
+  rdispl => fft_scratch%rdispl
+  pgrid  => fft_scratch%pgcube
 
   pp = pos
   DO ip = 0, np - 1
@@ -2155,8 +2183,7 @@ SUBROUTINE cube_transpose_3 ( cin, group, boin, boout, sout, fft_scratch, error 
     rdispl ( ip ) = nx * my * nz * ip
   END DO
 
-  ALLOCATE ( rbuf ( nz*nx*my, 0 : np - 1 ), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf", nz*nx*my*np )
+  rbuf => fft_scratch%rbuf3
   rbuf = 0.0_lp
 
   CALL mp_alltoall ( cin, scount, sdispl, rbuf, rcount, rdispl, sub_group )
@@ -2172,13 +2199,6 @@ SUBROUTINE cube_transpose_3 ( cin, group, boin, boout, sout, fft_scratch, error 
       END DO
     END DO
   END DO
-
-  DEALLOCATE ( rbuf, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf" )
-  DEALLOCATE ( scount, sdispl, rcount, rdispl, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "scount" )
-  DEALLOCATE ( pgrid, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "pgrid" )
 
   CALL mp_comm_free ( sub_group )
 
@@ -2198,13 +2218,13 @@ SUBROUTINE cube_transpose_4 ( cin, group, boin, boout, sout, fft_scratch, error 
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
-    COMPLEX(KIND=lp), ALLOCATABLE, &
+    COMPLEX(KIND=lp), POINTER, &
       DIMENSION(:, :)                        :: rbuf
     INTEGER                                  :: handle, ierr, ip, ipl, ir, &
                                                 iy, izx, mip, my, n, np, nx, &
                                                 ny, nz, sub_group
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: pgrid, rcount, rdispl, &
-                                                scount, sdispl
+    INTEGER, POINTER, DIMENSION(:)           :: pgrid
+    INTEGER, POINTER, DIMENSION(:)           :: rcount, rdispl, scount, sdispl
     INTEGER, DIMENSION(2)                    :: dim, pos, pp
     LOGICAL, DIMENSION(2)                    :: rdim
 
@@ -2219,11 +2239,11 @@ SUBROUTINE cube_transpose_4 ( cin, group, boin, boout, sout, fft_scratch, error 
   CALL mp_cart_sub ( group, rdim, sub_group )
 
   np = DIM ( 1 )
-  ALLOCATE ( scount ( 0 : np - 1 ), sdispl ( 0 : np - 1 ), &
-             rcount ( 0 : np - 1 ), rdispl ( 0 : np - 1 ), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "scount", 4*np )
-  ALLOCATE ( pgrid ( 0 : np - 1 ), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "pgrid", np )
+  scount => fft_scratch%scount
+  rcount => fft_scratch%rcount
+  sdispl => fft_scratch%sdispl
+  rdispl => fft_scratch%rdispl
+  pgrid  => fft_scratch%pgcube
 
   pp = pos
   DO ip = 0, np - 1
@@ -2235,8 +2255,7 @@ SUBROUTINE cube_transpose_4 ( cin, group, boin, boout, sout, fft_scratch, error 
   nz = boin ( 2, 3, mip ) - boin ( 1, 3, mip ) + 1
   my = MAXVAL ( boout ( 2, 2, : ) - boout ( 1, 2, : ) + 1 )
 
-  ALLOCATE ( rbuf ( nz*nx*my, 0 : np - 1 ), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf", nz*nx*my*np )
+  rbuf => fft_scratch%rbuf4
   rbuf = 0.0_lp
 
   DO izx = 1, nz * nx
@@ -2266,13 +2285,6 @@ SUBROUTINE cube_transpose_4 ( cin, group, boin, boout, sout, fft_scratch, error 
 
   CALL mp_alltoall ( rbuf, scount, sdispl, sout, rcount, rdispl, sub_group )
 
-  DEALLOCATE ( rbuf, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf" )
-  DEALLOCATE ( scount, sdispl, rcount, rdispl, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "scount" )
-  DEALLOCATE ( pgrid, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "pgrid" )
-
   CALL mp_comm_free ( sub_group )
 
   CALL timestop(0.0_dp,handle)
@@ -2291,12 +2303,12 @@ SUBROUTINE cube_transpose_5 ( cin, group, boin, boout, sout, fft_scratch, error 
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
-    COMPLEX(KIND=lp), ALLOCATABLE, &
+    COMPLEX(KIND=lp), POINTER, &
       DIMENSION(:, :)                        :: rbuf
     INTEGER                                  :: handle, ierr, ip, ir, is, &
                                                 ixz, iy, mip, my, np, nx, ny, &
                                                 nz
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
+    INTEGER, POINTER, DIMENSION(:)           :: rcount, rdispl, scount, sdispl
     INTEGER, DIMENSION(2)                    :: dim, pos
 
 !------------------------------------------------------------------------------
@@ -2306,9 +2318,10 @@ SUBROUTINE cube_transpose_5 ( cin, group, boin, boout, sout, fft_scratch, error 
   CALL mp_environ ( np, dim, pos, group )
   CALL mp_cart_rank ( group, pos, mip )
 
-  ALLOCATE ( scount ( 0 : np - 1 ), sdispl ( 0 : np - 1 ), &
-             rcount ( 0 : np - 1 ), rdispl ( 0 : np - 1 ), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "scount", 4*np )
+  scount => fft_scratch%scount
+  rcount => fft_scratch%rcount
+  sdispl => fft_scratch%sdispl
+  rdispl => fft_scratch%rdispl
 
   ny = boin ( 2, 2, mip ) - boin ( 1, 2, mip ) + 1
   nz = boin ( 2, 3, mip ) - boin ( 1, 3, mip ) + 1
@@ -2325,8 +2338,7 @@ SUBROUTINE cube_transpose_5 ( cin, group, boin, boout, sout, fft_scratch, error 
     rdispl ( ip ) = nx * my * nz * ip
   END DO
 
-  ALLOCATE ( rbuf ( nz*nx*my, 0 : np - 1 ), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf", nz*nx*my*np )
+  rbuf => fft_scratch%rbuf5
   rbuf = 0.0_lp
 
   CALL mp_alltoall ( cin, scount, sdispl, rbuf, rcount, rdispl, group )
@@ -2341,11 +2353,6 @@ SUBROUTINE cube_transpose_5 ( cin, group, boin, boout, sout, fft_scratch, error 
       END DO
     END DO
   END DO
-
-  DEALLOCATE ( rbuf, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf" )
-  DEALLOCATE ( scount, sdispl, rcount, rdispl, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "scount" )
 
   CALL timestop(0.0_dp,handle)
 
@@ -2363,11 +2370,11 @@ SUBROUTINE cube_transpose_6 ( cin, group, boin, boout, sout, fft_scratch, error 
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     TYPE(cp_error_type)                      :: error
 
-    COMPLEX(KIND=lp), ALLOCATABLE, &
+    COMPLEX(KIND=lp), POINTER, &
       DIMENSION(:, :)                        :: rbuf
     INTEGER                                  :: handle, ierr, ip, ir, iy, &
                                                 izx, mip, my, np, nx, ny, nz
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
+    INTEGER, POINTER, DIMENSION(:)           :: rcount, rdispl, scount, sdispl
     INTEGER, DIMENSION(2)                    :: dim, pos
 
 !------------------------------------------------------------------------------
@@ -2377,16 +2384,16 @@ SUBROUTINE cube_transpose_6 ( cin, group, boin, boout, sout, fft_scratch, error 
   CALL mp_environ ( np, dim, pos, group )
   CALL mp_cart_rank ( group, pos, mip )
 
-  ALLOCATE ( scount ( 0 : np - 1 ), sdispl ( 0 : np - 1 ), &
-             rcount ( 0 : np - 1 ), rdispl ( 0 : np - 1 ), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "scount", 4*np )
+  scount => fft_scratch%scount
+  rcount => fft_scratch%rcount
+  sdispl => fft_scratch%sdispl
+  rdispl => fft_scratch%rdispl
 
   nx = boin ( 2, 1, mip ) - boin ( 1, 1, mip ) + 1
   nz = boin ( 2, 3, mip ) - boin ( 1, 3, mip ) + 1
   my = MAXVAL ( boout ( 2, 2, : ) - boout ( 1, 2, : ) + 1 )
 
-  ALLOCATE ( rbuf ( nz*nx*my, 0 : np - 1 ), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf", nz*nx*my*np )
+  rbuf => fft_scratch%rbuf5
   rbuf = 0.0_lp
 
   DO izx = 1, nz * nx
@@ -2412,11 +2419,6 @@ SUBROUTINE cube_transpose_6 ( cin, group, boin, boout, sout, fft_scratch, error 
   END DO
 
   CALL mp_alltoall ( rbuf, scount, sdispl, sout, rcount, rdispl, group )
-
-  DEALLOCATE ( rbuf, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "rbuf" )
-  DEALLOCATE ( scount, sdispl, rcount, rdispl, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "scount" )
 
   CALL timestop(0.0_dp,handle)
 
@@ -2469,10 +2471,15 @@ SUBROUTINE init_fft_scratch_pool(error)
   NULLIFY(fft_scratch_first%fft_scratch%qq, fft_scratch_first%fft_scratch%rr,&
           fft_scratch_first%fft_scratch%ss, fft_scratch_first%fft_scratch%tt)
   NULLIFY(fft_scratch_first%fft_scratch%pgrid) 
+  NULLIFY(fft_scratch_first%fft_scratch%pgcube) 
   NULLIFY(fft_scratch_first%fft_scratch%xcor, fft_scratch_first%fft_scratch%zcor)
   NULLIFY(fft_scratch_first%fft_scratch%strans, fft_scratch_first%fft_scratch%rtrans)
+  NULLIFY(fft_scratch_first%fft_scratch%rbuf1,fft_scratch_first%fft_scratch%rbuf2,&
+          fft_scratch_first%fft_scratch%rbuf3,fft_scratch_first%fft_scratch%rbuf4) 
+  NULLIFY(fft_scratch_first%fft_scratch%rbuf5,fft_scratch_first%fft_scratch%rbuf6)
   fft_scratch_first%fft_scratch%ins = 0
   fft_scratch_first%fft_scratch%inr = 0
+  fft_scratch_first%fft_scratch%rsratio = 1._dp
 
   init_fft_pool = init_fft_pool + 1
 
@@ -2594,6 +2601,10 @@ SUBROUTINE release_fft_scratch_pool(error)
         DEALLOCATE(fft_scratch_current%fft_scratch%pgrid,STAT=ierr)
         CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
       END IF
+      IF(ASSOCIATED(fft_scratch_current%fft_scratch%pgcube)) THEN
+        DEALLOCATE(fft_scratch_current%fft_scratch%pgcube,STAT=ierr)
+        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+      END IF
       IF(ASSOCIATED(fft_scratch_current%fft_scratch%xcor)) THEN
         DEALLOCATE(fft_scratch_current%fft_scratch%xcor,fft_scratch_current%fft_scratch%zcor,STAT=ierr)
         CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
@@ -2603,6 +2614,31 @@ SUBROUTINE release_fft_scratch_pool(error)
         CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
         fft_scratch_current%fft_scratch%ins=0
         fft_scratch_current%fft_scratch%inr=0
+        fft_scratch_current%fft_scratch%rsratio=1._dp
+      END IF
+      IF(ASSOCIATED(fft_scratch_current%fft_scratch%rbuf1)) THEN
+        DEALLOCATE(fft_scratch_current%fft_scratch%rbuf1,STAT=ierr)
+        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+      END IF
+      IF(ASSOCIATED(fft_scratch_current%fft_scratch%rbuf2)) THEN
+        DEALLOCATE(fft_scratch_current%fft_scratch%rbuf2,STAT=ierr)
+        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+      END IF
+      IF(ASSOCIATED(fft_scratch_current%fft_scratch%rbuf3)) THEN
+        DEALLOCATE(fft_scratch_current%fft_scratch%rbuf3,STAT=ierr)
+        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+      END IF
+      IF(ASSOCIATED(fft_scratch_current%fft_scratch%rbuf4)) THEN
+        DEALLOCATE(fft_scratch_current%fft_scratch%rbuf4,STAT=ierr)
+        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+      END IF
+      IF(ASSOCIATED(fft_scratch_current%fft_scratch%rbuf5)) THEN
+        DEALLOCATE(fft_scratch_current%fft_scratch%rbuf5,STAT=ierr)
+        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+      END IF
+      IF(ASSOCIATED(fft_scratch_current%fft_scratch%rbuf6)) THEN
+        DEALLOCATE(fft_scratch_current%fft_scratch%rbuf6,STAT=ierr)
+        CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
       END IF
       ! end deallocate structures
       DEALLOCATE(fft_scratch_current%fft_scratch,STAT=ierr)
@@ -2631,10 +2667,8 @@ SUBROUTINE get_fft_scratch(fft_scratch,fft_type,n,fft_sizes,error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ierr, lg, lmax, m1, m2, mg, &
-                                                mmax, mx1, mx2, my1, my3, &
-                                                mz1, mz2, mz3, nbx, nbz, nm, &
-                                                nmax, nmray, np, nx, ny, &
-                                                nyzray, nz
+      mmax, mx1, mx2, my1, my3, mz1, mz2, mz3, nbx, nbz, nm, &
+      nmax, nmray, np, nx, ny, nyzray, nz, nn, pos(2), dim(2), mcz1, mcz2, mcy3
     LOGICAL                                  :: failure
     TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch_current, &
                                                 fft_scratch_last, &
@@ -2703,8 +2737,12 @@ SUBROUTINE get_fft_scratch(fft_scratch,fft_type,n,fft_sizes,error)
       NULLIFY(fft_scratch_new%fft_scratch%pgrid) 
       NULLIFY(fft_scratch_new%fft_scratch%xcor, fft_scratch_new%fft_scratch%zcor)
       NULLIFY(fft_scratch_new%fft_scratch%strans, fft_scratch_new%fft_scratch%rtrans)
+      NULLIFY(fft_scratch_new%fft_scratch%rbuf1, fft_scratch_new%fft_scratch%rbuf2,&
+              fft_scratch_new%fft_scratch%rbuf3, fft_scratch_new%fft_scratch%rbuf4)
+      NULLIFY(fft_scratch_new%fft_scratch%rbuf5, fft_scratch_new%fft_scratch%rbuf6)
       fft_scratch_new%fft_scratch%ins=0
       fft_scratch_new%fft_scratch%inr=0
+      fft_scratch_new%fft_scratch%rsratio=1._dp
 
       SELECT CASE (fft_type)
         CASE DEFAULT
@@ -2730,6 +2768,20 @@ SUBROUTINE get_fft_scratch(fft_scratch,fft_type,n,fft_sizes,error)
           ALLOCATE ( fft_scratch_new%fft_scratch%a6buf(n(1),my3*mz3),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
           fft_scratch_new%fft_scratch%group = fft_sizes%gs_group
+
+          CALL mp_environ ( nn, dim, pos, fft_sizes%rs_group )
+          mcz1   = fft_sizes%mcz1
+          mcz2   = fft_sizes%mcz2
+          mcy3   = fft_sizes%mcy3
+          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf1(mx2*my1*mcz2,0:dim(2)-1),STAT=ierr)
+          CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf2(mx1*my1*mcz1,0:dim(2)-1),STAT=ierr)
+          CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf3(mx2*mz3*mcy3,0:dim(1)-1),STAT=ierr)
+          CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf4(mx2*mz2*mcy3,0:dim(1)-1),STAT=ierr)
+          CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+
         CASE (101)    ! fft3d_pb: full cube distribution (dim 1)
           mx1   = fft_sizes%mx1
           my1   = fft_sizes%my1
@@ -2750,6 +2802,14 @@ SUBROUTINE get_fft_scratch(fft_scratch,fft_type,n,fft_sizes,error)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
           ALLOCATE ( fft_scratch_new%fft_scratch%a6buf(n(1),my3*mz3),STAT=ierr)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+
+          CALL mp_environ ( nn, dim, pos, fft_sizes%rs_group )
+          mcy3   = fft_sizes%mcy3
+          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf5(mx1*mz3*mcy3,0:dim(1)-1),STAT=ierr)
+          CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf6(mx1*mz1*mcy3,0:dim(1)-1),STAT=ierr)
+          CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+
         CASE (200)    ! fft3d_ps: plane distribution
           nx    = fft_sizes%nx  
           ny    = fft_sizes%ny 
@@ -2834,7 +2894,17 @@ SUBROUTINE get_fft_scratch(fft_scratch,fft_type,n,fft_sizes,error)
           CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
           fft_scratch_new%fft_scratch%ins=0
           fft_scratch_new%fft_scratch%inr=0
+          fft_scratch_new%fft_scratch%rsratio=1._dp
           fft_scratch_new%fft_scratch%group = fft_sizes%gs_group
+
+          CALL mp_environ ( nn, dim, pos, fft_sizes%rs_group )
+          mcz1   = fft_sizes%mcz1
+          mcz2   = fft_sizes%mcz2
+          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf1(mx2*my1*mcz2,0:dim(2)-1),STAT=ierr)
+          CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE ( fft_scratch_new%fft_scratch%rbuf2(mx1*my1*mcz1,0:dim(2)-1),STAT=ierr)
+          CPPrecondition(ierr==0,cp_failure_level,routineP,error,failure)
+
         CASE (400)    ! serial FFT_SGL 
           np = 0
           ALLOCATE ( fft_scratch_new%fft_scratch%zoptr(n(1),n(2),n(3)),STAT=ierr)
@@ -2843,7 +2913,8 @@ SUBROUTINE get_fft_scratch(fft_scratch,fft_type,n,fft_sizes,error)
 
       IF ( np /= 0 ) THEN
         ALLOCATE ( fft_scratch_new%fft_scratch%scount(0:np-1), fft_scratch_new%fft_scratch%rcount(0:np-1),&
-         fft_scratch_new%fft_scratch%sdispl(0:np-1), fft_scratch_new%fft_scratch%rdispl(0:np-1),STAT=ierr)
+         fft_scratch_new%fft_scratch%sdispl(0:np-1), fft_scratch_new%fft_scratch%rdispl(0:np-1),&
+         fft_scratch_new%fft_scratch%pgcube(0:np-1),STAT=ierr)
       END IF
 
       NULLIFY(fft_scratch_new%fft_scratch_next) 
@@ -2897,6 +2968,48 @@ SUBROUTINE release_fft_scratch(fft_scratch,error)
 END SUBROUTINE release_fft_scratch
 
 
+! *****************************************************************************
+SUBROUTINE sparse_alltoall ( rs, scount, sreq, rq, rcount, rreq, group )
+    COMPLEX(KIND=dp), DIMENSION(:,:), POINTER        :: rs
+    INTEGER, DIMENSION(:), POINTER                   :: scount
+    INTEGER, DIMENSION(:), POINTER                   :: sreq
+    COMPLEX(KIND=dp), DIMENSION(:,:), POINTER        :: rq
+    INTEGER, DIMENSION(:), POINTER                   :: rcount
+    INTEGER, DIMENSION(:), POINTER                   :: rreq
+    INTEGER, INTENT(IN)                              :: group
+
+    INTEGER                                          :: ip, ns, nr, sn, rn, n, pos
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER          :: msgin, msgout
+
+    CALL mp_sync ( group )
+    CALL mp_environ ( n, pos, group )
+    nr = 0
+    DO ip = 0,n-1
+       IF ( rcount(ip) == 0 ) CYCLE
+       IF ( ip == pos ) CYCLE
+       msgout => rq(1:rcount(ip),ip)
+       CALL mp_irecv(msgout,ip,group,rn)
+       nr = nr+1
+       rreq(nr-1) = rn
+    END DO
+    ns = 0
+    DO ip = 0,n-1
+       IF ( scount(ip) == 0 ) CYCLE
+       IF ( ip == pos ) CYCLE
+       msgin => rs(1:scount(ip),ip)
+       CALL mp_isend(msgin,ip,group,sn)
+       ns = ns+1
+       sreq(ns-1) = sn
+    END DO
+    IF ( rcount(pos) /= 0 ) THEN
+      IF( rcount(pos) /= scount(pos) ) stop
+      rq(1:rcount(pos),pos) = rs(1:rcount(pos),pos)
+    END IF
+    CALL mp_waitall(sreq(0:ns-1))
+    CALL mp_waitall(rreq(0:nr-1))
+    CALL mp_sync ( group )
+
+END SUBROUTINE sparse_alltoall
 ! *****************************************************************************
 
 END MODULE fft_tools

@@ -231,6 +231,30 @@ SUBROUTINE copy_cz ( n, c, z )
 
 END SUBROUTINE copy_cz
 ! *****************************************************************************
+SUBROUTINE copy_zc ( n, z, c )
+!
+! c = z
+!
+  IMPLICIT NONE
+#if defined(__SGL)
+  INTEGER, PARAMETER :: dbl = KIND(0.0)
+  INTEGER, PARAMETER :: sgl = KIND(0.0)
+#else
+  INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
+  INTEGER, PARAMETER :: sgl = KIND(0.0)
+#endif
+
+  INTEGER, INTENT ( IN ) :: n
+  COMPLEX ( dbl ), INTENT ( IN ) :: z(n)
+  COMPLEX ( sgl ), INTENT ( OUT ) :: c(n)
+  INTEGER :: i
+!$OMP PARALLEL DO
+  DO i=1,n
+    c(i)=z(i)
+  ENDDO
+
+END SUBROUTINE copy_zc
+! *****************************************************************************
 SUBROUTINE copy_zz ( n, c, z )
 !
 ! z = c
