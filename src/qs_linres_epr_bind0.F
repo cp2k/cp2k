@@ -13,8 +13,8 @@
 MODULE qs_linres_epr_bind0
 
   USE cell_types,                      ONLY: cell_type
-  USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
+  USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_trace
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -85,9 +85,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'chicorr_analytic', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, j, idir, idir2, ii, &
-                                                iiB, iii, iiiB, istat, icenter, &
-                                                istate, nao, nbr_center(2), output_unit
+    INTEGER                                  :: handle, i, icenter, idir, &
+                                                idir2, ii, iiB, iii, iiiB, &
+                                                istat, istate, j, nao, &
+                                                nbr_center(2), output_unit
     LOGICAL                                  :: failure, gapw, ionode
     REAL(dp)                                 :: chi(3), contrib, contrib2, &
                                                 dk(3)

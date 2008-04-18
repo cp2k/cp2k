@@ -550,9 +550,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'chi_analytic_new', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, idir, idir2, ii, &
-                                                iiB, iii, iiiB, istat, &
-                                                icenter, j, istate, nao, &
+    INTEGER                                  :: handle, i, icenter, idir, &
+                                                idir2, ii, iiB, iii, iiiB, &
+                                                istat, istate, j, nao, &
                                                 nbr_center(2), output_unit
     LOGICAL                                  :: failure, gapw, ionode
     REAL(dp)                                 :: chi(3), contrib, contrib2, &
@@ -931,12 +931,12 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE interpolate_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_rspace,&
-       &                              i_B,idir,nmr_section,error)
+       i_B,idir,nmr_section,error)
 
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                             :: particle_set
+      POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_p_type)                          :: shift_pw_rspace
     INTEGER, INTENT(IN)                      :: i_B, idir
@@ -944,7 +944,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'interpolate_shift_pwgrid', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: aint_precond, iat, iatom, &
                                                 max_iter, n_nics, natom, &
                                                 precond_kind
@@ -960,11 +961,10 @@ CONTAINS
     TYPE(pw_spline_precond_type), POINTER    :: precond
     TYPE(section_vals_type), POINTER         :: interp_section
 
+    failure = .FALSE.
 #ifdef __parallel
     CALL stop_program(routineP,"Doesnt support parallel yet.")
 #endif
-
-    failure = .FALSE.
     NULLIFY (interp_section)
     NULLIFY (auxbas_pw_pool,precond)
     NULLIFY (cs_atom_list,chemical_shift,chemical_shift_nics,r_nics)
