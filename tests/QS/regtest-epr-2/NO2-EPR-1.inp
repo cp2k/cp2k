@@ -1,0 +1,74 @@
+&GLOBAL
+  PROJECT NO2-EPR-1
+  PRINT_LEVEL LOW
+  RUN_TYPE LINEAR_RESPONSE
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    BASIS_SET_FILE_NAME ../EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME ../POTENTIAL
+    LSD
+    &MGRID
+      CUTOFF 100
+    &END MGRID
+    &QS
+      METHOD GAPW
+    &END QS
+    &SCF
+      MAX_SCF 10
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &PROPERTIES
+    &LINRES
+       OPT_METHOD  CG
+       MAX_SCF 5
+       LINESEARCH  2PNT
+       PRECONDITIONER FULL_ALL
+       &LOCALIZE
+         MAX_ITER 10
+       &END LOCALIZE
+       &CURRENT
+          GAUGE R_AND_STEP_FUNCTION
+          ORBITAL_CENTER WANNIER
+       &END CURRENT
+       &EPR
+         &PRINT
+            &G_TENSOR
+               &XC
+                 &XC_FUNCTIONAL
+                    &XALPHA
+                    &END XALPHA
+                 &END XC_FUNCTIONAL
+               &END XC
+            &END G_TENSOR
+         &END PRINT
+       &END
+    &END
+  &END
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0 
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+  N 0.000000  0.000000  0.000000
+  O 0.000000  0.000000  1.207900
+  O 0.872252  0.000000 -0.835583
+    &END COORD
+    &KIND N
+      BASIS_SET 3-21G*
+      POTENTIAL ALL
+    &END KIND
+    &KIND O
+      BASIS_SET 3-21G*
+      POTENTIAL ALL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+
