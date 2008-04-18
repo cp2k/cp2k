@@ -552,7 +552,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, idir, idir2, ii, &
                                                 iiB, iii, iiiB, istat, &
-                                                istate, j, jstate, nao, &
+                                                icenter, j, istate, nao, &
                                                 nbr_center(2), output_unit
     LOGICAL                                  :: failure, gapw, ionode
     REAL(dp)                                 :: chi(3), contrib, contrib2, &
@@ -699,10 +699,10 @@ CONTAINS
     chi = 0.0_dp
     !
     ! Start loop over the occupied  states
-    DO istate = 1,nbr_center(ispin)
+    DO icenter = 1,nbr_center(ispin)
        !
        ! Get the Wannier center of the istate-th ground state orbital
-       dk(1:3) = centers_set(ispin)%array(1:3,istate)
+       dk(1:3) = centers_set(ispin)%array(1:3,icenter)
        !
        ! Compute the multipole integrals for the state istate,
        ! using as reference center the corresponding Wannier center
@@ -718,14 +718,14 @@ CONTAINS
             &              minimum_image=.FALSE.,soft=gapw,error=error)
 
 
-       DO j = center_list(ispin)%array(1,istate),center_list(ispin)%array(1,istate+1)-1
-          jstate = center_list(ispin)%array(2,j)
+       DO j = center_list(ispin)%array(1,icenter),center_list(ispin)%array(1,icenter+1)-1
+          istate = center_list(ispin)%array(2,j)
 
           !
           ! EXTRACT from the ground state full MOS matrix the coefficients of istate
-          CALL cp_fm_get_submatrix(mo_coeff,vecbuf_0,1,jstate,nao,1,&
+          CALL cp_fm_get_submatrix(mo_coeff,vecbuf_0,1,istate,nao,1,&
                &                   transpose=.TRUE.,error=error)
-          vecbuf_0(1,1:nao) = vecbuf_0(1,1:nao) * occupation(jstate)
+          vecbuf_0(1,1:nao) = vecbuf_0(1,1:nao) * occupation(istate)
           CALL cp_fm_set_submatrix(psi0_istate,vecbuf_0,1,1,nao,1,&
                &                   transpose=.TRUE.,error=error)
           !
@@ -733,11 +733,11 @@ CONTAINS
           ! referring to istate
           ! psi1_rxp_iB_istate
           CALL cp_fm_get_submatrix(psi1_rxp(ispin,iB)%matrix,vecbuf_1_rxp,1,&
-               &                   jstate,nao,1,transpose=.TRUE.,error=error)
+               &                   istate,nao,1,transpose=.TRUE.,error=error)
        
           IF(current_env%full) THEN
              ! psi1_d_iB_istate
-             CALL cp_fm_get_submatrix(psi1_D(ispin,iB)%matrix,vecbuf_1_d,1,jstate,&
+             CALL cp_fm_get_submatrix(psi1_D(ispin,iB)%matrix,vecbuf_1_d,1,istate,&
                   &                   nao,1,transpose=.TRUE.,error=error)
              vecbuf_1_rxp(1,1:nao) = vecbuf_1_rxp(1,1:nao) - vecbuf_1_d(1,1:nao)
           ENDIF
@@ -746,12 +746,12 @@ CONTAINS
           !
           ! psi1_p_iiB_istate and psi1_p_iiiB_istate
           CALL cp_fm_get_submatrix(psi1_p(ispin,iiB)%matrix,&
-               &                   vecbuf_1_p(iiB)%array,1,jstate,nao,1,&
+               &                   vecbuf_1_p(iiB)%array,1,istate,nao,1,&
                &                   transpose=.TRUE.,error=error)
           CALL cp_fm_set_submatrix(psi_p1_istate,vecbuf_1_p(iiB)%array,1,1,&
                &                   nao,1,transpose=.TRUE.,error=error)
           CALL cp_fm_get_submatrix(psi1_p(ispin,iiiB)%matrix,&
-               &                   vecbuf_1_p(iiiB)%array,1,jstate,nao,1,&
+               &                   vecbuf_1_p(iiiB)%array,1,istate,nao,1,&
                &                   transpose=.TRUE.,error=error)
           CALL cp_fm_set_submatrix(psi_p2_istate,vecbuf_1_p(iiiB)%array,1,1,&
                &                   nao,1,transpose=.TRUE.,error=error)
@@ -889,9 +889,9 @@ CONTAINS
              
           ENDDO  ! idir
 
-       ENDDO ! jstate
+       ENDDO ! istate
 
-    ENDDO  ! istate
+    ENDDO  ! icenter
     !
     !IF (output_unit>0) WRITE(output_unit,*) "CHI TENSOR : iB =", iB
     DO idir = 1,3

@@ -675,7 +675,7 @@ CONTAINS
             &   current_env%centers_set(ispin)%array(3,homo),STAT=istat)
        CPPrecondition(istat==0,cp_warning_level,routineP,error,failure)
        current_env%center_list(ispin)%array(:,:) = 0
-       current_env%centers_set(ispin)%array(:,:) = 0.0_dp
+       current_env%centers_set(ispin)%array(:,:) = HUGE(0.0_dp)
        !
        ! point to the psi0 centers
        SELECT CASE(current_env%orb_center)
@@ -809,10 +809,10 @@ CONTAINS
     !
     !
     IF(output_unit>0) THEN
-       WRITE(output_unit,"(T2,A,T2,A)") "CURRENT|","Gauge used "//TRIM(current_env%gauge_name)
-       WRITE(output_unit,"(T2,A,T2,A)") "CURRENT|","Orbital center used "//TRIM(current_env%orb_center_name)
+       WRITE(output_unit,"(T2,A)") "CURRENT| Gauge used "//TRIM(current_env%gauge_name)
+       WRITE(output_unit,"(T2,A)") "CURRENT| Orbital center used "//TRIM(current_env%orb_center_name)
        IF(current_env%orb_center.EQ.current_orb_center_common) THEN
-          WRITE(output_unit,"(T2,A,T2,A,3F10.6)") "CURRENT|","Common center ",common_center(1:3)
+          WRITE(output_unit,"(T2,A,3F10.6)") "CURRENT| Common center ",common_center(1:3)
        ENDIF
        !IF(current_env%full) THEN
        !   WRITE(output_unit,"(T2,A,T2,A)") "CURRENT|","Full orbital dependent correction"
