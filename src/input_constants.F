@@ -406,7 +406,11 @@ MODULE input_constants
 
   INTEGER, PARAMETER, PUBLIC :: current_gauge_r=1,&
                                 current_gauge_r_and_Bader=2,&
-                                current_gauge_r_and_step_func=3
+                                current_gauge_r_and_step_func=3,&
+                                current_orb_center_wannier=1,&
+                                current_orb_center_common=2,&
+                                current_orb_center_atom=3,&
+                                current_orb_center_box=4
 
   INTEGER, PARAMETER, PUBLIC :: ot_mini_sd=1,ot_mini_cg=2,ot_mini_diis=3
   INTEGER, PARAMETER, PUBLIC :: ot_algo_taylor_or_diag=1,ot_algo_irac=2

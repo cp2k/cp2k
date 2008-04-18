@@ -49,6 +49,7 @@ MODULE qs_linres_nmr_utils
   USE qs_mo_types,                     ONLY: mo_set_p_type
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -273,7 +274,20 @@ CONTAINS
           ENDDO
           nmr_env%do_calc_cs_atom = 1
        ENDIF
-
+       !
+       ! check the list
+       CPPostcondition(ASSOCIATED(nmr_env%cs_atom_list),cp_failure_level,routineP,error,failure)
+       DO ir = 1,SIZE(nmr_env%cs_atom_list,1)
+          IF(nmr_env%cs_atom_list(ir).LT.1.OR.nmr_env%cs_atom_list(ir).GT.natom) THEN
+             CALL stop_program("nmr_env_init","unknown atom(s)")
+          ENDIF
+          DO j = 1,SIZE(nmr_env%cs_atom_list,1)
+             IF(j.EQ.ir) CYCLE
+             IF(nmr_env%cs_atom_list(ir).EQ.nmr_env%cs_atom_list(j)) THEN
+                CALL stop_program("nmr_env_init","duplicate atoms")
+             ENDIF
+           ENDDO
+        ENDDO
     ELSE
        NULLIFY(nmr_env%cs_atom_list)
     ENDIF

@@ -321,7 +321,7 @@ CONTAINS
        CALL linres_scf_mini(p_env,qs_env,linres_control,b,Ab,&
                             dft_control%nspins,iter,error=error)
 
-       IF(output_unit>0) THEN
+       IF(output_unit>0.AND.MOD(iter,10).EQ.0) THEN
           WRITE(output_unit,"(T2,I5,T11,A,T20,1E8.2,T30,3F20.10)")&
                 iter,linres_control%flag,linres_control%ds_min, &
                 p_env%gnorm,p_env%delta,p_env%etotal

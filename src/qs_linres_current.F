@@ -21,6 +21,7 @@ MODULE qs_linres_current
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -84,7 +85,8 @@ MODULE qs_linres_current
                                              calculate_jrho_atom_coeff,&
                                              calculate_jrho_atom_rad
   USE qs_linres_op,                    ONLY: set_vecp
-  USE qs_linres_types,                 ONLY: current_env_type
+  USE qs_linres_types,                 ONLY: current_env_type,&
+                                             get_current_env
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_modify_pab_block,             ONLY: FUNC_ADBmDAB,&
@@ -163,7 +165,8 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: ext, filename
     INTEGER :: handle, homo, i_B, iao, iatom, idir, idir3, ii_B, iii_B, &
-      ispin, istat, istate, nao, natom, nmo, nspins, output_unit, unit_nr
+      ispin, istat, istate, j, jstate, nao, natom, nmo, nspins, output_unit, &
+      unit_nr
     LOGICAL                                  :: failure, gapw, ionode, uni_occ
     REAL(dp)                                 :: alpha, dk(3), &
                                                 jrho_tot_G(3,3), &
@@ -173,6 +176,8 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_psi1
     REAL(dp), EXTERNAL                       :: DDOT
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_2d_i_p_type), DIMENSION(:), &
+      POINTER                                :: center_list
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: fm_work1, mo_coeff, psi0_fk, &
@@ -213,7 +218,7 @@ CONTAINS
     NULLIFY(density_matrix0,density_matrix,density_matrix_ii,density_matrix_iii)
     NULLIFY(cell,dft_control,mos,rho_struct,particle_set,pw_env)
     NULLIFY(auxbas_rs_pool,auxbas_pw_pool,pw_pools)
-    NULLIFY(shift_pw_gspace,para_env)
+    NULLIFY(shift_pw_gspace,para_env,center_list)
     NULLIFY(mo_coeff,psi0_fk,fm_work1,psi_a_iB)
 
     logger => cp_error_get_logger(error)
@@ -229,6 +234,12 @@ CONTAINS
        NULLIFY(density_matrix_ii(ispin)%matrix)
        NULLIFY(density_matrix_iii(ispin)%matrix)
     ENDDO
+    !
+    !
+    CALL get_current_env(current_env=current_env,&
+                         center_list=center_list,&
+                         error=error)
+    !
     !
     CALL get_qs_env(qs_env=qs_env,rho=rho_struct,&
          &          cell=cell,dft_control=dft_control,mos=mos,&
@@ -346,26 +357,29 @@ CONTAINS
              CALL cp_fm_set_all(psi_a_iB,0.0_dp,error=error)
              !
              ! contributions from the response psi1_p_ii and psi1_p_iii
-             DO istate = 1,current_env%nstates(ispin)
-                CALL cp_fm_get_submatrix(current_env%psi1_p(ispin,ii_B)%matrix,&
-                     &                   vecbuf(ii_B)%array,1,istate,nao,1,&
-                     &                   transpose=.TRUE.,error=error)
-                CALL cp_fm_get_submatrix(current_env%psi1_p(ispin,iii_B)%matrix,&
-                     &                   vecbuf(iii_B)%array,1,istate,nao,1,&
-                     &                   transpose=.TRUE.,error=error)
+             DO istate = 1,current_env%nbr_center(ispin)
                 dk(1:3) = current_env%centers_set(ispin)%array(1:3,istate)
-                DO iao = 1,nao
-                   Rmu(1:3) = current_env%basisfun_center(1:3,iao)
-                   Rmu_dk = pbc(dk,Rmu,cell)
-                   vecbuf_psi1(1,iao) = Rmu_dk(ii_B)*vecbuf(iii_B)%array(1,iao)-&
-                        &               Rmu_dk(iii_B)*vecbuf(ii_B)%array(1,iao)
-                ENDDO  ! iao
                 !
                 ! Copy the vector in the full matrix psi1
-                CALL cp_fm_set_submatrix(psi1(ispin)%matrix,vecbuf_psi1,&
-                     &                   1,istate,nao,1,transpose=.TRUE.,&
-                     &                   error=error)
-             ENDDO  ! istate
+                DO j = center_list(ispin)%array(1,istate),center_list(ispin)%array(1,istate+1)-1
+                   jstate = center_list(ispin)%array(2,j)
+                   CALL cp_fm_get_submatrix(current_env%psi1_p(ispin,ii_B)%matrix,&
+                        &                   vecbuf(ii_B)%array,1,jstate,nao,1,&
+                        &                   transpose=.TRUE.,error=error)
+                   CALL cp_fm_get_submatrix(current_env%psi1_p(ispin,iii_B)%matrix,&
+                        &                   vecbuf(iii_B)%array,1,jstate,nao,1,&
+                        &                   transpose=.TRUE.,error=error)
+                   DO iao = 1,nao
+                      Rmu(1:3) = current_env%basisfun_center(1:3,iao)
+                      Rmu_dk = pbc(dk,Rmu,cell)
+                      vecbuf_psi1(1,iao) = Rmu_dk(ii_B)*vecbuf(iii_B)%array(1,iao)-&
+                           &               Rmu_dk(iii_B)*vecbuf(ii_B)%array(1,iao)
+                   ENDDO  ! iao
+                   CALL cp_fm_set_submatrix(psi1(ispin)%matrix,vecbuf_psi1,&
+                        &                   1,jstate,nao,1,transpose=.TRUE.,&
+                        &                   error=error)
+                ENDDO
+             ENDDO ! istate
              !
              ! contribution from the response psi1_rxp
              CALL cp_fm_scale_and_add(-1.0_dp,psi_a_iB,1.0_dp,&

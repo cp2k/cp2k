@@ -18,6 +18,7 @@ MODULE qs_linres_op
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
@@ -61,7 +62,7 @@ MODULE qs_linres_op
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: current_operators,fac_vecp,ind_m2,set_vecp,set_vecp_rev !epr_operators,
+  PUBLIC :: current_operators,fac_vecp,ind_m2,set_vecp,set_vecp_rev
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_op'
 
@@ -92,10 +93,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'current_operators', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, i, iao, iatom, &
-                                                idir, ii, iii, ispin, istat, &
-                                                istate, nao, natom, nmo, &
-                                                nsgf, output_unit
+    INTEGER :: handle, homo, i, iao, icenter, idir, ii, iii, ispin, istat, &
+      istate, j, nao, natom, nbr_center(2), nmo, nsgf, nspins, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     LOGICAL                                  :: failure, ionode
     REAL(dp)                                 :: chk(3), ck(3), ckdk(3), dk(3)
@@ -103,6 +102,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_2d_i_p_type), DIMENSION(:), &
+      POINTER                                :: center_list
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf_RmdC0
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: centers_set
@@ -129,8 +130,8 @@ CONTAINS
 
     NULLIFY(atomic_kind_set,cell,dft_control,linres_control,&
          &  logger,mos,particle_set,lr_section,fm_work1,&
-         &  basisfun_center,centers_set,p_psi0,rxp_psi0,&
-         &  op_p_ao,op_rmd_ao,vecbuf_c0)
+         &  basisfun_center,centers_set,center_list,p_psi0,&
+         &  rxp_psi0,op_p_ao,op_rmd_ao,vecbuf_c0)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -149,9 +150,11 @@ CONTAINS
                     mos=mos, para_env=para_env, &
                     particle_set=particle_set,error=error)
 
+    nspins = dft_control%nspins
+
     CALL get_current_env(current_env=current_env, nao=nao, centers_set=centers_set,&
-                         basisfun_center=basisfun_center, &
-                         p_psi0=p_psi0, rxp_psi0=rxp_psi0,&
+                         center_list=center_list,basisfun_center=basisfun_center, &
+                         nbr_center=nbr_center,p_psi0=p_psi0, rxp_psi0=rxp_psi0,&
                          op_p_ao=op_p_ao, op_rmd_ao=op_rmd_ao,error=error)
 
     ALLOCATE(vecbuf_c0(1,nao),STAT=istat)
@@ -179,25 +182,28 @@ CONTAINS
        WRITE(output_unit,*) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING'
     ENDIF
 
-    DO ispin=1,dft_control%nspins
+    DO ispin = 1,nspins
        p_psi0(ispin,1)%matrix%local_data=0e0_dp
        p_psi0(ispin,2)%matrix%local_data=0e0_dp
        p_psi0(ispin,3)%matrix%local_data=0e0_dp
-       CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo,homo=homo)
-       DO istate = 1,homo    
+       CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+       DO icenter = 1,nbr_center(ispin)
           CALL set_matrix(op_rmd_ao(1)%matrix,0.0_dp)
           CALL set_matrix(op_rmd_ao(2)%matrix,0.0_dp)
           CALL set_matrix(op_rmd_ao(3)%matrix,0.0_dp)
-
           CALL rmc_x_p_xyz_ao(op_rmd_ao,qs_env,minimum_image=.FALSE.,&
-               & wancen=centers_set(ispin)%array(1:3,istate),error=error)
-
+               &              wancen=centers_set(ispin)%array(1:3,icenter),&
+               &              error=error)
           DO idir = 1,3
              CALL cp_fm_set_all(rxp_psi0(ispin,idir)%matrix,0.0_dp,error=error)
              CALL cp_sm_fm_multiply(op_rmd_ao(idir)%matrix,mo_coeff,&
-                  rxp_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
-             CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix,&
-                  &           p_psi0(ispin,idir)%matrix,1,istate,istate)
+                  &                 rxp_psi0(ispin,idir)%matrix,ncol=nmo,&
+                  &                 alpha=-1.0_dp,error=error)
+             DO j = center_list(ispin)%array(1,icenter),center_list(ispin)%array(1,icenter+1)-1
+                istate = center_list(ispin)%array(2,j)
+                CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix,&
+                     &           p_psi0(ispin,idir)%matrix,1,istate,istate)
+             ENDDO
           END DO
        ENDDO
        rxp_psi0(ispin,1)%matrix%local_data = p_psi0(ispin,1)%matrix%local_data
@@ -229,7 +235,7 @@ CONTAINS
     ENDIF
     ! Apply the p operator to the psi0
     DO idir = 1,3
-      DO ispin = 1, dft_control%nspins
+      DO ispin = 1,nspins
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
          CALL cp_fm_set_all(p_psi0(ispin,idir)%matrix,0.0_dp,error=error)
          CALL cp_sm_fm_multiply(op_p_ao(idir)%matrix,mo_coeff,&
@@ -241,7 +247,7 @@ CONTAINS
          "PRINT%PROGRAM_RUN_INFO",error=error)
     !
     ! Apply the (r-c)xp operator to the psi0
-    !DO ispin = 1, dft_control%nspins
+    !DO ispin = 1,nspins
     !  CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo, homo=homo)
     !  DO idir = 1,3
     !     CALL cp_fm_set_all(rxp_psi0(ispin,idir)%matrix,0.0_dp,error=error)
@@ -264,16 +270,16 @@ CONTAINS
 
     !Build 3 arrays where for each contracted basis function
     !the x y and z coordinates of the center are given
-    DO iatom = 1,natom
-       DO iao = first_sgf(iatom),last_sgf(iatom)
-          DO idir = 1,3
-             current_env%basisfun_center(idir,iao) = particle_set(iatom)%r(idir)
-          END DO
-       END DO
-    END DO
+!    DO iatom = 1,natom
+!       DO iao = first_sgf(iatom),last_sgf(iatom)
+!          DO idir = 1,3
+!             current_env%basisfun_center(idir,iao) = particle_set(iatom)%r(idir)
+!          END DO
+!       END DO
+!    END DO
 
     !Calculate the second term of the operator state by state
-    DO ispin = 1, -1!dft_control%nspins
+    DO ispin = 1, -1!nspins
        CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo,homo=homo)
 
        !   Allocate full matrices as working storage in the calculation

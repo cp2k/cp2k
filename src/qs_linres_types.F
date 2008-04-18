@@ -14,6 +14,7 @@ MODULE qs_linres_types
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_array_i_utils,                ONLY: cp_2d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type
@@ -100,11 +101,12 @@ MODULE qs_linres_types
   TYPE current_env_type
      LOGICAL                                     :: full,simple_done(6),simple_converged(6)
      LOGICAL, DIMENSION(:,:), POINTER            :: full_done
-     INTEGER                                     :: ref_count,nao,nstates(2),gauge
+     INTEGER                                     :: ref_count,nao,nstates(2),gauge,orb_center,nbr_center(2)
      INTEGER, DIMENSION(:    ), POINTER          :: list_cubes
      INTEGER, DIMENSION(:,:,:), POINTER          :: statetrueindex
-     CHARACTER(LEN=30)                           :: gauge_name
+     CHARACTER(LEN=30)                           :: gauge_name,orb_center_name
      REAL(dp), DIMENSION(:,:), POINTER           :: basisfun_center
+     TYPE(cp_2d_i_p_type),    DIMENSION(:  ), POINTER :: center_list
      TYPE(cp_2d_r_p_type),    DIMENSION(:  ), POINTER :: centers_set
      TYPE(cp_fm_pool_p_type), DIMENSION(:  ), POINTER :: ao_mo_fm_pools
      TYPE(cp_fm_p_type),      DIMENSION(:,:), POINTER :: psi1_p,psi1_rxp,psi1_D,p_psi0,rxp_psi0
@@ -129,33 +131,10 @@ MODULE qs_linres_types
 
 ! *****************************************************************************
   TYPE epr_env_type
-     !INTEGER                                     :: gauge
-     !CHARACTER(LEN=30)                           :: gauge_name
-     INTEGER                                     :: ref_count!, nao, nstates(2)
-     !INTEGER, DIMENSION(:), POINTER              :: list_cubes
-     !INTEGER, DIMENSION(:,:,:), POINTER          :: statetrueindex
-     !LOGICAL                                     :: full_epr,simpleepr_done(6),&
-     !                                               simpleepr_converged(6),&
-     !                                               restart_epr
-     !LOGICAL, DIMENSION(:,:), POINTER            :: fullepr_done
-     !REAL(dp), DIMENSION(:,:), POINTER           :: basisfun_center
+     INTEGER                                     :: ref_count
      REAL(dp)                                    :: g_free_factor, g_soo_chicorr_factor, g_soo_factor,&
           &                                         g_so_factor, g_so_factor_gapw, g_zke_factor, g_zke
      REAL(dp), DIMENSION(:,:), POINTER           :: g_total, g_so, g_soo, bind0
-     !TYPE(cp_2d_r_p_type), DIMENSION(:),POINTER  :: centers_set
-     !TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-     !  POINTER                                   :: ao_mo_fm_pools
-     !TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: psi1_p, psi1_rxp, psi1_D
-     !TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: p_psi0, rxp_psi0
-     !TYPE(jrho_atom_type),DIMENSION(:),&
-     !  POINTER                                   :: jrho1_atom_set
-     !TYPE(qs_rho_p_type),DIMENSION(:,:), POINTER :: jrho1_set
-     !TYPE(real_matrix_p_type), DIMENSION(:), &
-     !     POINTER                                :: op_p_ao, op_rmd_ao
-     !TYPE(real_matrix_p_type), DIMENSION(:,:), &
-     !     POINTER                                :: jp2_ao
-     !TYPE(real_matrix_p_type), DIMENSION(:), &
-     !     POINTER                                :: jp0_ao, jp1_ao
      TYPE(qs_rho_p_type),      DIMENSION(:,:), POINTER :: nablavks_set
      TYPE(nablavks_atom_type), DIMENSION(:  ), POINTER :: nablavks_atom_set
      TYPE(qs_rho_p_type),      DIMENSION(:,:), POINTER :: bind_set
@@ -312,10 +291,16 @@ CONTAINS
     CPPrecondition(current_env%ref_count==0, cp_failure_level,routineP,error,failure)
     IF(.NOT. failure) THEN
        current_env%ref_count = 1
+       current_env%nao           = HUGE(1)
+       current_env%gauge         = HUGE(1)
+       current_env%orb_center    = HUGE(1)
+       current_env%nstates(:)    = HUGE(1)
+       current_env%nbr_center(:) = HUGE(1)
        NULLIFY(current_env%full_done)
        NULLIFY(current_env%list_cubes)
        NULLIFY(current_env%statetrueindex)
        NULLIFY(current_env%basisfun_center)
+       NULLIFY(current_env%center_list)
        NULLIFY(current_env%centers_set)
        NULLIFY(current_env%ao_mo_fm_pools)
        NULLIFY(current_env%psi1_p)
@@ -377,24 +362,6 @@ CONTAINS
     CPPrecondition(epr_env%ref_count==0, cp_failure_level,routineP,error,failure)
     IF(.NOT. failure) THEN
        epr_env%ref_count = 1
-       !NULLIFY(epr_env%centers_set)
-       !NULLIFY(epr_env%ao_mo_fm_pools)
-       !NULLIFY(epr_env%op_p_ao)
-       !NULLIFY(epr_env%op_rmd_ao)
-       !NULLIFY(epr_env%psi1_p)
-       !NULLIFY(epr_env%psi1_rxp)
-       !NULLIFY(epr_env%psi1_D)
-       !NULLIFY(epr_env%jp0_ao)
-       !NULLIFY(epr_env%jp1_ao)
-       !NULLIFY(epr_env%jp2_ao)
-       !NULLIFY(epr_env%p_psi0)
-       !NULLIFY(epr_env%rxp_psi0)
-       !NULLIFY(epr_env%jrho1_set)
-       !NULLIFY(epr_env%jrho1_atom_set)
-       !NULLIFY(epr_env%fullepr_done)
-       !NULLIFY(epr_env%basisfun_center)
-       !NULLIFY(epr_env%statetrueindex)
-       !NULLIFY(epr_env%list_cubes)
        NULLIFY(epr_env%nablavks_set)
        NULLIFY(epr_env%nablavks_atom_set)
        NULLIFY(epr_env%bind_set)
@@ -410,9 +377,9 @@ CONTAINS
        
   SUBROUTINE get_current_env(current_env,simple_done,simple_converged,full_done,ref_count,nao,&
        &                 nstates,gauge,list_cubes,statetrueindex,gauge_name,basisfun_center,&
-       &                 centers_set,ao_mo_fm_pools,psi1_p,psi1_rxp,psi1_D,p_psi0,rxp_psi0,&
-       &                 jrho1_atom_set,jrho1_set,op_p_ao,op_rmd_ao,jp2_ao,jp0_ao,jp1_ao,&
-       &                 error)
+       &                 nbr_center,center_list,centers_set,ao_mo_fm_pools,psi1_p,psi1_rxp,psi1_D,&
+       &                 p_psi0,rxp_psi0,jrho1_atom_set,jrho1_set,op_p_ao,op_rmd_ao,jp2_ao,&
+       &                 jp0_ao,jp1_ao,error)
     
     TYPE(current_env_type), OPTIONAL         :: current_env
     LOGICAL, OPTIONAL                        :: simple_done(6), &
@@ -427,6 +394,9 @@ CONTAINS
     CHARACTER(LEN=30), OPTIONAL              :: gauge_name
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: basisfun_center
+    INTEGER, OPTIONAL                        :: nbr_center(2)
+    TYPE(cp_2d_i_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: center_list
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: centers_set
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -452,6 +422,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
 !
+!
 
     failure =.FALSE.
 
@@ -469,6 +440,8 @@ CONTAINS
        IF(PRESENT(statetrueindex  )) statetrueindex        => current_env%statetrueindex
        IF(PRESENT(gauge_name      )) gauge_name            =  current_env%gauge_name
        IF(PRESENT(basisfun_center )) basisfun_center       => current_env%basisfun_center
+       IF(PRESENT(nbr_center      )) nbr_center(1:2)       =  current_env%nbr_center(1:2)
+       IF(PRESENT(center_list     )) center_list           => current_env%center_list
        IF(PRESENT(centers_set     )) centers_set           => current_env%centers_set
        IF(PRESENT(ao_mo_fm_pools  )) ao_mo_fm_pools        => current_env%ao_mo_fm_pools
        IF(PRESENT(psi1_p          )) psi1_p                => current_env%psi1_p
@@ -639,66 +612,25 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-!INTEGER, INTENT(OUT), OPTIONAL           :: nao, nstates(2)
-!INTEGER, DIMENSION(:), OPTIONAL, POINTER :: list_cubes
-!INTEGER, DIMENSION(:, :, :), OPTIONAL, &
-!  POINTER                                :: statetrueindex
-!, &
-!basisfun_center
-!TYPE(cp_2d_r_p_type), DIMENSION(:), &
-!  OPTIONAL, POINTER                      :: centers_set
-!TYPE(cp_fm_p_type), DIMENSION(:, :), &
-!  OPTIONAL, POINTER                      :: psi1_p, psi1_rxp, psi1_D, &
-!                                            p_psi0, rxp_psi0
-!TYPE(jrho_atom_type), DIMENSION(:), &
-!  OPTIONAL, POINTER                      :: jrho1_atom_set
-!TYPE(qs_rho_p_type), DIMENSION(:, :), &
-!  OPTIONAL, POINTER                      :: jrho1_set
-!TYPE(real_matrix_p_type), DIMENSION(:), &
-!  OPTIONAL, POINTER                      :: op_p_ao, op_rmd_ao, jp0_ao, &
-!                                            jp1_ao
-!TYPE(real_matrix_p_type), &
-!  DIMENSION(:, :), OPTIONAL, POINTER     :: jp2_ao
+    failure =.FALSE.
 
-     failure =.FALSE.
-
-     CPPrecondition(epr_env%ref_count>0, cp_failure_level,routineP,error,failure)
-
-     !IF(PRESENT(nao)) nao=epr_env%nao
-     !IF(PRESENT(nstates)) nstates(1:2)=epr_env%nstates(1:2)
-     !IF(PRESENT(list_cubes)) list_cubes => epr_env%list_cubes
-     !IF(PRESENT(statetrueindex)) statetrueindex => epr_env%statetrueindex
-     !IF(PRESENT(centers_set)) centers_set => epr_env%centers_set
-     !IF(PRESENT(basisfun_center)) basisfun_center => epr_env%basisfun_center
-     !IF(PRESENT(centers_set)) centers_set => epr_env%centers_set
-     !IF(PRESENT(psi1_p)) psi1_p => epr_env%psi1_p
-     !IF(PRESENT(psi1_rxp)) psi1_rxp => epr_env%psi1_rxp
-     !IF(PRESENT(psi1_D)) psi1_D => epr_env%psi1_D
-     !IF(PRESENT(p_psi0)) p_psi0 => epr_env%p_psi0
-     !IF(PRESENT(rxp_psi0)) rxp_psi0 => epr_env%rxp_psi0
-     !IF(PRESENT(jrho1_atom_set)) jrho1_atom_set => epr_env%jrho1_atom_set
-     !IF(PRESENT(jrho1_set)) jrho1_set => epr_env%jrho1_set
-     !IF(PRESENT(op_rmd_ao)) op_rmd_ao => epr_env%op_rmd_ao
-     !IF(PRESENT(op_p_ao)) op_p_ao => epr_env%op_p_ao
-     !IF(PRESENT(jp2_ao)) jp2_ao => epr_env%jp2_ao
-     !IF(PRESENT(jp1_ao)) jp1_ao => epr_env%jp1_ao
-     !IF(PRESENT(jp0_ao)) jp0_ao => epr_env%jp0_ao
-     IF(PRESENT(g_total)) g_total => epr_env%g_total
-     IF(PRESENT(g_so)) g_so => epr_env%g_so
-     IF(PRESENT(g_soo)) g_soo => epr_env%g_soo
-     IF(PRESENT(bind0)) bind0 => epr_env%bind0
-     IF(PRESENT(nablavks_set)) nablavks_set => epr_env%nablavks_set
-     IF(PRESENT(nablavks_atom_set)) nablavks_atom_set => epr_env%nablavks_atom_set
-     IF(PRESENT(bind_set)) bind_set => epr_env%bind_set
-     IF(PRESENT(bind_atom_set)) bind_atom_set => epr_env%bind_atom_set
+    CPPrecondition(epr_env%ref_count>0, cp_failure_level,routineP,error,failure)
+     
+    IF(PRESENT(g_total)) g_total => epr_env%g_total
+    IF(PRESENT(g_so)) g_so => epr_env%g_so
+    IF(PRESENT(g_soo)) g_soo => epr_env%g_soo
+    IF(PRESENT(bind0)) bind0 => epr_env%bind0
+    IF(PRESENT(nablavks_set)) nablavks_set => epr_env%nablavks_set
+    IF(PRESENT(nablavks_atom_set)) nablavks_atom_set => epr_env%nablavks_atom_set
+    IF(PRESENT(bind_set)) bind_set => epr_env%bind_set
+    IF(PRESENT(bind_atom_set)) bind_atom_set => epr_env%bind_atom_set
 
   END SUBROUTINE get_epr_env
 
 ! *****************************************************************************
   SUBROUTINE set_epr_env(epr_env,g_free_factor,g_soo_chicorr_factor,&
                          g_soo_factor,g_so_factor,g_so_factor_gapw,&
-                         g_zke_factor,&!jrho1_atom_set,jrho1_set,&
-                         nablavks_set,nablavks_atom_set,&
+                         g_zke_factor,nablavks_set,nablavks_atom_set,&
                          error)
 
     TYPE(epr_env_type)                       :: epr_env
@@ -717,10 +649,6 @@ CONTAINS
     INTEGER                                  :: idir, ispin
     LOGICAL                                  :: failure
 
-!TYPE(jrho_atom_type), DIMENSION(:), &
-!  OPTIONAL, POINTER                      :: jrho1_atom_set
-!jrho1_set,
-
     failure =.FALSE.
 
     CPPrecondition(epr_env%ref_count>0, cp_failure_level,routineP,error,failure)
@@ -731,24 +659,6 @@ CONTAINS
     IF(PRESENT(g_so_factor_gapw)) epr_env%g_so_factor_gapw=g_so_factor_gapw
     IF(PRESENT(g_soo_factor)) epr_env%g_soo_factor=g_soo_factor
     IF(PRESENT(g_soo_chicorr_factor)) epr_env%g_soo_chicorr_factor=g_soo_chicorr_factor
-
-    !IF(PRESENT(jrho1_atom_set)) THEN
-    !   IF(ASSOCIATED(epr_env%jrho1_atom_set)) THEN
-    !      CALL deallocate_jrho_atom_set(epr_env%jrho1_atom_set,error=error)
-    !   ENDIF
-    !   epr_env%jrho1_atom_set => jrho1_atom_set
-    !ENDIF
-
-    !IF(PRESENT(jrho1_set)) THEN
-    !   IF(ASSOCIATED(epr_env%jrho1_set)) THEN
-    !       DO iB = 1,3
-    !         DO idir = 1,3
-    !           CALL qs_rho_release(epr_env%jrho1_set(idir,iB)%rho,error=error)
-    !         END DO
-    !       END DO
-    !    END IF
-    !    epr_env%jrho1_set => jrho1_set
-    !ENDIF
 
     IF(PRESENT(nablavks_set)) THEN
         IF(ASSOCIATED(epr_env%nablavks_set)) THEN
