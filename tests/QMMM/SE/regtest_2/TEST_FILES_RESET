@@ -80,3 +80,5 @@ Si_tersoff_qmmm.inp
 Si_tersoff_qmmm.inp
 # numerics after new FOCK matrix construction
 Si_tersoff_qmmm.inp
+# numerics
+Si_tersoff_qmmm.inp

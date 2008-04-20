@@ -90,7 +90,6 @@ CONTAINS
     sep%name    = "CLASSICAL"
     sep%eheat   = 0.0_dp
     sep%z       = z
-    sep%ngauss  = 0
     sep%defined = .TRUE.
     CALL valence_electrons (z, sep, extended_basis_set=.FALSE., error=error)
 
@@ -111,7 +110,6 @@ CONTAINS
     sep%name   = ptable(z)%name
     sep%eheat  = ptable(z)%heat_of_formation / kcalmol
     sep%z      = z
-    sep%ngauss = 6
     CALL valence_electrons(z, sep, extended_basis_set=(itype==do_method_mndod),&
          error=error)
 
@@ -133,18 +131,18 @@ CONTAINS
     CASE (3)
        !Lithium
        sep%defined          = .TRUE.
-       sep%alp              =   1.2501400_dp
-       sep%beta(0)          =  -1.3500400_dp
-       sep%beta(1)          =  -1.3500400_dp
-       sep%sto_exponents(0) =   0.7023800_dp 
-       sep%sto_exponents(1) =   0.7023800_dp
-       sep%uss              =  -5.1280000_dp 
-       sep%upp              =  -2.7212000_dp
-       sep%gss              =   7.3000000_dp 
-       sep%gsp              =   5.4200000_dp 
-       sep%gpp              =   5.0000000_dp
-       sep%gp2              =   4.5200000_dp
-       sep%hsp              =   0.8300000_dp
+       sep%alp              =   1.2083987_dp
+       sep%beta(0)          =  -0.1904126_dp
+       sep%beta(1)          =  -0.1904126_dp
+       sep%sto_exponents(0) =   0.4296141_dp 
+       sep%sto_exponents(1) =   0.7554884_dp
+       sep%uss              =  -4.8578570_dp 
+       sep%upp              =  -2.0266084_dp
+       sep%gss              =   7.5947069_dp 
+       sep%gsp              =   6.7259856_dp 
+       sep%gpp              =   8.6596829_dp
+       sep%gp2              =   3.8714751_dp
+       sep%hsp              =   5.0003381_dp
     CASE (4)
        !Beryllium
        sep%defined          = .TRUE.
@@ -703,8 +701,8 @@ CONTAINS
        sep%defined          = .TRUE.
        sep%uss              =  -5.20100000_dp
        sep%upp              =  -2.71257317_dp
-       sep%beta(0)          =  -0.48623935_dp
-       sep%beta(1)          =  -1.08738166_dp
+       sep%beta(0)          =  -1.08738166_dp
+       sep%beta(1)          =  -0.48623935_dp
        sep%sto_exponents(0) =   0.98750834_dp
        sep%sto_exponents(1) =   0.89334983_dp
        sep%zn(0)            =   0.65411258_dp
@@ -720,8 +718,8 @@ CONTAINS
        sep%defined          = .TRUE.
        sep%uss              = -15.09700000_dp
        sep%upp              = -10.65000000_dp
-       sep%beta(0)          =  -2.14108943_dp
-       sep%beta(1)          =  -1.89588355_dp
+       sep%beta(0)          =  -1.89588355_dp
+       sep%beta(1)          =  -2.14108943_dp
        sep%sto_exponents(0) =   1.44890446_dp
        sep%sto_exponents(1) =   0.95293002_dp
        sep%zn(0)            =   1.05000000_dp
@@ -759,9 +757,9 @@ CONTAINS
        sep%uss              = -36.05153000_dp
        sep%upp              = -27.53569100_dp
        sep%udd              = -14.67743900_dp
-       sep%beta(0)          =  -2.60801150_dp
+       sep%beta(0)          =  -8.21073420_dp
        sep%beta(1)          =  -4.88462030_dp
-       sep%beta(2)          =  -8.21073420_dp
+       sep%beta(2)          =  -2.60801150_dp
        sep%sto_exponents(0) =   1.91565460_dp
        sep%sto_exponents(1) =   1.68161130_dp
        sep%sto_exponents(2) =   0.96677166_dp
@@ -780,9 +778,9 @@ CONTAINS
        sep%uss              = -47.05552900_dp
        sep%upp              = -38.06705900_dp
        sep%udd              = -23.69159700_dp
-       sep%beta(0)          =  -2.09170080_dp
+       sep%beta(0)          =  -8.90210430_dp
        sep%beta(1)          =  -9.38611080_dp
-       sep%beta(2)          =  -8.90210430_dp
+       sep%beta(2)          =  -2.09170080_dp
        sep%sto_exponents(0) =   2.26646290_dp
        sep%sto_exponents(1) =   1.94001490_dp
        sep%sto_exponents(2) =   1.10010900_dp
@@ -801,9 +799,9 @@ CONTAINS
        sep%uss              = -56.88912800_dp
        sep%upp              = -47.27474500_dp
        sep%udd              = -25.09511800_dp
-       sep%beta(0)          =  -1.88066950_dp
+       sep%beta(0)          = -10.99954500_dp
        sep%beta(1)          = -12.21543700_dp
-       sep%beta(2)          = -10.99954500_dp
+       sep%beta(2)          =  -1.88066950_dp
        sep%sto_exponents(0) =   2.22585050_dp
        sep%sto_exponents(1) =   2.09970560_dp
        sep%sto_exponents(2) =   1.23147250_dp
@@ -822,9 +820,9 @@ CONTAINS
        sep%uss              = -69.62297275_dp
        sep%upp              = -59.10072899_dp
        sep%udd              = -36.67457320_dp
-       sep%beta(0)          =  -1.87778198_dp
+       sep%beta(0)          =  -6.03729165_dp
        sep%beta(1)          = -19.18338497_dp
-       sep%beta(2)          =  -6.03729165_dp
+       sep%beta(2)          =  -1.87778198_dp
        sep%sto_exponents(0) =   2.56161065_dp
        sep%sto_exponents(1) =   2.38933800_dp
        sep%sto_exponents(2) =   1.25139777_dp
@@ -842,8 +840,8 @@ CONTAINS
        sep%defined          = .TRUE.
        sep%uss              = -18.02300000_dp
        sep%upp              = -12.24216585_dp
-       sep%beta(0)          =  -0.71205972_dp
-       sep%beta(1)          =  -5.01726076_dp
+       sep%beta(0)          =  -5.01726076_dp
+       sep%beta(1)          =  -0.71205972_dp
        sep%sto_exponents(0) =   1.73150352_dp
        sep%sto_exponents(1) =   1.39358305_dp
        sep%zn(0)            =   1.56600000_dp
@@ -880,8 +878,8 @@ CONTAINS
        sep%defined          = .TRUE.
        sep%uss              = -16.96970000_dp
        sep%upp              = -12.40096476_dp
-       sep%beta(0)          =  -1.80565019_dp
-       sep%beta(1)          =  -2.77154379_dp
+       sep%beta(0)          =  -2.77154379_dp
+       sep%beta(1)          =  -1.80565019_dp
        sep%sto_exponents(0) =   1.74880559_dp
        sep%sto_exponents(1) =   1.56321473_dp
        sep%zn(0)            =   1.76314840_dp
@@ -918,8 +916,8 @@ CONTAINS
        sep%defined          = .TRUE.
        sep%uss              = -18.81564903_dp
        sep%upp              = -13.39711352_dp
-       sep%beta(0)          =  -2.90978573_dp
-       sep%beta(1)          =  -2.21872239_dp
+       sep%beta(0)          =  -2.21872239_dp
+       sep%beta(1)          =  -2.90978573_dp
        sep%sto_exponents(0) =   2.33310757_dp
        sep%sto_exponents(1) =   1.70831069_dp
        sep%zn(0)            =   2.18600011_dp
@@ -949,7 +947,6 @@ CONTAINS
     sep%name   = ptable(z)%name
     sep%eheat  = ptable(z)%heat_of_formation / kcalmol
     sep%z      = z
-    sep%ngauss = 6
     CALL valence_electrons(z, sep, extended_basis_set=.FALSE., error=error)
 
     SELECT CASE (z)
@@ -1431,7 +1428,6 @@ CONTAINS
     sep%name   = ptable(z)%name
     sep%eheat  = ptable(z)%heat_of_formation / kcalmol
     sep%z      = z
-    sep%ngauss = 6
     CALL valence_electrons(z, sep, extended_basis_set=.FALSE., error=error)
 
     SELECT CASE (z)
@@ -1642,7 +1638,6 @@ CONTAINS
     sep%name   = ptable(z)%name
     sep%eheat  = ptable(z)%heat_of_formation / kcalmol
     sep%z      = z
-    sep%ngauss = 6
     CALL valence_electrons(z, sep, extended_basis_set=.FALSE., error=error)
 
     SELECT CASE (z)
@@ -2430,7 +2425,6 @@ CONTAINS
     sep%name   = ptable(z)%name
     sep%eheat  = ptable(z)%heat_of_formation / kcalmol
     sep%z      = z
-    sep%ngauss = 6
     CALL valence_electrons(z, sep, extended_basis_set=.TRUE., error=error)
 
     SELECT CASE (z)
@@ -3787,7 +3781,6 @@ CONTAINS
     sep%name   = ptable(z)%name
     sep%eheat  = ptable(z)%heat_of_formation / kcalmol
     sep%z      = z
-    sep%ngauss = 6
     CALL valence_electrons(z, sep, extended_basis_set=.FALSE., error=error)
 
     SELECT CASE (z)

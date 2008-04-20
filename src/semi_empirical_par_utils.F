@@ -383,8 +383,8 @@ CONTAINS
     natorb = 0
     IF(nqs(z)>0)                            natorb = natorb+1
     IF(nqp(z)>0)                            natorb = natorb+3
-    IF(sep%extended_basis_set.AND.nqd(z)>0) natorb = natorb+5
-    IF(sep%extended_basis_set.AND.nqf(z)>0) natorb = natorb+7
+    IF(extended_basis_set.AND.nqd(z)>0) natorb = natorb+5
+    IF(extended_basis_set.AND.nqf(z)>0) natorb = natorb+7
     ! Check and assignemnt
     check = (natorb<=4).OR.(extended_basis_set)
     CPPostcondition(check, cp_failure_level, routineP, error, failure)
@@ -459,16 +459,16 @@ CONTAINS
        IF (ABS(sep%am) > EPSILON(0.0_dp)) THEN
           sep%ko(1) = 0.5_dp/sep%am
        END IF
-       IF (ABS(sep%ad) > EPSILON(0.0_dp)) THEN
+       IF (ABS(sep%ad) > EPSILON(0.0_dp).AND.(sep%z/=1)) THEN
           sep%ko(2) = 0.5_dp/sep%ad
        END IF
-       IF (ABS(sep%aq) > EPSILON(0.0_dp)) THEN
+       IF (ABS(sep%aq) > EPSILON(0.0_dp).AND.(sep%z/=1)) THEN
           sep%ko(3) = 0.5_dp/sep%aq
        END IF
        sep%ko(7) = sep%ko(1)
        sep%ko(9) = sep%ko(1)
        sep%cs(2) = sep%dd
-       sep%cs(3) = sep%qq * 2.0_dp
+       sep%cs(3) = sep%qq * SQRT(2.0_dp)
     ELSE
        ! Use the new integral module
        sep%ko(9) = sep%ko(1)
@@ -962,7 +962,7 @@ CONTAINS
                 ij  = int_ij(i)
                 kl  = int_kl(i)
                 ind = int_onec2el(i)
-                sep%w(ij+ij0, kl+ij0) = sep%onec2el(ind)
+                sep%w(ij+ij0, kl+ij0) = sep%onec2el(ind)/evolt
              END DO
           END IF
        END IF

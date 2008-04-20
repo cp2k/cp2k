@@ -316,8 +316,8 @@ CONTAINS
     zj  = sepj%zeff
     ddi = sepi%cs(2)
     ddj = sepj%cs(2)
-    qqi = sepi%cs(3)
-    qqj = sepj%cs(3)
+    qqi = sepi%cs(3)*SQRT(2.0_dp)
+    qqj = sepj%cs(3)*SQRT(2.0_dp)
     rsq = r*r
 
     !  hydrogen - hydrogen  (SS/SS)
@@ -1071,14 +1071,14 @@ CONTAINS
     zj   = sepj%zeff
     ddi  = sepi%cs(2)
     ddj  = sepj%cs(2)
-    qqi  = sepi%cs(3)
-    qqj  = sepj%cs(3)
+    qqi  = sepi%cs(3)*SQRT(2.0_dp)
+    qqj  = sepj%cs(3)*SQRT(2.0_dp)
 
-    !  hydrogen - hydrogen  (SS/SS)
+    !  Evaluation of the (SS/SS) term for the core-core interaction
     aee = 0.0_dp
     IF (itype/=do_method_pchg) THEN
-       ami = sepi%ko(1)
-       amj = sepj%ko(1)
+       ami = sepi%ko(9)
+       amj = sepj%ko(9)
        aee = ami + amj
        aee = aee * aee
     END IF
@@ -1087,89 +1087,114 @@ CONTAINS
     arg(1)    = rsq + aee
     sqr(1)    = pxy(1)/SQRT(arg(1))
     ri(1)     = 1.0_dp/SQRT(rsq+aee)
-
     IF (l_ssss) THEN
        ! Store the value for (SS|SS)
        ssss = ri(1)
     END IF
 
     IF (l_core) THEN
+       aee = 0.0_dp
+       IF (itype/=do_method_pchg) THEN
+          aee = amj + sepi%ko(1)
+          aee = aee * aee
+       END IF
+       IF (longrange) aee = 0.0_dp
+       arg(1)    = rsq + aee
+       sqr(1)    = pxy(1)/SQRT(arg(1))
+       ri(1)     = 1.0_dp/SQRT(rsq+aee)
        core(1,1) = zj*ri(1)
+       ! In case (i) is an heavy atom
+       IF (si) THEN
+          da  = ddi
+          qa  = qqi
+          ade = 0.0_dp
+          aqe = 0.0_dp
+          aee = 0.0_dp
+          IF (itype /=do_method_pchg) THEN
+             adi = sepi%ko(2)
+             aqi = sepi%ko(3)
+             aee = amj + sepi%ko(7)
+             ade = adi + amj
+             aqe = aqi + amj
+             aee = aee * aee
+             ade = ade * ade
+             aqe = aqe * aqe
+          END IF
+          IF (longrange) THEN
+             aee = 0.0_dp
+             ade = 0.0_dp
+             aqe = 0.0_dp
+          END IF
+          arg(1) = rsq + aee
+          xxx    = r+da
+          arg(2) = xxx*xxx + ade
+          xxx    = r-da
+          arg(3) = xxx*xxx + ade
+          xxx    = r+qa
+          arg(4) = xxx*xxx + aqe
+          xxx    = r-qa
+          arg(5) = xxx*xxx + aqe
+          arg(6) = rsq + aqe
+          arg(7) = arg(6) + qa*qa
+          sqr(1:7)  = pxy(1:7)/SQRT(arg(1:7))
+          ri(2)     = sqr(2) + sqr(3)
+          ri(3)     = sqr(1) + sqr(4) + sqr(5) + sqr(6)
+          ri(4)     = sqr(1) + sqr(6) + sqr(7)
+          core(2,1) = zj*ri(2)
+          core(3,1) = zj*ri(3)
+          core(4,1) = zj*ri(4)
+       END IF
+
+       aee = 0.0_dp
+       IF (itype/=do_method_pchg) THEN
+          aee = ami + sepj%ko(1)
+          aee = aee * aee
+       END IF
+       IF (longrange)  aee = 0.0_dp
+       arg(1)    = rsq + aee
+       sqr(1)    = pxy(1)/SQRT(arg(1))
+       ri(1)     = 1.0_dp/SQRT(rsq+aee)
        core(1,2) = zi*ri(1)
-       IF (si.OR.sj) THEN
-          ! In case (i) is an heavy atom
-          IF (si) THEN
-             da  = ddi
-             qa  = qqi
+       ! In case (j) is an heavy atom
+       IF (sj) THEN
+          db  = ddj
+          qb  = qqj
+          ade = 0.0_dp
+          aqe = 0.0_dp
+          aee = 0.0_dp
+          IF (itype /=do_method_pchg) THEN
+             adj = sepj%ko(2)
+             aqj = sepj%ko(3)
+             aee = ami + sepj%ko(7)
+             aed = ami + adj
+             aeq = ami + aqj
+             aee = aee * aee
+             aed = aed * aed
+             aeq = aeq * aeq
+          END IF
+          IF (longrange) THEN
+             aee = 0.0_dp
              ade = 0.0_dp
              aqe = 0.0_dp
-             IF (itype /=do_method_pchg) THEN
-                adi = sepi%ko(2)
-                aqi = sepi%ko(3)
-                ade = adi + amj
-                aqe = aqi + amj
-                ade = ade * ade
-                aqe = aqe * aqe
-             END IF
-             IF (longrange) THEN
-                ade = 0.0_dp
-                aqe = 0.0_dp
-             END IF
-             xxx    = r+da
-             arg(2) = xxx*xxx + ade
-             xxx    = r-da
-             arg(3) = xxx*xxx + ade
-             xxx    = r+qa
-             arg(4) = xxx*xxx + aqe
-             xxx    = r-qa
-             arg(5) = xxx*xxx + aqe
-             arg(6) = rsq + aqe
-             arg(7) = arg(6) + qa*qa
-             sqr(2:7)  = pxy(2:7)/SQRT(arg(2:7))
-             ri(2)     = sqr(2) + sqr(3)
-             ri(3)     = sqr(1) + sqr(4) + sqr(5) + sqr(6)
-             ri(4)     = sqr(1) + sqr(6) + sqr(7)
-             core(2,1) = zj*ri(2)
-             core(3,1) = zj*ri(3)
-             core(4,1) = zj*ri(4)
           END IF
-          
-          ! In case (j) is an heavy atom
-          IF (sj) THEN
-             db  = ddj
-             qb  = qqj
-             ade = 0.0_dp
-             aqe = 0.0_dp
-             IF (itype /=do_method_pchg) THEN
-                adj = sepj%ko(2)
-                aqj = sepj%ko(3)
-                aed = ami + adj
-                aeq = ami + aqj
-                aed = aed * aed
-                aeq = aeq * aeq
-             END IF
-             IF (longrange) THEN
-                ade = 0.0_dp
-                aqe = 0.0_dp
-             END IF
-             xxx = r-db
-             arg(2) = xxx*xxx + aed
-             xxx = r+db
-             arg(3) = xxx*xxx + aed
-             xxx = r-qb
-             arg(4) = xxx*xxx + aeq
-             xxx = r+qb
-             arg(5) = xxx*xxx + aeq
-             arg(6) = rsq + aeq
-             arg(7) = arg(6) + qb*qb
-             sqr(2:7)  = pxy(2:7)/SQRT(arg(2:7))
-             ri(2)     = sqr(2) + sqr(3)
-             ri(3)     = sqr(1) + sqr(4) + sqr(5) + sqr(6)
-             ri(4)     = sqr(1) + sqr(6) + sqr(7)
-             core(2,2) = zi*ri(2)
-             core(3,2) = zi*ri(3)
-             core(4,2) = zi*ri(4)
-          END IF
+          arg(1) = rsq + aee
+          xxx = r-db
+          arg(2) = xxx*xxx + aed
+          xxx = r+db
+          arg(3) = xxx*xxx + aed
+          xxx = r-qb
+          arg(4) = xxx*xxx + aeq
+          xxx = r+qb
+          arg(5) = xxx*xxx + aeq
+          arg(6) = rsq + aeq
+          arg(7) = arg(6) + qb*qb
+          sqr(1:7)  = pxy(1:7)/SQRT(arg(1:7))
+          ri(2)     = sqr(2) + sqr(3)
+          ri(3)     = sqr(1) + sqr(4) + sqr(5) + sqr(6)
+          ri(4)     = sqr(1) + sqr(6) + sqr(7)
+          core(2,2) = zi*ri(2)
+          core(3,2) = zi*ri(3)
+          core(4,2) = zi*ri(4)
        END IF
     END IF
 
@@ -1221,42 +1246,42 @@ CONTAINS
        IF (sepj%dorb) THEN
           !  <S S | D S>
           kl = indexa(5, 1)
-          core(5, 2) = -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 0, 1, rij, longrange, error) * sepi%zeff
+          core(5, 2) = ijkl (sepi, sepj, ij, kl, 0, 0, 2, 0, 1, rij, longrange, error) * sepi%zeff
           !  <S S | D P >
           kl = indexa(5, 2)
-          core(6, 2) = -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, longrange, error) * sepi%zeff
+          core(6, 2) = ijkl (sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, longrange, error) * sepi%zeff
           !  <S S | D D >
           kl = indexa(5, 5)
-          core(7, 2) = -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, longrange, error) * sepi%zeff
+          core(7, 2) = ijkl (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, longrange, error) * sepi%zeff
           !  <S S | D+P+>
           kl = indexa(6, 3)
-          core(8, 2) = -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, longrange, error) * sepi%zeff
+          core(8, 2) = ijkl (sepi, sepj, ij, kl, 0, 0, 2, 1, 1, rij, longrange, error) * sepi%zeff
           !  <S S | D+D+>
           kl = indexa(6, 6)
-          core(9, 2) = -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, longrange, error) * sepi%zeff
+          core(9, 2) = ijkl (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, longrange, error) * sepi%zeff
           !  <S S | D#D#>
           kl = indexa(8, 8)
-          core(10, 2)= -ijkl (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, longrange, error) * sepi%zeff
+          core(10, 2)= ijkl (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, rij, longrange, error) * sepi%zeff
        END IF
        IF (sepi%dorb) THEN
           !  <D S | S S>
           kl = indexa(5, 1)
-          core(5, 1) = -ijkl (sepi, sepj, kl, ij, 2, 0, 0, 0, 2, rij, longrange, error) * sepj%zeff
+          core(5, 1) = ijkl (sepi, sepj, kl, ij, 2, 0, 0, 0, 2, rij, longrange, error) * sepj%zeff
           !  <D P | S S >
           kl = indexa(5, 2)
-          core(6, 1) = -ijkl (sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, longrange, error) * sepj%zeff
+          core(6, 1) = ijkl (sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, longrange, error) * sepj%zeff
           !  <D D | S S >
           kl = indexa(5, 5)
-          core(7, 1) = -ijkl (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, longrange, error) * sepj%zeff
+          core(7, 1) = ijkl (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, longrange, error) * sepj%zeff
           !  <D+P+| S S >
           kl = indexa(6, 3)
-          core(8, 1) = -ijkl (sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, longrange, error) * sepj%zeff
+          core(8, 1) = ijkl (sepi, sepj, kl, ij, 2, 1, 0, 0, 2, rij, longrange, error) * sepj%zeff
           !  <D+D+| S S >
           kl = indexa(6, 6)
-          core(9, 1) = -ijkl (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, longrange, error) * sepj%zeff
+          core(9, 1) = ijkl (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, longrange, error) * sepj%zeff
           !  <D#D#| S S >
           kl = indexa(8, 8)
-          core(10, 1)= -ijkl (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, longrange, error) * sepj%zeff
+          core(10, 1)= ijkl (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, rij, longrange, error) * sepj%zeff
        END IF
 
     END IF

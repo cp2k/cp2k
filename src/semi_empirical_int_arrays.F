@@ -25,7 +25,7 @@ MODULE semi_empirical_int_arrays
   REAL(KINd=dp), PARAMETER, PUBLIC     :: rij_threshold = 0.00002_dp
   
   ! Mapping index for orbital ordering
-  INTEGER, DIMENSION(9), PUBLIC        :: se_orbital_pointer=(/1,4,2,3,7,8,6,9,5/)
+  INTEGER, DIMENSION(9), PUBLIC        :: se_orbital_pointer=(/1,4,2,3,9,8,7,6,5/)
 
   ! Parameters for multipole sums
   REAL(KIND=dp), DIMENSION(72), PARAMETER, PUBLIC  :: pxy = (/&

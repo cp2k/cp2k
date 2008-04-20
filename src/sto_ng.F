@@ -253,7 +253,7 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef, error )
              alpha( 2 ) = 7.981487853e-1_dp; coef ( 2 ) = 5.386799363e-2_dp
              alpha( 3 ) = 3.311327490e-1_dp; coef ( 3 ) = 2.072139149e-1_dp
              alpha( 4 ) = 1.559114463e-1_dp; coef ( 4 ) = 4.266269092e-1_dp
-             alpha( 5 ) = 7.877734732e-2_dp; coef ( 5 ) = 3.8431000204-1_dp
+             alpha( 5 ) = 7.877734732e-2_dp; coef ( 5 ) = 3.843100204e-1_dp
              alpha( 6 ) = 4.058484363e-2_dp; coef ( 6 ) = 8.902827546e-2_dp
            CASE DEFAULT
              CPErrorMessage(-100,routineP,"Illegal expansion",error)

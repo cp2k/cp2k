@@ -42,6 +42,7 @@ MODULE qs_semi_empirical_hamiltonian
        neighbor_node_type, next
   USE qs_overlap,                      ONLY: build_overlap_matrix
   USE qs_rho_types,                    ONLY: qs_rho_type
+  USE semi_empirical_int_arrays,       ONLY: rij_threshold
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type
   USE semi_empirical_utils,            ONLY: get_se_type
@@ -140,7 +141,7 @@ CONTAINS
        matrix_p => rho%rho_ao
        IF (SIZE(matrix_p) == 2) THEN
           CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 1.0_dp,&
-               matrix_p(2)%matrix,1.0_dp,error=error)
+               matrix_p(2)%matrix, 1.0_dp, error=error)
        END IF
        natom = SIZE (particle_set)
        ALLOCATE (atom_of_kind(natom),STAT=istat)
@@ -165,14 +166,13 @@ CONTAINS
      CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,error=error)
 
      ! kh might be set in qs_control
-     kh=1._dp
      itype = get_se_type(dft_control%qs_control%method_id)
-     kh = 0.5_dp * kh
+     kh = 0.5_dp
 
      nkind = SIZE(atomic_kind_set)
 
-     enuclear = 0._dp
-     econst = 0._dp
+     enuclear = 0.0_dp
+     econst   = 0.0_dp
 
      DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
@@ -190,13 +190,14 @@ CONTAINS
 
         econst=econst-(eisol-eheat)*REAL(natom,dp)
 
-        ha(1) = beta_a(0)
-        ha(2:4) = beta_a(1)
-        ha(5:9) = beta_a(2)
+        ha( 1   ) = beta_a(0)
+        ha( 2: 4) = beta_a(1)
+        ha( 5: 9) = beta_a(2)
         ha(10:16) = beta_a(3)
-        ua(1) = uss
-        ua(2:4) = upp
-        ua(5:9) = udd
+
+        ua( 1   ) = uss
+        ua( 2: 4) = upp
+        ua( 5: 9) = udd
         ua(10:16) = uff
 
         DO jkind=1,nkind
@@ -210,9 +211,9 @@ CONTAINS
 
            IF (.NOT.defined .OR. natorb_b < 1) CYCLE
 
-           hb(1) = beta_b(0)
-           hb(2:4) = beta_b(1)
-           hb(5:9) = beta_b(2)
+           hb( 1   ) = beta_b(0)
+           hb( 2: 4) = beta_b(1)
+           hb( 5: 9) = beta_b(2)
            hb(10:16) = beta_b(3)
 
            iab = ikind + nkind*(jkind - 1)
@@ -259,7 +260,7 @@ CONTAINS
                                       neighbor=jatom,r=rij)
 
                dr = SUM(rij(:)**2)
-               IF (iatom == jatom .AND. dr < 0.001_dp) THEN
+               IF (iatom == jatom .AND. dr < rij_threshold) THEN
 
                  SELECT CASE (dft_control%qs_control%method_id)
                     CASE DEFAULT
@@ -342,7 +343,7 @@ CONTAINS
 
                END IF
 
-               IF(calculate_forces .AND. (iatom/=jatom .OR. dr > 0.001_dp)) THEN
+               IF(calculate_forces .AND. (iatom/=jatom .OR. dr > rij_threshold)) THEN
                  IF ( irow == iatom ) force_ab = -force_ab
                  force(ikind)%all_potential(:,atom_a) =&
                      force(ikind)%all_potential(:,atom_a) - force_ab(:)

@@ -1956,6 +1956,12 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="STO_NG",&
+            description="Provides the order of the Slater orbital expansion of Gaussian-Type Orbitals.",&
+            usage="STO_NG",default_i_val=6, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="analytical_gradients",&
             description="Nuclear Gradients are computed analytically or numerically",&
             usage="ANALYTICAL_GRADIENTS",default_l_val=.TRUE., error=error)

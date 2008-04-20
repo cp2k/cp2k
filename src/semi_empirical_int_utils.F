@@ -112,7 +112,8 @@ CONTAINS
     l2max = MIN (l2max, 2)
     l2min = MIN (l2min, 2)
     sum = 0.0_dp
-
+    dij = 0.0_dp
+    dkl = 0.0_dp
     DO l1 = l1min, l1max
        IF (l1 == 0) THEN
           IF (lij == 1) THEN

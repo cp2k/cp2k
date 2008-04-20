@@ -48,10 +48,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initialize semi_empirical type
 ! *****************************************************************************
-  SUBROUTINE init_se_param(sep,orb_basis_set,error)
+  SUBROUTINE init_se_param(sep,orb_basis_set,ngauss,error)
 
     TYPE(semi_empirical_type), POINTER       :: sep
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    INTEGER, INTENT(IN)                      :: ngauss
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_se_param', &
@@ -93,11 +94,10 @@ CONTAINS
        END DO
 
        IF (nshell > 0) THEN
-          CALL set_sto_basis_set(sep%basis,name=sep%name,&
-               nshell=nshell,symbol=symbol,&
+          sep%ngauss = ngauss
+          CALL set_sto_basis_set(sep%basis,name=sep%name,nshell=nshell,symbol=symbol,&
                nq=nq,lq=lq,zet=zet)
-          CALL create_gto_from_sto_basis(sep%basis,orb_basis_set,&
-               sep%ngauss,error=error)
+          CALL create_gto_from_sto_basis(sep%basis,orb_basis_set,sep%ngauss,error=error)
        END IF
 
        DEALLOCATE (nq,lq,zet,STAT=stat)

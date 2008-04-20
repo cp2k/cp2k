@@ -1173,7 +1173,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length) :: akind_name, aux_basis_set_name, &
       keyword, orb_basis_set_name, potential_name, potential_type
     INTEGER                                  :: handle, i, i_rep, ipos, &
-                                                k_rep, n_rep, naux, &
+                                                k_rep, n_rep, naux, ngauss, &
                                                 ngrid_ang, ngrid_rad, norb, &
                                                 stat, z
     INTEGER, DIMENSION(:), POINTER           :: elec_conf
@@ -1474,8 +1474,9 @@ CONTAINS
           CPPostcondition(check, cp_failure_level, routineP, error, failure)
           CALL semi_empirical_create(atomic_kind%se_parameter,error)
           ! Set default parameters
+          CALL section_vals_val_get(dft_section,"QS%SE%STO_NG",i_val=ngauss,error=error)          
           CALL se_param_set_default(atomic_kind%se_parameter,z,method_id,error)
-          CALL init_se_param(atomic_kind%se_parameter,atomic_kind%orb_basis_set,error=error)
+          CALL init_se_param(atomic_kind%se_parameter,atomic_kind%orb_basis_set,ngauss,error=error)
           CALL init_potential ( atomic_kind%all_potential, itype="BARE", &
                zeff=atomic_kind%se_parameter%zeff,zeff_correction=zeff_correction,error=error)
           atomic_kind%se_parameter%zeff=atomic_kind%se_parameter%zeff-zeff_correction
