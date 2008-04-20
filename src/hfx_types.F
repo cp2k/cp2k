@@ -9,8 +9,7 @@
 !>      04.2008 created [Manuel Guidon]
 !> \author Manuel Guidon 
 ! *****************************************************************************
-
-MODULE hfx_types   
+MODULE hfx_types
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
@@ -153,13 +152,13 @@ MODULE hfx_types
 
 ! *****************************************************************************
   TYPE hfx_container_node
-    TYPE(hfx_container_node), POINTER       :: next, prev
+    TYPE(hfx_container_node), POINTER        :: next, prev
     INTEGER(int_8), DIMENSION(CACHE_SIZE)    :: DATA
   END TYPE
 
 ! *****************************************************************************
   TYPE hfx_container_type
-    TYPE(hfx_container_node), POINTER       :: first, current    
+    TYPE(hfx_container_node), POINTER        :: first, current    
     INTEGER                                  :: element_counter
     INTEGER(int_8)                           :: file_counter
     CHARACTER(LEN=5)                         :: desc
@@ -204,17 +203,17 @@ MODULE hfx_types
 !> \author Manuel Guidon
 ! *****************************************************************************
   TYPE hfx_type
-    TYPE(hfx_potential_type)                :: potential_parameter
-    TYPE(hfx_screening_type)                :: screening_parameter
-    TYPE(hfx_memory_type)                   :: memory_parameter
-    TYPE(hfx_periodic_type)                 :: periodic_parameter
-    TYPE(hfx_load_balance_type)             :: load_balance_parameter
-    TYPE(hfx_general_type)                  :: general_parameter
-    TYPE(hfx_container_type), POINTER       :: maxval_container, maxval_container_disk
-    TYPE(hfx_cache_type)                    :: maxval_cache, maxval_cache_disk
+    TYPE(hfx_potential_type)                 :: potential_parameter
+    TYPE(hfx_screening_type)                 :: screening_parameter
+    TYPE(hfx_memory_type)                    :: memory_parameter
+    TYPE(hfx_periodic_type)                  :: periodic_parameter
+    TYPE(hfx_load_balance_type)              :: load_balance_parameter
+    TYPE(hfx_general_type)                   :: general_parameter
+    TYPE(hfx_container_type), POINTER        :: maxval_container, maxval_container_disk
+    TYPE(hfx_cache_type)                     :: maxval_cache, maxval_cache_disk
     TYPE(hfx_container_type), POINTER, &
                                DIMENSION(:)  :: integral_containers, integral_containers_disk
-    TYPE(hfx_cache_type)                    :: integral_caches(64), integral_caches_disk(64)
+    TYPE(hfx_cache_type)                     :: integral_caches(64), integral_caches_disk(64)
 
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: x_screening_buffer
     REAL(dp), DIMENSION(:, :, :, :, :), &
@@ -491,6 +490,7 @@ MODULE hfx_types
         ALLOCATE(actual_x_data%integral_containers(64), STAT=stat)
         DO i=1,64
           actual_x_data%integral_caches(i)%element_counter = 1
+          actual_x_data%integral_caches(i)%data = 0
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(actual_x_data%integral_containers(i)%first,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -520,6 +520,7 @@ MODULE hfx_types
         ALLOCATE(actual_x_data%integral_containers_disk(64), STAT=stat)
         DO i=1,64
           actual_x_data%integral_caches_disk(i)%element_counter = 1
+          actual_x_data%integral_caches_disk(i)%data = 0
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(actual_x_data%integral_containers_disk(i)%first,STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -744,7 +745,7 @@ MODULE hfx_types
       IF(container%unit /= -1 ) THEN
         CALL close_file(unit_number=container%unit)
       END IF
-      CALL open_file(file_name=container%filename,file_status="UNKNOWN",file_form="UNFORMATTED",file_action="WRITE",&
+      CALL open_file(file_name=TRIM(container%filename),file_status="UNKNOWN",file_form="UNFORMATTED",file_action="WRITE",&
                      unit_number=container%unit)
     END IF
 

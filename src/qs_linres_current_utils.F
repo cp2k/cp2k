@@ -451,7 +451,7 @@ CONTAINS
              !
              IF(output_unit>0) THEN
                 WRITE(output_unit,'(T10,A,I4,A,E24.16)') 'Second order energy D_'//ACHAR(idir+119)//&
-                     & ' for -state- ',istate,'=',p_env%etotal
+                     & ' for -state- ',icenter,'=',p_env%etotal
                 WRITE(output_unit,"(T10,A,/)")&
                      & "Store the psi1 vector for the calculation of the response current density "
              ENDIF
