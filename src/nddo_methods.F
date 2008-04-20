@@ -6,6 +6,8 @@
 ! *****************************************************************************
 !> \brief Calculation of the Fock matrix for NDDO methods
 !> \author JGH
+!> \par History
+!>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : d-orbitals
 ! *****************************************************************************
 MODULE nddo_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -149,7 +151,6 @@ CONTAINS
             calculate_forces,just_energy,error)
        CALL build_nddo_fock_matrix_coulomb (ks_env,qs_env,ks_matrix,rho,energy,&
             calculate_forces,just_energy,error)
-
        ! QM/MM
        IF (qs_env%qmmm) THEN
           DO ispin=1,nspins
@@ -1131,7 +1132,6 @@ CONTAINS
     ELSE
        CALL rotint (sepj,sepi,-rij,w,anag=anag,shortrange=shortrange,taper=taper,error=error)
     END IF
-
     kr = 0
     natorb(1) = sepi%natorb
     natorb(2) = sepj%natorb

@@ -8,7 +8,6 @@
        ANALYTICAL_GRADIENTS F
        STO_NG 6
       &END
-
     &END QS
     &SCF
       SCF_GUESS ATOMIC
@@ -27,7 +26,7 @@
       PERIODIC NONE
     &END CELL
     &COORD
-       H                    .00000000     .00000000     .00000000
+       Br                   .00000000     .00000000     .00000000
        Cl                   .60673664    -.11133319    -.90673603
     &END COORD
     &PRINT
@@ -38,7 +37,6 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-
-  PROJECT HCl
+  PROJECT BrCl
   RUN_TYPE ENERGY_FORCE
 &END GLOBAL
