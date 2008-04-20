@@ -96,7 +96,7 @@ CONTAINS
 
        ! Create the rotation matrix 
        CALL rotmat_create(ij_matrix, error)
-       CALL rotmat (sepi, sepj, -rijv, rij, ij_matrix, do_derivatives=.FALSE., error=error)
+       CALL rotmat (sepi, sepj, rijv, rij, ij_matrix, do_derivatives=.FALSE., error=error)
        
        ! Compute Integrals in Diatomic Frame
        CALL terep_num(sepi,sepj,rij,rep,taper=taper,shortrange=shortrange,error=error)
@@ -553,12 +553,12 @@ CONTAINS
 
           ri(6)  = dzdz
           ri(7)  = dxdx
-          ri(8)  =  edz - qzzdz
-          ri(9)  =  edz - qxxdz
-          ri(10) =      - qxzdx
-          ri(13) =  dze - dzqzz
-          ri(14) =  dze - dzqxx
-          ri(15) =      - dxqxz
+          ri(8)  =  edz + qzzdz
+          ri(9)  =  edz + qxxdz
+          ri(10) =        qxzdx
+          ri(13) =  dze + dzqzz
+          ri(14) =  dze + dzqxx
+          ri(15) =        dxqxz
           ri(16) = ee + eqzz + qzze + qzzqzz
           ri(17) = ee + eqzz + qxxe + qxxqzz
           ri(18) = ee + eqxx + qzze + qzzqxx
@@ -682,12 +682,12 @@ CONTAINS
        rij = SQRT(rij)
        ! Create the rotation matrix 
        CALL rotmat_create(ij_matrix, error)
-       CALL rotmat (sepi, sepj, -rijv, rij, ij_matrix, do_derivatives=.FALSE., error=error)
+       CALL rotmat (sepi, sepj, rijv, rij, ij_matrix, do_derivatives=.FALSE., error=error)
 
        ! Compute Integrals in Diatomic Frame
        CALL nucint_num(sepi,sepj,rij,core=core,itype=itype,taper=taper,shortrange=shortrange,&
             error=error)
-
+       
        ! Copy parameters over to arrays for do loop.
        last_orbital(1)  = sepi%natorb
        last_orbital(2)  = sepj%natorb

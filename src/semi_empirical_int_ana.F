@@ -122,7 +122,7 @@ CONTAINS
        rij  = SQRT(rij)
        ! Create the rotation matrix 
        CALL rotmat_create(ij_matrix, error)
-       CALL rotmat (sepi, sepj, -rijv, rij, ij_matrix, do_derivatives=lgrad, do_invert=invert,&
+       CALL rotmat (sepi, sepj, rijv, rij, ij_matrix, do_derivatives=lgrad, do_invert=invert,&
             error=error)
 
        IF (lgrad) THEN
@@ -1041,7 +1041,7 @@ CONTAINS
 
        ! Create the rotation matrix 
        CALL rotmat_create(ij_matrix, error)
-       CALL rotmat (sepi, sepj, -rijv, rij, ij_matrix, do_derivatives=lgrad, do_invert=invert, error=error)          
+       CALL rotmat (sepi, sepj, rijv, rij, ij_matrix, do_derivatives=lgrad, do_invert=invert, error=error)          
 
        ! Compute integrals in diatomic frame as well their derivatives (if requested)
        CALL dterep_ana(sepi,sepj,rij,rep,rep_d,taper,shortrange,error=error)
@@ -1761,12 +1761,12 @@ CONTAINS
           dqxzqxz = dsqr(65) + dsqr(67) + dsqr(69) + dsqr(71) + dsqr(66) + dsqr(68) + dsqr(70) + dsqr(72)
           ri(6)  = dzdz
           ri(7)  = dxdx
-          ri(8)  =  edz - qzzdz
-          ri(9)  =  edz - qxxdz
-          ri(10) =      - qxzdx
-          ri(13) =  dze - dzqzz
-          ri(14) =  dze - dzqxx
-          ri(15) =      - dxqxz
+          ri(8)  =  edz + qzzdz
+          ri(9)  =  edz + qxxdz
+          ri(10) =        qxzdx
+          ri(13) =  dze + dzqzz
+          ri(14) =  dze + dzqxx
+          ri(15) =        dxqxz
           ri(16) = ee + eqzz + qzze + qzzqzz
           ri(17) = ee + eqzz + qxxe + qxxqzz
           ri(18) = ee + eqxx + qzze + qzzqxx
@@ -1776,12 +1776,12 @@ CONTAINS
           ri(22) = 0.5_dp * (qxxqxx - qxxqyy)
           dri(6)  = ddzdz
           dri(7)  = ddxdx
-          dri(8)  =  dedz - dqzzdz
-          dri(9)  =  dedz - dqxxdz
-          dri(10) =       - dqxzdx
-          dri(13) =  ddze - ddzqzz
-          dri(14) =  ddze - ddzqxx
-          dri(15) =       - ddxqxz
+          dri(8)  =  dedz + dqzzdz
+          dri(9)  =  dedz + dqxxdz
+          dri(10) =         dqxzdx
+          dri(13) =  ddze + ddzqzz
+          dri(14) =  ddze + ddzqxx
+          dri(15) =         ddxqxz
           dri(16) = dee + deqzz + dqzze + dqzzqzz
           dri(17) = dee + deqzz + dqxxe + dqxxqzz
           dri(18) = dee + deqxx + dqzze + dqzzqxx

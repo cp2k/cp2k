@@ -580,15 +580,15 @@ CONTAINS
 
                         ! One-centre One-electron terms
                         IF      ( nspins == 1 ) THEN
-                           CALL fock1_1el (se_kind_a,se_kind_b,rij, switch, ksa_block_a, ksb_block_a,&
+                           CALL fock1_1el (se_kind_a,se_kind_b,rij, ksa_block_a, ksb_block_a,&
                                 pa_block_a, pb_block_a, ecore=ecore2, itype=itype, anag=anag,&
                                 shortrange=do_ewald, taper=taper, error=error)
                         ELSE IF ( nspins == 2 ) THEN
-                           CALL fock1_1el (se_kind_a,se_kind_b,rij, switch, ksa_block_a, ksb_block_a,&
+                           CALL fock1_1el (se_kind_a,se_kind_b,rij, ksa_block_a, ksb_block_a,&
                                 pa_block_a, pb_block_a, ecore=ecore2, itype=itype, anag=anag,&
                                 shortrange=do_ewald, taper=taper, error=error)
 
-                           CALL fock1_1el (se_kind_a,se_kind_b,rij, switch, ksa_block_b, ksb_block_b,&
+                           CALL fock1_1el (se_kind_a,se_kind_b,rij, ksa_block_b, ksb_block_b,&
                                 pa_block_b, pb_block_b, ecore=ecore2, itype=itype, anag=anag,&
                                 shortrange=do_ewald, taper=taper, error=error)
                         END IF
@@ -614,16 +614,16 @@ CONTAINS
                            ! Derivatives of the One-centre One-electron terms
                            force_ab = 0.0_dp
                            IF      ( nspins == 1 ) THEN
-                              CALL dfock1_1el (se_kind_a,se_kind_b,rij, switch, pa_block_a, pb_block_a, itype=itype,&
-                                   anag=anag, shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
+                              CALL dfock1_1el (se_kind_a,se_kind_b,rij, pa_block_a, pb_block_a, itype=itype, anag=anag,&
+                                   shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
                            ELSE IF ( nspins == 2 ) THEN
-                              CALL dfock1_1el (se_kind_a,se_kind_b,rij, switch, pa_block_a, pb_block_a, itype=itype,&
-                                   anag=anag, shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
+                              CALL dfock1_1el (se_kind_a,se_kind_b,rij, pa_block_a, pb_block_a, itype=itype, anag=anag,&
+                                   shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
 
-                              CALL dfock1_1el (se_kind_a,se_kind_b,rij, switch, pa_block_b, pb_block_b, itype=itype,&
-                                   anag=anag, shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
+                              CALL dfock1_1el (se_kind_a,se_kind_b,rij, pa_block_b, pb_block_b, itype=itype, anag=anag,&
+                                   shortrange=do_ewald, taper=taper, force=force_ab, delta=delta, error=error)
                            END IF
-                           IF (.NOT. switch) force_ab = -force_ab
+                           force_ab = -force_ab
                            force(ikind)%all_potential(:,atom_a) = force(ikind)%all_potential(:,atom_a) - force_ab(:)
                            force(jkind)%all_potential(:,atom_b) = force(jkind)%all_potential(:,atom_b) + force_ab(:)
 
@@ -899,11 +899,10 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
-  SUBROUTINE fock1_1el (sepi, sepj, rij, switch, ksi_block, ksj_block, pi_block,&
+  SUBROUTINE fock1_1el (sepi, sepj, rij, ksi_block, ksj_block, pi_block,&
        pj_block, ecore, itype, anag, shortrange, taper, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
-    LOGICAL, INTENT(IN)                      :: switch
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: ksi_block, ksj_block
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -922,13 +921,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(45)             :: e1b, e2a
 
     failure = .FALSE.
-    IF ( .NOT. switch ) THEN
-       CALL rotnuc (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
-            anag=anag, shortrange=shortrange, taper=taper, error=error)
-    ELSE
-       CALL rotnuc (sepj, sepi,-rij, e1b=e2a, e2a=e1b, itype=itype,&
-            anag=anag, shortrange=shortrange, taper=taper, error=error)
-    END IF
+    CALL rotnuc (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
+         anag=anag, shortrange=shortrange, taper=taper, error=error)
     !
     ! Add the electron-nuclear attraction term for atom sepi
     !
@@ -973,11 +967,10 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
-  SUBROUTINE dfock1_1el (sepi, sepj, rij, switch, pi_block, pj_block, itype, anag,&
+  SUBROUTINE dfock1_1el (sepi, sepj, rij, pi_block, pj_block, itype, anag,&
        shortrange, taper, force, delta, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
-    LOGICAL, INTENT(IN)                      :: switch
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: pi_block, pj_block
     INTEGER, INTENT(IN)                      :: itype
@@ -996,13 +989,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(45, 3)          :: de1b, de2a
 
     failure = .FALSE.
-    IF ( .NOT. switch ) THEN
-       CALL drotnuc (sepi, sepj, rij, de1b=de1b, de2a=de2a, itype=itype, anag=anag,&
-            shortrange=shortrange, taper=taper, delta=delta, error=error)
-    ELSE
-       CALL drotnuc (sepj, sepi,-rij, de1b=de2a, de2a=de1b, itype=itype, anag=anag,&
-            shortrange=shortrange, taper=taper, delta=delta, error=error)
-    END IF
+    CALL drotnuc (sepi, sepj, rij, de1b=de1b, de2a=de2a, itype=itype, anag=anag,&
+         shortrange=shortrange, taper=taper, delta=delta, error=error)
     !
     ! Add the electron-nuclear attraction term for atom sepi
     !

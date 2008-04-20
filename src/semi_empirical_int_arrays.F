@@ -30,7 +30,7 @@ MODULE semi_empirical_int_arrays
   ! Parameters for multipole sums
   REAL(KIND=dp), DIMENSION(72), PARAMETER, PUBLIC  :: pxy = (/&
   !    1          2          3          4         5         6           7          8          9         10
-     1.0_dp,    0.5_dp,   -0.5_dp,   0.25_dp,  0.25_dp,   -0.5_dp,    0.5_dp,    0.5_dp,   -0.5_dp,   0.25_dp,& ! 0
+     1.0_dp,   -0.5_dp,    0.5_dp,   0.25_dp,  0.25_dp,   -0.5_dp,    0.5_dp,   -0.5_dp,    0.5_dp,   0.25_dp,& ! 0
     0.25_dp,   -0.5_dp,    0.5_dp,    0.5_dp,  -0.5_dp,   0.25_dp,   0.25_dp,  -0.25_dp,  -0.25_dp,   0.25_dp,& ! 1
    -0.25_dp,  -0.25_dp,   0.25_dp,   0.25_dp, -0.25_dp,  -0.25_dp,   0.25_dp, -0.125_dp,  0.125_dp, -0.125_dp,& ! 2
    0.125_dp, -0.125_dp,  0.125_dp, -0.125_dp, 0.125_dp,   0.25_dp,  0.125_dp,  0.125_dp,  -0.25_dp,  -0.25_dp,& ! 3

@@ -58,7 +58,7 @@ SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert, error)
         IF (i==2) matrix => matrix_m
         r0 = rjiv + (-1.0_dp)**(i-1) * x
         r  = SQRT(DOT_PRODUCT(r0,r0))
-        CALL rotmat (sepi, sepj, -r0, r, matrix, do_derivatives=.FALSE., debug_invert=do_invert,&
+        CALL rotmat (sepi, sepj, r0, r, matrix, do_derivatives=.FALSE., debug_invert=do_invert,&
              error=error)
      END DO
      ! SP

@@ -545,10 +545,10 @@ CONTAINS
        ! This condition is necessary because derivatives uses the invertion of the
        ! axis for treating the divergence point along z-axis
        CPPostcondition(eval,cp_failure_level,routineP,error,failure)
-       x11_d = 0.0_dp; x11_d(1) = -1.0_dp
-       x22_d = 0.0_dp; x22_d(2) = -1.0_dp
-       x33_d = 0.0_dp; x33_d(3) = -1.0_dp
-       r_d   = -(/x11,x22,x33/)/r
+       x11_d = 0.0_dp; x11_d(1) = 1.0_dp
+       x22_d = 0.0_dp; x22_d(2) = 1.0_dp
+       x33_d = 0.0_dp; x33_d(3) = 1.0_dp
+       r_d   = (/x11,x22,x33/)/r
        b_d   = 2.0_dp*(x11*x11_d + x22*x22_d)
        sqb_d = (0.5_dp/sqb)*b_d
        r2i   = 1.0_dp/r**2
@@ -709,7 +709,7 @@ CONTAINS
           ij_matrix%dd_d = 0.0_dp
        END IF
        IF (debug_this_module) THEN 
-          CALL check_rotmat_der( sepi, sepj, -rjiv, ij_matrix, do_invert=do_invert, error=error)
+          CALL check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert=do_invert, error=error)
        END IF
     END IF
 
