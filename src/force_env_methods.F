@@ -60,6 +60,7 @@ MODULE force_env_methods
        force_env_pos_get, force_env_set, force_env_type, use_eip_force, &
        use_ep_force, use_fist_force, use_kg_force, use_mixed_force, &
        use_prog_name, use_qmmm, use_qs_force
+  USE force_fields_util,               ONLY: get_generic_info
   USE fp_methods,                      ONLY: fp_eval
   USE fparser,                         ONLY: EvalErrType,&
                                              evalf,&
@@ -865,7 +866,8 @@ END SUBROUTINE qmmm_energy_and_forces
 !>       11.06  created [fschiff]
 !>       04.07  generalization to an illimited number of force_eval [tlaino]
 !>       04.07  further generalization to force_eval with different geometrical
-!>              structures
+!>              structures [tlaino]
+!>       04.08  reorganizing the genmix structure (collecting common code)
 !> \author Florian Schiffmann
 ! *****************************************************************************
 SUBROUTINE mixed_energy_forces(force_env, need_f, error)
@@ -878,16 +880,14 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
 
     CHARACTER(LEN=default_path_length)       :: coupling_function
     CHARACTER(LEN=default_string_length)     :: def_error, this_error
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: my_par, parameters, variables
     INTEGER :: iforce_eval, iparticle, jparticle, mixing_type, my_group, &
-      mydim, n_rep_val, natom, nforce_eval, output_unit, stat
+      natom, nforce_eval, output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: glob_natoms, map_index
-    LOGICAL                                  :: failure, ionode, &
+    LOGICAL                                  :: check, failure, ionode, &
                                                 virial_consistent
     REAL(KIND=dp) :: coupling_parameter, dedf, der_1, der_2, dx, energy, err, &
       lambda, lerr, restraint_strength, restraint_target, sd
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: energies, my_val, par_values
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: energies
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: forces
     TYPE(cell_type), POINTER                 :: cell, cell_mix
     TYPE(cp_error_type)                      :: my_error
@@ -902,7 +902,8 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
       DIMENSION(:), POINTER                  :: particles
     TYPE(particle_list_type), POINTER        :: particles_mix
     TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                mapping_section, root_section
+                                                gen_section, mapping_section, &
+                                                root_section
     TYPE(virial_p_type), DIMENSION(:), &
       POINTER                                :: virials
     TYPE(virial_type), POINTER               :: loc_virial, virial_mix
@@ -1093,48 +1094,22 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
             map_index, mapping_section, .FALSE., error)
     CASE(mix_generic)
        ! Support any number of force_eval sections
-       NULLIFY(variables, parameters, par_values)
-       CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%MIXING_FUNCTION",&
-            c_val=coupling_function,error=error)
-       CALL compress(coupling_function, full=.TRUE.)
-       CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%VARIABLES",&
-            c_vals=variables,error=error)
-       CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%PARAMETERS",&
-            n_rep_val=n_rep_val,error=error)
-       mydim = SIZE(variables)
-       IF (n_rep_val /= 0) THEN
-          CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%PARAMETERS",&
-               c_vals=parameters,error=error)
-          CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%VALUES",&
-               r_vals=par_values,error=error)
-          IF (ASSOCIATED(parameters)) THEN
-             CPPrecondition(SIZE(parameters)==SIZE(par_values),cp_failure_level,routineP,error,failure)
-             mydim=mydim+SIZE(parameters)
-          END IF
-       END IF
-       ALLOCATE(my_par(mydim),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(my_val(mydim),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       my_par(1:SIZE(variables)) = variables
-       my_val(1:SIZE(variables)) = energies
-       IF (ASSOCIATED(parameters)) THEN
-          my_par(SIZE(variables)+1:) = parameters(1:SIZE(parameters))
-          my_val(SIZE(variables)+1:) = par_values(1:SIZE(parameters))
-       END IF
+       gen_section => section_vals_get_subs_vals(force_env_section,"MIXED%GENERIC",error=error)
+       CALL get_generic_info(gen_section, "MIXING_FUNCTION", coupling_function, force_env%mixed_env%par,&
+            force_env%mixed_env%val, energies, error=error)
        CALL initf(1)
-       CALL parsef(1,TRIM(coupling_function),my_par)
+       CALL parsef(1,TRIM(coupling_function),force_env%mixed_env%par)
        ! Now the hardest part.. map energy with corresponding force_eval
-       mixed_energy%pot= evalf(1,my_val)
+       mixed_energy%pot= evalf(1,force_env%mixed_env%val)
        CPPrecondition(EvalErrType<=0,cp_failure_level,routineP,error,failure)
        DO iparticle = 1, SIZE(particles_mix%els)
           particles_mix%els(iparticle)%f(:) = 0.0_dp
        END DO
        CALL zero_virial(virial_mix, reset=.FALSE.)
        DO iforce_eval = 1, nforce_eval
-          CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%DX",r_val=dx,error=error)
-          CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%ERROR_LIMIT",r_val=lerr,error=error)
-          dedf = evalfd(1,iforce_eval,my_val,dx,err)
+          CALL section_vals_val_get(gen_section,"DX",r_val=dx,error=error)
+          CALL section_vals_val_get(gen_section,"ERROR_LIMIT",r_val=lerr,error=error)
+          dedf = evalfd(1,iforce_eval,force_env%mixed_env%val,dx,err)
           IF ((ABS(err)>lerr).AND.(output_unit>0)) THEN
              WRITE(this_error,"(A,G12.6,A)")"(",err,")"
              WRITE(def_error,"(A,G12.6,A)")"(",lerr,")"
@@ -1148,19 +1123,13 @@ SUBROUTINE mixed_energy_forces(force_env, need_f, error)
           ! General Mapping of forces...
           CALL mixed_map_forces(particles_mix, virial_mix, global_forces, virials, dedf, iforce_eval,&
                nforce_eval, map_index, mapping_section, .FALSE., error)
-          my_val(iforce_eval) = energies(iforce_eval)
+          force_env%mixed_env%val(iforce_eval) = energies(iforce_eval)
        END DO
        ! Let's store the needed information..
-       force_env%mixed_env%par = my_par
-       force_env%mixed_env%val = my_val
        force_env%mixed_env%dx  = dx
        force_env%mixed_env%lerr= lerr
        force_env%mixed_env%coupling_function = TRIM(coupling_function)
        CALL finalizef()
-       DEALLOCATE(my_par,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(my_val,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     CASE DEFAULT
        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT

@@ -183,7 +183,7 @@ CONTAINS
        NULLIFY(keyword)
        
        CALL keyword_create(keyword, name="FUNCTION",&
-            description="Specifies the functional form in mathematical notation. Varaibles must be the atomic "//&
+            description="Specifies the functional form in mathematical notation. Variables must be the atomic "//&
             "coordinates (X,Y,Z).",usage="FUNCTION  X^2+Y^2+Z^2+LOG(ABS(X+Y))", required=.TRUE.,&
             type_of_var=lchar_t, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)

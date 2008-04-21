@@ -39,6 +39,7 @@ MODULE force_fields_input
                                              force_field_type,&
                                              gromos_info_type,&
                                              input_info_type
+  USE force_fields_util,               ONLY: get_generic_info
   USE input_constants,                 ONLY: do_ff_charmm,&
                                              do_ff_g87,&
                                              do_ff_g96,&
@@ -47,8 +48,7 @@ MODULE force_fields_input
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,&
+  USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast
@@ -60,8 +60,7 @@ MODULE force_fields_input
        potential_single_allocation, tersoff_type, wl_type
   USE shell_potential_types,           ONLY: shell_p_create,&
                                              shell_p_type
-  USE string_utilities,                ONLY: compress,&
-                                             uppercase
+  USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -843,12 +842,9 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'read_gp_section', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: fun
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: atm_names, parameters, &
-                                                variables
-    INTEGER                                  :: idim, isec, n_items, n_rep, &
-                                                stat
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, n_items, n_rep
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rcut
     REAL(KIND=dp), DIMENSION(:), POINTER     :: values
@@ -856,54 +852,25 @@ CPSourceFileRef,&
     failure = .FALSE.
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items
-       NULLIFY(atm_names, parameters, variables, values)
+       NULLIFY(atm_names)
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
-       CALL section_vals_val_get(section,"FUNCTION",i_rep_section=isec,c_val=fun,error=error)
-       CALL section_vals_val_get(section,"PARAMETERS",n_rep_val=n_rep,i_rep_section=isec,error=error)
-       IF (n_rep /= 0) THEN
-         CALL section_vals_val_get(section,"PARAMETERS",i_rep_section=isec,c_vals=parameters,error=error)
-         CALL section_vals_val_get(section,"VALUES",i_rep_section=isec,r_vals=values,error=error)
-         IF (ALL(parameters=="")) THEN
-            NULLIFY(parameters, values)
-         ELSE
-            CPPostcondition(SIZE(values)==SIZE(parameters),cp_failure_level,routineP,error,failure)
-         ENDIF
-       ENDIF
-       CALL section_vals_val_get(section,"VARIABLES",i_rep_section=isec,c_vals=variables,error=error)
        CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
-       
-       nonbonded%pot(start+isec)%pot %type = gp_type
-       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
-       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
-       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
-       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
-       ! function name: read as an array of strings to better treat the presence of
-       ! white spaces..
-       ! function name
-       nonbonded%pot(start+isec)%pot %set(1)%gp%potential = fun
-       CALL compress(nonbonded%pot(start+isec)%pot %set(1)%gp%potential, full=.TRUE.)
-       ! parameters
-       idim = 1
-       IF (ASSOCIATED(parameters)) idim = idim + SIZE(parameters)
-       ALLOCATE(nonbonded%pot(start+isec)%pot %set(1)%gp%parameters(idim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (ASSOCIATED(parameters)) nonbonded%pot(start+isec)%pot %set(1)%gp%parameters(2:)  = parameters
-       ! values
-       ALLOCATE(nonbonded%pot(start+isec)%pot %set(1)%gp%values(idim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       nonbonded%pot(start+isec)%pot %set(1)%gp%values = 0.0_dp
-       IF (ASSOCIATED(values)) nonbonded%pot(start+isec)%pot %set(1)%gp%values(2:) = values
-       ! variables
-       CPPostcondition(SIZE(variables)==1,cp_failure_level,routineP,error,failure)
-       nonbonded%pot(start+isec)%pot %set(1)%gp%variables = variables(1)
-       nonbonded%pot(start+isec)%pot %set(1)%gp%parameters(1:1) = variables(1)
-       ! rcut
-       nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
+       nonbonded%pot(start+isec)%pot%type = gp_type
+       nonbonded%pot(start+isec)%pot%at1  = atm_names(1)
+       nonbonded%pot(start+isec)%pot%at2  = atm_names(2)
+       nonbonded%pot(start+isec)%pot%rcutsq = rcut*rcut
+       CALL uppercase(nonbonded%pot(start+isec)%pot%at1)
+       CALL uppercase(nonbonded%pot(start+isec)%pot%at2)
+       ! Parse the genpot info
+       CALL get_generic_info(section,"FUNCTION",nonbonded%pot(start+isec)%pot%set(1)%gp%potential,&
+            nonbonded%pot(start+isec)%pot%set(1)%gp%parameters,nonbonded%pot(start+isec)%pot%set(1)%gp%values,&
+            size_variables=1,i_rep_sec=isec,error=error)
+       nonbonded%pot(start+isec)%pot%set(1)%gp%variables = nonbonded%pot(start+isec)%pot%set(1)%gp%parameters(1)
        ! 
-       CALL section_vals_val_get ( section, "RMIN", i_rep_section=isec, n_rep_val=n_rep, error=error)
+       CALL section_vals_val_get(section, "RMIN", i_rep_section=isec, n_rep_val=n_rep, error=error)
        IF(n_rep==1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
             r_val=nonbonded%pot(start+isec)%pot%set(1)%rmin,error=error)
-       CALL section_vals_val_get ( section, "RMAX", i_rep_section=isec, n_rep_val=n_rep, error=error)
+       CALL section_vals_val_get(section, "RMAX", i_rep_section=isec, n_rep_val=n_rep, error=error)
        IF(n_rep==1) CALL section_vals_val_get(section,"RMAX",i_rep_section=isec,&
             r_val=nonbonded%pot(start+isec)%pot%set(1)%rmax,error=error)
     END DO

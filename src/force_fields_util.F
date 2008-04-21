@@ -43,8 +43,10 @@ MODULE force_fields_util
        force_field_unique_impr, force_field_unique_onfo, &
        force_field_unique_tors, force_field_unique_ub
   USE input_constants,                 ONLY: do_ff_undef
-  USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: default_string_length,&
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE molecule_kind_types,             ONLY: &
        atom_type, bend_type, bond_type, colvar_constraint_type, &
@@ -57,6 +59,7 @@ MODULE force_fields_util
   USE splines_types,                   ONLY: spline_data_type,&
                                              spline_env_release,&
                                              spline_environment_type
+  USE string_utilities,                ONLY: compress
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -69,7 +72,8 @@ MODULE force_fields_util
   PRIVATE
   PUBLIC :: force_field_pack,&
             force_field_qeff_output,&
-            clean_intra_force_kind
+            clean_intra_force_kind,&
+            get_generic_info
 
 CONTAINS
 
@@ -1124,10 +1128,105 @@ CONTAINS
     ! 12. Count the number of UNSET NONBOND14 kinds there are
     !-                NEED TO REMOVE EXTRAS HERE   - IKUO
     !---------------------------------------------------------------------------
-
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
          "PRINT%FF_INFO",error=error)
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE clean_intra_force_kind
+
+! *****************************************************************************
+!> \brief Reads from the input structure all information for generic functions
+! *****************************************************************************
+  SUBROUTINE get_generic_info(gen_section, func_name, xfunction, parameters, values,&
+       var_values, size_variables, i_rep_sec, input_variables, error)
+    TYPE(section_vals_type), POINTER         :: gen_section
+    CHARACTER(LEN=*), INTENT(IN)             :: func_name
+    CHARACTER(LEN=default_path_length), &
+      INTENT(OUT)                            :: xfunction
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: parameters
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: values
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: var_values
+    INTEGER, INTENT(IN), OPTIONAL            :: size_variables, i_rep_sec
+    CHARACTER(LEN=*), DIMENSION(:), OPTIONAL :: input_variables
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_generic_info', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: my_par, my_var
+    INTEGER                                  :: irep, mydim, n_par, n_val, &
+                                                stat, zero
+    LOGICAL                                  :: check, failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val
+
+    failure = .FALSE.
+    IF (ASSOCIATED(parameters)) THEN
+       DEALLOCATE(parameters,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (ASSOCIATED(values)) THEN
+       DEALLOCATE(values,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    irep = 1
+    IF (PRESENT(i_rep_sec)) irep = i_rep_sec
+    NULLIFY(my_var, my_par, my_val)
+    mydim = 0
+    CALL section_vals_val_get(gen_section,TRIM(func_name),i_rep_section=irep,c_val=xfunction,error=error)
+    CALL compress(xfunction, full=.TRUE.)
+    IF (PRESENT(input_variables)) THEN
+       ALLOCATE(my_var(SIZE(input_variables)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       my_var = input_variables
+    ELSE
+       CALL section_vals_val_get(gen_section,"VARIABLES",i_rep_section=irep,c_vals=my_var,error=error)
+    END IF
+    IF (ASSOCIATED(my_var)) THEN 
+       mydim = SIZE(my_var)
+    END IF
+    IF (PRESENT(size_variables)) THEN
+       CPPrecondition(mydim==size_variables,cp_failure_level,routineP,error,failure)
+    END IF
+    ! Check for presence of Parameters
+    CALL section_vals_val_get(gen_section,"PARAMETERS",i_rep_section=irep,n_rep_val=n_par,error=error)
+    CALL section_vals_val_get(gen_section,"VALUES",i_rep_section=irep,n_rep_val=n_val,error=error)
+    check = (n_par>0).EQV.(n_val>0)
+    CPPrecondition(check,cp_failure_level,routineP,error,failure)
+    IF (n_par>0) THEN
+       CALL section_vals_val_get(gen_section,"PARAMETERS",i_rep_section=irep,c_vals=my_par,error=error)
+       CALL section_vals_val_get(gen_section,"VALUES",i_rep_section=irep,r_vals=my_val,error=error)
+       IF (ASSOCIATED(my_par)) THEN
+          zero = 0
+          IF (SIZE(my_par)==1) THEN
+             IF (my_par(1)=="") zero = 1
+          END IF
+          CPPrecondition(SIZE(my_par)-zero==SIZE(my_val),cp_failure_level,routineP,error,failure)
+          mydim=mydim+SIZE(my_val)
+       END IF
+    END IF
+    ! Handle trivial case of a null function defined
+    ALLOCATE(parameters(mydim),stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(values(mydim),stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (mydim>0) THEN
+       parameters(1:SIZE(my_var)) = my_var
+       values(1:SIZE(my_var))     = 0.0_dp
+       IF (PRESENT(var_values)) THEN 
+          CPPrecondition(SIZE(var_values)==SIZE(my_var),cp_failure_level,routineP,error,failure)
+          values(1:SIZE(my_var)) = var_values
+       END IF
+       IF (ASSOCIATED(my_val)) THEN
+          parameters(SIZE(my_var)+1:) = my_par(1:SIZE(my_val))
+          values(SIZE(my_var)+1:)     = my_val(1:SIZE(my_val))
+       END IF
+    END IF
+    IF (PRESENT(input_variables)) THEN
+       DEALLOCATE(my_var,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+  END SUBROUTINE get_generic_info
 
 END MODULE force_fields_util

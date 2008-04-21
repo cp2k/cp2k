@@ -15,6 +15,7 @@ MODULE external_potential_methods
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_set,&
                                              force_env_type
+  USE force_fields_util,               ONLY: get_generic_info
   USE fparser,                         ONLY: evalf,&
                                              evalfd,&
                                              finalizef,&
@@ -56,12 +57,12 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: coupling_function
     CHARACTER(LEN=default_string_length)     :: def_error, this_error
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: my_par, par
-    INTEGER                                  :: handle, iatom, j, n_rep, &
-                                                output_unit, stat, sz_par
+      DIMENSION(:), POINTER                  :: my_par
+    INTEGER                                  :: handle, iatom, j, &
+                                                output_unit, stat
     LOGICAL                                  :: explicit, failure, ionode
     REAL(KIND=dp)                            :: dedf, dx, energy, err, lerr
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val, val
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
@@ -69,6 +70,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
+    NULLIFY(my_par, my_val, logger, subsys, particles, ext_pot_section)
     ext_pot_section => section_vals_get_subs_vals(force_env%force_env_section,&
                        "EXTERNAL_POTENTIAL",error=error)
     CALL section_vals_get(ext_pot_section,explicit=explicit,error=error)
@@ -77,32 +79,11 @@ CONTAINS
        logger => cp_error_get_logger(error)
        ionode = logger%para_env%mepos==logger%para_env%source
        IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
-
-       CALL initf(1)
-       CALL section_vals_val_get(ext_pot_section,"FUNCTION",c_val=coupling_function,error=error)
-       CALL compress(coupling_function, full=.TRUE.)
-       CALL section_vals_val_get(ext_pot_section,"PARAMETERS",n_rep_val=n_rep,error=error)
-       IF (n_rep /=0) THEN
-          CALL section_vals_val_get(ext_pot_section,"PARAMETERS",c_vals=par,error=error)
-          CALL section_vals_val_get(ext_pot_section,"VALUES",r_vals=val,error=error)
-          sz_par = SIZE(par)
-          CPPrecondition(SIZE(val)==sz_par,cp_failure_level,routineP,error,failure)
-       ELSE
-          sz_par = 0
-       END IF
        CALL section_vals_val_get(ext_pot_section,"DX",r_val=dx,error=error)
        CALL section_vals_val_get(ext_pot_section,"ERROR_LIMIT",r_val=lerr,error=error)
-       ALLOCATE(my_par(sz_par+3),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(my_val(sz_par+3),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (sz_par /= 0) THEN
-          my_par(1:sz_par)=par
-          my_val(1:sz_par)=val
-       END IF
-       my_par(1+sz_par)="X"
-       my_par(2+sz_par)="Y"
-       my_par(3+sz_par)="Z"
+       CALL get_generic_info(ext_pot_section, "FUNCTION", coupling_function, my_par, my_val,&
+            input_variables=(/"X","Y","Z"/), error=error)
+       CALL initf(1)
        CALL parsef(1,TRIM(coupling_function),my_par)
 
        ! Apply potential on all atoms, computing energy and forces
@@ -111,13 +92,13 @@ CONTAINS
        CALL cp_subsys_get(subsys, particles=particles, error=error)
        CALL force_env_get(force_env, additional_potential=energy, error=error)
        DO iatom = 1, particles%n_els
-          my_val(1+sz_par)=particles%els(iatom)%r(1)
-          my_val(2+sz_par)=particles%els(iatom)%r(2)
-          my_val(3+sz_par)=particles%els(iatom)%r(3)
+          my_val(1)=particles%els(iatom)%r(1)
+          my_val(2)=particles%els(iatom)%r(2)
+          my_val(3)=particles%els(iatom)%r(3)
           
           energy = energy + evalf(1,my_val)
           DO j = 1, 3
-             dedf = evalfd(1,sz_par+j,my_val,dx,err)
+             dedf = evalfd(1,j,my_val,dx,err)
              IF ((ABS(err)>lerr).AND.(output_unit>0)) THEN
                 WRITE(this_error,"(A,G12.6,A)")"(",err,")"
                 WRITE(def_error,"(A,G12.6,A)")"(",lerr,")"

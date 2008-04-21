@@ -16,11 +16,9 @@ MODULE mixed_main
   USE force_env_methods,               ONLY: force_env_create
   USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: mix_generic
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,&
                                              dp
   USE message_passing,                 ONLY: mp_comm_split
   USE mixed_environment,               ONLY: mixed_init
@@ -73,15 +71,12 @@ CONTAINS
 
     CHARACTER(len=default_path_length)       :: c_val, input_file_path, &
                                                 output_file_path
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: parameters, variables
-    INTEGER :: group_size_wish, handle, i, lp, mixing_type, mydim, n_rep_val, &
-      new_group, ngroup_wish, ngroups, output_unit, stat, unit_nr
+    INTEGER :: group_size_wish, handle, i, lp, n_rep_val, new_group, &
+      ngroup_wish, ngroups, output_unit, stat, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: group_partition, i_vals
     LOGICAL                                  :: failure, group_size_wish_set, &
                                                 ngroup_wish_set
     REAL(KIND=dp)                            :: t2
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: par_values
     TYPE(cp_logger_type), POINTER            :: loc_logger, logger
     TYPE(mixed_environment_type), POINTER    :: mixed_env
 
@@ -152,27 +147,6 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(mixed_env%energies(n_subforce_eval),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ! Informations in case of general mixed environment
-    CALL section_vals_val_get(force_env_section,"MIXED%MIXING_TYPE",i_val=mixing_type,error=error)
-    SELECT CASE(mixing_type)
-    CASE(mix_generic)
-       CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%VARIABLES",c_vals=variables,error=error)
-       ! Parameters could possibly not be there..
-       mydim = SIZE(variables)
-       CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%PARAMETERS",n_rep_val=n_rep_val,error=error)
-       IF (n_rep_val/=0) THEN
-          CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%PARAMETERS",c_vals=parameters,error=error)
-          CALL section_vals_val_get(force_env_section,"MIXED%GENERIC%VALUES",r_vals=par_values,error=error)
-          IF (ASSOCIATED(parameters)) THEN
-             CPPrecondition(SIZE(parameters)==SIZE(par_values),cp_failure_level,routineP,error,failure)
-             mydim=mydim+SIZE(parameters)
-          END IF
-       END IF
-       ALLOCATE(mixed_env%par(mydim),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(mixed_env%val(mydim),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    END SELECT
     !
     DO i = 1, mixed_env%ngroups
        NULLIFY(mixed_env%sub_para_env(i)%para_env,logger)
