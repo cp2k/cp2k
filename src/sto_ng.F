@@ -328,7 +328,7 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef, error )
              alpha( 1 ) = 7.941656339e-2_dp; coef ( 1 ) = 1.000000000e+0_dp
            CASE ( 2 )
              alpha( 1 ) = 1.330958892e-1_dp; coef ( 1 ) = 4.932764167e-1_dp
-             alpha( 2 ) = 5.272119659e-2_dp; coef ( 2 ) = 5.9187277866-1_dp
+             alpha( 2 ) = 5.272119659e-2_dp; coef ( 2 ) = 5.918727866e-1_dp
            CASE ( 3 )
              alpha( 1 ) = 1.777717219e-1_dp; coef ( 1 ) = 2.308552718e-1_dp
              alpha( 2 ) = 8.040647350e-2_dp; coef ( 2 ) = 6.042409177e-1_dp
