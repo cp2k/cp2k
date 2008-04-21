@@ -403,6 +403,11 @@ CONTAINS
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="se_parameters",&
+            description="If the printkey is activated controls the printing of the semi-empirical parameters.",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
        

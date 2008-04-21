@@ -33,6 +33,7 @@
     &PRINT
       &KINDS
         BASIS_SET
+        SE_PARAMETERS
       &END
     &END
   &END SUBSYS

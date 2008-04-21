@@ -480,6 +480,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Writes the semi-empirical type
+!> \par History
+!>        04.2008 Teodoro Laino [tlaino] - University of Zurich: rewriting with
+!>                support for the whole set of parameters
 ! ***************************************************************************** 
   SUBROUTINE write_se_param(sep, subsys_section, error)
 
@@ -489,14 +492,24 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_se_param', &
       routineP = moduleN//':'//routineN
-
+    CHARACTER(LEN=1), DIMENSION(0:3), &
+      PARAMETER                              :: orb_lab = (/"S","P","D","F"/)
+    CHARACTER(LEN=2), DIMENSION(0:3), PARAMETER :: &
+      z_lab = (/"ZS","ZP","ZD","ZF"/)
+    CHARACTER(LEN=3), DIMENSION(0:3), PARAMETER :: &
+      zeta_lab = (/"ZSN","ZPN","ZDN","ZFN"/)
+    CHARACTER(LEN=5), DIMENSION(0:3), PARAMETER :: &
+      beta_lab = (/"BETAS","BETAP","BETAD","BETAF"/)
     CHARACTER(LEN=default_string_length)     :: name
-    INTEGER                                  :: l, lm, natorb, ngauss, &
+    INTEGER                                  :: l, natorb, ngauss, &
                                                 output_unit, typ, z
     LOGICAL                                  :: defined
     REAL(KIND=dp)                            :: alp, eheat, eisol, gp2, gpp, &
                                                 gsp, gss, hsp, udd, uff, upp, &
                                                 uss, zeff
+    CHARACTER(LEN=3), DIMENSION(0:3), PARAMETER :: &
+      u_lab = (/"USS","UPP","UDD","UFF"/)
+
     REAL(KIND=dp), DIMENSION(0:3)            :: u
     REAL(KIND=dp), DIMENSION(2)              :: dpddg, ppddg
     REAL(KIND=dp), DIMENSION(:), POINTER     :: beta, sexp
@@ -505,26 +518,22 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     IF (ASSOCIATED(sep).AND.BTEST(cp_print_key_should_output(logger%iter_info,subsys_section,&
-         "PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) THEN
+         "PRINT%KINDS/SE_PARAMETERS",error=error),cp_p_file)) THEN
 
-       output_unit = cp_print_key_unit_nr(logger,subsys_section,"PRINT%KINDS",&
+       output_unit = cp_print_key_unit_nr(logger,subsys_section,"PRINT%KINDS/SE_PARAMETERS",&
             extension=".Log",error=error)
 
        IF (output_unit >0) THEN
           CALL get_se_param(sep,name=name,typ=typ,defined=defined,&
                z=z,zeff=zeff,natorb=natorb,eheat=eheat,beta=beta,&
                sto_exponents=sexp,uss=uss,upp=upp,udd=udd,uff=uff,&
-               alp=alp,eisol=eisol,&
-               gss=gss,gsp=gsp,gpp=gpp,gp2=gp2,hsp=hsp,&
-               ppddg=ppddg,dpddg=dpddg,&
-               ngauss=ngauss)
+               alp=alp,eisol=eisol,gss=gss,gsp=gsp,gpp=gpp,gp2=gp2,&
+               hsp=hsp,ppddg=ppddg,dpddg=dpddg,ngauss=ngauss)
 
           u(0) = uss
           u(1) = upp
           u(2) = udd
           u(3) = uff
-
-          lm=-1
 
           SELECT CASE (typ)
           CASE DEFAULT
@@ -538,170 +547,134 @@ CONTAINS
                 WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
                      " Semi empirical parameters: ","Recife Model 1 (RM1)",TRIM(name)
              END SELECT
-             IF ( defined ) THEN
-                WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)")&
-                     "Effective core charge:",zeff
-                WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
-                     "Number of orbitals:",natorb, &
-                     "Basis set expansion (STO-NG)",ngauss
-                WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
-                     "Atomic heat of formation [kcal/mol]:",eheat*kcalmol
-                DO l=0,3
-                   IF (ABS(beta(l)) > 0._dp) THEN
-                      WRITE (UNIT=output_unit,&
-                           FMT="(T16,A,I2,T48,A,F17.4,/,T22,A,F12.4,T52,A,F12.4)") &
-                           "Shell: ",l,"Slater exponent:",sexp(l),&
-                           "U [eV]    :",u(l)*evolt,"Beta [eV]       :",beta(l)*evolt
-                      lm=l
-                   END IF
-                END DO
-                WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
-                     "alp [A^-1]      :",alp/angstrom,&
-                     "eisol [eV]      :",eisol*evolt
-                WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F8.3))") &
-                     "One-centre-two-electron integrals [eV]",&
-                     " gss=",gss*evolt," gsp=",gsp*evolt,&
-                     " gpp=",gpp*evolt," gp2=",gp2*evolt," hsp=",hsp*evolt
-             ELSE
-                WRITE (UNIT=output_unit,FMT="(T55,A)")&
-                     "Parameters are not defined"
-             END IF
           CASE (do_method_pm3)
              WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
                   " Semi empirical parameters: ","Parametric Method 3 (PM3) ",&
                   TRIM(name)
-             IF ( defined ) THEN
-                WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)")&
-                     "Effective core charge:",zeff
-                WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
-                     "Number of orbitals:",natorb, &
-                     "Basis set expansion (STO-NG)",ngauss
-                WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
-                     "Atomic heat of formation [kcal/mol]:",eheat*kcalmol
-                DO l=0,3
-                   IF (ABS(beta(l)) > 0._dp) THEN
-                      WRITE (UNIT=output_unit,&
-                           FMT="(T16,A,I2,T48,A,F17.4,/,T22,A,F12.4,T52,A,F12.4)") &
-                           "Shell: ",l,"Slater exponent:",sexp(l),&
-                           "U [eV]    :",u(l)*evolt,"Beta [eV]       :",beta(l)*evolt
-                      lm=l
-                   END IF
-                END DO
-                WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
-                     "alp [A^-1]      :",alp/angstrom,&
-                     "eisol [eV]      :",eisol*evolt
-                WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F8.3))") &
-                     "One-centre-two-electron integrals [eV]",&
-                     " gss=",gss*evolt," gsp=",gsp*evolt,&
-                     " gpp=",gpp*evolt," gp2=",gp2*evolt," hsp=",hsp*evolt
-             ELSE
-                WRITE (UNIT=output_unit,FMT="(T55,A)")&
-                     "Parameters are not defined"
-             END IF
           CASE (do_method_pm6)
              WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
                   " Semi empirical parameters: ","Parametric Method 6 (PM6) ",&
                   TRIM(name)
-             IF ( defined ) THEN
-                WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)")&
-                     "Effective core charge:",zeff
-                WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
-                     "Number of orbitals:",natorb, &
-                     "Basis set expansion (STO-NG)",ngauss
-                WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
-                     "Atomic heat of formation [kcal/mol]:",eheat*kcalmol
-                DO l=0,3
-                   IF (ABS(beta(l)) > 0._dp) THEN
-                      WRITE (UNIT=output_unit,&
-                           FMT="(T16,A,I2,T48,A,F17.4,/,T22,A,F12.4,T52,A,F12.4)") &
-                           "Shell: ",l,"Slater exponent:",sexp(l),&
-                           "U [eV]    :",u(l)*evolt,"Beta [eV]       :",beta(l)*evolt
-                      lm=l
-                   END IF
-                END DO
-                WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
-                     "alp [A^-1]      :",alp/angstrom,&
-                     "eisol [eV]      :",eisol*evolt
-                WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F8.3))") &
-                     "One-centre-two-electron integrals [eV]",&
-                     " gss=",gss*evolt," gsp=",gsp*evolt,&
-                     " gpp=",gpp*evolt," gp2=",gp2*evolt," hsp=",hsp*evolt
-             ELSE
-                WRITE (UNIT=output_unit,FMT="(T55,A)")&
-                     "Parameters are not defined"
-             END IF
           CASE (do_method_pdg)
              WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
                   " Semi empirical parameters: ","PDDG/PM3 ",&
                   TRIM(name)
-             IF ( defined ) THEN
-                WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)")&
-                     "Effective core charge:",zeff
-                WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
-                     "Number of orbitals:",natorb, &
-                     "Basis set expansion (STO-NG)",ngauss
-                WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
-                     "Atomic heat of formation [kcal/mol]:",eheat*kcalmol
-                DO l=0,3
-                   IF (ABS(beta(l)) > 0._dp) THEN
-                      WRITE (UNIT=output_unit,&
-                           FMT="(T16,A,I2,T48,A,F17.4,/,T22,A,F12.4,T52,A,F12.4)") &
-                           "Shell: ",l,"Slater exponent:",sexp(l),&
-                           "U [eV]    :",u(l)*evolt,"Beta [eV]       :",beta(l)*evolt
-                      lm=l
-                   END IF
-                END DO
-                WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
-                     "alp [A^-1]      :",alp/angstrom,&
-                     "eisol [eV]      :",eisol*evolt
-                WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F8.3))") &
-                     "One-centre-two-electron integrals [eV]",&
-                     " gss=",gss*evolt," gsp=",gsp*evolt,&
-                     " gpp=",gpp*evolt," gp2=",gp2*evolt," hsp=",hsp*evolt
-                WRITE (UNIT=output_unit,FMT="(T16,A,T52,F14.10,T67,F14.10)") &
-                     "d_PDDG [A^-1]      :",dpddg/angstrom,&
-                     "P_PDDG [eV]      :",ppddg*evolt
-             ELSE
-                WRITE (UNIT=output_unit,FMT="(T55,A)")&
-                     "Parameters are not defined"
-             END IF
-          CASE (do_method_mndo, do_method_mndod)
+          CASE (do_method_mndo)
              WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
                   " Semi empirical parameters: ","MNDO ",TRIM(name)
-             IF ( defined ) THEN
-                WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)")&
-                     "Effective core charge:",zeff
-                WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
-                     "Number of orbitals:",natorb, &
-                     "Basis set expansion (STO-NG)",ngauss
-                WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
-                     "Atomic heat of formation [kcal/mol]:",eheat*kcalmol
-                DO l=0,3
-                   IF (ABS(beta(l)) > 0._dp) THEN
-                      WRITE (UNIT=output_unit,&
-                           FMT="(T16,A,I2,T48,A,F17.4,/,T22,A,F12.4,T52,A,F12.4)") &
-                           "Shell: ",l,"Slater exponent:",sexp(l),&
-                           "U [eV]    :",u(l)*evolt,"Beta [eV]       :",beta(l)*evolt
-                      lm=l
-                   END IF
-                END DO
-                WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
-                     "alp [A^-1]      :",alp/angstrom,&
-                     "eisol [eV]      :",eisol*evolt
-                WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F8.3))") &
-                     "One-centre-two-electron integrals [eV]",&
-                     " gss=",gss*evolt," gsp=",gsp*evolt,&
-                     " gpp=",gpp*evolt," gp2=",gp2*evolt," hsp=",hsp*evolt
-             ELSE
-                WRITE (UNIT=output_unit,FMT="(T55,A)")&
-                     "Parameters are not defined"
+          CASE (do_method_mndod)
+             WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
+                  " Semi empirical parameters: ","MNDOD",TRIM(name)
+          END SELECT
+
+          ! If defined print all its semi-empirical parameters
+          IF ( defined ) THEN
+             WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)")&
+                  "Effective core charge:",zeff
+             WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
+                  "Number of orbitals:",natorb, &
+                  "Basis set expansion (STO-NG)",ngauss
+             WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
+                  "Atomic heat of formation [kcal/mol]:",eheat*kcalmol
+             DO l=0,3
+                IF (ABS(beta(l)) > 0._dp) THEN
+                   WRITE (UNIT=output_unit,FMT="(T16,A,I2)") "Parameters for Shell: ",l
+                   WRITE (UNIT=output_unit,FMT="(T22,A5,T30,A,T64,F17.4)")&
+                         ADJUSTR(z_lab(l)),"- "//"Slater  Exponent for "//orb_lab(l)//"     [A]: ",sexp(l)
+                   WRITE (UNIT=output_unit,FMT="(T22,A5,T30,A,T64,F17.4)")&
+                         ADJUSTR(u_lab(l)),"- "//"One Center Energy for "//orb_lab(l)//"   [eV]: ",u(l)*evolt
+                   WRITE (UNIT=output_unit,FMT="(T22,A5,T30,A,T64,F17.4)")&
+                         ADJUSTR(beta_lab(l)),"- "//"Beta Parameter for "//orb_lab(l)//"      [eV]: ",beta(l)*evolt
+                   WRITE (UNIT=output_unit,FMT="(T22,A5,T30,A,T64,F17.4)")&
+                         ADJUSTR(zeta_lab(l)),"- "//"Internal Exponent for "//orb_lab(l)//" [a.u.]: ",sep%zn(l)
+                END IF
+             END DO
+             WRITE (UNIT=output_unit,FMT="(/,T16,A)")"Additional Parameters (Derived or Fitted):"
+             WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                   ADJUSTR("ALP"),"- "//"Alpha Parameter for Core    [A^-1]: ",alp/angstrom
+             WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                   ADJUSTR("EISOL"),"- "//"Atomic Energy (Calculated)    [eV]: ",eisol*evolt
+             ! One center Two electron Integrals
+             WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                   ADJUSTR("GSS"),"- "//"One Center Integral (SS ,SS ) [eV]: ",gss*evolt
+             WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                   ADJUSTR("GSP"),"- "//"One Center Integral (SS ,PP ) [eV]: ",gsp*evolt
+             WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                   ADJUSTR("GPP"),"- "//"One Center Integral (PP ,PP ) [eV]: ",gpp*evolt
+             WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                   ADJUSTR("GP2"),"- "//"One Center Integral (PP*,PP*) [eV]: ",gp2*evolt
+             WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                   ADJUSTR("HSP"),"- "//"One Center Integral (SP ,SP ) [eV]: ",hsp*evolt
+             ! Slater Condon Parameters
+             IF (sep%dorb) THEN
+                WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                      ADJUSTR("F0DD"),"- "//"Slater Condon Parameter F0DD  [eV]: ",sep%f0dd
+                WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                      ADJUSTR("F2DD"),"- "//"Slater Condon Parameter F2DD  [eV]: ",sep%f2dd
+                WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                      ADJUSTR("F4DD"),"- "//"Slater Condon Parameter F4DD  [eV]: ",sep%f4dd
+                WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                      ADJUSTR("FOSD"),"- "//"Slater Condon Parameter FOSD  [eV]: ",sep%f0sd
+                WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                      ADJUSTR("G2SD"),"- "//"Slater Condon Parameter G2SD  [eV]: ",sep%g2sd
+                WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                      ADJUSTR("F0PD"),"- "//"Slater Condon Parameter F0PD  [eV]: ",sep%f0pd
+                WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                      ADJUSTR("F2PD"),"- "//"Slater Condon Parameter F2PD  [eV]: ",sep%f2pd
+                WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                      ADJUSTR("G1PD"),"- "//"Slater Condon Parameter G1PD  [eV]: ",sep%g1pd
+                WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                      ADJUSTR("G3PD"),"- "//"Slater Condon Parameter G3PD  [eV]: ",sep%g3pd
              END IF
+             ! Charge Separation
+             WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                   ADJUSTR("DD2"),"- "//"Charge Separation  SP, L=1  [bohr]: ",sep%cs(2)
+             WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                   ADJUSTR("DD3"),"- "//"Charge Separation  PP, L=2  [bohr]: ",sep%cs(3)
+             IF (sep%dorb) THEN
+                WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                      ADJUSTR("DD4"),"- "//"Charge Separation  SD, L=2  [bohr]: ",sep%cs(4)
+                WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                      ADJUSTR("DD5"),"- "//"Charge Separation  PD, L=1  [bohr]: ",sep%cs(5)
+                WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                      ADJUSTR("DD6"),"- "//"Charge Separation  DD, L=2  [bohr]: ",sep%cs(6)
+             END IF
+             ! Klopman-Ohno Terms
+             WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                   ADJUSTR("PO1"),"- "//"Klopman-Ohno term, SS, L=0  [bohr]: ",sep%ko(1)
+             WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                   ADJUSTR("PO2"),"- "//"Klopman-Ohno term, SP, L=1  [bohr]: ",sep%ko(2)
+             WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                   ADJUSTR("PO3"),"- "//"Klopman-Ohno term, PP, L=2  [bohr]: ",sep%ko(3)
+             IF (sep%dorb) THEN
+                WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                      ADJUSTR("PO4"),"- "//"Klopman-Ohno term, SD, L=2  [bohr]: ",sep%ko(4)
+                WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                      ADJUSTR("PO5"),"- "//"Klopman-Ohno term, PD, L=1  [bohr]: ",sep%ko(5)
+                WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                      ADJUSTR("PO6"),"- "//"Klopman-Ohno term, DD, L=2  [bohr]: ",sep%ko(6)
+                WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                      ADJUSTR("PO7"),"- "//"Klopman-Ohno term, PP, L=0  [bohr]: ",sep%ko(7)
+                WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                      ADJUSTR("PO8"),"- "//"Klopman-Ohno term, DD, L=0  [bohr]: ",sep%ko(8)
+             END IF
+             WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T69,F12.4)")&
+                   ADJUSTR("PO9"),"- "//"Klopman-Ohno term, CORE     [bohr]: ",sep%ko(9)
+          ELSE
+             WRITE (UNIT=output_unit,FMT="(T55,A)") "Parameters are not defined"
+          END IF
+
+          ! Additional Parameters not common to all semi-empirical methods
+          SELECT CASE (typ)
+          CASE (do_method_pdg)
+                WRITE (UNIT=output_unit,FMT="(T16,A11,T30,A,T52,F14.10,T67,F14.10)") &
+                     ADJUSTR("d_PDDG"),"- "//"Exponent [A^-1]:",dpddg/angstrom,&
+                     ADJUSTR("P_PDDG"),"- "//"Parameter  [eV]:",ppddg*evolt
           END SELECT
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
-            "PRINT%KINDS",error=error)
+            "PRINT%KINDS/SE_PARAMETERS",error=error)
     END IF
-
   END SUBROUTINE write_se_param
 
 END MODULE semi_empirical_types
