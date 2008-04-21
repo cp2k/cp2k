@@ -329,7 +329,7 @@ CONTAINS
           CASE (electronic_spectra_run)
              IF(method_name_id /= do_qs.AND.method_name_id /= do_qmmm) &
                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                  "Electron spectra available only with Quickstep program "//&
+                  "Electron spectra available only with Quickstep or QMMM program. "//&
                   CPSourceFileRef,&
                   suberror,failure)
              CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
