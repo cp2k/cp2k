@@ -1106,6 +1106,8 @@ CONTAINS
     IF (.NOT.failure) THEN
        CPPostcondition(.NOT.ASSOCIATED(gp),cp_failure_level,routineP,error,failure)
        ALLOCATE(gp, stat=stat)
+       NULLIFY (gp%parameters)
+       NULLIFY (gp%values)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL pair_potential_gp_clean(gp, error=error)
     END IF
@@ -1159,6 +1161,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_gp_clean', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -1167,8 +1170,14 @@ CONTAINS
        gp%myid      = 0
        gp%potential = ""
        gp%variables = ""
-       NULLIFY (gp%parameters)
-       NULLIFY (gp%values)
+       IF (ASSOCIATED(gp%values)) THEN
+          DEALLOCATE(gp%values,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (ASSOCIATED(gp%parameters)) THEN
+          DEALLOCATE(gp%parameters,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
     END IF
   END SUBROUTINE pair_potential_gp_clean
 
