@@ -1068,14 +1068,14 @@ CONTAINS
        CALL keyword_create(keyword, name="PARAMETERS",&
             description="Defines the parameters of the functional form",&
             usage="PARAMETERS a b D", required=.TRUE., type_of_var=char_t,&
-            n_var=-1, error=error)
+            n_var=-1, repeats=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="VALUES",&
             description="Defines the values of  parameter of the functional form",&
             usage="VALUES ", required=.TRUE., type_of_var=real_t,&
-            n_var=-1, error=error)
+            n_var=-1, repeats=.TRUE., unit_str="internal_cp2k", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

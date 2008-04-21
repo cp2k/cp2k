@@ -48,6 +48,7 @@ MODULE force_fields_util
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
+  USE memory_utilities,                ONLY: reallocate
   USE molecule_kind_types,             ONLY: &
        atom_type, bend_type, bond_type, colvar_constraint_type, &
        g3x3_constraint_type, g4x6_constraint_type, get_molecule_kind, &
@@ -1155,13 +1156,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: my_par, my_var
-    INTEGER                                  :: irep, mydim, n_par, n_val, &
-                                                stat, zero
+      DIMENSION(:), POINTER                  :: my_par, my_par_tmp, my_var
+    INTEGER                                  :: i, ind, irep, isize, j, &
+                                                mydim, n_par, n_val, nblank, &
+                                                stat
     LOGICAL                                  :: check, failure
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val, my_val_tmp
 
     failure = .FALSE.
+    NULLIFY(my_var, my_par, my_val, my_par_tmp, my_val_tmp)
     IF (ASSOCIATED(parameters)) THEN
        DEALLOCATE(parameters,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1172,7 +1175,6 @@ CONTAINS
     END IF
     irep = 1
     IF (PRESENT(i_rep_sec)) irep = i_rep_sec
-    NULLIFY(my_var, my_par, my_val)
     mydim = 0
     CALL section_vals_val_get(gen_section,TRIM(func_name),i_rep_section=irep,c_val=xfunction,error=error)
     CALL compress(xfunction, full=.TRUE.)
@@ -1195,15 +1197,36 @@ CONTAINS
     check = (n_par>0).EQV.(n_val>0)
     CPPrecondition(check,cp_failure_level,routineP,error,failure)
     IF (n_par>0) THEN
-       CALL section_vals_val_get(gen_section,"PARAMETERS",i_rep_section=irep,c_vals=my_par,error=error)
-       CALL section_vals_val_get(gen_section,"VALUES",i_rep_section=irep,r_vals=my_val,error=error)
-       IF (ASSOCIATED(my_par)) THEN
-          zero = 0
-          IF (SIZE(my_par)==1) THEN
-             IF (my_par(1)=="") zero = 1
-          END IF
-          CPPrecondition(SIZE(my_par)-zero==SIZE(my_val),cp_failure_level,routineP,error,failure)
-          mydim=mydim+SIZE(my_val)
+       ! Parameters
+       ALLOCATE(my_par(0),stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(my_val(0),stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO i = 1, n_par
+          isize  = SIZE(my_par)
+          CALL section_vals_val_get(gen_section,"PARAMETERS",i_rep_section=irep,i_rep_val=i,c_vals=my_par_tmp,error=error)
+          nblank = COUNT(my_par_tmp=="")
+          CALL reallocate(my_par, 1, isize+SIZE(my_par_tmp)-nblank)
+          ind = 0
+          DO j = 1, SIZE(my_par_tmp)
+             IF (my_par_tmp(j)=="") CYCLE
+             ind = ind + 1
+             my_par(isize+ind)=my_par_tmp(j)
+          END DO
+       END DO
+       DO i = 1, n_val
+          isize = SIZE(my_val)
+          CALL section_vals_val_get(gen_section,"VALUES",i_rep_section=irep,i_rep_val=i,r_vals=my_val_tmp,error=error)
+          CALL reallocate(my_val,1, isize+SIZE(my_val_tmp))
+          my_val(isize+1:isize+SIZE(my_val_tmp))=my_val_tmp
+       END DO
+       CPPrecondition(SIZE(my_par)==SIZE(my_val),cp_failure_level,routineP,error,failure)
+       mydim=mydim+SIZE(my_val)
+       IF (SIZE(my_val)==0) THEN
+          DEALLOCATE(my_par,stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(my_val,stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END IF
     ! Handle trivial case of a null function defined
@@ -1222,6 +1245,14 @@ CONTAINS
           parameters(SIZE(my_var)+1:) = my_par(1:SIZE(my_val))
           values(SIZE(my_var)+1:)     = my_val(1:SIZE(my_val))
        END IF
+    END IF
+    IF (ASSOCIATED(my_par)) THEN
+       DEALLOCATE(my_par,stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (ASSOCIATED(my_val)) THEN
+       DEALLOCATE(my_val,stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF (PRESENT(input_variables)) THEN
        DEALLOCATE(my_var,stat=stat)
