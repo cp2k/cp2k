@@ -327,10 +327,10 @@ CONTAINS
           CASE (mon_car_run)
              CALL do_mon_car ( force_env, globenv, input_file_name, error=suberror )
           CASE (electronic_spectra_run)
-             IF(method_name_id /= do_qs) &
+             IF(method_name_id /= do_qs.AND.method_name_id /= do_qmmm) &
                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                   "Electron spectra available only with Quickstep program "//&
-CPSourceFileRef,&
+                  CPSourceFileRef,&
                   suberror,failure)
              CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
                   error=suberror)
@@ -346,7 +346,7 @@ CPSourceFileRef,&
              ! The Ground State is needed, it can be read from Restart
              CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
                   error=suberror)
-             CALL linres_calculation(force_env%qs_env, error=suberror)
+             CALL linres_calculation(force_env, error=suberror)
           CASE (qs_debug_run)
              SELECT CASE(method_name_id)
              CASE(do_qs, do_qmmm, do_ep)

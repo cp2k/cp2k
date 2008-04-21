@@ -18,6 +18,10 @@ MODULE qs_linres_module
   USE cp_fm_types,                     ONLY: cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_type,&
+                                             use_qmmm,&
+                                             use_qs_force
   USE input_constants,                 ONLY: &
        lr_cg, lr_current, lr_diis, lr_none, lr_precond_full_all, &
        lr_precond_none, lr_precond_s_inverse, lr_precond_single, lr_sd, &
@@ -27,6 +31,7 @@ MODULE qs_linres_module
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE qmmm_types,                      ONLY: qs_subsys
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -89,9 +94,9 @@ CONTAINS
 !>      06.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE linres_calculation(qs_env, error)
+  SUBROUTINE linres_calculation(force_env, error)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_calculation', &
@@ -106,6 +111,7 @@ CONTAINS
     TYPE(epr_env_type)                       :: epr_env
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(nmr_env_type)                       :: nmr_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(section_vals_type), POINTER         :: lr_section, prop_section
 
@@ -115,11 +121,24 @@ CONTAINS
     nmr_present = .FALSE.
     epr_present = .FALSE.
 
-    NULLIFY(dft_control,p_env,linres_control,logger,lr_section,prop_section)
+    NULLIFY(dft_control,p_env,linres_control,logger,lr_section,prop_section,qs_env)
+
+    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
+
+    SELECT CASE(force_env%in_use)
+    CASE(use_qs_force)
+       CALL force_env_get(force_env,&
+                          qs_env=qs_env,error=error)
+    CASE(use_qmmm)
+       CALL force_env_get(force_env%sub_force_env(qs_subsys)%force_env,&
+                          qs_env=qs_env,error=error)
+    CASE DEFAULT
+       CALL stop_program(routineP,"Doesnt recognize this force_env.")
+    END SELECT
 
     logger => cp_error_get_logger(error)
     ionode = (logger%para_env%mepos==logger%para_env%source)
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
     ! The transition potential method to calculate XAS needs LSD
     lr_section =>  section_vals_get_subs_vals(qs_env%input, &
