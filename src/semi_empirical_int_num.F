@@ -885,12 +885,12 @@ CONTAINS
           IF ( ABS(sepi%rho) > EPSILON(0.0_dp) ) THEN
              poi = sepi%rho
           ELSE
-             poi = sepi%ko(1)
+             poi = sepi%ko(9)
           END IF
           IF ( ABS(sepj%rho) > EPSILON(0._dp) ) THEN
              poj = sepj%rho
           ELSE
-             poj = sepj%ko(1)
+             poj = sepj%ko(9)
           END IF
           scale = sepi%zeff*sepj%zeff/SQRT(rij*rij+(poi+poj)**2)
           IF(shortrange) scale = scale -  sepi%zeff*sepj%zeff/rij
@@ -904,7 +904,7 @@ CONTAINS
           ELSEIF ( sepi%z == 6 .AND. sepj%z == 6 ) THEN
              ! Special Case C-C
              enuc=enuc+scale*(1._dp+2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6)) &
-                  +9.28_dp*EXP(-5.98*rija))
+                  +9.28_dp*EXP(-5.98_dp*rija))
           ELSEIF ( (sepi%z == 8 .AND. sepj%z == 14) .OR. &
                (sepj%z == 8 .AND. sepi%z == 14) ) THEN
              ! Special Case Si-O
