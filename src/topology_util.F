@@ -1212,8 +1212,8 @@ CONTAINS
 !>      12.2005 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE check_subsys_element(element_in, element_out, subsys_section, error)
-    CHARACTER(len=*), INTENT(IN)             :: element_in
+  SUBROUTINE check_subsys_element(element_in, element_in_org, element_out, subsys_section, error)
+    CHARACTER(len=*), INTENT(IN)             :: element_in, element_in_org
     CHARACTER(len=default_string_length), &
       INTENT(OUT)                            :: element_out
     TYPE(section_vals_type), POINTER         :: subsys_section
@@ -1223,7 +1223,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: current_symbol, &
-                                                element_symbol, keyword
+                                                element_symbol, &
+                                                element_symbol_org, keyword
     INTEGER                                  :: i, i_rep, n_rep, output_unit
     LOGICAL                                  :: failure, found, ionode
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1237,12 +1238,14 @@ CONTAINS
     ELSE
       output_unit = -1
     END IF
-    found          = .FALSE.
-    failure        = .FALSE.
-    element_symbol = element_in
-    element_out    = ""
+    found              = .FALSE.
+    failure            = .FALSE.
+    element_symbol     = element_in
+    element_symbol_org = element_in_org
+    element_out        = ""
     ! First check the element read from the input file..
     CALL uppercase(element_symbol)
+    CALL uppercase(element_symbol_org)
     DO i=LBOUND(ptable,1),UBOUND(ptable,1)
        current_symbol = ptable(i)%symbol
        CALL uppercase(current_symbol)
@@ -1260,7 +1263,7 @@ CONTAINS
           CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
                c_val=keyword,i_rep_section=i_rep,error=error)
           CALL uppercase(keyword)
-          IF (TRIM(keyword)==TRIM(element_symbol)) THEN
+          IF (TRIM(keyword)==TRIM(element_symbol_org)) THEN
              CALL section_vals_val_get(kind_section,i_rep_section=i_rep,&
                   keyword_name="ELEMENT",n_rep_val=i,error=error)
              IF (i>0) THEN
