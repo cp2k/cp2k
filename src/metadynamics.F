@@ -371,10 +371,8 @@ CONTAINS
     INTEGER                                  :: handle, i, i_c, icolvar, ii, &
                                                 iw, iwall
     LOGICAL                                  :: explicit, failure
-    REAL(kind=dp)                            :: check_val, dsdr(3), dt, &
-                                                ekin_w, fac_t, fft, norm, &
-                                                rval, scal, scalf, ss0_test, &
-                                                tol_ekin
+    REAL(kind=dp) :: check_val, diff_ss, dsdr(3), dt, ekin_w, fac_t, fft, &
+      norm, rval, scal, scalf, ss0_test, tmp_ss, tol_ekin
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: colvar_p
     TYPE(cp_logger_type), POINTER            :: logger
@@ -478,8 +476,14 @@ CONTAINS
        meta_env%ekin_s = 0.0_dp
        DO i_c= 1, meta_env%n_colvar
           cv => meta_env%metavar(i_c)
-          cv%cv_energy = 0.5_dp*cv%lambda*(cv%ss-cv%ss0)**2.0_dp
-          cv%ff_s      = cv%lambda*(cv%ss-cv%ss0)
+          diff_ss = cv%ss-cv%ss0
+          IF (meta_env%metavar(i_c)%periodic) THEN
+             ! The difference of a periodic COLVAR is always within [0,pi]
+             tmp_ss  = COS(diff_ss)
+             diff_ss = ACOS(tmp_ss)
+          END IF
+          cv%cv_energy = 0.5_dp*cv%lambda*(diff_ss)**2.0_dp
+          cv%ff_s      = cv%lambda*(diff_ss)
           icolvar      = cv%icolvar
           ! forces on the atoms
           NULLIFY(particles)

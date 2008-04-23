@@ -469,7 +469,7 @@ CONTAINS
        CALL keyword_create(keyword, name="LAMBDA",&
             description="Specifies the lambda parameter of the collective variable in the"//&
             " extended lagrangian scheme.",&
-            usage="LAMBDA {real}",type_of_var=real_t,error=error)
+            usage="LAMBDA {real}",unit_str='internal_cp2k',type_of_var=real_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
