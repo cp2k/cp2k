@@ -238,7 +238,7 @@ CONTAINS
     failure   = .FALSE.
     longrange = .FALSE.
     IF (PRESENT(do_longrange))  longrange = do_longrange
-    rep     = 0.0_dp
+    rep       = 0.0_dp
     ! Contribution from sp shells
     CALL terep_sp_num(sepi, sepj, rij, rep(1:34), longrange, error=error)
 
@@ -727,7 +727,7 @@ CONTAINS
     END IF
 
     ! Contribution from the sp shells
-    CALL nucint_spcore_num(sepi, sepj, rij, ssss, core, itype, longrange, error=error)
+    CALL nucint_sp_num(sepi, sepj, rij, ssss, core, itype, longrange, error=error)
 
     IF ((sepi%dorb.OR.sepj%dorb).AND.l_core) THEN
        ! Compute the contribution from d shells
@@ -783,13 +783,13 @@ CONTAINS
 !>         The storage of the nuclear attraction integrals  core(kl/ij) iS
 !>         (SS/)=1,   (SO/)=2,   (OO/)=3,   (PP/)=4
 !>         where ij=1 if the orbitals centred on atom i,  =2 if on atom j.
-!> \note routine adapted from mopac7 (repp)
-!>       vector version written by Ernest R. Davidson, Indiana University
 !> \par History
-!>      Teodoro Laino (03.2008) [tlaino] - University of Zurich : new driver
-!>                 for computing integrals
+!>      Teodoro Laino (04.2008) [tlaino] - University of Zurich : new driver
+!>                    for computing integrals
+!>      Teodoro Laino (04.2008) [tlaino] - Totally rewritten: nothing to do with
+!>                    the old version
 ! *****************************************************************************
-  SUBROUTINE nucint_spcore_num( sepi, sepj, rij, ssss, core, itype, longrange, error)
+  SUBROUTINE nucint_sp_num( sepi, sepj, rij, ssss, core, itype, longrange, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: rij
     REAL(dp), INTENT(INOUT), OPTIONAL        :: ssss
@@ -799,7 +799,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: longrange
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'nucint_spcore_num', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'nucint_sp_num', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ij, kl
@@ -851,7 +851,7 @@ CONTAINS
        END IF
     END IF
 
-  END SUBROUTINE nucint_spcore_num
+  END SUBROUTINE nucint_sp_num
 
 ! *****************************************************************************
 !> \brief Calculates the nuclear attraction integrals involving d orbitals

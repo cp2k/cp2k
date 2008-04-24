@@ -202,11 +202,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: l1, l2, m1, m2
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: da, db, dxdx, dxqxz, dzdz, &
                                                 dzqxx, dzqzz, fact, qqxx, &
                                                 qqzz, qxxqxx, qxxqyy, qxzqxz, &
                                                 xyxy, zzzz
 
+    failure = .FALSE.
     IF      ( l1_i  < l2_i) THEN
        l1 = l1_i
        l2 = l2_i
@@ -366,6 +368,8 @@ CONTAINS
        charg = 0.5_dp * (qxxqxx*0.125_dp - qxxqyy*0.25_dp) * fact
        RETURN
     END IF
+    ! We should NEVER reach this point
+    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
   END FUNCTION charg_int_nri
 
 ! *****************************************************************************
@@ -481,36 +485,46 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 03.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION charg_int_ri(r, l1, l2, m, da, db, add, error) RESULT(charg)
+  FUNCTION charg_int_ri(r, l1_i, l2_i, m, da_i, db_i, add, error) RESULT(charg)
     REAL(KIND=dp), INTENT(in)                :: r
-    INTEGER, INTENT(in)                      :: l1, l2, m
-    REAL(KIND=dp), INTENT(in)                :: da, db, add
+    INTEGER, INTENT(in)                      :: l1_i, l2_i, m
+    REAL(KIND=dp), INTENT(in)                :: da_i, db_i, add
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: charg
 
     CHARACTER(len=*), PARAMETER :: routineN = 'charg_int_ri', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp)                            :: aa, ab, dxdx, dxqxz, dzdz, &
-                                                dzqzz, qqzz, qxzdx, qxzqxz, &
-                                                qzzdz, qzzq, xyxy, zzzz
+    INTEGER                                  :: l1, l2
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: aa, ab, da, db, dxdx, dxqxz, &
+                                                dzdz, dzqzz, fact, qqzz, &
+                                                qxzqxz, xyxy, zzzz
 
+    failure = .FALSE.
+    IF      ( l1_i  <= l2_i) THEN
+       l1 = l1_i
+       l2 = l2_i
+       da = da_i
+       db = db_i
+       fact  = 1.0_dp
+    ELSE IF ( l1_i  > l2_i ) THEN
+       l1 = l2_i
+       l2 = l1_i
+       da = db_i
+       db = da_i
+       fact  = (-1.0_dp)**(l1+l2)
+    END IF
     charg = 0.0_dp
     ! Q - Q.
     IF (l1 == 0 .AND. l2 == 0) THEN
-       charg = 1.0_dp/SQRT(r**2+add)
-       RETURN
-    END IF
-    ! Z - Q.
-    IF (l1 == 1 .AND. l2 == 0) THEN
-       charg = -1.0_dp/SQRT((r+da)**2+add) + 1.0_dp/SQRT((r-da)**2+add)
-       charg = charg*0.5_dp
+       charg = fact/SQRT(r**2+add)
        RETURN
     END IF
     ! Q - Z.
     IF (l1 == 0 .AND. l2 == 1) THEN
        charg =  1.0_dp/SQRT((r+db)**2+add) - 1.0_dp/SQRT((r-db)**2+add)
-       charg = charg*0.5_dp
+       charg = charg*0.5_dp*fact
        RETURN
     END IF
     ! Z - Z.
@@ -518,25 +532,19 @@ CONTAINS
        dzdz  = &
             +1.0_dp/SQRT((r+da-db)**2+add) + 1.0_dp/SQRT((r-da+db)**2+add) &
             -1.0_dp/SQRT((r-da-db)**2+add) - 1.0_dp/SQRT((r+da+db)**2+add)
-       charg = dzdz*0.25_dp
+       charg = dzdz*0.25_dp*fact
        RETURN
     END IF
     ! X - X
     IF (l1 == 1 .AND. l2 == 1 .AND. m == 1) THEN
        dxdx  = 2.0_dp/SQRT(r**2+(da-db)**2+add) - 2.0_dp/SQRT(r**2+(da+db)**2+add)
-       charg = dxdx*0.25_dp
+       charg = dxdx*0.25_dp*fact
        RETURN
     END IF
     ! Q - ZZ
     IF (l1 == 0 .AND. l2 == 2) THEN
        qqzz  = 1.0_dp/SQRT((r-db)**2+add) - 2.0_dp/SQRT(r**2+db**2+add) + 1.0_dp/SQRT((r+db)**2+add)
-       charg = qqzz*0.25_dp
-       RETURN
-    END IF
-    ! ZZ -Q
-    IF (l1 == 2 .AND. l2 == 0) THEN
-       qzzq  = 1.0_dp/SQRT((r-da)**2+add) - 2.0_dp/SQRT(r**2+da**2+add) + 1.0_dp/SQRT((r+da)**2+add)
-       charg = qzzq*0.25_dp
+       charg = qqzz*0.25_dp*fact
        RETURN
     END IF
     ! Z - ZZ
@@ -545,16 +553,7 @@ CONTAINS
             +1.0_dp/SQRT((r-da-db)**2+add)    - 2.0_dp/SQRT((r-da)**2+db**2+add) &
             +1.0_dp/SQRT((r+db-da)**2+add)    - 1.0_dp/SQRT((r-db+da)**2+add)    &
             +2.0_dp/SQRT((r+da)**2+db**2+add) - 1.0_dp/SQRT((r+da+db)**2+add)
-       charg = dzqzz*0.125_dp
-       RETURN
-    END IF
-    ! ZZ - Z
-    IF (l1 == 2 .AND. l2 == 1 .AND. m == 0) THEN
-       qzzdz =&
-            -1.0_dp/SQRT((r-da-db)**2+add)    + 2.0_dp/SQRT((r-db)**2+da**2+add) &
-            -1.0_dp/SQRT((r+da-db)**2+add)    + 1.0_dp/SQRT((r-da+db)**2+add)    &
-            -2.0_dp/SQRT((r+db)**2+da**2+add) + 1.0_dp/SQRT((r+da+db)**2+add)
-       charg = qzzdz*0.125_dp
+       charg = dzqzz*0.125_dp*fact
        RETURN
     END IF
     ! ZZ - ZZ
@@ -568,7 +567,7 @@ CONTAINS
        xyxy = &
             +4.0_dp/SQRT(r**2+(da-db)**2+add) + 4.0_dp/SQRT(r**2+(da+db)**2+add) &
             -8.0_dp/SQRT(r**2+da**2+db**2+add)
-       charg = (zzzz*0.0625_dp - xyxy*0.015625_dp)
+       charg = (zzzz*0.0625_dp - xyxy*0.015625_dp)*fact
        RETURN
     END IF
     ! X - ZX
@@ -577,16 +576,7 @@ CONTAINS
        dxqxz = &
             -2.0_dp/SQRT((r-ab)**2+(da-ab)**2+add) + 2.0_dp/SQRT((r+ab)**2+(da-ab)**2+add) &
             +2.0_dp/SQRT((r-ab)**2+(da+ab)**2+add) - 2.0_dp/SQRT((r+ab)**2+(da+ab)**2+add)
-       charg = dxqxz*0.125_dp
-       RETURN
-    END IF
-    ! ZX - X
-    IF (l1 == 2 .AND. l2 == 1 .AND. m == 1) THEN
-       aa = da/SQRT(2.0_dp)
-       qxzdx = &
-            -2.0_dp/SQRT((r+aa)**2+(aa-db)**2+add) + 2.0_dp/SQRT((r-aa)**2+(aa-db)**2+add) &
-            +2.0_dp/SQRT((r+aa)**2+(aa+db)**2+add) - 2.0_dp/SQRT((r-aa)**2+(aa+db)**2+add)
-       charg = qxzdx*0.125_dp
+       charg = dxqxz*0.125_dp*fact
        RETURN
     END IF
     ! ZX - ZX
@@ -598,15 +588,17 @@ CONTAINS
             -2.0_dp/SQRT((r-aa-ab)**2+(aa-ab)**2+add) + 2.0_dp/SQRT((r-aa+ab)**2+(aa-ab)**2+add) &
             -2.0_dp/SQRT((r+aa-ab)**2+(aa+ab)**2+add) + 2.0_dp/SQRT((r+aa+ab)**2+(aa+ab)**2+add) &
             +2.0_dp/SQRT((r-aa-ab)**2+(aa+ab)**2+add) - 2.0_dp/SQRT((r-aa+ab)**2+(aa+ab)**2+add)
-       charg = qxzqxz*0.0625_dp
+       charg = qxzqxz*0.0625_dp*fact
        RETURN
     END IF
     ! XX - XX
     IF (l1 == 2 .AND. l2 == 2 .AND. m == 2) THEN
        xyxy = 4.0_dp/SQRT(r**2+(da-db)**2+add) + 4.0_dp/SQRT(r**2+(da+db)**2+add) - 8.0_dp/SQRT(r**2+da**2+db**2+add)
-       charg = xyxy*0.0625_dp
+       charg = xyxy*0.0625_dp*fact
        RETURN
     END IF
+    ! We should NEVER reach this point
+    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
   END FUNCTION charg_int_ri
 
 ! *****************************************************************************
