@@ -258,6 +258,7 @@ MODULE input_constants
        do_extrpl_aspc=9
 
   INTEGER, PARAMETER, PUBLIC ::&
+       do_method_undef=0,&
        do_method_gapw=1,&
        do_method_gapw_xc=2,&
        do_method_gpw=3,&

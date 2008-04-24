@@ -10,12 +10,11 @@
 MODULE semi_empirical_int_utils
 
   USE f77_blas
+  USE input_constants,                 ONLY: do_method_pchg
   USE kinds,                           ONLY: dp
-  USE semi_empirical_int_arrays,       ONLY: clm,&
-                                             ijkl_ind,&
-                                             indexa,&
-                                             indexb,&
-                                             int2c_type
+  USE semi_empirical_int_arrays,       ONLY: &
+       CLMp, CLMxx, CLMxy, CLMyy, CLMz, CLMzp, CLMzz, clm_d, clm_sp, &
+       ijkl_ind, indexa, indexb, int2c_type
   USE semi_empirical_types,            ONLY: rotmat_type,&
                                              semi_empirical_type,&
                                              taper_type
@@ -29,7 +28,8 @@ MODULE semi_empirical_int_utils
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module=.FALSE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_int_utils'
 
-  PUBLIC :: taper_eval, dtaper_eval, ijkl, rotmat, rot_2el_2c_first, store_2el_2c_diag
+  PUBLIC :: taper_eval, dtaper_eval, ijkl_d, ijkl_sp, rotmat, rot_2el_2c_first,&
+            store_2el_2c_diag
   
 CONTAINS
 
@@ -79,20 +79,320 @@ CONTAINS
   END FUNCTION dtaper_eval
 
 ! *****************************************************************************
-!> \brief General driver for computing semi-empirical integrals <ij|kl>
+!> \brief General driver for computing semi-empirical integrals <ij|kl> with
+!>        sp basis set. This code uses the old definitions of quadrupoles and
+!>        therefore cannot be used for integrals involving d-orbitals (which
+!>        require a definition of quadrupoles based on the rotational invariant
+!>        property)
 !>
 !> \author Teodoro Laino [tlaino] - University of Zurich
-!> \date 03.2008 [tlaino]
+!> \date 04.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION ijkl (sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, longrange, error) RESULT(res)
+  FUNCTION ijkl_sp(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, longrange, itype, error) RESULT(res)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
     REAL(KIND=dp), INTENT(IN)                :: r
     LOGICAL, INTENT(IN)                      :: longrange
+    INTEGER, INTENT(IN)                      :: itype
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: res
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'ijkl', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_sp', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: l1, l1max, l1min, l2, l2max, &
+                                                l2min, lij, lkl, lmin, m, mm
+    REAL(KIND=dp)                            :: add, ccc, chrg, dij, dkl, &
+                                                fact_ij, fact_kl, pij, pkl, &
+                                                s1, sum
+
+    l1min = ABS (li-lj)
+    l1max = li + lj
+    lij   = indexb(li+1, lj+1)
+    l2min = ABS (lk-ll)
+    l2max = lk + ll
+    lkl   = indexb(lk+1, ll+1)
+
+    l1max = MIN (l1max, 2)
+    l1min = MIN (l1min, 2)
+    l2max = MIN (l2max, 2)
+    l2min = MIN (l2min, 2)
+    sum = 0.0_dp
+    dij = 0.0_dp
+    dkl = 0.0_dp
+    fact_ij = 1.0_dp
+    fact_kl = 1.0_dp
+    IF (lij==3) fact_ij = SQRT(2.0_dp)
+    IF (lkl==3) fact_kl = SQRT(2.0_dp)
+    DO l1 = l1min, l1max
+       IF (l1 == 0) THEN
+          IF (lij == 1) THEN
+             pij = sepi%ko(1)
+             IF (ic == 1 .OR. ic == -1) THEN
+                pij = sepi%ko(9)
+             END IF
+          ELSE IF (lij == 3) THEN
+             pij = sepi%ko(7)
+          ELSE IF (lij == 6) THEN
+             pij = sepi%ko(8)
+          END IF
+       ELSE
+          dij = sepi%cs(lij)*fact_ij
+          pij = sepi%ko(lij)
+       END IF
+       !
+       DO l2 = l2min, l2max
+          IF (l2 == 0) THEN
+             IF (lkl == 1) THEN
+                pkl = sepj%ko(1)
+                IF (ic == 2 .OR. ic == -1) THEN
+                   pkl = sepj%ko(9)
+                END IF
+             ELSE IF (lkl == 3) THEN
+                pkl = sepj%ko(7)
+             ELSE IF (lkl == 6) THEN
+                pkl = sepj%ko(8)
+             END IF
+          ELSE
+             dkl = sepj%cs(lkl)*fact_kl
+             pkl = sepj%ko(lkl)
+          END IF
+          IF (longrange.OR.(itype==do_method_pchg)) THEN
+             add = 0.0_dp
+          ELSE
+             add = (pij+pkl) ** 2
+          END IF
+          lmin = MAX(l1, l2)
+          s1 = 0.0_dp
+          DO m = -lmin, lmin
+             ccc = clm_sp(ij, l1, m) * clm_sp(kl, l2, m)
+             IF (ABS(ccc) > EPSILON(0.0_dp)) THEN
+                mm   = ABS (m)
+                chrg = charg_int_nri(r, l1, l2, clm_sp(ij, l1, m), clm_sp(kl, l2, m), dij, dkl, add, error)
+                s1   = s1 + chrg
+             END IF
+          END DO
+          sum = sum + s1
+       END DO
+    END DO
+    res = sum
+  END FUNCTION ijkl_sp
+
+! *****************************************************************************
+!> \brief Interaction function between two point-charge configurations NDDO sp-code
+!>        Non-Rotational Invariant definition of quadrupoles
+!>        r    -  Distance r12
+!>        l1,m -  Quantum numbers for multipole of configuration 1
+!>        l2,m -  Quantum numbers for multipole of configuration 2
+!>        da   -  charge separation of configuration 1
+!>        db   -  charge separation of configuration 2
+!>        add  -  additive term
+!>
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date 04.2008 [tlaino]
+! *****************************************************************************
+  FUNCTION charg_int_nri(r, l1_i, l2_i, m1_i, m2_i, da_i, db_i, add, error) RESULT(charg)
+    REAL(KIND=dp), INTENT(in)                :: r
+    INTEGER, INTENT(in)                      :: l1_i, l2_i, m1_i, m2_i
+    REAL(KIND=dp), INTENT(in)                :: da_i, db_i, add
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp)                            :: charg
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'charg_int_nri', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: l1, l2, m1, m2
+    REAL(KIND=dp)                            :: da, db, dxdx, dxqxz, dzdz, &
+                                                dzqxx, dzqzz, fact, qqxx, &
+                                                qqzz, qxxqxx, qxxqyy, qxzqxz, &
+                                                xyxy, zzzz
+
+    IF      ( l1_i  < l2_i) THEN
+       l1 = l1_i
+       l2 = l2_i
+       m1 = m1_i
+       m2 = m2_i
+       da = da_i
+       db = db_i
+       fact  = 1.0_dp
+    ELSE IF ( l1_i  > l2_i ) THEN
+       l1 = l2_i
+       l2 = l1_i
+       m1 = m2_i
+       m2 = m1_i
+       da = db_i
+       db = da_i
+       fact  = (-1.0_dp)**(l1+l2)
+    ELSE IF ( l1_i == l2_i ) THEN
+       l1 = l1_i
+       l2 = l2_i
+       IF   ( m1_i <= m2_i ) THEN
+          m1 = m1_i
+          m2 = m2_i
+          da = da_i
+          db = db_i
+       ELSE
+          m1 = m2_i
+          m2 = m1_i
+          da = db_i
+          db = da_i
+       END IF
+       fact = 1.0_dp
+    END IF
+    charg = 0.0_dp
+    ! Q - Q.
+    IF (l1 == 0 .AND. l2 == 0) THEN
+       charg =  fact/SQRT(r**2+add)
+       RETURN
+    END IF
+    ! Q - Z.
+    IF (l1 == 0 .AND. l2 == 1 .AND. m2 == CLMz) THEN
+       charg =  1.0_dp/SQRT((r+db)**2+add) - 1.0_dp/SQRT((r-db)**2+add)
+       charg = charg*0.5_dp*fact
+       RETURN
+    END IF
+    ! Z - Z.
+    IF (l1 == 1 .AND. l2 == 1 .AND. m1 == CLMz .AND. m2 == CLMz ) THEN
+       dzdz  = &
+            +1.0_dp/SQRT((r+da-db)**2+add) + 1.0_dp/SQRT((r-da+db)**2+add) &
+            -1.0_dp/SQRT((r-da-db)**2+add) - 1.0_dp/SQRT((r+da+db)**2+add)
+       charg = dzdz*0.25_dp*fact
+       RETURN
+    END IF
+    ! X - X
+    IF (l1 == 1 .AND. l2 == 1 .AND. m1 == CLMp .AND. m2 == CLMp ) THEN
+       dxdx  = 2.0_dp/SQRT(r**2+(da-db)**2+add) - 2.0_dp/SQRT(r**2+(da+db)**2+add)
+       charg = dxdx*0.25_dp*fact
+       RETURN
+    END IF
+    ! Q - ZZ
+    IF (l1 == 0 .AND. l2 == 2 .AND. m2 == CLMzz) THEN
+       qqzz  = 1.0_dp/SQRT((r-db)**2+add) - 2.0_dp/SQRT(r**2+add) + 1.0_dp/SQRT((r+db)**2+add)
+       charg = qqzz*0.25_dp*fact
+       RETURN
+    END IF
+    ! Q - XX
+    IF (l1 == 0 .AND. l2 == 2 .AND. (m2 == CLMyy .OR. m2 == CLMxx)) THEN
+       qqxx  = - 1.0_dp/SQRT(r**2+add) + 1.0_dp/SQRT(r**2+add+db**2)
+       charg = qqxx*0.5_dp*fact
+       RETURN
+    END IF
+    ! Z - ZZ
+    IF (l1 == 1 .AND. l2 == 2 .AND. m1 == CLMz .AND. m2 == CLMzz ) THEN
+       dzqzz = &
+            +1.0_dp/SQRT((r-da-db)**2+add)    - 2.0_dp/SQRT((r-da)**2+add) &
+            +1.0_dp/SQRT((r-da+db)**2+add)    - 1.0_dp/SQRT((r+da-db)**2+add) &
+            +2.0_dp/SQRT((r+da)**2+add)       - 1.0_dp/SQRT((r+da+db)**2+add)
+       charg = dzqzz*0.125_dp*fact
+       RETURN
+    END IF
+    ! Z - XX
+    IF (l1 == 1 .AND. l2 == 2 .AND. m1 == CLMz .AND. ( m2 == CLMyy .OR. m2 == CLMxx )) THEN
+       dzqxx = &
+            +1.0_dp/SQRT((r+da)**2+add)    - 1.0_dp/SQRT((r+da)**2+add+db**2) &
+            -1.0_dp/SQRT((r-da)**2+add)    + 1.0_dp/SQRT((r-da)**2+add+db**2)
+       charg = dzqxx*0.25_dp*fact
+       RETURN
+    END IF
+    ! ZZ - ZZ
+    IF (l1 == 2 .AND. l2 == 2 .AND. m1 == CLMzz .AND. m2 == CLMzz ) THEN
+       zzzz = &
+            +1.0_dp/SQRT((r-da-db)**2+add)    + 1.0_dp/SQRT((r+da+db)**2+add) &
+            +1.0_dp/SQRT((r-da+db)**2+add)    + 1.0_dp/SQRT((r+da-db)**2+add)
+       xyxy = &
+            +1.0_dp/SQRT((r-da)**2+add)       + 1.0_dp/SQRT((r+da)**2+add) &
+            +1.0_dp/SQRT((r-db)**2+add)       + 1.0_dp/SQRT((r+db)**2+add) &
+            -2.0_dp/SQRT(r**2+add)
+       charg = (zzzz*0.0625_dp - xyxy*0.125_dp)*fact
+       RETURN
+    END IF
+    ! ZZ - XX
+    IF (l1 == 2 .AND. l2 == 2 .AND. m1 == CLMzz .AND. ( m2 == CLMxx .OR. m2 == CLMyy )) THEN
+       zzzz = &
+            -1.0_dp/SQRT((r+da)**2+add)    + 1.0_dp/SQRT((r+da)**2+db**2+add) &
+            -1.0_dp/SQRT((r-da)**2+add)    + 1.0_dp/SQRT((r-da)**2+db**2+add)
+       xyxy = &
+            +1.0_dp/SQRT(r**2+db**2+add)     - 1.0_dp/SQRT(r**2+add)
+       charg = (zzzz*0.125_dp - xyxy*0.25_dp)*fact
+       RETURN
+    END IF
+    ! X - ZX
+    IF (l1 == 1 .AND. l2 == 2 .AND. m1 == CLMp .AND. m2 == CLMzp ) THEN
+       db = db/2.0_dp
+       dxqxz = &
+            -1.0_dp/SQRT((r-db)**2+(da-db)**2+add) + 1.0_dp/SQRT((r+db)**2+(da-db)**2+add) &
+            +1.0_dp/SQRT((r-db)**2+(da+db)**2+add) - 1.0_dp/SQRT((r+db)**2+(da+db)**2+add)
+       charg = dxqxz*0.25_dp*fact
+       RETURN
+    END IF
+    ! ZX - ZX
+    IF (l1 == 2 .AND. l2 == 2 .AND. m1 == CLMzp .AND. m2 == CLMzp ) THEN
+       da = da / 2.0_dp
+       db = db / 2.0_dp
+       qxzqxz = &
+            +1.0_dp/SQRT((r+da-db)**2+(da-db)**2+add) - 1.0_dp/SQRT((r+da+db)**2+(da-db)**2+add) &
+            -1.0_dp/SQRT((r-da-db)**2+(da-db)**2+add) + 1.0_dp/SQRT((r-da+db)**2+(da-db)**2+add) &
+            -1.0_dp/SQRT((r+da-db)**2+(da+db)**2+add) + 1.0_dp/SQRT((r+da+db)**2+(da+db)**2+add) &
+            +1.0_dp/SQRT((r-da-db)**2+(da+db)**2+add) - 1.0_dp/SQRT((r-da+db)**2+(da+db)**2+add)
+       charg = qxzqxz*0.125_dp*fact
+       RETURN
+    END IF
+    ! XX - XX
+    IF (l1 == 2 .AND. l2 == 2 .AND. (((m1 == CLMyy) .AND. (m2 == CLMyy)).OR.((m1 == CLMxx) .AND. (m2 == CLMxx)))) THEN
+       qxxqxx = &
+            + 2.0_dp/SQRT(r**2+add)                   + 1.0_dp/SQRT(r**2+(da-db)**2+add) &
+            + 1.0_dp/SQRT(r**2+(da+db)**2+add)        - 2.0_dp/SQRT(r**2+da**2+add)      &
+            - 2.0_dp/SQRT(r**2+db**2+add)
+       charg = qxxqxx*0.125_dp*fact
+       RETURN
+    END IF
+    ! XX - YY
+    IF (l1 == 2 .AND. l2 == 2 .AND. m1 == CLMyy .AND. m2 == CLMxx) THEN
+       qxxqyy = &
+            + 1.0_dp/SQRT(r**2+add)                   - 1.0_dp/SQRT(r**2+da**2+add) &
+            - 1.0_dp/SQRT(r**2+db**2+add)             + 1.0_dp/SQRT(r**2+da**2+db**2+add) 
+       charg = qxxqyy*0.25_dp*fact
+       RETURN
+    END IF
+    ! XY - XY
+    IF (l1 == 2 .AND. l2 == 2 .AND. m1 == CLMxy .AND. m2 == CLMxy) THEN
+       qxxqxx = &
+            + 2.0_dp/SQRT(r**2+add)                   + 1.0_dp/SQRT(r**2+(da-db)**2+add) &
+            + 1.0_dp/SQRT(r**2+(da+db)**2+add)        - 2.0_dp/SQRT(r**2+da**2+add)      &
+            - 2.0_dp/SQRT(r**2+db**2+add)
+       qxxqyy = &
+            + 1.0_dp/SQRT(r**2+add)                   - 1.0_dp/SQRT(r**2+da**2+add) &
+            - 1.0_dp/SQRT(r**2+db**2+add)             + 1.0_dp/SQRT(r**2+da**2+db**2+add)
+       charg = 0.5_dp * (qxxqxx*0.125_dp - qxxqyy*0.25_dp) * fact
+       RETURN
+    END IF
+  END FUNCTION charg_int_nri
+
+! *****************************************************************************
+!> \brief General driver for computing semi-empirical integrals <ij|kl> involving
+!>        d-orbitals. The choice of the linear quadrupole was REALLY unhappy 
+!>        in the first development of the NDDO codes. That choice makes
+!>        impossible the merging of the integral code with or without d-orbitals
+!>        unless a reparametrization of all NDDO codes for s and p orbitals will
+!>        be performed.. more over the choice of the linear quadrupole does not make 
+!>        calculations rotational invariants (of course the rotational invariant 
+!>        can be forced). The definitions of quadrupoles for d-orbitals is the 
+!>        correct one in order to have the rotational invariant property by 
+!>        construction..
+!>
+!> \author Teodoro Laino [tlaino] - University of Zurich
+!> \date 03.2008 [tlaino]
+! *****************************************************************************
+  FUNCTION ijkl_d(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r, longrange, itype, error) RESULT(res)
+    TYPE(semi_empirical_type), POINTER       :: sepi, sepj
+    INTEGER, INTENT(IN)                      :: ij, kl, li, lj, lk, ll, ic
+    REAL(KIND=dp), INTENT(IN)                :: r
+    LOGICAL, INTENT(IN)                      :: longrange
+    INTEGER, INTENT(IN)                      :: itype
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp)                            :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ijkl_d', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: l1, l1max, l1min, l2, l2max, &
@@ -147,7 +447,7 @@ CONTAINS
              dkl = sepj%cs(lkl)
              pkl = sepj%ko(lkl)
           END IF
-          IF (longrange) THEN
+          IF (longrange.OR.(itype==do_method_pchg)) THEN
              add = 0.0_dp
           ELSE
              add = (pij+pkl) ** 2
@@ -155,10 +455,10 @@ CONTAINS
           lmin = MIN(l1, l2)
           s1 = 0.0_dp
           DO m = -lmin, lmin
-             ccc = clm(ij, l1, m) * clm(kl, l2, m)
+             ccc = clm_d(ij, l1, m) * clm_d(kl, l2, m)
              IF (ABS(ccc) > EPSILON(0.0_dp)) THEN
                 mm   = ABS (m)
-                chrg = charg_int(r, l1, l2, mm, dij, dkl, add, error)
+                chrg = charg_int_ri(r, l1, l2, mm, dij, dkl, add, error)
                 s1   = s1 + chrg * ccc
              END IF
           END DO
@@ -166,10 +466,11 @@ CONTAINS
        END DO
     END DO
     res = sum
-  END FUNCTION ijkl
-
+  END FUNCTION ijkl_d
+  
 ! *****************************************************************************
 !> \brief Interaction function between two point-charge configurations (MNDO/d)
+!>        Rotational invariant property built-in in the quadrupole definition
 !>        r    -  Distance r12
 !>        l1,m -  Quantum numbers for multipole of configuration 1
 !>        l2,m -  Quantum numbers for multipole of configuration 2
@@ -180,14 +481,14 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 03.2008 [tlaino]
 ! *****************************************************************************
-  FUNCTION charg_int(r, l1, l2, m, da, db, add, error) RESULT(charg)
+  FUNCTION charg_int_ri(r, l1, l2, m, da, db, add, error) RESULT(charg)
     REAL(KIND=dp), INTENT(in)                :: r
     INTEGER, INTENT(in)                      :: l1, l2, m
     REAL(KIND=dp), INTENT(in)                :: da, db, add
     TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: charg
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'charg_int', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'charg_int_ri', &
       routineP = moduleN//':'//routineN
 
     REAL(KIND=dp)                            :: aa, ab, dxdx, dxqxz, dzdz, &
@@ -306,7 +607,7 @@ CONTAINS
        charg = xyxy*0.0625_dp
        RETURN
     END IF
-  END FUNCTION charg_int
+  END FUNCTION charg_int_ri
 
 ! *****************************************************************************
 !> \brief Computes the general rotation matrices for the integrals
